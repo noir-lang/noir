@@ -91,28 +91,14 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 state_transitions:
-[ storage_slot: 0x900
-old_value: 0x901
+[ leaf_index: 0x900
+new_value: 0x901
+ leaf_index: 0x901
 new_value: 0x902
- storage_slot: 0x901
-old_value: 0x902
+ leaf_index: 0x902
 new_value: 0x903
- storage_slot: 0x902
-old_value: 0x903
+ leaf_index: 0x903
 new_value: 0x904
- storage_slot: 0x903
-old_value: 0x904
-new_value: 0x905
- ]
-state_reads:
-[ storage_slot: 0xa00
-current_value: 0xa01
- storage_slot: 0xa01
-current_value: 0xa02
- storage_slot: 0xa02
-current_value: 0xa03
- storage_slot: 0xa03
-current_value: 0xa04
  ]
 
 constants:
@@ -237,28 +223,14 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 state_transitions:
-[ storage_slot: 0xa00
-old_value: 0xa01
+[ leaf_index: 0xa00
+new_value: 0xa01
+ leaf_index: 0xa01
 new_value: 0xa02
- storage_slot: 0xa01
-old_value: 0xa02
+ leaf_index: 0xa02
 new_value: 0xa03
- storage_slot: 0xa02
-old_value: 0xa03
+ leaf_index: 0xa03
 new_value: 0xa04
- storage_slot: 0xa03
-old_value: 0xa04
-new_value: 0xa05
- ]
-state_reads:
-[ storage_slot: 0xb00
-current_value: 0xb01
- storage_slot: 0xb01
-current_value: 0xb02
- storage_slot: 0xb02
-current_value: 0xb03
- storage_slot: 0xb03
-current_value: 0xb04
  ]
 
 constants:

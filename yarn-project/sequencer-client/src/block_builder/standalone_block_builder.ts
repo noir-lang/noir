@@ -9,9 +9,10 @@ import {
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { AztecAddress, Fr, createDebugLogger } from '@aztec/foundation';
-import { ContractData, L2Block, PrivateTx } from '@aztec/types';
+import { ContractData, L2Block } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import { Proof } from '../prover/index.js';
+import { ProcessedTx } from '../sequencer/processed_tx.js';
 import { BlockBuilder } from './index.js';
 
 const mapContractData = (n: NewContractData) => {
@@ -30,7 +31,7 @@ export class StandaloneBlockBuilder implements BlockBuilder {
 
   constructor(private db: MerkleTreeOperations, private log = createDebugLogger('aztec:block_builder')) {}
 
-  async buildL2Block(blockNumber: number, txs: PrivateTx[]): Promise<[L2Block, Proof]> {
+  async buildL2Block(blockNumber: number, txs: ProcessedTx[]): Promise<[L2Block, Proof]> {
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     const startContractTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
@@ -82,7 +83,7 @@ export class StandaloneBlockBuilder implements BlockBuilder {
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
-  private async updateTrees(tx: PrivateTx) {
+  private async updateTrees(tx: ProcessedTx) {
     const wasm = await CircuitsWasm.get();
     const dataTreeLeaves = tx.data.end.newCommitments.map((x: Fr) => x.toBuffer());
     const nullifierTreeLeaves = tx.data.end.newNullifiers.map((x: Fr) => x.toBuffer());

@@ -1,13 +1,13 @@
 import { RunningPromise, createDebugLogger } from '@aztec/foundation';
 import { P2P } from '@aztec/p2p';
-import { PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx, isPublicTx } from '@aztec/types';
+import { PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
 import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';
-import { makeEmptyPrivateTx } from '../index.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
 import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
+import { ProcessedTx, makeEmptyProcessedTx } from './processed_tx.js';
 import { PublicProcessor } from './public_processor.js';
 
 /**
@@ -101,20 +101,19 @@ export class Sequencer {
         return;
       }
 
-      this.log(`Assembling block with txs ${(await Tx.getHashes(validTxs)).join(', ')}`);
+      this.log(`Processing txs ${(await Tx.getHashes(validTxs)).join(', ')}`);
       this.state = SequencerState.CREATING_BLOCK;
 
       // Process public txs and drop the ones that fail processing
-      const publicTxs = validTxs.filter(isPublicTx);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [processedTxs, failedTxs] = await this.publicProcessor.process(publicTxs);
+      const [processedTxs, failedTxs] = await this.publicProcessor.process(validTxs);
       if (failedTxs.length > 0) {
+        this.log(`Dropping failed txs ${(await Tx.getHashes(failedTxs)).join(', ')}`);
         await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxs));
       }
 
       // Build the new block by running the rollup circuits
-      // TODO: Get the public tx combined outputs in here!
-      const block = await this.buildBlock(validTxs);
+      this.log(`Assembling block with txs ${processedTxs.map(tx => tx.hash).join(', ')}`);
+      const block = await this.buildBlock(processedTxs);
       this.log(`Assembled block ${block.number}`);
 
       // Publishes new block to the network and awaits the tx to be mined
@@ -189,11 +188,10 @@ export class Sequencer {
     );
   }
 
-  protected async buildBlock(txs: Tx[]) {
+  protected async buildBlock(txs: ProcessedTx[]) {
     // Pad the txs array with empty txs to be a power of two, at least 4
     const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 4);
-    const allTxs = [...txs, ...times(txsTargetSize - txs.length, makeEmptyPrivateTx)];
-
+    const allTxs = [...txs, ...(await Promise.all(times(txsTargetSize - txs.length, makeEmptyProcessedTx)))];
     const [block] = await this.blockBuilder.buildL2Block(this.lastBlockNumber + 1, allTxs);
     return block;
   }

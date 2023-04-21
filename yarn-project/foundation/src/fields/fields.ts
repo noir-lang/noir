@@ -58,7 +58,7 @@ export class Fr {
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new this(toBigIntBE(reader.readBytes(this.SIZE_IN_BYTES)));
+    return new Fr(toBigIntBE(reader.readBytes(Fr.SIZE_IN_BYTES)));
   }
 
   /**

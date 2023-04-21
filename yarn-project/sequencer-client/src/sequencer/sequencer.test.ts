@@ -1,12 +1,14 @@
 import { makeEmptyProof } from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
-import { L2Block, UnverifiedData } from '@aztec/types';
+import { L2Block, PrivateTx, Tx, UnverifiedData } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations, WorldStateRunningState, WorldStateSynchroniser } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
+import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';
 import { L1Publisher, makeEmptyPrivateTx, makePrivateTx } from '../index.js';
-import { Sequencer } from './sequencer.js';
+import { makeProcessedTx } from './processed_tx.js';
 import { PublicProcessor } from './public_processor.js';
+import { Sequencer } from './sequencer.js';
 
 describe('sequencer', () => {
   let publisher: MockProxy<L1Publisher>;
@@ -36,8 +38,9 @@ describe('sequencer', () => {
       status: () => Promise.resolve({ state: WorldStateRunningState.IDLE, syncedToL2Block: lastBlockNumber }),
     });
 
-    publicProcessor = mock<PublicProcessor>();
-    publicProcessor.process.mockResolvedValue([[], []]);
+    publicProcessor = mock<PublicProcessor>({
+      process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx as PrivateTx))), []],
+    });
 
     sequencer = new TestSubject(publisher, p2p, worldState, blockBuilder, publicProcessor);
   });
@@ -55,10 +58,13 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxs = [tx, makeEmptyPrivateTx(), makeEmptyPrivateTx(), makeEmptyPrivateTx()];
+    const expectedTxHashes = await Tx.getHashes([tx, ...times(3, makeEmptyPrivateTx)]);
     const expectedUnverifiedData = tx.unverifiedData;
 
-    expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(lastBlockNumber + 1, expectedTxs);
+    expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
+      lastBlockNumber + 1,
+      expectedTxHashes.map(hash => expect.objectContaining({ hash })),
+    );
     expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(publisher.processUnverifiedData).toHaveBeenCalledWith(lastBlockNumber + 1, expectedUnverifiedData);
   });
@@ -85,13 +91,16 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxs = [txs[0], txs[2], makeEmptyPrivateTx(), makeEmptyPrivateTx()];
+    const expectedTxHashes = await Tx.getHashes([txs[0], txs[2], makeEmptyPrivateTx(), makeEmptyPrivateTx()]);
     const expectedUnverifiedData = new UnverifiedData([
       ...txs[0].unverifiedData.dataChunks,
       ...txs[2].unverifiedData.dataChunks,
     ]);
 
-    expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(lastBlockNumber + 1, expectedTxs);
+    expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
+      lastBlockNumber + 1,
+      expectedTxHashes.map(hash => expect.objectContaining({ hash })),
+    );
     expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(publisher.processUnverifiedData).toHaveBeenCalledWith(lastBlockNumber + 1, expectedUnverifiedData);
     expect(p2p.deleteTxs).toHaveBeenCalledWith([await doubleSpendTx.getTxHash()]);

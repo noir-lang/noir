@@ -108,6 +108,54 @@ export class OptionallyRevealedData {
   }
 }
 
+/**
+ * Read operations from the public state tree.
+ */
+export class PublicDataRead {
+  constructor(public readonly leafIndex: Fr, public readonly value: Fr) {}
+
+  static from(args: { storageSlot: Fr; value: Fr }) {
+    return new PublicDataRead(args.storageSlot, args.value);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(this.leafIndex, this.value);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new PublicDataRead(reader.readFr(), reader.readFr());
+  }
+
+  static empty() {
+    return new PublicDataRead(Fr.ZERO, Fr.ZERO);
+  }
+}
+
+/**
+ * Write operations on the public state tree.
+ */
+export class PublicDataWrite {
+  constructor(public readonly leafIndex: Fr, public readonly newValue: Fr) {}
+
+  static from(args: { storageSlot: Fr; oldValue: Fr; newValue: Fr }) {
+    return new PublicDataWrite(args.storageSlot, args.newValue);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(this.leafIndex, this.newValue);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new PublicDataWrite(reader.readFr(), reader.readFr());
+  }
+
+  static empty() {
+    return new PublicDataWrite(Fr.ZERO, Fr.ZERO);
+  }
+}
+
 export class CombinedAccumulatedData {
   constructor(
     public aggregationObject: AggregationObject,
@@ -126,8 +174,7 @@ export class CombinedAccumulatedData {
 
     public optionallyRevealedData: OptionallyRevealedData[],
 
-    public stateTransitions: StateTransition[],
-    public stateReads: StateRead[],
+    public stateTransitions: PublicDataWrite[],
   ) {
     assertLength(this, 'newCommitments', KERNEL_NEW_COMMITMENTS_LENGTH);
     assertLength(this, 'newNullifiers', KERNEL_NEW_NULLIFIERS_LENGTH);
@@ -137,7 +184,6 @@ export class CombinedAccumulatedData {
     assertLength(this, 'newContracts', KERNEL_NEW_CONTRACTS_LENGTH);
     assertLength(this, 'optionallyRevealedData', KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH);
     assertLength(this, 'stateTransitions', STATE_TRANSITIONS_LENGTH);
-    assertLength(this, 'stateReads', STATE_READS_LENGTH);
   }
 
   toBuffer() {
@@ -153,7 +199,6 @@ export class CombinedAccumulatedData {
       this.newContracts,
       this.optionallyRevealedData,
       this.stateTransitions,
-      this.stateReads,
     );
   }
 
@@ -174,8 +219,7 @@ export class CombinedAccumulatedData {
       reader.readArray(KERNEL_L1_MSG_STACK_LENGTH, Fr),
       reader.readArray(KERNEL_NEW_CONTRACTS_LENGTH, NewContractData),
       reader.readArray(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, OptionallyRevealedData),
-      reader.readArray(STATE_TRANSITIONS_LENGTH, StateTransition),
-      reader.readArray(STATE_READS_LENGTH, StateRead),
+      reader.readArray(STATE_TRANSITIONS_LENGTH, PublicDataWrite),
     );
   }
 
@@ -191,8 +235,7 @@ export class CombinedAccumulatedData {
       times(KERNEL_L1_MSG_STACK_LENGTH, Fr.zero),
       times(KERNEL_NEW_CONTRACTS_LENGTH, NewContractData.empty),
       times(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, OptionallyRevealedData.empty),
-      times(STATE_TRANSITIONS_LENGTH, StateTransition.empty),
-      times(STATE_READS_LENGTH, StateRead.empty),
+      times(STATE_TRANSITIONS_LENGTH, PublicDataWrite.empty),
     );
   }
 }

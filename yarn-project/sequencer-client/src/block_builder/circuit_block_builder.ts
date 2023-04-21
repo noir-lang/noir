@@ -17,7 +17,6 @@ import {
   RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
-  STATE_TRANSITIONS_LENGTH,
   UInt8Vector,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -25,7 +24,7 @@ import {
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { Fr, createDebugLogger, toBigIntBE, toBufferBE } from '@aztec/foundation';
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
-import { ContractData, L2Block, PrivateTx, Tx, isPrivateTx } from '@aztec/types';
+import { ContractData, L2Block } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
@@ -34,6 +33,7 @@ import { VerificationKeys } from '../mocks/verification_keys.js';
 import { Proof, RollupProver } from '../prover/index.js';
 import { RollupSimulator } from '../simulator/index.js';
 
+import { ProcessedTx } from '../sequencer/processed_tx.js';
 import { BlockBuilder } from './index.js';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
@@ -82,9 +82,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     protected debug = createDebugLogger('aztec:sequencer'),
   ) {}
 
-  public async buildL2Block(blockNumber: number, allTxs: Tx[]): Promise<[L2Block, UInt8Vector]> {
-    const txs: PrivateTx[] = allTxs.filter(isPrivateTx);
-
+  public async buildL2Block(blockNumber: number, txs: ProcessedTx[]): Promise<[L2Block, UInt8Vector]> {
     const [
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -147,7 +145,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
-  protected async runCircuits(txs: PrivateTx[]): Promise<[RootRollupPublicInputs, Proof]> {
+  protected async runCircuits(txs: ProcessedTx[]): Promise<[RootRollupPublicInputs, Proof]> {
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
     if (txs.length < 4 || (txs.length & (txs.length - 1)) !== 0) {
@@ -178,8 +176,11 @@ export class CircuitBlockBuilder implements BlockBuilder {
     return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight);
   }
 
-  protected async baseRollupCircuit(tx1: PrivateTx, tx2: PrivateTx): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
-    this.debug(`Running base rollup for ${await tx1.getTxHash()} ${await tx2.getTxHash()}`);
+  protected async baseRollupCircuit(
+    tx1: ProcessedTx,
+    tx2: ProcessedTx,
+  ): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+    this.debug(`Running base rollup for ${tx1.hash} ${tx2.hash}`);
     const rollupInput = await this.buildBaseRollupInput(tx1, tx2);
     const rollupOutput = await this.simulator.baseRollupCircuit(rollupInput);
     await this.validateTrees(rollupOutput);
@@ -355,7 +356,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected getKernelDataFor(tx: PrivateTx) {
+  protected getKernelDataFor(tx: ProcessedTx) {
     return new PreviousKernelData(
       tx.data,
       tx.proof,
@@ -391,7 +392,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected getContractMembershipWitnessFor(tx: PrivateTx) {
+  protected getContractMembershipWitnessFor(tx: ProcessedTx) {
     return this.getMembershipWitnessFor(
       tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.contractTreeRoot,
       MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
@@ -399,7 +400,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected getDataMembershipWitnessFor(tx: PrivateTx) {
+  protected getDataMembershipWitnessFor(tx: ProcessedTx) {
     return this.getMembershipWitnessFor(
       tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.privateDataTreeRoot,
       MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
@@ -686,20 +687,18 @@ export class CircuitBlockBuilder implements BlockBuilder {
   }
 
   // Builds the base rollup inputs, updating the contract, nullifier, and data trees in the process
-  protected async buildBaseRollupInput(tx1: PrivateTx, tx2: PrivateTx) {
+  protected async buildBaseRollupInput(tx1: ProcessedTx, tx2: ProcessedTx) {
+    const wasm = await CircuitsWasm.get();
+
     // Get trees info before any changes hit
     const constants = await this.getConstantBaseRollupData();
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     const startContractTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
+    const startPublicDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
 
-    // TODO: Uncomment once the public data tree gets merged
-    // const startPublicDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
-    const startPublicDataTreeSnapshot = AppendOnlyTreeSnapshot.empty();
-
-    // Update the contract and data trees with the new items being inserted to get the new roots
+    // Update the contract and private data trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-    const wasm = await CircuitsWasm.get();
     const newContracts = flatMap([tx1, tx2], tx => tx.data.end.newContracts.map(cd => computeContractLeaf(wasm, cd)));
     const newCommitments = flatMap([tx1, tx2], tx => tx.data.end.newCommitments.map(x => x.toBuffer()));
     await this.db.appendLeaves(
@@ -709,6 +708,17 @@ export class CircuitBlockBuilder implements BlockBuilder {
 
     await this.db.appendLeaves(MerkleTreeId.PRIVATE_DATA_TREE, newCommitments);
 
+    // Update the public data tree and get membership witnesses
+    const stateTransitions = [...tx1.data.end.stateTransitions, ...tx2.data.end.stateTransitions];
+    const newStateTransitionsSiblingPaths: MembershipWitness<32>[] = [];
+    for (const stateTransition of stateTransitions) {
+      const index = stateTransition.leafIndex.value;
+      const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, index);
+      await this.db.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, stateTransition.newValue.toBuffer(), index);
+      const witness = new MembershipWitness(PUBLIC_DATA_TREE_HEIGHT, Number(index), path.data.map(Fr.fromBuffer));
+      newStateTransitionsSiblingPaths.push(witness);
+    }
+
     // Update the nullifier tree, capturing the low nullifier info for each individual operation
     const newNullifiers = [...tx1.data.end.newNullifiers, ...tx2.data.end.newNullifiers];
 
@@ -716,6 +726,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     if (nullifierWitnesses === undefined) {
       throw new Error(`Could not craft nullifier batch insertion proofs`);
     }
+
     // Extract witness objects from returned data
     const lowNullifierMembershipWitnesses = nullifierWitnesses.map(w =>
       MembershipWitness.fromBufferArray(Number(w.index), w.siblingPath.data),
@@ -735,11 +746,6 @@ export class CircuitBlockBuilder implements BlockBuilder {
       BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
     );
 
-    // TODO: Implement based on public tx data
-    const newStateTransitionsSiblingPath = times(2 * STATE_TRANSITIONS_LENGTH, () =>
-      MembershipWitness.empty(PUBLIC_DATA_TREE_HEIGHT, 0),
-    );
-
     return BaseRollupInputs.from({
       constants,
       startNullifierTreeSnapshot,
@@ -749,7 +755,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
       newCommitmentsSubtreeSiblingPath,
       newContractsSubtreeSiblingPath,
       newNullifiersSubtreeSiblingPath,
-      newStateTransitionsSiblingPath,
+      newStateTransitionsSiblingPaths,
       lowNullifierLeafPreimages: nullifierWitnesses.map((w: LowNullifierWitnessData) => w.preimage),
       lowNullifierMembershipWitness: lowNullifierMembershipWitnesses,
       kernelData: [this.getKernelDataFor(tx1), this.getKernelDataFor(tx2)],

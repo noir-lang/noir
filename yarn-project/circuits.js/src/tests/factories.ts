@@ -22,6 +22,8 @@ import {
   RootRollupPublicInputs,
   StateRead,
   StateTransition,
+  PublicDataWrite,
+  PublicDataRead,
 } from '../index.js';
 import { AggregationObject } from '../structs/aggregation_object.js';
 import { PrivateCallStackItem } from '../structs/call_stack_item.js';
@@ -86,6 +88,14 @@ export function makeSelector(seed: number) {
   return buffer;
 }
 
+export function makePublicDataWrite(seed = 1) {
+  return new PublicDataWrite(fr(seed), fr(seed + 1));
+}
+
+export function makePublicDataRead(seed = 1) {
+  return new PublicDataRead(fr(seed), fr(seed + 1));
+}
+
 export function makeStateTransition(seed = 1) {
   return new StateTransition(fr(seed), fr(seed + 1), fr(seed + 2));
 }
@@ -106,8 +116,7 @@ export function makeAccumulatedData(seed = 1): CombinedAccumulatedData {
     range(KERNEL_L1_MSG_STACK_LENGTH, seed + 0x500).map(fr),
     range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
     range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(makeOptionallyRevealedData),
-    range(STATE_TRANSITIONS_LENGTH, seed + 0x800).map(makeStateTransition),
-    range(STATE_READS_LENGTH, seed + 0x900).map(makeStateRead),
+    range(STATE_TRANSITIONS_LENGTH, seed + 0x800).map(makePublicDataWrite),
   );
 }
 
@@ -399,7 +408,7 @@ export function makeBaseRollupInputs(seed = 0) {
     newCommitmentsSubtreeSiblingPath,
     newNullifiersSubtreeSiblingPath,
     newContractsSubtreeSiblingPath,
-    newStateTransitionsSiblingPath,
+    newStateTransitionsSiblingPaths: newStateTransitionsSiblingPath,
     historicPrivateDataTreeRootMembershipWitnesses,
     historicContractsTreeRootMembershipWitnesses,
     constants,

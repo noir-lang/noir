@@ -100,7 +100,7 @@ export class BaseRollupInputs {
     public newCommitmentsSubtreeSiblingPath: Fr[],
     public newNullifiersSubtreeSiblingPath: Fr[],
     public newContractsSubtreeSiblingPath: Fr[],
-    public newStateTransitionsSiblingPath: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[],
+    public newStateTransitionsSiblingPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[],
 
     public historicPrivateDataTreeRootMembershipWitnesses: [
       MembershipWitness<typeof PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>,
@@ -130,7 +130,7 @@ export class BaseRollupInputs {
       'newContractsSubtreeSiblingPath',
       CONTRACT_TREE_HEIGHT - BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
     );
-    assertLength(this, 'newStateTransitionsSiblingPath', 2 * STATE_TRANSITIONS_LENGTH);
+    assertLength(this, 'newStateTransitionsSiblingPaths', 2 * STATE_TRANSITIONS_LENGTH);
   }
 
   static from(fields: FieldsOf<BaseRollupInputs>): BaseRollupInputs {
@@ -149,7 +149,7 @@ export class BaseRollupInputs {
       fields.newCommitmentsSubtreeSiblingPath,
       fields.newNullifiersSubtreeSiblingPath,
       fields.newContractsSubtreeSiblingPath,
-      fields.newStateTransitionsSiblingPath,
+      fields.newStateTransitionsSiblingPaths,
       fields.historicPrivateDataTreeRootMembershipWitnesses,
       fields.historicContractsTreeRootMembershipWitnesses,
       fields.constants,

@@ -1,8 +1,7 @@
 #pragma once
 #include "optionally_revealed_data.hpp"
 #include "new_contract_data.hpp"
-#include "state_transition.hpp"
-#include "state_read.hpp"
+#include "public_data_write.hpp"
 #include "aztec3/constants.hpp"
 #include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 #include <barretenberg/common/map.hpp>
@@ -42,8 +41,7 @@ template <typename NCT> struct CombinedAccumulatedData {
 
     std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data{};
 
-    std::array<StateTransition<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions{};
-    std::array<StateRead<NCT>, STATE_READS_LENGTH> state_reads{};
+    std::array<PublicDataWrite<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions{};
 
     boolean operator==(CombinedAccumulatedData<NCT> const& other) const
     {
@@ -52,7 +50,7 @@ template <typename NCT> struct CombinedAccumulatedData {
                new_nullifiers == other.new_nullifiers && private_call_stack == other.private_call_stack &&
                public_call_stack == other.public_call_stack && l1_msg_stack == other.l1_msg_stack &&
                new_contracts == other.new_contracts && optionally_revealed_data == other.optionally_revealed_data &&
-               state_transitions == other.state_transitions && state_reads == other.state_reads;
+               state_transitions == other.state_transitions;
     };
 
     template <typename Composer>
@@ -87,7 +85,6 @@ template <typename NCT> struct CombinedAccumulatedData {
             map(new_contracts, to_circuit_type),
             map(optionally_revealed_data, to_circuit_type),
             map(state_transitions, to_circuit_type),
-            map(state_reads, to_circuit_type),
         };
 
         return acc_data;
@@ -121,7 +118,6 @@ template <typename NCT> struct CombinedAccumulatedData {
             map(new_contracts, to_native_type),
             map(optionally_revealed_data, to_native_type),
             map(state_transitions, to_native_type),
-            map(state_reads, to_native_type),
         };
 
         return acc_data;
@@ -146,7 +142,6 @@ template <typename NCT> struct CombinedAccumulatedData {
         set_array_public(new_contracts);
         set_array_public(optionally_revealed_data);
         set_array_public(state_transitions);
-        set_array_public(state_reads);
     }
 
     template <typename T, size_t SIZE> void set_array_public(std::array<T, SIZE>& arr)
@@ -173,15 +168,7 @@ template <typename NCT> struct CombinedAccumulatedData {
         }
     }
 
-    template <size_t SIZE> void set_array_public(std::array<StateTransition<NCT>, SIZE>& arr)
-    {
-        static_assert(!(std::is_same<NativeTypes, NCT>::value));
-        for (auto& e : arr) {
-            e.set_public();
-        }
-    }
-
-    template <size_t SIZE> void set_array_public(std::array<StateRead<NCT>, SIZE>& arr)
+    template <size_t SIZE> void set_array_public(std::array<PublicDataWrite<NCT>, SIZE>& arr)
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
         for (auto& e : arr) {
@@ -205,7 +192,6 @@ template <typename NCT> void read(uint8_t const*& it, CombinedAccumulatedData<NC
     read(it, accum_data.new_contracts);
     read(it, accum_data.optionally_revealed_data);
     read(it, accum_data.state_transitions);
-    read(it, accum_data.state_reads);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedAccumulatedData<NCT> const& accum_data)
@@ -223,7 +209,6 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedAccumulate
     write(buf, accum_data.new_contracts);
     write(buf, accum_data.optionally_revealed_data);
     write(buf, accum_data.state_transitions);
-    write(buf, accum_data.state_reads);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedAccumulatedData<NCT> const& accum_data)
@@ -247,9 +232,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedAccum
               << "optionally_revealed_data:\n"
               << accum_data.optionally_revealed_data << "\n"
               << "state_transitions:\n"
-              << accum_data.state_transitions << "\n"
-              << "state_reads:\n"
-              << accum_data.state_reads << "\n";
+              << accum_data.state_transitions << "\n";
 }
 
 } // namespace aztec3::circuits::abis

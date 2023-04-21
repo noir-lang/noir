@@ -36,3 +36,15 @@ export class KernelCircuitPublicInputs {
     return new KernelCircuitPublicInputs(CombinedAccumulatedData.empty(), CombinedConstantData.empty(), true);
   }
 }
+
+export class PublicKernelPublicInputs extends KernelCircuitPublicInputs {
+  constructor(end: CombinedAccumulatedData, constants: CombinedConstantData) {
+    super(end, constants, false);
+  }
+}
+
+export class PrivateKernelPublicInputs extends KernelCircuitPublicInputs {
+  constructor(end: CombinedAccumulatedData, constants: CombinedConstantData) {
+    super(end, constants, true);
+  }
+}

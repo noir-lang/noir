@@ -14,7 +14,7 @@ import {
 import { serializeToBuffer } from '../utils/serialize.js';
 
 /**
- * Read operations from the public state tree.
+ * Public state read operation on a specific contract.
  */
 export class StateRead {
   constructor(public readonly storageSlot: Fr, public readonly value: Fr) {}
@@ -38,7 +38,7 @@ export class StateRead {
 }
 
 /**
- * Write operations on the public state tree.
+ * Public state transition for a slot on a specific contract.
  */
 export class StateTransition {
   constructor(public readonly storageSlot: Fr, public readonly oldValue: Fr, public readonly newValue: Fr) {}

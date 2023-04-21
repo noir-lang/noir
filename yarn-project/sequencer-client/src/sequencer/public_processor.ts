@@ -15,16 +15,12 @@ import {
   WitnessedPublicCallData,
 } from '@aztec/circuits.js';
 import { AztecAddress, createDebugLogger } from '@aztec/foundation';
-import { PublicTx } from '@aztec/types';
+import { PublicTx, Tx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
 import times from 'lodash.times';
 import { Proof, PublicProver } from '../prover/index.js';
 import { PublicCircuitSimulator, PublicKernelCircuitSimulator } from '../simulator/index.js';
-
-type ProcessedPublicTx = {
-  tx: PublicTx;
-  publicKernelOutput: PublicKernelPublicInputs;
-};
+import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 
 export class PublicProcessor {
   constructor(
@@ -37,33 +33,51 @@ export class PublicProcessor {
   ) {}
 
   /**
-   * Run each tx through the public circuit and the public kernel circuit.
-   * @param txs - public txs to process
+   * Run each tx through the public circuit and the public kernel circuit if needed.
+   * @param txs - txs to process
    * @returns the list of processed txs with their circuit simulation outputs.
    */
-  public async process(txs: PublicTx[]): Promise<[ProcessedPublicTx[], PublicTx[]]> {
-    const result: ProcessedPublicTx[] = [];
-    const failed: PublicTx[] = [];
+  public async process(txs: Tx[]): Promise<[ProcessedTx[], Tx[]]> {
+    const result: ProcessedTx[] = [];
+    const failed: Tx[] = [];
 
     for (const tx of txs) {
-      this.log(`Processing public tx ${await tx.getTxHash()}`);
+      this.log(`Processing tx ${await tx.getTxHash()}`);
       try {
-        result.push({ tx, publicKernelOutput: await this.processTx(tx) });
+        result.push(await this.processTx(tx));
       } catch (err) {
-        this.log(`Error processing public tx ${await tx.getTxHash()}: ${err}`);
+        this.log(`Error processing tx ${await tx.getTxHash()}: ${err}`);
         failed.push(tx);
       }
     }
     return [result, failed];
   }
 
-  protected async processTx(tx: PublicTx): Promise<PublicKernelPublicInputs> {
+  protected async processTx(tx: Tx): Promise<ProcessedTx> {
+    if (tx.isPublic()) {
+      const [publicKernelOutput, publicKernelProof] = await this.processPublicTx(tx);
+      return makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
+    } else if (tx.isPrivate()) {
+      return makeProcessedTx(tx);
+    } else {
+      return makeEmptyProcessedTx();
+    }
+  }
+
+  // TODO: This is just picking up the txRequest and executing one iteration of it. It disregards
+  // any existing private execution information, and any subsequent calls.
+  protected async processPublicTx(tx: PublicTx): Promise<[PublicKernelPublicInputs, Proof]> {
     const publicCircuitOutput = await this.publicCircuit.publicCircuit(tx.txRequest.txRequest);
-    const proof = await this.publicProver.getPublicCircuitProof(publicCircuitOutput);
-    const publicCallData = await this.processPublicCallData(tx.txRequest.txRequest, publicCircuitOutput, proof);
+    const publicCircuitProof = await this.publicProver.getPublicCircuitProof(publicCircuitOutput);
+    const publicCallData = await this.processPublicCallData(
+      tx.txRequest.txRequest,
+      publicCircuitOutput,
+      publicCircuitProof,
+    );
     const publicKernelInput = new PublicKernelInputsNoKernelInput(tx.txRequest, publicCallData);
     const publicKernelOutput = await this.publicKernel.publicKernelCircuitNoInput(publicKernelInput);
-    return publicKernelOutput;
+    const publicKernelProof = await this.publicProver.getPublicKernelCircuitProof(publicKernelOutput);
+    return [publicKernelOutput, publicKernelProof];
   }
 
   protected async processPublicCallData(
@@ -135,7 +149,7 @@ export class PublicProcessor {
 }
 
 export class MockPublicProcessor extends PublicProcessor {
-  public process(_txs: PublicTx[]): Promise<[ProcessedPublicTx[], PublicTx[]]> {
-    return Promise.resolve([[], []]);
+  protected processPublicTx(_tx: PublicTx): Promise<[PublicKernelPublicInputs, Proof]> {
+    throw new Error('Public tx not supported by mock public processor');
   }
 }

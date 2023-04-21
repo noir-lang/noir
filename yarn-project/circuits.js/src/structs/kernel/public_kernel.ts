@@ -7,13 +7,10 @@ import {
   STATE_READS_LENGTH,
   STATE_TRANSITIONS_LENGTH,
 } from '../constants.js';
-import { PreviousKernelData as PreviousPrivateKernelData } from './previous_kernel_data.js';
-import { CombinedConstantData } from './combined_constant_data.js';
-import { CombinedAccumulatedData } from './combined_accumulated_data.js';
-import { UInt8Vector } from '../shared.js';
 import { MembershipWitness } from '../membership_witness.js';
+import { UInt8Vector } from '../shared.js';
 import { SignedTxRequest } from '../tx_request.js';
-import { VerificationKey } from '../verification_key.js';
+import { PreviousKernelData } from './previous_kernel_data.js';
 
 export type PublicKernelInputs =
   | PublicKernelInputsNonFirstIteration
@@ -24,7 +21,7 @@ export class PublicKernelInputsNonFirstIteration {
   public kind = 'NonFirstIteration' as const;
 
   constructor(
-    public readonly previousKernel: PreviousPublicKernelData,
+    public readonly previousKernel: PreviousKernelData,
     public readonly witnessedPublicCall: WitnessedPublicCallData,
   ) {}
 }
@@ -33,7 +30,7 @@ export class PublicKernelInputsPrivateKernelInput {
   public kind = 'PrivateKernelInput' as const;
 
   constructor(
-    public readonly previousKernel: PreviousPrivateKernelData,
+    public readonly previousKernel: PreviousKernelData,
     public readonly witnessedPublicCall: WitnessedPublicCallData,
   ) {}
 }
@@ -69,22 +66,5 @@ export class PublicCallData {
     public readonly bytecodeHash: Fr,
   ) {
     assertLength(this, 'publicCallStackPreimages', PUBLIC_CALL_STACK_LENGTH);
-  }
-}
-
-export class PreviousPublicKernelData {
-  constructor(
-    public readonly publicInputs: PublicKernelPublicInputs,
-    public readonly proof: UInt8Vector,
-    public readonly vk: VerificationKey,
-  ) {}
-}
-
-export class PublicKernelPublicInputs {
-  public readonly isPrivateKernel = false;
-  constructor(public readonly end: CombinedAccumulatedData, public readonly constants: CombinedConstantData) {}
-
-  static empty() {
-    return new PublicKernelPublicInputs(CombinedAccumulatedData.empty(), CombinedConstantData.empty());
   }
 }
