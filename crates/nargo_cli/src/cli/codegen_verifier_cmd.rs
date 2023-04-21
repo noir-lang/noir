@@ -21,7 +21,7 @@ pub(crate) struct CodegenVerifierCommand {
 pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
-    // TODO(blaine): Should this be a utility function?
+    // TODO(#1201): Should this be a utility function?
     let circuit_build_path = args
         .circuit_name
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));

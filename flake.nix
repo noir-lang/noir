@@ -147,7 +147,7 @@
         cargo-clippy = craneLib.cargoClippy (commonArgs // {
           inherit cargoArtifacts;
 
-          # TODO(blaine): It'd be nice to include these flags when running `cargo clippy` in a devShell.
+          # TODO(#1198): It'd be nice to include these flags when running `cargo clippy` in a devShell.
           cargoClippyExtraArgs = "--all-targets -- -D warnings";
 
           doCheck = true;
@@ -156,7 +156,7 @@
         cargo-test = craneLib.cargoTest (commonArgs // {
           inherit cargoArtifacts;
 
-          # TODO(blaine): It'd be nice to include this flag when running `cargo test` in a devShell.
+          # TODO(#1198): It'd be nice to include this flag when running `cargo test` in a devShell.
           cargoTestExtraArgs = "--workspace";
 
           doCheck = true;
@@ -165,7 +165,7 @@
 
       packages.default = noir;
 
-      # TODO: Look into installable apps with Nix flakes
+      # TODO(#1197): Look into installable apps with Nix flakes
       # apps.default = flake-utils.lib.mkApp { drv = nargo; };
 
       # Setup the environment to match the stdenv from `nix build` & `nix flake check`, and
