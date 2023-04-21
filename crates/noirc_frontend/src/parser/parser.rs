@@ -9,9 +9,9 @@
 //! and are used extensively. Note that these form a PEG grammar so if there are multiple
 //! options as in `a.or(b)` the first matching parse will be chosen.
 //!
-//! Noir's grammar is not formally specified but can be estimated by inspecting each function.
-//! For example, a function `f` parsing `choice((a, b, c))` can be roughly translated to
-//! BNF as `f: a | b | c`.
+//! Noir's grammar is formally specified in the `grammar.bnf` file. It was translated by
+//! inspecting each function. For example, a function `f` parsing `choice((a, b, c))`
+//! can be roughly translated to BNF as `f ::= a | b | c`.
 //!
 //! Occasionally there will also be recovery strategies present, either via `recover_via(Parser)`
 //! or `recover_with(Strategy)`. The difference between the two functions isn't quite so important,
@@ -59,13 +59,10 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnosti
     (module.unwrap(), errors)
 }
 
-/// program: module EOF
 fn program() -> impl NoirParser<ParsedModule> {
     module().then_ignore(force(just(Token::EOF)))
 }
 
-/// module: top_level_statement module
-///       | %empty
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
         empty()
@@ -87,13 +84,6 @@ fn module() -> impl NoirParser<ParsedModule> {
     })
 }
 
-/// top_level_statement: function_definition
-///                    | struct_definition
-///                    | implementation
-///                    | submodule
-///                    | module_declaration
-///                    | use_statement
-///                    | global_declaration
 fn top_level_statement(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatement> {
@@ -110,7 +100,6 @@ fn top_level_statement(
     .recover_via(top_level_statement_recovery())
 }
 
-/// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = ignore_then_commit(
         keyword(Keyword::Global).labelled("global"),
@@ -122,7 +111,6 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
-/// submodule: 'mod' ident '{' module '}'
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Mod)
         .ignore_then(ident())
@@ -134,7 +122,6 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
         })
 }
 
-/// contract: 'contract' ident '{' module '}'
 fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Contract)
         .ignore_then(ident())
@@ -146,8 +133,6 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         })
 }
 
-/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
-///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
@@ -183,8 +168,6 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
-/// function_modifiers: 'unconstrained' 'open' | 'unconstrained' | 'open' | %empty
-///
 /// returns (is_unconstrained, is_open) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, bool)> {
     keyword(Keyword::Unconstrained)
@@ -193,11 +176,6 @@ fn function_modifiers() -> impl NoirParser<(bool, bool)> {
         .map(|(unconstrained, open)| (unconstrained.is_some(), open.is_some()))
 }
 
-/// non_empty_ident_list: ident ',' non_empty_ident_list
-///                     | ident
-///
-/// generics: '<' non_empty_ident_list '>'
-///         | %empty
 fn generics() -> impl NoirParser<Vec<Ident>> {
     ident()
         .separated_by(just(Token::Comma))
@@ -235,6 +213,7 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
+/// default: AbiVisibility::Private, UnresolvedType::Unit
 fn function_return_type() -> impl NoirParser<(AbiVisibility, UnresolvedType)> {
     just(Token::Arrow)
         .ignore_then(optional_visibility())
@@ -698,6 +677,7 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
     Expression { span, kind: ExpressionKind::Infix(infix) }
 }
 
+// Permits operator tokens with the right precedence
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
     filter_map(move |span, token: Token| {
         if Precedence::token_precedence(&token) == Some(precedence) {
