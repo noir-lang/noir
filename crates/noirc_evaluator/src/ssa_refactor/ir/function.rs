@@ -44,12 +44,7 @@ impl Function {
             BasicBlock::new(parameters)
         });
 
-        Self {
-            basic_blocks,
-            source_locations: SecondaryMap::new(),
-            entry_block,
-            dfg: DataFlowGraph::default(),
-        }
+        Self { basic_blocks, source_locations: SecondaryMap::new(), entry_block, dfg }
     }
 
     pub(crate) fn entry_block(&self) -> BasicBlockId {
