@@ -126,12 +126,16 @@ impl Instruction {
 pub(crate) enum TerminatorInstruction {
     /// Control flow
     ///
-    /// Jump If
+    /// Branch If
     ///
-    /// Jumps to the specified `destination` with
-    /// arguments, if the condition
-    /// if the condition is true.
-    JmpIf { condition: ValueId, destination: BasicBlockId, arguments: BlockArguments },
+    /// Branches to the specified `then_destination` with `arguments` if the condition is true,
+    /// otherwise branches to the `else_destination` with `arguments`.
+    BrIf {
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+        arguments: BlockArguments,
+    },
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`
