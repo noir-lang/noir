@@ -128,7 +128,7 @@ nix flake lock --override-input barretenberg /absolute/path/to/your/barretenberg
 You can also point at a fork and/or branch on GitHub using:
 
 ```sh
-nix flake lock --override-input barretenberg github:phated/barretenberg/mybranch
+nix flake lock --override-input barretenberg github:username/barretenberg/branch_name
 ```
 
 __Note:__ You don't want to commit the updated lockfile, as it will fail in CI!
