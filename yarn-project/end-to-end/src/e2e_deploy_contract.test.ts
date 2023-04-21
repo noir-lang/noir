@@ -43,8 +43,8 @@ describe('e2e_deploy_contract', () => {
   }, 10_000);
 
   afterEach(async () => {
-    await node.stop();
-    await aztecRpcServer.stop();
+    await node?.stop();
+    await aztecRpcServer?.stop();
   });
 
   /**

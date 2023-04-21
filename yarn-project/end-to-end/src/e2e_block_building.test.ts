@@ -42,8 +42,8 @@ describe('e2e_block_building', () => {
   }, 10_000);
 
   afterEach(async () => {
-    await node.stop();
-    await aztecRpcServer.stop();
+    await node?.stop();
+    await aztecRpcServer?.stop();
   });
 
   it('should assemble a block with multiple txs', async () => {

@@ -49,8 +49,8 @@ describe('e2e_zk_token_contract', () => {
   });
 
   afterEach(async () => {
-    await node.stop();
-    await aztecRpcServer.stop();
+    await node?.stop();
+    await aztecRpcServer?.stop();
   });
 
   const calculateStorageSlot = async (accountIdx: number) => {
