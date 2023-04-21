@@ -12,8 +12,7 @@ use wasm_bindgen::prelude::*;
 mod circuit;
 mod compile;
 
-#[allow(deprecated)]
-pub use circuit::{acir_from_bytes, acir_read_bytes, acir_to_bytes, acir_write_bytes};
+pub use circuit::{acir_read_bytes, acir_write_bytes};
 pub use compile::{compile, WASMCompileOptions};
 
 #[derive(Serialize, Deserialize)]

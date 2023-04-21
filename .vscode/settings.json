@@ -1,0 +1,16 @@
+{
+    "direnv.restart.automatic": true,
+    "redhat.telemetry.enabled": false,
+    "yaml.recommendations.show": false,
+    "nix.serverPath": "nil",
+    "nix.enableLanguageServer": true,
+    "nix.serverSettings": {
+        "nil": {
+            "formatting": {
+                "command": [
+                    "nixpkgs-fmt"
+                ]
+            }
+        }
+    },
+}
