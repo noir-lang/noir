@@ -4,7 +4,7 @@ use std::sync::{Mutex, RwLock};
 use noirc_frontend::monomorphization::ast::{self, LocalId};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
-use crate::ssa_refactor::ssa_builder::Builder;
+use crate::ssa_refactor::ssa_builder::SharedBuilderContext;
 use crate::ssa_refactor::{
     ir::function::FunctionId as IrFunctionId, ssa_builder::function_builder::FunctionBuilder,
 };
@@ -17,11 +17,11 @@ type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Value>,
     function_builder: FunctionBuilder<'a>,
-    shared_context: &'a Context,
+    shared_context: &'a SharedContext,
 }
 
 /// Shared context for all functions during ssa codegen
-pub(super) struct Context {
+pub(super) struct SharedContext {
     functions: RwLock<HashMap<FuncId, IrFunctionId>>,
     function_queue: Mutex<FunctionQueue>,
     pub(super) program: Program,
@@ -30,8 +30,8 @@ pub(super) struct Context {
 impl<'a> FunctionContext<'a> {
     pub(super) fn new(
         parameter_count: usize,
-        shared_context: &'a Context,
-        shared_builder_context: &'a Builder,
+        shared_context: &'a SharedContext,
+        shared_builder_context: &'a SharedBuilderContext,
     ) -> Self {
         Self {
             definitions: HashMap::new(),
@@ -49,7 +49,7 @@ impl<'a> FunctionContext<'a> {
     }
 }
 
-impl Context {
+impl SharedContext {
     pub(super) fn new(program: Program) -> Self {
         Self { functions: Default::default(), function_queue: Default::default(), program }
     }

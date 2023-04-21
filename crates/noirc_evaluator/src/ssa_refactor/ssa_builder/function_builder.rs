@@ -3,7 +3,7 @@ use crate::ssa_refactor::ir::{
     function::{Function, FunctionId},
 };
 
-use super::Builder;
+use super::SharedBuilderContext;
 
 /// The per-function context for each ssa function being generated.
 ///
@@ -13,7 +13,7 @@ use super::Builder;
 /// Contrary to the name, this struct has the capacity to build as many
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder<'ssa> {
-    global_context: &'ssa Builder,
+    global_context: &'ssa SharedBuilderContext,
 
     current_function: Function,
     current_function_id: FunctionId,
@@ -24,7 +24,7 @@ pub(crate) struct FunctionBuilder<'ssa> {
 }
 
 impl<'ssa> FunctionBuilder<'ssa> {
-    pub(crate) fn new(parameters: usize, context: &'ssa Builder) -> Self {
+    pub(crate) fn new(parameters: usize, context: &'ssa SharedBuilderContext) -> Self {
         let new_function = Function::new(parameters);
         let current_block = new_function.entry_block();
 

@@ -1,17 +1,17 @@
 mod context;
 mod value;
 
-use context::Context;
+use context::SharedContext;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use self::{context::FunctionContext, value::Value};
 
-use super::ssa_builder::Builder;
+use super::ssa_builder::SharedBuilderContext;
 
 pub(crate) fn generate_ssa(program: Program) {
-    let context = Context::new(program);
-    let builder_context = Builder::default();
+    let context = SharedContext::new(program);
+    let builder_context = SharedBuilderContext::default();
 
     let main = context.program.main();
     // TODO struct parameter counting
