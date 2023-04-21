@@ -91,6 +91,14 @@ impl<T> DenseMap<T> {
         self.storage.push(element);
         id
     }
+
+    /// Given the Id of the element being created, adds the element
+    /// returned by the given function to the map
+    pub(crate) fn insert_with_id(&mut self, f: impl FnOnce(Id<T>) -> T) -> Id<T> {
+        let id = Id::new(self.storage.len());
+        self.storage.push(f(id));
+        id
+    }
 }
 
 impl<T> Default for DenseMap<T> {
@@ -139,6 +147,14 @@ impl<T> SparseMap<T> {
     pub(crate) fn insert(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.insert(id, element);
+        id
+    }
+
+    /// Given the Id of the element being created, adds the element
+    /// returned by the given function to the map
+    pub(crate) fn insert_with_id(&mut self, f: impl FnOnce(Id<T>) -> T) -> Id<T> {
+        let id = Id::new(self.storage.len());
+        self.storage.insert(id, f(id));
         id
     }
 

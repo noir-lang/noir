@@ -1,11 +1,12 @@
 use super::basic_block::{BasicBlock, BasicBlockId};
 use super::dfg::DataFlowGraph;
-use super::instruction::{Instruction, InstructionId};
+use super::instruction::Instruction;
 use super::map::{DenseMap, Id, SecondaryMap};
 use super::types::Type;
+use super::value::Value;
 
+use iter_extended::vecmap;
 use noirc_errors::Location;
-use std::collections::HashMap;
 
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
@@ -29,8 +30,19 @@ pub(crate) struct Function {
 
 impl Function {
     pub(crate) fn new(parameter_count: usize) -> Self {
+        let mut dfg = DataFlowGraph::default();
         let mut basic_blocks = DenseMap::default();
-        let entry_block = basic_blocks.insert(BasicBlock::new(parameter_count));
+
+        // The parameters for each function are stored as the block parameters
+        // of the function's entry block
+        let entry_block = basic_blocks.insert_with_id(|entry_block| {
+            // TODO: Give each parameter its correct type
+            let parameters = vecmap(0..parameter_count, |i| {
+                dfg.make_value(Value::Param { block: entry_block, position: i, typ: Type::Unit })
+            });
+
+            BasicBlock::new(parameters)
+        });
 
         Self {
             basic_blocks,

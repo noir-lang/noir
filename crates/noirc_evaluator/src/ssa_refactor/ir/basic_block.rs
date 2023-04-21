@@ -1,6 +1,7 @@
 use super::{
-    instruction::{Instruction, InstructionId, TerminatorInstruction},
+    instruction::{InstructionId, TerminatorInstruction},
     map::Id,
+    value::ValueId,
 };
 
 /// A Basic block is a maximal collection of instructions
@@ -12,10 +13,7 @@ use super::{
 #[derive(Debug, Default, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct BasicBlock {
     /// Parameters to the basic block.
-    /// The relevant values can be created with this block's id
-    /// and the index of the parameter, so we only need to remember
-    /// the number of parameters here.
-    parameter_count: usize,
+    parameters: Vec<ValueId>,
 
     /// Instructions in the basic block.
     instructions: Vec<InstructionId>,
@@ -37,7 +35,7 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    pub(super) fn new(parameter_count: usize) -> Self {
-        Self { parameter_count, instructions: Vec::new(), is_sealed: false, terminator: None }
+    pub(super) fn new(parameters: Vec<ValueId>) -> Self {
+        Self { parameters, instructions: Vec::new(), is_sealed: false, terminator: None }
     }
 }

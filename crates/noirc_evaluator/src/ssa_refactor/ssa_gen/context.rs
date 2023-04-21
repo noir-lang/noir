@@ -43,7 +43,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn new_function(&mut self, parameters: impl ExactSizeIterator<Item = LocalId>) {
         self.function_builder.new_function(parameters.len());
 
-        for (i, parameter) in parameters.enumerate() {
+        for (_i, _parameter) in parameters.enumerate() {
             todo!("Add block param to definitions")
         }
     }

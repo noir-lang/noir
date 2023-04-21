@@ -9,7 +9,7 @@ use self::{context::FunctionContext, value::Value};
 
 use super::ssa_builder::ssa_builder::SsaBuilder;
 
-pub fn generate_ssa(mut program: Program) {
+pub(crate) fn generate_ssa(program: Program) {
     let context = Context::new(program);
     let builder_context = SsaBuilder::default();
 
@@ -20,8 +20,9 @@ pub fn generate_ssa(mut program: Program) {
     let mut function_context = FunctionContext::new(parameter_count, &context, &builder_context);
     function_context.codegen_expression(&main.body);
 
-    while let Some((src_function_id, new_id)) = context.pop_next_function_in_queue() {
+    while let Some((src_function_id, _new_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
+        // TODO: Need to ensure/assert the new function's id == new_id
         function_context.new_function(function.parameters.iter().map(|(id, ..)| *id));
         function_context.codegen_expression(&function.body);
     }
@@ -53,67 +54,67 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    fn codegen_ident(&mut self, ident: &ast::Ident) -> Value {
+    fn codegen_ident(&mut self, _ident: &ast::Ident) -> Value {
         todo!()
     }
 
-    fn codegen_literal(&mut self, literal: &ast::Literal) -> Value {
+    fn codegen_literal(&mut self, _literal: &ast::Literal) -> Value {
         todo!()
     }
 
-    fn codegen_block(&mut self, block: &[Expression]) -> Value {
+    fn codegen_block(&mut self, _block: &[Expression]) -> Value {
         todo!()
     }
 
-    fn codegen_unary(&mut self, unary: &ast::Unary) -> Value {
+    fn codegen_unary(&mut self, _unary: &ast::Unary) -> Value {
         todo!()
     }
 
-    fn codegen_binary(&mut self, binary: &ast::Binary) -> Value {
+    fn codegen_binary(&mut self, _binary: &ast::Binary) -> Value {
         todo!()
     }
 
-    fn codegen_index(&mut self, index: &ast::Index) -> Value {
+    fn codegen_index(&mut self, _index: &ast::Index) -> Value {
         todo!()
     }
 
-    fn codegen_cast(&mut self, cast: &ast::Cast) -> Value {
+    fn codegen_cast(&mut self, _cast: &ast::Cast) -> Value {
         todo!()
     }
 
-    fn codegen_for(&mut self, for_expr: &ast::For) -> Value {
+    fn codegen_for(&mut self, _for_expr: &ast::For) -> Value {
         todo!()
     }
 
-    fn codegen_if(&mut self, if_expr: &ast::If) -> Value {
+    fn codegen_if(&mut self, _if_expr: &ast::If) -> Value {
         todo!()
     }
 
-    fn codegen_tuple(&mut self, tuple: &[Expression]) -> Value {
+    fn codegen_tuple(&mut self, _tuple: &[Expression]) -> Value {
         todo!()
     }
 
-    fn codegen_extract_tuple_field(&mut self, tuple: &Expression, index: usize) -> Value {
+    fn codegen_extract_tuple_field(&mut self, _tuple: &Expression, _index: usize) -> Value {
         todo!()
     }
 
-    fn codegen_call(&mut self, call: &ast::Call) -> Value {
+    fn codegen_call(&mut self, _call: &ast::Call) -> Value {
         todo!()
     }
 
-    fn codegen_let(&mut self, let_expr: &ast::Let) -> Value {
+    fn codegen_let(&mut self, _let_expr: &ast::Let) -> Value {
         todo!()
     }
 
-    fn codegen_constrain(&mut self, constrain: &Expression, location: Location) -> Value {
+    fn codegen_constrain(&mut self, _constrain: &Expression, _location: Location) -> Value {
         todo!()
     }
 
-    fn codegen_assign(&mut self, assign: &ast::Assign) -> Value {
+    fn codegen_assign(&mut self, _assign: &ast::Assign) -> Value {
         todo!()
     }
 
-    fn codegen_semi(&mut self, semi: &Expression) -> Value {
+    fn codegen_semi(&mut self, _semi: &Expression) -> Value {
         todo!()
     }
 }

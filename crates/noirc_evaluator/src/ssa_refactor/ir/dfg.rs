@@ -2,7 +2,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Signature,
     instruction::{Instruction, InstructionId},
-    map::{DenseMap, Id, SecondaryMap, SparseMap},
+    map::{DenseMap, Id, SecondaryMap},
     types::Type,
     value::{Value, ValueId},
 };
@@ -73,6 +73,10 @@ impl DataFlowGraph {
         // Create a new vector to store the potential results for the instruction.
         self.results.insert(id, Default::default());
         id
+    }
+
+    pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
+        self.values.insert(value)
     }
 
     /// Attaches results to the instruction.
