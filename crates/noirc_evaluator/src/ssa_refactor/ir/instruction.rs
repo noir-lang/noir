@@ -128,8 +128,8 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// Branch If
     ///
-     /// If the condition is true: jump to the specified `then_destination` with `arguments`.
-     /// Otherwise, jump to the specified `else_destination` with `arguments`.
+    /// If the condition is true: jump to the specified `then_destination` with `arguments`.
+    /// Otherwise, jump to the specified `else_destination` with `arguments`.
     BrIf {
         condition: ValueId,
         then_destination: BasicBlockId,
