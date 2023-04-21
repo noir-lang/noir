@@ -10,7 +10,7 @@ concurrency:
 jobs:
   test:
     name: Cargo test
-    uses: noir-lang/.github/.github/workflows/rust-test.yml@main
+    uses: noir-lang/.github/.github/workflows/rust-test.yml@multi_threads
 
   clippy:
     name: Cargo clippy
