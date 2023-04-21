@@ -7,11 +7,11 @@ use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use self::{context::FunctionContext, value::Value};
 
-use super::ssa_builder::ssa_builder::SsaBuilder;
+use super::ssa_builder::Builder;
 
 pub(crate) fn generate_ssa(program: Program) {
     let context = Context::new(program);
-    let builder_context = SsaBuilder::default();
+    let builder_context = Builder::default();
 
     let main = context.program.main();
     // TODO struct parameter counting

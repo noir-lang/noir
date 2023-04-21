@@ -4,7 +4,7 @@ use std::sync::{Mutex, RwLock};
 use noirc_frontend::monomorphization::ast::{self, LocalId};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
-use crate::ssa_refactor::ssa_builder::ssa_builder::SsaBuilder;
+use crate::ssa_refactor::ssa_builder::Builder;
 use crate::ssa_refactor::{
     ir::function::FunctionId as IrFunctionId, ssa_builder::function_builder::FunctionBuilder,
 };
@@ -31,7 +31,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn new(
         parameter_count: usize,
         shared_context: &'a Context,
-        shared_builder_context: &'a SsaBuilder,
+        shared_builder_context: &'a Builder,
     ) -> Self {
         Self {
             definitions: HashMap::new(),
