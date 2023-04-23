@@ -44,6 +44,7 @@ export class MerkleTrees implements MerkleTreeDb {
 
   /**
    * Initialises the collection of Merkle Trees.
+   * @param optionalWasm - WASM instance to use for hashing (if not provided PrimitivesWasm will be used).
    */
   public async init(optionalWasm?: WasmWrapper) {
     const wasm = optionalWasm ?? (await PrimitivesWasm.get());
@@ -105,6 +106,7 @@ export class MerkleTrees implements MerkleTreeDb {
   /**
    * Method to asynchronously create and initialise a MerkleTrees instance.
    * @param db - The db instance to use for data persistance.
+   * @param wasm - WASM instance to use for hashing (if not provided PrimitivesWasm will be used).
    * @returns - A fully initialised MerkleTrees instance.
    */
   public static async new(db: levelup.LevelUp, wasm?: WasmWrapper) {
@@ -139,12 +141,20 @@ export class MerkleTrees implements MerkleTreeDb {
   /**
    * Gets the tree info for the specified tree.
    * @param treeId - Id of the tree to get information from.
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
    * @returns The tree info for the specified tree.
    */
   public async getTreeInfo(treeId: MerkleTreeId, includeUncommitted: boolean): Promise<TreeInfo> {
     return await this.synchronise(() => this._getTreeInfo(treeId, includeUncommitted));
   }
 
+  /**
+   * Gets the value at the given index.
+   * @param treeId - The ID of the tree to get the leaf value from.
+   * @param index - The index of the leaf.
+   * @param includeUncommitted - Indicates whether to include uncommitted changes.
+   * @returns Leaf value at the given index (undefined if not found).
+   */
   public async getLeafValue(
     treeId: MerkleTreeId,
     index: bigint,
@@ -157,6 +167,7 @@ export class MerkleTrees implements MerkleTreeDb {
    * Gets the sibling path for a leaf in a tree.
    * @param treeId - The ID of the tree.
    * @param index - The index of the leaf.
+   * @param includeUncommitted - Indicates whether the sibling path should incro include uncommitted data.
    * @returns The sibling path for the leaf.
    */
   public async getSiblingPath(treeId: MerkleTreeId, index: bigint, includeUncommitted: boolean): Promise<SiblingPath> {
@@ -189,16 +200,39 @@ export class MerkleTrees implements MerkleTreeDb {
     return await this.synchronise(() => this._rollback());
   }
 
+  /**
+   * Finds the index of the largest leaf whose value is less than or equal to the provided value.
+   * @param treeId - The ID of the tree to search.
+   * @param value - The value to be inserted into the tree.
+   * @param includeUncommitted - If true, the uncommitted changes are included in the search.
+   * @returns The found leaf index and a flag indicating if the corresponding leaf's value is equal to `newValue`.
+   */
   public async getPreviousValueIndex(
     treeId: IndexedTreeId,
     value: bigint,
     includeUncommitted: boolean,
-  ): Promise<{ index: number; alreadyPresent: boolean }> {
+  ): Promise<{
+    /**
+     * The index of the found leaf.
+     */
+    index: number;
+    /**
+     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+     */
+    alreadyPresent: boolean;
+  }> {
     return await this.synchronise(() =>
       Promise.resolve(this._getIndexedTree(treeId).findIndexOfPreviousValue(value, includeUncommitted)),
     );
   }
 
+  /**
+   * Gets the leaf data at a given index and tree.
+   * @param treeId - The ID of the tree get the leaf from.
+   * @param index - The index of the leaf to get.
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
+   * @returns Leaf data.
+   */
   public async getLeafData(
     treeId: IndexedTreeId,
     index: number,
@@ -212,19 +246,20 @@ export class MerkleTrees implements MerkleTreeDb {
   /**
    * Returns the index of a leaf given its value, or undefined if no leaf with that value is found.
    * @param treeId - The ID of the tree.
-   * @param needle - The value to look for.
-   * @returns The index of the first leaf found with that value, or undefined is not found.
+   * @param value - The leaf value to look for.
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
+   * @returns The index of the first leaf found with a given value (undefined if not found).
    */
   public async findLeafIndex(
     treeId: MerkleTreeId,
-    needle: Buffer,
+    value: Buffer,
     includeUncommitted: boolean,
   ): Promise<bigint | undefined> {
     return await this.synchronise(async () => {
       const tree = this.trees[treeId];
       for (let i = 0n; i < tree.getNumLeaves(includeUncommitted); i++) {
-        const value = await tree.getLeafValue(i, includeUncommitted);
-        if (value && needle.equals(value)) {
+        const currentValue = await tree.getLeafValue(i, includeUncommitted);
+        if (currentValue && currentValue.equals(value)) {
           return i;
         }
       }
@@ -234,9 +269,10 @@ export class MerkleTrees implements MerkleTreeDb {
 
   /**
    * Updates a leaf in a tree at a given index.
-   * @param treeId - The ID of the tree
-   * @param leaf - The new leaf value
-   * @param index - The index to insert into
+   * @param treeId - The ID of the tree.
+   * @param leaf - The new leaf value.
+   * @param index - The index to insert into.
+   * @returns Empty promise.
    */
   public async updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: LeafData | Buffer, index: bigint): Promise<void> {
     const tree = this.trees[treeId];
@@ -256,8 +292,9 @@ export class MerkleTrees implements MerkleTreeDb {
   }
 
   /**
-   * Returns the tree info for the specified tree.
+   * Returns the tree info for the specified tree id.
    * @param treeId - Id of the tree to get information from.
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
    * @returns The tree info for the specified tree.
    */
   private _getTreeInfo(treeId: MerkleTreeId, includeUncommitted: boolean): Promise<TreeInfo> {
@@ -270,6 +307,11 @@ export class MerkleTrees implements MerkleTreeDb {
     return Promise.resolve(treeInfo);
   }
 
+  /**
+   * Returns an instance of an indexed tree.
+   * @param treeId - Id of the tree to get an instance of.
+   * @returns The indexed tree for the specified tree id.
+   */
   private _getIndexedTree(treeId: IndexedTreeId): IndexedTree {
     return this.trees[treeId] as IndexedTree;
   }
@@ -278,6 +320,7 @@ export class MerkleTrees implements MerkleTreeDb {
    * Returns the sibling path for a leaf in a tree.
    * @param treeId - Id of the tree to get the sibling path from.
    * @param index - Index of the leaf to get the sibling path for.
+   * @param includeUncommitted - Indicates whether to include uncommitted updates in the sibling path.
    * @returns Promise containing the sibling path for the leaf.
    */
   private _getSiblingPath(treeId: MerkleTreeId, index: bigint, includeUncommitted: boolean): Promise<SiblingPath> {

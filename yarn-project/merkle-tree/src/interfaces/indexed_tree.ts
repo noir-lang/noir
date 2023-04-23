@@ -18,14 +18,29 @@ export interface LeafData {
   nextValue: bigint;
 }
 
+/**
+ * Indexed merkle tree.
+ */
 export interface IndexedTree extends AppendOnlyTree {
   /**
    * Finds the index of the largest leaf whose value is less than or equal to the provided value.
    * @param newValue - The new value to be inserted into the tree.
    * @param includeUncommitted - If true, the uncommitted changes are included in the search.
-   * @returns Tuple containing the leaf index and a flag to say if the value is a duplicate.
+   * @returns The found leaf index and a flag indicating if the corresponding leaf's value is equal to `newValue`.
    */
-  findIndexOfPreviousValue(newValue: bigint, includeUncommitted: boolean): { index: number; alreadyPresent: boolean };
+  findIndexOfPreviousValue(
+    newValue: bigint,
+    includeUncommitted: boolean,
+  ): {
+    /**
+     * The index of the found leaf.
+     */
+    index: number;
+    /**
+     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+     */
+    alreadyPresent: boolean;
+  };
 
   /**
    * Gets the latest LeafData copy.
@@ -36,9 +51,9 @@ export interface IndexedTree extends AppendOnlyTree {
   getLatestLeafDataCopy(index: number, includeUncommitted: boolean): LeafData | undefined;
 
   /**
-   * Exposes the underlying tree's update leaf method
-   * @param leaf - The hash to set at the leaf
-   * @param index - The index of the element
+   * Exposes the underlying tree's update leaf method.
+   * @param leaf - The hash to set at the leaf.
+   * @param index - The index of the element.
    */
   // TODO: remove once the batch insertion functionality is moved to StandardIndexedTree from circuit_block_builder.ts
   updateLeaf(leaf: LeafData, index: bigint): Promise<void>;

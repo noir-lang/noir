@@ -28,6 +28,11 @@ export class BarretenbergWasm extends AsyncWasmWrapper {
     super(loggerName);
   }
 
+  /**
+   * Get the import functions for the WASM module and the prover and verifier CRS.
+   * @param wasm - The WASM module.
+   * @returns The import functions and the prover and verifier CRS.
+   */
   protected getImportFns(wasm: WasmModule) {
     return {
       ...super.getImportFns(wasm),

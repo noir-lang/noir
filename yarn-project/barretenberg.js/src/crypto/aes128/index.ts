@@ -1,8 +1,18 @@
 import { WasmWrapper } from '@aztec/foundation/wasm';
 
+/**
+ * AES-128-CBC encryption/decryption.
+ */
 export class Aes128 {
   constructor(private wasm: WasmWrapper) {}
 
+  /**
+   * Encrypt a buffer using AES-128-CBC.
+   * @param data - Data to encrypt.
+   * @param iv - AES initialisation vector.
+   * @param key - Key to encrypt with.
+   * @returns Encrypted data.
+   */
   public encryptBufferCBC(data: Uint8Array, iv: Uint8Array, key: Uint8Array) {
     const rawLength = data.length;
     const numPaddingBytes = rawLength % 16 != 0 ? 16 - (rawLength % 16) : 0;
@@ -35,6 +45,13 @@ export class Aes128 {
     return result;
   }
 
+  /**
+   * Decrypt a buffer using AES-128-CBC.
+   * @param data - Data to decrypt.
+   * @param iv - AES initialisation vector.
+   * @param key - Key to decrypt with.
+   * @returns Decrypted data.
+   */
   public decryptBufferCBC(data: Uint8Array, iv: Uint8Array, key: Uint8Array) {
     const mem = this.wasm.call('bbmalloc', data.length + key.length + iv.length + data.length);
     this.wasm.writeMemory(mem, data);

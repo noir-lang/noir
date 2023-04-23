@@ -29,10 +29,18 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     this.l2BlockDownloader = new L2BlockDownloader(l2BlockSource, config.l2QueueSize, config.checkInterval);
   }
 
+  /**
+   * Returns an instance of MerkleTreeOperations that will include uncommitted data.
+   * @returns An instance of MerkleTreeOperations that will include uncommitted data.
+   */
   public getLatest(): MerkleTreeOperations {
     return new MerkleTreeOperationsFacade(this.merkleTreeDb, true);
   }
 
+  /**
+   * Returns an instance of MerkleTreeOperations that will not include uncommitted data.
+   * @returns An instance of MerkleTreeOperations that will not include uncommitted data.
+   */
   public getCommitted(): MerkleTreeOperations {
     return new MerkleTreeOperationsFacade(this.merkleTreeDb, false);
   }

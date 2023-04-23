@@ -5,7 +5,7 @@ import { readFile } from 'fs/promises';
 
 /**
  * Get the WASM binary.
- * @param path - Path to the code
+ * @param path - Path to the WASM binary.
  * @returns The binary buffer.
  */
 export async function fetchCode(path: string) {
@@ -33,7 +33,7 @@ export abstract class WasmWrapper {
    * 8192 maximum by default. 512mb.
    * @param initial - Initial memory pages.
    * @param maximum - Max memory pages.
-   * @returns Self
+   * @returns The original instance of the wrapper.
    */
   public async init(initial = 20, maximum = 8192): Promise<WasmWrapper> {
     let wasm: WasmModule;

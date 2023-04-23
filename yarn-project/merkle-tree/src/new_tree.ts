@@ -9,7 +9,7 @@ import { TreeBase } from './tree_base.js';
  * @param hasher - A hasher used to compute hash paths.
  * @param name - Name of the tree.
  * @param depth - Depth of the tree.
- * @param prefilledSize - {optional} A number of leaves that are prefilled with values.
+ * @param prefilledSize - A number of leaves that are prefilled with values.
  * @returns The newly created tree.
  */
 export async function newTree<T extends TreeBase>(

@@ -98,8 +98,7 @@ module.exports = {
     'jsdoc/require-description': ['warn', { contexts }],
     'jsdoc/require-description-complete-sentence': ['warn'],
     'jsdoc/require-hyphen-before-param-description': ['warn'],
-    // TODO(AD): we can reevaluate this - seemed low value
-    // 'jsdoc/require-param': ['warn', { contexts, checkDestructured: false }],
+    'jsdoc/require-param': ['error', { contexts, checkDestructured: false }],
     'jsdoc/require-param-description': ['warn', { contexts }],
     'jsdoc/require-param-name': ['warn', { contexts }],
     'jsdoc/require-property': ['warn', { contexts }],

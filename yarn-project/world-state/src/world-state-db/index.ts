@@ -15,7 +15,14 @@ export enum MerkleTreeId {
   PUBLIC_DATA_TREE = 5,
 }
 
+/**
+ * Type alias for the nullifier tree ID.
+ */
 export type IndexedTreeId = MerkleTreeId.NULLIFIER_TREE;
+
+/**
+ * Type alias for the public data tree ID.
+ */
 export type PublicTreeId = MerkleTreeId.PUBLIC_DATA_TREE;
 
 /**
@@ -55,6 +62,9 @@ type WithIncludeUncommitted<F> = F extends (...args: [...infer Rest]) => infer R
   ? (...args: [...Rest, boolean]) => Return
   : F;
 
+/**
+ * Defines the names of the setters on an append only set of Merkle Trees.
+ */
 type MerkleTreeSetters = 'appendLeaves';
 
 /**
@@ -71,51 +81,70 @@ export type MerkleTreeDbOperations = {
  */
 export interface MerkleTreeOperations {
   /**
-   * Appends leaves to a given tree
-   * @param treeId - The tree to be updated
-   * @param leaves - The set of leaves to be appended
+   * Appends leaves to a given tree.
+   * @param treeId - The tree to be updated.
+   * @param leaves - The set of leaves to be appended.
    */
   appendLeaves(treeId: MerkleTreeId, leaves: Buffer[]): Promise<void>;
+
   /**
-   * Returns information about the given tree
-   * @param treeId - The tree to be queried
+   * Returns information about the given tree.
+   * @param treeId - The tree to be queried.
    */
   getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo>;
+
   /**
    * Gets sibling path for a leaf.
-   * @param treeId - The tree to be queried for a sibling path
-   * @param index - The index of the leaf for which a sibling path should be returned
+   * @param treeId - The tree to be queried for a sibling path.
+   * @param index - The index of the leaf for which a sibling path should be returned.
    */
   getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath>;
+
   /**
-   * Returns the previous index for a given value in an indexed tree
-   * @param treeId - The tree for which the previous value index is required
-   * @param value - The value to be queried
+   * Returns the previous index for a given value in an indexed tree.
+   * @param treeId - The tree for which the previous value index is required.
+   * @param value - The value to be queried.
    */
-  getPreviousValueIndex(treeId: IndexedTreeId, value: bigint): Promise<{ index: number; alreadyPresent: boolean }>;
+  getPreviousValueIndex(
+    treeId: IndexedTreeId,
+    value: bigint,
+  ): Promise<{
+    /**
+     * The index of the found leaf.
+     */
+    index: number;
+    /**
+     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+     */
+    alreadyPresent: boolean;
+  }>;
+
   /**
-   * Returns the data at a specific leaf
-   * @param treeId - The tree for which leaf data should be returned
-   * @param index - The index of the leaf required
+   * Returns the data at a specific leaf.
+   * @param treeId - The tree for which leaf data should be returned.
+   * @param index - The index of the leaf required.
    */
   getLeafData(treeId: IndexedTreeId, index: number): Promise<LeafData | undefined>;
+
   /**
-   * Update the leaf data at the given index
-   * @param treeId - The tree for which leaf data should be edited
-   * @param leaf - The updated leaf value
-   * @param index - The index of the leaf to be updated
+   * Update the leaf data at the given index.
+   * @param treeId - The tree for which leaf data should be edited.
+   * @param leaf - The updated leaf value.
+   * @param index - The index of the leaf to be updated.
    */
   updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: LeafData | Buffer, index: bigint): Promise<void>;
+
   /**
-   * Returns the index containing a leaf value
-   * @param treeId - The tree for which the index should be returned
-   * @param value - The value to search for in the tree
+   * Returns the index containing a leaf value.
+   * @param treeId - The tree for which the index should be returned.
+   * @param value - The value to search for in the tree.
    */
   findLeafIndex(treeId: MerkleTreeId, value: Buffer): Promise<bigint | undefined>;
+
   /**
    * Gets the value for a leaf in the tree.
-   * @param treeId - The tree for which the index should be returned
-   * @param index - The index of the leaf
+   * @param treeId - The tree for which the index should be returned.
+   * @param index - The index of the leaf.
    */
   getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined>;
 }
@@ -125,11 +154,12 @@ export interface MerkleTreeOperations {
  */
 export interface MerkleTreeDb extends MerkleTreeDbOperations {
   /**
-   * Commits pending changes to the underlying store
+   * Commits pending changes to the underlying store.
    */
   commit(): Promise<void>;
+
   /**
-   * Rolls back pending changes
+   * Rolls back pending changes.
    */
   rollback(): Promise<void>;
 }

@@ -340,7 +340,7 @@ describe('StandardIndexedTreeSpecific', () => {
      *  --------------------------------------------------------------------
      *  val       0       30      10      20       0       0       50      0
      *  nextIdx   2       6       3       1        0       0       0       0
-     *  nextVal   10      50      20      30       0       0       0       0
+     *  nextVal   10      50      20      30       0       0       0       0.
      */
     index1Hash = pedersen.compressInputs(createIndexedTreeLeaf(30, 6, 50));
     const index6Hash = pedersen.compressInputs(createIndexedTreeLeaf(50, 0, 0));

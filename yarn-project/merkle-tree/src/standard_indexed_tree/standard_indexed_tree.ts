@@ -37,7 +37,7 @@ const initialLeaf: LeafData = {
 };
 
 /**
- * A Merkle tree that supports efficient lookup of leaves by value.
+ * Indexed merkle tree.
  */
 export class StandardIndexedTree extends TreeBase implements IndexedTree {
   private leaves: LeafData[] = [];
@@ -75,7 +75,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
   /**
    * Gets the value of the leaf at the given index.
    * @param index - Index of the leaf of which to obtain the value.
-   * @param includeUncommitted include uncommitted leaves in the computation.
+   * @param includeUncommitted - Indicates whether to include uncommitted leaves in the computation.
    * @returns The value of the leaf at the given index or undefined if the leaf is empty.
    */
   public getLeafValue(index: bigint, includeUncommitted: boolean): Promise<Buffer | undefined> {
@@ -88,12 +88,21 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    * Finds the index of the largest leaf whose value is less than or equal to the provided value.
    * @param newValue - The new value to be inserted into the tree.
    * @param includeUncommitted - If true, the uncommitted changes are included in the search.
-   * @returns Tuple containing the leaf index and a flag to say if the value is a duplicate.
+   * @returns The found leaf index and a flag indicating if the corresponding leaf's value is equal to `newValue`.
    */
-  public findIndexOfPreviousValue(
+  findIndexOfPreviousValue(
     newValue: bigint,
     includeUncommitted: boolean,
-  ): { index: number; alreadyPresent: boolean } {
+  ): {
+    /**
+     * The index of the found leaf.
+     */
+    index: number;
+    /**
+     * A flag indicating if the corresponding leaf's value is equal to `newValue`.
+     */
+    alreadyPresent: boolean;
+  } {
     const numLeaves = this.getNumLeaves(includeUncommitted);
     const diff: bigint[] = [];
 
@@ -278,9 +287,9 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
   }
 
   /**
-   * Exposes the underlying tree's update leaf method
-   * @param leaf - The hash to set at the leaf
-   * @param index - The index of the element
+   * Exposes the underlying tree's update leaf method.
+   * @param leaf - The hash to set at the leaf.
+   * @param index - The index of the element.
    */
   // TODO: remove once the batch insertion functionality is moved here from circuit_block_builder.ts
   public async updateLeaf(leaf: LeafData, index: bigint): Promise<void> {

@@ -3,7 +3,7 @@ import { Buffer } from 'buffer';
 import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../wasm/serialize.js';
 
 /**
- * Combines two 32-byte hashes.
+ * Compresses two 32-byte hashes.
  * @param wasm - The barretenberg module.
  * @param lhs - The first hash.
  * @param rhs - The second hash.
@@ -22,11 +22,10 @@ export function pedersenCompress(wasm: WasmWrapper, lhs: Uint8Array, rhs: Uint8A
 }
 
 /**
- * Combine an array of hashes.
+ * Compresses an array of buffers.
  * @param wasm - The barretenberg module.
- * @param lhs - The first hash.
- * @param rhs - The second hash.
- * @returns The new 32-byte hash.
+ * @param inputs - The array of buffers to compress.
+ * @returns The resulting 32-byte hash.
  */
 export function pedersenCompressInputs(wasm: WasmWrapper, inputs: Buffer[]): Buffer {
   // If not done already, precompute constants.
@@ -38,11 +37,11 @@ export function pedersenCompressInputs(wasm: WasmWrapper, inputs: Buffer[]): Buf
 }
 
 /**
- * Combine an array of hashes.
+ * Compresses an array of buffers.
  * @param wasm - The barretenberg module.
- * @param lhs - The first hash.
- * @param rhs - The second hash.
- * @returns The new 32-byte hash.
+ * @param inputs - The array of buffers to compress.
+ * @param hashIndex - Hash index of the generator to use (See GeneratorIndex enum).
+ * @returns The resulting 32-byte hash.
  */
 export function pedersenCompressWithHashIndex(wasm: WasmWrapper, inputs: Buffer[], hashIndex: number): Buffer {
   // If not done already, precompute constants.
@@ -70,10 +69,13 @@ export function pedersenGetHash(wasm: WasmWrapper, data: Buffer): Buffer {
 }
 
 /**
- * Given a buffer containing 32 byte pedersen leaves, return a new buffer containing the leaves and all pairs of nodes that define a merkle tree.
+ * Given a buffer containing 32 byte pedersen leaves, return a new buffer containing the leaves and all pairs of nodes
+ * that define a merkle tree.
+ *
  * E.g.
  * Input:  [1][2][3][4]
  * Output: [1][2][3][4][compress(1,2)][compress(3,4)][compress(5,6)].
+ *
  * @param wasm - The barretenberg module.
  * @param values - The 32 byte pedersen leaves.
  * @returns A tree represented by an array.
