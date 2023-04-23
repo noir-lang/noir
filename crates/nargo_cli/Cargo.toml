@@ -45,6 +45,9 @@ tempdir = "0.3.7"
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
+ethers = { version = "2.0.3", features=["solc-full"] }
+tokio = "1.27"
+
 
 [features]
 default = ["plonk_bn254"]
