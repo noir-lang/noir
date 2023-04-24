@@ -47,7 +47,24 @@ impl BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    pub(super) fn new(parameters: Vec<ValueId>) -> Self {
+    pub(crate) fn new(parameters: Vec<ValueId>) -> Self {
         Self { parameters, instructions: Vec::new(), is_sealed: false, terminator: None }
+    }
+
+    pub(crate) fn parameters(&self) -> &[ValueId] {
+        &self.parameters
+    }
+
+    pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
+        self.parameters.push(parameter);
+    }
+
+    /// Insert an instruction at the end of this block
+    pub(crate) fn insert_instruction(&mut self, instruction: InstructionId) {
+        self.instructions.push(instruction);
+    }
+
+    pub(crate) fn set_terminator(&mut self, terminator: TerminatorInstruction) {
+        self.terminator = Some(terminator);
     }
 }
