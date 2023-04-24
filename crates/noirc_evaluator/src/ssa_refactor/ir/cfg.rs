@@ -1,4 +1,4 @@
-use std::collections::{hash_set, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -86,27 +86,29 @@ impl ControlFlowGraph {
         successor_node.predecessors.insert(from);
     }
 
-    /// Get an iterator over the CFG predecessors to `block`.
-    pub(crate) fn pred_iter(&self, basic_block_id: BasicBlockId) -> PredIter {
+    /// Get an iterator over the CFG predecessors to `basic_block_id`.
+    pub(crate) fn pred_iter(
+        &self,
+        basic_block_id: BasicBlockId,
+    ) -> impl ExactSizeIterator<Item = BasicBlockId> + '_ {
         self.data
             .get(&basic_block_id)
             .expect("ICE: Attempted to iterate predecessors of block not found within cfg.")
             .predecessors
             .iter()
+            .copied()
     }
 
-    /// Get an iterator over the CFG successors to `block`.
-    pub(crate) fn succ_iter(&self, basic_block_id: BasicBlockId) -> SuccIter {
+    /// Get an iterator over the CFG successors to `basic_block_id`.
+    pub(crate) fn succ_iter(
+        &self,
+        basic_block_id: BasicBlockId,
+    ) -> impl ExactSizeIterator<Item = BasicBlockId> + '_ {
         self.data
             .get(&basic_block_id)
             .expect("ICE: Attempted to iterate successors of block not found within cfg.")
             .successors
             .iter()
+            .copied()
     }
 }
-
-/// An iterator over block predecessors. The iterator type is `BasicBlockId`.
-pub(crate) type PredIter<'a> = hash_set::Iter<'a, BasicBlockId>;
-
-/// An iterator over block successors. The iterator type is `BasicBlockId`.
-pub(crate) type SuccIter<'a> = hash_set::Iter<'a, BasicBlockId>;
