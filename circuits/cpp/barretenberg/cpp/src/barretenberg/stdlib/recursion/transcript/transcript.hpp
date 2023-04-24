@@ -135,7 +135,7 @@ template <typename Composer> class Transcript {
         }
         const size_t bytes_per_element = 31;
 
-        // split work_element into 2 limbs and insert into element_buffer
+        // split element into 2 limbs and insert into element_buffer
         // each entry in element_buffer is 31 bytes
         const auto split = [&](field_pt& work_element,
                                std::vector<field_pt>& element_buffer,
@@ -253,8 +253,23 @@ template <typename Composer> class Transcript {
         }
         byte_array<Composer> compressed_buffer(T0);
 
-        byte_array<Composer> base_hash = stdlib::blake3s(compressed_buffer);
-
+        // TODO(@zac-williamson) make this a Poseidon hash
+        byte_array<Composer> base_hash;
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+            std::vector<field_pt> compression_buffer;
+            field_pt working_element(context);
+            size_t byte_counter = 0;
+            split(working_element, compression_buffer, field_pt(compressed_buffer), byte_counter, 32);
+            if (byte_counter != 0) {
+                const uint256_t down_shift = uint256_t(1) << uint256_t((bytes_per_element - byte_counter) * 8);
+                working_element = working_element / barretenberg::fr(down_shift);
+                working_element = working_element.normalize();
+                compression_buffer.push_back(working_element);
+            }
+            base_hash = stdlib::pedersen_plookup_commitment<Composer>::compress(compression_buffer);
+        } else {
+            base_hash = stdlib::blake3s(compressed_buffer);
+        }
         byte_array<Composer> first(field_pt(0), 16);
         first.write(base_hash.slice(0, 16));
         round_challenges.push_back(first);
@@ -265,11 +280,30 @@ template <typename Composer> class Transcript {
             round_challenges.push_back(second);
         }
 
+        // This block of code only executes for num_challenges > 2, which (currently) only happens in the nu round when
+        // we need to generate short scalars. In this case, we generate 32-byte challenges and split them in half to get
+        // the relevant challenges.
         for (size_t i = 2; i < num_challenges; i += 2) {
             byte_array<Composer> rolling_buffer = base_hash;
-            rolling_buffer.write(byte_array<Composer>(field_pt(i / 2), 1));
-            byte_array<Composer> hash_output = stdlib::blake3s(rolling_buffer);
-
+            byte_array<Composer> hash_output;
+            if constexpr (Composer::type == ComposerType::PLOOKUP) {
+                // TODO(@zac-williamson) make this a Poseidon hash not a Pedersen hash
+                std::vector<field_pt> compression_buffer;
+                field_pt working_element(context);
+                size_t byte_counter = 0;
+                split(working_element, compression_buffer, field_pt(rolling_buffer), byte_counter, 32);
+                split(working_element, compression_buffer, field_pt(field_pt(i / 2)), byte_counter, 1);
+                if (byte_counter != 0) {
+                    const uint256_t down_shift = uint256_t(1) << uint256_t((bytes_per_element - byte_counter) * 8);
+                    working_element = working_element / barretenberg::fr(down_shift);
+                    working_element = working_element.normalize();
+                    compression_buffer.push_back(working_element);
+                }
+                hash_output = stdlib::pedersen_plookup_commitment<Composer>::compress(compression_buffer);
+            } else {
+                rolling_buffer.write(byte_array<Composer>(field_pt(i / 2), 1));
+                hash_output = stdlib::blake3s(rolling_buffer);
+            }
             byte_array<Composer> hi(field_pt(0), 16);
             hi.write(hash_output.slice(0, 16));
             round_challenges.push_back(hi);

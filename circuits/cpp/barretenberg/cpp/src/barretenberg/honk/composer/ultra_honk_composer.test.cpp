@@ -751,7 +751,7 @@ TEST(UltraHonkComposer, non_native_field_multiplication)
         proof_system::non_native_field_witnesses inputs{
             a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
         };
-        const auto [lo_1_idx, hi_1_idx] = honk_composer.evaluate_non_native_field_multiplication(inputs);
+        const auto [lo_1_idx, hi_1_idx] = honk_composer.queue_non_native_field_multiplication(inputs);
         honk_composer.range_constrain_two_limbs(lo_1_idx, hi_1_idx, 70, 70);
     }
     {
@@ -798,7 +798,7 @@ TEST(UltraHonkComposer, non_native_field_multiplication)
         proof_system::plonk::UltraComposer::non_native_field_witnesses inputs{
             a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
         };
-        const auto [lo_1_idx, hi_1_idx] = plonk_composer.evaluate_non_native_field_multiplication(inputs);
+        const auto [lo_1_idx, hi_1_idx] = plonk_composer.queue_non_native_field_multiplication(inputs);
         plonk_composer.range_constrain_two_limbs(lo_1_idx, hi_1_idx, 70, 70);
     }
 

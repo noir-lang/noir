@@ -29,6 +29,8 @@ static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS = 68;
 static constexpr uint32_t UNINITIALIZED_MEMORY_RECORD = UINT32_MAX;
 static constexpr size_t NUMBER_OF_GATES_PER_RAM_ACCESS = 2;
 static constexpr size_t NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY = 1;
+// number of gates created per non-native field operation in process_non_native_field_multiplications
+static constexpr size_t GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 7;
 
 struct non_native_field_witnesses {
     // first 4 array elements = limbs
@@ -39,6 +41,63 @@ struct non_native_field_witnesses {
     std::array<uint32_t, 5> r;
     std::array<barretenberg::fr, 5> neg_modulus;
     barretenberg::fr modulus;
+};
+
+struct non_native_field_multiplication_cross_terms {
+    uint32_t lo_0_idx;
+    uint32_t lo_1_idx;
+    uint32_t hi_0_idx;
+    uint32_t hi_1_idx;
+    uint32_t hi_2_idx;
+    uint32_t hi_3_idx;
+};
+
+/**
+ * @brief Used to store instructions to create non_native_field_multiplication gates.
+ *        We want to cache these (and remove duplicates) as the stdlib code can end up multiplying the same inputs
+ * repeatedly.
+ */
+struct cached_non_native_field_multiplication {
+    std::array<uint32_t, 5> a;
+    std::array<uint32_t, 5> b;
+    std::array<uint32_t, 5> q;
+    std::array<uint32_t, 5> r;
+    non_native_field_multiplication_cross_terms cross_terms;
+    std::array<barretenberg::fr, 5> neg_modulus;
+
+    bool operator==(const cached_non_native_field_multiplication& other) const
+    {
+        bool valid = true;
+        for (size_t i = 0; i < 5; ++i) {
+            valid = valid && (a[i] == other.a[i]);
+            valid = valid && (b[i] == other.b[i]);
+            valid = valid && (q[i] == other.q[i]);
+            valid = valid && (r[i] == other.r[i]);
+        }
+        return valid;
+    }
+    bool operator<(const cached_non_native_field_multiplication& other) const
+    {
+        if (a < other.a) {
+            return true;
+        }
+        if (a == other.a) {
+            if (b < other.b) {
+                return true;
+            }
+            if (b == other.b) {
+                if (q < other.q) {
+                    return true;
+                }
+                if (q == other.q) {
+                    if (r < other.r) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 };
 
 enum AUX_SELECTORS {
@@ -201,6 +260,10 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     // Stores gate index of RAM writes (required by proving key)
     std::vector<uint32_t> memory_write_records;
 
+    std::vector<cached_non_native_field_multiplication> cached_non_native_field_multiplications;
+
+    void process_non_native_field_multiplications();
+
     bool circuit_finalised = false;
 
     UltraCircuitConstructor(const size_t size_hint = 0)
@@ -286,18 +349,18 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     //  * 1) Current number number of actual gates
     //  * 2) Number of public inputs, as we'll need to add a gate for each of them
     //  * 3) Number of Rom array-associated gates
-    //  * 4) NUmber of range-list associated gates
+    //  * 4) Number of range-list associated gates
+    //  * 5) Number of non-native field multiplication gates.
     //  *
     //  *
     //  * @param count return arument, number of existing gates
     //  * @param rangecount return argument, extra gates due to range checks
     //  * @param romcount return argument, extra gates due to rom reads
     //  * @param ramcount return argument, extra gates due to ram read/writes
+    //  * @param nnfcount return argument, extra gates due to queued non native field gates
     //  */
-    // void get_num_gates_split_into_components(size_t& count,
-    //                                          size_t& rangecount,
-    //                                          size_t& romcount,
-    //                                          size_t& ramcount) const
+    // void get_num_gates_split_into_components(
+    //     size_t& count, size_t& rangecount, size_t& romcount, size_t& ramcount, size_t& nnfcount) const
     // {
     //     count = num_gates;
     //     // each ROM gate adds +1 extra gate due to the rom reads being copied to a sorted list set
@@ -366,6 +429,13 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     //             rangecount += ram_range_sizes[i];
     //         }
     //     }
+    //     std::vector<cached_non_native_field_multiplication> nnf_copy(cached_non_native_field_multiplications);
+    //     // update nnfcount
+    //     std::sort(nnf_copy.begin(), nnf_copy.end());
+
+    //     auto last = std::unique(nnf_copy.begin(), nnf_copy.end());
+    //     const size_t num_nnf_ops = static_cast<size_t>(std::distance(nnf_copy.begin(), last));
+    //     nnfcount = num_nnf_ops * GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC;
     // }
 
     // /**
@@ -373,7 +443,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     //  * 1) Current number number of actual gates
     //  * 2) Number of public inputs, as we'll need to add a gate for each of them
     //  * 3) Number of Rom array-associated gates
-    //  * 4) NUmber of range-list associated gates
+    //  * 4) Number of range-list associated gates
+    //  * 5) Number of non-native field multiplication gates.
     //  *
     //  * @return size_t
     //  */
@@ -387,8 +458,9 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     //     size_t rangecount = 0;
     //     size_t romcount = 0;
     //     size_t ramcount = 0;
-    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount);
-    //     return count + romcount + ramcount + rangecount;
+    //     size_t nnfcount = 0;
+    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
+    //     return count + romcount + ramcount + rangecount + nnfcount;
     // }
 
     // virtual void print_num_gates() const override
@@ -397,12 +469,13 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     //     size_t rangecount = 0;
     //     size_t romcount = 0;
     //     size_t ramcount = 0;
-
-    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount);
+    //     size_t nnfcount = 0;
+    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
 
     //     size_t total = count + romcount + ramcount + rangecount;
     //     std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", ram " << ramcount
-    //               << ", range " << rangecount << "), pubinp = " << public_inputs.size() << std::endl;
+    //               << ", range " << rangecount << ", non native field gates " << nnfcount
+    //               << "), pubinp = " << public_inputs.size() << std::endl;
     // }
 
     void assert_equal_constant(const uint32_t a_idx,
@@ -491,7 +564,7 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
                                    const size_t hi_limb_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
         const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
-    std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
+    std::array<uint32_t, 2> queue_non_native_field_multiplication(
         const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true);
     std::array<uint32_t, 2> evaluate_partial_non_native_field_multiplication(const non_native_field_witnesses& input);
     typedef std::pair<uint32_t, barretenberg::fr> scaled_witness;

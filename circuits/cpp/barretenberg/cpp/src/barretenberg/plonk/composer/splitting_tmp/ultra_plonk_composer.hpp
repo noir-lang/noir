@@ -133,18 +133,18 @@ class UltraPlonkComposer {
     //  * 1) Current number number of actual gates
     //  * 2) Number of public inputs, as we'll need to add a gate for each of them
     //  * 3) Number of Rom array-associated gates
-    //  * 4) NUmber of range-list associated gates
+    //  * 4) Number of range-list associated gates
+    //  * 5) Number of non-native field multiplication gates.
     //  *
     //  *
     //  * @param count return arument, number of existing gates
     //  * @param rangecount return argument, extra gates due to range checks
     //  * @param romcount return argument, extra gates due to rom reads
     //  * @param ramcount return argument, extra gates due to ram read/writes
+    //  * @param nnfcount return argument, extra gates due to queued non native field gates
     //  */
-    // void get_num_gates_split_into_components(size_t& count,
-    //                                          size_t& rangecount,
-    //                                          size_t& romcount,
-    //                                          size_t& ramcount) const
+    // void get_num_gates_split_into_components(
+    //     size_t& count, size_t& rangecount, size_t& romcount, size_t& ramcount, size_t& nnfcount) const
     // {
     //     count = num_gates;
     //     // each ROM gate adds +1 extra gate due to the rom reads being copied to a sorted list set
@@ -213,17 +213,27 @@ class UltraPlonkComposer {
     //             rangecount += ram_range_sizes[i];
     //         }
     //     }
+    //     std::vector<cached_non_native_field_multiplication> nnf_copy(cached_non_native_field_multiplications);
+    //     // update nnfcount
+    //     std::sort(nnf_copy.begin(), nnf_copy.end());
+
+    //     auto last = std::unique(nnf_copy.begin(), nnf_copy.end());
+    //     const size_t num_nnf_ops = static_cast<size_t>(std::distance(nnf_copy.begin(), last));
+    //     nnfcount = num_nnf_ops * GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC;
     // }
+    //
 
     // /**
     //  * @brief Get the final number of gates in a circuit, which consists of the sum of:
     //  * 1) Current number number of actual gates
     //  * 2) Number of public inputs, as we'll need to add a gate for each of them
     //  * 3) Number of Rom array-associated gates
-    //  * 4) NUmber of range-list associated gates
+    //  * 4) Number of range-list associated gates
+    //  * 5) Number of non-native field multiplication gates.
     //  *
     //  * @return size_t
     //  */
+    //
     // virtual size_t get_num_gates() const override
     // {
     //     // if circuit finalised already added extra gates
@@ -234,8 +244,9 @@ class UltraPlonkComposer {
     //     size_t rangecount = 0;
     //     size_t romcount = 0;
     //     size_t ramcount = 0;
-    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount);
-    //     return count + romcount + ramcount + rangecount;
+    //     size_t nnfcount = 0;
+    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
+    //     return count + romcount + ramcount + rangecount + nnfcount;
     // }
 
     // virtual void print_num_gates() const override
@@ -244,12 +255,13 @@ class UltraPlonkComposer {
     //     size_t rangecount = 0;
     //     size_t romcount = 0;
     //     size_t ramcount = 0;
-
-    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount);
+    //     size_t nnfcount = 0;
+    //     get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
 
     //     size_t total = count + romcount + ramcount + rangecount;
     //     std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", ram " << ramcount
-    //               << ", range " << rangecount << "), pubinp = " << public_inputs.size() << std::endl;
+    //               << ", range " << rangecount << ", non native field gates " << nnfcount
+    //               << "), pubinp = " << public_inputs.size() << std::endl;
     // }
 
     void assert_equal(const uint32_t a_variable_idx,
@@ -367,11 +379,10 @@ class UltraPlonkComposer {
     };
     // std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
     //     const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
-    std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
+    std::array<uint32_t, 2> queue_non_native_field_multiplication(
         const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true)
     {
-        return circuit_constructor.evaluate_non_native_field_multiplication(input,
-                                                                            range_constrain_quotient_and_remainder);
+        return circuit_constructor.queue_non_native_field_multiplication(input, range_constrain_quotient_and_remainder);
     };
     // std::array<uint32_t, 2> evaluate_partial_non_native_field_multiplication(const non_native_field_witnesses&
     // input); typedef std::pair<uint32_t, barretenberg::fr> scaled_witness; typedef std::tuple<scaled_witness,

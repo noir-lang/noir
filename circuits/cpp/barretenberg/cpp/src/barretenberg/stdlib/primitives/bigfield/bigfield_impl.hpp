@@ -1982,7 +1982,7 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
             modulus,
         };
         // N.B. this method also evaluates the prime field component of the non-native field mul
-        const auto [lo_idx, hi_idx] = ctx->evaluate_non_native_field_multiplication(witnesses, false);
+        const auto [lo_idx, hi_idx] = ctx->queue_non_native_field_multiplication(witnesses, false);
 
         barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
         field_t<C>::evaluate_polynomial_identity(left.prime_basis_limb,
@@ -2267,7 +2267,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
         // we set `neg_modulus = [2^{136}, 0, 0, 0]` and `q = [lo_1, 0, hi_1, 0]`, then we will add `lo_1` into
         // `lo`, and `lo_1/2^{136} + hi_1` into `hi`. we can then subtract off `lo_1/2^{136}` from `hi`, by setting
         // `r = [0, 0, lo_1, 0]` This saves us 2 addition gates as we don't have to add together the outputs of two
-        // calls to `evaluate_non_native_field_multiplication`
+        // calls to `queue_non_native_field_multiplication`
         std::vector<field_t<C>> limb_0_accumulator;
         std::vector<field_t<C>> limb_2_accumulator;
         std::vector<field_t<C>> prime_limb_accumulator;
@@ -2416,7 +2416,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
             modulus,
         };
 
-        const auto [lo_1_idx, hi_1_idx] = ctx->evaluate_non_native_field_multiplication(witnesses, false);
+        const auto [lo_1_idx, hi_1_idx] = ctx->queue_non_native_field_multiplication(witnesses, false);
 
         barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
 
