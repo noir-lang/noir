@@ -19,6 +19,7 @@ WASM_EXPORT uint8_t* merge_rollup__sim(uint8_t const* merge_rollup_inputs_buf,
                                        uint8_t const** merge_rollup_public_inputs_buf)
 {
     DummyComposer composer = DummyComposer();
+    info("hello");
     MergeRollupInputs<NT> merge_rollup_inputs;
     read(merge_rollup_inputs_buf, merge_rollup_inputs);
 
@@ -32,10 +33,10 @@ WASM_EXPORT uint8_t* merge_rollup__sim(uint8_t const* merge_rollup_inputs_buf,
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *merge_rollup_public_inputs_buf = raw_public_inputs_buf;
     *merge_rollup_public_inputs_size_out = public_inputs_vec.size();
-
-    info("merge_rollup__sim: composer.failed() = ", composer.failed());
-    info("merge_rollup__sim: composer.get_first_failure() = ", composer.get_first_failure());
-
+    if (composer.failed()) {
+        info("merge_rollup__sim: composer.failed() = ", composer.failed());
+        info("merge_rollup__sim: composer.get_first_failure() = ", composer.get_first_failure());
+    }
     return composer.alloc_and_serialize_first_failure();
 }
 } // extern "C"
