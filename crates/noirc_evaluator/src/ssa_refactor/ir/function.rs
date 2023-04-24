@@ -1,6 +1,4 @@
-use std::ops::Index;
-
-use super::basic_block::{BasicBlock, BasicBlockId};
+use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
 use super::instruction::Instruction;
 use super::map::{Id, SecondaryMap};
@@ -38,25 +36,9 @@ impl Function {
     pub(crate) fn entry_block(&self) -> BasicBlockId {
         self.entry_block
     }
-}
 
-impl Function {
-    /// Get an iterator over references to each basic block within the function, paired with the
-    /// basic block's id.
-    ///
-    /// The pairs are order by id, which is not guaranteed to be meaningful.
-    pub(crate) fn basic_blocks_iter(
-        &self,
-    ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
-        self.basic_blocks.iter()
-    }
-}
-
-impl Index<BasicBlockId> for Function {
-    type Output = BasicBlock;
-    /// Get a function's basic block for the given id.
-    fn index(&self, id: BasicBlockId) -> &BasicBlock {
-        &self.basic_blocks[id]
+    pub(crate) fn dfg(&self) -> &DataFlowGraph {
+        &self.dfg
     }
 }
 

@@ -13,5 +13,8 @@ pub(crate) fn visit_block_succs<F: FnMut(BasicBlockId)>(basic_block: &BasicBlock
             visit(*then_destination);
             visit(*else_destination);
         }
+        TerminatorInstruction::Return { .. } => {
+            // The last block of the control flow - no successors
+        }
     }
 }

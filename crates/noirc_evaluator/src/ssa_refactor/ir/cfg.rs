@@ -34,7 +34,7 @@ impl ControlFlowGraph {
     }
 
     fn compute(&mut self, func: &Function) {
-        for (basic_block_id, basic_block) in func.basic_blocks_iter() {
+        for (basic_block_id, basic_block) in func.dfg.basic_blocks_iter() {
             self.compute_block(basic_block_id, basic_block);
         }
     }
@@ -67,7 +67,7 @@ impl ControlFlowGraph {
     /// from `basic_block_id` while leaving edges to `basic_block_id` intact.
     pub(crate) fn recompute_block(&mut self, func: &Function, basic_block_id: BasicBlockId) {
         self.invalidate_block_successors(basic_block_id);
-        let basic_block = &func[basic_block_id];
+        let basic_block = &func.dfg[basic_block_id];
         self.compute_block(basic_block_id, basic_block);
     }
 

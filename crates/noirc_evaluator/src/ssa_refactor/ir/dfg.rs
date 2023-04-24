@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Signature,
@@ -84,6 +86,16 @@ impl DataFlowGraph {
 
             BasicBlock::new(parameters)
         })
+    }
+
+    /// Get an iterator over references to each basic block within the dfg, paired with the basic
+    /// block's id.
+    ///
+    /// The pairs are order by id, which is not guaranteed to be meaningful.
+    pub(crate) fn basic_blocks_iter(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
+        self.blocks.iter()
     }
 
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
@@ -180,6 +192,14 @@ impl DataFlowGraph {
         let parameter = self.values.insert(Value::Param { block: block_id, position, typ });
         block.add_parameter(parameter);
         parameter
+    }
+}
+
+impl Index<BasicBlockId> for DataFlowGraph {
+    type Output = BasicBlock;
+    /// Get a function's basic block for the given id.
+    fn index(&self, id: BasicBlockId) -> &BasicBlock {
+        &self.blocks[id]
     }
 }
 
