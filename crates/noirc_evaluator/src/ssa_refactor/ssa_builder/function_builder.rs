@@ -63,10 +63,10 @@ impl<'ssa> FunctionBuilder<'ssa> {
 
     /// Insert a numeric constant into the current function
     pub(crate) fn numeric_constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
-        self.current_function.dfg.constant(value, typ)
+        self.current_function.dfg.make_constant(value, typ)
     }
 
-    /// Insert a numeric constant into the current function
+    /// Insert a numeric constant into the current function of type Field
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), Type::field())
     }
@@ -78,7 +78,8 @@ impl<'ssa> FunctionBuilder<'ssa> {
     }
 
     /// Insert an allocate instruction at the end of the current block, allocating the
-    /// given amount of field elements.
+    /// given amount of field elements. Returns the result of the allocate instruction,
+    /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, size_to_allocate: u32) -> ValueId {
         let id = self.insert_instruction(Instruction::Allocate { size: size_to_allocate });
         self.current_function.dfg.make_instruction_results(id, Type::Reference)[0]
@@ -87,6 +88,7 @@ impl<'ssa> FunctionBuilder<'ssa> {
     /// Insert a Load instruction at the end of the current block, loading from the given address
     /// which should point to a previous Allocate instruction. Note that this is limited to loading
     /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
+    /// Returns the element that was loaded.
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         let id = self.insert_instruction(Instruction::Load { address });
         self.current_function.dfg.make_instruction_results(id, type_to_load)[0]
@@ -100,6 +102,7 @@ impl<'ssa> FunctionBuilder<'ssa> {
 
     /// Insert a Store instruction at the end of the current block, storing the given element
     /// at the given address. Expects that the address points to a previous Allocate instruction.
+    /// Returns the result of the add instruction.
     pub(crate) fn insert_add(&mut self, lhs: ValueId, rhs: ValueId, typ: Type) -> ValueId {
         let operator = BinaryOp::Add;
         let id = self.insert_instruction(Instruction::Binary(Binary { lhs, rhs, operator }));

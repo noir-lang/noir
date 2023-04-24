@@ -103,24 +103,20 @@ impl DataFlowGraph {
     /// This does not add the instruction to the block or populate the instruction's result list
     pub(crate) fn make_instruction(&mut self, instruction_data: Instruction) -> InstructionId {
         let id = self.instructions.insert(instruction_data);
-
         // Create a new vector to store the potential results for the instruction.
         self.results.insert(id, Default::default());
-
         id
     }
 
-    pub(crate) fn make_allocate(&mut self, size: u32) -> (InstructionId, ValueId) {
-        let id = self.make_instruction(Instruction::Allocate { size });
-        self.make_instruction_results(id, Type::Reference);
-        (id, self.instruction_results(id)[0])
-    }
-
+    /// Insert a value into the dfg's storage and return an id to reference it.
+    /// Until the value is used in an instruction it is unreachable.
     pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
         self.values.insert(value)
     }
 
-    pub(crate) fn constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
+    /// Creates a new constant value, or returns the Id to an existing one if
+    /// one already exists.
+    pub(crate) fn make_constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
         let constant = self.constants.insert(NumericConstant::new(value));
         self.values.insert(Value::NumericConstant { constant, typ })
     }
