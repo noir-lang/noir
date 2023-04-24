@@ -34,14 +34,14 @@ const_format = "0.2.30"
 hex = "0.4.2"
 serde_json = "1.0"
 termcolor = "1.1.2"
-tempdir = "0.3.7"
 color-eyre = "0.6.2"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "26178359a2251e885f15f0a4d1a686afda04aec9" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "26178359a2251e885f15f0a4d1a686afda04aec9" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "e3d4504f15e1295e637c4da80b1d08c87c267c45" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "e3d4504f15e1295e637c4da80b1d08c87c267c45" }
 
 [dev-dependencies]
+tempdir = "0.3.7"
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"

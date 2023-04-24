@@ -13,12 +13,11 @@ pub(crate) enum NumericType {
     NativeField,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 /// All types representable in the IR.
-pub(crate) enum Typ {
-    /// Represents numeric types in the IR
-    /// including field elements
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum Type {
+    /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
-    /// Represents the absence of a Type.
+    /// The Unit type with a single value
     Unit,
 }
