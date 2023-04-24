@@ -27,3 +27,20 @@ jobs:
       - name: Build wasm crate
         working-directory: ./crates/wasm
         run: ./build-wasm
+
+      - name: Checkout noir-wasm-testing
+        uses: actions/checkout@v3
+        with:
+          repository: aztecprotocol/noir-wasm-testing
+          path: noir-wasm-testing
+
+      - name: Inject built wasm into noir-wasm-testing
+        run: |
+          cp -r ./crates/wasm/pkg ./noir-wasm-testing/noir_wasm
+          echo "noir_wasm@file:./noir_wasm" >> ./noir-wasm-testing/package.json
+
+      - name: Install dependencies and run tests
+        working-directory: ./noir-wasm-testing
+        run: |
+          npm ci
+          npm test
