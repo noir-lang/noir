@@ -29,8 +29,8 @@ pub(crate) struct FunctionBuilder<'ssa> {
 }
 
 impl<'ssa> FunctionBuilder<'ssa> {
-    pub(crate) fn new(context: &'ssa SharedBuilderContext) -> Self {
-        let new_function = Function::new();
+    pub(crate) fn new(function_name: String, context: &'ssa SharedBuilderContext) -> Self {
+        let new_function = Function::new(function_name);
         let current_block = new_function.entry_block();
 
         Self {
@@ -43,8 +43,8 @@ impl<'ssa> FunctionBuilder<'ssa> {
     }
 
     /// Finish the current function and create a new function
-    pub(crate) fn new_function(&mut self) {
-        let new_function = Function::new();
+    pub(crate) fn new_function(&mut self, name: String) {
+        let new_function = Function::new(name);
         let old_function = std::mem::replace(&mut self.current_function, new_function);
 
         self.finished_functions.push((self.current_function_id, old_function));

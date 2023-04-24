@@ -52,7 +52,29 @@ impl BasicBlock {
         self.instructions.push(instruction);
     }
 
+    pub(crate) fn instructions(&self) -> &[InstructionId] {
+        &self.instructions
+    }
+
     pub(crate) fn set_terminator(&mut self, terminator: TerminatorInstruction) {
         self.terminator = Some(terminator);
+    }
+
+    pub(crate) fn terminator(&self) -> Option<&TerminatorInstruction> {
+        self.terminator.as_ref()
+    }
+
+    /// Iterate over all the successors of the currently block, as determined by
+    /// the blocks jumped to in the terminator instruction. If there is no terminator
+    /// instruction yet, this will iterate 0 times.
+    pub(crate) fn successors(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
+        match &self.terminator {
+            Some(TerminatorInstruction::Jmp { destination, .. }) => vec![*destination].into_iter(),
+            Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
+                vec![*then_destination, *else_destination].into_iter()
+            }
+            Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
+            None => vec![].into_iter(),
+        }
     }
 }

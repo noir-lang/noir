@@ -42,3 +42,24 @@ impl Type {
         Type::Numeric(NumericType::NativeField)
     }
 }
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Numeric(numeric) => numeric.fmt(f),
+            Type::Reference => write!(f, "reference"),
+            Type::Function => write!(f, "function"),
+            Type::Unit => write!(f, "unit"),
+        }
+    }
+}
+
+impl std::fmt::Display for NumericType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NumericType::Signed { bit_size } => write!(f, "i{bit_size}"),
+            NumericType::Unsigned { bit_size } => write!(f, "u{bit_size}"),
+            NumericType::NativeField => write!(f, "Field"),
+        }
+    }
+}

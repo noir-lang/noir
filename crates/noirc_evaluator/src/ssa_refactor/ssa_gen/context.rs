@@ -32,22 +32,23 @@ pub(super) struct SharedContext {
 
 impl<'a> FunctionContext<'a> {
     pub(super) fn new(
+        function_name: String,
         parameters: &Parameters,
         shared_context: &'a SharedContext,
         shared_builder_context: &'a SharedBuilderContext,
     ) -> Self {
         let mut this = Self {
             definitions: HashMap::new(),
-            builder: FunctionBuilder::new(shared_builder_context),
+            builder: FunctionBuilder::new(function_name, shared_builder_context),
             shared_context,
         };
         this.add_parameters_to_scope(parameters);
         this
     }
 
-    pub(super) fn new_function(&mut self, parameters: &Parameters) {
+    pub(super) fn new_function(&mut self, name: String, parameters: &Parameters) {
         self.definitions.clear();
-        self.builder.new_function();
+        self.builder.new_function(name);
         self.add_parameters_to_scope(parameters);
     }
 

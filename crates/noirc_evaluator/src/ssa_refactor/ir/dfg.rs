@@ -1,6 +1,6 @@
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    constant::NumericConstant,
+    constant::{NumericConstant, NumericConstantId},
     function::Signature,
     instruction::{Instruction, InstructionId},
     map::{DenseMap, Id, SecondaryMap, TwoWayMap},
@@ -210,6 +210,34 @@ impl DataFlowGraph {
         instruction: InstructionId,
     ) {
         self.blocks[block].insert_instruction(instruction);
+    }
+}
+
+impl std::ops::Index<InstructionId> for DataFlowGraph {
+    type Output = Instruction;
+    fn index(&self, id: InstructionId) -> &Self::Output {
+        &self.instructions[id]
+    }
+}
+
+impl std::ops::Index<ValueId> for DataFlowGraph {
+    type Output = Value;
+    fn index(&self, id: ValueId) -> &Self::Output {
+        &self.values[id]
+    }
+}
+
+impl std::ops::Index<NumericConstantId> for DataFlowGraph {
+    type Output = NumericConstant;
+    fn index(&self, id: NumericConstantId) -> &Self::Output {
+        &self.constants[id]
+    }
+}
+
+impl std::ops::Index<BasicBlockId> for DataFlowGraph {
+    type Output = BasicBlock;
+    fn index(&self, id: BasicBlockId) -> &Self::Output {
+        &self.blocks[id]
     }
 }
 
