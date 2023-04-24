@@ -5,14 +5,13 @@ import {
   ContractDeploymentData,
   FunctionData,
   NEW_COMMITMENTS_LENGTH,
-  PrivateHistoricTreeRoots,
   PRIVATE_DATA_TREE_HEIGHT,
+  PrivateHistoricTreeRoots,
   TxContext,
   TxRequest,
 } from '@aztec/circuits.js';
 import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
-import { FunctionAbi } from '@aztec/noir-contracts';
 import { ChildAbi, ParentAbi, TestContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';

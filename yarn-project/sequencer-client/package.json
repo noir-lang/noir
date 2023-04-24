@@ -43,6 +43,7 @@
     "@aztec/world-state": "workspace:^",
     "lodash.chunk": "^4.2.0",
     "lodash.flatmap": "^4.5.0",
+    "lodash.pick": "^4.4.0",
     "lodash.times": "^4.3.2",
     "tslib": "^2.4.0"
   },
@@ -52,6 +53,7 @@
     "@types/jest": "^29.5.0",
     "@types/lodash.chunk": "^4.2.7",
     "@types/lodash.flatmap": "^4.5.7",
+    "@types/lodash.pick": "^4.4.7",
     "@types/lodash.times": "^4.3.7",
     "@types/node": "^18.7.23",
     "concurrently": "^7.6.0",

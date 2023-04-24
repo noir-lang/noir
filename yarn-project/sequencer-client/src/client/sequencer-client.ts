@@ -5,7 +5,7 @@ import { CircuitBlockBuilder } from '../block_builder/circuit_block_builder.js';
 import { SequencerClientConfig } from '../config.js';
 import { getL1Publisher, getVerificationKeys, Sequencer } from '../index.js';
 import { EmptyPublicProver, EmptyRollupProver } from '../prover/empty.js';
-import { MockPublicProcessor } from '../sequencer/public_processor.js';
+import { MockContractDataSource, MockPublicProcessor } from '../sequencer/public_processor.js';
 import { FakePublicCircuitSimulator } from '../simulator/fake_public.js';
 import { MockPublicKernelCircuitSimulator } from '../simulator/mock_public_kernel.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
@@ -37,6 +37,7 @@ export class SequencerClient {
       new FakePublicCircuitSimulator(merkleTreeDb),
       new MockPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
+      new MockContractDataSource(),
     );
 
     const sequencer = new Sequencer(

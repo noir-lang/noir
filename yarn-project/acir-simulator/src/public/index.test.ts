@@ -56,7 +56,8 @@ describe('ACIR public execution simulator', () => {
         const previousBalance = new Fr(20n);
         oracle.storageRead.mockResolvedValue(previousBalance);
 
-        const execution = new PublicExecution(oracle, abi, contractAddress, functionData, args, callContext);
+        const bytecode = { bytecode: Buffer.from(abi.bytecode, 'hex') };
+        const execution = new PublicExecution(oracle, bytecode, contractAddress, functionData, args, callContext);
         const result = await execution.run();
 
         const expectedBalance = new Fr(160n);
@@ -119,7 +120,8 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const execution = new PublicExecution(oracle, abi, contractAddress, functionData, args, callContext);
+        const bytecode = { bytecode: Buffer.from(abi.bytecode, 'hex') };
+        const execution = new PublicExecution(oracle, bytecode, contractAddress, functionData, args, callContext);
         const result = await execution.run();
 
         const expectedRecipientBalance = new Fr(160n);
@@ -143,7 +145,8 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const execution = new PublicExecution(oracle, abi, contractAddress, functionData, args, callContext);
+        const bytecode = { bytecode: Buffer.from(abi.bytecode, 'hex') };
+        const execution = new PublicExecution(oracle, bytecode, contractAddress, functionData, args, callContext);
         const result = await execution.run();
 
         expect(result.returnValues).toEqual([recipientBalance]);

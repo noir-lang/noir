@@ -1,5 +1,5 @@
 import { keccak256String, randomBytes } from '../crypto/index.js';
-import { BufferReader } from '../index.js';
+import { BufferReader, Fr } from '../index.js';
 
 /**
  * Represents an Ethereum address as a 20-byte buffer and provides various utility methods
@@ -195,6 +195,15 @@ export class EthAddress {
     const buffer = Buffer.alloc(32);
     this.buffer.copy(buffer, 12);
     return buffer;
+  }
+
+  /**
+   * Returns a new field with the same contents as this EthAddress.
+   *
+   * @returns An Fr instance.
+   */
+  public toField() {
+    return Fr.fromBuffer(this.toBuffer32());
   }
 
   /**

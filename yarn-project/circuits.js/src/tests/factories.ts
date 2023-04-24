@@ -16,14 +16,15 @@ import {
   PreviousRollupData,
   PrivateCallData,
   PrivateCircuitPublicInputs,
-  PrivateKernelInputs,
   PrivateHistoricTreeRoots,
+  PrivateKernelInputs,
+  PublicCircuitPublicInputs,
+  PublicDataRead,
+  PublicDataWrite,
   RootRollupInputs,
   RootRollupPublicInputs,
   StateRead,
   StateTransition,
-  PublicDataWrite,
-  PublicDataRead,
 } from '../index.js';
 import { AggregationObject } from '../structs/aggregation_object.js';
 import { PrivateCallStackItem } from '../structs/call_stack_item.js';
@@ -144,6 +145,33 @@ export function makeAggregationObject(seed = 1): AggregationObject {
     new AffineElement(new Fq(BigInt(seed + 0x100)), new Fq(BigInt(seed + 0x101))),
     range(4, seed + 2).map(fr),
     range(6, seed + 6),
+  );
+}
+
+export function makeCallContext(seed = 0): CallContext {
+  return new CallContext(
+    makeAztecAddress(seed),
+    makeAztecAddress(seed + 1),
+    makeEthAddress(seed + 2),
+    false,
+    false,
+    false,
+  );
+}
+
+export function makePublicCircuitPublicInputs(seed = 0): PublicCircuitPublicInputs {
+  const frArray = (num: number, seed: number) => range(num, seed).map(fr);
+  return new PublicCircuitPublicInputs(
+    makeCallContext(seed),
+    frArray(ARGS_LENGTH, seed + 0x100),
+    frArray(RETURN_VALUES_LENGTH, seed + 0x200),
+    frArray(EMITTED_EVENTS_LENGTH, seed + 0x300),
+    range(STATE_TRANSITIONS_LENGTH, seed + 0x400).map(makeStateTransition),
+    range(STATE_READS_LENGTH, seed + 0x500).map(makeStateRead),
+    frArray(PUBLIC_CALL_STACK_LENGTH, seed + 0x600),
+    frArray(L1_MSG_STACK_LENGTH, seed + 0x700),
+    fr(seed + 0x800),
+    makeAztecAddress(seed + 0x801),
   );
 }
 
