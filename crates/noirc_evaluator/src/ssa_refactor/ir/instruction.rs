@@ -15,6 +15,12 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// of this is println.
 pub(crate) struct IntrinsicOpcodes;
 
+impl std::fmt::Display for IntrinsicOpcodes {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("intrinsics have no opcodes yet")
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
@@ -189,5 +195,18 @@ pub(crate) enum BinaryOp {
     /// Checks whether two types are equal.
     /// Returns true if the types were not equal and
     /// false otherwise.
-    Ne,
+    Neq,
+}
+
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOp::Add => write!(f, "add"),
+            BinaryOp::Sub => write!(f, "sub"),
+            BinaryOp::Mul => write!(f, "mul"),
+            BinaryOp::Div => write!(f, "div"),
+            BinaryOp::Eq => write!(f, "eq"),
+            BinaryOp::Neq => write!(f, "neq"),
+        }
+    }
 }

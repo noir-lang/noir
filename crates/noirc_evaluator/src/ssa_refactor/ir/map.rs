@@ -69,6 +69,12 @@ impl<T> std::fmt::Debug for Id<T> {
     }
 }
 
+impl<T> std::fmt::Display for Id<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "${}", self.index)
+    }
+}
+
 /// A DenseMap is a Vec wrapper where each element corresponds
 /// to a unique ID that can be used to access the element. No direct
 /// access to indices is provided. Since IDs must be stable and correspond

@@ -18,7 +18,10 @@ pub(crate) struct Function {
     source_locations: SecondaryMap<Instruction, Location>,
 
     /// The first basic block in the function
-    entry_block: BasicBlockId,
+    pub(super) entry_block: BasicBlockId,
+
+    /// Name of the function for debugging only
+    pub(super) name: String,
 
     pub(crate) dfg: DataFlowGraph,
 }
@@ -27,10 +30,10 @@ impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
     /// Note that any parameters to the function must be manually added later.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(name: String) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.new_block();
-        Self { source_locations: SecondaryMap::new(), entry_block, dfg }
+        Self { name, source_locations: SecondaryMap::new(), entry_block, dfg }
     }
 
     pub(crate) fn entry_block(&self) -> BasicBlockId {
@@ -45,6 +48,12 @@ pub(crate) type FunctionId = Id<Function>;
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
+}
+
+impl std::fmt::Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        super::printer::display_function(self, f)
+    }
 }
 
 #[test]
