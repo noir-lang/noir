@@ -7,6 +7,8 @@ use super::{
     value::{Value, ValueId},
 };
 
+use iter_extended::vecmap;
+
 #[derive(Debug, Default)]
 /// A convenience wrapper to store `Value`s.
 pub(crate) struct ValueList(Vec<Id<Value>>);
@@ -61,9 +63,31 @@ pub(crate) struct DataFlowGraph {
 }
 
 impl DataFlowGraph {
-    /// Creates a new `empty` basic block
+    /// Creates a new basic block with no parameters.
+    /// After being created, the block is unreachable in the current function
+    /// until another block is made to jump to it.
     pub(crate) fn new_block(&mut self) -> BasicBlockId {
-        todo!()
+        self.blocks.insert(BasicBlock::new(Vec::new()))
+    }
+
+    /// Creates a new basic block with the given parameters.
+    /// After being created, the block is unreachable in the current function
+    /// until another block is made to jump to it.
+    pub(crate) fn new_block_with_parameters(
+        &mut self,
+        parameter_types: impl Iterator<Item = Type>,
+    ) -> BasicBlockId {
+        self.blocks.insert_with_id(|entry_block| {
+            let parameters = vecmap(parameter_types.enumerate(), |(position, typ)| {
+                self.values.insert(Value::Param { block: entry_block, position, typ })
+            });
+
+            BasicBlock::new(parameters)
+        })
+    }
+
+    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
+        self.blocks[block].parameters()
     }
 
     /// Inserts a new instruction into the DFG.
@@ -148,6 +172,14 @@ impl DataFlowGraph {
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
+    }
+
+    pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> Id<Value> {
+        let block = &mut self.blocks[block_id];
+        let position = block.parameters().len();
+        let parameter = self.values.insert(Value::Param { block: block_id, position, typ });
+        block.add_parameter(parameter);
+        parameter
     }
 }
 

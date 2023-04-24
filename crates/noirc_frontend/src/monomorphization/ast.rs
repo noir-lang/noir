@@ -175,12 +175,14 @@ pub enum LValue {
     MemberAccess { object: Box<LValue>, field_index: usize },
 }
 
+pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
+
 #[derive(Debug, Clone)]
 pub struct Function {
     pub id: FuncId,
     pub name: String,
 
-    pub parameters: Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>,
+    pub parameters: Parameters,
     pub body: Expression,
 
     pub return_type: Type,
