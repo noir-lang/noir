@@ -99,6 +99,12 @@ impl<T> DenseMap<T> {
         self.storage.push(f(id));
         id
     }
+
+    /// Gets an iterator to the Ids of each element in the map. The Ids are iterated in their
+    /// natural order.
+    pub(crate) fn ids_iter(&self) -> impl Iterator<Item = Id<T>> {
+        (0..self.storage.len()).into_iter().map(|idx| Id::new(idx))
+    }
 }
 
 impl<T> Default for DenseMap<T> {

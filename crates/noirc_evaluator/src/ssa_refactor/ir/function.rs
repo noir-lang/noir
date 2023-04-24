@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use super::basic_block::{BasicBlock, BasicBlockId};
 use super::dfg::DataFlowGraph;
 use super::instruction::Instruction;
@@ -56,27 +58,16 @@ impl Function {
     /// Get an iterator over the ids of the basic blocks within the function.
     ///
     /// The ids are iterated in no meaningful order.
-    pub(crate) fn basic_block_ids_iter(&self) -> BasicBlockIdsIter {
-        BasicBlockIdsIter(self.basic_blocks.keys())
+    pub(crate) fn basic_block_ids_iter(&self) -> impl Iterator<Item = BasicBlockId> {
+        self.basic_blocks.ids_iter()
     }
 }
 
 impl Index<BasicBlockId> for Function {
     type Output = BasicBlock;
     /// Get a function's basic block for the given id.
-    fn index<'a>(&'a self, id: BasicBlockId) -> &'a BasicBlock {
-        &self.basic_blocks[&id]
-    }
-}
-
-/// An iterator over a function's basic block ids. The iterator type is `BasicBlockId`.
-pub(crate) struct BasicBlockIdsIter<'a>(hash_map::Keys<'a, BasicBlockId, BasicBlock>);
-
-impl<'a> Iterator for BasicBlockIdsIter<'a> {
-    type Item = BasicBlockId;
-
-    fn next(&mut self) -> Option<BasicBlockId> {
-        self.0.next().map(|k| *k)
+    fn index(&self, id: BasicBlockId) -> &BasicBlock {
+        &self.basic_blocks[id]
     }
 }
 
