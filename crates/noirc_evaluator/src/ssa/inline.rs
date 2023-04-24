@@ -344,8 +344,8 @@ fn inline_in_block(
                         let name = format!("ret_line{i}");
                         let typ = ctx.object_type(*ret);
                         let var = if let ObjectType::ArrayPointer(a) = typ {
-                            let array = &ctx.mem[a];
-                            let (var, b) =
+                        let array = &ctx.mem[a];
+                        let (var, b) =
                                 ctx.new_array(&name, array.element_type, array.len, None);
                             stack_frame.array_map.insert(a, b);
                             var
@@ -464,6 +464,7 @@ impl node::Operation {
         match self {
             //default way to handle arrays during inlining; we map arrays using the stack_frame
             Operation::Binary(_) | Operation::Constrain(..) | Operation::Intrinsic(_,_)
+            |Operation::UnsafeCall { .. }
             => {
                 self.map_id_mut(|id| {
                     if let Some(a) = Memory::deref(ctx, id) {
@@ -494,7 +495,6 @@ impl node::Operation {
             |  Operation::Result { .. }
             //These types handle arrays in a specific way (done in inline_in_block)
             | Operation::Return(_) | Operation::Load {.. } | Operation::Store { .. } | Operation::Call { .. }
-            | Operation::UnsafeCall { .. }
             => {
                 self.map_id_mut(|id| {
                     function::SsaFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)

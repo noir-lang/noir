@@ -73,10 +73,7 @@ impl SsaFunction {
         let function_cfg = block::bfs(self.entry_block, None, ctx);
         block::compute_sub_dom(ctx, &function_cfg);
         //Optimization
-        //catch the error because the function may not be called ??
         super::optimizations::full_cse(ctx, self.entry_block, false).unwrap();
-        //
-        dbg!(&self.name);
         BrilligGen::compile(ctx, self.entry_block).expect("unsafe functions should compile")
     }
 
