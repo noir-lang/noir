@@ -38,11 +38,13 @@ void check_membership(DummyComposer& composer,
                       NT::fr const& leaf,
                       NT::uint32 const& leafIndex,
                       std::array<NT::fr, N> const& siblingPath,
-                      NT::fr const& root)
+                      NT::fr const& root,
+                      std::string const& message)
 {
     auto calculatedRoot = iterate_through_tree_via_sibling_path(leaf, leafIndex, siblingPath);
+    auto err_msg = format("Membership check failed: ", message);
     // TODO: update tests to build the correct trees
-    composer.do_assert(calculatedRoot == root, "Membership check failed");
+    composer.do_assert(calculatedRoot == root, err_msg);
 }
 
 template <size_t N>
@@ -51,14 +53,15 @@ AppendOnlySnapshot insert_subtree_to_snapshot_tree(DummyComposer& composer,
                                                    std::array<NT::fr, N> siblingPath,
                                                    NT::fr emptySubtreeRoot,
                                                    NT::fr subtreeRootToInsert,
-                                                   uint8_t subtreeDepth)
+                                                   uint8_t subtreeDepth,
+                                                   std::string const& message)
 {
     // TODO: Sanity check len of siblingPath > height of subtree
     // TODO: Ensure height of subtree is correct (eg 3 for commitments, 1 for contracts)
     auto leafIndexAtDepth = snapshot.next_available_leaf_index >> subtreeDepth;
 
     // Check that the current root is correct and that there is an empty subtree at the insertion location
-    check_membership(composer, emptySubtreeRoot, leafIndexAtDepth, siblingPath, snapshot.root);
+    check_membership(composer, emptySubtreeRoot, leafIndexAtDepth, siblingPath, snapshot.root, message);
 
     // if index of leaf is x, index of its parent is x/2 or x >> 1. We need to find the parent `subtreeDepth` levels up.
     auto new_root = iterate_through_tree_via_sibling_path(subtreeRootToInsert, leafIndexAtDepth, siblingPath);

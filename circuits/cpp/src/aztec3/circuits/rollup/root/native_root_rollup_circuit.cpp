@@ -48,7 +48,8 @@ RootRollupPublicInputs root_rollup_circuit(DummyComposer& composer, RootRollupIn
         rootRollupInputs.new_historic_private_data_tree_root_sibling_path,
         fr::zero(),
         right.end_private_data_tree_snapshot.root,
-        0);
+        0,
+        "historic private data tree roots insertion");
 
     // Update the historic private data tree
     auto end_tree_of_historic_contract_tree_roots_snapshot =
@@ -57,7 +58,8 @@ RootRollupPublicInputs root_rollup_circuit(DummyComposer& composer, RootRollupIn
                                                     rootRollupInputs.new_historic_contract_tree_root_sibling_path,
                                                     fr::zero(),
                                                     right.end_contract_tree_snapshot.root,
-                                                    0);
+                                                    0,
+                                                    "historic contract tree roots insertion");
 
     RootRollupPublicInputs public_inputs = {
         .end_aggregation_object = aggregation_object,

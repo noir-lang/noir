@@ -16,11 +16,11 @@ class DummyComposer {
         }
     }
 
-    bool has_failed() { return failure_msgs.size() > 0; }
+    bool failed() { return failure_msgs.size() > 0; }
 
     std::string get_first_failure()
     {
-        if (has_failed()) {
+        if (failed()) {
             return failure_msgs[0];
         }
         return "";

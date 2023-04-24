@@ -64,6 +64,9 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
         .proof = mock_kernel_proof,
         .vk = mock_kernel_vk,
     };
+
+    assert(!mock_kernel_composer.failed());
+
     return previous_kernel;
 }
 

@@ -207,8 +207,12 @@ void perform_historical_private_data_tree_membership_checks(DummyComposer& compo
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_private_data_tree_root_membership_witnesses[i];
 
-        components::check_membership(
-            composer, leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
+        components::check_membership(composer,
+                                     leaf,
+                                     historic_root_witness.leaf_index,
+                                     historic_root_witness.sibling_path,
+                                     historic_root,
+                                     format("historic private data tree roots ", i));
     }
 }
 
@@ -223,13 +227,15 @@ void perform_historical_contract_data_tree_membership_checks(DummyComposer& comp
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_contract_tree_root_membership_witnesses[i];
 
-        components::check_membership(
-            composer, leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
+        components::check_membership(composer,
+                                     leaf,
+                                     historic_root_witness.leaf_index,
+                                     historic_root_witness.sibling_path,
+                                     historic_root,
+                                     format("historic contract data tree roots ", i));
     }
 }
 
-// TODO: right now we are using the hash of NULLIFIER_LEAF{0,0,0} as the empty leaf, however this is an attack vector
-// WE MUST after this hackathon change this to be 0, not the hash of some 0 values
 NT::fr create_nullifier_subtree(std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> const& nullifier_leaves)
 {
     // Build a merkle tree of the nullifiers
@@ -355,7 +361,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                                                                         original_low_nullifier.hash(),
                                                                         witness.leaf_index,
                                                                         witness.sibling_path,
-                                                                        current_nullifier_tree_root);
+                                                                        current_nullifier_tree_root,
+                                                                        "low nullifier membership check");
 
                     // Calculate the new value of the low_nullifier_leaf
                     NullifierLeaf updated_low_nullifier = NullifierLeaf{ .value = low_nullifier_preimage.leaf_value,
@@ -382,6 +389,16 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
             new_index = new_index + 1;
         }
     }
+
+    // Check that the new subtree is to be inserted at the next location, and is empty currently
+    auto leafIndexNullifierSubtreeDepth =
+        baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
+    components::check_membership(composer,
+                                 EMPTY_NULLIFIER_SUBTREE_ROOT,
+                                 leafIndexNullifierSubtreeDepth,
+                                 baseRollupInputs.new_nullifiers_subtree_sibling_path,
+                                 current_nullifier_tree_root,
+                                 "empty nullifier subtree membership check");
 
     // Create new nullifier subtree to insert into the whole nullifier tree
     auto nullifier_sibling_path = baseRollupInputs.new_nullifiers_subtree_sibling_path;
@@ -422,7 +439,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
                                                     baseRollupInputs.new_commitments_subtree_sibling_path,
                                                     EMPTY_COMMITMENTS_SUBTREE_ROOT,
                                                     commitments_tree_subroot,
-                                                    PRIVATE_DATA_SUBTREE_DEPTH);
+                                                    PRIVATE_DATA_SUBTREE_DEPTH,
+                                                    "empty commitment subtree membership check");
 
     // Insert contract subtrees:
     auto end_contract_tree_snapshot =
@@ -431,16 +449,10 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
                                                     baseRollupInputs.new_contracts_subtree_sibling_path,
                                                     EMPTY_CONTRACTS_SUBTREE_ROOT,
                                                     contracts_tree_subroot,
-                                                    CONTRACT_SUBTREE_DEPTH);
+                                                    CONTRACT_SUBTREE_DEPTH,
+                                                    "empty contract subtree membership check");
 
-    // Update nullifier tree and insert new subtree
-    auto leafIndexNullifierSubtreeDepth =
-        baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
-    components::check_membership(composer,
-                                 EMPTY_NULLIFIER_SUBTREE_ROOT,
-                                 leafIndexNullifierSubtreeDepth,
-                                 baseRollupInputs.new_nullifiers_subtree_sibling_path,
-                                 baseRollupInputs.start_nullifier_tree_snapshot.root);
+    // Insert nullifiers:
     AppendOnlySnapshot end_nullifier_tree_snapshot =
         check_nullifier_tree_non_membership_and_insert_to_tree(composer, baseRollupInputs);
 
