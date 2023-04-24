@@ -47,20 +47,25 @@ cd cpp
 ```
 
 Here is an example of rapidly rebuilding and running all tests for `x86_64`:
+
 ```
 ./bootstrap.sh
 ./scripts/run_tests_local x86_64 glob
 ```
+
 > **WARNING:** the `x86_64` (and `wasm` used below) as well as the keyword `glob` **MUST BE LOWERCASE**!
 
 Here is an example of rapidly rebuilding and running only the abis tests for `wasm`:
+
 ```
 ./bootstrap.sh aztec3_circuits_abis_tests
 ./scripts/run_tests_local wasm aztec3_circuits_abis_tests
 ```
+
 > _Note:_ to run wasm tests you must first follow the [instructions here](https://docs.wasmtime.dev/cli-install.html) to install `wasmtime`.
 
 You can choose which tests will run via a gtest filter. This one below runs only tests that _omit_ the string '.circuit':
+
 ```
 ./scripts/run_tests_local wasm aztec3_circuits_abis_tests -*.circuit*
 ```
@@ -68,20 +73,25 @@ You can choose which tests will run via a gtest filter. This one below runs only
 ---
 
 Here's a list of the tests currently available (conveniently combined with the command to build, then execute them on `x86_64`, for easy copy-pasta):
- - `aztec3_circuits_abis_tests`
-   - `./bootstrap.sh aztec3_circuits_abis_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_abis_tests`
 
- - `aztec3_circuits_apps_tests`
-   - `./bootstrap.sh aztec3_circuits_apps_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_apps_tests`
+- `aztec3_circuits_abis_tests`
 
- - `aztec3_circuits_kernel_tests`
-   - `./bootstrap.sh aztec3_circuits_kernel_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_kernel_tests`
+  - `./bootstrap.sh aztec3_circuits_abis_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_abis_tests`
 
- - `aztec3_circuits_recursion_tests`
-   - `./bootstrap.sh aztec3_circuits_recursion_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_recursion_tests`
+- `aztec3_circuits_apps_tests`
 
- - `aztec3_circuits_rollup_tests`
-   - `./bootstrap.sh aztec3_circuits_rollup_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_rollup_tests`
+  - `./bootstrap.sh aztec3_circuits_apps_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_apps_tests`
+
+- `aztec3_circuits_kernel_tests`
+
+  - `./bootstrap.sh aztec3_circuits_kernel_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_kernel_tests`
+
+- `aztec3_circuits_recursion_tests`
+
+  - `./bootstrap.sh aztec3_circuits_recursion_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_recursion_tests`
+
+- `aztec3_circuits_rollup_tests`
+  - `./bootstrap.sh aztec3_circuits_rollup_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_rollup_tests`
 
 ---
 
@@ -90,15 +100,47 @@ Here's a list of the tests currently available (conveniently combined with the c
 You can also run tests in docker. This is useful for replicating CI failures that you can't replicate with your standard local environment.
 
 To build and run all tests in an `x86_64` docker image:
+
 ```
 ./bootstrap.sh
 ./scripts/build_run_tests_docker_local 1 x86_64 glob
 ```
+
 You can choose `wasm` instead of `x86_64`. You can also specify individual test executables instead of `glob` and can use gtest filters exactly as described for `run_tests_local`.
 
 > At this time, it is common to run wasm tests with the filter `-*.circuit*` as there are circuit issues in wasm.
 
 > The `build_run_tests_docker_local` script builds the chosen docker image (`x86_64` or `wasm`) and then launches a container from that image to run the `run_tests_local` script (used above).
+
+#### Generating code coverage reports
+
+You can generate coverage reports for your tests.
+To build and run coverage on all tests:
+
+```
+./bootstrap.sh
+./scripts/run_coverage
+```
+
+Producing coverage reports is computationally intensive
+You can select a specific test suite to run coverage on by supplying it as an argument to the `run_coverage`. For example, to only compile and produce
+
+```
+./bootstrap.sh
+./scripts/run_coverage aztec3_circuits_abis_tests
+```
+
+**Toggles**
+Running with the `CLEAN` environment variable set will delete the existing `build-coverage` folder.
+Running with the `CLEAR_COV` environment variable will delete any existing `lcov.info` file.
+
+#### Viewing coverage reports
+
+Once a report has been generated, you can view them within the `build-coverage` folder in html format. If you ran coverage with any tests in mind, the report will exist in a folder prefixed with its name, otherwise they can be found in one labelled all_tests.
+
+#### Viewing coverage reports inside vscode
+
+It may be useful to view coverage information from within vscode. The `./scripts/run_coverage` will produce an `lcov.info` file that should automatically be picked up by the `coverage-gutters` vscode extension.
 
 ---
 
@@ -107,33 +149,33 @@ You can choose `wasm` instead of `x86_64`. You can also specify individual test 
 > **WARNING:** to debug in WASM (to use the `-g` option to `wasmtime`) you will unfortunately need to revert to `wasmtime` version `1.0.0` until [this bug](https://github.com/bytecodealliance/wasmtime/issues/3999) is fixed. To install that version, remove the `~/.wasmtime` directory and run `curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v1.0.0`
 
 1. Make sure you have opened VSCode via the circuits workspace file
-    * `code circuits.code-workspace`
+   - `code circuits.code-workspace`
 2. Make sure you have the recommended plugins installed
-    * Open the command pallete (`Ctrl+Shift+P`)
-        * `Cmd+Shift+P` on Macs
-    * Type and select "Extensions: Show Recommended Extensions"
-    * Install any plugins shown not already installed
+   - Open the command pallete (`Ctrl+Shift+P`)
+     - `Cmd+Shift+P` on Macs
+   - Type and select "Extensions: Show Recommended Extensions"
+   - Install any plugins shown not already installed
 3. Configure CMake for whichever preset you'd like to use
-    * Open the command pallete (`Ctrl+Shift+P`)
-    * Type and select "CMake: Select Configure Preset"
-    * Choose a debug preset such as:
-        * "Debugging build with Clang-15"
-        * "Debugging build for WASM"
-    * Redo this step later to switch between Clang-15/native and wasm
+   - Open the command pallete (`Ctrl+Shift+P`)
+   - Type and select "CMake: Select Configure Preset"
+   - Choose a debug preset such as:
+     - "Debugging build with Clang-15"
+     - "Debugging build for WASM"
+   - Redo this step later to switch between Clang-15/native and wasm
 4. Go to the "Run and Debug" panel
-    * Button (usually on left) that looks like a play button with a bug
-    * Or `Ctrl+Shift+D`
+   - Button (usually on left) that looks like a play button with a bug
+   - Or `Ctrl+Shift+D`
 5. Select the proper launch option at the top of the "Run and Debug" panel
-    * "Launch native"
-    * "Launch in WASM"
+   - "Launch native"
+   - "Launch in WASM"
 6. Select the test executable to debug
-    * Open the command pallete (`Ctrl+Shift+P`)
-    * Type and select "CMake: Set Debug Target"
-    * Select executable to debug like `aztec3_circuits_abis_tests`
+   - Open the command pallete (`Ctrl+Shift+P`)
+   - Type and select "CMake: Set Debug Target"
+   - Select executable to debug like `aztec3_circuits_abis_tests`
 7. Check output for progress
 8. [OPTIONAL] change `gtest_filter` args to filter specific test cases
-    * In `circuits.code-workspace`'s `launch->configurations-><native or wasm>`
-    * Don't commit these changes
+   - In `circuits.code-workspace`'s `launch->configurations-><native or wasm>`
+   - Don't commit these changes
 9. [OPTIONAL] set breakpoints in C++ files
 
 > _Note:_ redo steps 3-5 to switch between debugging Clang-15/native test executables and WASM test executables

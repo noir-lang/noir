@@ -4,3 +4,6 @@ src/wasi-sdk-*
 CMakeUserPresets.json
 # to be unignored when we agree on clang-tidy rules
 .clangd
+
+# ctest log output dir
+**/Testing/*

@@ -38,7 +38,9 @@
       // prettier.
       "IBM.output-colorizer",
       "eamodio.gitlens",
-      "esbenp.prettier-vscode"
+      "esbenp.prettier-vscode",
+      // Displays code coverage report information within vscode
+      "ryanluker.vscode-coverage-gutters"
     ],
     "unwantedRecommendations": [
       // The following may have been installed
