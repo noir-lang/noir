@@ -1,12 +1,14 @@
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
+    constant::NumericConstant,
     function::Signature,
     instruction::{Instruction, InstructionId},
-    map::{DenseMap, Id, SecondaryMap},
+    map::{DenseMap, Id, SecondaryMap, TwoWayMap},
     types::Type,
     value::{Value, ValueId},
 };
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 #[derive(Debug, Default)]
@@ -20,6 +22,7 @@ impl ValueList {
         self.0.push(value);
         self.len() - 1
     }
+
     /// Returns the number of values in the list.
     fn len(&self) -> usize {
         self.0.len()
@@ -29,6 +32,7 @@ impl ValueList {
     fn clear(&mut self) {
         self.0.clear();
     }
+
     /// Returns the ValueId's as a slice.
     pub(crate) fn as_slice(&self) -> &[ValueId] {
         &self.0
@@ -54,6 +58,11 @@ pub(crate) struct DataFlowGraph {
     /// Storage for all of the values defined in this
     /// function.
     values: DenseMap<Value>,
+
+    /// Storage for all constants used within a function.
+    /// Each constant is unique, attempting to insert the same constant
+    /// twice will return the same ConstantId.
+    constants: TwoWayMap<NumericConstant>,
 
     /// Function signatures of external methods
     signatures: DenseMap<Signature>,
@@ -91,27 +100,39 @@ impl DataFlowGraph {
     }
 
     /// Inserts a new instruction into the DFG.
+    /// This does not add the instruction to the block or populate the instruction's result list
     pub(crate) fn make_instruction(&mut self, instruction_data: Instruction) -> InstructionId {
         let id = self.instructions.insert(instruction_data);
 
         // Create a new vector to store the potential results for the instruction.
         self.results.insert(id, Default::default());
+
         id
+    }
+
+    pub(crate) fn make_allocate(&mut self, size: u32) -> (InstructionId, ValueId) {
+        let id = self.make_instruction(Instruction::Allocate { size });
+        self.make_instruction_results(id, Type::Reference);
+        (id, self.instruction_results(id)[0])
     }
 
     pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
         self.values.insert(value)
     }
 
-    /// Attaches results to the instruction.
+    pub(crate) fn constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
+        let constant = self.constants.insert(NumericConstant::new(value));
+        self.values.insert(Value::NumericConstant { constant, typ })
+    }
+
+    /// Attaches results to the instruction, clearing any previous results.
     ///
-    /// Returns the number of results that this instruction
-    /// produces.
+    /// Returns the results of the instruction
     pub(crate) fn make_instruction_results(
         &mut self,
         instruction_id: InstructionId,
         ctrl_typevar: Type,
-    ) -> usize {
+    ) -> &[ValueId] {
         // Clear all of the results instructions associated with this
         // instruction.
         self.results.get_mut(&instruction_id).expect("all instructions should have a `result` allocation when instruction was added to the DFG").clear();
@@ -119,13 +140,14 @@ impl DataFlowGraph {
         // Get all of the types that this instruction produces
         // and append them as results.
         let typs = self.instruction_result_types(instruction_id, ctrl_typevar);
-        let num_typs = typs.len();
 
         for typ in typs {
             self.append_result(instruction_id, typ);
         }
 
-        num_typs
+        self.results.get_mut(&instruction_id)
+            .expect("all instructions should have a `result` allocation when instruction was added to the DFG")
+            .as_slice()
     }
 
     /// Return the result types of this instruction.
@@ -181,6 +203,14 @@ impl DataFlowGraph {
         block.add_parameter(parameter);
         parameter
     }
+
+    pub(crate) fn insert_instruction_in_block(
+        &mut self,
+        block: BasicBlockId,
+        instruction: InstructionId,
+    ) {
+        self.blocks[block].insert_instruction(instruction);
+    }
 }
 
 #[cfg(test)]
@@ -190,19 +220,17 @@ mod tests {
         instruction::Instruction,
         types::{NumericType, Type},
     };
-    use acvm::FieldElement;
 
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
-        let ins = Instruction::Immediate { value: FieldElement::from(0u128) };
+        let ins = Instruction::Allocate { size: 20 };
         let ins_id = dfg.make_instruction(ins);
 
         let num_results =
-            dfg.make_instruction_results(ins_id, Type::Numeric(NumericType::NativeField));
+            dfg.make_instruction_results(ins_id, Type::Numeric(NumericType::NativeField)).len();
 
         let results = dfg.instruction_results(ins_id);
-
         assert_eq!(results.len(), num_results);
     }
 }

@@ -1,13 +1,18 @@
 mod context;
 mod value;
 
+use acvm::FieldElement;
 use context::SharedContext;
+use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
-use self::{context::FunctionContext, value::Values};
+use self::{
+    context::FunctionContext,
+    value::{Tree, Values},
+};
 
-use super::ssa_builder::SharedBuilderContext;
+use super::{ir::types::Type, ssa_builder::SharedBuilderContext};
 
 pub(crate) fn generate_ssa(program: Program) {
     let context = SharedContext::new(program);
@@ -56,8 +61,55 @@ impl<'a> FunctionContext<'a> {
         todo!()
     }
 
-    fn codegen_literal(&mut self, _literal: &ast::Literal) -> Values {
-        todo!()
+    fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
+        match literal {
+            ast::Literal::Array(array) => {
+                let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                let element_type = Self::convert_type(&array.element_type);
+                self.codegen_array(elements, element_type)
+            }
+            ast::Literal::Integer(value, typ) => {
+                let typ = Self::convert_non_tuple_type(typ);
+                self.builder.numeric_constant(*value, typ).into()
+            }
+            ast::Literal::Bool(value) => {
+                // Booleans are represented as u1s with 0 = false, 1 = true
+                let typ = Type::unsigned(1);
+                let value = FieldElement::from(*value as u128);
+                self.builder.numeric_constant(value, typ).into()
+            }
+            ast::Literal::Str(string) => {
+                let elements = vecmap(string.as_bytes(), |byte| {
+                    let value = FieldElement::from(*byte as u128);
+                    self.builder.numeric_constant(value, Type::field()).into()
+                });
+                self.codegen_array(elements, Tree::Leaf(Type::field()))
+            }
+        }
+    }
+
+    fn codegen_array(&mut self, elements: Vec<Values>, element_type: Tree<Type>) -> Values {
+        let size = element_type.size_of_type() * elements.len();
+        let array = self.builder.insert_allocate(size.try_into().unwrap_or_else(|_| {
+            panic!("Cannot allocate {size} bytes for array, it does not fit into a u32")
+        }));
+
+        // Now we must manually store all the elements into the array
+        let mut i = 0;
+        for element in elements {
+            element.for_each(|value| {
+                let address = if i == 0 {
+                    array
+                } else {
+                    let offset = self.builder.numeric_constant((i as u128).into(), Type::field());
+                    self.builder.insert_add(array, offset, Type::field())
+                };
+                self.builder.insert_store(address, value.eval());
+                i += 1;
+            });
+        }
+
+        array.into()
     }
 
     fn codegen_block(&mut self, _block: &[Expression]) -> Values {
