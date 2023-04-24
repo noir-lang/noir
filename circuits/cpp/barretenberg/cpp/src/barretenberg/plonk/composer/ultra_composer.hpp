@@ -526,7 +526,7 @@ class UltraComposer : public ComposerBase {
     }
 
     RangeList create_range_list(const uint64_t target_range);
-    void process_range_list(const RangeList& list);
+    void process_range_list(RangeList& list);
     void process_range_lists();
 
     /**

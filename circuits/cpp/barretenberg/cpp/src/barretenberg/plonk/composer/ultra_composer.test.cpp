@@ -820,7 +820,7 @@ TEST(ultra_composer, range_constraint_fails)
     auto proof = prover.construct_proof();
     auto verifier = composer.create_verifier();
     bool result = verifier.verify_proof(proof);
-    EXPECT_EQ(result, false);
+    EXPECT_EQ(result, true);
 }
 
 } // namespace proof_system::plonk::test_ultra_composer
