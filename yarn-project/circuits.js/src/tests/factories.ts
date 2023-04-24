@@ -18,16 +18,21 @@ import {
   PrivateCircuitPublicInputs,
   PrivateHistoricTreeRoots,
   PrivateKernelInputs,
+  PublicCallData,
   PublicCircuitPublicInputs,
   PublicDataRead,
   PublicDataWrite,
+  PublicKernelInputsNoKernelInput,
+  PublicKernelInputsNonFirstIteration,
+  PublicKernelInputsPrivateKernelInput,
   RootRollupInputs,
   RootRollupPublicInputs,
   StateRead,
   StateTransition,
+  WitnessedPublicCallData,
 } from '../index.js';
 import { AggregationObject } from '../structs/aggregation_object.js';
-import { PrivateCallStackItem } from '../structs/call_stack_item.js';
+import { PrivateCallStackItem, PublicCallStackItem } from '../structs/call_stack_item.js';
 import {
   ARGS_LENGTH,
   CONTRACT_TREE_HEIGHT,
@@ -203,11 +208,15 @@ export function makeVerificationKey(): VerificationKey {
 export function makePreviousKernelData(seed = 1): PreviousKernelData {
   return new PreviousKernelData(
     makeKernelPublicInputs(seed),
-    makeDynamicSizeBuffer(16, seed + 0x80),
+    makeProof(seed + 0x80),
     makeVerificationKey(),
     0x42,
     range(VK_TREE_HEIGHT, 0x1000).map(fr),
   );
+}
+
+export function makeProof(seed = 1) {
+  return makeDynamicSizeBuffer(16, seed);
 }
 
 export function makePrivateKernelInputs(seed = 1): PrivateKernelInputs {
@@ -215,6 +224,51 @@ export function makePrivateKernelInputs(seed = 1): PrivateKernelInputs {
     makeSignedTxRequest(seed),
     makePreviousKernelData(seed + 0x1000),
     makePrivateCallData(seed + 0x2000),
+  );
+}
+
+export function makePublicCallStackItem(seed = 1): PublicCallStackItem {
+  return new PublicCallStackItem(
+    makeAztecAddress(seed),
+    new FunctionData(makeSelector(seed + 0x1), true, true),
+    makePublicCircuitPublicInputs(seed + 0x10),
+  );
+}
+
+export function makePublicCallData(seed = 1) {
+  return new PublicCallData(
+    makePublicCallStackItem(seed),
+    range(PUBLIC_CALL_STACK_LENGTH, seed + 0x300).map(makePublicCallStackItem),
+    makeProof(seed + 0x1000),
+    fr(seed + 1),
+    fr(seed + 2),
+  );
+}
+
+export function makeWitnessedPublicCallData(seed = 1): WitnessedPublicCallData {
+  return new WitnessedPublicCallData(
+    makePublicCallData(seed),
+    range(STATE_TRANSITIONS_LENGTH, seed + 0x100).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
+    range(STATE_READS_LENGTH, seed + 0x200).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
+    fr(seed + 0x300),
+  );
+}
+
+export function makePublicKernelInputsNonFirstIteration(seed = 1): PublicKernelInputsNonFirstIteration {
+  return new PublicKernelInputsNonFirstIteration(
+    makePreviousKernelData(seed),
+    makeWitnessedPublicCallData(seed + 0x1000),
+  );
+}
+
+export function makePublicKernelInputsNoKernelInput(seed = 1) {
+  return new PublicKernelInputsNoKernelInput(makeSignedTxRequest(seed), makeWitnessedPublicCallData(seed + 0x100));
+}
+
+export function makePublicKernelInputsPrivateKernelInput(seed = 1) {
+  return new PublicKernelInputsPrivateKernelInput(
+    makePreviousKernelData(seed),
+    makeWitnessedPublicCallData(seed + 0x100),
   );
 }
 
@@ -236,8 +290,8 @@ export function makeTxRequest(seed = 1): TxRequest {
 
 export function makePrivateCallData(seed = 1): PrivateCallData {
   return PrivateCallData.from({
-    callStackItem: makeCallStackItem(seed),
-    privateCallStackPreimages: range(PRIVATE_CALL_STACK_LENGTH, seed + 0x10).map(makeCallStackItem),
+    callStackItem: makePrivateCallStackItem(seed),
+    privateCallStackPreimages: range(PRIVATE_CALL_STACK_LENGTH, seed + 0x10).map(makePrivateCallStackItem),
     proof: makeDynamicSizeBuffer(16, seed + 0x50),
     vk: makeVerificationKey(),
     functionLeafMembershipWitness: makeMembershipWitness(FUNCTION_TREE_HEIGHT, seed + 0x30),
@@ -247,7 +301,7 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
   });
 }
 
-export function makeCallStackItem(seed = 1): PrivateCallStackItem {
+export function makePrivateCallStackItem(seed = 1): PrivateCallStackItem {
   return new PrivateCallStackItem(
     makeAztecAddress(seed),
     new FunctionData(makeSelector(seed + 0x1), true, true),

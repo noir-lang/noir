@@ -1,0 +1,1242 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`structs/kernel serializes and prints previous_kernel_data 1`] = `
+"public_inputs: end:
+aggregation_object:
+P0: { 0x1, 0x2 }
+P1: { 0x101, 0x102 }
+public_inputs: [
+ 0x3
+ 0x4
+ 0x5
+ 0x6
+]
+proof_witness_indices: [ 7 8 9 10 11 12 ]
+has_data: 0
+
+private_call_count: 0xd
+public_call_count: 0xe
+new_commitments:
+[ 0x101 0x102 0x103 0x104 ]
+new_nullifiers:
+[ 0x201 0x202 0x203 0x204 ]
+private_call_stack:
+[ 0x301 0x302 0x303 0x304 0x305 0x306 0x307 0x308 ]
+public_call_stack:
+[ 0x401 0x402 0x403 0x404 0x405 0x406 0x407 0x408 ]
+l1_msg_stack:
+[ 0x501 0x502 0x503 0x504 ]
+new_contracts:
+[ contract_address: 0x601
+portal_contract_address: 0x202020202020202020202020202020202020202
+function_tree_root: 0x603
+ ]
+optionally_revealed_data:
+[ call_stack_item_hash: 0x701
+function_data:
+function_selector: 702
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x801 0x802 0x803 0x804 ]
+vk_hash: 0x703
+portal_contract_address: 0x404040404040404040404040404040404040404
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x702
+function_data:
+function_selector: 703
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x802 0x803 0x804 0x805 ]
+vk_hash: 0x704
+portal_contract_address: 0x505050505050505050505050505050505050505
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x703
+function_data:
+function_selector: 704
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x803 0x804 0x805 0x806 ]
+vk_hash: 0x705
+portal_contract_address: 0x606060606060606060606060606060606060606
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x704
+function_data:
+function_selector: 705
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x804 0x805 0x806 0x807 ]
+vk_hash: 0x706
+portal_contract_address: 0x707070707070707070707070707070707070707
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ ]
+state_transitions:
+[ leaf_index: 0x801
+new_value: 0x802
+ leaf_index: 0x802
+new_value: 0x803
+ leaf_index: 0x803
+new_value: 0x804
+ leaf_index: 0x804
+new_value: 0x805
+ ]
+
+constants:
+historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
+nullifier_tree_root: 0x102
+contract_tree_root: 0x103
+private_kernel_vk_tree_root: 0x104
+
+public_data_tree_root: 0x105
+
+tx_context: is_fee_payment_tx: 0
+is_rebate_payment_tx: 0
+is_contract_deployment_tx: 1
+contract_deployment_data: 
+constructor_vk_hash: 0x105
+function_tree_root: 0x106
+contract_address_salt: 0x107
+portal_contract_address: 0x808080808080808080808080808080808080808
+
+
+is_private: 1
+
+proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
+vk:
+key.composer_type: 0
+key.circuit_size: 101
+key.num_public_inputs: 102
+key.commitments: [
+ A: { 0x200, 0x300 }
+]
+key.contains_recursive_proof: 1
+key.recursive_proof_public_input_indices: [ 400 401 402 403 404 ]
+
+vk_index: 66
+vk_path: [ 0x1000 0x1001 0x1002 ]
+"
+`;
+
+exports[`structs/kernel serializes and prints private_kernel_inputs 1`] = `
+"signed_tx_request:
+tx_request:
+from: 0x1
+to: 0x11
+function_data: function_selector: 257
+is_private: 1
+is_constructor: 1
+
+args: [ 0x201 0x202 0x203 0x204 0x205 0x206 0x207 0x208 ]
+nonce: 0x301
+tx_context: is_fee_payment_tx: 0
+is_rebate_payment_tx: 0
+is_contract_deployment_tx: 1
+contract_deployment_data: 
+constructor_vk_hash: 0x401
+function_tree_root: 0x402
+contract_address_salt: 0x403
+portal_contract_address: 0x404040404040404040404040404040404040404
+
+chain_id: 0x501
+
+signature: { 0101010101010101010101010101010101010101010101010101010101010101, 0202020202020202020202020202020202020202020202020202020202020202 }
+
+previous_kernel:
+public_inputs: end:
+aggregation_object:
+P0: { 0x1001, 0x1002 }
+P1: { 0x1101, 0x1102 }
+public_inputs: [
+ 0x1003
+ 0x1004
+ 0x1005
+ 0x1006
+]
+proof_witness_indices: [ 4103 4104 4105 4106 4107 4108 ]
+has_data: 0
+
+private_call_count: 0x100d
+public_call_count: 0x100e
+new_commitments:
+[ 0x1101 0x1102 0x1103 0x1104 ]
+new_nullifiers:
+[ 0x1201 0x1202 0x1203 0x1204 ]
+private_call_stack:
+[ 0x1301 0x1302 0x1303 0x1304 0x1305 0x1306 0x1307 0x1308 ]
+public_call_stack:
+[ 0x1401 0x1402 0x1403 0x1404 0x1405 0x1406 0x1407 0x1408 ]
+l1_msg_stack:
+[ 0x1501 0x1502 0x1503 0x1504 ]
+new_contracts:
+[ contract_address: 0x1601
+portal_contract_address: 0x202020202020202020202020202020202020202
+function_tree_root: 0x1603
+ ]
+optionally_revealed_data:
+[ call_stack_item_hash: 0x1701
+function_data:
+function_selector: 1702
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x1801 0x1802 0x1803 0x1804 ]
+vk_hash: 0x1703
+portal_contract_address: 0x404040404040404040404040404040404040404
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x1702
+function_data:
+function_selector: 1703
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x1802 0x1803 0x1804 0x1805 ]
+vk_hash: 0x1704
+portal_contract_address: 0x505050505050505050505050505050505050505
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x1703
+function_data:
+function_selector: 1704
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x1803 0x1804 0x1805 0x1806 ]
+vk_hash: 0x1705
+portal_contract_address: 0x606060606060606060606060606060606060606
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x1704
+function_data:
+function_selector: 1705
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x1804 0x1805 0x1806 0x1807 ]
+vk_hash: 0x1706
+portal_contract_address: 0x707070707070707070707070707070707070707
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ ]
+state_transitions:
+[ leaf_index: 0x1801
+new_value: 0x1802
+ leaf_index: 0x1802
+new_value: 0x1803
+ leaf_index: 0x1803
+new_value: 0x1804
+ leaf_index: 0x1804
+new_value: 0x1805
+ ]
+
+constants:
+historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x1101
+nullifier_tree_root: 0x1102
+contract_tree_root: 0x1103
+private_kernel_vk_tree_root: 0x1104
+
+public_data_tree_root: 0x1105
+
+tx_context: is_fee_payment_tx: 0
+is_rebate_payment_tx: 0
+is_contract_deployment_tx: 1
+contract_deployment_data: 
+constructor_vk_hash: 0x1105
+function_tree_root: 0x1106
+contract_address_salt: 0x1107
+portal_contract_address: 0x808080808080808080808080808080808080808
+
+
+is_private: 1
+
+proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
+vk:
+key.composer_type: 0
+key.circuit_size: 101
+key.num_public_inputs: 102
+key.commitments: [
+ A: { 0x200, 0x300 }
+]
+key.contains_recursive_proof: 1
+key.recursive_proof_public_input_indices: [ 400 401 402 403 404 ]
+
+vk_index: 66
+vk_path: [ 0x1000 0x1001 0x1002 ]
+
+private_call:
+call_stack_item:
+contract_address: 0x2001
+function_data: function_selector: 8194
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x2012
+storage_contract_address: 0x2013
+portal_contract_address: 0x2014
+is_delegate_call: 1
+is_static_call: 1
+is_contract_deployment: 1
+
+args: [ 0x2111 0x2112 0x2113 0x2114 0x2115 0x2116 0x2117 0x2118 ]
+return_values: [ 0x2311 0x2312 0x2313 0x2314 ]
+emitted_events: [ 0x2211 0x2212 0x2213 0x2214 ]
+new_commitments: [ 0x2411 0x2412 0x2413 0x2414 ]
+new_nullifiers: [ 0x2511 0x2512 0x2513 0x2514 ]
+private_call_stack: [ 0x2611 0x2612 0x2613 0x2614 ]
+public_call_stack: [ 0x2711 0x2712 0x2713 0x2714 ]
+l1_msg_stack: [ 0x2811 0x2812 ]
+historic_private_data_tree_root: 0x3011
+historic_nullifier_tree_root: 0x3111
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+
+
+private_call_stack_preimages:
+[ contract_address: 0x2011
+function_data: function_selector: 2012
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x2022
+storage_contract_address: 0x2023
+portal_contract_address: 0x2024
+is_delegate_call: 1
+is_static_call: 1
+is_contract_deployment: 1
+
+args: [ 0x2121 0x2122 0x2123 0x2124 0x2125 0x2126 0x2127 0x2128 ]
+return_values: [ 0x2321 0x2322 0x2323 0x2324 ]
+emitted_events: [ 0x2221 0x2222 0x2223 0x2224 ]
+new_commitments: [ 0x2421 0x2422 0x2423 0x2424 ]
+new_nullifiers: [ 0x2521 0x2522 0x2523 0x2524 ]
+private_call_stack: [ 0x2621 0x2622 0x2623 0x2624 ]
+public_call_stack: [ 0x2721 0x2722 0x2723 0x2724 ]
+l1_msg_stack: [ 0x2821 0x2822 ]
+historic_private_data_tree_root: 0x3021
+historic_nullifier_tree_root: 0x3121
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+
+ contract_address: 0x2012
+function_data: function_selector: 2013
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x2023
+storage_contract_address: 0x2024
+portal_contract_address: 0x2025
+is_delegate_call: 1
+is_static_call: 1
+is_contract_deployment: 1
+
+args: [ 0x2122 0x2123 0x2124 0x2125 0x2126 0x2127 0x2128 0x2129 ]
+return_values: [ 0x2322 0x2323 0x2324 0x2325 ]
+emitted_events: [ 0x2222 0x2223 0x2224 0x2225 ]
+new_commitments: [ 0x2422 0x2423 0x2424 0x2425 ]
+new_nullifiers: [ 0x2522 0x2523 0x2524 0x2525 ]
+private_call_stack: [ 0x2622 0x2623 0x2624 0x2625 ]
+public_call_stack: [ 0x2722 0x2723 0x2724 0x2725 ]
+l1_msg_stack: [ 0x2822 0x2823 ]
+historic_private_data_tree_root: 0x3022
+historic_nullifier_tree_root: 0x3122
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+
+ contract_address: 0x2013
+function_data: function_selector: 2014
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x2024
+storage_contract_address: 0x2025
+portal_contract_address: 0x2026
+is_delegate_call: 1
+is_static_call: 1
+is_contract_deployment: 1
+
+args: [ 0x2123 0x2124 0x2125 0x2126 0x2127 0x2128 0x2129 0x212a ]
+return_values: [ 0x2323 0x2324 0x2325 0x2326 ]
+emitted_events: [ 0x2223 0x2224 0x2225 0x2226 ]
+new_commitments: [ 0x2423 0x2424 0x2425 0x2426 ]
+new_nullifiers: [ 0x2523 0x2524 0x2525 0x2526 ]
+private_call_stack: [ 0x2623 0x2624 0x2625 0x2626 ]
+public_call_stack: [ 0x2723 0x2724 0x2725 0x2726 ]
+l1_msg_stack: [ 0x2823 0x2824 ]
+historic_private_data_tree_root: 0x3023
+historic_nullifier_tree_root: 0x3123
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+
+ contract_address: 0x2014
+function_data: function_selector: 2015
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x2025
+storage_contract_address: 0x2026
+portal_contract_address: 0x2027
+is_delegate_call: 1
+is_static_call: 1
+is_contract_deployment: 1
+
+args: [ 0x2124 0x2125 0x2126 0x2127 0x2128 0x2129 0x212a 0x212b ]
+return_values: [ 0x2324 0x2325 0x2326 0x2327 ]
+emitted_events: [ 0x2224 0x2225 0x2226 0x2227 ]
+new_commitments: [ 0x2424 0x2425 0x2426 0x2427 ]
+new_nullifiers: [ 0x2524 0x2525 0x2526 0x2527 ]
+private_call_stack: [ 0x2624 0x2625 0x2626 0x2627 ]
+public_call_stack: [ 0x2724 0x2725 0x2726 0x2727 ]
+l1_msg_stack: [ 0x2824 0x2825 ]
+historic_private_data_tree_root: 0x3024
+historic_nullifier_tree_root: 0x3124
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+contract_deployment_data: constructor_vk_hash: 0x1
+function_tree_root: 0x2
+contract_address_salt: 0x3
+portal_contract_address: 0x4
+
+
+ ]
+proof:
+[ 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 ]
+vk:
+key.composer_type: 0
+key.circuit_size: 101
+key.num_public_inputs: 102
+key.commitments: [
+ A: { 0x200, 0x300 }
+]
+key.contains_recursive_proof: 1
+key.recursive_proof_public_input_indices: [ 400 401 402 403 404 ]
+
+function_leaf_membership_witness:
+leaf_index: 8241
+sibling_path: [ 0x2031 0x2032 0x2033 0x2034 ]
+
+contract_leaf_membership_witness:
+leaf_index: 8225
+sibling_path: [ 0x2021 0x2022 0x2023 0x2024 ]
+
+portal_contract_address: 0x4141414141414141414141414141414141414141
+acir_hash: 0x2061
+
+"
+`;
+
+exports[`structs/kernel serializes and prints private_kernel_public_inputs 1`] = `
+"end:
+aggregation_object:
+P0: { 0x1, 0x2 }
+P1: { 0x101, 0x102 }
+public_inputs: [
+ 0x3
+ 0x4
+ 0x5
+ 0x6
+]
+proof_witness_indices: [ 7 8 9 10 11 12 ]
+has_data: 0
+
+private_call_count: 0xd
+public_call_count: 0xe
+new_commitments:
+[ 0x101 0x102 0x103 0x104 ]
+new_nullifiers:
+[ 0x201 0x202 0x203 0x204 ]
+private_call_stack:
+[ 0x301 0x302 0x303 0x304 0x305 0x306 0x307 0x308 ]
+public_call_stack:
+[ 0x401 0x402 0x403 0x404 0x405 0x406 0x407 0x408 ]
+l1_msg_stack:
+[ 0x501 0x502 0x503 0x504 ]
+new_contracts:
+[ contract_address: 0x601
+portal_contract_address: 0x202020202020202020202020202020202020202
+function_tree_root: 0x603
+ ]
+optionally_revealed_data:
+[ call_stack_item_hash: 0x701
+function_data:
+function_selector: 702
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x801 0x802 0x803 0x804 ]
+vk_hash: 0x703
+portal_contract_address: 0x404040404040404040404040404040404040404
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x702
+function_data:
+function_selector: 703
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x802 0x803 0x804 0x805 ]
+vk_hash: 0x704
+portal_contract_address: 0x505050505050505050505050505050505050505
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x703
+function_data:
+function_selector: 704
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x803 0x804 0x805 0x806 ]
+vk_hash: 0x705
+portal_contract_address: 0x606060606060606060606060606060606060606
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x704
+function_data:
+function_selector: 705
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x804 0x805 0x806 0x807 ]
+vk_hash: 0x706
+portal_contract_address: 0x707070707070707070707070707070707070707
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ ]
+state_transitions:
+[ leaf_index: 0x801
+new_value: 0x802
+ leaf_index: 0x802
+new_value: 0x803
+ leaf_index: 0x803
+new_value: 0x804
+ leaf_index: 0x804
+new_value: 0x805
+ ]
+
+constants:
+historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
+nullifier_tree_root: 0x102
+contract_tree_root: 0x103
+private_kernel_vk_tree_root: 0x104
+
+public_data_tree_root: 0x105
+
+tx_context: is_fee_payment_tx: 0
+is_rebate_payment_tx: 0
+is_contract_deployment_tx: 1
+contract_deployment_data: 
+constructor_vk_hash: 0x105
+function_tree_root: 0x106
+contract_address_salt: 0x107
+portal_contract_address: 0x808080808080808080808080808080808080808
+
+
+is_private: 1
+"
+`;
+
+exports[`structs/kernel serializes and prints public_kernel_inputs 1`] = `
+"previous_kernel:
+public_inputs: end:
+aggregation_object:
+P0: { 0x1, 0x2 }
+P1: { 0x101, 0x102 }
+public_inputs: [
+ 0x3
+ 0x4
+ 0x5
+ 0x6
+]
+proof_witness_indices: [ 7 8 9 10 11 12 ]
+has_data: 0
+
+private_call_count: 0xd
+public_call_count: 0xe
+new_commitments:
+[ 0x101 0x102 0x103 0x104 ]
+new_nullifiers:
+[ 0x201 0x202 0x203 0x204 ]
+private_call_stack:
+[ 0x301 0x302 0x303 0x304 0x305 0x306 0x307 0x308 ]
+public_call_stack:
+[ 0x401 0x402 0x403 0x404 0x405 0x406 0x407 0x408 ]
+l1_msg_stack:
+[ 0x501 0x502 0x503 0x504 ]
+new_contracts:
+[ contract_address: 0x601
+portal_contract_address: 0x202020202020202020202020202020202020202
+function_tree_root: 0x603
+ ]
+optionally_revealed_data:
+[ call_stack_item_hash: 0x701
+function_data:
+function_selector: 702
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x801 0x802 0x803 0x804 ]
+vk_hash: 0x703
+portal_contract_address: 0x404040404040404040404040404040404040404
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x702
+function_data:
+function_selector: 703
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x802 0x803 0x804 0x805 ]
+vk_hash: 0x704
+portal_contract_address: 0x505050505050505050505050505050505050505
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x703
+function_data:
+function_selector: 704
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x803 0x804 0x805 0x806 ]
+vk_hash: 0x705
+portal_contract_address: 0x606060606060606060606060606060606060606
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0x704
+function_data:
+function_selector: 705
+is_private: 1
+is_constructor: 1
+
+emitted_events:
+[ 0x804 0x805 0x806 0x807 ]
+vk_hash: 0x706
+portal_contract_address: 0x707070707070707070707070707070707070707
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ ]
+state_transitions:
+[ leaf_index: 0x801
+new_value: 0x802
+ leaf_index: 0x802
+new_value: 0x803
+ leaf_index: 0x803
+new_value: 0x804
+ leaf_index: 0x804
+new_value: 0x805
+ ]
+
+constants:
+historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
+nullifier_tree_root: 0x102
+contract_tree_root: 0x103
+private_kernel_vk_tree_root: 0x104
+
+public_data_tree_root: 0x105
+
+tx_context: is_fee_payment_tx: 0
+is_rebate_payment_tx: 0
+is_contract_deployment_tx: 1
+contract_deployment_data: 
+constructor_vk_hash: 0x105
+function_tree_root: 0x106
+contract_address_salt: 0x107
+portal_contract_address: 0x808080808080808080808080808080808080808
+
+
+is_private: 1
+
+proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
+vk:
+key.composer_type: 0
+key.circuit_size: 101
+key.num_public_inputs: 102
+key.commitments: [
+ A: { 0x200, 0x300 }
+]
+key.contains_recursive_proof: 1
+key.recursive_proof_public_input_indices: [ 400 401 402 403 404 ]
+
+vk_index: 66
+vk_path: [ 0x1000 0x1001 0x1002 ]
+
+public_call:
+call_stack_item:
+contract_address: 0x1001
+function_data: function_selector: 4098
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x1011
+storage_contract_address: 0x1012
+portal_contract_address: 0x1313131313131313131313131313131313131313
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x1111 0x1112 0x1113 0x1114 0x1115 0x1116 0x1117 0x1118 ]
+return_values: [ 0x1211 0x1212 0x1213 0x1214 ]
+emitted_events: [ 0x1311 0x1312 0x1313 0x1314 ]
+state_transitions: [ storage_slot: 0x1411
+old_value: 0x1412
+new_value: 0x1413
+ storage_slot: 0x1412
+old_value: 0x1413
+new_value: 0x1414
+ storage_slot: 0x1413
+old_value: 0x1414
+new_value: 0x1415
+ storage_slot: 0x1414
+old_value: 0x1415
+new_value: 0x1416
+ ]
+state_reads: [ storage_slot: 0x1511
+current_value: 0x1512
+ storage_slot: 0x1512
+current_value: 0x1513
+ storage_slot: 0x1513
+current_value: 0x1514
+ storage_slot: 0x1514
+current_value: 0x1515
+ ]
+public_call_stack: [ 0x1611 0x1612 0x1613 0x1614 ]
+l1_msg_stack: [ 0x1711 0x1712 ]
+historic_public_data_tree_root: 0x1811
+prover_address: 0x1812
+
+
+public_call_stack_preimages:
+[ contract_address: 0x1301
+function_data: function_selector: 1302
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x1311
+storage_contract_address: 0x1312
+portal_contract_address: 0x1313131313131313131313131313131313131313
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x1411 0x1412 0x1413 0x1414 0x1415 0x1416 0x1417 0x1418 ]
+return_values: [ 0x1511 0x1512 0x1513 0x1514 ]
+emitted_events: [ 0x1611 0x1612 0x1613 0x1614 ]
+state_transitions: [ storage_slot: 0x1711
+old_value: 0x1712
+new_value: 0x1713
+ storage_slot: 0x1712
+old_value: 0x1713
+new_value: 0x1714
+ storage_slot: 0x1713
+old_value: 0x1714
+new_value: 0x1715
+ storage_slot: 0x1714
+old_value: 0x1715
+new_value: 0x1716
+ ]
+state_reads: [ storage_slot: 0x1811
+current_value: 0x1812
+ storage_slot: 0x1812
+current_value: 0x1813
+ storage_slot: 0x1813
+current_value: 0x1814
+ storage_slot: 0x1814
+current_value: 0x1815
+ ]
+public_call_stack: [ 0x1911 0x1912 0x1913 0x1914 ]
+l1_msg_stack: [ 0x1a11 0x1a12 ]
+historic_public_data_tree_root: 0x1b11
+prover_address: 0x1b12
+
+ contract_address: 0x1302
+function_data: function_selector: 1303
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x1312
+storage_contract_address: 0x1313
+portal_contract_address: 0x1414141414141414141414141414141414141414
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x1412 0x1413 0x1414 0x1415 0x1416 0x1417 0x1418 0x1419 ]
+return_values: [ 0x1512 0x1513 0x1514 0x1515 ]
+emitted_events: [ 0x1612 0x1613 0x1614 0x1615 ]
+state_transitions: [ storage_slot: 0x1712
+old_value: 0x1713
+new_value: 0x1714
+ storage_slot: 0x1713
+old_value: 0x1714
+new_value: 0x1715
+ storage_slot: 0x1714
+old_value: 0x1715
+new_value: 0x1716
+ storage_slot: 0x1715
+old_value: 0x1716
+new_value: 0x1717
+ ]
+state_reads: [ storage_slot: 0x1812
+current_value: 0x1813
+ storage_slot: 0x1813
+current_value: 0x1814
+ storage_slot: 0x1814
+current_value: 0x1815
+ storage_slot: 0x1815
+current_value: 0x1816
+ ]
+public_call_stack: [ 0x1912 0x1913 0x1914 0x1915 ]
+l1_msg_stack: [ 0x1a12 0x1a13 ]
+historic_public_data_tree_root: 0x1b12
+prover_address: 0x1b13
+
+ contract_address: 0x1303
+function_data: function_selector: 1304
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x1313
+storage_contract_address: 0x1314
+portal_contract_address: 0x1515151515151515151515151515151515151515
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x1413 0x1414 0x1415 0x1416 0x1417 0x1418 0x1419 0x141a ]
+return_values: [ 0x1513 0x1514 0x1515 0x1516 ]
+emitted_events: [ 0x1613 0x1614 0x1615 0x1616 ]
+state_transitions: [ storage_slot: 0x1713
+old_value: 0x1714
+new_value: 0x1715
+ storage_slot: 0x1714
+old_value: 0x1715
+new_value: 0x1716
+ storage_slot: 0x1715
+old_value: 0x1716
+new_value: 0x1717
+ storage_slot: 0x1716
+old_value: 0x1717
+new_value: 0x1718
+ ]
+state_reads: [ storage_slot: 0x1813
+current_value: 0x1814
+ storage_slot: 0x1814
+current_value: 0x1815
+ storage_slot: 0x1815
+current_value: 0x1816
+ storage_slot: 0x1816
+current_value: 0x1817
+ ]
+public_call_stack: [ 0x1913 0x1914 0x1915 0x1916 ]
+l1_msg_stack: [ 0x1a13 0x1a14 ]
+historic_public_data_tree_root: 0x1b13
+prover_address: 0x1b14
+
+ contract_address: 0x1304
+function_data: function_selector: 1305
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x1314
+storage_contract_address: 0x1315
+portal_contract_address: 0x1616161616161616161616161616161616161616
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x1414 0x1415 0x1416 0x1417 0x1418 0x1419 0x141a 0x141b ]
+return_values: [ 0x1514 0x1515 0x1516 0x1517 ]
+emitted_events: [ 0x1614 0x1615 0x1616 0x1617 ]
+state_transitions: [ storage_slot: 0x1714
+old_value: 0x1715
+new_value: 0x1716
+ storage_slot: 0x1715
+old_value: 0x1716
+new_value: 0x1717
+ storage_slot: 0x1716
+old_value: 0x1717
+new_value: 0x1718
+ storage_slot: 0x1717
+old_value: 0x1718
+new_value: 0x1719
+ ]
+state_reads: [ storage_slot: 0x1814
+current_value: 0x1815
+ storage_slot: 0x1815
+current_value: 0x1816
+ storage_slot: 0x1816
+current_value: 0x1817
+ storage_slot: 0x1817
+current_value: 0x1818
+ ]
+public_call_stack: [ 0x1914 0x1915 0x1916 0x1917 ]
+l1_msg_stack: [ 0x1a14 0x1a15 ]
+historic_public_data_tree_root: 0x1b14
+prover_address: 0x1b15
+
+ ]
+proof:
+[ 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 ]
+portal_contract_address: 0x1002
+bytecode_hash: 0x1003
+
+"
+`;
+
+exports[`structs/kernel serializes and prints public_kernel_inputs_no_previous_kernel 1`] = `
+"signed_tx_request:
+tx_request:
+from: 0x1
+to: 0x11
+function_data: function_selector: 257
+is_private: 1
+is_constructor: 1
+
+args: [ 0x201 0x202 0x203 0x204 0x205 0x206 0x207 0x208 ]
+nonce: 0x301
+tx_context: is_fee_payment_tx: 0
+is_rebate_payment_tx: 0
+is_contract_deployment_tx: 1
+contract_deployment_data: 
+constructor_vk_hash: 0x401
+function_tree_root: 0x402
+contract_address_salt: 0x403
+portal_contract_address: 0x404040404040404040404040404040404040404
+
+chain_id: 0x501
+
+signature: { 0101010101010101010101010101010101010101010101010101010101010101, 0202020202020202020202020202020202020202020202020202020202020202 }
+
+public_call:
+public_call_data:
+call_stack_item:
+contract_address: 0x101
+function_data: function_selector: 258
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x111
+storage_contract_address: 0x112
+portal_contract_address: 0x1313131313131313131313131313131313131313
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x211 0x212 0x213 0x214 0x215 0x216 0x217 0x218 ]
+return_values: [ 0x311 0x312 0x313 0x314 ]
+emitted_events: [ 0x411 0x412 0x413 0x414 ]
+state_transitions: [ storage_slot: 0x511
+old_value: 0x512
+new_value: 0x513
+ storage_slot: 0x512
+old_value: 0x513
+new_value: 0x514
+ storage_slot: 0x513
+old_value: 0x514
+new_value: 0x515
+ storage_slot: 0x514
+old_value: 0x515
+new_value: 0x516
+ ]
+state_reads: [ storage_slot: 0x611
+current_value: 0x612
+ storage_slot: 0x612
+current_value: 0x613
+ storage_slot: 0x613
+current_value: 0x614
+ storage_slot: 0x614
+current_value: 0x615
+ ]
+public_call_stack: [ 0x711 0x712 0x713 0x714 ]
+l1_msg_stack: [ 0x811 0x812 ]
+historic_public_data_tree_root: 0x911
+prover_address: 0x912
+
+
+public_call_stack_preimages:
+[ contract_address: 0x401
+function_data: function_selector: 402
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x411
+storage_contract_address: 0x412
+portal_contract_address: 0x1313131313131313131313131313131313131313
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x511 0x512 0x513 0x514 0x515 0x516 0x517 0x518 ]
+return_values: [ 0x611 0x612 0x613 0x614 ]
+emitted_events: [ 0x711 0x712 0x713 0x714 ]
+state_transitions: [ storage_slot: 0x811
+old_value: 0x812
+new_value: 0x813
+ storage_slot: 0x812
+old_value: 0x813
+new_value: 0x814
+ storage_slot: 0x813
+old_value: 0x814
+new_value: 0x815
+ storage_slot: 0x814
+old_value: 0x815
+new_value: 0x816
+ ]
+state_reads: [ storage_slot: 0x911
+current_value: 0x912
+ storage_slot: 0x912
+current_value: 0x913
+ storage_slot: 0x913
+current_value: 0x914
+ storage_slot: 0x914
+current_value: 0x915
+ ]
+public_call_stack: [ 0xa11 0xa12 0xa13 0xa14 ]
+l1_msg_stack: [ 0xb11 0xb12 ]
+historic_public_data_tree_root: 0xc11
+prover_address: 0xc12
+
+ contract_address: 0x402
+function_data: function_selector: 403
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x412
+storage_contract_address: 0x413
+portal_contract_address: 0x1414141414141414141414141414141414141414
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x512 0x513 0x514 0x515 0x516 0x517 0x518 0x519 ]
+return_values: [ 0x612 0x613 0x614 0x615 ]
+emitted_events: [ 0x712 0x713 0x714 0x715 ]
+state_transitions: [ storage_slot: 0x812
+old_value: 0x813
+new_value: 0x814
+ storage_slot: 0x813
+old_value: 0x814
+new_value: 0x815
+ storage_slot: 0x814
+old_value: 0x815
+new_value: 0x816
+ storage_slot: 0x815
+old_value: 0x816
+new_value: 0x817
+ ]
+state_reads: [ storage_slot: 0x912
+current_value: 0x913
+ storage_slot: 0x913
+current_value: 0x914
+ storage_slot: 0x914
+current_value: 0x915
+ storage_slot: 0x915
+current_value: 0x916
+ ]
+public_call_stack: [ 0xa12 0xa13 0xa14 0xa15 ]
+l1_msg_stack: [ 0xb12 0xb13 ]
+historic_public_data_tree_root: 0xc12
+prover_address: 0xc13
+
+ contract_address: 0x403
+function_data: function_selector: 404
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x413
+storage_contract_address: 0x414
+portal_contract_address: 0x1515151515151515151515151515151515151515
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x513 0x514 0x515 0x516 0x517 0x518 0x519 0x51a ]
+return_values: [ 0x613 0x614 0x615 0x616 ]
+emitted_events: [ 0x713 0x714 0x715 0x716 ]
+state_transitions: [ storage_slot: 0x813
+old_value: 0x814
+new_value: 0x815
+ storage_slot: 0x814
+old_value: 0x815
+new_value: 0x816
+ storage_slot: 0x815
+old_value: 0x816
+new_value: 0x817
+ storage_slot: 0x816
+old_value: 0x817
+new_value: 0x818
+ ]
+state_reads: [ storage_slot: 0x913
+current_value: 0x914
+ storage_slot: 0x914
+current_value: 0x915
+ storage_slot: 0x915
+current_value: 0x916
+ storage_slot: 0x916
+current_value: 0x917
+ ]
+public_call_stack: [ 0xa13 0xa14 0xa15 0xa16 ]
+l1_msg_stack: [ 0xb13 0xb14 ]
+historic_public_data_tree_root: 0xc13
+prover_address: 0xc14
+
+ contract_address: 0x404
+function_data: function_selector: 405
+is_private: 1
+is_constructor: 1
+
+public_inputs: call_context: msg_sender: 0x414
+storage_contract_address: 0x415
+portal_contract_address: 0x1616161616161616161616161616161616161616
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args: [ 0x514 0x515 0x516 0x517 0x518 0x519 0x51a 0x51b ]
+return_values: [ 0x614 0x615 0x616 0x617 ]
+emitted_events: [ 0x714 0x715 0x716 0x717 ]
+state_transitions: [ storage_slot: 0x814
+old_value: 0x815
+new_value: 0x816
+ storage_slot: 0x815
+old_value: 0x816
+new_value: 0x817
+ storage_slot: 0x816
+old_value: 0x817
+new_value: 0x818
+ storage_slot: 0x817
+old_value: 0x818
+new_value: 0x819
+ ]
+state_reads: [ storage_slot: 0x914
+current_value: 0x915
+ storage_slot: 0x915
+current_value: 0x916
+ storage_slot: 0x916
+current_value: 0x917
+ storage_slot: 0x917
+current_value: 0x918
+ ]
+public_call_stack: [ 0xa14 0xa15 0xa16 0xa17 ]
+l1_msg_stack: [ 0xb14 0xb15 ]
+historic_public_data_tree_root: 0xc14
+prover_address: 0xc15
+
+ ]
+proof:
+[ 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 ]
+portal_contract_address: 0x102
+bytecode_hash: 0x103
+
+state_transitions_sibling_paths:
+[ leaf_index: 201
+sibling_path: [ 0x201 0x202 0x203 0x204 0x205 0x206 0x207 0x208 0x209 0x20a 0x20b 0x20c 0x20d 0x20e 0x20f 0x210 0x211 0x212 0x213 0x214 0x215 0x216 0x217 0x218 0x219 0x21a 0x21b 0x21c 0x21d 0x21e 0x21f 0x220 ]
+ leaf_index: 202
+sibling_path: [ 0x202 0x203 0x204 0x205 0x206 0x207 0x208 0x209 0x20a 0x20b 0x20c 0x20d 0x20e 0x20f 0x210 0x211 0x212 0x213 0x214 0x215 0x216 0x217 0x218 0x219 0x21a 0x21b 0x21c 0x21d 0x21e 0x21f 0x220 0x221 ]
+ leaf_index: 203
+sibling_path: [ 0x203 0x204 0x205 0x206 0x207 0x208 0x209 0x20a 0x20b 0x20c 0x20d 0x20e 0x20f 0x210 0x211 0x212 0x213 0x214 0x215 0x216 0x217 0x218 0x219 0x21a 0x21b 0x21c 0x21d 0x21e 0x21f 0x220 0x221 0x222 ]
+ leaf_index: 204
+sibling_path: [ 0x204 0x205 0x206 0x207 0x208 0x209 0x20a 0x20b 0x20c 0x20d 0x20e 0x20f 0x210 0x211 0x212 0x213 0x214 0x215 0x216 0x217 0x218 0x219 0x21a 0x21b 0x21c 0x21d 0x21e 0x21f 0x220 0x221 0x222 0x223 ]
+ ]
+state_reads_sibling_paths:
+[ leaf_index: 301
+sibling_path: [ 0x301 0x302 0x303 0x304 0x305 0x306 0x307 0x308 0x309 0x30a 0x30b 0x30c 0x30d 0x30e 0x30f 0x310 0x311 0x312 0x313 0x314 0x315 0x316 0x317 0x318 0x319 0x31a 0x31b 0x31c 0x31d 0x31e 0x31f 0x320 ]
+ leaf_index: 302
+sibling_path: [ 0x302 0x303 0x304 0x305 0x306 0x307 0x308 0x309 0x30a 0x30b 0x30c 0x30d 0x30e 0x30f 0x310 0x311 0x312 0x313 0x314 0x315 0x316 0x317 0x318 0x319 0x31a 0x31b 0x31c 0x31d 0x31e 0x31f 0x320 0x321 ]
+ leaf_index: 303
+sibling_path: [ 0x303 0x304 0x305 0x306 0x307 0x308 0x309 0x30a 0x30b 0x30c 0x30d 0x30e 0x30f 0x310 0x311 0x312 0x313 0x314 0x315 0x316 0x317 0x318 0x319 0x31a 0x31b 0x31c 0x31d 0x31e 0x31f 0x320 0x321 0x322 ]
+ leaf_index: 304
+sibling_path: [ 0x304 0x305 0x306 0x307 0x308 0x309 0x30a 0x30b 0x30c 0x30d 0x30e 0x30f 0x310 0x311 0x312 0x313 0x314 0x315 0x316 0x317 0x318 0x319 0x31a 0x31b 0x31c 0x31d 0x31e 0x31f 0x320 0x321 0x322 0x323 ]
+ ]
+public_data_tree_root:
+0x401
+
+"
+`;

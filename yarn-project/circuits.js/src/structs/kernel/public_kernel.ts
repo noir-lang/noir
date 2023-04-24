@@ -1,5 +1,6 @@
 import { Fr } from '@aztec/foundation';
 import { assertLength } from '../../utils/jsUtils.js';
+import { serializeToBuffer } from '../../utils/serialize.js';
 import { PublicCallStackItem } from '../call_stack_item.js';
 import {
   PUBLIC_CALL_STACK_LENGTH,
@@ -24,6 +25,10 @@ export class PublicKernelInputsNonFirstIteration {
     public readonly previousKernel: PreviousKernelData,
     public readonly witnessedPublicCall: WitnessedPublicCallData,
   ) {}
+
+  toBuffer() {
+    return serializeToBuffer(this.previousKernel, this.witnessedPublicCall);
+  }
 }
 
 export class PublicKernelInputsPrivateKernelInput {
@@ -33,6 +38,10 @@ export class PublicKernelInputsPrivateKernelInput {
     public readonly previousKernel: PreviousKernelData,
     public readonly witnessedPublicCall: WitnessedPublicCallData,
   ) {}
+
+  toBuffer() {
+    return serializeToBuffer(this.previousKernel, this.witnessedPublicCall);
+  }
 }
 
 export class PublicKernelInputsNoKernelInput {
@@ -42,18 +51,25 @@ export class PublicKernelInputsNoKernelInput {
     public readonly signedTxRequest: SignedTxRequest,
     public readonly witnessedPublicCall: WitnessedPublicCallData,
   ) {}
+
+  toBuffer() {
+    return serializeToBuffer(this.signedTxRequest, this.witnessedPublicCall);
+  }
 }
 
 export class WitnessedPublicCallData {
   constructor(
     public readonly publicCall: PublicCallData,
-    // TODO: Spec uses SiblingPaths here instead of MembershipWitness, are we ok reusing this structure instead?
     public readonly transitionsHashPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[],
     public readonly readsHashPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[],
     public readonly publicDataTreeRoot: Fr,
   ) {
     assertLength(this, 'transitionsHashPaths', STATE_TRANSITIONS_LENGTH);
     assertLength(this, 'readsHashPaths', STATE_READS_LENGTH);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(this.publicCall, this.transitionsHashPaths, this.readsHashPaths, this.publicDataTreeRoot);
   }
 }
 
@@ -66,5 +82,15 @@ export class PublicCallData {
     public readonly bytecodeHash: Fr,
   ) {
     assertLength(this, 'publicCallStackPreimages', PUBLIC_CALL_STACK_LENGTH);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(
+      this.callStackItem,
+      this.publicCallStackPreimages,
+      this.proof,
+      this.portalContractAddress,
+      this.bytecodeHash,
+    );
   }
 }

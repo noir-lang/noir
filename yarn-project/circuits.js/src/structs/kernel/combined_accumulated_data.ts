@@ -1,6 +1,5 @@
 import { AztecAddress, BufferReader, EthAddress, Fr } from '@aztec/foundation';
 import times from 'lodash.times';
-import { StateRead, StateTransition } from '../../index.js';
 import { assertLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject } from '../aggregation_object.js';
@@ -13,7 +12,6 @@ import {
   KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
   KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
-  STATE_READS_LENGTH,
   STATE_TRANSITIONS_LENGTH,
 } from '../constants.js';
 import { FunctionData } from '../function_data.js';

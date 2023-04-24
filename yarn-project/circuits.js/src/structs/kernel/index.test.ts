@@ -1,5 +1,11 @@
 import { expectSerializeToMatchSnapshot } from '../../tests/expectSerialize.js';
-import { makePreviousKernelData, makePrivateKernelInputs, makeKernelPublicInputs } from '../../tests/factories.js';
+import {
+  makePreviousKernelData,
+  makePrivateKernelInputs,
+  makeKernelPublicInputs,
+  makePublicKernelInputsNonFirstIteration,
+  makePublicKernelInputsNoKernelInput,
+} from '../../tests/factories.js';
 
 describe('structs/kernel', () => {
   it(`serializes and prints previous_kernel_data`, async () => {
@@ -23,6 +29,22 @@ describe('structs/kernel', () => {
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
       'abis__test_roundtrip_serialize_kernel_circuit_public_inputs',
+    );
+  });
+
+  it(`serializes and prints public_kernel_inputs`, async () => {
+    const kernelInputs = makePublicKernelInputsNonFirstIteration();
+    await expectSerializeToMatchSnapshot(
+      kernelInputs.toBuffer(),
+      'abis__test_roundtrip_serialize_public_kernel_inputs',
+    );
+  });
+
+  it(`serializes and prints public_kernel_inputs_no_previous_kernel`, async () => {
+    const kernelInputs = makePublicKernelInputsNoKernelInput();
+    await expectSerializeToMatchSnapshot(
+      kernelInputs.toBuffer(),
+      'abis__test_roundtrip_serialize_public_kernel_inputs_no_previous_kernel',
     );
   });
 });

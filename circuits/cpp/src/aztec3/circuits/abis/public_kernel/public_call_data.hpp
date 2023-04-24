@@ -77,13 +77,10 @@ template <typename NCT> void read(uint8_t const*& it, PublicCallData<NCT>& obj)
     using serialize::read;
 
     read(it, obj.call_stack_item);
-    read(it, obj.private_call_stack_preimages);
+    read(it, obj.public_call_stack_preimages);
     read(it, obj.proof);
-    read(it, obj.vk);
-    read(it, obj.function_leaf_membership_witness);
-    read(it, obj.contract_leaf_membership_witness);
     read(it, obj.portal_contract_address);
-    read(it, obj.acir_hash);
+    read(it, obj.bytecode_hash);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, PublicCallData<NCT> const& obj)
@@ -91,13 +88,10 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PublicCallData<NCT
     using serialize::write;
 
     write(buf, obj.call_stack_item);
-    write(buf, obj.private_call_stack_preimages);
+    write(buf, obj.public_call_stack_preimages);
     write(buf, obj.proof);
-    write(buf, *obj.vk);
-    write(buf, obj.function_leaf_membership_witness);
-    write(buf, obj.contract_leaf_membership_witness);
     write(buf, obj.portal_contract_address);
-    write(buf, obj.acir_hash);
+    write(buf, obj.bytecode_hash);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicCallData<NCT> const& obj)
@@ -109,12 +103,6 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicCallDat
               << "proof:\n"
               << obj.proof
               << "\n"
-              //<< "vk:\n"
-              //<< *(obj.vk) << "\n"
-              //<< "function_leaf_membership_witness:\n"
-              //<< obj.function_leaf_membership_witness << "\n"
-              //<< "contract_leaf_membership_witness:\n"
-              //<< obj.contract_leaf_membership_witness << "\n"
               << "portal_contract_address: " << obj.portal_contract_address << "\n"
               << "bytecode_hash: " << obj.bytecode_hash << "\n";
 }
