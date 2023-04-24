@@ -10,6 +10,7 @@
 
 namespace aztec3::circuits::abis {
 
+using aztec3::circuits::abis::CombinedHistoricTreeRoots;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
@@ -25,7 +26,7 @@ template <typename NCT> struct CombinedConstantData {
     boolean operator==(CombinedConstantData<NCT> const& other) const
     {
         return historic_tree_roots == other.historic_tree_roots && tx_context == other.tx_context;
-    };
+    }
 
     template <typename Composer> CombinedConstantData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

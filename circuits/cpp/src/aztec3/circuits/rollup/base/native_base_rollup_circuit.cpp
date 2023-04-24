@@ -19,6 +19,8 @@
 #include <tuple>
 #include <vector>
 
+using aztec3::circuits::check_membership;
+
 namespace aztec3::circuits::rollup::native_base_rollup {
 
 const NT::fr EMPTY_COMMITMENTS_SUBTREE_ROOT = MerkleTree(PRIVATE_DATA_SUBTREE_DEPTH).root();
@@ -207,12 +209,12 @@ void perform_historical_private_data_tree_membership_checks(DummyComposer& compo
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_private_data_tree_root_membership_witnesses[i];
 
-        components::check_membership(composer,
-                                     leaf,
-                                     historic_root_witness.leaf_index,
-                                     historic_root_witness.sibling_path,
-                                     historic_root,
-                                     format("historic private data tree roots ", i));
+        check_membership<NT>(composer,
+                             leaf,
+                             historic_root_witness.leaf_index,
+                             historic_root_witness.sibling_path,
+                             historic_root,
+                             format("historic private data tree roots ", i));
     }
 }
 
@@ -227,12 +229,12 @@ void perform_historical_contract_data_tree_membership_checks(DummyComposer& comp
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_contract_tree_root_membership_witnesses[i];
 
-        components::check_membership(composer,
-                                     leaf,
-                                     historic_root_witness.leaf_index,
-                                     historic_root_witness.sibling_path,
-                                     historic_root,
-                                     format("historic contract data tree roots ", i));
+        check_membership<NT>(composer,
+                             leaf,
+                             historic_root_witness.leaf_index,
+                             historic_root_witness.sibling_path,
+                             historic_root,
+                             format("historic contract data tree roots ", i));
     }
 }
 
@@ -357,12 +359,12 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                     };
 
                     // perform membership check for the low nullifier against the original root
-                    components::check_membership<NULLIFIER_TREE_HEIGHT>(composer,
-                                                                        original_low_nullifier.hash(),
-                                                                        witness.leaf_index,
-                                                                        witness.sibling_path,
-                                                                        current_nullifier_tree_root,
-                                                                        "low nullifier membership check");
+                    check_membership<NT, DummyComposer, NULLIFIER_TREE_HEIGHT>(composer,
+                                                                               original_low_nullifier.hash(),
+                                                                               witness.leaf_index,
+                                                                               witness.sibling_path,
+                                                                               current_nullifier_tree_root,
+                                                                               "low nullifier membership check");
 
                     // Calculate the new value of the low_nullifier_leaf
                     NullifierLeaf updated_low_nullifier = NullifierLeaf{ .value = low_nullifier_preimage.leaf_value,
@@ -370,7 +372,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                                                                          .nextValue = nullifier };
 
                     // We need another set of witness values for this
-                    current_nullifier_tree_root = components::iterate_through_tree_via_sibling_path(
+                    current_nullifier_tree_root = root_from_sibling_path<NT>(
                         updated_low_nullifier.hash(), witness.leaf_index, witness.sibling_path);
                 }
 
@@ -393,12 +395,12 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     // Check that the new subtree is to be inserted at the next location, and is empty currently
     auto leafIndexNullifierSubtreeDepth =
         baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
-    components::check_membership(composer,
-                                 EMPTY_NULLIFIER_SUBTREE_ROOT,
-                                 leafIndexNullifierSubtreeDepth,
-                                 baseRollupInputs.new_nullifiers_subtree_sibling_path,
-                                 current_nullifier_tree_root,
-                                 "empty nullifier subtree membership check");
+    check_membership<NT>(composer,
+                         EMPTY_NULLIFIER_SUBTREE_ROOT,
+                         leafIndexNullifierSubtreeDepth,
+                         baseRollupInputs.new_nullifiers_subtree_sibling_path,
+                         current_nullifier_tree_root,
+                         "empty nullifier subtree membership check");
 
     // Create new nullifier subtree to insert into the whole nullifier tree
     auto nullifier_sibling_path = baseRollupInputs.new_nullifiers_subtree_sibling_path;
@@ -407,8 +409,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here
     auto subtree_index = start_insertion_index >> (NULLIFIER_SUBTREE_DEPTH);
-    auto new_root = components::iterate_through_tree_via_sibling_path(
-        nullifier_subtree_root, subtree_index, nullifier_sibling_path);
+    auto new_root = root_from_sibling_path<NT>(nullifier_subtree_root, subtree_index, nullifier_sibling_path);
 
     // Return the new state of the nullifier tree
     return {

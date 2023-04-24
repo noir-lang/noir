@@ -44,6 +44,23 @@ template <size_t SIZE> NT::fr array_length(std::array<NT::fr, SIZE> const& arr)
 };
 
 /**
+ * Gets the number of contiguous elements until we encounter one that reports itself as 'empty'.
+ * Note: This assumes `0` always means 'not used', so be careful. As soon as we locate 0, we stop the counting.
+ * If you actually want `0` to be counted, you'll need something else.
+ */
+template <typename T, size_t SIZE> size_t array_length(std::array<T, SIZE> const& arr)
+{
+    size_t length = 0;
+    for (const auto& e : arr) {
+        if (e.is_empty()) {
+            break;
+        }
+        length++;
+    }
+    return length;
+};
+
+/**
  * Note: doesn't remove the last element from the array; only returns it!
  * Note: this assumes `0` always means 'not used', so be careful. If you actually want `0` to be counted, you'll need
  * something else.
@@ -97,6 +114,33 @@ template <size_t SIZE> NT::boolean is_array_empty(std::array<NT::fr, SIZE> const
     }
     return true;
 };
+
+/**
+ * Inserts the `source` array at the first zero-valued index of the `target` array.
+ * Ensures that all values after the first zero-valued index are zeros too.
+ * Fails if the `source` array is too large vs the remaining capacity of the `target` array.
+ */
+template <size_t size_1, size_t size_2, typename T>
+void push_array_to_array(std::array<T, size_1> const& source, std::array<T, size_2>& target)
+{
+    // Check if the `source` array is too large vs the remaining capacity of the `target` array
+    size_t source_size = static_cast<size_t>(uint256_t(array_length(source)));
+    size_t target_size = static_cast<size_t>(uint256_t(array_length(target)));
+    ASSERT(source_size <= size_2 - target_size);
+
+    // Ensure that there are no non-zero values in the `target` array after the first zero-valued index
+    for (size_t i = target_size; i < size_2; i++) {
+        ASSERT(target[i].is_empty());
+    }
+    // Copy the non-zero elements of the `source` array to the `target` array at the first zero-valued index
+    auto zero_index = target_size;
+    for (size_t i = 0; i < size_1; i++) {
+        if (!source[i].is_empty()) {
+            target[zero_index] = source[i];
+            zero_index++;
+        }
+    }
+}
 
 /**
  * Inserts the `source` array at the first zero-valued index of the `target` array.

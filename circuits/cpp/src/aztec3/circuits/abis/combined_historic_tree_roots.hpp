@@ -7,6 +7,7 @@
 
 namespace aztec3::circuits::abis {
 
+using aztec3::circuits::abis::PrivateHistoricTreeRoots;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
@@ -16,7 +17,7 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    PrivateHistoricTreeRoots<NCT> private_historic_tree_roots;
+    PrivateHistoricTreeRoots<NCT> private_historic_tree_roots{};
     fr public_data_tree_root = 0;
 
     boolean operator==(CombinedHistoricTreeRoots<NCT> const& other) const

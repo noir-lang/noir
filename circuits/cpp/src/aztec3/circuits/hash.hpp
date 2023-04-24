@@ -1,3 +1,5 @@
+#pragma once
+
 #include <array>
 #include <aztec3/circuits/abis/function_data.hpp>
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
@@ -113,6 +115,53 @@ typename NCT::fr root_from_sibling_path(typename NCT::fr const& leaf,
 }
 
 /**
+ * @brief Calculate the Merkle tree root from the sibling path and leaf.
+ *
+ * @details The leaf is hashed with its sibling, and then the result is hashed
+ * with the next sibling etc in the path. The last hash is the root.
+ *
+ * @tparam NCT Operate on NativeTypes or CircuitTypes
+ * @tparam N The number of elements in the sibling path
+ * @param leaf The leaf element of the Merkle tree
+ * @param leafIndex The index of the leaf element in the Merkle tree
+ * @param siblingPath The nodes representing the merkle siblings of the leaf, its parent,
+ * the next parent, etc up to the sibling below the root
+ * @return The computed Merkle tree root.
+ *
+ * TODO need to use conditional assigns instead of `ifs` for circuit version.
+ *      see membership.hpp:check_subtree_membership (left/right/conditional_assign, etc)
+ */
+template <typename NCT, size_t N>
+typename NCT::fr root_from_sibling_path(typename NCT::fr const& leaf,
+                                        typename NCT::fr const& leafIndex,
+                                        std::array<typename NCT::fr, N> const& siblingPath)
+{
+    auto node = leaf;
+    uint256_t index = leafIndex;
+    for (size_t i = 0; i < N; i++) {
+        if (index & 1) {
+            node = NCT::merkle_hash(siblingPath[i], node);
+        } else {
+            node = NCT::merkle_hash(node, siblingPath[i]);
+        }
+        index >>= uint256_t(1);
+    }
+    return node; // root
+}
+
+template <typename NCT, typename Composer, size_t SIZE>
+void check_membership(Composer& composer,
+                      typename NCT::fr const& value,
+                      typename NCT::fr const& index,
+                      std::array<typename NCT::fr, SIZE> const& sibling_path,
+                      typename NCT::fr const& root,
+                      std::string const& msg)
+{
+    const auto calculated_root = root_from_sibling_path<NCT>(value, index, sibling_path);
+    composer.do_assert(calculated_root == root, std::string("Membership check failed: ") + msg);
+}
+
+/**
  * @brief Calculate the function tree root from the sibling path and leaf preimage.
  *
  * @tparam NCT (native or circuit)
@@ -130,7 +179,7 @@ typename NCT::fr function_tree_root_from_siblings(
     typename NCT::boolean const& is_private,
     typename NCT::fr const& vk_hash,
     typename NCT::fr const& acir_hash,
-    typename NCT::uint32 const& function_leaf_index,
+    typename NCT::fr const& function_leaf_index,
     std::array<typename NCT::fr, FUNCTION_TREE_HEIGHT> const& function_leaf_sibling_path)
 {
     const auto function_leaf_preimage = FunctionLeafPreimage<NCT>{
@@ -163,7 +212,7 @@ typename NCT::fr contract_tree_root_from_siblings(
     typename NCT::fr const& function_tree_root,
     typename NCT::address const& storage_contract_address,
     typename NCT::address const& portal_contract_address,
-    typename NCT::uint32 const& contract_leaf_index,
+    typename NCT::fr const& contract_leaf_index,
     std::array<typename NCT::fr, CONTRACT_TREE_HEIGHT> const& contract_leaf_sibling_path)
 {
     const ContractLeafPreimage<NCT> contract_leaf_preimage{ storage_contract_address,
@@ -194,6 +243,31 @@ std::array<typename NCT::fr, TREE_HEIGHT> compute_empty_sibling_path(typename NC
         sibling_path[i] = NCT::merkle_hash(sibling_path[i - 1], sibling_path[i - 1]);
     }
     return sibling_path;
+}
+
+/**
+ * @brief Compute the value to be inserted into the public data tree
+ * @param value The value to be inserted into the public data tree
+ * @return The hash value required for insertion into the public data tree
+ */
+template <typename NCT> typename NCT::fr compute_public_data_tree_value(typename NCT::fr const& value)
+{
+    // as it's a public value, it doens't require hashing.
+    // leaving this function here in case we decide to change this.
+    return value;
+}
+
+/**
+ * @brief Compute the index for inserting a value into the public data tree
+ * @param contract_address The address of the contract to which the inserted element belongs
+ * @param storage_slot The storage slot to which the inserted element belongs
+ * @return The index for insertion into the public data tree
+ */
+template <typename NCT>
+typename NCT::fr compute_public_data_tree_index(typename NCT::fr const& contract_address,
+                                                typename NCT::fr const& storage_slot)
+{
+    return NCT::compress({ contract_address, storage_slot }, GeneratorIndex::PUBLIC_LEAF_INDEX);
 }
 
 } // namespace aztec3::circuits

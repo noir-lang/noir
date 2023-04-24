@@ -12,6 +12,7 @@ using plonk::stdlib::witness_t;
 
 template <typename NCT> struct StateRead {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
 
     fr storage_slot = 0;
     fr current_value = 0;
@@ -64,6 +65,8 @@ template <typename NCT> struct StateRead {
         storage_slot.set_public();
         current_value.set_public();
     }
+
+    boolean is_empty() const { return storage_slot == 0; }
 };
 
 template <typename NCT> void read(uint8_t const*& it, StateRead<NCT>& state_read)

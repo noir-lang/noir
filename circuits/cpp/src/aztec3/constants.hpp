@@ -31,7 +31,7 @@ constexpr size_t FUNCTION_TREE_HEIGHT = 4;
 constexpr size_t CONTRACT_TREE_HEIGHT = 4;
 constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 8;
 constexpr size_t NULLIFIER_TREE_HEIGHT = 8;
-constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 32;
+constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 254;
 
 constexpr size_t CONTRACT_SUBTREE_DEPTH = 1;
 constexpr size_t CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH = CONTRACT_TREE_HEIGHT - CONTRACT_SUBTREE_DEPTH;
@@ -78,6 +78,7 @@ enum GeneratorIndex {
     TX_CONTEXT,
     TX_REQUEST,
     PUBLIC_LEAF_INDEX,
+    PUBLIC_DATA_LEAF,
 };
 
 enum StorageSlotGeneratorIndex {

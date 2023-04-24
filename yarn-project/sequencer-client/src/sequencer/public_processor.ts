@@ -171,7 +171,7 @@ export class PublicProcessor {
 
   protected async getMembershipWitness(leafIndex: bigint) {
     const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, leafIndex);
-    return new MembershipWitness(PUBLIC_DATA_TREE_HEIGHT, Number(leafIndex), path.data.map(Fr.fromBuffer));
+    return new MembershipWitness(PUBLIC_DATA_TREE_HEIGHT, leafIndex, path.data.map(Fr.fromBuffer));
   }
 }
 

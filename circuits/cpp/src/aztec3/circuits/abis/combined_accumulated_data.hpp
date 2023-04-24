@@ -119,9 +119,8 @@ template <typename NCT> struct CombinedAccumulatedData {
             map(optionally_revealed_data, to_native_type),
             map(state_transitions, to_native_type),
         };
-
         return acc_data;
-    };
+    }
 
     void set_public()
     {

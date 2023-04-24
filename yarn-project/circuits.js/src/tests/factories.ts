@@ -189,7 +189,7 @@ export function makeDynamicSizeBuffer(size: number, fill: number) {
 }
 
 export function makeMembershipWitness<N extends number>(size: number, start: number): MembershipWitness<N> {
-  return new MembershipWitness(size, start, range(size, start).map(fr));
+  return new MembershipWitness(size, BigInt(start), range(size, start).map(fr));
 }
 
 export function makeVerificationKey(): VerificationKey {

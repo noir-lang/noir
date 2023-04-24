@@ -80,7 +80,7 @@ key.contains_recursive_proof: 1
 key.recursive_proof_public_input_indices: [ 190 191 192 193 194 ]
 
 vk_index: 110
-vk_sibling_path: leaf_index: 120
+vk_sibling_path: leaf_index: 0x120
 sibling_path: [ 0x120 0x121 0x122 0x123 0x124 0x125 0x126 0x127 ]
 
  base_or_merge_rollup_public_inputs: rollup_type:
@@ -162,7 +162,7 @@ key.contains_recursive_proof: 1
 key.recursive_proof_public_input_indices: [ 190 191 192 193 194 ]
 
 vk_index: 1110
-vk_sibling_path: leaf_index: 1120
+vk_sibling_path: leaf_index: 0x1120
 sibling_path: [ 0x1120 0x1121 0x1122 0x1123 0x1124 0x1125 0x1126 0x1127 ]
 
  ]

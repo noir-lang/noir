@@ -13,10 +13,9 @@ using std::is_same;
 template <typename NCT, unsigned int N> struct MembershipWitness {
 
     typedef typename NCT::fr fr;
-    typedef typename NCT::uint32 uint32;
     typedef typename NCT::boolean boolean;
 
-    uint32 leaf_index;
+    fr leaf_index;
     std::array<fr, N> sibling_path = zero_array<fr, N>();
 
     boolean operator==(MembershipWitness<NCT, N> const& other) const

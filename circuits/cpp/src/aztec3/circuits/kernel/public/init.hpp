@@ -1,7 +1,6 @@
 #pragma once
 #include <aztec3/oracle/oracle.hpp>
 #include <aztec3/circuits/apps/oracle_wrapper.hpp>
-#include <aztec3/circuits/apps/function_execution_context.hpp>
 
 #include <aztec3/circuits/recursion/aggregator.hpp>
 
@@ -29,7 +28,5 @@ using aztec3::utils::types::to_ct;
 using DB = oracle::FakeDB;
 using oracle::NativeOracle;
 using OracleWrapper = aztec3::circuits::apps::OracleWrapperInterface<Composer>;
-
-using FunctionExecutionContext = aztec3::circuits::apps::FunctionExecutionContext<Composer>;
 
 } // namespace aztec3::circuits::kernel::public_kernel

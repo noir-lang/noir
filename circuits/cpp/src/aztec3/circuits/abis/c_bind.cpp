@@ -424,16 +424,15 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_kernel_circuit_public_inp
     return as_string_output<aztec3::circuits::abis::KernelCircuitPublicInputs<NT>>(input, size);
 }
 
-WASM_EXPORT const char* abis__test_roundtrip_serialize_public_kernel_inputs(uint8_t const* input,
-                                                                                    uint32_t* size)
+WASM_EXPORT const char* abis__test_roundtrip_serialize_public_kernel_inputs(uint8_t const* input, uint32_t* size)
 {
     return as_string_output<aztec3::circuits::abis::public_kernel::PublicKernelInputs<NT>>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_public_kernel_inputs_no_previous_kernel(uint8_t const* input,
-                                                                                    uint32_t* size)
+                                                                                               uint32_t* size)
 {
-    return as_string_output<aztec3::circuits::abis::public_kernel::PublicKernelInputsNoKernelInput<NT>>(input, size);
+    return as_string_output<aztec3::circuits::abis::public_kernel::PublicKernelInputsNoPreviousKernel<NT>>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(uint8_t const* function_leaf_preimage_buf,

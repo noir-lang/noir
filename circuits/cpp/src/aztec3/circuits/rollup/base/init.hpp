@@ -18,6 +18,7 @@
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/circuits/hash.hpp>
 
 namespace aztec3::circuits::rollup::native_base_rollup {
 

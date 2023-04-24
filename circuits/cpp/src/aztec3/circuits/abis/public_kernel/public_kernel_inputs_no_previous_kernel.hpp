@@ -15,24 +15,24 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
-template <typename NCT> struct PublicKernelInputsNoKernelInput {
+template <typename NCT> struct PublicKernelInputsNoPreviousKernel {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
     SignedTxRequest<NCT> signed_tx_request{};
     WitnessedPublicCallData<NCT> public_call{};
 
-    boolean operator==(PublicKernelInputsNoKernelInput<NCT> const& other) const
+    boolean operator==(PublicKernelInputsNoPreviousKernel<NCT> const& other) const
     {
         return signed_tx_request == other.signed_tx_request && public_call == other.public_call;
     };
 
     template <typename Composer>
-    PublicKernelInputsNoKernelInput<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    PublicKernelInputsNoPreviousKernel<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        PublicKernelInputsNoKernelInput<CircuitTypes<Composer>> public_kernel_inputs = {
+        PublicKernelInputsNoPreviousKernel<CircuitTypes<Composer>> public_kernel_inputs = {
             // TODO to_ct(signature),
             signed_tx_request.to_circuit_type(composer),
             public_call.to_circuit_type(composer),
@@ -42,7 +42,7 @@ template <typename NCT> struct PublicKernelInputsNoKernelInput {
     };
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicKernelInputsNoKernelInput<NCT>& public_kernel_inputs)
+template <typename NCT> void read(uint8_t const*& it, PublicKernelInputsNoPreviousKernel<NCT>& public_kernel_inputs)
 {
     using serialize::read;
 
@@ -51,7 +51,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicKernelInputsNoKernel
 };
 
 template <typename NCT>
-void write(std::vector<uint8_t>& buf, PublicKernelInputsNoKernelInput<NCT> const& public_kernel_inputs)
+void write(std::vector<uint8_t>& buf, PublicKernelInputsNoPreviousKernel<NCT> const& public_kernel_inputs)
 {
     using serialize::write;
 
@@ -60,7 +60,7 @@ void write(std::vector<uint8_t>& buf, PublicKernelInputsNoKernelInput<NCT> const
 };
 
 template <typename NCT>
-std::ostream& operator<<(std::ostream& os, PublicKernelInputsNoKernelInput<NCT> const& public_kernel_inputs)
+std::ostream& operator<<(std::ostream& os, PublicKernelInputsNoPreviousKernel<NCT> const& public_kernel_inputs)
 {
     return os << "signed_tx_request:\n"
               << public_kernel_inputs.signed_tx_request << "\n"

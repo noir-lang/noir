@@ -147,7 +147,7 @@ export class ContractTree {
       const siblingPath = await this.node.getContractPath(index);
       this.contractMembershipWitness = new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
         CONTRACT_TREE_HEIGHT,
-        Number(index),
+        index,
         siblingPath.data.map(x => new Fr(x.readBigInt64BE())),
       );
     }
@@ -166,7 +166,7 @@ export class ContractTree {
     const targetFunctions = this.contract.functions.filter(isConstrained);
     const functionIndex = targetFunctions.findIndex(f => f.selector.equals(functionSelector));
     if (functionIndex < 0) {
-      return MembershipWitness.empty(FUNCTION_TREE_HEIGHT, 0);
+      return MembershipWitness.empty(FUNCTION_TREE_HEIGHT, 0n);
     }
 
     if (!this.functionTree) {
@@ -176,7 +176,7 @@ export class ContractTree {
     const functionTreeData = computeFunctionTreeData(this.functionTree, functionIndex);
     return new MembershipWitness<typeof FUNCTION_TREE_HEIGHT>(
       FUNCTION_TREE_HEIGHT,
-      functionIndex,
+      BigInt(functionIndex),
       functionTreeData.siblingPath,
     );
   }

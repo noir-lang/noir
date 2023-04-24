@@ -53,7 +53,7 @@ export class KernelProver {
         output.publicInputs,
         output.proof,
         previousVerificationKey,
-        previousVkMembershipWitness.leafIndex,
+        Number(previousVkMembershipWitness.leafIndex),
         previousVkMembershipWitness.siblingPath,
       );
 

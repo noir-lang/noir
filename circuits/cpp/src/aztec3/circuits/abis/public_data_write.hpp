@@ -12,6 +12,7 @@ using plonk::stdlib::witness_t;
 
 template <typename NCT> struct PublicDataWrite {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
 
     fr leaf_index = 0;
     fr new_value = 0;
@@ -64,6 +65,8 @@ template <typename NCT> struct PublicDataWrite {
         leaf_index.set_public();
         new_value.set_public();
     }
+
+    boolean is_empty() const { return leaf_index == 0; }
 };
 
 template <typename NCT> void read(uint8_t const*& it, PublicDataWrite<NCT>& state_transition)

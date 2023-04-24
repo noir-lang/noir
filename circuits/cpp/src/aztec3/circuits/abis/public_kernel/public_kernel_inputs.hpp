@@ -3,6 +3,7 @@
 #include "../previous_kernel_data.hpp"
 #include "public_call_data.hpp"
 #include "../signed_tx_request.hpp"
+#include "witnessed_public_call_data.hpp"
 
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -20,7 +21,7 @@ template <typename NCT> struct PublicKernelInputs {
     typedef typename NCT::boolean boolean;
 
     PreviousKernelData<NCT> previous_kernel{};
-    PublicCallData<NCT> public_call{};
+    WitnessedPublicCallData<NCT> public_call{};
 
     boolean operator==(PublicKernelInputs<NCT> const& other) const
     {

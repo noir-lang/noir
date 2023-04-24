@@ -101,8 +101,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicCallDat
               << "public_call_stack_preimages:\n"
               << obj.public_call_stack_preimages << "\n"
               << "proof:\n"
-              << obj.proof
-              << "\n"
+              << obj.proof << "\n"
               << "portal_contract_address: " << obj.portal_contract_address << "\n"
               << "bytecode_hash: " << obj.bytecode_hash << "\n";
 }

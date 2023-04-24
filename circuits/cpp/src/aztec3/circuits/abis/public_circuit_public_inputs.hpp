@@ -35,7 +35,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = zero_array<fr, PUBLIC_CALL_STACK_LENGTH>();
     std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack = zero_array<fr, L1_MSG_STACK_LENGTH>();
 
-    fr historic_public_data_tree_root;
+    fr historic_public_data_tree_root = 0;
 
     address prover_address;
 
