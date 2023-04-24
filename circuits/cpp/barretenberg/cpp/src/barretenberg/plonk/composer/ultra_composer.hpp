@@ -127,6 +127,8 @@ class UltraComposer : public ComposerBase {
         uint64_t target_range;
         uint32_t range_tag;
         uint32_t tau_tag;
+        // contains the list of variable indices that are range constrained to target_range
+        // as ordered in the vector of variable indoces from the composer
         std::vector<uint32_t> variable_indices;
     };
 

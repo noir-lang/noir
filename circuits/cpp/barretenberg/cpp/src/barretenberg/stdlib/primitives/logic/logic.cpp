@@ -13,7 +13,8 @@ namespace proof_system::plonk::stdlib {
  * @brief A logical AND or XOR over a variable number of bits.
  *
  * @details Defaults to basic Composer method if not using plookup-compatible composer. If the left and right operands
- * are larger than num_bit, the result will be truncated to num_bits.
+ * are larger than num_bit, the result will be truncated to num_bits. However, the two operands could be
+ * range-constrained to num_bits before the call which would remove the need to range constrain inside this function.
  *
  * @tparam Composer
  * @param a
@@ -105,14 +106,10 @@ field_t<Composer> logic<Composer>::create_logic_constraint(
         // If the composer doesn't have lookups we call the expensive logic constraint gate
         // which creates constraints for each bit. We only create constraints up to num_bits.
         Composer* ctx = a.get_context();
-        uint256_t left = a.get_value();
-        uint256_t right = b.get_value();
-        left = left & ((uint256_t(1) << num_bits) - 1);
-        right = right & ((uint256_t(1) << num_bits) - 1);
-        field_pt a_chunk = witness_pt(ctx, left);
-        field_pt b_chunk = witness_pt(ctx, right);
+        field_pt a_slice = a.slice(static_cast<uint8_t>(num_bits - 1), 0)[1];
+        field_pt b_slice = b.slice(static_cast<uint8_t>(num_bits - 1), 0)[1];
         auto accumulator_triple = ctx->create_logic_constraint(
-            a_chunk.normalize().get_witness_index(), b_chunk.normalize().get_witness_index(), num_bits, is_xor_gate);
+            a_slice.normalize().get_witness_index(), b_slice.normalize().get_witness_index(), num_bits, is_xor_gate);
         auto out_idx = accumulator_triple.out[accumulator_triple.out.size() - 1];
         return field_t<Composer>::from_witness_index(ctx, out_idx);
     }

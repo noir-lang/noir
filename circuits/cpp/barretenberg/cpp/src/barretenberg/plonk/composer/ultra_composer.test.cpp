@@ -793,15 +793,11 @@ TYPED_TEST(ultra_composer, range_checks_on_duplicates)
     TestFixture::prove_and_verify(composer, /*expected_result=*/true);
 }
 
-// Issue appearing in under-constrained circuit i.e. in which variables:
-// - do not appear in any gate of the circuit
-// - are smaller than 2^14 (hence not sliced and reconstructed through addition gates)
-// - BUT have range constraints applied on them (which, by default, do not add gates to the circuit
-// but check sets are correctly sorted)
-// The test further shows that the witnesses have different indices hence the problem is not caused by
-// the range constraint being applied to the same witness twice.
-// TODO: look further into the problem and exemplify it better
-TEST(ultra_composer, range_constraint_fails)
+// Ensure copy constraints added on variables smaller than 2^14, which have been previously
+// range constrained, do not break the set equivalence checks because of indices mismatch.
+// 2^14 is DEFAULT_PLOOKUP_RANGE_BITNUM i.e. the maximum size before a variable gets sliced
+// before range constraints are applied to it.
+TEST(ultra_composer, range_constraint_small_variable)
 {
     auto composer = UltraComposer();
     uint16_t mask = (1 << 8) - 1;

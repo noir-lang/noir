@@ -1263,7 +1263,9 @@ void UltraComposer::process_range_list(RangeList& list)
 
     ASSERT(list.variable_indices.size() > 0);
 
-    // replace witness index in variable_indices with the real variable index (i.e. not an index that is a copied)
+    // replace witness index in variable_indices with the real variable index i.e. if a copy constraint has been
+    // applied on a variable after it was range constrained, this makes sure the indices in list point to the updated
+    // index in the range list so the set equivalence does not fail
     for (uint32_t& x : list.variable_indices) {
         x = real_variable_index[x];
     }
@@ -1273,7 +1275,7 @@ void UltraComposer::process_range_list(RangeList& list)
     list.variable_indices.erase(back_iterator, list.variable_indices.end());
 
     // go over variables
-    // for each variable, create mirror variable with same value - with tau tag
+    // iterate over each variable and create mirror variable with same value - with tau tag
     // need to make sure that, in original list, increments of at most 3
     std::vector<uint64_t> sorted_list;
     sorted_list.reserve(list.variable_indices.size());
