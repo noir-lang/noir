@@ -52,6 +52,10 @@
         "uninstantiated",
         "urem",
         "vecmap",
+        "direnv",
+        "nixpkgs",
+        "envrc",
+        "subshell",
         // Dependencies
         //
         "acir",

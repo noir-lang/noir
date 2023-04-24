@@ -130,6 +130,7 @@ mod test {
     struct MockBackend {}
     impl PartialWitnessGenerator for MockBackend {
         fn solve_black_box_function_call(
+            &self,
             _initial_witness: &mut BTreeMap<Witness, FieldElement>,
             _func_call: &BlackBoxFuncCall,
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
