@@ -29,4 +29,4 @@ jobs:
           repo: noir-lang/docs
           ref: master 
           token: ${{ secrets.DOCS_REPO_TOKEN }} 
-          inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }' 
+          inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }'
