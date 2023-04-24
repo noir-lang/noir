@@ -3,6 +3,7 @@ contract Child {
     use dep::aztec3::abi::Inputs;
     use dep::aztec3::abi::Outputs;
 
+    /// ABI constructor type "secret"
     /// ABI constructor params []
     /// ABI constructor return []
     fn constructor(
@@ -11,6 +12,7 @@ contract Child {
         Outputs::new().finish(inputs)
     }
 
+    /// ABI value type "secret"
     /// ABI value params [{"name":"input","type":{"kind":"field"},"visibility":"public"}]
     /// ABI value return [{"kind":"field"}]
     fn value(

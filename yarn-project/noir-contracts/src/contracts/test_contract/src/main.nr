@@ -3,6 +3,9 @@ contract Test {
     use dep::aztec3::abi::Inputs;
     use dep::aztec3::abi::Outputs;
 
+    /// ABI constructor type "secret"
+    /// ABI constructor params []
+    /// ABI constructor return []
     fn constructor(
         inputs: pub Inputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {

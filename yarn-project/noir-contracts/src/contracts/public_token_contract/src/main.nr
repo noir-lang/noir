@@ -8,6 +8,7 @@ contract PublicToken {
 
     global balances = StorageMap { storage_slot: 1 };
 
+    /// ABI constructor type "secret"
     /// ABI constructor params []
     /// ABI constructor return []
     fn constructor(
@@ -16,8 +17,8 @@ contract PublicToken {
         Outputs::new().finish(inputs)
     }
 
+    /// ABI mint type "open"
     /// ABI mint params [{"name":"amount","type":{"kind":"field"},"visibility":"public"},{"name":"recipient","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}}]
-    /// ABI mint return [{"kind":"field"}]
     fn mint(
         _call_context: pub CallContext,
         amount: pub Field,
@@ -27,9 +28,8 @@ contract PublicToken {
         recipient_balance.write(recipient_balance.read() + amount)
     }
 
-
+    /// ABI transfer type "open"
     /// ABI transfer params [{"name":"amount","type":{"kind":"field"},"visibility":"public"},{"name":"recipient","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}}]
-    /// ABI transfer return [{"kind":"field"}]
     fn transfer(
         call_context: pub CallContext,
         amount: pub Field,

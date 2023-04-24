@@ -4,12 +4,10 @@ import {
   CallContext,
   ContractDeploymentData,
   FunctionData,
-  PrivateHistoricTreeRoots,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
-  TxContext,
 } from '@aztec/circuits.js';
-import { NoteLoadOracleInputs } from '../db_oracle.js';
+import { NoteLoadOracleInputs } from '../client/db_oracle.js';
 
 // Utilities to write TS classes to ACVM Field arrays
 // In the order that the ACVM expects them
@@ -83,39 +81,7 @@ export function toAcvmNoteLoadOracleInputs(
   ];
 }
 
-// We still need this function until we can get user-defined ordering of structs for fn arguments
-// TODO When that is sorted out on noir side, we can use instead the utilities in this file
-export function writeInputs(
-  args: Fr[],
-  callContext: CallContext,
-  txContext: TxContext,
-  historicRoots: PrivateHistoricTreeRoots,
-  witnessStartIndex = 1,
-) {
-  const fields = [
-    ...args,
-
-    callContext.isContractDeployment,
-    callContext.isDelegateCall,
-    callContext.isStaticCall,
-    callContext.msgSender,
-    callContext.portalContractAddress,
-    callContext.storageContractAddress,
-
-    txContext.contractDeploymentData.constructorVkHash,
-    txContext.contractDeploymentData.contractAddressSalt,
-    txContext.contractDeploymentData.functionTreeRoot,
-    txContext.contractDeploymentData.portalContractAddress,
-
-    historicRoots.contractTreeRoot,
-    historicRoots.nullifierTreeRoot,
-    historicRoots.privateDataTreeRoot,
-  ];
-
-  return toACVMWitness(witnessStartIndex, ...fields);
-}
-
-export function toACVMWitness(witnessStartIndex: number, ...fields: Parameters<typeof toACVMField>[0][]) {
+export function toACVMWitness(witnessStartIndex: number, fields: Parameters<typeof toACVMField>[0][]) {
   return fields.reduce((witness, field, index) => {
     witness.set(index + witnessStartIndex, toACVMField(field));
     return witness;

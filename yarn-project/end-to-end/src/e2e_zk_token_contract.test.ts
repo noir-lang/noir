@@ -5,9 +5,6 @@ import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { createDebugLogger } from '@aztec/foundation';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
-import { ContractAbi } from '@aztec/noir-contracts';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
 import { getConfigEnvVars } from '@aztec/aztec-node';
 
 import { createProvider, deployRollupContract, deployUnverifiedDataEmitterContract } from './deploy_l1_contracts.js';
@@ -53,43 +50,10 @@ describe('e2e_zk_token_contract', () => {
     await aztecRpcServer?.stop();
   });
 
-  const calculateStorageSlot = async (accountIdx: number) => {
-    const ownerPublicKey = await aztecRpcServer.getAccountPublicKey(accounts[accountIdx]);
-    const xCoordinate = Fr.fromBuffer(ownerPublicKey.buffer.subarray(0, 32));
-    const bbWasm = await BarretenbergWasm.get();
-
-    // We only generate 1 note in each test. Balance is the first field of the only note.
-    const storageSlot = Fr.fromBuffer(
-      pedersenCompressInputs(
-        bbWasm,
-        [new Fr(4n), new Fr(1n), xCoordinate].map(f => f.toBuffer()),
-      ),
-    );
-
-    return storageSlot;
-  };
-
-  const expectStorageSlot = async (accountIdx: number, expectedBalance: bigint) => {
-    // We only generate 1 note in each test. Balance is the first field of the only note.
-    // TBD - how to calculate storage slot?
-    const storageSlot = await calculateStorageSlot(accountIdx);
-    const [values] = await aztecRpcServer.getStorageAt(contract.address!, storageSlot);
-    const balance = values[5];
-    logger(`Account ${accountIdx} balance: ${balance}`);
-    expect(balance).toBe(expectedBalance);
-  };
-
-  const expectEmptyStorageSlotForAccount = async (accountIdx: number) => {
-    // We only generate 1 note in each test. Balance is the first field of the only note.
-    // TBD - how to calculate storage slot?
-    const storageSlot = await calculateStorageSlot(accountIdx);
-    const values = await aztecRpcServer.getStorageAt(contract.address!, storageSlot);
-    expect(values.length).toBe(0);
-  };
-
-  const expectBalance = async (accountIdx: number, expectedBalance: bigint) => {
-    const balance = await contract.methods.getBalance().view({ from: accounts[accountIdx] });
-    logger(`Account ${accountIdx} balance: ${balance}`);
+  const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
+    const ownerPublicKey = await aztecRpcServer.getAccountPublicKey(owner);
+    const [balance] = await contract.methods.getBalance(pointToPublicKey(ownerPublicKey)).view({ from: owner });
+    logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
 
@@ -103,12 +67,11 @@ describe('e2e_zk_token_contract', () => {
   };
 
   const deployContract = async (initialBalance = 0n, owner = { x: 0n, y: 0n }) => {
-    // TODO: Remove explicit casts
     logger(`Deploying L2 contract...`);
-    const deployer = new ContractDeployer(ZkTokenContractAbi as ContractAbi, aztecRpcServer);
+    const deployer = new ContractDeployer(ZkTokenContractAbi, aztecRpcServer);
     const tx = deployer.deploy(initialBalance, owner).send();
     const receipt = await tx.getReceipt();
-    contract = new Contract(receipt.contractAddress!, ZkTokenContractAbi as ContractAbi, aztecRpcServer);
+    contract = new Contract(receipt.contractAddress!, ZkTokenContractAbi, aztecRpcServer);
     await tx.isMined(0, 0.1);
     await tx.getReceipt();
     logger('L2 contract deployed');
@@ -123,8 +86,8 @@ describe('e2e_zk_token_contract', () => {
     const initialBalance = 987n;
     const owner = await aztecRpcServer.getAccountPublicKey(accounts[0]);
     await deployContract(initialBalance, pointToPublicKey(owner));
-    await expectStorageSlot(0, initialBalance);
-    await expectEmptyStorageSlotForAccount(1);
+    await expectBalance(accounts[0], initialBalance);
+    await expectBalance(accounts[1], 0n);
   }, 30_000);
 
   /**
@@ -139,8 +102,8 @@ describe('e2e_zk_token_contract', () => {
       0n,
       pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)),
     );
-    await expectStorageSlot(0, 0n);
-    await expectEmptyStorageSlotForAccount(1);
+    await expectBalance(owner, 0n);
+    await expectBalance(receiver, 0n);
 
     const tx = deployedContract.methods
       .mint(mintAmount, pointToPublicKey(await aztecRpcServer.getAccountPublicKey(receiver)))
@@ -150,21 +113,21 @@ describe('e2e_zk_token_contract', () => {
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
+    await expectBalance(receiver, mintAmount);
   }, 60_000);
 
   /**
    * Milestone 1.5
    */
   it('1.5 should call transfer and increase balance of another account', async () => {
-    // TODO use getBalance unconstrained fn instead of reading storage slots
     const initialBalance = 987n;
     const transferAmount = 654n;
     const [owner, receiver] = accounts;
 
     await deployContract(initialBalance, pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)));
 
-    await expectStorageSlot(0, initialBalance);
-    await expectEmptyStorageSlotForAccount(1);
+    await expectBalance(owner, initialBalance);
+    await expectBalance(receiver, 0n);
 
     const tx = contract.methods
       .transfer(
@@ -179,7 +142,7 @@ describe('e2e_zk_token_contract', () => {
 
     expect(receipt.status).toBe(TxStatus.MINED);
 
-    await expectStorageSlot(0, initialBalance - transferAmount);
-    await expectStorageSlot(1, transferAmount);
+    await expectBalance(owner, initialBalance - transferAmount);
+    await expectBalance(receiver, transferAmount);
   }, 60_000);
 });

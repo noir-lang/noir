@@ -3,7 +3,6 @@ import { AztecAddress, AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@a
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { EthAddress, createDebugLogger } from '@aztec/foundation';
-import { ContractAbi } from '@aztec/noir-contracts';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
@@ -22,7 +21,6 @@ describe('e2e_deploy_contract', () => {
   let rollupAddress: EthAddress;
   let unverifiedDataEmitterAddress: EthAddress;
   let accounts: AztecAddress[];
-  const abi = TestContractAbi as ContractAbi;
 
   beforeEach(async () => {
     provider = createProvider(config.rpcUrl, MNEMONIC, 1);
@@ -52,7 +50,7 @@ describe('e2e_deploy_contract', () => {
    * https://hackmd.io/ouVCnacHQRq2o1oRc5ksNA#Interfaces-and-Responsibilities
    */
   it('should deploy a contract', async () => {
-    const deployer = new ContractDeployer(abi, aztecRpcServer);
+    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
     const tx = deployer.deploy().send();
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
@@ -79,7 +77,7 @@ describe('e2e_deploy_contract', () => {
    * Verify that we can produce multiple rollups
    */
   it('should deploy one contract after another in consecutive rollups', async () => {
-    const deployer = new ContractDeployer(abi, aztecRpcServer);
+    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
 
     for (let index = 0; index < 2; index++) {
       logger(`Deploying contract ${index + 1}...`);
@@ -97,7 +95,7 @@ describe('e2e_deploy_contract', () => {
    */
   it('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
-    const deployer = new ContractDeployer(abi, aztecRpcServer);
+    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
 
     {
       const tx = deployer.deploy().send({ contractAddressSalt });

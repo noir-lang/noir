@@ -2,6 +2,8 @@
 
 use crate::types::point::Point;
 
+global NOTE_LEN = 6;
+
 #[oracle(getRandomField)]
 fn rand_oracle() -> Field {}
 
@@ -32,6 +34,21 @@ impl Note {
             randomness: 0,
             nonce: 0,
             is_real: false,
+        }
+    }
+
+    fn deserialize(
+        fields: [Field; NOTE_LEN],
+    ) -> Note {
+        Note {
+            is_real: fields[0] as bool,
+            nonce: fields[1],
+            owner: Point {
+                x: fields[2],
+                y: fields[3]
+            },
+            randomness: fields[4],
+            value: fields[5],
         }
     }
 

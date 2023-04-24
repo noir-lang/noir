@@ -1,6 +1,4 @@
-export * from './simulator.js';
-export * from './execution.js';
-export * from './db_oracle.js';
+export * from './client/index.js';
 export * from './acvm/acvm.js';
 export * from './abi_coder/index.js';
 export * from './public/index.js';

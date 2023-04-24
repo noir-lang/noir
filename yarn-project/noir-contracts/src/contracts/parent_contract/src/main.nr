@@ -4,6 +4,7 @@ contract Parent {
     use dep::aztec3::abi::Outputs;
     use dep::aztec3::private_call_stack_item::PrivateCallStackItem;
 
+    /// ABI constructor type "secret"
     /// ABI constructor params []
     /// ABI constructor return []
     fn constructor(
@@ -12,6 +13,7 @@ contract Parent {
         Outputs::new().finish(inputs)
     }
 
+    /// ABI entryPoint type "secret"
     /// ABI entryPoint params [{"name":"targetContract","type":{"kind":"field"},"visibility":"public"},{"name":"targetSelector","type":{"kind":"field"}}]
     /// ABI entryPoint return [{"kind":"field"}]
     fn entryPoint(

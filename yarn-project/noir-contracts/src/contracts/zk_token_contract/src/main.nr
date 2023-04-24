@@ -1,4 +1,5 @@
 contract ZkToken {
+    mod balance_utils;
     use dep::aztec3::abi::Inputs;
     use dep::aztec3::abi::Outputs;
     use dep::aztec3::notes::value_note::Note;
@@ -12,6 +13,7 @@ contract ZkToken {
     // `balances: Mapping<Field, Set<Note>>;`
     //*********************************/
 
+    /// ABI constructor type "secret"
     /// ABI constructor params [{"name":"value","type":{"kind":"field"},"visibility":"public"},{"name":"owner","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}]},"visibility":"public"}]
     /// ABI constructor return []
     fn constructor(
@@ -38,7 +40,7 @@ contract ZkToken {
             .finish(inputs)
     }
 
-
+    /// ABI mint type "secret"
     /// ABI mint params [{"name":"value","type":{"kind":"field"},"visibility":"public"},{"name":"owner","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}]},"visibility":"public"}]
     /// ABI mint return []
     fn mint(
@@ -65,6 +67,7 @@ contract ZkToken {
             .finish(inputs)
     }
 
+    /// ABI transfer type "secret"
     /// ABI transfer params [{"name":"amount","type":{"kind":"field"},"visibility":"public"},{"name":"sender","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}},{"name":"recipient","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}}]
     /// ABI transfer return []
     fn transfer(
@@ -114,4 +117,12 @@ contract ZkToken {
         outputs.finish(inputs)
     }
 
+    /// ABI getBalance type "unconstrained"
+    fn getBalance(
+        owner: Point,
+    ) -> pub Field {
+        let owner_balance = balances.at(owner.x);
+        
+        balance_utils::get_balance(owner_balance.storage_slot)
+    }
 }

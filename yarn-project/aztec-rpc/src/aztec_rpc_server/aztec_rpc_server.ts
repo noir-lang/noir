@@ -145,7 +145,7 @@ export class AztecRPCServer implements AztecRPCClient {
       throw new Error('Unknown function.');
     }
 
-    const flatArgs = encodeArguments(functionDao, args);
+    const flatArgs = encodeArguments(functionDao, args, functionDao.functionType === FunctionType.SECRET);
 
     const functionData = new FunctionData(
       functionDao.selector,
@@ -204,10 +204,10 @@ export class AztecRPCServer implements AztecRPCClient {
   public async viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {
     const txRequest = await this.createTxRequest(functionName, args, to, from);
     const accountState = this.ensureAccount(txRequest.from);
-    const executionResult = await accountState.simulate(txRequest);
+    const executionResult = await accountState.simulateUnconstrained(txRequest);
 
     // TODO - Return typed result based on the function abi.
-    return executionResult.returnValues;
+    return executionResult;
   }
 
   /**

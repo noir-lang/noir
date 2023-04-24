@@ -3,12 +3,15 @@ import camelCase from 'lodash.camelcase';
 import snakeCase from 'lodash.snakecase';
 import upperFirst from 'lodash.upperfirst';
 import mockedKeys from './mockedKeys.json' assert { type: 'json' };
+import { ABIParameter, ABIType, FunctionType } from '../abi.js';
 
-function getFunction(params: any, returns: any, fn: any) {
+const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
+
+function getFunction(type: FunctionType, params: ABIParameter[], returns: ABIType[], fn: any) {
   if (!params) throw new Error(`ABI comment not found for function ${fn.name}`);
   return {
     name: fn.name,
-    functionType: fn.function_type,
+    functionType: type,
     parameters: params,
     returnTypes: returns,
     bytecode: Buffer.from(fn.bytecode).toString('hex'),
@@ -18,19 +21,29 @@ function getFunction(params: any, returns: any, fn: any) {
 }
 
 function getFunctions(source: string, output: any) {
-  const abis = Array.from(source.matchAll(/\/\/\/ ABI (\w+) (params|return) (.+)/g)).map(match => ({
+  const abiComments = Array.from(source.matchAll(/\/\/\/ ABI (\w+) (params|return|type) (.+)/g)).map(match => ({
     functionName: match[1],
-    abiType: match[2],
-    interface: JSON.parse(match[3]),
+    statementType: match[2],
+    value: JSON.parse(match[3]),
   }));
 
   return output.functions
     .sort((fnA: any, fnB: any) => fnA.name.localeCompare(fnB.name))
     .map((fn: any) => {
       delete fn.proving_key;
+      const thisFunctionAbisComments = abiComments
+        .filter(abi => abi.functionName === fn.name)
+        .reduce(
+          (acc, comment) => ({
+            ...acc,
+            [comment.statementType]: comment.value,
+          }),
+          {} as Record<(typeof STATEMENT_TYPES)[number], any>,
+        );
       return getFunction(
-        abis.find(abi => abi.functionName === fn.name && abi.abiType === 'params')?.interface || [],
-        abis.find(abi => abi.functionName === fn.name && abi.abiType === 'return')?.interface || [],
+        thisFunctionAbisComments.type || 'secret',
+        thisFunctionAbisComments.params || fn.abi.parameters,
+        thisFunctionAbisComments.return || [fn.abi.return_type],
         fn,
       );
     });

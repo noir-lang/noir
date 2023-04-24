@@ -22,8 +22,6 @@ describe('e2e_nested_contract', () => {
   let rollupAddress: EthAddress;
   let unverifiedDataEmitterAddress: EthAddress;
   let accounts: AztecAddress[];
-  const parentABI = ParentAbi as ContractAbi;
-  const childABI = ChildAbi as ContractAbi;
 
   beforeEach(async () => {
     provider = createProvider(config.rpcUrl, MNEMONIC, 1);
@@ -69,8 +67,8 @@ describe('e2e_nested_contract', () => {
    * Milestone 3
    */
   it('should mine transactions that perform nested calls', async () => {
-    const parentContract = await deployContract(parentABI);
-    const childContract = await deployContract(childABI);
+    const parentContract = await deployContract(ParentAbi);
+    const childContract = await deployContract(ChildAbi);
 
     logger('Parent & Child contracts deployed');
 

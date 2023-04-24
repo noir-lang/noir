@@ -56,13 +56,7 @@ export class AccountState {
     return this.db.getTxsByAddress(this.address);
   }
 
-  public async simulate(txRequest: TxRequest, contractDataOracle?: ContractDataOracle) {
-    // TODO - Pause syncing while simulating.
-
-    if (!contractDataOracle) {
-      contractDataOracle = new ContractDataOracle(this.db, this.node);
-    }
-
+  private async getSimulationParameters(txRequest: TxRequest, contractDataOracle: ContractDataOracle) {
     const contractAddress = txRequest.to;
     const functionAbi = await contractDataOracle.getFunctionAbi(
       contractAddress,
@@ -71,11 +65,54 @@ export class AccountState {
     const portalContract = await contractDataOracle.getPortalContractAddress(contractAddress);
     const historicRoots = new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
 
-    const simulatorOracle = new SimulatorOracle(contractDataOracle, this.db, this.keyPair, this.node);
-    const simulator = new AcirSimulator(simulatorOracle);
+    return {
+      contractAddress,
+      functionAbi,
+      portalContract,
+      historicRoots,
+    };
+  }
+
+  public async simulate(txRequest: TxRequest, contractDataOracle?: ContractDataOracle) {
+    // TODO - Pause syncing while simulating.
+    if (!contractDataOracle) {
+      contractDataOracle = new ContractDataOracle(this.db, this.node);
+    }
+
+    const { contractAddress, functionAbi, portalContract, historicRoots } = await this.getSimulationParameters(
+      txRequest,
+      contractDataOracle,
+    );
+
+    const simulator = new AcirSimulator(new SimulatorOracle(contractDataOracle, this.db, this.keyPair, this.node));
     this.log('Executing simulator...');
     const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract, historicRoots);
     this.log('Simulation completed!');
+
+    return result;
+  }
+
+  public async simulateUnconstrained(txRequest: TxRequest, contractDataOracle?: ContractDataOracle) {
+    if (!contractDataOracle) {
+      contractDataOracle = new ContractDataOracle(this.db, this.node);
+    }
+
+    const { contractAddress, functionAbi, portalContract, historicRoots } = await this.getSimulationParameters(
+      txRequest,
+      contractDataOracle,
+    );
+
+    const simulator = new AcirSimulator(new SimulatorOracle(contractDataOracle, this.db, this.keyPair, this.node));
+
+    this.log('Executing unconstrained simulator...');
+    const result = await simulator.runUnconstrained(
+      txRequest,
+      functionAbi,
+      contractAddress,
+      portalContract,
+      historicRoots,
+    );
+    this.log('Unconstrained simulation completed!');
 
     return result;
   }
