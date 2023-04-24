@@ -18,7 +18,8 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "cacheVariables": {
-        "CMAKE_BBERG_PRESET": "default"
+        "CMAKE_BBERG_PRESET": "default",
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
@@ -47,6 +48,24 @@
       },
       "cacheVariables": {
         "CMAKE_BBERG_PRESET": "clang15"
+      }
+    },
+    {
+      "name": "clang15-assert",
+      "displayName": "Build with Clang-15 and assertions enabled",
+      "description": "Build with globally installed Clang-15 and assertions",
+      "inherits": "clang15",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithAssert"
+      }
+    },
+    {
+      "name": "clang15-dbg",
+      "displayName": "Debugging build with Clang-15",
+      "description": "Build with globally installed Clang-15 in debug mode",
+      "inherits": "clang15",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
@@ -127,7 +146,17 @@
         "CMAKE_FIND_ROOT_PATH_MODE_PACKAGE": "ONLY",
         "CMAKE_C_COMPILER_WORKS": "ON",
         "CMAKE_CXX_COMPILER_WORKS": "ON",
-        "CMAKE_BBERG_PRESET": "wasm"
+        "CMAKE_BBERG_PRESET": "wasm",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "wasm-dbg",
+      "displayName": "Debugging build for WASM",
+      "description": "Build in debug mode with a specific wasm-sdk to create wasm",
+      "inherits": "wasm",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     }
   ],
@@ -149,6 +178,11 @@
       "configurePreset": "clang15"
     },
     {
+      "name": "clang15-dbg",
+      "inherits": "default",
+      "configurePreset": "clang15-dbg"
+    },
+    {
       "name": "gcc",
       "inherits": "default",
       "configurePreset": "gcc"
@@ -178,6 +212,10 @@
       "configurePreset": "wasm",
       "inheritConfigureEnvironment": true,
       "jobs": 0
+    },
+    {
+      "name": "wasm-dbg",
+      "inherits": "wasm"
     }
   ],
   "testPresets": [
@@ -195,6 +233,11 @@
       "name": "clang15",
       "inherits": "default",
       "configurePreset": "clang15"
+    },
+    {
+      "name": "clang15-dbg",
+      "inherits": "default",
+      "configurePreset": "clang15-dbg"
     },
     {
       "name": "gcc",
@@ -225,6 +268,10 @@
       "name": "wasm",
       "configurePreset": "wasm",
       "inheritConfigureEnvironment": true
+    },
+    {
+      "name": "wasm-dbg",
+      "inherits": "wasm"
     }
   ]
 }
