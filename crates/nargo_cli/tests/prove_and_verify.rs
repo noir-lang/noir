@@ -3,12 +3,8 @@ use tempdir::TempDir;
 use std::collections::BTreeMap;
 use std::fs;
 
-const TEST_DIR: &str = "tests";
-const TEST_DATA_DIR: &str = "test_data";
-const CONFIG_FILE: &str = "config.toml";
-
 mod tests {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use super::*;
 
@@ -51,13 +47,17 @@ mod tests {
 
     #[test]
     fn noir_integration() {
-        let current_dir = std::env::current_dir().unwrap();
+        // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
+        // is the root of the repository and append the crate path
+        let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+            Ok(dir) => PathBuf::from(dir),
+            Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
+        };
+        let test_data_dir = manifest_dir.join("tests").join("test_data");
+        let config_path = test_data_dir.join("config.toml");
 
-        let test_data_dir = current_dir.join(TEST_DIR).join(TEST_DATA_DIR);
-
-        // Load config.toml file from test_data directory
-        let config_file_path = test_data_dir.join(CONFIG_FILE);
-        let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_file_path);
+        // Load config.toml file from `test_data` directory
+        let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
 
         // Copy all the test cases into a temp dir so we don't leave artifacts around.
         let tmp_dir = TempDir::new("p_and_v_tests").unwrap();

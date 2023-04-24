@@ -1,15 +1,8 @@
 use acvm::FieldElement;
 
 use super::{
-    function::FunctionId,
-    map::{Id, SparseMap},
-    types::Type,
-    value::ValueId,
+    basic_block::BasicBlockId, function::FunctionId, map::Id, types::Type, value::ValueId,
 };
-use crate::ssa_refactor::basic_block::{BasicBlockId, BlockArguments};
-
-// Container for all Instructions, per-function
-pub(crate) type Instructions = SparseMap<Instruction>;
 
 /// Reference to an instruction
 pub(crate) type InstructionId = Id<Instruction>;
@@ -134,12 +127,12 @@ pub(crate) enum TerminatorInstruction {
         condition: ValueId,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
-        arguments: BlockArguments,
+        arguments: Vec<ValueId>,
     },
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`
-    Jmp { destination: BasicBlockId, arguments: BlockArguments },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId> },
 }
 
 /// A binary instruction in the IR.
@@ -180,35 +173,4 @@ pub(crate) enum BinaryOp {
     /// Returns true if the types were not equal and
     /// false otherwise.
     Ne,
-}
-
-#[test]
-fn smoke_instructions_map_duplicate() {
-    let id = Id::test_new(0);
-
-    let ins = Instruction::Not(id);
-    let same_ins = Instruction::Not(id);
-
-    let mut ins_map = Instructions::default();
-
-    // Document what happens when we insert the same instruction twice
-    let id = ins_map.push(ins);
-    let id_same_ins = ins_map.push(same_ins);
-
-    // The map is quite naive and does not check if the instruction has ben inserted
-    // before. We simply assign a different Id.
-    assert_ne!(id, id_same_ins)
-}
-
-#[test]
-fn num_instructions_smoke() {
-    let n = 100;
-
-    let mut ins_map = Instructions::default();
-    for i in 0..n {
-        let ins = Instruction::Not(Id::test_new(i));
-        ins_map.push(ins);
-    }
-
-    assert_eq!(n, ins_map.len())
 }

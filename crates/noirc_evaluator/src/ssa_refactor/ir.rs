@@ -1,4 +1,5 @@
-pub(crate) mod extfunc;
+pub(crate) mod basic_block;
+pub(crate) mod dfg;
 pub(crate) mod function;
 pub(crate) mod instruction;
 pub(crate) mod instruction_predicates;
