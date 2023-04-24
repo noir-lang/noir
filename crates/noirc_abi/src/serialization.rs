@@ -43,8 +43,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use crate::{AbiParameter, AbiType, AbiVisibility, Sign};
 
     #[test]
