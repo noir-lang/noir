@@ -112,3 +112,123 @@ impl ControlFlowGraph {
             .copied()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa_refactor::ir::{instruction::TerminatorInstruction, types::Type};
+
+    use super::{super::function::Function, ControlFlowGraph};
+
+    #[test]
+    fn empty() {
+        let mut func = Function::new();
+        let block_id = func.entry_block();
+        func.dfg[block_id].set_terminator(TerminatorInstruction::Return { return_values: vec![] });
+
+        ControlFlowGraph::with_function(&func);
+    }
+
+    #[test]
+    fn jumps() {
+        let mut func = Function::new();
+        let block0_id = func.entry_block();
+        let cond = func.dfg.add_block_parameter(block0_id, Type::unsigned(1));
+        let block1_id = func.dfg.new_block();
+        let block2_id = func.dfg.new_block();
+
+        func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
+            condition: cond,
+            then_destination: block2_id,
+            else_destination: block1_id,
+            arguments: vec![],
+        });
+        func.dfg[block1_id].set_terminator(TerminatorInstruction::JmpIf {
+            condition: cond,
+            then_destination: block1_id,
+            else_destination: block2_id,
+            arguments: vec![],
+        });
+        func.dfg[block2_id].set_terminator(TerminatorInstruction::Return { return_values: vec![] });
+
+        let mut cfg = ControlFlowGraph::with_function(&func);
+
+        {
+            let block0_predecessors = cfg.pred_iter(block0_id).collect::<Vec<_>>();
+            let block1_predecessors = cfg.pred_iter(block1_id).collect::<Vec<_>>();
+            let block2_predecessors = cfg.pred_iter(block2_id).collect::<Vec<_>>();
+
+            let block0_successors = cfg.succ_iter(block0_id).collect::<Vec<_>>();
+            let block1_successors = cfg.succ_iter(block1_id).collect::<Vec<_>>();
+            let block2_successors = cfg.succ_iter(block2_id).collect::<Vec<_>>();
+
+            assert_eq!(block0_predecessors.len(), 0);
+            assert_eq!(block1_predecessors.len(), 2);
+            assert_eq!(block2_predecessors.len(), 2);
+
+            assert_eq!(block1_predecessors.contains(&block0_id), true);
+            assert_eq!(block1_predecessors.contains(&block1_id), true);
+            assert_eq!(block2_predecessors.contains(&block0_id), true);
+            assert_eq!(block2_predecessors.contains(&block1_id), true);
+
+            assert_eq!(block0_successors.len(), 2);
+            assert_eq!(block1_successors.len(), 2);
+            assert_eq!(block2_successors.len(), 0);
+
+            assert_eq!(block0_successors.contains(&block1_id), true);
+            assert_eq!(block0_successors.contains(&block2_id), true);
+            assert_eq!(block1_successors.contains(&block1_id), true);
+            assert_eq!(block1_successors.contains(&block2_id), true);
+            assert_eq!(block2_successors, []);
+        }
+
+        // Add a new return block replacing the return in block2
+        let ret_block_id = func.dfg.new_block();
+        func.dfg[ret_block_id]
+            .set_terminator(TerminatorInstruction::Return { return_values: vec![] });
+        func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
+            destination: ret_block_id,
+            arguments: vec![],
+        });
+
+        // Change some instructions and recompute block0, block2 and ret_block
+
+        func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
+            condition: cond,
+            then_destination: block1_id,
+            else_destination: ret_block_id,
+            arguments: vec![],
+        });
+        cfg.recompute_block(&mut func, block0_id);
+        cfg.recompute_block(&mut func, block2_id);
+        cfg.recompute_block(&mut func, ret_block_id);
+
+        {
+            let block0_predecessors = cfg.pred_iter(block0_id).collect::<Vec<_>>();
+            let block1_predecessors = cfg.pred_iter(block1_id).collect::<Vec<_>>();
+            let block2_predecessors = cfg.pred_iter(block2_id).collect::<Vec<_>>();
+
+            let block0_successors = cfg.succ_iter(block0_id).collect::<Vec<_>>();
+            let block1_successors = cfg.succ_iter(block1_id).collect::<Vec<_>>();
+            let block2_successors = cfg.succ_iter(block2_id).collect::<Vec<_>>();
+
+            assert_eq!(block0_predecessors.len(), 0);
+            assert_eq!(block1_predecessors.len(), 2);
+            assert_eq!(block2_predecessors.len(), 1);
+
+            assert_eq!(block1_predecessors.contains(&block0_id), true);
+            assert_eq!(block1_predecessors.contains(&block1_id), true);
+            assert_eq!(block2_predecessors.contains(&block0_id), false);
+            assert_eq!(block2_predecessors.contains(&block1_id), true);
+
+            assert_eq!(block0_successors.len(), 2);
+            assert_eq!(block1_successors.len(), 2);
+            assert_eq!(block2_successors.len(), 1);
+
+            assert_eq!(block0_successors.contains(&block1_id), true);
+            assert_eq!(block0_successors.contains(&ret_block_id), true);
+            assert_eq!(block1_successors.contains(&block1_id), true);
+            assert_eq!(block1_successors.contains(&block2_id), true);
+            assert_eq!(block2_successors.contains(&ret_block_id), true);
+        }
+    }
+}

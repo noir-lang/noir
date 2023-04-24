@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -197,9 +197,16 @@ impl DataFlowGraph {
 
 impl Index<BasicBlockId> for DataFlowGraph {
     type Output = BasicBlock;
-    /// Get a function's basic block for the given id.
+    /// Get a reference to a function's basic block for the given id.
     fn index(&self, id: BasicBlockId) -> &BasicBlock {
         &self.blocks[id]
+    }
+}
+
+impl IndexMut<BasicBlockId> for DataFlowGraph {
+    /// Get a mutable reference to a function's basic block for the given id.
+    fn index_mut(&mut self, id: BasicBlockId) -> &mut BasicBlock {
+        &mut self.blocks[id]
     }
 }
 

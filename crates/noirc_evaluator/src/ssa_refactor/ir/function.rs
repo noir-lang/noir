@@ -36,10 +36,6 @@ impl Function {
     pub(crate) fn entry_block(&self) -> BasicBlockId {
         self.entry_block
     }
-
-    pub(crate) fn dfg(&self) -> &DataFlowGraph {
-        &self.dfg
-    }
 }
 
 /// FunctionId is a reference for a function
