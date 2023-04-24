@@ -31,7 +31,7 @@ jobs:
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
         with:
-          repository: aztecprotocol/noir-wasm-testing
+          repository: noir-lang/noir-wasm-testing
           path: noir-wasm-testing
 
       - name: Inject built wasm into noir-wasm-testing
