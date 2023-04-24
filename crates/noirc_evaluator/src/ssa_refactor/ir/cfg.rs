@@ -1,8 +1,9 @@
 use std::collections::{hash_set, HashMap, HashSet};
 
 use super::{
-    basic_block::BasicBlockId,
-    ir::{function::Function, instruction_predicates},
+    basic_block::{BasicBlock, BasicBlockId},
+    basic_block_visitors,
+    function::Function,
 };
 
 /// A container for the successors and predecessors of some Block.
@@ -33,13 +34,13 @@ impl ControlFlowGraph {
     }
 
     fn compute(&mut self, func: &Function) {
-        for basic_block_id in func.basic_block_ids_iter() {
-            self.compute_block(func, basic_block_id);
+        for (basic_block_id, basic_block) in func.basic_blocks_iter() {
+            self.compute_block(basic_block_id, basic_block);
         }
     }
 
-    fn compute_block(&mut self, func: &Function, basic_block_id: BasicBlockId) {
-        instruction_predicates::visit_block_succs(func, basic_block_id, |dest| {
+    fn compute_block(&mut self, basic_block_id: BasicBlockId, basic_block: &BasicBlock) {
+        basic_block_visitors::visit_block_succs(basic_block, |dest| {
             self.add_edge(basic_block_id, dest);
         });
     }
@@ -66,7 +67,8 @@ impl ControlFlowGraph {
     /// from `basic_block_id` while leaving edges to `basic_block_id` intact.
     pub(crate) fn recompute_block(&mut self, func: &Function, basic_block_id: BasicBlockId) {
         self.invalidate_block_successors(basic_block_id);
-        self.compute_block(func, basic_block_id);
+        let basic_block = &func[basic_block_id];
+        self.compute_block(basic_block_id, basic_block);
     }
 
     fn add_edge(&mut self, from: BasicBlockId, to: BasicBlockId) {

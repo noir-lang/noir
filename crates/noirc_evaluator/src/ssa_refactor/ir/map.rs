@@ -100,10 +100,12 @@ impl<T> DenseMap<T> {
         id
     }
 
-    /// Gets an iterator to the Ids of each element in the map. The Ids are iterated in their
-    /// natural order.
-    pub(crate) fn ids_iter(&self) -> impl Iterator<Item = Id<T>> {
-        (0..self.storage.len()).into_iter().map(|idx| Id::new(idx))
+    /// Gets an iterator to a reference to each element in the dense map paired with its id.
+    ///
+    /// The id-element pairs are ordered by the numeric values of the ids.
+    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
+        let ids_iter = (0..self.storage.len()).into_iter().map(|idx| Id::new(idx));
+        ids_iter.zip(self.storage.iter())
     }
 }
 

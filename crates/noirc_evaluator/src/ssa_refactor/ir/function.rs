@@ -55,11 +55,14 @@ impl Function {
 }
 
 impl Function {
-    /// Get an iterator over the ids of the basic blocks within the function.
+    /// Get an iterator over references to each basic block within the function, paired with the
+    /// basic block's id.
     ///
-    /// The ids are iterated in no meaningful order.
-    pub(crate) fn basic_block_ids_iter(&self) -> impl Iterator<Item = BasicBlockId> {
-        self.basic_blocks.ids_iter()
+    /// The pairs are order by id, which is not guaranteed to be meaningful.
+    pub(crate) fn basic_blocks_iter(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
+        self.basic_blocks.iter()
     }
 }
 
