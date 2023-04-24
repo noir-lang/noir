@@ -19,7 +19,7 @@ type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
 
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
-    function_builder: FunctionBuilder<'a>,
+    pub(super) builder: FunctionBuilder<'a>,
     shared_context: &'a SharedContext,
 }
 
@@ -32,22 +32,23 @@ pub(super) struct SharedContext {
 
 impl<'a> FunctionContext<'a> {
     pub(super) fn new(
+        function_name: String,
         parameters: &Parameters,
         shared_context: &'a SharedContext,
         shared_builder_context: &'a SharedBuilderContext,
     ) -> Self {
         let mut this = Self {
             definitions: HashMap::new(),
-            function_builder: FunctionBuilder::new(shared_builder_context),
+            builder: FunctionBuilder::new(function_name, shared_builder_context),
             shared_context,
         };
         this.add_parameters_to_scope(parameters);
         this
     }
 
-    pub(super) fn new_function(&mut self, parameters: &Parameters) {
+    pub(super) fn new_function(&mut self, name: String, parameters: &Parameters) {
         self.definitions.clear();
-        self.function_builder.new_function();
+        self.builder.new_function(name);
         self.add_parameters_to_scope(parameters);
     }
 
@@ -67,8 +68,8 @@ impl<'a> FunctionContext<'a> {
     /// into a new parameter for each field recursively.
     fn add_parameter_to_scope(&mut self, parameter_id: LocalId, parameter_type: &ast::Type) {
         // Add a separate parameter for each field type in 'parameter_type'
-        let parameter_value = self
-            .map_type(parameter_type, |this, typ| this.function_builder.add_parameter(typ).into());
+        let parameter_value =
+            self.map_type(parameter_type, |this, typ| this.builder.add_parameter(typ).into());
 
         self.definitions.insert(parameter_id, parameter_value);
     }
@@ -82,22 +83,26 @@ impl<'a> FunctionContext<'a> {
         typ: &ast::Type,
         mut f: impl FnMut(&mut Self, Type) -> T,
     ) -> Tree<T> {
-        self.map_type_helper(typ, &mut f)
+        Self::map_type_helper(typ, &mut |typ| f(self, typ))
     }
 
     // This helper is needed because we need to take f by mutable reference,
     // otherwise we cannot move it multiple times each loop of vecmap.
-    fn map_type_helper<T>(
-        &mut self,
-        typ: &ast::Type,
-        f: &mut impl FnMut(&mut Self, Type) -> T,
-    ) -> Tree<T> {
+    fn map_type_helper<T>(typ: &ast::Type, f: &mut impl FnMut(Type) -> T) -> Tree<T> {
         match typ {
             ast::Type::Tuple(fields) => {
-                Tree::Branch(vecmap(fields, |field| self.map_type_helper(field, f)))
+                Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
-            other => Tree::Leaf(f(self, Self::convert_non_tuple_type(other))),
+            other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
+    }
+
+    /// Convert a monomorphized type to an SSA type, preserving the structure
+    /// of any tuples within.
+    pub(super) fn convert_type(typ: &ast::Type) -> Tree<Type> {
+        // Do nothing in the closure here - map_type_helper already calls
+        // convert_non_tuple_type internally.
+        Self::map_type_helper(typ, &mut |x| x)
     }
 
     pub(super) fn convert_non_tuple_type(typ: &ast::Type) -> Type {
