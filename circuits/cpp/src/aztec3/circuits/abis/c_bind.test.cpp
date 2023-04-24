@@ -14,6 +14,13 @@ namespace {
 
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::NewContractData;
+// num_leaves = 2**h = 2<<(h-1)
+// root layer does not count in height
+constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1);
+// num_nodes = (2**(h+1))-1 = (2<<h)
+// root layer does not count in height
+// num nodes includes root
+constexpr size_t FUNCTION_TREE_NUM_NODES = (2 << aztec3::FUNCTION_TREE_HEIGHT) - 1;
 
 auto& engine = numeric::random::get_debug_engine();
 
@@ -159,78 +166,69 @@ TEST(abi_tests, compute_function_leaf)
 
 TEST(abi_tests, compute_function_tree_root)
 {
-    constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
-
-    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
-    // these frs will be used to compute the root directly (without cbind)
-    // all empty slots will have the zero-leaf to ensure full tree
-    std::vector<NT::fr> leaves_frs(FUNCTION_TREE_NUM_LEAVES, zero_leaf);
-
     // randomize number of non-zero leaves such that `0 < num_nonzero_leaves <= FUNCTION_TREE_NUM_LEAVES`
     uint8_t num_nonzero_leaves = engine.get_random_uint8() % (FUNCTION_TREE_NUM_LEAVES + 1);
-    // create a vector whose vec.data() can be cast to a single mega-buffer containing all non-zero leaves
-    // initialize the vector with its size so that a leaf's data can be copied in (via `seralize_to_buffer`)
-    // (uint256_t here means nothing; it is just used because it is the right size (32 uint8_ts))
-    std::vector<uint256_t> leaves(num_nonzero_leaves);
 
     // generate some random leaves
-    // insert them into the vector of leaf fields (for direct tree root computation)
-    // insert their serialized form into the vector of 32-bytes chunks/uint256_ts
-    // (to be cast to a single mega uint8_t* buffer and passed to cbind)
+    std::vector<NT::fr> leaves_frs;
     for (size_t l = 0; l < num_nonzero_leaves; l++) {
-        NT::fr leaf = NT::fr::random_element();
-        leaves_frs[l] = leaf;
-        NT::fr::serialize_to_buffer(leaf, reinterpret_cast<uint8_t*>(&leaves[l]));
+        leaves_frs.push_back(NT::fr::random_element());
     }
+    // serilalize the leaves to a buffer to pass to cbind
+    std::vector<uint8_t> leaves_bytes_vec;
+    write(leaves_bytes_vec, leaves_frs);
 
     // call cbind and get output (root)
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
-    abis__compute_function_tree_root(reinterpret_cast<uint8_t*>(leaves.data()), num_nonzero_leaves, output.data());
+    abis__compute_function_tree_root(leaves_bytes_vec.data(), output.data());
+    NT::fr got_root = NT::fr::serialize_from_buffer(output.data());
 
     // compare cbind results with direct computation
-    NT::fr got_root = NT::fr::serialize_from_buffer(output.data());
+
+    // add the zero leaves to the vector of fields and pass to barretenberg helper
+    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
+    for (size_t l = num_nonzero_leaves; l < FUNCTION_TREE_NUM_LEAVES; l++) {
+        leaves_frs.push_back(zero_leaf);
+    }
+    // compare results
     EXPECT_EQ(got_root, plonk::stdlib::merkle_tree::compute_tree_root_native(leaves_frs));
 }
 
 TEST(abi_tests, compute_function_tree)
 {
-    constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
-
-    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
-    // these frs will be used to compute the tree directly (without cbind)
-    // all empty slots will have the zero-leaf to ensure full tree
-    std::vector<NT::fr> leaves_frs(FUNCTION_TREE_NUM_LEAVES, zero_leaf);
-
     // randomize number of non-zero leaves such that `0 < num_nonzero_leaves <= FUNCTION_TREE_NUM_LEAVES`
     uint8_t num_nonzero_leaves = engine.get_random_uint8() % (FUNCTION_TREE_NUM_LEAVES + 1);
-    // create a vector whose vec.data() can be cast to a single mega-buffer containing all non-zero leaves
-    // initialize the vector with its size so that a leaf's data can be copied in (via `seralize_to_buffer`)
-    // (uint256_t here means nothing; it is just used because it is the right size (32 uint8_ts))
-    std::vector<uint256_t> leaves(num_nonzero_leaves);
 
     // generate some random leaves
-    // insert them into the vector of leaf fields (for direct tree computation)
-    // insert their serialized form into the vector of 32-bytes chunks/uint256_ts
-    // (to be cast to a single mega uint8_t* buffer and passed to cbind)
+    std::vector<NT::fr> leaves_frs;
     for (size_t l = 0; l < num_nonzero_leaves; l++) {
-        NT::fr leaf = NT::fr::random_element();
-        leaves_frs[l] = leaf;
-        NT::fr::serialize_to_buffer(leaf, reinterpret_cast<uint8_t*>(&leaves[l]));
+        leaves_frs.push_back(NT::fr::random_element());
     }
+    // serilalize the leaves to a buffer to pass to cbind
+    std::vector<uint8_t> leaves_bytes_vec;
+    write(leaves_bytes_vec, leaves_frs);
 
-    // (2**h) - 1
-    constexpr size_t num_nodes = (2 << aztec3::FUNCTION_TREE_HEIGHT) - 1;
+    // setup output buffer
+    // it must fit a uint32_t (for the vector length)
+    // plus all of the nodes `frs` in the tree
+    constexpr auto size_output_buf = sizeof(uint32_t) + (sizeof(NT::fr) * FUNCTION_TREE_NUM_NODES);
+    std::array<uint8_t, size_output_buf> output = { 0 };
 
-    // call cbind and get output (root)
-    uint8_t* output = (uint8_t*)malloc(sizeof(NT::fr) * num_nodes);
-    abis__compute_function_tree(reinterpret_cast<uint8_t*>(leaves.data()), num_nonzero_leaves, output);
-
-    using serialize::read;
-    // compare cbind results with direct computation
+    // call cbind and get output (full tree root)
+    abis__compute_function_tree(leaves_bytes_vec.data(), output.data());
+    // deserialize output to vector of frs representing all nodes in tree
     std::vector<NT::fr> got_tree;
-    uint8_t const* output_copy = output;
-    read(output_copy, got_tree);
+    uint8_t const* output_ptr = output.data();
+    read(output_ptr, got_tree);
 
+    // compare cbind results with direct computation
+
+    // add the zero leaves to the vector of fields and pass to barretenberg helper
+    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
+    for (size_t l = num_nonzero_leaves; l < FUNCTION_TREE_NUM_LEAVES; l++) {
+        leaves_frs.push_back(zero_leaf);
+    }
+    // compare results
     EXPECT_EQ(got_tree, plonk::stdlib::merkle_tree::compute_tree_native(leaves_frs));
 }
 

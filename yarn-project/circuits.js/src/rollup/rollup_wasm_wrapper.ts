@@ -26,11 +26,11 @@ export class RollupWasmWrapper {
   // Adapted from yarn-project/circuits.js/src/tests/expectSerialize.ts
   private async callWasm<T>(
     method: string,
-    input: { toBuffer: () => Buffer },
+    input: Buffer | { toBuffer: () => Buffer },
     outputType: { fromBuffer: (b: Buffer) => T },
   ): Promise<T> {
     const wasm = this.wasm;
-    const inputBuf = input.toBuffer();
+    const inputBuf: Buffer = input instanceof Buffer ? input : input.toBuffer();
 
     // Allocate memory for the input buffer and the pointer to the pointer to the output buffer
     const inputBufPtr = wasm.call('bbmalloc', inputBuf.length);

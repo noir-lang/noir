@@ -8,7 +8,7 @@ import {
   KernelCircuitPublicInputs,
   SignedTxRequest,
 } from '../index.js';
-import { boolToBuffer, serializeToBuffer, uint8ArrayToNum } from '../utils/serialize.js';
+import { boolToBuffer, serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/index.js';
 
 export async function getDummyPreviousKernelData(wasm: CircuitsWasm) {
@@ -30,13 +30,13 @@ export async function computeFunctionTree(wasm: CircuitsWasm, leaves: Fr[]): Pro
   const outputBufSize = 2 ** (FUNCTION_TREE_HEIGHT + 1) * Fr.SIZE_IN_BYTES + 4;
 
   // Allocate memory for the input and output buffers, and populate input buffer
-  const inputBuf = serializeToBuffer(leaves);
-  const inputBufPtr = wasm.call('bbmalloc', inputBuf.length);
+  const inputVector = serializeBufferArrayToVector(leaves.map(fr => fr.toBuffer()));
+  const inputBufPtr = wasm.call('bbmalloc', inputVector.length);
   const outputBufPtr = wasm.call('bbmalloc', outputBufSize * 100);
-  wasm.writeMemory(inputBufPtr, inputBuf);
+  wasm.writeMemory(inputBufPtr, inputVector);
 
   // Run and read outputs
-  await wasm.asyncCall('abis__compute_function_tree', inputBufPtr, leaves.length, outputBufPtr);
+  await wasm.asyncCall('abis__compute_function_tree', inputBufPtr, outputBufPtr);
   const outputBuf = Buffer.from(wasm.getMemorySlice(outputBufPtr, outputBufPtr + outputBufSize));
   const reader = new BufferReader(outputBuf);
   const output = reader.readVector(Fr);

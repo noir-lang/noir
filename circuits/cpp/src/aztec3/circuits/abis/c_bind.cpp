@@ -23,7 +23,6 @@
 #include <aztec3/utils/array.hpp>
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
 #include <barretenberg/crypto/keccak/keccak.hpp>
-#include <barretenberg/common/serialize.hpp>
 
 namespace {
 
@@ -37,71 +36,29 @@ using aztec3::circuits::abis::TxRequest;
 using NT = aztec3::utils::types::NativeTypes;
 
 // Cbind helper functions
+
 /**
- * @brief Compute an imperfect merkle tree's root from leaves.
+ * @brief Fill in zero-leaves to get a full tree's bottom layer.
  *
- * @details given a `uint8_t const*` buffer representing a merkle tree's leaves,
- * compute the corresponding tree's root and return the serialized results
- * in the `output` buffer. "Partial left tree" here means that the tree's leaves
- * are filled strictly from left to right, but there may be empty leaves on the right
- * end of the tree.
+ * @details Given the a vector of nonzero leaves starting at the left,
+ * append zeroleaves to that list until it represents a FULL set of leaves
+ * for a tree of the given height.
+ * **MODIFIES THE INPUT `leaves` REFERENCE!**
  *
- * @tparam TREE_HEIGHT height of the tree used to determine max leaves and used when computing root
- * @param leaves_buf a buffer of bytes representing the leaves of the tree, where each leaf is
- * assumed to be a field and is interpreted using `NT::fr::serialize_from_buffer(leaf_ptr)`
- * @param num_leaves the number of leaves in leaves_buf
+ * @tparam TREE_HEIGHT height of the tree used to determine max leaves
+ * @param leaves the nonzero leaves of the tree starting at the left
  * @param zero_leaf the leaf value to be used for any empty/unset leaves
- * @returns a field (`NT::fr`) containing the computed merkle tree root
  */
-template <size_t TREE_HEIGHT>
-NT::fr compute_root_of_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_leaves, NT::fr zero_leaf)
+template <size_t TREE_HEIGHT> void rightfill_with_zeroleaves(std::vector<NT::fr>& leaves, NT::fr& zero_leaf)
 {
-    const size_t max_leaves = 2 << (TREE_HEIGHT - 1);
-    // cant exceed max leaves
-    ASSERT(num_leaves <= max_leaves);
+    constexpr size_t max_leaves = 2 << (TREE_HEIGHT - 1);
+    // input cant exceed max leaves
+    // FIXME don't think asserts will show in wasm
+    ASSERT(leaves.size() <= max_leaves);
 
-    // initialize the vector of leaves to a complete-tree-sized vector of zero-leaves
-    std::vector<NT::fr> leaves(max_leaves, zero_leaf);
-
-    // Iterate over the input buffer, extracting each leaf and serializing it from buffer to field
-    // Insert each leaf field into the vector
-    // If num_leaves < perfect tree, remaining leaves will be `zero_leaf`
-    for (size_t l = 0; l < num_leaves; l++) {
-        // each iteration skips to over some number of `fr`s to get to the // next leaf
-        uint8_t const* cur_leaf_ptr = leaves_buf + sizeof(NT::fr) * l;
-        NT::fr leaf = NT::fr::serialize_from_buffer(cur_leaf_ptr);
-        leaves[l] = leaf;
-    }
-
-    // compute the root of this complete tree, return
-    return plonk::stdlib::merkle_tree::compute_tree_root_native(leaves);
-}
-
-// TODO comment
-// TODO code reuse possible with root func above
-template <size_t TREE_HEIGHT>
-std::vector<NT::fr> // array length is num nodes
-compute_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_leaves, NT::fr zero_leaf)
-{
-    const size_t max_leaves = 2 << (TREE_HEIGHT - 1);
-    // cant exceed max leaves
-    ASSERT(num_leaves <= max_leaves);
-
-    // initialize the vector of leaves to a complete-tree-sized vector of zero-leaves
-    std::vector<NT::fr> leaves(max_leaves, zero_leaf);
-
-    // Iterate over the input buffer, extracting each leaf and serializing it from buffer to field
-    // Insert each leaf field into the vector
-    // If num_leaves < perfect tree, remaining leaves will be `zero_leaf`
-    for (size_t l = 0; l < num_leaves; l++) {
-        // each iteration skips to over some number of `fr`s to get to the // next leaf
-        uint8_t const* cur_leaf_ptr = leaves_buf + sizeof(NT::fr) * l;
-        NT::fr leaf = NT::fr::serialize_from_buffer(cur_leaf_ptr);
-        leaves[l] = leaf;
-    }
-
-    // compute the root of this complete tree, return
-    return plonk::stdlib::merkle_tree::compute_tree_native(leaves);
+    // fill in input vector with zero-leaves
+    // to get a full bottom layer of the tree
+    leaves.insert(leaves.end(), max_leaves - leaves.size(), zero_leaf);
 }
 
 } // namespace
@@ -238,39 +195,59 @@ WASM_EXPORT void abis__compute_function_leaf(uint8_t const* function_leaf_preima
 }
 
 /**
- * @brief Compute a function tree root from its leaves.
+ * @brief Compute a function tree root from its nonzero leaves.
  * This is a WASM-export that can be called from Typescript.
  *
- * @details given a `uint8_t const*` buffer representing a function tree's leaves,
- * compute the corresponding tree's root and return the serialized results
- * in the `output` buffer.
+ * @details given a serialized vector of nonzero function leaves,
+ * compute the corresponding tree's root and return the
+ * serialized results via `root_out` buffer.
  *
- * @param function_leaves_buf a buffer of bytes representing the leaves of the function tree,
- * where each leaf is assumed to be a serialized field
- * @param num_leaves the number of leaves in leaves_buf
- * @param output buffer that will contain the output. The serialized function tree root.
+ * @param function_leaves_in input buffer representing a serialized vector of
+ * nonzero function leaves where each leaf is an `fr` starting at the left of the tree
+ * @param root_out buffer that will contain the serialized function tree root `fr`.
  */
-WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves_buf,
-                                                  uint8_t num_leaves,
-                                                  uint8_t* output)
+WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves_in, uint8_t* root_out)
 {
+    std::vector<NT::fr> leaves;
+    // fill in nonzero leaves to start
+    read(function_leaves_in, leaves);
+    // fill in zero leaves to complete tree
     NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
-    NT::fr root =
-        compute_root_of_partial_left_tree<aztec3::FUNCTION_TREE_HEIGHT>(function_leaves_buf, num_leaves, zero_leaf);
+    rightfill_with_zeroleaves<aztec3::FUNCTION_TREE_HEIGHT>(leaves, zero_leaf);
+
+    // compute the root of this complete tree, return
+    NT::fr root = plonk::stdlib::merkle_tree::compute_tree_root_native(leaves);
 
     // serialize and return root
-    NT::fr::serialize_to_buffer(root, output);
+    NT::fr::serialize_to_buffer(root, root_out);
 }
 
-// TODO comment
-WASM_EXPORT void abis__compute_function_tree(uint8_t const* function_leaves_buf, uint8_t num_leaves, uint8_t* output)
+/**
+ * @brief Compute all of a function tree's nodes from its nonzero leaves.
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details given a serialized vector of nonzero function leaves,
+ * compute ALL of the corresponding tree's nodes (including root) and return
+ * the serialized results via `tree_nodes_out` buffer.
+ *
+ * @param function_leaves_in input buffer representing a serialized vector of
+ * nonzero function leaves where each leaf is an `fr` starting at the left of the tree.
+ * @param tree_nodes_out buffer that will contain the serialized function tree.
+ * The 0th node is the bottom leftmost leaf. The last entry is the root.
+ */
+WASM_EXPORT void abis__compute_function_tree(uint8_t const* function_leaves_in, uint8_t* tree_nodes_out)
 {
+    std::vector<NT::fr> leaves;
+    // fill in nonzero leaves to start
+    read(function_leaves_in, leaves);
+    // fill in zero leaves to complete tree
     NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
-    std::vector<NT::fr> tree =
-        compute_partial_left_tree<aztec3::FUNCTION_TREE_HEIGHT>(function_leaves_buf, num_leaves, zero_leaf);
+    rightfill_with_zeroleaves<aztec3::FUNCTION_TREE_HEIGHT>(leaves, zero_leaf);
+
+    std::vector<NT::fr> tree = plonk::stdlib::merkle_tree::compute_tree_native(leaves);
 
     // serialize and return tree
-    write(output, tree);
+    write(tree_nodes_out, tree);
 }
 
 /**
@@ -295,7 +272,6 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
     std::array<NT::fr, aztec3::ARGS_LENGTH> args;
     NT::fr constructor_vk_hash;
 
-    using serialize::read;
     read(function_data_buf, function_data);
     read(args_buf, args);
     read(constructor_vk_hash_buf, constructor_vk_hash);
@@ -331,7 +307,6 @@ WASM_EXPORT void abis__compute_contract_address(uint8_t const* deployer_address_
     NT::fr function_tree_root;
     NT::fr constructor_hash;
 
-    using serialize::read;
     read(deployer_address_buf, deployer_address);
     read(contract_address_salt_buf, contract_address_salt);
     read(function_tree_root_buf, function_tree_root);
