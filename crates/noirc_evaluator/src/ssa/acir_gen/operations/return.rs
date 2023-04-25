@@ -1,3 +1,5 @@
+use acvm::acir::native_types::Expression;
+
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{
@@ -46,7 +48,15 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            evaluator.return_values.push(witness);
+            // Check if the outputted witness needs separating from an occurrence in the program's
+            // input. This behaviour stems from usage of the `distinct` keyword.
+            let return_witness = if evaluator.should_proxy_witness_for_abi_output(witness) {
+                let proxy_constraint = Expression::from(witness);
+                evaluator.create_intermediate_variable(proxy_constraint)
+            } else {
+                witness
+            };
+            evaluator.return_values.push(return_witness);
         }
     }
 

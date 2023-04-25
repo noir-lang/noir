@@ -54,6 +54,9 @@ pub struct Evaluator {
     // and increasing as for `public_parameters`. We then use a `Vec` rather
     // than a `BTreeSet` to preserve this order for the ABI.
     return_values: Vec<Witness>,
+    // If true, indicates that the resulting ACIR should prevent input and output witness indicies
+    // from overlapping by having extra contraints if necessary.
+    return_is_distinct: bool,
 
     opcodes: Vec<AcirOpcode>,
 }
@@ -102,6 +105,11 @@ pub fn create_circuit(
 }
 
 impl Evaluator {
+    // Returns true if the `witnees_index` appears in the program's input parameters.
+    fn is_abi_input(&self, witness_index: Witness) -> bool {
+        witness_index.as_usize() <= self.num_witnesses_abi_len
+    }
+
     // Returns true if the `witness_index`
     // was created in the ABI as a private input.
     //
@@ -111,11 +119,14 @@ impl Evaluator {
         // If the `witness_index` is more than the `num_witnesses_abi_len`
         // then it was created after the ABI was processed and is therefore
         // an intermediate variable.
-        let is_intermediate_variable = witness_index.as_usize() > self.num_witnesses_abi_len;
 
         let is_public_input = self.public_parameters.contains(&witness_index);
 
-        !is_intermediate_variable && !is_public_input
+        self.is_abi_input(witness_index) && !is_public_input
+    }
+
+    fn should_proxy_witness_for_abi_output(&self, witness_index: Witness) -> bool {
+        self.return_is_distinct && self.is_abi_input(witness_index)
     }
 
     // Creates a new Witness index
@@ -139,6 +150,8 @@ impl Evaluator {
         enable_logging: bool,
         show_output: bool,
     ) -> Result<(), RuntimeError> {
+        self.return_is_distinct =
+            program.return_distinctness == noirc_abi::AbiDistinctness::Distinct;
         let mut ir_gen = IrGenerator::new(program);
         self.parse_abi_alt(&mut ir_gen);
 
