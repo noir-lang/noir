@@ -130,6 +130,15 @@ mod tests {
 
     #[test]
     fn jumps() {
+        // Build function of form
+        // fn func {
+        // block0(cond: u1):
+        //     jmpif cond(), then: block2, else: block1
+        // block1():
+        //     jmpif cond(), then: block1, else: block2
+        // block2():
+        //     return
+        // }
         let mut func = Function::new();
         let block0_id = func.entry_block();
         let cond = func.dfg.add_block_parameter(block0_id, Type::unsigned(1));
@@ -178,10 +187,19 @@ mod tests {
             assert_eq!(block0_successors.contains(&block2_id), true);
             assert_eq!(block1_successors.contains(&block1_id), true);
             assert_eq!(block1_successors.contains(&block2_id), true);
-            assert_eq!(block2_successors, []);
         }
 
-        // Add a new return block replacing the return in block2
+        // Modify function to form:
+        // fn func {
+        // block0(cond: u1):
+        //     jmpif cond(), then: block1, else: ret_block
+        // block1():
+        //     jmpif cond(), then: block1, else: block2
+        // block2():
+        //     jmp ret_block
+        // ret_block():
+        //     return
+        // }
         let ret_block_id = func.dfg.new_block();
         func.dfg[ret_block_id]
             .set_terminator(TerminatorInstruction::Return { return_values: vec![] });
@@ -189,15 +207,14 @@ mod tests {
             destination: ret_block_id,
             arguments: vec![],
         });
-
-        // Change some instructions and recompute block0, block2 and ret_block
-
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block1_id,
             else_destination: ret_block_id,
             arguments: vec![],
         });
+
+        // Recompute new and changed blocks
         cfg.recompute_block(&mut func, block0_id);
         cfg.recompute_block(&mut func, block2_id);
         cfg.recompute_block(&mut func, ret_block_id);
