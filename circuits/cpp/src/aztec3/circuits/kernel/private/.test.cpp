@@ -75,8 +75,27 @@ using private_function = std::function<OptionalPrivateCircuitPublicInputs<NT>(
 constexpr size_t MAX_FUNCTION_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1);
 const NT::fr EMPTY_FUNCTION_LEAF = FunctionLeafPreimage<NT>{}.hash(); // hash of empty/0 preimage
 const NT::fr EMPTY_CONTRACT_LEAF = NewContractData<NT>{}.hash();      // hash of empty/0 preimage
-const auto& EMPTY_FUNCTION_SIBLINGS = compute_empty_sibling_path<NT, aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF);
-const auto& EMPTY_CONTRACT_SIBLINGS = compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF);
+// const auto EMPTY_FUNCTION_SIBLINGS = compute_empty_sibling_path<NT,
+// aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF); const auto EMPTY_CONTRACT_SIBLINGS =
+// compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF);
+
+const auto& get_empty_function_siblings()
+{
+    static auto EMPTY_FUNCTION_SIBLINGS = []() {
+        const auto result = compute_empty_sibling_path<NT, aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF);
+        return result;
+    }();
+    return EMPTY_FUNCTION_SIBLINGS;
+}
+
+const auto& get_empty_contract_siblings()
+{
+    static auto EMPTY_CONTRACT_SIBLINGS = []() {
+        const auto result = compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF);
+        return result;
+    }();
+    return EMPTY_CONTRACT_SIBLINGS;
+}
 
 } // namespace
 
@@ -209,9 +228,12 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
     // it is needed below:
     //     for constructors - to generate the contract address, function leaf, etc
     //     for private calls - to generate the function leaf, etc
+    info("1");
     const std::shared_ptr<NT::VK> private_circuit_vk = gen_func_vk(is_constructor, func, args_vec.size());
+    info("2");
     const NT::fr private_circuit_vk_hash =
         stdlib::recursion::verification_key<CT::bn254>::compress_native(private_circuit_vk, GeneratorIndex::VK);
+    info("3");
 
     ContractDeploymentData<NT> contract_deployment_data{};
     NT::fr contract_tree_root = 0; // TODO set properly for constructor?
@@ -252,14 +274,14 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
                                                                                 private_circuit_vk_hash,
                                                                                 acir_hash,
                                                                                 function_leaf_index,
-                                                                                EMPTY_FUNCTION_SIBLINGS);
+                                                                                get_empty_function_siblings());
 
         // update contract_tree_root with real value
         contract_tree_root = contract_tree_root_from_siblings<NT>(function_tree_root,
                                                                   contract_address,
                                                                   portal_contract_address,
                                                                   contract_leaf_index,
-                                                                  EMPTY_CONTRACT_SIBLINGS);
+                                                                  get_empty_contract_siblings());
     }
 
     //***************************************************************************
@@ -368,11 +390,11 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
 
                 .function_leaf_membership_witness = {
                     .leaf_index = function_leaf_index,
-                    .sibling_path = EMPTY_FUNCTION_SIBLINGS,
+                    .sibling_path = get_empty_function_siblings(),
                 },
                 .contract_leaf_membership_witness = {
                     .leaf_index = contract_leaf_index,
-                    .sibling_path = EMPTY_CONTRACT_SIBLINGS,
+                    .sibling_path = get_empty_contract_siblings(),
                 },
 
                 .portal_contract_address = portal_contract_address,
@@ -449,9 +471,13 @@ TEST(private_kernel_tests, native_deposit)
     NT::fr const& asset_id = 1;
     NT::fr const& memo = 999;
 
+    info("before inputs");
     auto const& private_inputs = do_private_call_get_kernel_inputs(false, deposit, { amount, asset_id, memo });
+    info("after inputs");
     DummyComposer composer;
+    info("before circuit");
     auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
+    info("after circuits");
 
     validate_deployed_contract_address(private_inputs, public_inputs);
 }
