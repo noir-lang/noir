@@ -42,5 +42,5 @@ jobs:
       - name: Install dependencies and run tests
         working-directory: ./noir-wasm-testing
         run: |
-          npm ci
-          npm test
+          yarn install --frozen-lockfile
+          yarn test
