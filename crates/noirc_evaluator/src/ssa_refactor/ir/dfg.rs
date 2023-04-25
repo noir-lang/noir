@@ -110,11 +110,19 @@ impl DataFlowGraph {
     }
 
     /// Inserts a new instruction into the DFG.
-    /// This does not add the instruction to the block or populate the instruction's result list
-    pub(crate) fn make_instruction(&mut self, instruction_data: Instruction) -> InstructionId {
+    /// This does not add the instruction to the block.
+    /// Returns the id of the new instruction and its results.
+    ///
+    /// Populates the instruction's results with the given ctrl_typevars if the instruction
+    /// is a Load, Call, or Intrinsic. Otherwise the instruction's results will be known
+    /// by the instruction itself and None can safely be passed for this parameter.
+    pub(crate) fn make_instruction(
+        &mut self,
+        instruction_data: Instruction,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InstructionId {
         let id = self.instructions.insert(instruction_data);
-        // Create a new vector to store the potential results for the instruction.
-        self.results.insert(id, Default::default());
+        self.make_instruction_results(id, ctrl_typevars);
         id
     }
 
@@ -134,14 +142,12 @@ impl DataFlowGraph {
     /// Attaches results to the instruction, clearing any previous results.
     ///
     /// Returns the results of the instruction
-    pub(crate) fn make_instruction_results(
+    fn make_instruction_results(
         &mut self,
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> &[ValueId] {
-        // Clear all of the results instructions associated with this
-        // instruction.
-        self.results.get_mut(&instruction_id).expect("all instructions should have a `result` allocation when instruction was added to the DFG").clear();
+    ) {
+        self.results.insert(instruction_id, Default::default());
 
         // Get all of the types that this instruction produces
         // and append them as results.
@@ -150,10 +156,6 @@ impl DataFlowGraph {
         for typ in typs {
             self.append_result(instruction_id, typ);
         }
-
-        self.results.get_mut(&instruction_id)
-            .expect("all instructions should have a `result` allocation when instruction was added to the DFG")
-            .as_slice()
     }
 
     /// Return the result types of this instruction.
@@ -274,11 +276,9 @@ mod tests {
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate { size: 20 };
-        let ins_id = dfg.make_instruction(ins);
-
-        let num_results = dfg.make_instruction_results(ins_id, None).len();
+        let ins_id = dfg.make_instruction(ins, None);
 
         let results = dfg.instruction_results(ins_id);
-        assert_eq!(results.len(), num_results);
+        assert_eq!(results.len(), 1);
     }
 }
