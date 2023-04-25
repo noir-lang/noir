@@ -105,21 +105,37 @@ impl Instruction {
         }
     }
 
-    /// Returns the types that this instruction will return.
-    pub(crate) fn return_types(&self, ctrl_typevar: Type) -> Vec<Type> {
+    /// Returns the type that this instruction will return.
+    pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
-            Instruction::Binary(_) => vec![ctrl_typevar],
-            Instruction::Cast(_, typ) => vec![*typ],
-            Instruction::Not(_) => vec![ctrl_typevar],
-            Instruction::Truncate { .. } => vec![ctrl_typevar],
-            Instruction::Constrain(_) => vec![],
-            Instruction::Call { .. } => vec![],
-            Instruction::Intrinsic { .. } => vec![],
-            Instruction::Allocate { .. } => vec![Type::Reference],
-            Instruction::Load { .. } => vec![ctrl_typevar],
-            Instruction::Store { .. } => vec![],
+            Instruction::Binary(binary) => binary.result_type(),
+            Instruction::Cast(_, typ) => InstructionResultType::Known(*typ),
+            Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
+            Instruction::Not(value) | Instruction::Truncate { value, .. } => {
+                InstructionResultType::Operand(*value)
+            }
+            Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
+            Instruction::Load { .. } | Instruction::Call { .. } | Instruction::Intrinsic { .. } => {
+                InstructionResultType::Unknown
+            }
         }
     }
+}
+
+/// The possible return values for Instruction::return_types
+pub(crate) enum InstructionResultType {
+    /// The result type of this instruction matches that of this operand
+    Operand(ValueId),
+
+    /// The result type of this instruction is known to be this type - independent of its operands.
+    Known(Type),
+
+    /// The result type of this function is unknown and separate from its operand types.
+    /// This occurs for function and intrinsic calls.
+    Unknown,
+
+    /// This instruction does not return any results.
+    None,
 }
 
 /// These are operations which can exit a basic block
@@ -167,6 +183,15 @@ pub(crate) struct Binary {
     pub(crate) rhs: ValueId,
     /// The binary operation to apply
     pub(crate) operator: BinaryOp,
+}
+
+impl Binary {
+    pub(crate) fn result_type(&self) -> InstructionResultType {
+        match self.operator {
+            BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
+            _ => InstructionResultType::Operand(self.lhs),
+        }
+    }
 }
 
 /// Binary Operations allowed in the IR.

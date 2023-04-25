@@ -148,13 +148,10 @@ impl<'a> FunctionContext<'a> {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        // TODO: Rework how types are stored.
-        // They should be on values rather than on instruction results
-        let typ = Type::field();
-        let mut result = self.builder.insert_binary(lhs, op, rhs, typ);
+        let mut result = self.builder.insert_binary(lhs, op, rhs);
 
         if operator_requires_not(operator) {
-            result = self.builder.insert_not(result, typ);
+            result = self.builder.insert_not(result);
         }
         result.into()
     }

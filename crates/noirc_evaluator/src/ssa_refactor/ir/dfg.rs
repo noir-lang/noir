@@ -2,7 +2,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
     function::Signature,
-    instruction::{Instruction, InstructionId},
+    instruction::{Instruction, InstructionId, InstructionResultType},
     map::{DenseMap, Id, SecondaryMap, TwoWayMap},
     types::Type,
     value::{Value, ValueId},
@@ -137,7 +137,7 @@ impl DataFlowGraph {
     pub(crate) fn make_instruction_results(
         &mut self,
         instruction_id: InstructionId,
-        ctrl_typevar: Type,
+        ctrl_typevars: Option<Vec<Type>>,
     ) -> &[ValueId] {
         // Clear all of the results instructions associated with this
         // instruction.
@@ -145,7 +145,7 @@ impl DataFlowGraph {
 
         // Get all of the types that this instruction produces
         // and append them as results.
-        let typs = self.instruction_result_types(instruction_id, ctrl_typevar);
+        let typs = self.instruction_result_types(instruction_id, ctrl_typevars);
 
         for typ in typs {
             self.append_result(instruction_id, typ);
@@ -158,20 +158,31 @@ impl DataFlowGraph {
 
     /// Return the result types of this instruction.
     ///
-    /// For example, an addition instruction will return
-    /// one type which is the type of the operands involved.
-    /// This is the `ctrl_typevar` in this case.
+    /// In the case of Load, Call, and Intrinsic, the function's result
+    /// type may be unknown. In this case, the given ctrl_typevars are returned instead.
+    /// ctrl_typevars is taken in as an Option since it is common to omit them when getting
+    /// the type of an instruction that does not require them. Compared to passing an empty Vec,
+    /// Option has the benefit of panicking if it is accidentally used for a Call instruction,
+    /// rather than silently returning the empty Vec and continuing.
     fn instruction_result_types(
         &self,
         instruction_id: InstructionId,
-        ctrl_typevar: Type,
+        ctrl_typevars: Option<Vec<Type>>,
     ) -> Vec<Type> {
-        // Check if it is a call instruction. If so, we don't support that yet
-        let ins_data = &self.instructions[instruction_id];
-        match ins_data {
-            Instruction::Call { .. } => todo!("function calls are not supported yet"),
-            ins => ins.return_types(ctrl_typevar),
+        let instruction = &self.instructions[instruction_id];
+        match instruction.result_type() {
+            InstructionResultType::Known(typ) => vec![typ],
+            InstructionResultType::Operand(value) => vec![self.type_of_value(value)],
+            InstructionResultType::None => vec![],
+            InstructionResultType::Unknown => {
+                ctrl_typevars.expect("Control typevars required but not given")
+            }
         }
+    }
+
+    /// Returns the type of a given value
+    pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
+        self.values[value].get_type()
     }
 
     /// Appends a result type to the instruction.
@@ -257,10 +268,7 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa_refactor::ir::{
-        instruction::Instruction,
-        types::{NumericType, Type},
-    };
+    use crate::ssa_refactor::ir::instruction::Instruction;
 
     #[test]
     fn make_instruction() {
@@ -268,8 +276,7 @@ mod tests {
         let ins = Instruction::Allocate { size: 20 };
         let ins_id = dfg.make_instruction(ins);
 
-        let num_results =
-            dfg.make_instruction_results(ins_id, Type::Numeric(NumericType::NativeField)).len();
+        let num_results = dfg.make_instruction_results(ins_id, None).len();
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), num_results);

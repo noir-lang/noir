@@ -82,7 +82,7 @@ impl<'ssa> FunctionBuilder<'ssa> {
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, size_to_allocate: u32) -> ValueId {
         let id = self.insert_instruction(Instruction::Allocate { size: size_to_allocate });
-        self.current_function.dfg.make_instruction_results(id, Type::Reference)[0]
+        self.current_function.dfg.make_instruction_results(id, None)[0]
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given address
@@ -91,7 +91,7 @@ impl<'ssa> FunctionBuilder<'ssa> {
     /// Returns the element that was loaded.
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         let id = self.insert_instruction(Instruction::Load { address });
-        self.current_function.dfg.make_instruction_results(id, type_to_load)[0]
+        self.current_function.dfg.make_instruction_results(id, Some(vec![type_to_load]))[0]
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
@@ -107,16 +107,15 @@ impl<'ssa> FunctionBuilder<'ssa> {
         lhs: ValueId,
         operator: BinaryOp,
         rhs: ValueId,
-        typ: Type,
     ) -> ValueId {
         let id = self.insert_instruction(Instruction::Binary(Binary { lhs, rhs, operator }));
-        self.current_function.dfg.make_instruction_results(id, typ)[0]
+        self.current_function.dfg.make_instruction_results(id, None)[0]
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId, typ: Type) -> ValueId {
+    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
         let id = self.insert_instruction(Instruction::Not(rhs));
-        self.current_function.dfg.make_instruction_results(id, typ)[0]
+        self.current_function.dfg.make_instruction_results(id, None)[0]
     }
 }
