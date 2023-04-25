@@ -10,7 +10,7 @@ import {
   PublicCallData,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
-  PublicKernelInputsNoKernelInput,
+  PublicKernelInputsNoPreviousKernel,
   PublicKernelPublicInputs,
   StateRead,
   StateTransition,
@@ -99,7 +99,7 @@ export class PublicProcessor {
     const circuitProof = await this.publicProver.getPublicCircuitProof(circuitOutput);
     const publicCallData = await this.processPublicCallData(txRequest, functionBytecode, circuitOutput, circuitProof);
 
-    const publicKernelInput = new PublicKernelInputsNoKernelInput(tx.txRequest, publicCallData);
+    const publicKernelInput = new PublicKernelInputsNoPreviousKernel(tx.txRequest, publicCallData);
     const publicKernelOutput = await this.publicKernel.publicKernelCircuitNoInput(publicKernelInput);
     const publicKernelProof = await this.publicProver.getPublicKernelCircuitProof(publicKernelOutput);
 

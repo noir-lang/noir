@@ -5,9 +5,8 @@ import {
   EthAddress,
   MergeRollupInputs,
   PublicCircuitPublicInputs,
-  PublicKernelInputsNoKernelInput,
-  PublicKernelInputsNonFirstIteration,
-  PublicKernelInputsPrivateKernelInput,
+  PublicKernelInputsNoPreviousKernel,
+  PublicKernelInputs,
   PublicKernelPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
@@ -29,7 +28,7 @@ export interface PublicCircuitSimulator {
 }
 
 export interface PublicKernelCircuitSimulator {
-  publicKernelCircuitNoInput(inputs: PublicKernelInputsNoKernelInput): Promise<PublicKernelPublicInputs>;
-  publicKernelCircuitPrivateInput(inputs: PublicKernelInputsPrivateKernelInput): Promise<PublicKernelPublicInputs>;
-  publicKernelCircuitNonFirstIteration(inputs: PublicKernelInputsNonFirstIteration): Promise<PublicKernelPublicInputs>;
+  publicKernelCircuitNoInput(inputs: PublicKernelInputsNoPreviousKernel): Promise<PublicKernelPublicInputs>;
+  publicKernelCircuitPrivateInput(inputs: PublicKernelInputs): Promise<PublicKernelPublicInputs>;
+  publicKernelCircuitNonFirstIteration(inputs: PublicKernelInputs): Promise<PublicKernelPublicInputs>;
 }
