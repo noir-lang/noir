@@ -465,13 +465,9 @@ TEST(private_kernel_tests, native_deposit)
     NT::fr const& asset_id = 1;
     NT::fr const& memo = 999;
 
-    info("before inputs");
     auto const& private_inputs = do_private_call_get_kernel_inputs(false, deposit, { amount, asset_id, memo });
-    info("after inputs");
     DummyComposer composer;
-    info("before circuit");
     auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
-    info("after circuits");
 
     validate_deployed_contract_address(private_inputs, public_inputs);
 }
