@@ -75,9 +75,6 @@ using private_function = std::function<OptionalPrivateCircuitPublicInputs<NT>(
 constexpr size_t MAX_FUNCTION_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1);
 const NT::fr EMPTY_FUNCTION_LEAF = FunctionLeafPreimage<NT>{}.hash(); // hash of empty/0 preimage
 const NT::fr EMPTY_CONTRACT_LEAF = NewContractData<NT>{}.hash();      // hash of empty/0 preimage
-// const auto EMPTY_FUNCTION_SIBLINGS = compute_empty_sibling_path<NT,
-// aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF); const auto EMPTY_CONTRACT_SIBLINGS =
-// compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF);
 
 const auto& get_empty_function_siblings()
 {
