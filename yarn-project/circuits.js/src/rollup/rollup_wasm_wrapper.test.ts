@@ -1,4 +1,4 @@
-import { AggregationObject, VerificationKey } from '../index.js';
+import { AggregationObject, CircuitError, VerificationKey } from '../index.js';
 import { makeBaseRollupInputs, makeMergeRollupInputs, makeRootRollupInputs } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import { RollupWasmWrapper } from './rollup_wasm_wrapper.js';
@@ -75,8 +75,14 @@ describe('rollup/rollup_wasm_wrapper', () => {
 
   it('calling merge_rollup__sim with different constants should fail', async () => {
     const input = makeMergeRollupInputs();
-    await expect(rollupWasm.simulateMergeRollup(input))
-      .rejects.toEqual("Circuit failed with code 7003 - input proofs have different constants");
+    try {
+      await rollupWasm.simulateMergeRollup(input);
+    } catch (e) {
+      expect(e).toBeInstanceOf(CircuitError);
+      const err = e as CircuitError;
+      expect(err.message).toEqual('input proofs have different constants');
+      expect(err.code).toEqual(7003);
+    }
   });
 
   it.skip('calls root_rollup__sim', async () => {

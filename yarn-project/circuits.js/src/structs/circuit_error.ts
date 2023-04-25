@@ -1,8 +1,10 @@
 import { BufferReader } from '@aztec/foundation';
 import { serializeToBuffer } from '../utils/serialize.js';
 
-export class CircuitError {
-  constructor(public code: number, public message: string) {}
+export class CircuitError extends Error {
+  constructor(public code: number, public message: string) {
+    super(message);
+  }
 
   toBuffer() {
     return serializeToBuffer(this.code, this.message);

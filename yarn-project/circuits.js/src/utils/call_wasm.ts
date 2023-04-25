@@ -1,4 +1,4 @@
-import {CircuitError} from '../index.js';
+import { CircuitError } from '../index.js';
 import { AsyncWasmWrapper } from '@aztec/foundation/wasm';
 import { uint8ArrayToNum } from './serialize.js';
 
@@ -12,7 +12,7 @@ export async function callAsyncWasm<T>(
 
   // Allocate memory for the input buffer and the pointer to the pointer to the output buffer
   const inputBufPtr = wasm.call('bbmalloc', inputBuf.length);
-  wasm.writeMemory(inputBufPtr, inputBuf);  
+  wasm.writeMemory(inputBufPtr, inputBuf);
   if (method === 'merge_rollup__sim') {
     // TODO: Remove this once base/root also return circuit failures
     const outputBufSizePtr = wasm.call('bbmalloc', 4);
@@ -54,7 +54,7 @@ export async function callAsyncWasm<T>(
       wasm.call('bbfree', outputBufPtrPtr);
       wasm.call('bbfree', inputBufPtr);
 
-      return Promise.reject(`Circuit failed with code ${err.code} - ${err.message}`);
+      throw err;
     }
   } else {
     const outputBufPtrPtr = wasm.call('bbmalloc', 4);
