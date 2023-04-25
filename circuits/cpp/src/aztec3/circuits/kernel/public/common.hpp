@@ -94,7 +94,8 @@ void validate_this_public_call_stack(DummyComposer& composer, KernelInput const&
         // Assumes `hash == 0` means "this stack item is empty".
         const auto calculated_hash = hash == 0 ? 0 : preimage.hash();
         composer.do_assert(hash != calculated_hash,
-                           format("public_call_stack[", i, "] = ", hash, "; does not reconcile"));
+                           format("public_call_stack[", i, "] = ", hash, "; does not reconcile"),
+                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_MISMATCH);
     }
 };
 
@@ -121,15 +122,23 @@ void common_validate_inputs(DummyComposer& composer, KernelInput const& public_k
     // Validates commons inputs for all type of kernel inputs
     const auto& this_call_stack_item = public_kernel_inputs.public_call.public_call_data.call_stack_item;
     composer.do_assert(this_call_stack_item.public_inputs.call_context.is_contract_deployment == false,
-                       "Contract deployment can't be a public function");
-    composer.do_assert(this_call_stack_item.contract_address != 0, "Contract address must be valid");
-    composer.do_assert(this_call_stack_item.function_data.function_selector != 0, "Function signature must be valid");
+                       "Contract deployment can't be a public function",
+                       CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_DEPLOYMENT_NOT_ALLOWED);
+    composer.do_assert(this_call_stack_item.contract_address != 0, 
+                  "Contract address must be valid",
+            CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_ADDRESS_INVALID);
+    composer.do_assert(this_call_stack_item.function_data.function_selector != 0, 
+                       "Function signature must be valid",
+                       CircuitErrorCode::PUBLIC_KERNEL__FUNCTION_SIGNATURE_INVALID);
     composer.do_assert(this_call_stack_item.function_data.is_constructor == false,
-                       "Constructors can't be public functions");
+                       "Constructors can't be public functions",
+                       CircuitErrorCode::PUBLIC_KERNEL__CONSTRUCTOR_NOT_ALLOWED);
     composer.do_assert(this_call_stack_item.function_data.is_private == false,
-                       "Cannot execute a private function with the public kernel circuit");
+                       "Cannot execute a private function with the public kernel circuit",
+                       CircuitErrorCode::PUBLIC_KERNEL__PRIVATE_FUNCTION_NOT_ALLOWED);
     composer.do_assert(public_kernel_inputs.public_call.public_call_data.bytecode_hash != 0,
-                       "Bytecode hash must be valid");
+                       "Bytecode hash must be valid",
+                       CircuitErrorCode::PUBLIC_KERNEL__BYTECODE_HASH_INVALID);
 }
 
 template <typename KernelInput>

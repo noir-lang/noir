@@ -15,6 +15,7 @@ export * from './kernel/previous_kernel_data.js';
 export * from './kernel/public_inputs.js';
 export * from './private_circuit_public_inputs.js';
 export * from './public_circuit_public_inputs.js';
+export * from './circuit_error.js';
 export * from './call_stack_item.js';
 export * from './shared.js';
 export * from './tx_request.js';

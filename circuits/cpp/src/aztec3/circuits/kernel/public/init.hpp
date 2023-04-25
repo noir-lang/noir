@@ -24,6 +24,7 @@ using Aggregator = aztec3::circuits::recursion::Aggregator;
 using CT = aztec3::utils::types::CircuitTypes<Composer>;
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::utils::types::to_ct;
+using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 
 using DB = oracle::FakeDB;
 using oracle::NativeOracle;
