@@ -14,10 +14,14 @@ template <typename Fr, typename G1> struct key_pair {
 struct signature {
     std::array<uint8_t, 32> r;
     std::array<uint8_t, 32> s;
+    uint8_t v;
 };
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account);
+
+template <typename Hash, typename Fq, typename Fr, typename G1>
+typename G1::affine_element recover_public_key(const std::string& message, const signature& sig);
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
 bool verify_signature(const std::string& message,
@@ -39,12 +43,14 @@ template <typename B> inline void read(B& it, signature& sig)
 {
     read(it, sig.r);
     read(it, sig.s);
+    read(it, sig.v);
 }
 
 template <typename B> inline void write(B& buf, signature const& sig)
 {
     write(buf, sig.r);
     write(buf, sig.s);
+    write(buf, sig.v);
 }
 
 template <typename B> inline void read(B& it, key_pair<secp256k1::fr, secp256k1::g1>& keypair)

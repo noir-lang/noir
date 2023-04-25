@@ -31,6 +31,19 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     static constexpr affine_element from_compressed(const uint256_t& compressed) noexcept;
 
+    /**
+     * @brief Reconstruct a point in affine coordinates from compressed form.
+     * @details #LARGE_MODULUS_AFFINE_POINT_COMPRESSION Point compression is implemented for curves of a prime
+     * field F_p with p being 256 bits.
+     * TODO(Suyash): Check with kesha if this is correct.
+     *
+     * @param compressed compressed point
+     * @return constexpr affine_element
+     */
+    template <typename BaseField = Fq,
+              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(1), void>>
+    static constexpr std::array<affine_element, 2> from_compressed_unsafe(const uint256_t& compressed) noexcept;
+
     constexpr affine_element& operator=(const affine_element& other) noexcept;
 
     constexpr affine_element& operator=(affine_element&& other) noexcept;

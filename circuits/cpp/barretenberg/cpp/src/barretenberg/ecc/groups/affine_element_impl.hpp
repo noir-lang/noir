@@ -47,6 +47,33 @@ constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::from_compressed(c
 }
 
 template <class Fq, class Fr, class T>
+template <typename BaseField, typename CompileTimeEnabled>
+constexpr std::array<affine_element<Fq, Fr, T>, 2> affine_element<Fq, Fr, T>::from_compressed_unsafe(
+    const uint256_t& compressed) noexcept
+{
+    auto get_y_coordinate = [](const uint256_t& x_coordinate) {
+        Fq x = Fq(x_coordinate);
+        Fq y2 = (x.sqr() * x + T::b);
+        if constexpr (T::has_a) {
+            y2 += (x * T::a);
+        }
+        return y2.sqrt();
+    };
+
+    uint256_t x_1 = compressed;
+    uint256_t x_2 = compressed + Fr::modulus;
+    auto [is_quadratic_remainder_1, y_1] = get_y_coordinate(x_1);
+    auto [is_quadratic_remainder_2, y_2] = get_y_coordinate(x_2);
+
+    auto output_1 = is_quadratic_remainder_1 ? affine_element<Fq, Fr, T>(Fq(x_1), y_1)
+                                             : affine_element<Fq, Fr, T>(Fq::zero(), Fq::zero());
+    auto output_2 = is_quadratic_remainder_2 ? affine_element<Fq, Fr, T>(Fq(x_2), y_2)
+                                             : affine_element<Fq, Fr, T>(Fq::zero(), Fq::zero());
+
+    return { output_1, output_2 };
+}
+
+template <class Fq, class Fr, class T>
 constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::operator+(
     const affine_element<Fq, Fr, T>& other) const noexcept
 {

@@ -40,6 +40,50 @@ TEST(ecdsa, verify_signature_secp256r1_sha256)
     EXPECT_EQ(result, true);
 }
 
+TEST(ecdsa, recover_public_key_secp256k1_sha256)
+{
+    std::string message = "The quick brown dog jumped over the lazy fox.";
+
+    crypto::ecdsa::key_pair<secp256k1::fr, secp256k1::g1> account;
+    account.private_key = secp256k1::fr::random_element();
+    account.public_key = secp256k1::g1::one * account.private_key;
+
+    crypto::ecdsa::signature signature =
+        crypto::ecdsa::construct_signature<Sha256Hasher, secp256k1::fq, secp256k1::fr, secp256k1::g1>(message, account);
+
+    bool result = crypto::ecdsa::verify_signature<Sha256Hasher, secp256k1::fq, secp256k1::fr, secp256k1::g1>(
+        message, account.public_key, signature);
+
+    auto recovered_public_key =
+        crypto::ecdsa::recover_public_key<Sha256Hasher, secp256k1::fq, secp256k1::fr, secp256k1::g1>(message,
+                                                                                                     signature);
+
+    EXPECT_EQ(result, true);
+    EXPECT_EQ(recovered_public_key, account.public_key);
+}
+
+TEST(ecdsa, recover_public_key_secp256r1_sha256)
+{
+    std::string message = "The quick brown dog jumped over the lazy fox.";
+
+    crypto::ecdsa::key_pair<secp256r1::fr, secp256r1::g1> account;
+    account.private_key = secp256r1::fr::random_element();
+    account.public_key = secp256r1::g1::one * account.private_key;
+
+    crypto::ecdsa::signature signature =
+        crypto::ecdsa::construct_signature<Sha256Hasher, secp256r1::fq, secp256r1::fr, secp256r1::g1>(message, account);
+
+    bool result = crypto::ecdsa::verify_signature<Sha256Hasher, secp256r1::fq, secp256r1::fr, secp256r1::g1>(
+        message, account.public_key, signature);
+
+    auto recovered_public_key =
+        crypto::ecdsa::recover_public_key<Sha256Hasher, secp256r1::fq, secp256r1::fr, secp256r1::g1>(message,
+                                                                                                     signature);
+
+    EXPECT_EQ(result, true);
+    EXPECT_EQ(recovered_public_key, account.public_key);
+}
+
 std::vector<uint8_t> HexToBytes(const std::string& hex)
 {
     std::vector<uint8_t> bytes;
@@ -131,7 +175,7 @@ TEST(ecdsa, verify_signature_secp256r1_sha256_NIST_1)
         0xef, 0x97, 0xb2, 0x18, 0xe9, 0x6f, 0x17, 0x5a, 0x3c, 0xcd, 0xda, 0x2a, 0xcc, 0x05, 0x89, 0x03,
     };
 
-    crypto::ecdsa::signature sig{ r, s };
+    crypto::ecdsa::signature sig{ r, s, 27 };
     std::vector<uint8_t> message_vec =
         HexToBytes("5905238877c77421f73e43ee3da6f2d9e2ccad5fc942dcec0cbd25482935faaf416983fe165b1a045ee2bcd2e6dca3bdf46"
                    "c4310a7461f9a37960ca672d3feb5473e253605fb1ddfd28065b53cb5858a8ad28175bf9bd386a5e471ea7a65c17cc934a9"
