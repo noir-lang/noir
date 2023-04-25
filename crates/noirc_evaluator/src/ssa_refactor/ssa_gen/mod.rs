@@ -185,7 +185,7 @@ impl<'a> FunctionContext<'a> {
 
         if let Some(alternative) = &if_expr.alternative {
             self.builder.switch_to_block(else_block);
-            let else_value = self.codegen_expression(&alternative);
+            let else_value = self.codegen_expression(alternative);
 
             let end_block = self.builder.insert_block();
 

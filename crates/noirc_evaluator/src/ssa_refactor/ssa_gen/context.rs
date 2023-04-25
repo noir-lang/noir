@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, RwLock};
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
@@ -161,7 +160,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
         if offset != 0 {
             let offset = self.builder.field_constant(offset);
-            address = self.builder.insert_binary(address, BinaryOp::Add, offset)
+            address = self.builder.insert_binary(address, BinaryOp::Add, offset);
         }
         address
     }

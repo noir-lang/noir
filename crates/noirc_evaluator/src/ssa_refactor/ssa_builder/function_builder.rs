@@ -182,7 +182,7 @@ impl<'ssa> FunctionBuilder<'ssa> {
         destination: BasicBlockId,
         arguments: Vec<ValueId>,
     ) {
-        self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments })
+        self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments });
     }
 
     /// Terminate the current block with a jmpif instruction to jmp with the given arguments

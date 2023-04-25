@@ -246,7 +246,7 @@ impl DataFlowGraph {
         block: BasicBlockId,
         terminator: TerminatorInstruction,
     ) {
-        self.blocks[block].set_terminator(terminator)
+        self.blocks[block].set_terminator(terminator);
     }
 }
 
