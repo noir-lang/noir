@@ -560,6 +560,7 @@ fn test_basic_language_syntax() {
             x * y;
         };
         constrain mul(five, ten) == 50;
+        assert ten + five == 15;
     ";
 
     let expected = vec![
@@ -600,6 +601,13 @@ fn test_basic_language_syntax() {
         Token::RightParen,
         Token::Equal,
         Token::Int(50_i128.into()),
+        Token::Semicolon,
+        Token::Keyword(Keyword::Assert),
+        Token::Ident("ten".to_string()),
+        Token::Plus,
+        Token::Ident("five".to_string()),
+        Token::Equal,
+        Token::Int(15_i128.into()),
         Token::Semicolon,
         Token::EOF,
     ];

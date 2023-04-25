@@ -414,6 +414,7 @@ impl AsRef<str> for Attribute {
 #[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum Keyword {
     As,
+    Assert,
     Bool,
     Char,
     CompTime,
@@ -447,6 +448,7 @@ impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Keyword::As => write!(f, "as"),
+            Keyword::Assert => write!(f, "assert"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
             Keyword::CompTime => write!(f, "comptime"),
@@ -483,6 +485,7 @@ impl Keyword {
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
             "as" => Keyword::As,
+            "assert" => Keyword::Assert,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,

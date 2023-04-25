@@ -438,7 +438,7 @@ fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
+    ignore_then_commit(one_of([Token::Keyword(Keyword::Constrain), Token::Keyword(Keyword::Assert)]).labelled("statement"), expr_parser)
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
@@ -1172,10 +1172,11 @@ mod test {
         );
     }
 
-    /// This is the standard way to declare a constrain statement
+    /// This is the standard way to declare a assert/constrain statement
     #[test]
-    fn parse_constrain() {
+    fn parse_assert_constrain() {
         parse_with(constrain(expression()), "constrain x == y").unwrap();
+        parse_with(constrain(expression()), "assert x == y").unwrap();
 
         // Currently we disallow constrain statements where the outer infix operator
         // produces a value. This would require an implicit `==` which
@@ -1210,6 +1211,11 @@ mod test {
                 "constrain (x ^ y) == y",
                 "constrain (x ^ y) == (y + m)",
                 "constrain x + x ^ x == y | m",
+                "assert ((x + y) == k) + z == y",
+                "assert (x + !y) == y",
+                "assert (x ^ y) == y",
+                "assert (x ^ y) == (y + m)",
+                "assert x + x ^ x == y | m",
             ],
         );
     }
@@ -1468,7 +1474,9 @@ mod test {
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
+            ("assert", 1, "assert Error"),
             ("constrain x ==", 1, "constrain (plain::x == Error)"),
+            ("assert x ==", 1, "assert (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
