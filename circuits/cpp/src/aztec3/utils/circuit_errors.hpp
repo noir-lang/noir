@@ -68,7 +68,6 @@ struct CircuitError {
     CircuitErrorCode code = CircuitErrorCode::NO_ERROR;
     std::string message = "";
 
-    // bool operator==(CircuitError const&) const = default;
     static CircuitError no_error() { return { CircuitErrorCode::NO_ERROR, "" }; }
 };
 
@@ -97,9 +96,4 @@ inline std::ostream& operator<<(std::ostream& os, CircuitError const& obj)
     return os << "code: " << as_uint16_t(obj.code) << "\n"
               << "message: " << obj.message << "\n";
 }
-
-// void read(uint8_t const*& it, CircuitError& obj);
-// void write(std::vector<uint8_t>& buf, CircuitError const& obj);
-// std::ostream& operator<<(std::ostream& os, CircuitError const& obj);
-
 } // namespace aztec3::utils

@@ -19,7 +19,6 @@ WASM_EXPORT uint8_t* merge_rollup__sim(uint8_t const* merge_rollup_inputs_buf,
                                        uint8_t const** merge_rollup_public_inputs_buf)
 {
     DummyComposer composer = DummyComposer();
-    info("hello");
     MergeRollupInputs<NT> merge_rollup_inputs;
     read(merge_rollup_inputs_buf, merge_rollup_inputs);
 
