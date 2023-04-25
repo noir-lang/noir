@@ -12,9 +12,10 @@
 #include "barretenberg/srs/reference_string/env_reference_string.hpp"
 
 #include "barretenberg/common/serialize.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+// #include "barretenberg/plonk/composer/turbo_composer.hpp"
 
 namespace {
+using Composer = plonk::UltraComposer;
 using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
@@ -23,9 +24,6 @@ using aztec3::circuits::abis::public_kernel::PublicKernelInputsNoPreviousKernel;
 using aztec3::circuits::kernel::public_kernel::native_public_kernel_circuit_no_previous_kernel;
 using aztec3::circuits::kernel::public_kernel::native_public_kernel_circuit_private_previous_kernel;
 using aztec3::circuits::kernel::public_kernel::native_public_kernel_circuit_public_previous_kernel;
-
-using plonk::TurboComposer;
-using namespace plonk::stdlib::types;
 } // namespace
 
 #define WASM_EXPORT __attribute__((visibility("default")))
