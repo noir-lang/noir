@@ -95,6 +95,16 @@ impl DataFlowGraph {
         })
     }
 
+    /// Get an iterator over references to each basic block within the dfg, paired with the basic
+    /// block's id.
+    ///
+    /// The pairs are order by id, which is not guaranteed to be meaningful.
+    pub(crate) fn basic_blocks_iter(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
+        self.blocks.iter()
+    }
+
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()
     }
@@ -234,6 +244,13 @@ impl std::ops::Index<BasicBlockId> for DataFlowGraph {
     type Output = BasicBlock;
     fn index(&self, id: BasicBlockId) -> &Self::Output {
         &self.blocks[id]
+    }
+}
+
+impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
+    /// Get a mutable reference to a function's basic block for the given id.
+    fn index_mut(&mut self, id: BasicBlockId) -> &mut BasicBlock {
+        &mut self.blocks[id]
     }
 }
 
