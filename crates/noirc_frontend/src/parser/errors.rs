@@ -126,8 +126,8 @@ impl chumsky::Error<Token> for ParserError {
         self.expected_tokens.append(&mut other.expected_tokens);
         self.expected_labels.append(&mut other.expected_labels);
 
-        if self.reason.as_deref() != Some("recovery success")
-            && other.reason.as_deref() != Some("recovery success")
+        if self.reason.as_deref() != Some("recovery failure")
+            && other.reason.as_deref() != Some("recovery failure")
         {
             // We compare spans, except for errors for recovery, because the span for recovery does not match
             assert_eq!(self.span, other.span);
