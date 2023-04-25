@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        let mut func = Function::new();
+        let mut func = Function::new("func".into());
         let block_id = func.entry_block();
         func.dfg[block_id].set_terminator(TerminatorInstruction::Return { return_values: vec![] });
 
@@ -139,7 +139,7 @@ mod tests {
         // block2():
         //     return
         // }
-        let mut func = Function::new();
+        let mut func = Function::new("func".into());
         let block0_id = func.entry_block();
         let cond = func.dfg.add_block_parameter(block0_id, Type::unsigned(1));
         let block1_id = func.dfg.new_block();
