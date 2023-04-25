@@ -12,7 +12,6 @@
 #include "barretenberg/srs/reference_string/env_reference_string.hpp"
 
 #include "barretenberg/common/serialize.hpp"
-// #include "barretenberg/plonk/composer/turbo_composer.hpp"
 
 namespace {
 using Composer = plonk::UltraComposer;
