@@ -3,7 +3,7 @@ use acvm::FieldElement;
 use crate::ssa_refactor::ir::{
     basic_block::BasicBlockId,
     function::{Function, FunctionId},
-    instruction::{Binary, BinaryOp, Instruction, InstructionId},
+    instruction::{Binary, BinaryOp, Instruction},
     types::Type,
     value::ValueId,
 };
@@ -71,18 +71,21 @@ impl<'ssa> FunctionBuilder<'ssa> {
         self.numeric_constant(value.into(), Type::field())
     }
 
-    fn insert_instruction(&mut self, instruction: Instruction) -> InstructionId {
-        let id = self.current_function.dfg.make_instruction(instruction);
+    fn insert_instruction(
+        &mut self,
+        instruction: Instruction,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> &[ValueId] {
+        let id = self.current_function.dfg.make_instruction(instruction, ctrl_typevars);
         self.current_function.dfg.insert_instruction_in_block(self.current_block, id);
-        id
+        self.current_function.dfg.instruction_results(id)
     }
 
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, size_to_allocate: u32) -> ValueId {
-        let id = self.insert_instruction(Instruction::Allocate { size: size_to_allocate });
-        self.current_function.dfg.make_instruction_results(id, Type::Reference)[0]
+        self.insert_instruction(Instruction::Allocate { size: size_to_allocate }, None)[0]
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given address
@@ -90,14 +93,13 @@ impl<'ssa> FunctionBuilder<'ssa> {
     /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
     /// Returns the element that was loaded.
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
-        let id = self.insert_instruction(Instruction::Load { address });
-        self.current_function.dfg.make_instruction_results(id, type_to_load)[0]
+        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]))[0]
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
     /// at the given address. Expects that the address points to a previous Allocate instruction.
     pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
-        self.insert_instruction(Instruction::Store { address, value });
+        self.insert_instruction(Instruction::Store { address, value }, None);
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -107,16 +109,14 @@ impl<'ssa> FunctionBuilder<'ssa> {
         lhs: ValueId,
         operator: BinaryOp,
         rhs: ValueId,
-        typ: Type,
     ) -> ValueId {
-        let id = self.insert_instruction(Instruction::Binary(Binary { lhs, rhs, operator }));
-        self.current_function.dfg.make_instruction_results(id, typ)[0]
+        let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
+        self.insert_instruction(instruction, None)[0]
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId, typ: Type) -> ValueId {
-        let id = self.insert_instruction(Instruction::Not(rhs));
-        self.current_function.dfg.make_instruction_results(id, typ)[0]
+    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
+        self.insert_instruction(Instruction::Not(rhs), None)[0]
     }
 }

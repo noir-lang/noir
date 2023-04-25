@@ -38,6 +38,10 @@ impl Type {
         Type::Numeric(NumericType::Unsigned { bit_size })
     }
 
+    pub(crate) fn bool() -> Type {
+        Type::unsigned(1)
+    }
+
     pub(crate) fn field() -> Type {
         Type::Numeric(NumericType::NativeField)
     }

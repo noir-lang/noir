@@ -116,8 +116,8 @@ impl<'a> FunctionContext<'a> {
                 let address = if i == 0 {
                     array
                 } else {
-                    let offset = self.builder.numeric_constant((i as u128).into(), Type::field());
-                    self.builder.insert_binary(array, BinaryOp::Add, offset, Type::field())
+                    let offset = self.builder.field_constant(i as u128);
+                    self.builder.insert_binary(array, BinaryOp::Add, offset)
                 };
                 self.builder.insert_store(address, value.eval());
                 i += 1;

@@ -28,3 +28,13 @@ pub(crate) enum Value {
     /// This Value originates from a numeric constant
     NumericConstant { constant: NumericConstantId, typ: Type },
 }
+
+impl Value {
+    pub(crate) fn get_type(&self) -> Type {
+        match self {
+            Value::Instruction { typ, .. } => *typ,
+            Value::Param { typ, .. } => *typ,
+            Value::NumericConstant { typ, .. } => *typ,
+        }
+    }
+}
