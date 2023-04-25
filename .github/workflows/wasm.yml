@@ -2,7 +2,6 @@ name: Wasm
 
 on: [push, pull_request]
 
-# This will cancel previous runs when a branch or PR is updated
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
   cancel-in-progress: true
@@ -34,10 +33,14 @@ jobs:
           repository: noir-lang/noir-wasm-testing
           path: noir-wasm-testing
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
       - name: Inject built wasm into noir-wasm-testing
         run: |
           cp -r ./crates/wasm/pkg ./noir-wasm-testing/noir_wasm
-          echo "noir_wasm@file:./noir_wasm" >> ./noir-wasm-testing/package.json
+          jq '.dependencies.noir_wasm = "file:./noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
+          mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
       - name: Install dependencies and run tests
         working-directory: ./noir-wasm-testing
