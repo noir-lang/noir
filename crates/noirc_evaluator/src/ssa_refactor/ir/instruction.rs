@@ -170,32 +170,66 @@ pub(crate) struct Binary {
 }
 
 /// Binary Operations allowed in the IR.
+/// Aside from the comparison operators (Eq and Lt), all operators
+/// will return the same type as their operands.
+/// The operand types must match for all binary operators.
+/// All binary operators are also only for numeric types. To implement
+/// e.g. equality for a compound type like a struct, one must add a
+/// separate Eq operation for each field and combine them later with And.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum BinaryOp {
-    /// Addition of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Addition of lhs + rhs.
     Add,
-    /// Subtraction of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Subtraction of lhs - rhs.
     Sub,
-    /// Multiplication of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Multiplication of lhs * rhs.
     Mul,
-    /// Division of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Division of lhs / rhs.
     Div,
+    /// Modulus of lhs % rhs.
+    Mod,
     /// Checks whether two types are equal.
     /// Returns true if the types were equal and
     /// false otherwise.
     Eq,
-    /// Checks whether two types are equal.
-    /// Returns true if the types were not equal and
-    /// false otherwise.
-    Neq,
+    /// Checks whether the lhs is less than the rhs.
+    /// All other comparison operators should be translated
+    /// to less than. For example (a > b) = (b < a) = !(a >= b) = !(b <= a).
+    /// The result will always be a u1.
+    Lt,
+    /// Bitwise and (&)
+    And,
+    /// Bitiwse or (|)
+    Or,
+    /// Bitwise xor (^)
+    Xor,
+    /// Shift lhs left by rhs bits (<<)
+    Shl,
+    /// Shift lhs right by rhs bits (>>)
+    Shr,
+}
+
+impl From<noirc_frontend::BinaryOpKind> for BinaryOp {
+    fn from(value: noirc_frontend::BinaryOpKind) -> Self {
+        match value {
+            noirc_frontend::BinaryOpKind::Add => todo!(),
+            noirc_frontend::BinaryOpKind::Subtract => todo!(),
+            noirc_frontend::BinaryOpKind::Multiply => todo!(),
+            noirc_frontend::BinaryOpKind::Divide => todo!(),
+            noirc_frontend::BinaryOpKind::Equal => todo!(),
+            noirc_frontend::BinaryOpKind::NotEqual => todo!(),
+            noirc_frontend::BinaryOpKind::Less => todo!(),
+            noirc_frontend::BinaryOpKind::LessEqual => todo!(),
+            noirc_frontend::BinaryOpKind::Greater => todo!(),
+            noirc_frontend::BinaryOpKind::GreaterEqual => todo!(),
+            noirc_frontend::BinaryOpKind::And => todo!(),
+            noirc_frontend::BinaryOpKind::Or => todo!(),
+            noirc_frontend::BinaryOpKind::Xor => todo!(),
+            noirc_frontend::BinaryOpKind::ShiftRight => todo!(),
+            noirc_frontend::BinaryOpKind::ShiftLeft => todo!(),
+            noirc_frontend::BinaryOpKind::Modulo => todo!(),
+        }
+    }
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -206,7 +240,13 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::Mul => write!(f, "mul"),
             BinaryOp::Div => write!(f, "div"),
             BinaryOp::Eq => write!(f, "eq"),
-            BinaryOp::Neq => write!(f, "neq"),
+            BinaryOp::Mod => write!(f, "mod"),
+            BinaryOp::Lt => write!(f, "lt"),
+            BinaryOp::And => write!(f, "and"),
+            BinaryOp::Or => write!(f, "or"),
+            BinaryOp::Xor => write!(f, "xor"),
+            BinaryOp::Shl => write!(f, "shl"),
+            BinaryOp::Shr => write!(f, "shr"),
         }
     }
 }
