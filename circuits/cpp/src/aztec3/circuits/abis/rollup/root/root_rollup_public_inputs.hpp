@@ -1,5 +1,8 @@
 
 #pragma once
+
+#include "barretenberg/crypto/sha256/sha256.hpp"
+
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
@@ -36,6 +39,35 @@ template <typename NCT> struct RootRollupPublicInputs {
     std::array<fr, 2> calldata_hash;
 
     bool operator==(RootRollupPublicInputs<NCT> const&) const = default;
+
+    fr hash() const
+    {
+        std::vector<uint8_t> buf;
+
+        write(buf, start_private_data_tree_snapshot);
+        write(buf, start_nullifier_tree_snapshot);
+        write(buf, start_contract_tree_snapshot);
+        write(buf, start_tree_of_historic_private_data_tree_roots_snapshot);
+        write(buf, start_tree_of_historic_contract_tree_roots_snapshot);
+        write(buf, end_private_data_tree_snapshot);
+        write(buf, end_nullifier_tree_snapshot);
+        write(buf, end_contract_tree_snapshot);
+        write(buf, end_tree_of_historic_private_data_tree_roots_snapshot);
+        write(buf, end_tree_of_historic_contract_tree_roots_snapshot);
+
+        // Stitching calldata hash together
+        auto high_buffer = calldata_hash[0].to_buffer();
+        auto low_buffer = calldata_hash[1].to_buffer();
+
+        for (uint8_t i = 0; i < 16; i++) {
+            buf.push_back(high_buffer[16 + i]);
+        }
+        for (uint8_t i = 0; i < 16; i++) {
+            buf.push_back(low_buffer[16 + i]);
+        }
+
+        return sha256::sha256_to_field(buf);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, RootRollupPublicInputs<NCT>& obj)

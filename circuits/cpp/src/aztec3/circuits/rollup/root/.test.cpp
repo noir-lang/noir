@@ -200,6 +200,10 @@ TEST_F(root_rollup_tests, native_calldata_hash_empty_blocks)
     ASSERT_EQ(hash, calldata_hash);
     EXPECT_FALSE(composer.failed());
 
+    // Expected hash of public inputs for an empty L2 block. Also used in the contract tests.
+    fr expected_hash = uint256_t("181161b4d0484ce98066b1c36289b0327f8782e9bc41f25ba77302511a2bd16b");
+    ASSERT_EQ(outputs.hash(), expected_hash);
+
     run_cbind(inputs, outputs, true);
 }
 
