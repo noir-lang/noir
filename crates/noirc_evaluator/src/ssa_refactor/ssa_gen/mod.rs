@@ -12,7 +12,10 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::{ir::types::Type, ssa_builder::SharedBuilderContext};
+use super::{
+    ir::{instruction::BinaryOp, types::Type, value::ValueId},
+    ssa_builder::SharedBuilderContext,
+};
 
 pub(crate) fn generate_ssa(program: Program) {
     let context = SharedContext::new(program);
@@ -55,6 +58,17 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
+        }
+    }
+
+    /// Codegen any non-tuple expression so that we can unwrap the Values
+    /// tree to return a single value for use with most SSA instructions.
+    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> ValueId {
+        match self.codegen_expression(expr) {
+            Tree::Branch(branches) => {
+                panic!("codegen_non_tuple_expression called on tuple {branches:?}")
+            }
+            Tree::Leaf(value) => value.eval(),
         }
     }
 
@@ -103,7 +117,7 @@ impl<'a> FunctionContext<'a> {
                     array
                 } else {
                     let offset = self.builder.numeric_constant((i as u128).into(), Type::field());
-                    self.builder.insert_add(array, offset, Type::field())
+                    self.builder.insert_binary(array, BinaryOp::Add, offset, Type::field())
                 };
                 self.builder.insert_store(address, value.eval());
                 i += 1;
@@ -113,16 +127,22 @@ impl<'a> FunctionContext<'a> {
         array.into()
     }
 
-    fn codegen_block(&mut self, _block: &[Expression]) -> Values {
-        todo!()
+    fn codegen_block(&mut self, block: &[Expression]) -> Values {
+        let mut result = self.unit_value();
+        for expr in block {
+            result = self.codegen_expression(expr);
+        }
+        result
     }
 
     fn codegen_unary(&mut self, _unary: &ast::Unary) -> Values {
         todo!()
     }
 
-    fn codegen_binary(&mut self, _binary: &ast::Binary) -> Values {
-        todo!()
+    fn codegen_binary(&mut self, binary: &ast::Binary) -> Values {
+        let lhs = self.codegen_non_tuple_expression(&binary.lhs);
+        let rhs = self.codegen_non_tuple_expression(&binary.rhs);
+        self.insert_binary(lhs, binary.operator, rhs)
     }
 
     fn codegen_index(&mut self, _index: &ast::Index) -> Values {
@@ -141,12 +161,17 @@ impl<'a> FunctionContext<'a> {
         todo!()
     }
 
-    fn codegen_tuple(&mut self, _tuple: &[Expression]) -> Values {
-        todo!()
+    fn codegen_tuple(&mut self, tuple: &[Expression]) -> Values {
+        Tree::Branch(vecmap(tuple, |expr| self.codegen_expression(expr)))
     }
 
-    fn codegen_extract_tuple_field(&mut self, _tuple: &Expression, _index: usize) -> Values {
-        todo!()
+    fn codegen_extract_tuple_field(&mut self, tuple: &Expression, index: usize) -> Values {
+        match self.codegen_expression(tuple) {
+            Tree::Branch(mut trees) => trees.remove(index),
+            Tree::Leaf(value) => {
+                unreachable!("Tried to extract tuple index {index} from non-tuple {value:?}")
+            }
+        }
     }
 
     fn codegen_call(&mut self, _call: &ast::Call) -> Values {
@@ -165,7 +190,8 @@ impl<'a> FunctionContext<'a> {
         todo!()
     }
 
-    fn codegen_semi(&mut self, _semi: &Expression) -> Values {
-        todo!()
+    fn codegen_semi(&mut self, expr: &Expression) -> Values {
+        self.codegen_expression(expr);
+        self.unit_value()
     }
 }

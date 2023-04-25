@@ -100,12 +100,23 @@ impl<'ssa> FunctionBuilder<'ssa> {
         self.insert_instruction(Instruction::Store { address, value });
     }
 
-    /// Insert a Store instruction at the end of the current block, storing the given element
-    /// at the given address. Expects that the address points to a previous Allocate instruction.
-    /// Returns the result of the add instruction.
-    pub(crate) fn insert_add(&mut self, lhs: ValueId, rhs: ValueId, typ: Type) -> ValueId {
-        let operator = BinaryOp::Add;
+    /// Insert a binary instruction at the end of the current block.
+    /// Returns the result of the binary instruction.
+    pub(crate) fn insert_binary(
+        &mut self,
+        lhs: ValueId,
+        operator: BinaryOp,
+        rhs: ValueId,
+        typ: Type,
+    ) -> ValueId {
         let id = self.insert_instruction(Instruction::Binary(Binary { lhs, rhs, operator }));
+        self.current_function.dfg.make_instruction_results(id, typ)[0]
+    }
+
+    /// Insert a not instruction at the end of the current block.
+    /// Returns the result of the instruction.
+    pub(crate) fn insert_not(&mut self, rhs: ValueId, typ: Type) -> ValueId {
+        let id = self.insert_instruction(Instruction::Not(rhs));
         self.current_function.dfg.make_instruction_results(id, typ)[0]
     }
 }

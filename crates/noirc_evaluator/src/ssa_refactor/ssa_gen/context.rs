@@ -6,7 +6,9 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
 
+use crate::ssa_refactor::ir::instruction::BinaryOp;
 use crate::ssa_refactor::ir::types::Type;
+use crate::ssa_refactor::ir::value::ValueId;
 use crate::ssa_refactor::ssa_builder::SharedBuilderContext;
 use crate::ssa_refactor::{
     ir::function::FunctionId as IrFunctionId, ssa_builder::function_builder::FunctionBuilder,
@@ -122,6 +124,80 @@ impl<'a> FunctionContext<'a> {
             // Or are they just references?
             ast::Type::Vec(_) => Type::Reference,
         }
+    }
+
+    /// Insert a unit constant into the current function if not already
+    /// present, and return its value
+    pub(super) fn unit_value(&mut self) -> Values {
+        self.builder.numeric_constant(0u128.into(), Type::Unit).into()
+    }
+
+    /// Insert a binary instruction at the end of the current block.
+    /// Converts the form of the binary instruction as necessary
+    /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
+    /// For example, (a <= b) is represented as !(b < a)
+    pub(super) fn insert_binary(
+        &mut self,
+        mut lhs: ValueId,
+        operator: noirc_frontend::BinaryOpKind,
+        mut rhs: ValueId,
+    ) -> Values {
+        let op = convert_operator(operator);
+
+        if operator_requires_swapped_operands(operator) {
+            std::mem::swap(&mut lhs, &mut rhs);
+        }
+
+        // TODO: Rework how types are stored.
+        // They should be on values rather than on instruction results
+        let typ = Type::field();
+        let mut result = self.builder.insert_binary(lhs, op, rhs, typ);
+
+        if operator_requires_not(operator) {
+            result = self.builder.insert_not(result, typ);
+        }
+        result.into()
+    }
+}
+
+/// True if the given operator cannot be encoded directly and needs
+/// to be represented as !(some other operator)
+fn operator_requires_not(op: noirc_frontend::BinaryOpKind) -> bool {
+    use noirc_frontend::BinaryOpKind::*;
+    matches!(op, NotEqual | LessEqual | GreaterEqual)
+}
+
+/// True if the given operator cannot be encoded directly and needs
+/// to have its lhs and rhs swapped to be represented with another operator.
+/// Example: (a > b) needs to be represented as (b < a)
+fn operator_requires_swapped_operands(op: noirc_frontend::BinaryOpKind) -> bool {
+    use noirc_frontend::BinaryOpKind::*;
+    matches!(op, Greater | LessEqual)
+}
+
+/// Converts the given operator to the appropriate BinaryOp.
+/// Take care when using this to insert a binary instruction: this requires
+/// checking operator_requires_not and operator_requires_swapped_operands
+/// to represent the full operation correctly.
+fn convert_operator(op: noirc_frontend::BinaryOpKind) -> BinaryOp {
+    use noirc_frontend::BinaryOpKind;
+    match op {
+        BinaryOpKind::Add => BinaryOp::Add,
+        BinaryOpKind::Subtract => BinaryOp::Sub,
+        BinaryOpKind::Multiply => BinaryOp::Mul,
+        BinaryOpKind::Divide => BinaryOp::Div,
+        BinaryOpKind::Modulo => BinaryOp::Mod,
+        BinaryOpKind::Equal => BinaryOp::Eq,
+        BinaryOpKind::NotEqual => BinaryOp::Eq, // Requires not
+        BinaryOpKind::Less => BinaryOp::Lt,
+        BinaryOpKind::Greater => BinaryOp::Lt, // Requires operand swap
+        BinaryOpKind::LessEqual => BinaryOp::Lt, // Requires operand swap and not
+        BinaryOpKind::GreaterEqual => BinaryOp::Lt, // Requires not
+        BinaryOpKind::And => BinaryOp::And,
+        BinaryOpKind::Or => BinaryOp::Or,
+        BinaryOpKind::Xor => BinaryOp::Xor,
+        BinaryOpKind::ShiftRight => BinaryOp::Shr,
+        BinaryOpKind::ShiftLeft => BinaryOp::Shl,
     }
 }
 

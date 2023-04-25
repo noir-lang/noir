@@ -2,6 +2,7 @@ use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::types::Type;
 use crate::ssa_refactor::ir::value::ValueId as IrValueId;
 
+#[derive(Debug)]
 pub(super) enum Tree<T> {
     Branch(Vec<Tree<T>>),
     Leaf(T),
