@@ -22,9 +22,8 @@ import {
   PublicCircuitPublicInputs,
   PublicDataRead,
   PublicDataWrite,
-  PublicKernelInputsNoKernelInput,
-  PublicKernelInputsNonFirstIteration,
-  PublicKernelInputsPrivateKernelInput,
+  PublicKernelInputs,
+  PublicKernelInputsNoPreviousKernel,
   RootRollupInputs,
   RootRollupPublicInputs,
   StateRead,
@@ -254,22 +253,12 @@ export function makeWitnessedPublicCallData(seed = 1): WitnessedPublicCallData {
   );
 }
 
-export function makePublicKernelInputsNonFirstIteration(seed = 1): PublicKernelInputsNonFirstIteration {
-  return new PublicKernelInputsNonFirstIteration(
-    makePreviousKernelData(seed),
-    makeWitnessedPublicCallData(seed + 0x1000),
-  );
+export function makePublicKernelInputs(seed = 1): PublicKernelInputs {
+  return new PublicKernelInputs(makePreviousKernelData(seed), makeWitnessedPublicCallData(seed + 0x1000));
 }
 
 export function makePublicKernelInputsNoKernelInput(seed = 1) {
-  return new PublicKernelInputsNoKernelInput(makeSignedTxRequest(seed), makeWitnessedPublicCallData(seed + 0x100));
-}
-
-export function makePublicKernelInputsPrivateKernelInput(seed = 1) {
-  return new PublicKernelInputsPrivateKernelInput(
-    makePreviousKernelData(seed),
-    makeWitnessedPublicCallData(seed + 0x100),
-  );
+  return new PublicKernelInputsNoPreviousKernel(makeSignedTxRequest(seed), makeWitnessedPublicCallData(seed + 0x100));
 }
 
 export function makeSignedTxRequest(seed = 1): SignedTxRequest {

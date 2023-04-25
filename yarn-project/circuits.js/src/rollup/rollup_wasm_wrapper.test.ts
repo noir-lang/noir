@@ -73,6 +73,12 @@ describe('rollup/rollup_wasm_wrapper', () => {
     );
   });
 
+  it('calling merge_rollup__sim with different constants should fail', async () => {
+    const input = makeMergeRollupInputs();
+    await expect(rollupWasm.simulateMergeRollup(input))
+      .rejects.toEqual("Circuit failed with code 7003 - input proofs have different constants");
+  });
+
   it.skip('calls root_rollup__sim', async () => {
     const input = makeRootRollupInputs();
 

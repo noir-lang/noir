@@ -212,6 +212,10 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     MemoryTree historic_data_tree = MemoryTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     MemoryTree historic_contract_tree = MemoryTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT);
 
+    // Historic trees are initialised with an empty root at position 0.
+    historic_data_tree.update_element(0, data_tree.root());
+    historic_contract_tree.update_element(0, contract_tree.root());
+
     std::array<KernelData, 4> kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -249,19 +253,19 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 
     // The start historic data snapshot
     AppendOnlyTreeSnapshot<NT> start_historic_data_tree_snapshot = { .root = historic_data_tree.root(),
-                                                                     .next_available_leaf_index = 0 };
+                                                                     .next_available_leaf_index = 1 };
     AppendOnlyTreeSnapshot<NT> start_historic_contract_tree_snapshot = { .root = historic_contract_tree.root(),
-                                                                         .next_available_leaf_index = 0 };
+                                                                         .next_available_leaf_index = 1 };
 
     // Insert the newest data root into the historic tree
-    historic_data_tree.update_element(0, data_tree.root());
-    historic_contract_tree.update_element(0, contract_tree.root());
+    historic_data_tree.update_element(1, data_tree.root());
+    historic_contract_tree.update_element(1, contract_tree.root());
 
     // Compute the end snapshot
     AppendOnlyTreeSnapshot<NT> end_historic_data_tree_snapshot = { .root = historic_data_tree.root(),
-                                                                   .next_available_leaf_index = 1 };
+                                                                   .next_available_leaf_index = 2 };
     AppendOnlyTreeSnapshot<NT> end_historic_contract_tree_snapshot = { .root = historic_contract_tree.root(),
-                                                                       .next_available_leaf_index = 1 };
+                                                                       .next_available_leaf_index = 2 };
 
     RootRollupInputs rootRollupInputs = get_root_rollup_inputs(composer, kernels);
     RootRollupPublicInputs outputs =

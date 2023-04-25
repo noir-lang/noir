@@ -67,23 +67,36 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
     MerkleTree historic_contract_tree = MerkleTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT);
     MerkleTree historic_l1_to_l2_msg_tree = MerkleTree(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
 
+    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
+    MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
+
+    // Historic trees are initialised with an empty root at position 0.
+    historic_private_data_tree.update_element(0, private_data_tree.root());
+    historic_contract_tree.update_element(0, contract_tree.root());
+    historic_l1_to_l2_msg_tree.update_element(0, MerkleTree(L1_TO_L2_MSG_TREE_HEIGHT).root());
+
     ConstantRollupData constantRollupData = {
         .start_tree_of_historic_private_data_tree_roots_snapshot = {
             .root = historic_private_data_tree.root(),
-            .next_available_leaf_index = 0,
+            .next_available_leaf_index = 1,
         },
         .start_tree_of_historic_contract_tree_roots_snapshot = {
             .root = historic_contract_tree.root(),
-            .next_available_leaf_index = 0,
+            .next_available_leaf_index = 1,
         },
         .tree_of_historic_l1_to_l2_msg_tree_roots_snapshot = {
             .root = historic_l1_to_l2_msg_tree.root(),
-            .next_available_leaf_index = 0,
+            .next_available_leaf_index = 1,
         },
     };
 
-    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
-    MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
+    for (size_t i = 0; i < 2; i++) {
+        kernel_data[i].public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root =
+            private_data_tree.root();
+        kernel_data[i].public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root =
+            contract_tree.root();
+        // @todo Add l1 -> l2 root.
+    }
 
     BaseRollupInputs baseRollupInputs = { .kernel_data = kernel_data,
                                               .start_private_data_tree_snapshot = {
@@ -96,7 +109,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
                                               },
                                               .constants = constantRollupData };
 
-    // Initialise nullifier tree with 0..7 then insert 8 nullifiers with value 0.
+    // Initialise nullifier tree with 0..7
     std::vector<fr> initial_values = { 1, 2, 3, 4, 5, 6, 7 };
 
     std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifiers;
@@ -208,13 +221,22 @@ MergeRollupInputs get_merge_rollup_inputs(utils::DummyComposer& composer, std::a
 
 RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer, std::array<KernelData, 4> kernel_data)
 {
-
-    MerkleTree historic_data_tree = MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
+    MerkleTree historic_private_data_tree = MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     MerkleTree historic_contract_tree = MerkleTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT);
+    MerkleTree historic_l1_to_l2_msg_tree = MerkleTree(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
 
-    auto historic_data_sibling_path = get_sibling_path<PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>(historic_data_tree, 0, 0);
+    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
+    MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
+
+    // Historic trees are initialised with an empty root at position 0.
+    historic_private_data_tree.update_element(0, private_data_tree.root());
+    historic_contract_tree.update_element(0, contract_tree.root());
+    historic_l1_to_l2_msg_tree.update_element(0, MerkleTree(L1_TO_L2_MSG_TREE_HEIGHT).root());
+
+    auto historic_data_sibling_path =
+        get_sibling_path<PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>(historic_private_data_tree, 1, 0);
     auto historic_contract_sibling_path =
-        get_sibling_path<CONTRACT_TREE_ROOTS_TREE_HEIGHT>(historic_contract_tree, 0, 0);
+        get_sibling_path<CONTRACT_TREE_ROOTS_TREE_HEIGHT>(historic_contract_tree, 1, 0);
 
     RootRollupInputs rootRollupInputs = {
         .previous_rollup_data = get_previous_rollup_data(composer, kernel_data),
