@@ -31,18 +31,6 @@ pub(crate) struct BasicBlock {
     terminator: Option<TerminatorInstruction>,
 }
 
-impl BasicBlock {
-    /// Gets a reference to basic block's terminator instruction.
-    ///
-    /// This accessor should not be used during basic block construction, at which time the
-    /// terminator may be as of yet unassigned.
-    pub(crate) fn terminator(&self) -> &TerminatorInstruction {
-        self.terminator
-            .as_ref()
-            .expect("ICE: Tried to get terminator before basic block construction had finished.")
-    }
-}
-
 /// An identifier for a Basic Block.
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
