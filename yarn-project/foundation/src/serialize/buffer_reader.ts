@@ -47,6 +47,17 @@ export class BufferReader {
   }
 
   /**
+   * Reads a 16-bit unsigned integer from the buffer at the current index position.
+   * Updates the index position by 2 bytes after reading the number.
+   *
+   * @returns The read 16 bit value
+   */
+  public readUInt16(): number {
+    this.index += 2;
+    return this.buffer.readUInt16BE(this.index - 2);
+  }
+
+  /**
    * Reads and returns the next boolean value from the buffer.
    * Advances the internal index by 1, treating the byte at the current index as a boolean value.
    * Returns true if the byte is non-zero, false otherwise.
