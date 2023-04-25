@@ -225,12 +225,9 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
     // it is needed below:
     //     for constructors - to generate the contract address, function leaf, etc
     //     for private calls - to generate the function leaf, etc
-    info("1");
     const std::shared_ptr<NT::VK> private_circuit_vk = gen_func_vk(is_constructor, func, args_vec.size());
-    info("2");
     const NT::fr private_circuit_vk_hash =
         stdlib::recursion::verification_key<CT::bn254>::compress_native(private_circuit_vk, GeneratorIndex::VK);
-    info("3");
 
     ContractDeploymentData<NT> contract_deployment_data{};
     NT::fr contract_tree_root = 0; // TODO set properly for constructor?
