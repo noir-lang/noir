@@ -23,7 +23,7 @@ fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     let compiled_program = compile_circuit(&backend, program_dir.as_ref(), compile_options)?;
     let num_opcodes = compiled_program.circuit.opcodes.len();

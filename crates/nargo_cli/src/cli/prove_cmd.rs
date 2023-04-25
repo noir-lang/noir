@@ -65,7 +65,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     check_proof: bool,
     compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,

@@ -47,6 +47,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "acvm-backend-barretenberg"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=ba1d0d61b94de91b15044d97608907c21bfb5299#ba1d0d61b94de91b15044d97608907c21bfb5299"
+dependencies = [
+ "barretenberg-sys",
+ "blake2",
+ "common",
+ "getrandom",
+ "pkg-config",
+ "rust-embed",
+ "wasmer",
+]
+
+[[package]]
 name = "acvm_stdlib"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -303,27 +317,6 @@ dependencies = [
  "link-cplusplus",
  "pkg-config",
  "thiserror",
-]
-
-[[package]]
-name = "barretenberg_static_lib"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=e3d4504f15e1295e637c4da80b1d08c87c267c45#e3d4504f15e1295e637c4da80b1d08c87c267c45"
-dependencies = [
- "barretenberg-sys",
- "common",
-]
-
-[[package]]
-name = "barretenberg_wasm"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=e3d4504f15e1295e637c4da80b1d08c87c267c45#e3d4504f15e1295e637c4da80b1d08c87c267c45"
-dependencies = [
- "common",
- "getrandom",
- "pkg-config",
- "rust-embed",
- "wasmer",
 ]
 
 [[package]]
@@ -621,7 +614,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=e3d4504f15e1295e637c4da80b1d08c87c267c45#e3d4504f15e1295e637c4da80b1d08c87c267c45"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=ba1d0d61b94de91b15044d97608907c21bfb5299#ba1d0d61b94de91b15044d97608907c21bfb5299"
 dependencies = [
  "acvm",
  "blake2",
@@ -1901,10 +1894,9 @@ name = "nargo_cli"
 version = "0.4.1"
 dependencies = [
  "acvm",
+ "acvm-backend-barretenberg",
  "assert_cmd",
  "assert_fs",
- "barretenberg_static_lib",
- "barretenberg_wasm",
  "build-data",
  "cfg-if 1.0.0",
  "clap",
