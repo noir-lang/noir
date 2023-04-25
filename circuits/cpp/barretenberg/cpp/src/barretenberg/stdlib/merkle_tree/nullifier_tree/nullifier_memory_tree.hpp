@@ -68,6 +68,7 @@ using namespace barretenberg;
  *  nextVal   10      50      20      30       0       0       0       0
  */
 class NullifierMemoryTree : public MemoryTree {
+
   public:
     NullifierMemoryTree(size_t depth);
 
@@ -78,15 +79,18 @@ class NullifierMemoryTree : public MemoryTree {
     fr update_element(fr const& value);
 
     const std::vector<barretenberg::fr>& get_hashes() { return hashes_; }
-    const std::vector<nullifier_leaf>& get_leaves() { return leaves_; }
-    const nullifier_leaf& get_leaf(size_t index) { return leaves_[index]; }
+    const WrappedNullifierLeaf get_leaf(size_t index)
+    {
+        return (index < leaves_.size()) ? leaves_[index] : WrappedNullifierLeaf::zero();
+    }
+    const std::vector<WrappedNullifierLeaf>& get_leaves() { return leaves_; }
 
   protected:
     using MemoryTree::depth_;
     using MemoryTree::hashes_;
     using MemoryTree::root_;
     using MemoryTree::total_size_;
-    std::vector<nullifier_leaf> leaves_;
+    std::vector<WrappedNullifierLeaf> leaves_;
 };
 
 } // namespace merkle_tree

@@ -35,7 +35,7 @@ template <typename Store> class NullifierTree : public MerkleTree<Store> {
     using MerkleTree<Store>::zero_hashes_;
     using MerkleTree<Store>::depth_;
     using MerkleTree<Store>::tree_id_;
-    std::vector<nullifier_leaf> leaves;
+    std::vector<WrappedNullifierLeaf> leaves;
 };
 
 extern template class NullifierTree<MemoryStore>;
