@@ -2,6 +2,8 @@
 title: Function Selectors
 ---
 
+<!-- Consider removing. I think this is more at home in discourse, perhaps? -->
+
 :::caution
 We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
 

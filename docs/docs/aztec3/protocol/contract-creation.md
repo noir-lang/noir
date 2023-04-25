@@ -2,6 +2,8 @@
 title: Contract Creation
 ---
 
+<!-- TODO: Mike to update -->
+
 :::caution
 We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
 
