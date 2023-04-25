@@ -199,7 +199,7 @@ pub(crate) enum BinaryOp {
     Lt,
     /// Bitwise and (&)
     And,
-    /// Bitiwse or (|)
+    /// Bitwise or (|)
     Or,
     /// Bitwise xor (^)
     Xor,
@@ -207,29 +207,6 @@ pub(crate) enum BinaryOp {
     Shl,
     /// Shift lhs right by rhs bits (>>)
     Shr,
-}
-
-impl From<noirc_frontend::BinaryOpKind> for BinaryOp {
-    fn from(value: noirc_frontend::BinaryOpKind) -> Self {
-        match value {
-            noirc_frontend::BinaryOpKind::Add => todo!(),
-            noirc_frontend::BinaryOpKind::Subtract => todo!(),
-            noirc_frontend::BinaryOpKind::Multiply => todo!(),
-            noirc_frontend::BinaryOpKind::Divide => todo!(),
-            noirc_frontend::BinaryOpKind::Equal => todo!(),
-            noirc_frontend::BinaryOpKind::NotEqual => todo!(),
-            noirc_frontend::BinaryOpKind::Less => todo!(),
-            noirc_frontend::BinaryOpKind::LessEqual => todo!(),
-            noirc_frontend::BinaryOpKind::Greater => todo!(),
-            noirc_frontend::BinaryOpKind::GreaterEqual => todo!(),
-            noirc_frontend::BinaryOpKind::And => todo!(),
-            noirc_frontend::BinaryOpKind::Or => todo!(),
-            noirc_frontend::BinaryOpKind::Xor => todo!(),
-            noirc_frontend::BinaryOpKind::ShiftRight => todo!(),
-            noirc_frontend::BinaryOpKind::ShiftLeft => todo!(),
-            noirc_frontend::BinaryOpKind::Modulo => todo!(),
-        }
-    }
 }
 
 impl std::fmt::Display for BinaryOp {

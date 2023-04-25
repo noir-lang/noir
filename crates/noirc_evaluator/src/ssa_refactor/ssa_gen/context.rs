@@ -126,6 +126,8 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Insert a unit constant into the current function if not already
+    /// present, and return its value
     pub(super) fn unit_value(&mut self) -> Values {
         self.builder.numeric_constant(0u128.into(), Type::Unit).into()
     }
@@ -173,7 +175,7 @@ fn operator_requires_swapped_operands(op: noirc_frontend::BinaryOpKind) -> bool 
     matches!(op, Greater | LessEqual)
 }
 
-/// Lossily (!) converts the given operator to the appropriate BinaryOp.
+/// Converts the given operator to the appropriate BinaryOp.
 /// Take care when using this to insert a binary instruction: this requires
 /// checking operator_requires_not and operator_requires_swapped_operands
 /// to represent the full operation correctly.
