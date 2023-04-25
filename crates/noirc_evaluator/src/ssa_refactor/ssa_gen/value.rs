@@ -1,3 +1,5 @@
+use iter_extended::vecmap;
+
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::types::Type;
 use crate::ssa_refactor::ir::value::ValueId as IrValueId;
@@ -74,5 +76,13 @@ impl Tree<Type> {
     /// Non-field types like functions and references are also counted as 1 FieldElement.
     pub(super) fn size_of_type(&self) -> usize {
         self.count_leaves()
+    }
+}
+
+impl Tree<Value> {
+    /// Flattens and evaluates this Tree<Value> into a list of ir values
+    /// for return statements, branching instructions, or function parameters.
+    pub(super) fn into_value_list(self) -> Vec<IrValueId> {
+        vecmap(self.flatten(), Value::eval)
     }
 }

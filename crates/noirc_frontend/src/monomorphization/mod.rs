@@ -411,7 +411,7 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Bool
             | ast::Type::Unit
             | ast::Type::Function(_, _) => {
-                ast::Expression::Index(ast::Index { collection, index, location })
+                ast::Expression::Index(ast::Index { collection, index, element_type, location })
             }
 
             ast::Type::Tuple(elements) => {

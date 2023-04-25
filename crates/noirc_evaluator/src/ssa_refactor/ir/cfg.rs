@@ -133,29 +133,27 @@ mod tests {
         // Build function of form
         // fn func {
         // block0(cond: u1):
-        //     jmpif cond(), then: block2, else: block1
+        //     jmpif cond, then: block2, else: block1
         // block1():
-        //     jmpif cond(), then: block1, else: block2
+        //     jmpif cond, then: block1, else: block2
         // block2():
-        //     return
+        //     return ()
         // }
         let mut func = Function::new("func".into());
         let block0_id = func.entry_block();
         let cond = func.dfg.add_block_parameter(block0_id, Type::unsigned(1));
-        let block1_id = func.dfg.new_block();
-        let block2_id = func.dfg.new_block();
+        let block1_id = func.dfg.make_block();
+        let block2_id = func.dfg.make_block();
 
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block2_id,
             else_destination: block1_id,
-            arguments: vec![],
         });
         func.dfg[block1_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block1_id,
             else_destination: block2_id,
-            arguments: vec![],
         });
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Return { return_values: vec![] });
 
@@ -192,15 +190,15 @@ mod tests {
         // Modify function to form:
         // fn func {
         // block0(cond: u1):
-        //     jmpif cond(), then: block1, else: ret_block
+        //     jmpif cond, then: block1, else: ret_block
         // block1():
-        //     jmpif cond(), then: block1, else: block2
+        //     jmpif cond, then: block1, else: block2
         // block2():
-        //     jmp ret_block
+        //     jmp ret_block()
         // ret_block():
-        //     return
+        //     return ()
         // }
-        let ret_block_id = func.dfg.new_block();
+        let ret_block_id = func.dfg.make_block();
         func.dfg[ret_block_id]
             .set_terminator(TerminatorInstruction::Return { return_values: vec![] });
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
@@ -211,7 +209,6 @@ mod tests {
             condition: cond,
             then_destination: block1_id,
             else_destination: ret_block_id,
-            arguments: vec![],
         });
 
         // Recompute new and changed blocks

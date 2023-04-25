@@ -32,7 +32,7 @@ impl Function {
     /// Note that any parameters to the function must be manually added later.
     pub(crate) fn new(name: String) -> Self {
         let mut dfg = DataFlowGraph::default();
-        let entry_block = dfg.new_block();
+        let entry_block = dfg.make_block();
         Self { name, source_locations: SecondaryMap::new(), entry_block, dfg }
     }
 

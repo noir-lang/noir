@@ -2,7 +2,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
     function::Signature,
-    instruction::{Instruction, InstructionId, InstructionResultType},
+    instruction::{Instruction, InstructionId, InstructionResultType, TerminatorInstruction},
     map::{DenseMap, Id, SecondaryMap, TwoWayMap},
     types::Type,
     value::{Value, ValueId},
@@ -75,14 +75,14 @@ impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn new_block(&mut self) -> BasicBlockId {
+    pub(crate) fn make_block(&mut self) -> BasicBlockId {
         self.blocks.insert(BasicBlock::new(Vec::new()))
     }
 
     /// Creates a new basic block with the given parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn new_block_with_parameters(
+    pub(crate) fn make_block_with_parameters(
         &mut self,
         parameter_types: impl Iterator<Item = Type>,
     ) -> BasicBlockId {
@@ -229,6 +229,24 @@ impl DataFlowGraph {
         instruction: InstructionId,
     ) {
         self.blocks[block].insert_instruction(instruction);
+    }
+
+    /// Returns the field element represented by this value if it is a numeric constant.
+    /// Returns None if the given value is not a numeric constant.
+    pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
+        match self.values[value] {
+            Value::NumericConstant { constant, .. } => Some(self[constant].value()),
+            _ => None,
+        }
+    }
+
+    /// Sets the terminator instruction for the given basic block
+    pub(crate) fn set_block_terminator(
+        &mut self,
+        block: BasicBlockId,
+        terminator: TerminatorInstruction,
+    ) {
+        self.blocks[block].set_terminator(terminator)
     }
 }
 
