@@ -146,6 +146,7 @@ The following diagram shows the overall architecture, combining the earlier sect
 <Image img={require("/img/com-abs-7.png")} />
 
 
+
 ## Linking L1 and L2 contracts
 As mentioned earlier, there will be a link between L1 and L2 contracts (with the L1 part of the link being the portal contract), this link is created at "birth" when the contract leaf is inserted. However, the specific requirements of the link is not yet fully decided. And we will outline a few options below. 
 
