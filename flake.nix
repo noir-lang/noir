@@ -165,6 +165,9 @@
 
       packages.default = noir;
 
+      # We expose the `cargo-artifacts` derivation so we can cache our cargo dependencies in CI
+      packages.cargo-artifacts = cargoArtifacts;
+
       # TODO(#1197): Look into installable apps with Nix flakes
       # apps.default = flake-utils.lib.mkApp { drv = nargo; };
 

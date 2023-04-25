@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    hash::Hash,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -65,6 +66,12 @@ impl<T> std::fmt::Debug for Id<T> {
         // Deliberately formatting as a tuple with 1 element here and omitting
         // the _marker: PhantomData field which would just clutter output
         f.debug_tuple("Id").field(&self.index).finish()
+    }
+}
+
+impl<T> std::fmt::Display for Id<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "${}", self.index)
     }
 }
 
@@ -191,6 +198,53 @@ impl<T> std::ops::Index<Id<T>> for SparseMap<T> {
 impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
     fn index_mut(&mut self, id: Id<T>) -> &mut Self::Output {
         self.storage.get_mut(&id).expect("Invalid id used in SparseMap::index_mut")
+    }
+}
+
+/// A TwoWayMap is a map from both key to value and value to key.
+/// This is accomplished by keeping the map bijective - for every
+/// value there is exactly one key and vice-versa. Any duplicate values
+/// are prevented in the call to insert.
+#[derive(Debug)]
+pub(crate) struct TwoWayMap<T> {
+    key_to_value: HashMap<Id<T>, T>,
+    value_to_key: HashMap<T, Id<T>>,
+}
+
+impl<T: Clone + Hash + Eq> TwoWayMap<T> {
+    /// Returns the number of elements in the map.
+    pub(crate) fn len(&self) -> usize {
+        self.key_to_value.len()
+    }
+
+    /// Adds an element to the map.
+    /// Returns the identifier/reference to that element.
+    pub(crate) fn insert(&mut self, element: T) -> Id<T> {
+        if let Some(existing) = self.value_to_key.get(&element) {
+            return *existing;
+        }
+
+        let id = Id::new(self.key_to_value.len());
+        self.key_to_value.insert(id, element.clone());
+        self.value_to_key.insert(element, id);
+        id
+    }
+}
+
+impl<T> Default for TwoWayMap<T> {
+    fn default() -> Self {
+        Self { key_to_value: HashMap::new(), value_to_key: HashMap::new() }
+    }
+}
+
+// Note that there is no impl for IndexMut<Id<T>>,
+// if we allowed mutable access to map elements they may be
+// mutated such that elements are no longer unique
+impl<T> std::ops::Index<Id<T>> for TwoWayMap<T> {
+    type Output = T;
+
+    fn index(&self, id: Id<T>) -> &Self::Output {
+        &self.key_to_value[&id]
     }
 }
 
