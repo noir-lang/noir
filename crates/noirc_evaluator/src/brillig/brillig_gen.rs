@@ -35,8 +35,11 @@ impl BrilligArtefact {
                     self.byte_code[*jump] = BrilligOpcode::JMP { destination: current };
                 }
                 BrilligOpcode::JMPIFNOT { condition, destination } => {
-                    assert_eq!(destination, 0);
-                    let current = self.blocks[block];
+                    let current = if destination == 0 {
+                        self.blocks[block]
+                    } else {
+                        destination + self.byte_code.len()
+                    };
                     self.byte_code[*jump] =
                         BrilligOpcode::JMPIFNOT { condition, destination: current };
                 }
@@ -261,15 +264,12 @@ impl BrilligGen {
                     (
                         ObjectType::Numeric(NumericType::Signed(s1)),
                         ObjectType::Numeric(NumericType::Signed(s2)),
-                    ) => todo!(),
-                    (
-                        ObjectType::Numeric(NumericType::Unsigned(s1)),
-                        ObjectType::Numeric(NumericType::Signed(s2)),
-                    ) => todo!(),
-                    (
+                    )
+                    | (
                         ObjectType::Numeric(NumericType::Unsigned(s1)),
                         ObjectType::Numeric(NumericType::Unsigned(s2)),
                     ) => {
+                        let res_type = object_type_2_typ(ins.res_type);
                         if s1 <= s2 {
                             self.push_code(BrilligOpcode::Mov {
                                 destination: ins_reg,
@@ -277,7 +277,7 @@ impl BrilligGen {
                             });
                         } else {
                             self.push_code(BrilligOpcode::BinaryOp {
-                                result_type: BrilligType::Unsigned { bit_size: s2 },
+                                result_type: res_type,
                                 op: brillig_bytecode::BinaryOp::Add,
                                 lhs: arg,
                                 rhs: RegisterMemIndex::Constant(FieldElement::zero()),
@@ -285,10 +285,6 @@ impl BrilligGen {
                             });
                         }
                     }
-                    (
-                        ObjectType::Numeric(NumericType::Signed(s1)),
-                        ObjectType::Numeric(NumericType::Unsigned(s2)),
-                    ) => todo!(),
                     (
                         ObjectType::Numeric(NumericType::Unsigned(_)),
                         ObjectType::Numeric(NumericType::NativeField),
@@ -310,22 +306,47 @@ impl BrilligGen {
                         });
                     }
                     (
-                        ObjectType::Numeric(NumericType::Signed(s1)),
+                        ObjectType::Numeric(NumericType::Unsigned(_)),
+                        ObjectType::Numeric(NumericType::Signed(_)),
+                    )
+                    | (
+                        ObjectType::Numeric(NumericType::Signed(_)),
+                        ObjectType::Numeric(NumericType::Unsigned(_)),
+                    )
+                    | (
+                        ObjectType::Numeric(NumericType::Signed(_)),
                         ObjectType::Numeric(NumericType::NativeField),
-                    ) => todo!(),
-                    (
+                    )
+                    | (
                         ObjectType::Numeric(NumericType::NativeField),
-                        ObjectType::Numeric(NumericType::Signed(s2)),
-                    ) => todo!(),
+                        ObjectType::Numeric(NumericType::Signed(_)),
+                    ) => {
+                        return Err(RuntimeErrorKind::Unimplemented (
+                            "Unimplemented Cast operation in unsafe function".to_string(),
+                        )
+                        .into())
+                    }
                     _ => unreachable!("Cast is only supported for numeric types"),
                 }
-                // return Err(RuntimeErrorKind::Unimplemented(
-                //     "Cast operation not supported in unsafe functions".to_string(),
-                // )
-                // .into());
             }
             Operation::Truncate { .. } => unreachable!("Brillig does not require an overflow pass"),
-            Operation::Not(_) => todo!(), // bitwise not
+            Operation::Not(lhs) => {
+                let lhs = self.node_2_register(ctx, *lhs);
+                let result_type = object_type_2_typ(ins.res_type);
+                let result = self.node_2_register(ctx, ins.id).to_register_index().unwrap();
+                if let BrilligType::Unsigned { bit_size: s } = result_type {
+                    let max = FieldElement::from(2_i128).pow(&FieldElement::from(s as i128))
+                        - FieldElement::one();
+                    let rhs = RegisterMemIndex::Constant(max);
+                    self.push_code(BrilligOpcode::BinaryOp {
+                        result_type,
+                        op: brillig_bytecode::BinaryOp::Xor,
+                        lhs,
+                        rhs,
+                        result,
+                    });
+                }
+            }
             Operation::Constrain(a, _) => {
                 let condition = self.node_2_register(ctx, *a);
                 self.push_code(BrilligOpcode::JMPIFNOT { condition, destination: 1 });
@@ -447,104 +468,200 @@ impl BrilligGen {
         let result = self.node_2_register(ctx, id).to_register_index().unwrap();
 
         match &binary.operator {
-        BinaryOp::Add => {
-            self.push_code(BrilligOpcode::BinaryOp {
+            BinaryOp::Add => {
+                self.push_code(BrilligOpcode::BinaryOp {
+                    lhs,
+                    rhs,
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::Add,
+                    result,
+                });
+            }
+            BinaryOp::SafeAdd => todo!(),
+            BinaryOp::Sub { .. } => self.push_code(BrilligOpcode::BinaryOp {
                 lhs,
                 rhs,
                 result_type,
-                op: brillig_bytecode::BinaryOp::Add,
+                op: brillig_bytecode::BinaryOp::Sub,
                 result,
-            });
-        }
-        BinaryOp::SafeAdd => todo!(),
-        BinaryOp::Sub { .. } => self.push_code(BrilligOpcode::BinaryOp {
-            lhs,
-            rhs,
-            result_type,
-            op: brillig_bytecode::BinaryOp::Sub,
-            result,
-        }),
-        BinaryOp::SafeSub { .. } => todo!(),
-        BinaryOp::Mul => self.push_code(BrilligOpcode::BinaryOp {
-            lhs,
-            rhs,
-            result_type,
-            op: brillig_bytecode::BinaryOp::Mul,
-            result,
-        }),
-        BinaryOp::SafeMul => todo!(),
-        BinaryOp::Urem(_) => {
-            let q = self.get_tmp_register();
-            self.push_code(BrilligOpcode::BinaryOp {
+            }),
+            BinaryOp::SafeSub { .. } => todo!(),
+            BinaryOp::Mul => self.push_code(BrilligOpcode::BinaryOp {
                 lhs,
                 rhs,
                 result_type,
-                op: brillig_bytecode::BinaryOp::Div,
-                result:q,
-            });
-            self.push_code(BrilligOpcode::BinaryOp {
-                result_type,
-                lhs: RegisterMemIndex::Register(q),
-                rhs,
                 op: brillig_bytecode::BinaryOp::Mul,
-                result: q,
-            });
-            self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub, lhs, rhs: RegisterMemIndex::Register(q), result });
-        }
-        BinaryOp::Srem(_) => todo!(),
-        BinaryOp::Udiv(_) |
-        BinaryOp::Sdiv(_) |
-        BinaryOp::Div(_) => {
-            self.push_code(BrilligOpcode::BinaryOp {
+                result,
+            }),
+            BinaryOp::SafeMul => todo!(),
+            BinaryOp::Urem(_) => {
+                let q = self.get_tmp_register();
+                self.push_code(BrilligOpcode::BinaryOp {
+                    lhs,
+                    rhs,
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::Div,
+                    result: q,
+                });
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type,
+                    lhs: RegisterMemIndex::Register(q),
+                    rhs,
+                    op: brillig_bytecode::BinaryOp::Mul,
+                    result: q,
+                });
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::Sub,
+                    lhs,
+                    rhs: RegisterMemIndex::Register(q),
+                    result,
+                });
+            }
+            BinaryOp::Srem(_) => todo!(),
+            BinaryOp::Udiv(_) | BinaryOp::Sdiv(_) | BinaryOp::Div(_) => {
+                self.push_code(BrilligOpcode::BinaryOp {
+                    lhs,
+                    rhs,
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::Div,
+                    result,
+                });
+            }
+            BinaryOp::Eq => {
+                if let Some(a) = Memory::deref(ctx, binary.lhs) {
+                    //set result to 0
+                    self.push_code(BrilligOpcode::Mov {
+                        destination: RegisterMemIndex::Register(result),
+                        source: RegisterMemIndex::Constant(FieldElement::zero()),
+                    });
+                    if let Some(b) = Memory::deref(ctx, binary.rhs) {
+                        let array_a = &ctx.mem[a];
+                        let array_b = &ctx.mem[b];
+                        if array_a.len == array_b.len {
+                            let cmp_i = self.get_tmp_register();
+                            let a_i = self.get_tmp_register();
+                            let b_i = self.get_tmp_register();
+                            let end_loop = 4 * array_a.len as usize + 1;
+                            for i in 0..array_a.len {
+                                let index = FieldElement::from(i as i128);
+                                self.push_code(BrilligOpcode::Load {
+                                    destination: RegisterMemIndex::Register(a_i),
+                                    array_id_reg: RegisterMemIndex::Constant(a.to_field_element()),
+                                    index: RegisterMemIndex::Constant(index),
+                                });
+                                self.push_code(BrilligOpcode::Load {
+                                    destination: RegisterMemIndex::Register(b_i),
+                                    array_id_reg: RegisterMemIndex::Constant(b.to_field_element()),
+                                    index: RegisterMemIndex::Constant(index),
+                                });
+                                self.push_code(BrilligOpcode::BinaryOp {
+                                    result_type: BrilligType::Unsigned { bit_size: 32 },
+                                    op: brillig_bytecode::BinaryOp::Cmp(
+                                        brillig_bytecode::Comparison::Eq,
+                                    ),
+                                    lhs: RegisterMemIndex::Register(a_i),
+                                    rhs: RegisterMemIndex::Register(b_i),
+                                    result: cmp_i,
+                                });
+                                self.obj.to_fix.push((self.code_len(), BlockId::dummy()));
+                                self.push_code(BrilligOpcode::JMPIFNOT {
+                                    condition: RegisterMemIndex::Register(cmp_i),
+                                    destination: end_loop,
+                                });
+                            }
+                            self.push_code(BrilligOpcode::Mov {
+                                destination: RegisterMemIndex::Register(result),
+                                source: RegisterMemIndex::Constant(FieldElement::one()),
+                            });
+                        }
+                    }
+                } else {
+                    self.push_code(BrilligOpcode::BinaryOp {
+                        result_type: BrilligType::Unsigned { bit_size: 1 },
+                        op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq),
+                        lhs,
+                        rhs,
+                        result,
+                    });
+                }
+            }
+            BinaryOp::Ne => {
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type: BrilligType::Unsigned { bit_size: 1 },
+                    op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq),
+                    lhs,
+                    rhs,
+                    result,
+                });
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type: BrilligType::Unsigned { bit_size: 1 },
+                    op: brillig_bytecode::BinaryOp::Sub,
+                    lhs: RegisterMemIndex::Constant(FieldElement::one()),
+                    rhs: RegisterMemIndex::Register(result),
+                    result,
+                });
+            }
+            // comparison
+            BinaryOp::Ule | BinaryOp::Lte | BinaryOp::Sle => {
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Lte),
+                    lhs,
+                    rhs,
+                    result,
+                });
+            }
+            BinaryOp::Ult | BinaryOp::Slt | BinaryOp::Lt => {
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Lt),
+                    lhs,
+                    rhs,
+                    result,
+                });
+            }
+            BinaryOp::And => {
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::And,
+                    lhs,
+                    rhs,
+                    result,
+                });
+            }
+            BinaryOp::Or => self.push_code(BrilligOpcode::BinaryOp {
+                result_type,
+                op: brillig_bytecode::BinaryOp::Or,
                 lhs,
                 rhs,
-                result_type,
-                op: brillig_bytecode::BinaryOp::Div,
                 result,
-            });
-        },
-        BinaryOp::Eq => {
-            self.push_code(BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq
-        ), lhs, rhs, result});
-        }, //a==b => is_zero()
-        BinaryOp::Ne =>
-     {
-        self.push_code(BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq
-        ), lhs, rhs, result});
-        self.push_code(
-            BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Sub, lhs: RegisterMemIndex::Constant(FieldElement::one())
-            , rhs: RegisterMemIndex::Register(result), result}
-        );
-     }
-           // comparison
-        BinaryOp::Ule |//<= = >= , <
-        BinaryOp::Lte |
-        BinaryOp::Sle => {
-            self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Lte), lhs, rhs, result });
-            // //a<=b : !b<a
-            // let t = self.get_tmp_register();
-            // //b<a .. todo
-            // self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub,
-            // lhs: RegisterMemIndex::Constant(FieldElement::one()),
-            // rhs: RegisterMemIndex::Register(t),
-            // result,});
-        },
-        BinaryOp::Ult |
-        BinaryOp::Slt |
-        BinaryOp::Lt => {
-            self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Lt), lhs, rhs, result });
-        },
-        BinaryOp::And => {
-            //todo
-        },       //bitwise
-        BinaryOp::Or => todo!(),
-        BinaryOp::Xor => todo!(),
-        BinaryOp::Shl => {
-            todo!(); //ssa remove it during overflow.. can't we simplify as well?
-        },
-        BinaryOp::Shr(_) => todo!(),    //ssa remove it during overflow..
-        BinaryOp::Assign => unreachable!(),
-    }
+            }),
+            BinaryOp::Xor => self.push_code(BrilligOpcode::BinaryOp {
+                result_type,
+                op: brillig_bytecode::BinaryOp::Xor,
+                lhs,
+                rhs,
+                result,
+            }),
+            BinaryOp::Shl => {
+                self.push_code(BrilligOpcode::BinaryOp {
+                    result_type,
+                    op: brillig_bytecode::BinaryOp::Shl,
+                    lhs,
+                    rhs,
+                    result,
+                });
+            }
+            BinaryOp::Shr(_) => self.push_code(BrilligOpcode::BinaryOp {
+                result_type,
+                op: brillig_bytecode::BinaryOp::Shr,
+                lhs,
+                rhs,
+                result,
+            }),
+            BinaryOp::Assign => unreachable!(),
+        }
     }
 
     fn get_oracle_abi(
@@ -651,10 +768,7 @@ impl BrilligGen {
                         if let Some(ret) = returned_arrays.get(j) {
                             if ret.1 as usize == ret_i {
                                 j += 1;
-                                dbg!(&returned_arrays);
-                                dbg!(&returned_values);
-                                //  todo!();
-                                //memcpy le registre i vers ret
+                                //memcpy registre i to ret
                                 let array = &ctx.mem[ret.0];
                                 let a_reg = RegisterMemIndex::Constant(ret.0.to_field_element());
                                 self.memcpy(
@@ -662,7 +776,7 @@ impl BrilligGen {
                                     a_reg,
                                     array.len as usize,
                                 );
-                                continue; //should be the same
+                                continue;
                             }
                         }
                         if let ObjectType::ArrayPointer(a) = ctx.object_type(returned_values[i]) {
@@ -691,13 +805,9 @@ impl BrilligGen {
     fn try_process_call(&mut self, ctx: &SsaContext) {
         if let Some(call_id) = self.noir_call.first() {
             if let Some(call) = ctx.try_get_instruction(*call_id) {
-                //                dbg!(&call);
                 if let Operation::Call { func, arguments, returned_arrays, .. } = &call.operation {
                     if let Some(func_id) = ctx.try_get_func_id(*func) {
                         let ssa_func = ctx.ssa_func(func_id).unwrap();
-                        // dbg!(&ssa_func.name);
-                        // dbg!(&ssa_func.result_types);
-                        // dbg!(&self.noir_call);
                         if self.noir_call.len() + returned_arrays.len()
                             == ssa_func.result_types.len() + 1
                         {

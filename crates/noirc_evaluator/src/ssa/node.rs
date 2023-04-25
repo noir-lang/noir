@@ -1149,7 +1149,7 @@ impl Operation {
         Operation::Binary(Binary::new(op, lhs, rhs))
     }
 
-    pub fn is_dummy_store(&self) -> bool {
+    pub(crate) fn is_dummy_store(&self) -> bool {
         match self {
             Operation::Store { index, value, .. } => {
                 *index == NodeId::dummy() && *value == NodeId::dummy()
@@ -1327,7 +1327,7 @@ impl Operation {
                 f(*func);
                 arguments.iter().copied().for_each(&mut f);
                 returned_values.iter().copied().for_each(&mut f);
-                predicate.map(|p| f(p));
+                predicate.map(&mut f);
             }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {

@@ -243,6 +243,7 @@ fn sig1(x: u32) -> u32 {
 
 
 fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32]) {  
+    unsafe_main(a,b,c, d, m);
     let e = matrix_mul_10(a,b);
     constrain e[6] == 1866842232;
     let f = matrix_mul_2(c,d);
@@ -280,4 +281,44 @@ fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32])
 
     let h6 = test6(m);
     constrain h6[0]== 523008072; //31.. 3800709683;
+}
+
+fn unsafe_main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32]) {  
+    let e = matrix_mul_10(a,b);
+    constrain e[6] == 1866842232;
+    let f = matrix_mul_2(c,d);
+    constrain f[3] == 2082554100;
+
+    let mut a = [1 as u32, 2, 3, 4];
+    a = test4(a);
+    constrain a[3] == 20;
+    a = test4(c);
+    constrain a[3] == c[1] * 10;
+
+    d[0] += c[0];
+    d[0] += c[1];
+    constrain d[0] == 2739986880;
+
+    let h = iterate1(1);
+    constrain h == 4;
+
+    let x = d;
+    array_noteq(x, [d[0], d[1], d[2], 0]);
+
+    let mut h5 = [d[0] as Field, d[1] as Field, d[2] as Field, d[3] as Field];
+    let t5 = test3(h5);
+    constrain t5[3] == 3;
+    h5 = test3(h5);
+    constrain h5[3] == 3;
+
+    test5();
+
+    let mut sha_hash = [
+        0x6a09e667 as u32, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    ];
+    sha_hash = iterate3(sha_hash);
+
+    let h6 = test6(m);
+    constrain h6[0]== 523008072;
 }

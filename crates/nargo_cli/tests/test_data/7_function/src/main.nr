@@ -24,6 +24,23 @@ fn test1(mut a: Field) {
     constrain a == 4;
 }
 
+unconstrained fn unsafe_test2(z: Field, t: u32 ) -> Field{ 
+    let a = z + t as Field;
+    constrain a == 64;
+    let e = unsafe_pow(z, t as Field);
+    e
+}
+
+unconstrained fn unsafe_pow(base: Field, exponent: Field) -> Field{
+    let mut r = 1 as Field;
+    let b: [u1; 32] = exponent.to_le_bits(32 as u32);
+     for i in 1..33 {
+        r = r*r;
+        r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;
+    }
+    r
+}
+
 fn test2(z: Field, t: u32 ) { 
     let a = z + t as Field;
     constrain a == 64;
@@ -31,10 +48,10 @@ fn test2(z: Field, t: u32 ) {
     constrain e == 714924299;
 }
 
-fn pow(base: Field, exponent: Field) -> Field {
+fn pow(base: Field, exponent: Field) -> Field{
     let mut r = 1 as Field;
-    let b = exponent.to_le_bits(32 as u32);
-    for i in 1..33 {
+    let b: [u1; 32] = exponent.to_le_bits(32 as u32);
+     for i in 1..33 {
         r = r*r;
         r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;
     }
@@ -77,7 +94,8 @@ fn test_multiple4(s: my_struct) {
 }
 
 fn test_multiple5(a: (u32, u32)) {
-    constrain a.0 == a.1+2;
+   constrain a.0 == a.1+2;
+
 }
 
 
@@ -94,7 +112,66 @@ fn foo(a: [Field]) -> [Field] {
 fn bar() -> [Field] {
     foo([0])
 }
-fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {  
+
+
+unconstrained fn getBalance() -> Field{
+    5
+}
+
+unconstrained fn transfer(amount: Field) -> Field {
+    let balance = getBalance();
+    let newBalance = balance + amount;
+    newBalance
+}
+
+unconstrained fn unsafe_main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) -> Field{
+    let mut ss: my_struct = my_struct { b: x, a: x+2, };
+    test_multiple4(ss);
+     test_multiple5((ss.a,ss.b));
+    let my = my2 {
+        aa: ss,
+        bb: ss,
+    };
+   ss.a = 61;
+   test_multiple6(my, ss, (my,ss));
+
+
+     let my_block = { 
+        let mut ab = f2(a);
+        ab = ab + a;
+        (x,ab)
+    };
+    constrain my_block.1 == 4;
+
+    test0(a);
+    test1(a);
+    let res = unsafe_test2(x as Field, y);
+    constrain res == 714924299;
+
+    constrain bar()[0] == 0;
+
+    let mut b = [0 as u8, 5 as u8, 2 as u8];
+    let c = test3(b);
+    constrain b == c;
+    b[0] = 1 as u8;
+    let cc = test3(b);
+    constrain c != cc;
+    let e = test_multiple(x, y);
+    constrain e.1 == e.0 + 54 as u32;
+    let d = test_multiple2();
+    constrain d.b == d.a + 2 as u32;
+    test_multiple3(y, y);
+
+    //Regression test for issue #628:
+    let result = first(arr_to_field(arr1), arr_to_field(arr2));
+    constrain result[0] == arr1[0] as Field;
+
+    res
+}
+
+fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {   
+    constrain unsafe_main(x,y,a,arr1,arr2) == 714924299;
+
     let mut ss: my_struct = my_struct { b: x, a: x+2, };
     test_multiple4(ss);
     test_multiple5((ss.a,ss.b));

@@ -344,8 +344,8 @@ fn inline_in_block(
                         let name = format!("ret_line{i}");
                         let typ = ctx.object_type(*ret);
                         let var = if let ObjectType::ArrayPointer(a) = typ {
-                        let array = &ctx.mem[a];
-                        let (var, b) =
+                            let array = &ctx.mem[a];
+                            let (var, b) =
                                 ctx.new_array(&name, array.element_type, array.len, None);
                             stack_frame.array_map.insert(a, b);
                             var
