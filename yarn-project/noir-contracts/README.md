@@ -8,7 +8,7 @@
   ```
 - Install the noir branch needed for A3 backend (`joss/ssa-2-brillig-plus-hacks` at the moment)
   ```
-  noirup --branch arv/call_stack_item_oracle
+  noirup --branch joss/ssa-2-brillig-plus-hacks
   ```
 - Move to the circuit you want to build
   ```
