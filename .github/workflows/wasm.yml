@@ -15,17 +15,15 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v20
         with:
-          toolchain: 1.66.0
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install wasm-pack
-        run: cargo install wasm-pack
-
-      - name: Build wasm crate
+      - name: Build wasm crate with Nix
         working-directory: ./crates/wasm
-        run: ./build-wasm
+        run: nix-build wasm.nix
 
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
