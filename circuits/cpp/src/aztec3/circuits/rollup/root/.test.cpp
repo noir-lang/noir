@@ -130,8 +130,11 @@ class root_rollup_tests : public ::testing::Test {
         // uint8_t const* proof_data;
         // size_t proof_data_size;
         uint8_t const* public_inputs_buf;
+        size_t public_inputs_size;
         // info("simulating circuit via cbind");
-        size_t public_inputs_size = root_rollup__sim(root_rollup_inputs_vec.data(), &public_inputs_buf);
+        uint8_t* circuit_failure_ptr =
+            root_rollup__sim(root_rollup_inputs_vec.data(), &public_inputs_size, &public_inputs_buf);
+        ASSERT_TRUE(circuit_failure_ptr == nullptr);
         // info("Proof size: ", proof_data_size);
         // info("PublicInputs size: ", public_inputs_size);
 

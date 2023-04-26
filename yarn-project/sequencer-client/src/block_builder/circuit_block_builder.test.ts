@@ -238,6 +238,8 @@ describe('sequencer/circuit_block_builder', () => {
           ...(await Promise.all(times(deployCount, makeContractDeployProcessedTx))),
           ...(await Promise.all(times(totalCount - deployCount, makeEmptyProcessedTx))),
         ];
+        // for each kernel tx, set its constants' private_historic_tree_roots to empty merkle trees (rather than 0)
+        await Promise.all(txs.map(setTxHistoricTreeRoots));
 
         const [l2Block] = await builder.buildL2Block(blockNumber, txs);
         expect(l2Block.number).toEqual(blockNumber);
@@ -280,7 +282,6 @@ describe('sequencer/circuit_block_builder', () => {
       updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
       updateVals[1] = 10246291467305176436335175657884940686778521321101740385288169037814567547848n;
 
-      await builder.updateRootTrees();
       await builderDb.appendLeaves(
         MerkleTreeId.NULLIFIER_TREE,
         updateVals.map(v => toBufferBE(v, 32)),
@@ -295,10 +296,12 @@ describe('sequencer/circuit_block_builder', () => {
         17490072961923661940560522096125238013953043065748521735636170028491723851741n,
       );
       const txs = [tx, await makeEmptyProcessedTx(), await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
+      // for each kernel tx, set its constants' private_historic_tree_roots to empty merkle trees (rather than 0)
+      await Promise.all(txs.map(setTxHistoricTreeRoots));
 
       const [l2Block] = await builder.buildL2Block(blockNumber, txs);
       expect(l2Block.number).toEqual(blockNumber);
-    });
+    }, 10000);
   });
 });
 

@@ -43,6 +43,14 @@ class DummyComposer {
         memcpy(raw_failure_buf, (void*)circuit_failure_vec.data(), circuit_failure_vec.size());
         return raw_failure_buf;
     }
+
+    void log_failures_if_any(std::string from_method_name)
+    {
+        if (failed()) {
+            info(from_method_name, ": composer.failed() = ", failed());
+            info(from_method_name, ": composer.get_first_failure() = ", get_first_failure());
+        }
+    }
 };
 
 } // namespace aztec3::utils
