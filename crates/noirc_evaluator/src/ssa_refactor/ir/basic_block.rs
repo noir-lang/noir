@@ -35,7 +35,46 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    pub(super) fn new(parameters: Vec<ValueId>) -> Self {
+    pub(crate) fn new(parameters: Vec<ValueId>) -> Self {
         Self { parameters, instructions: Vec::new(), is_sealed: false, terminator: None }
+    }
+
+    pub(crate) fn parameters(&self) -> &[ValueId] {
+        &self.parameters
+    }
+
+    pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
+        self.parameters.push(parameter);
+    }
+
+    /// Insert an instruction at the end of this block
+    pub(crate) fn insert_instruction(&mut self, instruction: InstructionId) {
+        self.instructions.push(instruction);
+    }
+
+    pub(crate) fn instructions(&self) -> &[InstructionId] {
+        &self.instructions
+    }
+
+    pub(crate) fn set_terminator(&mut self, terminator: TerminatorInstruction) {
+        self.terminator = Some(terminator);
+    }
+
+    pub(crate) fn terminator(&self) -> Option<&TerminatorInstruction> {
+        self.terminator.as_ref()
+    }
+
+    /// Iterate over all the successors of the currently block, as determined by
+    /// the blocks jumped to in the terminator instruction. If there is no terminator
+    /// instruction yet, this will iterate 0 times.
+    pub(crate) fn successors(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
+        match &self.terminator {
+            Some(TerminatorInstruction::Jmp { destination, .. }) => vec![*destination].into_iter(),
+            Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
+                vec![*then_destination, *else_destination].into_iter()
+            }
+            Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
+            None => vec![].into_iter(),
+        }
     }
 }

@@ -1,6 +1,6 @@
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
 
-use super::{instruction::InstructionId, map::Id, types::Type};
+use super::{constant::NumericConstantId, instruction::InstructionId, map::Id, types::Type};
 
 pub(crate) type ValueId = Id<Value>;
 
@@ -24,4 +24,17 @@ pub(crate) enum Value {
     ///
     /// position -- the index of this Value in the block parameters list
     Param { block: BasicBlockId, position: usize, typ: Type },
+
+    /// This Value originates from a numeric constant
+    NumericConstant { constant: NumericConstantId, typ: Type },
+}
+
+impl Value {
+    pub(crate) fn get_type(&self) -> Type {
+        match self {
+            Value::Instruction { typ, .. } => *typ,
+            Value::Param { typ, .. } => *typ,
+            Value::NumericConstant { typ, .. } => *typ,
+        }
+    }
 }
