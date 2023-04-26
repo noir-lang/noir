@@ -234,8 +234,17 @@ impl DataFlowGraph {
     /// Returns the field element represented by this value if it is a numeric constant.
     /// Returns None if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
+        self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
+    }
+
+    /// Returns the field element and type represented by this value if it is a numeric constant.
+    /// Returns None if the given value is not a numeric constant.
+    pub(crate) fn get_numeric_constant_with_type(
+        &self,
+        value: Id<Value>,
+    ) -> Option<(FieldElement, Type)> {
         match self.values[value] {
-            Value::NumericConstant { constant, .. } => Some(self[constant].value()),
+            Value::NumericConstant { constant, typ } => Some((self[constant].value(), typ)),
             _ => None,
         }
     }
