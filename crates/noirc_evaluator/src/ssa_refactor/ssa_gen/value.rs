@@ -67,12 +67,12 @@ impl<T> Tree<T> {
     }
 
     pub(super) fn map_mut(&mut self, mut f: impl FnMut(&T) -> Tree<T>) {
-        self.map_mut_helper(&mut f)
+        self.map_mut_helper(&mut f);
     }
 
     fn map_mut_helper(&mut self, f: &mut impl FnMut(&T) -> Tree<T>) {
         match self {
-            Tree::Branch(trees) => trees.into_iter().for_each(|tree| tree.map_mut_helper(f)),
+            Tree::Branch(trees) => trees.iter_mut().for_each(|tree| tree.map_mut_helper(f)),
             Tree::Leaf(value) => *self = f(value),
         }
     }

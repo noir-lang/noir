@@ -11,25 +11,21 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::{
-    ir::{instruction::BinaryOp, types::Type, value::ValueId},
-    ssa_builder::SharedBuilderContext,
-};
+use super::ir::{function::FunctionId, instruction::BinaryOp, types::Type, value::ValueId};
 
 pub(crate) fn generate_ssa(program: Program) {
     let context = SharedContext::new(program);
-    let builder_context = SharedBuilderContext::default();
 
     let main = context.program.main();
-    let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, &context, &builder_context);
+    let main_id = Program::main_id();
+    let main_name = main.name.clone();
 
+    let mut function_context = FunctionContext::new(main_id, main_name, &main.parameters, &context);
     function_context.codegen_expression(&main.body);
 
-    while let Some((src_function_id, _new_id)) = context.pop_next_function_in_queue() {
+    while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        // TODO: Need to ensure/assert the new function's id == new_id
-        function_context.new_function(function.name.clone(), &function.parameters);
+        function_context.new_function(dest_id, function.name.clone(), &function.parameters);
         function_context.codegen_expression(&function.body);
     }
 }
@@ -69,7 +65,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id).map(|value| value.eval(self).into()),
-            ast::Definition::Function(_) => todo!(),
+            ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Builtin(_) => todo!(),
             ast::Definition::LowLevel(_) => todo!(),
         }
@@ -165,10 +161,10 @@ impl<'a> FunctionContext<'a> {
         let base_index = self.builder.insert_binary(base_offset, BinaryOp::Mul, type_size);
 
         let mut field_index = 0u128;
-        self.map_type(element_type, |ctx, typ| {
-            let offset = ctx.make_offset(base_index, field_index);
+        Self::map_type(element_type, |typ| {
+            let offset = self.make_offset(base_index, field_index);
             field_index += 1;
-            ctx.builder.insert_load(array, offset, typ).into()
+            self.builder.insert_load(array, offset, typ).into()
         })
     }
 
@@ -229,8 +225,8 @@ impl<'a> FunctionContext<'a> {
 
             // Create block arguments for the end block as needed to branch to
             // with our then and else value.
-            result = self.map_type(&if_expr.typ, |ctx, typ| {
-                ctx.builder.add_block_parameter(end_block, typ).into()
+            result = Self::map_type(&if_expr.typ, |typ| {
+                self.builder.add_block_parameter(end_block, typ).into()
             });
 
             let else_values = else_value.into_value_list(self);
@@ -259,8 +255,26 @@ impl<'a> FunctionContext<'a> {
         Self::get_field(tuple, field_index)
     }
 
-    fn codegen_call(&mut self, _call: &ast::Call) -> Values {
-        todo!()
+    fn codegen_function(&mut self, function: &Expression) -> FunctionId {
+        use crate::ssa_refactor::ssa_gen::value::Value;
+        match self.codegen_expression(function) {
+            Tree::Leaf(Value::Function(id)) => id,
+            other => {
+                panic!("codegen_function: expected function value, found {other:?}")
+            }
+        }
+    }
+
+    fn codegen_call(&mut self, call: &ast::Call) -> Values {
+        let function = self.codegen_function(&call.func);
+
+        let arguments = call
+            .arguments
+            .iter()
+            .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
+            .collect();
+
+        self.insert_call(function, arguments, &call.return_type)
     }
 
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Values {
@@ -297,11 +311,11 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             ast::LValue::Ident(ident) => self.codegen_ident(ident),
             ast::LValue::Index { array, index, element_type, location: _ } => {
-                let array = self.codegen_lvalue(&array).into_leaf().eval(self);
-                self.codegen_array_index(array, &index, element_type)
+                let array = self.codegen_lvalue(array).into_leaf().eval(self);
+                self.codegen_array_index(array, index, element_type)
             }
             ast::LValue::MemberAccess { object, field_index } => {
-                let object = self.codegen_lvalue(&object);
+                let object = self.codegen_lvalue(object);
                 Self::get_field(object, *field_index)
             }
         }

@@ -115,13 +115,14 @@ impl ControlFlowGraph {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa_refactor::ir::{instruction::TerminatorInstruction, types::Type};
+    use crate::ssa_refactor::ir::{instruction::TerminatorInstruction, map::Id, types::Type};
 
     use super::{super::function::Function, ControlFlowGraph};
 
     #[test]
     fn empty() {
-        let mut func = Function::new("func".into());
+        let func_id = Id::test_new(0);
+        let mut func = Function::new("func".into(), func_id);
         let block_id = func.entry_block();
         func.dfg[block_id].set_terminator(TerminatorInstruction::Return { return_values: vec![] });
 
@@ -139,7 +140,8 @@ mod tests {
         // block2():
         //     return ()
         // }
-        let mut func = Function::new("func".into());
+        let func_id = Id::test_new(0);
+        let mut func = Function::new("func".into(), func_id);
         let block0_id = func.entry_block();
         let cond = func.dfg.add_block_parameter(block0_id, Type::unsigned(1));
         let block1_id = func.dfg.make_block();
