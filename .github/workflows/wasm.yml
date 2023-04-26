@@ -40,7 +40,6 @@ jobs:
           jq '.dependencies.noir_wasm = "file:./noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
-      # Could probably be switched to just run test.yml on noir-wasm-testing?
       - name: Run build.sh in noir-wasm-testing
         working-directory: ./noir-wasm-testing
         run: |
