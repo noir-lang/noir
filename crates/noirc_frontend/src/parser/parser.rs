@@ -447,7 +447,8 @@ fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Assert).labelled("statement"), parenthesized(expr_parser))
+    ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
+        .labelled("statement")
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
