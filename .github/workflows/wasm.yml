@@ -42,8 +42,18 @@ jobs:
           jq '.dependencies.noir_wasm = "file:./noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
-      - name: Install dependencies and run tests
+      - name: Install dependencies
+        working-directory: ./noir-wasm-testing
+        run: yarn install
+
+      - name: Log package information
         working-directory: ./noir-wasm-testing
         run: |
-          yarn install
-          yarn test
+          echo "Directory contents:"
+          ls -la
+          echo "package.json contents:"
+          cat package.json
+
+      - name: Run tests
+        working-directory: ./noir-wasm-testing
+        run: yarn test
