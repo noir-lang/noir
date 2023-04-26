@@ -2,7 +2,7 @@
 title: Architecture
 ---
 
-import Disclaimer from './common/_disclaimer.mdx';
+import Disclaimer from '../common/_disclaimer.mdx';
 
 <Disclaimer/>
 
