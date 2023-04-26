@@ -164,6 +164,11 @@ impl<'a> FunctionContext<'a> {
         }
         address
     }
+
+    pub(super) fn define(&mut self, id: LocalId, value: Values) {
+        let existing = self.definitions.insert(id, value);
+        assert!(existing.is_none(), "Variable {id:?} was defined twice in ssa-gen pass");
+    }
 }
 
 /// True if the given operator cannot be encoded directly and needs

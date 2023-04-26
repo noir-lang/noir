@@ -1238,46 +1238,46 @@ mod test {
         );
     }
 
-      #[test]
-      fn parse_assert() {
-          parse_with(assertion(expression()), "assert(x == y)").unwrap();
-  
-          // Currently we disallow constrain statements where the outer infix operator
-          // produces a value. This would require an implicit `==` which
-          // may not be intuitive to the user.
-          //
-          // If this is deemed useful, one would either apply a transformation
-          // or interpret it with an `==` in the evaluator
-          let disallowed_operators = vec![
-              BinaryOpKind::And,
-              BinaryOpKind::Subtract,
-              BinaryOpKind::Divide,
-              BinaryOpKind::Multiply,
-              BinaryOpKind::Or,
-          ];
-  
-          for operator in disallowed_operators {
-              let src = format!("assert(x {} y);", operator.as_string());
-              parse_with(assertion(expression()), &src).unwrap_err();
-          }
-  
-          // These are general cases which should always work.
-          //
-          // The first case is the most noteworthy. It contains two `==`
-          // The first (inner) `==` is a predicate which returns 0/1
-          // The outer layer is an infix `==` which is
-          // associated with the Constrain statement
-          parse_all(
-              assertion(expression()),
-              vec![
-                  "assert(((x + y) == k) + z == y)",
-                  "assert((x + !y) == y)",
-                  "assert((x ^ y) == y)",
-                  "assert((x ^ y) == (y + m))",
-                  "assert(x + x ^ x == y | m)",
-              ],
-          );
-      }
+    #[test]
+    fn parse_assert() {
+        parse_with(assertion(expression()), "assert(x == y)").unwrap();
+
+        // Currently we disallow constrain statements where the outer infix operator
+        // produces a value. This would require an implicit `==` which
+        // may not be intuitive to the user.
+        //
+        // If this is deemed useful, one would either apply a transformation
+        // or interpret it with an `==` in the evaluator
+        let disallowed_operators = vec![
+            BinaryOpKind::And,
+            BinaryOpKind::Subtract,
+            BinaryOpKind::Divide,
+            BinaryOpKind::Multiply,
+            BinaryOpKind::Or,
+        ];
+
+        for operator in disallowed_operators {
+            let src = format!("assert(x {} y);", operator.as_string());
+            parse_with(assertion(expression()), &src).unwrap_err();
+        }
+
+        // These are general cases which should always work.
+        //
+        // The first case is the most noteworthy. It contains two `==`
+        // The first (inner) `==` is a predicate which returns 0/1
+        // The outer layer is an infix `==` which is
+        // associated with the Constrain statement
+        parse_all(
+            assertion(expression()),
+            vec![
+                "assert(((x + y) == k) + z == y)",
+                "assert((x + !y) == y)",
+                "assert((x ^ y) == y)",
+                "assert((x ^ y) == (y + m))",
+                "assert(x + x ^ x == y | m)",
+            ],
+        );
+    }
 
     #[test]
     fn parse_let() {
@@ -1322,7 +1322,7 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
-                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }"
+                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
             ],
         );
 
