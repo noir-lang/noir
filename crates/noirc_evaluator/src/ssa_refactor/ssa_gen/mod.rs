@@ -166,8 +166,34 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_cast(lhs, typ).into()
     }
 
-    fn codegen_for(&mut self, _for_expr: &ast::For) -> Values {
-        todo!()
+    fn codegen_for(&mut self, for_expr: &ast::For) -> Values {
+        let loop_entry = self.builder.insert_block();
+        let loop_body = self.builder.insert_block();
+        let loop_end = self.builder.insert_block();
+
+        // this is the 'i' in `for i in start .. end { block }`
+        let loop_index = self.builder.add_block_parameter(loop_entry, Type::field());
+
+        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range);
+        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range);
+
+        self.builder.terminate_with_jmp(loop_entry, vec![start_index]);
+
+        // Compile the loop entry block
+        self.builder.switch_to_block(loop_entry);
+        let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
+        self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
+
+        // Compile the loop body
+        self.builder.switch_to_block(loop_body);
+        self.define(for_expr.index_variable, loop_index.into());
+        self.codegen_expression(&for_expr.block);
+        let new_loop_index = self.make_offset(loop_index, 1);
+        self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+
+        // Finish by switching back to the end of the loop
+        self.builder.switch_to_block(loop_end);
+        self.unit_value()
     }
 
     fn codegen_if(&mut self, if_expr: &ast::If) -> Values {
