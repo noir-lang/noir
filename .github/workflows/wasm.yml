@@ -42,9 +42,16 @@ jobs:
           jq '.dependencies.noir_wasm = "file:./noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
+      # Could probably be switched to just run update.yml on noir-wasm-testing?
+      - name: Run build.sh in noir-wasm-testing
+        working-directory: ./noir-wasm-testing
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
       - name: Install dependencies
         working-directory: ./noir-wasm-testing
-        run: yarn install
+        run: npm install
 
       - name: Log package information
         working-directory: ./noir-wasm-testing
@@ -53,7 +60,13 @@ jobs:
           ls -la
           echo "package.json contents:"
           cat package.json
+          echo "Checking if noir-script.json exists:"
+          if [ -f "./src/noir-script/target/noir-script.json" ]; then
+            echo "File exists."
+          else
+            echo "File does not exist."
+          fi
 
       - name: Run tests
         working-directory: ./noir-wasm-testing
-        run: yarn test
+        run: npm test
