@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    basic_block_visitors,
+    basic_block_views,
     function::Function,
 };
 
@@ -40,9 +40,9 @@ impl ControlFlowGraph {
     }
 
     fn compute_block(&mut self, basic_block_id: BasicBlockId, basic_block: &BasicBlock) {
-        basic_block_visitors::visit_block_succs(basic_block, |dest| {
+        for dest in basic_block_views::successors_iter(basic_block) {
             self.add_edge(basic_block_id, dest);
-        });
+        }
     }
 
     fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {

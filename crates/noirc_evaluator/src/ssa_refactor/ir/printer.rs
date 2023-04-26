@@ -5,6 +5,7 @@ use iter_extended::vecmap;
 
 use super::{
     basic_block::BasicBlockId,
+    basic_block_views,
     function::Function,
     instruction::{Instruction, InstructionId, TerminatorInstruction},
     value::ValueId,
@@ -23,7 +24,12 @@ pub(crate) fn display_block_with_successors(
 ) -> Result {
     display_block(function, block_id, f)?;
 
-    for successor in function.dfg[block_id].successors() {
+    let basic_block = &function.dfg[block_id];
+    if basic_block.maybe_terminator().is_none() {
+        // If the terminator isn't yet assigned it is not safe to attempt to view its successors.
+        return Ok(());
+    }
+    for successor in basic_block_views::successors_iter(basic_block) {
         display_block(function, successor, f)?;
     }
     Ok(())
@@ -42,7 +48,7 @@ pub(crate) fn display_block(
         display_instruction(function, *instruction, f)?;
     }
 
-    display_terminator(block.terminator(), f)
+    display_terminator(block.maybe_terminator(), f)
 }
 
 fn value_list(values: &[ValueId]) -> String {

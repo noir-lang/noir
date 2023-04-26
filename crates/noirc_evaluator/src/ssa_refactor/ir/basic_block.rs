@@ -60,21 +60,18 @@ impl BasicBlock {
         self.terminator = Some(terminator);
     }
 
-    pub(crate) fn terminator(&self) -> Option<&TerminatorInstruction> {
+    /// Safely get a reference to the block's terminator instruction
+    ///
+    /// This accessor exists for cases where it is necessary to get the terminator instruction
+    /// regardless of whether we know that the block's construction has completed.
+    pub(crate) fn maybe_terminator(&self) -> Option<&TerminatorInstruction> {
         self.terminator.as_ref()
     }
 
-    /// Iterate over all the successors of the currently block, as determined by
-    /// the blocks jumped to in the terminator instruction. If there is no terminator
-    /// instruction yet, this will iterate 0 times.
-    pub(crate) fn successors(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
-        match &self.terminator {
-            Some(TerminatorInstruction::Jmp { destination, .. }) => vec![*destination].into_iter(),
-            Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
-                vec![*then_destination, *else_destination].into_iter()
-            }
-            Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
-            None => vec![].into_iter(),
-        }
+    /// Get a reference to the terminator instruction.
+    ///
+    /// Note: it is only valid to use this accessor after a block's construction has been completed.
+    pub(crate) fn terminator(&self) -> &TerminatorInstruction {
+        self.maybe_terminator().expect("ICE: terminator expression was accessed before being assigned, indicating the basic is still under construction")
     }
 }
