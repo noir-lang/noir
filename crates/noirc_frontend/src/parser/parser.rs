@@ -428,6 +428,7 @@ where
 {
     choice((
         constrain(expr_parser.clone()),
+        assertion(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
@@ -438,7 +439,15 @@ fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(choice((keyword(Keyword::Assert), keyword(Keyword::Constrain))).labelled("statement"), expr_parser)
+    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
+        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+}
+
+fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    ignore_then_commit(keyword(Keyword::Assert).labelled("statement"), parenthesized(expr_parser))
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
@@ -1176,8 +1185,6 @@ mod test {
     #[test]
     fn parse_constrain() {
         parse_with(constrain(expression()), "constrain x == y").unwrap();
-        // Assert is syntax sugar for constrain
-        parse_with(constrain(expression()), "assert x == y").unwrap();
 
         // Currently we disallow constrain statements where the outer infix operator
         // produces a value. This would require an implicit `==` which
@@ -1215,6 +1222,47 @@ mod test {
             ],
         );
     }
+
+      #[test]
+      fn parse_assert() {
+          parse_with(assertion(expression()), "assert(x == y)").unwrap();
+  
+          // Currently we disallow constrain statements where the outer infix operator
+          // produces a value. This would require an implicit `==` which
+          // may not be intuitive to the user.
+          //
+          // If this is deemed useful, one would either apply a transformation
+          // or interpret it with an `==` in the evaluator
+          let disallowed_operators = vec![
+              BinaryOpKind::And,
+              BinaryOpKind::Subtract,
+              BinaryOpKind::Divide,
+              BinaryOpKind::Multiply,
+              BinaryOpKind::Or,
+          ];
+  
+          for operator in disallowed_operators {
+              let src = format!("assert(x {} y);", operator.as_string());
+              parse_with(assertion(expression()), &src).unwrap_err();
+          }
+  
+          // These are general cases which should always work.
+          //
+          // The first case is the most noteworthy. It contains two `==`
+          // The first (inner) `==` is a predicate which returns 0/1
+          // The outer layer is an infix `==` which is
+          // associated with the Constrain statement
+          parse_all(
+              assertion(expression()),
+              vec![
+                  "assert(((x + y) == k) + z == y)",
+                  "assert((x + !y) == y)",
+                  "assert((x ^ y) == y)",
+                  "assert((x ^ y) == (y + m))",
+                  "assert(x + x ^ x == y | m)",
+              ],
+          );
+      }
 
     #[test]
     fn parse_let() {
@@ -1472,7 +1520,7 @@ mod test {
             ("constrain", 1, "constrain Error"),
             ("assert", 1, "constrain Error"),
             ("constrain x ==", 1, "constrain (plain::x == Error)"),
-            ("assert x ==", 1, "constrain (plain::x == Error)"),
+            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
