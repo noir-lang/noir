@@ -1182,11 +1182,10 @@ mod test {
         );
     }
 
-    /// This is the standard way to declare a assert/constrain statement
+    /// This is the standard way to declare a constrain statement
     #[test]
-    fn parse_assert_constrain() {
+    fn parse_constrain() {
         parse_with(constrain(expression()), "constrain x == y").unwrap();
-        parse_with(constrain(expression()), "assert x == y").unwrap();
 
         // Currently we disallow constrain statements where the outer infix operator
         // produces a value. This would require an implicit `==` which
@@ -1221,6 +1220,43 @@ mod test {
                 "constrain (x ^ y) == y",
                 "constrain (x ^ y) == (y + m)",
                 "constrain x + x ^ x == y | m",
+            ],
+        );
+    }
+
+    /// The assert statement is syntax sugar for constrain
+    #[test]
+    fn parse_assert() {
+        parse_with(assertion(expression()), "assert x == y").unwrap();
+
+        // Currently we disallow assert statements where the outer infix operator
+        // produces a value. This would require an implicit `==` which
+        // may not be intuitive to the user.
+        //
+        // If this is deemed useful, one would either apply a transformation
+        // or interpret it with an `==` in the evaluator
+        let disallowed_operators = vec![
+            BinaryOpKind::And,
+            BinaryOpKind::Subtract,
+            BinaryOpKind::Divide,
+            BinaryOpKind::Multiply,
+            BinaryOpKind::Or,
+        ];
+
+        for operator in disallowed_operators {
+            let src = format!("assert x {} y;", operator.as_string());
+            parse_with(assertion(expression()), &src).unwrap_err();
+        }
+
+        // These are general cases which should always work.
+        //
+        // The first case is the most noteworthy. It contains two `==`
+        // The first (inner) `==` is a predicate which returns 0/1
+        // The outer layer is an infix `==` which is
+        // associated with the Constrain statement
+        parse_all(
+            assertion(expression()),
+            vec![
                 "assert ((x + y) == k) + z == y",
                 "assert (x + !y) == y",
                 "assert (x ^ y) == y",
@@ -1484,9 +1520,9 @@ mod test {
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
-            ("assert", 1, "assert Error"),
+            ("assert", 1, "constrain Error"),
             ("constrain x ==", 1, "constrain (plain::x == Error)"),
-            ("assert x ==", 1, "assert (plain::x == Error)"),
+            ("assert x ==", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
