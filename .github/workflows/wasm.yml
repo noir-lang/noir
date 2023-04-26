@@ -45,5 +45,5 @@ jobs:
       - name: Install dependencies and run tests
         working-directory: ./noir-wasm-testing
         run: |
-          yarn install --frozen-lockfile
+          yarn install
           yarn test
