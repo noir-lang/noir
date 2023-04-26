@@ -36,7 +36,7 @@ jobs:
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
-          cp -r ./crates/wasm/result/pkg ./noir-wasm-testing/noir_wasm
+          cp -r ./crates/wasm/result ./noir-wasm-testing/noir_wasm
           jq '.dependencies.noir_wasm = "file:./noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
