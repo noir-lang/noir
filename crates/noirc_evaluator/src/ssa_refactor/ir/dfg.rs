@@ -126,6 +126,17 @@ impl DataFlowGraph {
         id
     }
 
+    /// Replace an instruction id with another.
+    ///
+    /// This function should generally be avoided if possible in favor of inserting new
+    /// instructions since it does not check whether the instruction results of the removed
+    /// instruction are still in use. Users of this function thus need to ensure the old
+    /// instruction's results are no longer in use or are otherwise compatible with the
+    /// new instruction's result count and types.
+    pub(crate) fn replace_instruction(&mut self, id: Id<Instruction>, instruction: Instruction) {
+        self.instructions[id] = instruction;
+    }
+
     /// Insert a value into the dfg's storage and return an id to reference it.
     /// Until the value is used in an instruction it is unreachable.
     pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
@@ -141,8 +152,11 @@ impl DataFlowGraph {
 
     /// Attaches results to the instruction, clearing any previous results.
     ///
+    /// This does not normally need to be called manually as it is called within
+    /// make_instruction automatically.
+    ///
     /// Returns the results of the instruction
-    fn make_instruction_results(
+    pub(crate) fn make_instruction_results(
         &mut self,
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,

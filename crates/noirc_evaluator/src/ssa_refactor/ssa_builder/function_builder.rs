@@ -5,7 +5,7 @@ use crate::ssa_refactor::ir::{
     function::{Function, FunctionId},
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
-    value::ValueId,
+    value::{Value, ValueId},
 };
 
 use super::SharedBuilderContext;
@@ -203,5 +203,31 @@ impl<'ssa> FunctionBuilder<'ssa> {
     /// Terminate the current block with a return instruction
     pub(crate) fn terminate_with_return(&mut self, return_values: Vec<ValueId>) {
         self.terminate_block_with(TerminatorInstruction::Return { return_values });
+    }
+
+    /// Mutates a load instruction into a store instruction.
+    ///
+    /// This function is used while generating ssa-form for assignments currently.
+    /// To re-use most of the expression infrastructure, the lvalue of an assignment
+    /// is compiled as an expression and to assign to it we replace the final load
+    /// (which should always be present to load a mutable value) with a store of the
+    /// assigned value.
+    pub(crate) fn mutate_load_into_store(&mut self, load_result: ValueId, value_to_store: ValueId) {
+        let (instruction, address) = match &self.current_function.dfg[load_result] {
+            Value::Instruction { instruction, .. } => {
+                match &self.current_function.dfg[*instruction] {
+                    Instruction::Load { address } => (*instruction, *address),
+                    other => {
+                        panic!("mutate_load_into_store: Expected Load instruction, found {other:?}")
+                    }
+                }
+            }
+            other => panic!("mutate_load_into_store: Expected Load instruction, found {other:?}"),
+        };
+
+        let store = Instruction::Store { address, value: value_to_store };
+        self.current_function.dfg.replace_instruction(instruction, store);
+        // Clear the results of the previous load for safety
+        self.current_function.dfg.make_instruction_results(instruction, None);
     }
 }
