@@ -16,48 +16,48 @@ const sidebars = {
   docsSidebar: [
     "intro", // Mike to review
     {
-      type: 'category',
-      label: 'Aztec 3',
+      type: "category",
+      label: "Aztec's zkRollup",
       items: [
-        'aztec3/overview', // Mike to review
-        'aztec3/history',
+        "aztec/overview", // Mike to review
+        "aztec/history",
         {
-          type: 'category',
-          label: 'Milestones',
+          type: "category",
+          label: "Milestones",
           items: [
-            'aztec3/milestones/features-initial-ldt',
-            'aztec3/milestones/milestones',
-            'aztec3/milestones/milestone1-1', // Consider removing in favour of 'components' (see below), which is an edited version of milestone1-1.
-          ]
+            "aztec/milestones/features-initial-ldt",
+            "aztec/milestones/milestones",
+            "aztec/milestones/milestone1-1", // Consider removing in favour of 'components' (see below), which is an edited version of milestone1-1.
+          ],
         },
         {
-          type: 'category',
-          label: 'Architecture',
+          type: "category",
+          label: "Architecture",
           items: [
-            `aztec3/architecture/architecture`, // Mike to review
-            // 'aztec3/architecture/components', // TODO
-          ]
+            `aztec/architecture/architecture`, // Mike to review
+            "aztec/architecture/components", // TODO
+          ],
         },
         {
-          type: 'category',
-          label: 'Protocol',
+          type: "category",
+          label: "Protocol",
           items: [
             {
-              type: 'category',
-              label: 'Trees',
+              type: "category",
+              label: "Trees",
               items: [
-                'aztec3/protocol/trees/trees',
-                'aztec3/protocol/trees/indexed-merkle-tree',
-              ]
+                "aztec/protocol/trees/trees",
+                "aztec/protocol/trees/indexed-merkle-tree",
+              ],
             },
-            'aztec3/protocol/contract-creation',
-            'aztec3/protocol/function-selectors', // Consider moving to discourse.
-            // 'aztec3/protocol/notes-and-nullifiers', // TODO
-            'aztec3/protocol/communication-abstractions',
-            'aztec3/protocol/public-functions-vm-architectures'
-          ]
-        }
-      ]
+            "aztec/protocol/contract-creation",
+            "aztec/protocol/function-selectors", // Consider moving to discourse.
+            "aztec/protocol/notes-and-nullifiers", // TODO
+            "aztec/protocol/communication-abstractions",
+            "aztec/protocol/public-functions-vm-architectures",
+          ],
+        },
+      ],
     },
     "noir",
     "aztec-connect-sunset",
