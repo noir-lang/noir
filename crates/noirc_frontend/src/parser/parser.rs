@@ -443,7 +443,6 @@ where
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
-
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
