@@ -131,6 +131,7 @@ pub struct Call {
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
+    pub element_type: Type,
     pub location: Location,
 }
 

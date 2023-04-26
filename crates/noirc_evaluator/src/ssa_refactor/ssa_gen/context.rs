@@ -129,7 +129,7 @@ impl<'a> FunctionContext<'a> {
     /// Insert a unit constant into the current function if not already
     /// present, and return its value
     pub(super) fn unit_value(&mut self) -> Values {
-        self.builder.numeric_constant(0u128.into(), Type::Unit).into()
+        self.builder.numeric_constant(0u128, Type::Unit).into()
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -154,6 +154,15 @@ impl<'a> FunctionContext<'a> {
             result = self.builder.insert_not(result);
         }
         result.into()
+    }
+
+    /// Create a const offset of an address for an array load or store
+    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
+        if offset != 0 {
+            let offset = self.builder.field_constant(offset);
+            address = self.builder.insert_binary(address, BinaryOp::Add, offset);
+        }
+        address
     }
 }
 
