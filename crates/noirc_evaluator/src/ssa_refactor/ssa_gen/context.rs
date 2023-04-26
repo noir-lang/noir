@@ -21,6 +21,7 @@ type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
 
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
+
     pub(super) builder: FunctionBuilder<'a>,
     shared_context: &'a SharedContext,
 }
@@ -165,9 +166,54 @@ impl<'a> FunctionContext<'a> {
         address
     }
 
+    /// Define a local variable to be some Values that can later be retrieved
+    /// by calling self.lookup(id)
     pub(super) fn define(&mut self, id: LocalId, value: Values) {
         let existing = self.definitions.insert(id, value);
         assert!(existing.is_none(), "Variable {id:?} was defined twice in ssa-gen pass");
+    }
+
+    /// Looks up the value of a given local variable. Expects the variable to have
+    /// been previously defined or panics otherwise.
+    pub(super) fn lookup(&self, id: LocalId) -> Values {
+        self.definitions.get(&id).expect("lookup: variable not defined").clone()
+    }
+
+    /// Extract the given field of the tuple. Panics if the given Values is not
+    /// a Tree::Branch or does not have enough fields.
+    pub(super) fn get_field(tuple: Values, field_index: usize) -> Values {
+        match tuple {
+            Tree::Branch(mut trees) => trees.remove(field_index),
+            Tree::Leaf(value) => {
+                unreachable!("Tried to extract tuple index {field_index} from non-tuple {value:?}")
+            }
+        }
+    }
+
+    /// Mutate lhs to equal rhs
+    pub(crate) fn assign(&mut self, lhs: Values, rhs: Values) {
+        match (lhs, rhs) {
+            (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
+                assert_eq!(lhs_branches.len(), rhs_branches.len());
+
+                for (lhs, rhs) in lhs_branches.into_iter().zip(rhs_branches) {
+                    self.assign(lhs, rhs);
+                }
+            }
+            (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
+                // Re-evaluating these should have no effect
+                let (lhs, rhs) = (lhs.eval(self), rhs.eval(self));
+
+                // Expect lhs to be previously evaluated. If it is a load we need to undo
+                // the load to get the address to store to.
+                self.builder.mutate_load_into_store(lhs, rhs);
+            }
+            (lhs, rhs) => {
+                unreachable!(
+                    "assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
+                )
+            }
+        }
     }
 }
 

@@ -63,16 +63,16 @@ impl<'a> FunctionContext<'a> {
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
     fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> ValueId {
-        match self.codegen_expression(expr) {
-            Tree::Branch(branches) => {
-                panic!("codegen_non_tuple_expression called on tuple {branches:?}")
-            }
-            Tree::Leaf(value) => value.eval(),
-        }
+        self.codegen_expression(expr).into_leaf().eval(self)
     }
 
-    fn codegen_ident(&mut self, _ident: &ast::Ident) -> Values {
-        todo!()
+    fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
+        match &ident.definition {
+            ast::Definition::Local(id) => self.lookup(*id).map(|value| value.eval(self).into()),
+            ast::Definition::Function(_) => todo!(),
+            ast::Definition::Builtin(_) => todo!(),
+            ast::Definition::LowLevel(_) => todo!(),
+        }
     }
 
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
@@ -107,9 +107,10 @@ impl<'a> FunctionContext<'a> {
         // Now we must manually store all the elements into the array
         let mut i = 0u128;
         for element in elements {
-            element.for_each(|value| {
+            element.for_each(|element| {
                 let address = self.make_offset(array, i);
-                self.builder.insert_store(address, value.eval());
+                let element = element.eval(self);
+                self.builder.insert_store(address, element);
                 i += 1;
             });
         }
@@ -145,15 +146,26 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array = self.codegen_non_tuple_expression(&index.collection);
-        let base_offset = self.codegen_non_tuple_expression(&index.index);
+        self.codegen_array_index(array, &index.index, &index.element_type)
+    }
+
+    /// This is broken off from codegen_index so that it can also be
+    /// used to codegen a LValue::Index
+    fn codegen_array_index(
+        &mut self,
+        array: super::ir::value::ValueId,
+        index: &ast::Expression,
+        element_type: &ast::Type,
+    ) -> Values {
+        let base_offset = self.codegen_non_tuple_expression(index);
 
         // base_index = base_offset * type_size
-        let type_size = Self::convert_type(&index.element_type).size_of_type();
+        let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
         let base_index = self.builder.insert_binary(base_offset, BinaryOp::Mul, type_size);
 
         let mut field_index = 0u128;
-        self.map_type(&index.element_type, |ctx, typ| {
+        self.map_type(element_type, |ctx, typ| {
             let offset = ctx.make_offset(base_index, field_index);
             field_index += 1;
             ctx.builder.insert_load(array, offset, typ).into()
@@ -221,11 +233,13 @@ impl<'a> FunctionContext<'a> {
                 ctx.builder.add_block_parameter(end_block, typ).into()
             });
 
-            self.builder.terminate_with_jmp(end_block, else_value.into_value_list());
+            let else_values = else_value.into_value_list(self);
+            self.builder.terminate_with_jmp(end_block, else_values);
 
             // Must also set the then block to jmp to the end now
             self.builder.switch_to_block(then_block);
-            self.builder.terminate_with_jmp(end_block, then_value.into_value_list());
+            let then_values = then_value.into_value_list(self);
+            self.builder.terminate_with_jmp(end_block, then_values);
             self.builder.switch_to_block(end_block);
         } else {
             // In the case we have no 'else', the 'else' block is actually the end block.
@@ -240,21 +254,30 @@ impl<'a> FunctionContext<'a> {
         Tree::Branch(vecmap(tuple, |expr| self.codegen_expression(expr)))
     }
 
-    fn codegen_extract_tuple_field(&mut self, tuple: &Expression, index: usize) -> Values {
-        match self.codegen_expression(tuple) {
-            Tree::Branch(mut trees) => trees.remove(index),
-            Tree::Leaf(value) => {
-                unreachable!("Tried to extract tuple index {index} from non-tuple {value:?}")
-            }
-        }
+    fn codegen_extract_tuple_field(&mut self, tuple: &Expression, field_index: usize) -> Values {
+        let tuple = self.codegen_expression(tuple);
+        Self::get_field(tuple, field_index)
     }
 
     fn codegen_call(&mut self, _call: &ast::Call) -> Values {
         todo!()
     }
 
-    fn codegen_let(&mut self, _let_expr: &ast::Let) -> Values {
-        todo!()
+    fn codegen_let(&mut self, let_expr: &ast::Let) -> Values {
+        let mut values = self.codegen_expression(&let_expr.expression);
+
+        if let_expr.mutable {
+            values.map_mut(|value| {
+                let value = value.eval(self);
+                // Size is always 1 here since we're recursively unpacking tuples
+                let alloc = self.builder.insert_allocate(1);
+                self.builder.insert_store(alloc, value);
+                alloc.into()
+            });
+        }
+
+        self.define(let_expr.id, values);
+        self.unit_value()
     }
 
     fn codegen_constrain(&mut self, expr: &Expression, _location: Location) -> Values {
@@ -263,8 +286,25 @@ impl<'a> FunctionContext<'a> {
         self.unit_value()
     }
 
-    fn codegen_assign(&mut self, _assign: &ast::Assign) -> Values {
-        todo!()
+    fn codegen_assign(&mut self, assign: &ast::Assign) -> Values {
+        let lhs = self.codegen_lvalue(&assign.lvalue);
+        let rhs = self.codegen_expression(&assign.expression);
+        self.assign(lhs, rhs);
+        self.unit_value()
+    }
+
+    fn codegen_lvalue(&mut self, lvalue: &ast::LValue) -> Values {
+        match lvalue {
+            ast::LValue::Ident(ident) => self.codegen_ident(ident),
+            ast::LValue::Index { array, index, element_type, location: _ } => {
+                let array = self.codegen_lvalue(array).into_leaf().eval(self);
+                self.codegen_array_index(array, index, element_type)
+            }
+            ast::LValue::MemberAccess { object, field_index } => {
+                let object = self.codegen_lvalue(object);
+                Self::get_field(object, *field_index)
+            }
+        }
     }
 
     fn codegen_semi(&mut self, expr: &Expression) -> Values {
