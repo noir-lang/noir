@@ -428,17 +428,27 @@ where
 {
     choice((
         constrain(expr_parser.clone()),
+        assertion(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
     ))
 }
 
+fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    ignore_then_commit(keyword(Keyword::Assert).labelled("statement"), expr_parser)
+        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+}
+
+
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(one_of([Token::Keyword(Keyword::Constrain), Token::Keyword(Keyword::Assert)]).labelled("statement"), expr_parser)
+    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
