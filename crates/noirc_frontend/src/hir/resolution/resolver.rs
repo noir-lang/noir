@@ -681,7 +681,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    /// True if the `distinct` keyword is allowed on function's return type
+    /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract() {
             // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
