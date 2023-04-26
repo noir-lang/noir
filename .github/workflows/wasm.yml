@@ -30,6 +30,7 @@ jobs:
         with:
           repository: noir-lang/noir-wasm-testing
           path: noir-wasm-testing
+          ref: jb/workflow-integration
 
       - name: Install jq
         run: sudo apt-get install -y jq
