@@ -297,11 +297,11 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             ast::LValue::Ident(ident) => self.codegen_ident(ident),
             ast::LValue::Index { array, index, element_type, location: _ } => {
-                let array = self.codegen_lvalue(&array).into_leaf().eval(self);
-                self.codegen_array_index(array, &index, element_type)
+                let array = self.codegen_lvalue(array).into_leaf().eval(self);
+                self.codegen_array_index(array, index, element_type)
             }
             ast::LValue::MemberAccess { object, field_index } => {
-                let object = self.codegen_lvalue(&object);
+                let object = self.codegen_lvalue(object);
                 Self::get_field(object, *field_index)
             }
         }
