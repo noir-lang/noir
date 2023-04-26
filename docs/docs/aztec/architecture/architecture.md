@@ -2,45 +2,25 @@
 title: Architecture
 ---
 
-:::caution
-We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
+import Disclaimer from './common/_disclaimer.mdx';
 
-If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
-:::
+<Disclaimer/>
 
-Aztec3 describes a programmable [ZK Rollup](https://ethereum.org/en/developers/docs/scaling/zk-rollups/) operating on Ethereum as an L2.
+These specifications for Aztec describe a programmable [ZK Rollup](https://ethereum.org/en/developers/docs/scaling/zk-rollups/) operating on Ethereum as an L2.
 
-A "smart contract" is defined as a set of public and private functions that operate on public and private state respectively. Each function is represented as a ZK SNARK verification key, where the contract is uniquely described by the set of its verification keys.
+## Network Actors
 
-## Heuristics that differ from Aztec Connect
 
-**A contract cannot manipulate another contract's state**
+**Sequencers**
 
-In A.C. we had multiple circuits that could each create/destroy a unified set of value notes. This was acceptable because all A.C. circuits had a single author (us!).
+**Provers**
 
-In A3 our architecture must process arbitrary circuits written by potentially dishonest actors. Contract state must therefore be siloed at the architecture level similar to Ethereum. Fortunately, this does not require splitting up the anonymity set.
+**Users**
 
-**Anonymity set must be shared across all contracts**
+**P2P clients**
 
-In A.C. observers knew when different note types were being created (value note, account note etc). This cannot be the case in A3 as we want to provide strong privacy gaurantees to all private contracts even if they have few transactions interacting with their contract.
+**dApp Developers**
 
-**Support for call semantics**
-
-If a contract can only modify its own state, we need a way for a contract to "call" another contract to request state modifications.
-
-## Aztec3 Actors
-
-**User**
-
-Generates proofs-of-correctness for private functions.
-
-**Sequencer**
-
-Sequences a block of Aztec transactions.
-
-**Prover**
-
-Constructs a proof-of-correctness for a block of Aztec transactions. Computes proofs-of-correctness for public functions within the block.
 
 ## Enabling Transaction Semantics: The Aztec Kernel
 
@@ -65,6 +45,8 @@ The addresses of all private calls are hidden from observers.
 
 ## Programming contracts with Noir
 
+A "smart contract" is defined as a set of public and private functions that operate on public and private state respectively. Each function is represented as a ZK SNARK verification key, where the contract is uniquely described by the set of its verification keys.
+
 [Noir](https://noir-lang.org) is a programming language designed for converting high-level programs into ZK circuits. Based on Rust, the goal is to present an idiomatic way of writing private smart contracts that is familiar to Ethereum developers. Future versions will include concepts such as contracts, functions and storage variables.
 
 The end goal is a language that is intuitive to use by web3 developers with no cryptographic knowledge.
@@ -83,7 +65,7 @@ The act of "deleting" a private state variable can be represented by adding an a
 
 Modification of state variables can be emulated by nullifying the a state record and creating a new record to represent the variable. Private state has an intrinsic UTXO structure and this must be represented in the language semantics of manipulating private state.
 
-## Core components of Aztec3
+## Core components of Aztec
 
 - Contract programming language (Noir)
 - ZK SNARK proof system (Honk)
@@ -95,6 +77,8 @@ Modification of state variables can be emulated by nullifying the a state record
 - Sequencer client
 - Prover client
 - L1 rollup smart contracts
+
+You can read more about the components of Aztec [here](./components).
 
 ## Participate
 
