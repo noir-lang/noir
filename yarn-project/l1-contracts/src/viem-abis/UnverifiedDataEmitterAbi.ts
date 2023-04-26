@@ -7,6 +7,12 @@ export const UnverifiedDataEmitterAbi = [
     inputs: [
       {
         indexed: true,
+        internalType: 'uint256',
+        name: 'l2BlockNum',
+        type: 'uint256',
+      },
+      {
+        indexed: true,
         internalType: 'bytes32',
         name: 'aztecAddress',
         type: 'bytes32',
@@ -54,6 +60,11 @@ export const UnverifiedDataEmitterAbi = [
   },
   {
     inputs: [
+      {
+        internalType: 'uint256',
+        name: '_l2BlockNum',
+        type: 'uint256',
+      },
       {
         internalType: 'bytes32',
         name: '_aztecAddress',

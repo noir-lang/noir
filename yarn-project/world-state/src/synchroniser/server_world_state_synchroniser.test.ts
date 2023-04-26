@@ -2,9 +2,9 @@ import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.
 import { L2BlockSource, L2Block, ContractData } from '@aztec/types';
 import { WorldStateRunningState } from './world_state_synchroniser.js';
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
-import { AztecAddress, randomBytes, sleep } from '@aztec/foundation';
+import { sleep } from '@aztec/foundation';
 import { jest } from '@jest/globals';
-import { EthAddress, Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation';
 import { AppendOnlyTreeSnapshot } from '@aztec/circuits.js';
 import { MerkleTreeDb, MerkleTreeId } from '../index.js';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
@@ -30,7 +30,7 @@ const getMockTreeSnapshot = () => {
 };
 
 const getMockContractData = () => {
-  return new ContractData(AztecAddress.random(), new EthAddress(randomBytes(20)));
+  return ContractData.random();
 };
 
 const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) => {

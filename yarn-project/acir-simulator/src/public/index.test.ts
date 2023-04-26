@@ -56,7 +56,7 @@ describe('ACIR public execution simulator', () => {
         const previousBalance = new Fr(20n);
         oracle.storageRead.mockResolvedValue(previousBalance);
 
-        const bytecode = { bytecode: Buffer.from(abi.bytecode, 'hex') };
+        const bytecode = Buffer.from(abi.bytecode, 'hex');
         const execution = new PublicExecution(oracle, bytecode, contractAddress, functionData, args, callContext);
         const result = await execution.run();
 
@@ -120,7 +120,7 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const bytecode = { bytecode: Buffer.from(abi.bytecode, 'hex') };
+        const bytecode = Buffer.from(abi.bytecode, 'hex');
         const execution = new PublicExecution(oracle, bytecode, contractAddress, functionData, args, callContext);
         const result = await execution.run();
 
@@ -145,7 +145,7 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const bytecode = { bytecode: Buffer.from(abi.bytecode, 'hex') };
+        const bytecode = Buffer.from(abi.bytecode, 'hex');
         const execution = new PublicExecution(oracle, bytecode, contractAddress, functionData, args, callContext);
         const result = await execution.run();
 

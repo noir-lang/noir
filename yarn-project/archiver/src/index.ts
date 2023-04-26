@@ -1,6 +1,5 @@
-import { EthAddress } from '@aztec/foundation';
 import { fileURLToPath } from 'url';
-import { createPublicClient, getAddress, http } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 import { Archiver, getConfigEnvVars } from './archiver/index.js';
 

@@ -1,8 +1,8 @@
+import times from 'lodash.times';
 import { RunningPromise, createDebugLogger } from '@aztec/foundation';
 import { P2P } from '@aztec/p2p';
-import { PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
+import { CompleteContractData, ContractData, PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
 import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
-import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
 import { ceilPowerOfTwo } from '../utils.js';
@@ -126,14 +126,36 @@ export class Sequencer {
         this.log(`Failed to publish block`);
       }
 
-      // Publishes new unverified data for private txs to the network and awaits the tx to be mined
+      // Publishes new unverified data & contract data for private txs to the network and awaits the tx to be mined
       this.state = SequencerState.PUBLISHING_UNVERIFIED_DATA;
       const unverifiedData = UnverifiedData.join(validTxs.filter(isPrivateTx).map(tx => tx.unverifiedData));
+      const newContractData = validTxs
+        .filter(isPrivateTx)
+        .map(tx => {
+          // Currently can only have 1 new contract per tx
+          const newContract = tx.data?.end.newContracts[0];
+          if (newContract && tx.newContractPublicFunctions?.length) {
+            return ContractData.createCompleteContractData(
+              newContract.contractAddress,
+              newContract.portalContractAddress,
+              tx.newContractPublicFunctions,
+            );
+          }
+        })
+        .filter((cd): cd is Exclude<typeof cd, undefined> => cd !== undefined);
+
       const publishedUnverifiedData = await this.publisher.processUnverifiedData(block.number, unverifiedData);
+      const publishedContractData = await this.publisher.processNewContractData(block.number, newContractData);
       if (publishedUnverifiedData) {
         this.log(`Successfully published unverifiedData for block ${block.number}`);
       } else {
         this.log(`Failed to publish unverifiedData for block ${block.number}`);
+      }
+
+      if (publishedContractData) {
+        this.log(`Successfully published new contract data for block ${block.number}`);
+      } else if (!publishedContractData && newContractData.length) {
+        this.log(`Failed to publish new contract data for block ${block.number}`);
       }
     } catch (err) {
       this.log(err, 'error');

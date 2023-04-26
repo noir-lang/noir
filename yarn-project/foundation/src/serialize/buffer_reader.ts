@@ -239,4 +239,12 @@ export class BufferReader {
     }
     return map;
   }
+
+  /**
+   * Get the length of the reader's buffer.
+   * @returns The length of the underlying reader's buffer.
+   */
+  public getLength(): number {
+    return this.buffer.length;
+  }
 }

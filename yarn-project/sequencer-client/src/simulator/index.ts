@@ -1,4 +1,3 @@
-import { PublicFunctionBytecode } from '@aztec/acir-simulator';
 import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
@@ -20,11 +19,7 @@ export interface RollupSimulator {
 }
 
 export interface PublicCircuitSimulator {
-  publicCircuit(
-    tx: TxRequest,
-    functionBytecode: PublicFunctionBytecode,
-    portalAddress: EthAddress,
-  ): Promise<PublicCircuitPublicInputs>;
+  publicCircuit(tx: TxRequest, functionBytecode: Buffer, portalAddress: EthAddress): Promise<PublicCircuitPublicInputs>;
 }
 
 export interface PublicKernelCircuitSimulator {

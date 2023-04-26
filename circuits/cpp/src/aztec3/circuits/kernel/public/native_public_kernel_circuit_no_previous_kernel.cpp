@@ -22,14 +22,14 @@ void validate_inputs(DummyComposer& composer, PublicKernelInputsNoPreviousKernel
 {
     const auto& this_call_stack_item = public_kernel_inputs.public_call.call_stack_item;
     composer.do_assert(this_call_stack_item.public_inputs.call_context.is_delegate_call == false,
-                       "Users cannot make a delegatecall", 
+                       "Users cannot make a delegatecall",
                        aztec3::utils::CircuitErrorCode::PUBLIC_KERNEL__UNSUPPORTED_OP);
     composer.do_assert(this_call_stack_item.public_inputs.call_context.is_static_call == false,
-                       "Users cannot make a static call", 
+                       "Users cannot make a static call",
                        aztec3::utils::CircuitErrorCode::PUBLIC_KERNEL__UNSUPPORTED_OP);
     composer.do_assert(this_call_stack_item.public_inputs.call_context.storage_contract_address ==
                            this_call_stack_item.contract_address,
-                       "Storage contract address must be that of the called contract", 
+                       "Storage contract address must be that of the called contract",
                        aztec3::utils::CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_ADDRESS_MISMATCH);
 }
 } // namespace

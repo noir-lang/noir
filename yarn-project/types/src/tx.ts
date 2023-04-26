@@ -1,9 +1,11 @@
 import { CircuitsWasm, KernelCircuitPublicInputs, SignedTxRequest, UInt8Vector } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
+import { keccak } from '@aztec/foundation';
+
 import { createTxHash } from './create_tx_hash.js';
 import { TxHash } from './tx_hash.js';
 import { UnverifiedData } from './unverified_data.js';
-import { keccak } from '@aztec/foundation';
+import { EncodedContractFunction } from './contract_data.js';
 
 type PrivateTxFields = 'data' | 'proof' | 'unverifiedData';
 type PublicTxFields = 'txRequest';
@@ -29,8 +31,9 @@ export class Tx {
     data: KernelCircuitPublicInputs,
     proof: UInt8Vector,
     unverifiedData: UnverifiedData,
+    newContractPublicFunctions?: EncodedContractFunction[],
   ): PrivateTx {
-    return new this(data, proof, unverifiedData, undefined) as PrivateTx;
+    return new this(data, proof, unverifiedData, undefined, newContractPublicFunctions) as PrivateTx;
   }
 
   public static createPublic(txRequest: SignedTxRequest): PublicTx {
@@ -69,12 +72,14 @@ export class Tx {
    * @param proof - Proof from the private kernel circuit.
    * @param unverifiedData  - Information not needed to verify the tx (e.g. encrypted note pre-images etc.)
    * @param txRequest - Signed public function call data.
+   * @param contractsBytecode - Selector + Bytecode of contract functions that were deployed in the tx.
    */
   protected constructor(
     public readonly data?: KernelCircuitPublicInputs,
     public readonly proof?: UInt8Vector,
     public readonly unverifiedData?: UnverifiedData,
     public readonly txRequest?: SignedTxRequest,
+    public readonly newContractPublicFunctions?: EncodedContractFunction[],
   ) {}
 
   /**

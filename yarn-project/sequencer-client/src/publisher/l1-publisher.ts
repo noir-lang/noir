@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/types';
+import { CompleteContractData, L2Block } from '@aztec/types';
 import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';
@@ -10,6 +10,7 @@ import { UnverifiedData } from '@aztec/types';
 export interface L1PublisherTxSender {
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
   sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
+  sendEmitNewContractDataTx(l2BlockNum: number, contractData: CompleteContractData[]): Promise<string | undefined>;
   getTransactionReceipt(txHash: string): Promise<{ status: boolean; transactionHash: string } | undefined>;
 }
 
@@ -109,6 +110,37 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   /**
+   * Publishes new contract data to L1
+   * @param l2BlockNum The L2 block number that the new contracts were deployed on
+   * @param newContractData The new contract data to publish.
+   * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
+   */
+  public async processNewContractData(l2BlockNum: number, contractData: CompleteContractData[]) {
+    while (!this.interrupted) {
+      if (!(await this.checkFeeDistributorBalance())) {
+        this.log(`Fee distributor ETH balance too low, awaiting top up...`);
+        await this.sleepOrInterrupted();
+        continue;
+      }
+
+      const txHash = await this.sendEmitNewContractDataTx(l2BlockNum, contractData);
+      if (!txHash) break;
+
+      const receipt = await this.getTransactionReceipt(txHash);
+      if (!receipt) break;
+
+      // Tx was mined successfully
+      if (receipt.status) return true;
+
+      this.log(`Transaction status failed: ${receipt.transactionHash}`);
+      await this.sleepOrInterrupted();
+    }
+
+    this.log('L2 block interrupted interrupted.');
+    return false;
+  }
+
+  /**
    * Calling `interrupt` will cause any in progress call to `publishRollup` to return `false` asap.
    * Be warned, the call may return false even if the tx subsequently gets successfully mined.
    * In practice this shouldn't matter, as we'll only ever be calling `interrupt` when we know it's going to fail.
@@ -150,6 +182,17 @@ export class L1Publisher implements L2BlockReceiver {
         return await this.txSender.sendEmitUnverifiedDataTx(l2BlockNum, unverifiedData);
       } catch (err) {
         this.log(`Error sending unverified data tx to L1`, err);
+        await this.sleepOrInterrupted();
+      }
+    }
+  }
+
+  private async sendEmitNewContractDataTx(l2BlockNum: number, contractData: CompleteContractData[]) {
+    while (!this.interrupted) {
+      try {
+        return await this.txSender.sendEmitNewContractDataTx(l2BlockNum, contractData);
+      } catch (err) {
+        this.log(`Error sending contract data to L1`, err);
         await this.sleepOrInterrupted();
       }
     }

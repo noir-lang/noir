@@ -1,4 +1,4 @@
-import { PublicDB, PublicExecution, PublicFunctionBytecode } from '@aztec/acir-simulator';
+import { PublicDB, PublicExecution } from '@aztec/acir-simulator';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { AztecAddress, EthAddress, Fr, PublicCircuitPublicInputs, TxRequest } from '@aztec/circuits.js';
 import { MerkleTreeId, MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
@@ -13,7 +13,7 @@ export class FakePublicCircuitSimulator implements PublicCircuitSimulator {
 
   public async publicCircuit(
     tx: TxRequest,
-    functionBytecode: PublicFunctionBytecode,
+    functionBytecode: Buffer,
     portalAddress: EthAddress,
   ): Promise<PublicCircuitPublicInputs> {
     const publicDataTreeInfo = await this.merkleTree.getTreeInfo(MerkleTreeId.PUBLIC_DATA_TREE);

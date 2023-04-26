@@ -1,7 +1,16 @@
-import { AztecAddress, EthAddress, RunningPromise, createDebugLogger } from '@aztec/foundation';
+import { AztecAddress, BufferReader, EthAddress, RunningPromise, createDebugLogger } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
-import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/types';
+import {
+  CompleteContractData,
+  ContractData,
+  ContractDataSource,
+  EncodedContractFunction,
+  L2Block,
+  L2BlockSource,
+  UnverifiedData,
+  UnverifiedDataSource,
+} from '@aztec/types';
 import {
   Chain,
   Hex,
@@ -23,7 +32,7 @@ import { ArchiverConfig } from './config.js';
  * Responsible for handling robust L1 polling so that other components do not need to
  * concern themselves with it.
  */
-export class Archiver implements L2BlockSource, UnverifiedDataSource {
+export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDataSource {
   /**
    * A promise in which we will be continually fetching new L2 blocks.
    */
@@ -41,6 +50,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
   private unverifiedData: UnverifiedData[] = [];
 
   /**
+   * A sparse array containing all the contract data that have been fetched so far.
+   */
+  private contractData: (CompleteContractData[] | undefined)[] = [];
+
+  /**
    * Next L1 block number to fetch `L2BlockProcessed` logs from (i.e. `fromBlock` in eth_getLogs).
    */
   private nextL2BlockFromBlock = 0n;
@@ -49,6 +63,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    * Next L1 block number to fetch `UnverifiedData` logs from (i.e. `fromBlock` in eth_getLogs)
    */
   private nextUnverifiedDataFromBlock = 0n;
+
+  /**
+   * Next L1 block number to fetch `NewContractData` logs from (i.e. `fromBlock` in eth_getLogs)
+   */
+  private nextContractDataFromBlock = 0n;
 
   /**
    * Creates a new instance of the Archiver.
@@ -114,6 +133,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
 
     await this.syncBlocks(blockUntilSynced, currentBlockNumber);
     await this.syncUnverifiedData(blockUntilSynced, currentBlockNumber);
+    await this.syncNewContractData(blockUntilSynced, currentBlockNumber);
   }
 
   private async syncBlocks(blockUntilSynced: boolean, currentBlockNumber: bigint) {
@@ -156,6 +176,21 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
     } while (blockUntilSynced && this.nextUnverifiedDataFromBlock <= currentBlockNumber);
   }
 
+  private async syncNewContractData(blockUntilSynced: boolean, currentBlockNumber: bigint) {
+    do {
+      if (this.nextContractDataFromBlock > currentBlockNumber) {
+        break;
+      }
+
+      this.log(`Syncing ContractData logs from block ${this.nextContractDataFromBlock}`);
+      const contractDataLogs = await this.getContractDataLogs(this.nextContractDataFromBlock);
+
+      this.processContractDataLogs(contractDataLogs);
+      this.nextContractDataFromBlock =
+        (contractDataLogs.findLast(cd => !!cd)?.blockNumber || this.nextContractDataFromBlock) + 1n;
+    } while (blockUntilSynced && this.nextContractDataFromBlock <= currentBlockNumber);
+  }
+
   /**
    * Gets relevant `L2BlockProcessed` logs from chain.
    * @param fromBlock - First block to get logs from (inclusive).
@@ -186,6 +221,18 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
     const abiItem = getAbiItem({
       abi: UnverifiedDataEmitterAbi,
       name: 'UnverifiedData',
+    });
+    return await this.publicClient.getLogs({
+      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
+      event: abiItem,
+      fromBlock,
+    });
+  }
+
+  private async getContractDataLogs(fromBlock: bigint) {
+    const abiItem = getAbiItem({
+      abi: UnverifiedDataEmitterAbi,
+      name: 'ContractDeployment',
     });
     return await this.publicClient.getLogs({
       address: getAddress(this.unverifiedDataEmitterAddress.toString()),
@@ -240,6 +287,22 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
       this.unverifiedData.push(unverifiedData);
     }
     this.log('Processed unverifiedData corresponding to ' + logs.length + ' blocks.');
+  }
+
+  private processContractDataLogs(
+    logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployment'>[],
+  ) {
+    for (const log of logs) {
+      const l2BlockNum = log.args.l2BlockNum;
+      const publicFnsReader = BufferReader.asReader(Buffer.from(log.args.acir.slice(2), 'hex'));
+      const contractData = ContractData.createCompleteContractData(
+        AztecAddress.fromString(log.args.aztecAddress),
+        EthAddress.fromString(log.args.portalAddress),
+        publicFnsReader.readVector(EncodedContractFunction),
+      );
+      (this.contractData[Number(l2BlockNum)] || []).push(contractData);
+    }
+    this.log('Processed contractData corresponding to ' + logs.length + ' blocks.');
   }
 
   /**
@@ -300,9 +363,29 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    * Lookup the L2 contract data for this contract.
    * Contains information such as the ethereum portal address.
    * @param contractAddress - The contract data address.
-   * @returns The portal address (if we didn't throw an error).
+   * @returns The contract data.
    */
-  public getL2ContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+  public getL2ContractData(contractAddress: AztecAddress): Promise<CompleteContractData | undefined> {
+    // TODO: perhaps store contract data by address as well? to make this more efficient
+    let result;
+    for (let i = INITIAL_L2_BLOCK_NUM; i < this.contractData.length; i++) {
+      const contracts = this.contractData[i];
+      const contract = contracts?.find(c => c.contractAddress.equals(contractAddress));
+      if (contract) {
+        result = contract;
+        break;
+      }
+    }
+    return Promise.resolve(result);
+  }
+
+  /**
+   * Lookup the L2 contract info for this contract.
+   * Contains contract address & the ethereum portal address.
+   * @param contractAddress - The contract data address.
+   * @returns ContractData with the portal address (if we didn't throw an error).
+   */
+  public getL2ContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     for (const block of this.l2Blocks) {
       for (const contractData of block.newContractData) {
         if (contractData.contractAddress.equals(contractAddress)) {
@@ -311,6 +394,28 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
       }
     }
     return Promise.resolve(undefined);
+  }
+
+  public async getPublicFunction(
+    address: AztecAddress,
+    functionSelector: Buffer,
+  ): Promise<EncodedContractFunction | undefined> {
+    const contractData = await this.getL2ContractData(address);
+    const result = contractData?.publicFunctions?.find(fn => fn.functionSelector.equals(functionSelector));
+    return result;
+  }
+
+  /**
+   * Lookup all contract data in an L2 block.
+   * @param blockNumber - The block number to get all contract data from.
+   * @returns All new contract data in the block (if found)
+   */
+  public getL2ContractDataInBlock(blockNum: number): Promise<ContractData[]> {
+    if (blockNum > this.l2Blocks.length) {
+      return Promise.resolve([]);
+    }
+    const contractData = this.contractData[blockNum];
+    return Promise.resolve(contractData || []);
   }
 
   /**

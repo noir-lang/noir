@@ -1,13 +1,13 @@
-import { EthAddress, randomBytes, sleep, toBufferBE } from '@aztec/foundation';
+import { AztecAddress, EthAddress, randomBytes, sleep, toBufferBE } from '@aztec/foundation';
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
-import { L2Block } from '@aztec/types';
+import { ContractData, EncodedContractFunction, L2Block } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
 import { Archiver } from './archiver.js';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';
-  const unverifiedDataEmitterAddress = '0x0000000000000000000000000000000000000000';
+  const unverifiedDataEmitterAddress = '0x0000000000000000000000000000000000000001';
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
 
   beforeEach(() => {
@@ -33,8 +33,10 @@ describe('Archiver', () => {
     publicClient.getLogs
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(100n, 1n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(102n, 1n)])
+      .mockResolvedValueOnce([makeContractDeployedEvent(104n, 1n)])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(1100n, 2n), makeL2BlockProcessedEvent(1150n, 3n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(1100n, 2n)])
+      .mockResolvedValueOnce([makeContractDeployedEvent(1102n, 2n)])
       .mockResolvedValue([]);
     rollupTxs.forEach(tx => publicClient.getTransaction.mockResolvedValueOnce(tx));
 
@@ -90,6 +92,33 @@ function makeUnverifiedDataEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
     },
     transactionHash: `0x${l2BlockNum}`,
   } as unknown as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>;
+}
+
+/**
+ * Makes a fake ContractDeployed event for testing purposes.
+ * @param l1BlockNum - L1 block number.
+ * @param l2BlockNum - L2Block number.
+ * @returns An UnverifiedData event log.
+ */
+function makeContractDeployedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
+  // const contractData = ContractData.random();
+  const aztecAddress = AztecAddress.random();
+  const portalAddress = EthAddress.random();
+  const contractData = new ContractData(aztecAddress, portalAddress, [
+    EncodedContractFunction.random(),
+    EncodedContractFunction.random(),
+  ]);
+  const acir = contractData.bytecode?.toString('hex');
+  return {
+    blockNumber: l1BlockNum,
+    args: {
+      l2BlockNum,
+      aztecAddress: aztecAddress.toString(),
+      portalAddress: portalAddress.toString(),
+      acir: '0x' + acir,
+    },
+    transactionHash: `0x${l2BlockNum}`,
+  } as unknown as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployed'>;
 }
 
 /**

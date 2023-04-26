@@ -6,6 +6,7 @@ import { Contract, ContractTxReceipt, EventLog, Options, TxCall, TxSend } from '
 import * as Bytes from '@aztec/ethereum.js/contract/bytes.js';
 import abi from './UnverifiedDataEmitterAbi.js';
 export type ContractDeploymentEvent = {
+  l2BlockNum: bigint;
   aztecAddress: Bytes.Bytes32;
   portalAddress: EthAddress;
   acir: Bytes.Bytes;
@@ -32,6 +33,7 @@ interface UnverifiedDataEmitterTxEventLogs {
 export interface UnverifiedDataEmitterTransactionReceipt extends ContractTxReceipt<UnverifiedDataEmitterTxEventLogs> {}
 interface UnverifiedDataEmitterMethods {
   emitContractDeployment(
+    _l2BlockNum: bigint,
     _aztecAddress: Bytes.Bytes32,
     _portalAddress: EthAddress,
     _acir: Bytes.Bytes,
