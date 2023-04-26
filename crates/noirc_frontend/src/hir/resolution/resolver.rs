@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
+use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
@@ -677,7 +677,7 @@ impl<'a> Resolver<'a> {
         if self.in_contract() {
             !func.def.is_unconstrained && !func.def.is_open
         } else {
-            func.name() == "main"
+            func.name() == MAIN_FUNCTION
         }
     }
 
@@ -688,7 +688,7 @@ impl<'a> Resolver<'a> {
             // witness indices in their abis is not a concern.
             !func.def.is_unconstrained && !func.def.is_open
         } else {
-            func.name() == "main"
+            func.name() == MAIN_FUNCTION
         }
     }
 
