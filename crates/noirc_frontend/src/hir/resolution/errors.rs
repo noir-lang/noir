@@ -187,7 +187,7 @@ impl From<ResolverError> for Diagnostic {
                     ident.0.span(),
                 );
 
-                diag.add_note("The `distinct` keyword is only valid when used on the main function of a program as it's only purpose is to prevent a program's parameter and return witness indexes from overlapping".to_owned());
+                diag.add_note("The `distinct` keyword is only valid when used on the main function of a program, as its only purpose is to ensure that all witness indices that occur in the abi are unique".to_owned());
                 diag
             }
             ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(

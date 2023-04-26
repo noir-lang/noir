@@ -54,8 +54,8 @@ pub struct Evaluator {
     // and increasing as for `public_parameters`. We then use a `Vec` rather
     // than a `BTreeSet` to preserve this order for the ABI.
     return_values: Vec<Witness>,
-    // If true, indicates that the resulting ACIR should prevent input and output witness indicies
-    // from overlapping by having extra contraints if necessary.
+    // If true, indicates that the resulting ACIR should enforce that all inputs and outputs are
+    // comprised of unique witness indices by having extra constraints if necessary.
     return_is_distinct: bool,
 
     opcodes: Vec<AcirOpcode>,
@@ -105,7 +105,7 @@ pub fn create_circuit(
 }
 
 impl Evaluator {
-    // Returns true if the `witnees_index` appears in the program's input parameters.
+    // Returns true if the `witness_index` appears in the program's input parameters.
     fn is_abi_input(&self, witness_index: Witness) -> bool {
         witness_index.as_usize() <= self.num_witnesses_abi_len
     }
@@ -125,8 +125,11 @@ impl Evaluator {
         self.is_abi_input(witness_index) && !is_public_input
     }
 
+    // True if the main function return has the `distinct` keyword and this particular witness
+    // index has already occurred elsewhere in the abi's inputs and outputs.
     fn should_proxy_witness_for_abi_output(&self, witness_index: Witness) -> bool {
-        self.return_is_distinct && self.is_abi_input(witness_index)
+        self.return_is_distinct
+            && (self.is_abi_input(witness_index) || self.return_values.contains(&witness_index))
     }
 
     // Creates a new Witness index

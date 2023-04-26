@@ -162,7 +162,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
             |(
                 (
                     ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
-                    (return_visibility, return_distinctness, return_type),
+                    ((return_distinctness, return_visibility), return_type),
                 ),
                 body,
             )| {
@@ -236,19 +236,15 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn function_return_type() -> impl NoirParser<(AbiVisibility, AbiDistinctness, UnresolvedType)> {
+fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), UnresolvedType)> {
     just(Token::Arrow)
-        .ignore_then(optional_visibility())
-        .then(optional_distinctness())
+        .ignore_then(optional_distinctness())
+        .then(optional_visibility())
         .then(parse_type())
         .or_not()
         .map(|ret| {
-            ret.map(|((visibility, distinctness), return_type)| {
-                (visibility, distinctness, return_type)
-            })
-            .unwrap_or((
-                AbiVisibility::Private,
-                AbiDistinctness::DuplicationAllowed,
+            ret.unwrap_or((
+                (AbiDistinctness::DuplicationAllowed, AbiVisibility::Private),
                 UnresolvedType::Unit,
             ))
         })
@@ -1275,6 +1271,7 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
+                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }"
             ],
         );
 

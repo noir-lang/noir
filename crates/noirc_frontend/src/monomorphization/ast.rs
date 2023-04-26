@@ -221,9 +221,9 @@ impl Type {
 pub struct Program {
     pub functions: Vec<Function>,
     pub main_function_signature: FunctionSignature,
-    /// Indicates whether the resulting ACIR should keep input and output witness indcies separate.
+    /// Indicates whether witness indices are allowed to reoccur in the ABI of the resulting ACIR.
     ///
-    /// Note: this has no impact on monomorphisation, and is simply attached here for ease of
+    /// Note: this has no impact on monomorphization, and is simply attached here for ease of
     /// forwarding to the next phase.
     pub return_distinctness: noirc_abi::AbiDistinctness,
 }
