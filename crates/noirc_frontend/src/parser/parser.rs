@@ -40,7 +40,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_abi::AbiVisibility;
+use noirc_abi::{AbiDistinctness, AbiVisibility};
 use noirc_errors::{CustomDiagnostic, Span, Spanned};
 
 /// Entry function for the parser - also handles lexing internally.
@@ -162,7 +162,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
             |(
                 (
                     ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
-                    (return_visibility, return_type),
+                    ((return_distinctness, return_visibility), return_type),
                 ),
                 body,
             )| {
@@ -177,6 +177,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                     body,
                     return_type,
                     return_visibility,
+                    return_distinctness,
                 }
                 .into()
             },
@@ -235,12 +236,18 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn function_return_type() -> impl NoirParser<(AbiVisibility, UnresolvedType)> {
+fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), UnresolvedType)> {
     just(Token::Arrow)
-        .ignore_then(optional_visibility())
+        .ignore_then(optional_distinctness())
+        .then(optional_visibility())
         .then(parse_type())
         .or_not()
-        .map(|ret| ret.unwrap_or((AbiVisibility::Private, UnresolvedType::Unit)))
+        .map(|ret| {
+            ret.unwrap_or((
+                (AbiDistinctness::DuplicationAllowed, AbiVisibility::Private),
+                UnresolvedType::Unit,
+            ))
+        })
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
@@ -551,6 +558,13 @@ fn optional_visibility() -> impl NoirParser<AbiVisibility> {
     keyword(Keyword::Pub).or_not().map(|opt| match opt {
         Some(_) => AbiVisibility::Public,
         None => AbiVisibility::Private,
+    })
+}
+
+fn optional_distinctness() -> impl NoirParser<AbiDistinctness> {
+    keyword(Keyword::Distinct).or_not().map(|opt| match opt {
+        Some(_) => AbiDistinctness::Distinct,
+        None => AbiDistinctness::DuplicationAllowed,
     })
 }
 
@@ -1257,6 +1271,7 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
+                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }"
             ],
         );
 

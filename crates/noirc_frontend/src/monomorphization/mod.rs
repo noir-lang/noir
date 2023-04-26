@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use crate::{
     hir_def::{
         expr::*,
-        function::{Param, Parameters},
+        function::{FuncMeta, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
@@ -88,7 +88,8 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    Program::new(functions, function_sig)
+    let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
+    Program::new(functions, function_sig, return_distinctness)
 }
 
 impl<'interner> Monomorphizer<'interner> {
