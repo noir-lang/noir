@@ -80,7 +80,7 @@ export function makePrivateHistoricTreeRoots(seed: number): PrivateHistoricTreeR
 }
 
 export function makeCombinedHistoricTreeRoots(seed: number): CombinedHistoricTreeRoots {
-  return new CombinedHistoricTreeRoots(makePrivateHistoricTreeRoots(seed), fr(seed + 4));
+  return new CombinedHistoricTreeRoots(makePrivateHistoricTreeRoots(seed));
 }
 
 export function makeConstantData(seed = 1): CombinedConstantData {
@@ -94,7 +94,7 @@ export function makeSelector(seed: number) {
 }
 
 export function makePublicDataWrite(seed = 1) {
-  return new PublicDataWrite(fr(seed), fr(seed + 1));
+  return new PublicDataWrite(fr(seed), fr(seed + 1), fr(seed + 2));
 }
 
 export function makePublicDataRead(seed = 1) {
@@ -122,6 +122,7 @@ export function makeAccumulatedData(seed = 1): CombinedAccumulatedData {
     range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
     range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(makeOptionallyRevealedData),
     range(STATE_TRANSITIONS_LENGTH, seed + 0x800).map(makePublicDataWrite),
+    range(STATE_READS_LENGTH, seed + 0x900).map(makePublicDataRead),
   );
 }
 
@@ -254,11 +255,11 @@ export function makeWitnessedPublicCallData(seed = 1): WitnessedPublicCallData {
 }
 
 export function makePublicKernelInputs(seed = 1): PublicKernelInputs {
-  return new PublicKernelInputs(makePreviousKernelData(seed), makeWitnessedPublicCallData(seed + 0x1000));
+  return new PublicKernelInputs(makePreviousKernelData(seed), makePublicCallData(seed + 0x1000));
 }
 
 export function makePublicKernelInputsNoKernelInput(seed = 1) {
-  return new PublicKernelInputsNoPreviousKernel(makeSignedTxRequest(seed), makeWitnessedPublicCallData(seed + 0x100));
+  return new PublicKernelInputsNoPreviousKernel(makeSignedTxRequest(seed), makePublicCallData(seed + 0x100));
 }
 
 export function makeSignedTxRequest(seed = 1): SignedTxRequest {
@@ -397,18 +398,20 @@ export function makeRootRollupInputs(seed = 0) {
 
 export function makeRootRollupPublicInputs(seed = 0) {
   return RootRollupPublicInputs.from({
-    startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x100),
-    startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x200),
-    startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x300),
-    startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x400),
-    startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x500),
-    endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x600),
-    endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x700),
-    endPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x800),
-    endTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x900),
-    endTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x1000),
-    endAggregationObject: makeAggregationObject(seed + 0x1100),
-    calldataHash: [new Fr(0n), new Fr(0n)],
+    endAggregationObject: makeAggregationObject(seed),
+    startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startContractTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endContractTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    calldataHash: [new Fr(1n), new Fr(2n)],
   });
 }
 
@@ -450,7 +453,11 @@ export function makeBaseRollupInputs(seed = 0) {
     seed + 0x5000,
   ).map(x => fr(x));
 
-  const newStateTransitionsSiblingPath = range(2 * STATE_TRANSITIONS_LENGTH, seed + 0x6000).map(x =>
+  const newStateTransitionsSiblingPaths = range(2 * STATE_TRANSITIONS_LENGTH, seed + 0x6000).map(x =>
+    makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x),
+  );
+
+  const newStateReadsSiblingPaths = range(2 * STATE_READS_LENGTH, seed + 0x6000).map(x =>
     makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x),
   );
 
@@ -479,7 +486,8 @@ export function makeBaseRollupInputs(seed = 0) {
     newCommitmentsSubtreeSiblingPath,
     newNullifiersSubtreeSiblingPath,
     newContractsSubtreeSiblingPath,
-    newStateTransitionsSiblingPaths: newStateTransitionsSiblingPath,
+    newStateTransitionsSiblingPaths,
+    newStateReadsSiblingPaths,
     historicPrivateDataTreeRootMembershipWitnesses,
     historicContractsTreeRootMembershipWitnesses,
     constants,

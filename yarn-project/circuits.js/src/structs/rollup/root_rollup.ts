@@ -54,6 +54,9 @@ export class RootRollupPublicInputs {
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    public startPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public endPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
+
     public startTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
     public endTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
 
@@ -72,6 +75,8 @@ export class RootRollupPublicInputs {
       fields.endNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
       fields.endContractTreeSnapshot,
+      fields.startPublicDataTreeSnapshot,
+      fields.endPublicDataTreeSnapshot,
       fields.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
       fields.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       fields.startTreeOfHistoricContractTreeRootsSnapshot,
@@ -92,6 +97,8 @@ export class RootRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new RootRollupPublicInputs(
       reader.readObject(AggregationObject),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),

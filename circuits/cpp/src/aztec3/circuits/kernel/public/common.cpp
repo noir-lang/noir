@@ -33,8 +33,7 @@ void validate_this_public_call_hash(DummyComposer& composer, PublicKernelInputs<
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
     // and the 'gas rebate' tx).
     const auto popped_public_call_hash = array_pop(start.public_call_stack);
-    const auto calculated_this_public_call_hash =
-        public_kernel_inputs.public_call.public_call_data.call_stack_item.hash();
+    const auto calculated_this_public_call_hash = public_kernel_inputs.public_call.call_stack_item.hash();
 
     composer.do_assert(
         popped_public_call_hash == calculated_this_public_call_hash,

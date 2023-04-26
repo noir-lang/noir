@@ -102,6 +102,9 @@ describe('sequencer/circuit_block_builder', () => {
     ] as const) {
       await expectsDb.appendLeaves(tree, leaves);
     }
+    for (const write of txs.flatMap(tx => tx.data.end.stateTransitions)) {
+      await expectsDb.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, write.newValue.toBuffer(), write.leafIndex.value);
+    }
   };
 
   const getTreeSnapshot = async (tree: MerkleTreeId) => {
@@ -142,18 +145,21 @@ describe('sequencer/circuit_block_builder', () => {
       baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
       baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
+      baseRollupOutputLeft.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
 
       // Same for the two txs on the right
       await updateExpectedTreesFromTxs(txsRight);
       baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
       baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
+      baseRollupOutputRight.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
 
       // And update the root trees now to create proper output to the root rollup circuit
       await updateRootTrees();
       rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
       rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
+      rootRollupOutput.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
       rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot = await getTreeSnapshot(
         MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
       );
@@ -175,7 +181,7 @@ describe('sequencer/circuit_block_builder', () => {
       [[13, 14, 15, 16, 0, 0, 0, 0]],
       [[1234, 98, 0, 0, 99999, 88, 54, 0]],
       [[97, 98, 10, 0, 99999, 88, 100001, 9000000]],
-    ] as const)('Preforms nullifier tree batch insertion correctly', async nullifiers => {
+    ] as const)('performs nullifier tree batch insertion correctly', async nullifiers => {
       const leaves = nullifiers.map(i => toBufferBE(BigInt(i), 32));
       await expectsDb.appendLeaves(MerkleTreeId.NULLIFIER_TREE, leaves);
 
@@ -183,10 +189,9 @@ describe('sequencer/circuit_block_builder', () => {
 
       await builder.performBaseRollupBatchInsertionProofs(leaves);
 
-      // assert snapshots
-      const expectsSnapshot = await expectsDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
-      const buildSnapshot = await builderDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
-      expect(buildSnapshot).toEqual(expectsSnapshot);
+      const expected = await expectsDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
+      const actual = await builderDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
+      expect(actual).toEqual(expected);
     });
   });
 

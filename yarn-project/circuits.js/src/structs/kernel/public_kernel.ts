@@ -14,25 +14,19 @@ import { SignedTxRequest } from '../tx_request.js';
 import { PreviousKernelData } from './previous_kernel_data.js';
 
 export class PublicKernelInputs {
-  constructor(
-    public readonly previousKernel: PreviousKernelData,
-    public readonly witnessedPublicCall: WitnessedPublicCallData,
-  ) {}
+  constructor(public readonly previousKernel: PreviousKernelData, public readonly publicCallData: PublicCallData) {}
 
   toBuffer() {
-    return serializeToBuffer(this.previousKernel, this.witnessedPublicCall);
+    return serializeToBuffer(this.previousKernel, this.publicCallData);
   }
 }
 export class PublicKernelInputsNoPreviousKernel {
   public kind = 'NoKernelInput' as const;
 
-  constructor(
-    public readonly signedTxRequest: SignedTxRequest,
-    public readonly witnessedPublicCall: WitnessedPublicCallData,
-  ) {}
+  constructor(public readonly signedTxRequest: SignedTxRequest, public readonly publicCallData: PublicCallData) {}
 
   toBuffer() {
-    return serializeToBuffer(this.signedTxRequest, this.witnessedPublicCall);
+    return serializeToBuffer(this.signedTxRequest, this.publicCallData);
   }
 }
 

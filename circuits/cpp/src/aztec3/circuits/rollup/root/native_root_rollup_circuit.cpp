@@ -69,6 +69,8 @@ RootRollupPublicInputs root_rollup_circuit(DummyComposer& composer, RootRollupIn
         .end_nullifier_tree_snapshot = right.end_nullifier_tree_snapshot,
         .start_contract_tree_snapshot = left.start_contract_tree_snapshot,
         .end_contract_tree_snapshot = right.end_contract_tree_snapshot,
+        .start_public_data_tree_snapshot = left.start_public_data_tree_snapshot,
+        .end_public_data_tree_snapshot = right.end_public_data_tree_snapshot,
         .start_tree_of_historic_private_data_tree_roots_snapshot =
             left.constants.start_tree_of_historic_private_data_tree_roots_snapshot,
         .end_tree_of_historic_private_data_tree_roots_snapshot = end_tree_of_historic_private_data_tree_roots_snapshot,

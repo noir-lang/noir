@@ -18,12 +18,10 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
     typedef typename NCT::boolean boolean;
 
     PrivateHistoricTreeRoots<NCT> private_historic_tree_roots{};
-    fr public_data_tree_root = 0;
 
     boolean operator==(CombinedHistoricTreeRoots<NCT> const& other) const
     {
-        return private_historic_tree_roots == other.private_historic_tree_roots &&
-               public_data_tree_root == other.public_data_tree_root;
+        return private_historic_tree_roots == other.private_historic_tree_roots;
     };
 
     template <typename Composer>
@@ -32,12 +30,10 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         CombinedHistoricTreeRoots<CircuitTypes<Composer>> data = {
             to_circuit_type(private_historic_tree_roots),
-            to_ct(public_data_tree_root),
         };
 
         return data;
@@ -46,12 +42,10 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
     template <typename Composer> CombinedHistoricTreeRoots<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
         auto to_native_type = [&]<typename T>(T& e) { return e.template to_native_type<Composer>(); };
 
         CombinedHistoricTreeRoots<NativeTypes> data = {
             to_native_type(private_historic_tree_roots),
-            to_nt(public_data_tree_root),
         };
 
         return data;
@@ -62,7 +56,6 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
         private_historic_tree_roots.set_public();
-        public_data_tree_root.set_public();
     }
 };
 
@@ -71,7 +64,6 @@ template <typename NCT> void read(uint8_t const*& it, CombinedHistoricTreeRoots<
     using serialize::read;
 
     read(it, historic_tree_roots.private_historic_tree_roots);
-    read(it, historic_tree_roots.public_data_tree_root);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedHistoricTreeRoots<NCT> const& historic_tree_roots)
@@ -79,14 +71,12 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedHistoricTr
     using serialize::write;
 
     write(buf, historic_tree_roots.private_historic_tree_roots);
-    write(buf, historic_tree_roots.public_data_tree_root);
 };
 
 template <typename NCT>
 std::ostream& operator<<(std::ostream& os, CombinedHistoricTreeRoots<NCT> const& historic_tree_roots)
 {
-    return os << "private_historic_tree_roots: " << historic_tree_roots.private_historic_tree_roots << "\n"
-              << "public_data_tree_root: " << historic_tree_roots.public_data_tree_root << "\n";
+    return os << "private_historic_tree_roots: " << historic_tree_roots.private_historic_tree_roots << "\n";
 }
 
 } // namespace aztec3::circuits::abis

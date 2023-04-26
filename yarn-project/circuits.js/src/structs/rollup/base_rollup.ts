@@ -11,6 +11,7 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
+  STATE_READS_LENGTH,
   STATE_TRANSITIONS_LENGTH,
 } from '../constants.js';
 import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
@@ -101,6 +102,7 @@ export class BaseRollupInputs {
     public newNullifiersSubtreeSiblingPath: Fr[],
     public newContractsSubtreeSiblingPath: Fr[],
     public newStateTransitionsSiblingPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[],
+    public newStateReadsSiblingPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[],
 
     public historicPrivateDataTreeRootMembershipWitnesses: [
       MembershipWitness<typeof PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>,
@@ -131,6 +133,7 @@ export class BaseRollupInputs {
       CONTRACT_TREE_HEIGHT - BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
     );
     assertLength(this, 'newStateTransitionsSiblingPaths', 2 * STATE_TRANSITIONS_LENGTH);
+    assertLength(this, 'newStateReadsSiblingPaths', 2 * STATE_READS_LENGTH);
   }
 
   static from(fields: FieldsOf<BaseRollupInputs>): BaseRollupInputs {
@@ -150,6 +153,7 @@ export class BaseRollupInputs {
       fields.newNullifiersSubtreeSiblingPath,
       fields.newContractsSubtreeSiblingPath,
       fields.newStateTransitionsSiblingPaths,
+      fields.newStateReadsSiblingPaths,
       fields.historicPrivateDataTreeRootMembershipWitnesses,
       fields.historicContractsTreeRootMembershipWitnesses,
       fields.constants,

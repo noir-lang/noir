@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../previous_kernel_data.hpp"
+#include "../signed_tx_request.hpp"
 #include "public_call_data.hpp"
-#include "witnessed_public_call_data.hpp"
 
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -20,7 +20,7 @@ template <typename NCT> struct PublicKernelInputsNoPreviousKernel {
     typedef typename NCT::boolean boolean;
 
     SignedTxRequest<NCT> signed_tx_request{};
-    WitnessedPublicCallData<NCT> public_call{};
+    PublicCallData<NCT> public_call{};
 
     boolean operator==(PublicKernelInputsNoPreviousKernel<NCT> const& other) const
     {

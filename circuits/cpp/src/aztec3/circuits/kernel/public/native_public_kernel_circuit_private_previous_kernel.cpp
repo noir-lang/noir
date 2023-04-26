@@ -14,7 +14,7 @@ namespace {
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 void validate_inputs(DummyComposer& composer, PublicKernelInputs<NT> const& public_kernel_inputs)
 {
-    const auto& this_call_stack_item = public_kernel_inputs.public_call.public_call_data.call_stack_item;
+    const auto& this_call_stack_item = public_kernel_inputs.public_call.call_stack_item;
     composer.do_assert(array_length(this_call_stack_item.public_inputs.public_call_stack) > 0,
                        "Public call stack can't be empty", 
                        CircuitErrorCode::PUBLIC_KERNEL__EMPTY_PUBLIC_CALL_STACK);

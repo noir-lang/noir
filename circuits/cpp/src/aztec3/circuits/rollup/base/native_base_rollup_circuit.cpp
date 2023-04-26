@@ -1,3 +1,4 @@
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
@@ -427,6 +428,17 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     };
 }
 
+AppendOnlySnapshot insert_state_transitions(BaseRollupInputs const& baseRollupInputs)
+{
+    // TODO: Implement me
+    auto root = baseRollupInputs.start_public_data_tree_snapshot.root;
+
+    return {
+        .root = root,
+        .next_available_leaf_index = 0,
+    };
+}
+
 BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseRollupInputs const& baseRollupInputs)
 {
     // Verify the previous kernel proofs
@@ -470,6 +482,9 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     AppendOnlySnapshot end_nullifier_tree_snapshot =
         check_nullifier_tree_non_membership_and_insert_to_tree(composer, baseRollupInputs);
 
+    // Insert state transitions
+    auto end_public_data_tree_snapshot = insert_state_transitions(baseRollupInputs);
+
     // Calculate the overall calldata hash
     std::array<NT::fr, 2> calldata_hash = calculate_calldata_hash(baseRollupInputs, contract_leaves);
 
@@ -490,6 +505,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
         .end_nullifier_tree_snapshot = end_nullifier_tree_snapshot,
         .start_contract_tree_snapshot = baseRollupInputs.start_contract_tree_snapshot,
         .end_contract_tree_snapshot = end_contract_tree_snapshot,
+        .start_public_data_tree_snapshot = baseRollupInputs.start_public_data_tree_snapshot,
+        .end_public_data_tree_snapshot = end_public_data_tree_snapshot,
         .calldata_hash = calldata_hash,
     };
     return public_inputs;

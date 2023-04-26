@@ -15,14 +15,12 @@ namespace {
 void initialise_end_values(PublicKernelInputsNoPreviousKernel<NT> const& public_kernel_inputs,
                            KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
-    circuit_outputs.constants.historic_tree_roots.public_data_tree_root =
-        public_kernel_inputs.public_call.public_data_tree_root;
     circuit_outputs.constants.tx_context = public_kernel_inputs.signed_tx_request.tx_request.tx_context;
 }
 
 void validate_inputs(DummyComposer& composer, PublicKernelInputsNoPreviousKernel<NT> const& public_kernel_inputs)
 {
-    const auto& this_call_stack_item = public_kernel_inputs.public_call.public_call_data.call_stack_item;
+    const auto& this_call_stack_item = public_kernel_inputs.public_call.call_stack_item;
     composer.do_assert(this_call_stack_item.public_inputs.call_context.is_delegate_call == false,
                        "Users cannot make a delegatecall", 
                        aztec3::utils::CircuitErrorCode::PUBLIC_KERNEL__UNSUPPORTED_OP);
@@ -42,9 +40,6 @@ using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputsNoPreviousKernel;
 using aztec3::circuits::kernel::public_kernel::common_validate_inputs;
 using aztec3::circuits::kernel::public_kernel::common_validate_kernel_execution;
-using aztec3::circuits::kernel::public_kernel::validate_function_execution;
-using aztec3::circuits::kernel::public_kernel::validate_state_reads;
-using aztec3::circuits::kernel::public_kernel::validate_state_transitions;
 using aztec3::circuits::kernel::public_kernel::validate_this_public_call_stack;
 using aztec3::utils::push_array_to_array;
 

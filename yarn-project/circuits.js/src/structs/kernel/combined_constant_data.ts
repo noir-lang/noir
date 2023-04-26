@@ -34,22 +34,19 @@ export class PrivateHistoricTreeRoots {
 }
 
 export class CombinedHistoricTreeRoots {
-  constructor(
-    public readonly privateHistoricTreeRoots: PrivateHistoricTreeRoots,
-    public readonly publicDataTreeRoot: Fr,
-  ) {}
+  constructor(public readonly privateHistoricTreeRoots: PrivateHistoricTreeRoots) {}
 
   toBuffer() {
-    return serializeToBuffer(this.privateHistoricTreeRoots, this.publicDataTreeRoot);
+    return serializeToBuffer(this.privateHistoricTreeRoots);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new CombinedHistoricTreeRoots(reader.readObject(PrivateHistoricTreeRoots), reader.readFr());
+    return new CombinedHistoricTreeRoots(reader.readObject(PrivateHistoricTreeRoots));
   }
 
   static empty() {
-    return new CombinedHistoricTreeRoots(PrivateHistoricTreeRoots.empty(), Fr.ZERO);
+    return new CombinedHistoricTreeRoots(PrivateHistoricTreeRoots.empty());
   }
 }
 
