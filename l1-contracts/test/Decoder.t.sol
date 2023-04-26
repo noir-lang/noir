@@ -57,7 +57,7 @@ contract DecoderTest is Test {
       helper.decode(block_empty);
     assertEq(
       publicInputsHash,
-      0x181161b4d0484ce98066b1c36289b0327f8782e9bc41f25ba77302511a2bd16b,
+      0x0013b2202a3e48b039cda7eef0976060d86e610d77fc9bb8cd5b0f1b561df48c,
       "Invalid public input hash"
     );
   }

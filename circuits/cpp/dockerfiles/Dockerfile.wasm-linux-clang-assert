@@ -6,7 +6,7 @@ RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-s
 WORKDIR /usr/src/circuits/cpp
 COPY . .
 
-RUN cmake --preset wasm -DUSE_TURBO=true && cmake --build --preset wasm
+RUN cmake --preset wasm && cmake --build --preset wasm
 
 FROM ubuntu:kinetic
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y xz-utils curl

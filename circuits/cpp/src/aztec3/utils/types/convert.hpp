@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <barretenberg/stdlib/primitives/point/point.hpp>

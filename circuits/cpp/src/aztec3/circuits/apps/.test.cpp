@@ -31,11 +31,10 @@
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/native_types.hpp>
-#include <barretenberg/stdlib/types/types.hpp>
 
 namespace {
 // Composer
-using C = plonk::stdlib::types::Composer;
+using C = plonk::UltraComposer;
 
 // Types
 using CT = aztec3::utils::types::CircuitTypes<C>;
@@ -65,7 +64,7 @@ using aztec3::circuits::apps::notes::DefaultPrivateNote;
 
 using aztec3::circuits::apps::notes::DefaultSingletonPrivateNote;
 
-//********
+// State variables
 // Get rid of ugle `Composer` template arg from our state var types:
 template <typename T> struct SpecialisedTypes {
     typedef MappingStateVar<C, T> mapping;
@@ -79,9 +78,6 @@ template <typename Note> using UTXO = typename SpecialisedTypes<Note>::utxo;
 template <typename Note> using UTXOSet = typename SpecialisedTypes<Note>::utxo_set;
 
 using Field = FieldStateVar<C>;
-
-//********
-
 } // namespace
 
 namespace aztec3::circuits::apps {

@@ -75,8 +75,24 @@ using private_function = std::function<OptionalPrivateCircuitPublicInputs<NT>(
 constexpr size_t MAX_FUNCTION_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1);
 const NT::fr EMPTY_FUNCTION_LEAF = FunctionLeafPreimage<NT>{}.hash(); // hash of empty/0 preimage
 const NT::fr EMPTY_CONTRACT_LEAF = NewContractData<NT>{}.hash();      // hash of empty/0 preimage
-const auto& EMPTY_FUNCTION_SIBLINGS = compute_empty_sibling_path<NT, aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF);
-const auto& EMPTY_CONTRACT_SIBLINGS = compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF);
+
+const auto& get_empty_function_siblings()
+{
+    static auto EMPTY_FUNCTION_SIBLINGS = []() {
+        const auto result = compute_empty_sibling_path<NT, aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF);
+        return result;
+    }();
+    return EMPTY_FUNCTION_SIBLINGS;
+}
+
+const auto& get_empty_contract_siblings()
+{
+    static auto EMPTY_CONTRACT_SIBLINGS = []() {
+        const auto result = compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF);
+        return result;
+    }();
+    return EMPTY_CONTRACT_SIBLINGS;
+}
 
 } // namespace
 
@@ -252,14 +268,14 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
                                                                                 private_circuit_vk_hash,
                                                                                 acir_hash,
                                                                                 function_leaf_index,
-                                                                                EMPTY_FUNCTION_SIBLINGS);
+                                                                                get_empty_function_siblings());
 
         // update contract_tree_root with real value
         contract_tree_root = contract_tree_root_from_siblings<NT>(function_tree_root,
                                                                   contract_address,
                                                                   portal_contract_address,
                                                                   contract_leaf_index,
-                                                                  EMPTY_CONTRACT_SIBLINGS);
+                                                                  get_empty_contract_siblings());
     }
 
     //***************************************************************************
@@ -285,7 +301,7 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
     // TODO this should likely be handled as part of the DB/Oracle/Context infrastructure
     private_circuit_public_inputs.historic_contract_tree_root = contract_tree_root;
 
-    Prover private_circuit_prover = private_circuit_composer.create_prover();
+    auto private_circuit_prover = private_circuit_composer.create_prover();
     NT::Proof private_circuit_proof = private_circuit_prover.construct_proof();
     // info("\nproof: ", private_circuit_proof.proof_data);
 
@@ -368,11 +384,11 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
 
                 .function_leaf_membership_witness = {
                     .leaf_index = function_leaf_index,
-                    .sibling_path = EMPTY_FUNCTION_SIBLINGS,
+                    .sibling_path = get_empty_function_siblings(),
                 },
                 .contract_leaf_membership_witness = {
                     .leaf_index = contract_leaf_index,
-                    .sibling_path = EMPTY_CONTRACT_SIBLINGS,
+                    .sibling_path = get_empty_contract_siblings(),
                 },
 
                 .portal_contract_address = portal_contract_address,

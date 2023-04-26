@@ -9,18 +9,20 @@
 #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 #include <aztec3/oracle/oracle.hpp>
 
-#include <barretenberg/stdlib/types/types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::apps::test_apps::basic_contract_deployment {
 
-using C = plonk::stdlib::types::Composer;
+// Composer
+using C = plonk::UltraComposer;
 
+// Native and circuit types
 using CT = aztec3::utils::types::CircuitTypes<C>;
 using NT = aztec3::utils::types::NativeTypes;
 
+// Database types
 using DB = oracle::FakeDB;
 using oracle::NativeOracle;
 using OracleWrapper = apps::OracleWrapperInterface<C>;

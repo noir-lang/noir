@@ -15,7 +15,6 @@
 #include "aztec3/circuits/abis/rollup/merge/previous_rollup_data.hpp"
 #include "aztec3/circuits/abis/rollup/merge/merge_rollup_inputs.hpp"
 #include <barretenberg/crypto/sha256/sha256.hpp>
-#include <barretenberg/stdlib/types/types.hpp>
 #include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_tree.hpp>
 #include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp>
 #include <aztec3/utils/types/convert.hpp>

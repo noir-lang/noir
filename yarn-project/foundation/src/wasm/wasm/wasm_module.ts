@@ -44,10 +44,10 @@ export class WasmModule {
   /**
    * Initialize this wasm module.
    * @param wasmImportEnv - Linked to a module called "env". Functions implementations referenced from e.g. C++.
-   * @param initial - 20 pages by default. 20*2**16 \> 1mb stack size plus other overheads.
+   * @param initial - 30 pages by default. 30*2**16 \> 1mb stack size plus other overheads.
    * @param maximum - 8192 maximum by default. 512mb.
    */
-  public async init(initial = 20, maximum = 8192) {
+  public async init(initial = 30, maximum = 8192) {
     this.debug(
       `initial mem: ${initial} pages, ${(initial * 2 ** 16) / (1024 * 1024)}mb. max mem: ${maximum} pages, ${
         (maximum * 2 ** 16) / (1024 * 1024)

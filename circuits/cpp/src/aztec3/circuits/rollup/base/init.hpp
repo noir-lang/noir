@@ -13,7 +13,6 @@
 #include "aztec3/utils/dummy_composer.hpp"
 
 #include <barretenberg/crypto/sha256/sha256.hpp>
-#include <barretenberg/stdlib/types/types.hpp>
 #include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_tree.hpp>
 #include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp>
 #include <aztec3/utils/types/convert.hpp>

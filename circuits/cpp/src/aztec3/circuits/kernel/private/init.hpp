@@ -7,16 +7,13 @@
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 
-#include <barretenberg/stdlib/types/types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-// Turbo specific, at the moment:
-using Composer = plonk::stdlib::types::Composer;
-using plonk::stdlib::types::Prover;
+using Composer = plonk::UltraComposer;
 
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 

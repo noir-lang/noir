@@ -11,7 +11,6 @@
 #include <aztec3/circuits/hash.hpp>
 
 #include <barretenberg/crypto/sha256/sha256.hpp>
-#include <barretenberg/stdlib/types/types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/native_types.hpp>

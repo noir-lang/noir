@@ -24,9 +24,11 @@ using aztec3::circuits::check_membership;
 
 namespace aztec3::circuits::rollup::native_base_rollup {
 
-const NT::fr EMPTY_COMMITMENTS_SUBTREE_ROOT = MerkleTree(PRIVATE_DATA_SUBTREE_DEPTH).root();
-const NT::fr EMPTY_CONTRACTS_SUBTREE_ROOT = MerkleTree(CONTRACT_SUBTREE_DEPTH).root();
-const NT::fr EMPTY_NULLIFIER_SUBTREE_ROOT = MerkleTree(NULLIFIER_SUBTREE_DEPTH).root();
+NT::fr calculate_empty_tree_root(const size_t depth)
+{
+    MerkleTree empty_tree = MerkleTree(depth);
+    return empty_tree.root();
+}
 
 // TODO: can we aggregate proofs if we do not have a working circuit impl
 
@@ -399,10 +401,11 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     }
 
     // Check that the new subtree is to be inserted at the next location, and is empty currently
+    const auto empty_nullifier_subtree_root = calculate_empty_tree_root(NULLIFIER_SUBTREE_DEPTH);
     auto leafIndexNullifierSubtreeDepth =
         baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
     check_membership<NT>(composer,
-                         EMPTY_NULLIFIER_SUBTREE_ROOT,
+                         empty_nullifier_subtree_root,
                          leafIndexNullifierSubtreeDepth,
                          baseRollupInputs.new_nullifiers_subtree_sibling_path,
                          current_nullifier_tree_root,
@@ -442,21 +445,23 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     NT::fr commitments_tree_subroot = calculate_commitments_subtree(composer, baseRollupInputs);
 
     // Insert commitment subtrees:
+    const auto empty_commitments_subtree_root = calculate_empty_tree_root(PRIVATE_DATA_SUBTREE_DEPTH);
     auto end_private_data_tree_snapshot =
         components::insert_subtree_to_snapshot_tree(composer,
                                                     baseRollupInputs.start_private_data_tree_snapshot,
                                                     baseRollupInputs.new_commitments_subtree_sibling_path,
-                                                    EMPTY_COMMITMENTS_SUBTREE_ROOT,
+                                                    empty_commitments_subtree_root,
                                                     commitments_tree_subroot,
                                                     PRIVATE_DATA_SUBTREE_DEPTH,
                                                     "empty commitment subtree membership check");
 
     // Insert contract subtrees:
+    const auto empty_contracts_subtree_root = calculate_empty_tree_root(CONTRACT_SUBTREE_DEPTH);
     auto end_contract_tree_snapshot =
         components::insert_subtree_to_snapshot_tree(composer,
                                                     baseRollupInputs.start_contract_tree_snapshot,
                                                     baseRollupInputs.new_contracts_subtree_sibling_path,
-                                                    EMPTY_CONTRACTS_SUBTREE_ROOT,
+                                                    empty_contracts_subtree_root,
                                                     contracts_tree_subroot,
                                                     CONTRACT_SUBTREE_DEPTH,
                                                     "empty contract subtree membership check");

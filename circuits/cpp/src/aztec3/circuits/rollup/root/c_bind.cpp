@@ -16,14 +16,13 @@
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 
 namespace {
+using Composer = plonk::UltraComposer;
 using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit;
 using aztec3::circuits::rollup::native_root_rollup::RootRollupInputs;
 using aztec3::circuits::rollup::native_root_rollup::RootRollupPublicInputs;
 
-using plonk::TurboComposer;
-using namespace plonk::stdlib::types;
 } // namespace
 
 #define WASM_EXPORT __attribute__((visibility("default")))

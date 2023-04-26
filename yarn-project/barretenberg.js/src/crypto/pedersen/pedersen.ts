@@ -22,6 +22,22 @@ export function pedersenCompress(wasm: WasmWrapper, lhs: Uint8Array, rhs: Uint8A
 }
 
 /**
+ * Combine an array of hashes using pedersen hash.
+ * @param wasm - The barretenberg module.
+ * @param lhs - The first hash.
+ * @param rhs - The second hash.
+ * @returns The new 32-byte hash.
+ */
+export function pedersenHashInputs(wasm: WasmWrapper, inputs: Buffer[]): Buffer {
+  // If not done already, precompute constants.
+  wasm.call('pedersen__init');
+  const inputVectors = serializeBufferArrayToVector(inputs);
+  wasm.writeMemory(0, inputVectors);
+  wasm.call('pedersen__hash_multiple', 0, 0);
+  return Buffer.from(wasm.getMemorySlice(0, 32));
+}
+
+/**
  * Compresses an array of buffers.
  * @param wasm - The barretenberg module.
  * @param inputs - The array of buffers to compress.

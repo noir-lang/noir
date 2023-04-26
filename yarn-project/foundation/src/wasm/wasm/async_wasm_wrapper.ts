@@ -8,13 +8,13 @@ export abstract class AsyncWasmWrapper extends WasmWrapper {
   protected asyncCallState = new AsyncCallState();
 
   /**
-   * 20 pages by default. 20*2**16 \> 1mb stack size plus other overheads.
+   * 30 pages by default. 30*2**16 \> 1mb stack size plus other overheads.
    * 8192 maximum by default. 512mb.
    * @param initial - Initial memory pages.
    * @param maximum - Max memory pages.
    * @returns The wrapper.
    */
-  public async init(initial = 20, maximum = 8192): Promise<this> {
+  public async init(initial = 30, maximum = 8192): Promise<this> {
     await super.init(initial, maximum);
     this.asyncCallState.init(this.wasm);
     return this;
