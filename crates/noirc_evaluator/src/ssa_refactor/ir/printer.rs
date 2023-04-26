@@ -1,5 +1,8 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
-use std::fmt::{Formatter, Result};
+use std::{
+    collections::HashSet,
+    fmt::{Formatter, Result},
+};
 
 use iter_extended::vecmap;
 
@@ -12,19 +15,26 @@ use super::{
 
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
     writeln!(f, "fn {} {{", function.name)?;
-    display_block_with_successors(function, function.entry_block, f)?;
+    display_block_with_successors(function, function.entry_block, &mut HashSet::new(), f)?;
     write!(f, "}}")
 }
 
+/// Displays a block followed by all of its successors recursively.
+/// This uses a HashSet to keep track of the visited blocks. Otherwise,
+/// there would be infinite recursion for any loops in the IR.
 pub(crate) fn display_block_with_successors(
     function: &Function,
     block_id: BasicBlockId,
+    visited: &mut HashSet<BasicBlockId>,
     f: &mut Formatter,
 ) -> Result {
     display_block(function, block_id, f)?;
+    visited.insert(block_id);
 
     for successor in function.dfg[block_id].successors() {
-        display_block(function, successor, f)?;
+        if !visited.contains(&successor) {
+            display_block_with_successors(function, successor, visited, f)?;
+        }
     }
     Ok(())
 }
@@ -36,7 +46,7 @@ pub(crate) fn display_block(
 ) -> Result {
     let block = &function.dfg[block_id];
 
-    writeln!(f, "{}({}):", block_id, value_list(block.parameters()))?;
+    writeln!(f, "  {}({}):", block_id, value_list(block.parameters()))?;
 
     for instruction in block.instructions() {
         display_instruction(function, *instruction, f)?;
