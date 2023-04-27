@@ -50,9 +50,9 @@ void create_circuit(Composer& composer, const acir_format& constraint_system)
         create_sha256_constraints(composer, constraint);
     }
 
-    // Add merkle membership constraints
-    for (const auto& constraint : constraint_system.merkle_membership_constraints) {
-        create_merkle_check_membership_constraint(composer, constraint);
+    // Add compute merkle root constraints
+    for (const auto& constraint : constraint_system.compute_merkle_root_constraints) {
+        create_compute_merkle_root_constraint(composer, constraint);
     }
 
     // Add schnorr constraints
@@ -128,9 +128,9 @@ Composer create_circuit(const acir_format& constraint_system,
         create_sha256_constraints(composer, constraint);
     }
 
-    // Add merkle membership constraints
-    for (const auto& constraint : constraint_system.merkle_membership_constraints) {
-        create_merkle_check_membership_constraint(composer, constraint);
+    // Add compute merkle root constraints
+    for (const auto& constraint : constraint_system.compute_merkle_root_constraints) {
+        create_compute_merkle_root_constraint(composer, constraint);
     }
 
     // Add schnorr constraints
@@ -212,9 +212,9 @@ Composer create_circuit_with_witness(const acir_format& constraint_system,
         create_sha256_constraints(composer, constraint);
     }
 
-    // Add merkle membership constraints
-    for (const auto& constraint : constraint_system.merkle_membership_constraints) {
-        create_merkle_check_membership_constraint(composer, constraint);
+    // Add compute merkle root constraints
+    for (const auto& constraint : constraint_system.compute_merkle_root_constraints) {
+        create_compute_merkle_root_constraint(composer, constraint);
     }
 
     // Add schnorr constraints
@@ -293,9 +293,9 @@ Composer create_circuit_with_witness(const acir_format& constraint_system, std::
         create_sha256_constraints(composer, constraint);
     }
 
-    // Add merkle membership constraints
-    for (const auto& constraint : constraint_system.merkle_membership_constraints) {
-        create_merkle_check_membership_constraint(composer, constraint);
+    // Add compute merkle root constraints
+    for (const auto& constraint : constraint_system.compute_merkle_root_constraints) {
+        create_compute_merkle_root_constraint(composer, constraint);
     }
 
     // Add schnorr constraints
@@ -372,9 +372,9 @@ void create_circuit_with_witness(Composer& composer, const acir_format& constrai
         create_sha256_constraints(composer, constraint);
     }
 
-    // Add merkle membership constraints
-    for (const auto& constraint : constraint_system.merkle_membership_constraints) {
-        create_merkle_check_membership_constraint(composer, constraint);
+    // Add compute merkle root constraints
+    for (const auto& constraint : constraint_system.compute_merkle_root_constraints) {
+        create_compute_merkle_root_constraint(composer, constraint);
     }
 
     // Add schnorr constraints

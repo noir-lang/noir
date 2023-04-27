@@ -88,7 +88,7 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
         .blake2s_constraints = {},
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .merkle_membership_constraints = {},
+        .compute_merkle_root_constraints = {},
         .constraints = { expr_a, expr_b, expr_c, expr_d },
     };
 
@@ -152,7 +152,7 @@ TEST(acir_format, test_schnorr_verify_pass)
         .blake2s_constraints = {},
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .merkle_membership_constraints = {},
+        .compute_merkle_root_constraints = {},
         .constraints = { poly_triple{
             .a = schnorr_constraint.result,
             .b = schnorr_constraint.result,
@@ -221,7 +221,7 @@ TEST(acir_format, test_schnorr_verify_small_range)
         .blake2s_constraints = {},
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .merkle_membership_constraints = {},
+        .compute_merkle_root_constraints = {},
         .constraints = { poly_triple{
             .a = schnorr_constraint.result,
             .b = schnorr_constraint.result,
