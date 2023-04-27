@@ -157,7 +157,7 @@ impl DataFlowGraph {
         self.values.insert(Value::NumericConstant { constant, typ })
     }
 
-    /// Gets or creats a ValueId for the given FunctionId.
+    /// Gets or creates a ValueId for the given FunctionId.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
