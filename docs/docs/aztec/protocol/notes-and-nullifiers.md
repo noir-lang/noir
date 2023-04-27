@@ -4,9 +4,9 @@ title: Notes and Nullifiers
 
 <!-- TODO -->
 
-## Private State
+import Disclaimer from '../common/\_disclaimer.mdx';
 
-- Talk about UTXOs
+<Disclaimer/>
 
 ### Fragmented State (`Set`)
 
@@ -19,12 +19,10 @@ title: Notes and Nullifiers
   - Discuss the interface that will be expected of notes, by our Noir Contract stdlib state variable types
   - Discuss how decrypting, recomputing the note_hash, and recomputing the nullifier works.
 
-
 ### Solid state (`Singleton`)
 
 - Talk about a state which always inhabits one and only one note.
 - Talk about initialisation nullifiers.
-
 
 ### Custom Nullifiers
 
@@ -42,5 +40,3 @@ title: Notes and Nullifiers
 ### Notes containing complex types
 
 - Talk about how we can 'squish' complex types into Notes.
-
-

@@ -2,11 +2,9 @@
 title: Milestones Overview
 ---
 
-:::caution
-We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
+import Disclaimer from '../common/\_disclaimer.mdx';
 
-If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
-:::
+<Disclaimer/>
 
 The milestones are written as sets of user stories to make it clear what functionality will be available as we work through each one.
 
@@ -21,7 +19,6 @@ When developing a module, these external API calls can be mocked. Each module's 
 The goal is to enable parallel development of these milestones, where teams are not bottlenecked by the progress of other teams.
 
 For a milestone to be complete, full integration tests must be implemented that interact across module boundaries.
-
 
 ---
 

@@ -2,6 +2,10 @@
 
 ## Private State Tree
 
+import Disclaimer from '../../common/\_disclaimer.mdx';
+
+<Disclaimer/>
+
 An append-only tree, primarily designed for storing private state variables.
 
 Each leaf value in the tree is a 254-bit altBN-254 scalar field element. Since this tree is primarily intended to keep data private, this leaf value will often be a cryptographic commitment to some larger blob of data. In Aztec, we call any such blob of data a "Note".
@@ -52,16 +56,16 @@ The Private Kernel circuit will modify this `note_hash` further, before it is in
 > Note, all hashes will be appropriately domain-separated.
 
 > The tree is append-only for a few of reasons:
+>
 > - It saves on the number of hashes required to perform membership proofs and insertions. As long as we know an upper bound on the number of leaves we'll ever need, we can shrink the tree down to that size (instead of using a gigantic sparse tree with 2^254 leaves).
 > - It allows us to insert leaves in batches with fewer hashes than a sparse tree.
-> - It allows syncing to be performed much quicker than a sparse tree, as a node can sync from left to right, and can adopt some efficient syncing algorithms. 
+> - It allows syncing to be performed much quicker than a sparse tree, as a node can sync from left to right, and can adopt some efficient syncing algorithms.
 
-> Cryptographic commitments have the nice property that they can _hide_ the contents of the underlying blob of data, whilst ensuring the 
+> Cryptographic commitments have the nice property that they can _hide_ the contents of the underlying blob of data, whilst ensuring the
 
 'preimage' of that data cannot be modified (the latter property is called 'binding'). A simple commitment can be achieved by choosing your favourite hash function, and including a large random number in with the data you wish to commit to. (The randomness must be newly-generated for each commitment).
 
 > Instead of the term 'Note', other protocols might refer to a blob of data representing private state as a 'record'. This is terminology used by zexe-like protocols.
-
 
 ## Nullifier Tree
 
@@ -98,7 +102,6 @@ We've found that such notes require an 'Initialisation Nullifier'; a nullifier w
 
 > There's more on this topic in [the Aztec forum](https://discourse.aztec.network/t/utxo-syntax-2-initialising-singleton-utxos/47).
 
-
 ## Public State Tree
 
 A sparse Merkle tree, intended for storing public state variables of Aztec contracts. Each nonzero leaf contains the current value of some public state variable of some Aztec contract. Leaves of this tree may be updated in-place (as opposed to convoluted nullification of private states).
@@ -108,6 +111,7 @@ A sparse Merkle tree, intended for storing public state variables of Aztec contr
 Each leaf is a key:value mapping, which maps a `(contract_address, storage_slot)` tuple to the current value of a state variable.
 
 E.g. for a state variable at some `storage_slot` of some `contract_address`, its current `value` is stored at the leaf with:
+
 - `leaf_index = pedersen(contract_address, storage_slot);`
 - `leaf_value = value;`
 
@@ -118,20 +122,20 @@ Note this tree's data can only be read/written by the Sequencer, since only they
 
 ## Contract Tree
 
-Contains information about every function of every contract deployed to the Aztec network. This allows the Kernel Circuits to validate that for every function execution request, the requested function actually belongs to a deployed contract. 
+Contains information about every function of every contract deployed to the Aztec network. This allows the Kernel Circuits to validate that for every function execution request, the requested function actually belongs to a deployed contract.
 
 ![](https://hackmd.io/_uploads/ByD2CwVQ3.png)
 
 > Note: Aztec supports the ability to keep the logic of private functions of a smart contract private. In such cases, no information about the logic of that private function will be broadcast; only a randomised merkle root of that contract's data.
 
 ## Trees of historic trees' roots
-* `treeOfHistoricPrivateDataTreeRoots`: for membership checks against historic roots of the `privateDataTree`
-* `treeOfHistoricContractTreeRoots`: for membership checks against historic roots of the `contractTree`
+
+- `treeOfHistoricPrivateDataTreeRoots`: for membership checks against historic roots of the `privateDataTree`
+- `treeOfHistoricContractTreeRoots`: for membership checks against historic roots of the `contractTree`
 
 ## Trees of valid Kernel/Rollup circuit VKs
+
 Eventually, we'll have trees of VKs for various permutations of kernel/rollup circuits. Such permutations might be the number of public inputs, or the logic contained within the circuits.
-
-
 
 ## Participate
 

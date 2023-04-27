@@ -14,33 +14,49 @@
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
   docsSidebar: [
-    "intro", // Mike to review
+    "intro",
+    "what-is-aztec",
     {
       type: "category",
-      label: "Aztec's zkRollup",
+      label: "Aztec Rollup",
+      link: {
+        type: "doc",
+        id: "aztec/overview",
+      },
       items: [
-        "aztec/overview", // Mike to review
-        "aztec/history",
         {
           type: "category",
-          label: "Milestones",
+          label: "How it works",
+          items: [
+            "aztec/how-it-works/private-smart-contracts",
+            "aztec/how-it-works/private-state",
+            "aztec/how-it-works/private-public-execution",
+            "aztec/how-it-works/l1-l2-messaging",
+          ],
+        },
+        {
+          type: "category",
+          label: "Road-map",
           items: [
             "aztec/milestones/features-initial-ldt",
             "aztec/milestones/milestones",
-            "aztec/milestones/milestone1-1", // Consider removing in favour of 'components' (see below), which is an edited version of milestone1-1.
           ],
         },
         {
           type: "category",
-          label: "Architecture",
+          label: "Components",
+          link: {
+            type: "doc",
+            id: "aztec/architecture/components",
+          },
           items: [
-            `aztec/architecture/architecture`, // Mike to review
             "aztec/architecture/components", // TODO
           ],
         },
+
         {
           type: "category",
-          label: "Protocol",
+          label: "Protocol Specs",
           items: [
             {
               type: "category",
@@ -50,16 +66,30 @@ const sidebars = {
                 "aztec/protocol/trees/indexed-merkle-tree",
               ],
             },
+
+            {
+              type: "category",
+              label: "Circuits",
+              link: {
+                type: "doc",
+                id: "aztec/protocol/circuits/circuits",
+              },
+              items: [
+                "aztec/protocol/circuits/private-kernel",
+                "aztec/protocol/circuits/public-kernel",
+                "aztec/protocol/circuits/rollup",
+              ],
+            },
+
             "aztec/protocol/contract-creation",
-            "aztec/protocol/function-selectors", // Consider moving to discourse.
             "aztec/protocol/notes-and-nullifiers", // TODO
-            "aztec/protocol/communication-abstractions",
             "aztec/protocol/public-functions-vm-architectures",
           ],
         },
       ],
     },
     "noir",
+    "aztec/history",
     "aztec-connect-sunset",
     "glossary",
   ],
