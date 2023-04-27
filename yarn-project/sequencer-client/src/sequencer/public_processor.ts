@@ -9,36 +9,14 @@ import {
   PublicKernelPublicInputs,
   TxRequest,
 } from '@aztec/circuits.js';
-import {
-  CompleteContractData,
-  ContractData,
-  ContractDataSource,
-  EncodedContractFunction,
-  PublicTx,
-  Tx,
-} from '@aztec/types';
+import { ContractDataSource, PublicTx, Tx } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 import { pedersenGetHash } from '@aztec/barretenberg.js/crypto';
-import { AztecAddress, createDebugLogger } from '@aztec/foundation';
+import { createDebugLogger } from '@aztec/foundation';
 import times from 'lodash.times';
 import { Proof, PublicProver } from '../prover/index.js';
 import { PublicCircuitSimulator, PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
-
-export class MockContractDataSource implements ContractDataSource {
-  getL2ContractDataInBlock(blockNum: number): Promise<ContractData[]> {
-    return Promise.resolve([]);
-  }
-  getL2ContractData(_address: AztecAddress): Promise<CompleteContractData | undefined> {
-    return Promise.resolve(undefined);
-  }
-  getL2ContractInfo(_address: AztecAddress): Promise<ContractData | undefined> {
-    return Promise.resolve(undefined);
-  }
-  getPublicFunction(_address: AztecAddress, _selector: Buffer): Promise<EncodedContractFunction | undefined> {
-    return Promise.resolve(undefined);
-  }
-}
 
 export class PublicProcessor {
   constructor(

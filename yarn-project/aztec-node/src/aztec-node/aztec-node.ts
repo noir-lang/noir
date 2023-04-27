@@ -55,7 +55,7 @@ export class AztecNode {
     await Promise.all([p2pClient.start(), worldStateSynchroniser.start()]);
 
     // now create the sequencer
-    const sequencer = await SequencerClient.new(config, p2pClient, worldStateSynchroniser);
+    const sequencer = await SequencerClient.new(config, p2pClient, worldStateSynchroniser, archiver);
     return new AztecNode(p2pClient, archiver, archiver, archiver, merkleTreeDB, worldStateSynchroniser, sequencer);
   }
 

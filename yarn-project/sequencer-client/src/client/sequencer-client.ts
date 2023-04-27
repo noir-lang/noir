@@ -5,10 +5,11 @@ import { CircuitBlockBuilder } from '../block_builder/circuit_block_builder.js';
 import { SequencerClientConfig } from '../config.js';
 import { getL1Publisher, getVerificationKeys, Sequencer } from '../index.js';
 import { EmptyPublicProver, EmptyRollupProver } from '../prover/empty.js';
-import { MockContractDataSource, MockPublicProcessor } from '../sequencer/public_processor.js';
+import { MockPublicProcessor } from '../sequencer/public_processor.js';
 import { FakePublicCircuitSimulator } from '../simulator/fake_public.js';
 import { MockPublicKernelCircuitSimulator } from '../simulator/mock_public_kernel.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
+import { ContractDataSource } from '@aztec/types';
 
 /**
  * Encapsulates the full sequencer and publisher.
@@ -20,6 +21,7 @@ export class SequencerClient {
     config: SequencerClientConfig,
     p2pClient: P2P,
     worldStateSynchroniser: WorldStateSynchroniser,
+    contractDataSource: ContractDataSource,
   ) {
     const publisher = getL1Publisher(config);
     const merkleTreeDb = worldStateSynchroniser.getLatest();
@@ -37,7 +39,7 @@ export class SequencerClient {
       new FakePublicCircuitSimulator(merkleTreeDb),
       new MockPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
-      new MockContractDataSource(),
+      contractDataSource,
     );
 
     const sequencer = new Sequencer(
