@@ -256,4 +256,17 @@ impl FunctionBuilder {
         Intrinsic::lookup(name)
             .map(|intrinsic| self.current_function_mut().dfg.import_intrinsic(intrinsic))
     }
+
+    /// Returns a ValueId pointing to the given function or imports the function
+    /// into the current function if it was not already, and returns that ID.
+    pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
+        self.current_function.dfg.import_function(function)
+    }
+
+    /// Retrieve a value reference to the given intrinsic operation.
+    /// Returns None if there is no intrinsic matching the given name.
+    pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
+        Intrinsic::lookup(name)
+            .map(|intrinsic| self.current_function.dfg.import_intrinsic(intrinsic))
+    }
 }
