@@ -6,13 +6,13 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
 
+use crate::ssa_refactor::ir::function::Function;
+use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::instruction::BinaryOp;
+use crate::ssa_refactor::ir::map::AtomicCounter;
 use crate::ssa_refactor::ir::types::Type;
 use crate::ssa_refactor::ir::value::ValueId;
-use crate::ssa_refactor::ssa_builder::SharedBuilderContext;
-use crate::ssa_refactor::{
-    ir::function::FunctionId as IrFunctionId, ssa_builder::function_builder::FunctionBuilder,
-};
+use crate::ssa_refactor::ssa_builder::FunctionBuilder;
 
 use super::value::{Tree, Values};
 
@@ -22,7 +22,7 @@ type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
 
-    pub(super) builder: FunctionBuilder<'a>,
+    pub(super) builder: FunctionBuilder,
     shared_context: &'a SharedContext,
 }
 
@@ -30,28 +30,32 @@ pub(super) struct FunctionContext<'a> {
 pub(super) struct SharedContext {
     functions: RwLock<HashMap<FuncId, IrFunctionId>>,
     function_queue: Mutex<FunctionQueue>,
+    function_counter: AtomicCounter<Function>,
+
     pub(super) program: Program,
 }
 
 impl<'a> FunctionContext<'a> {
     pub(super) fn new(
+        function_id: FuncId,
         function_name: String,
         parameters: &Parameters,
         shared_context: &'a SharedContext,
-        shared_builder_context: &'a SharedBuilderContext,
     ) -> Self {
+        let new_id = shared_context.get_or_queue_function(function_id);
+
         let mut this = Self {
             definitions: HashMap::new(),
-            builder: FunctionBuilder::new(function_name, shared_builder_context),
+            builder: FunctionBuilder::new(function_name, new_id),
             shared_context,
         };
         this.add_parameters_to_scope(parameters);
         this
     }
 
-    pub(super) fn new_function(&mut self, name: String, parameters: &Parameters) {
+    pub(super) fn new_function(&mut self, id: IrFunctionId, name: String, parameters: &Parameters) {
         self.definitions.clear();
-        self.builder.new_function(name);
+        self.builder.new_function(name, id);
         self.add_parameters_to_scope(parameters);
     }
 
@@ -72,7 +76,7 @@ impl<'a> FunctionContext<'a> {
     fn add_parameter_to_scope(&mut self, parameter_id: LocalId, parameter_type: &ast::Type) {
         // Add a separate parameter for each field type in 'parameter_type'
         let parameter_value =
-            self.map_type(parameter_type, |this, typ| this.builder.add_parameter(typ).into());
+            Self::map_type(parameter_type, |typ| self.builder.add_parameter(typ).into());
 
         self.definitions.insert(parameter_id, parameter_value);
     }
@@ -81,12 +85,8 @@ impl<'a> FunctionContext<'a> {
     ///
     /// This can be used to (for example) flatten a tuple type, creating
     /// and returning a new parameter for each field type.
-    pub(super) fn map_type<T>(
-        &mut self,
-        typ: &ast::Type,
-        mut f: impl FnMut(&mut Self, Type) -> T,
-    ) -> Tree<T> {
-        Self::map_type_helper(typ, &mut |typ| f(self, typ))
+    pub(super) fn map_type<T>(typ: &ast::Type, mut f: impl FnMut(Type) -> T) -> Tree<T> {
+        Self::map_type_helper(typ, &mut f)
     }
 
     // This helper is needed because we need to take f by mutable reference,
@@ -157,6 +157,30 @@ impl<'a> FunctionContext<'a> {
         result.into()
     }
 
+    /// Inserts a call instruction at the end of the current block and returns the results
+    /// of the call.
+    ///
+    /// Compared to self.builder.insert_call, this version will reshape the returned Vec<ValueId>
+    /// back into a Values tree of the proper shape.
+    pub(super) fn insert_call(
+        &mut self,
+        function: IrFunctionId,
+        arguments: Vec<ValueId>,
+        result_type: &ast::Type,
+    ) -> Values {
+        let result_types = Self::convert_type(result_type).flatten();
+        let results = self.builder.insert_call(function, arguments, result_types);
+
+        let mut i = 0;
+        let reshaped_return_values = Self::map_type(result_type, |_| {
+            let result = results[i].into();
+            i += 1;
+            result
+        });
+        assert_eq!(i, results.len());
+        reshaped_return_values
+    }
+
     /// Create a const offset of an address for an array load or store
     pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
         if offset != 0 {
@@ -215,6 +239,13 @@ impl<'a> FunctionContext<'a> {
             }
         }
     }
+
+    /// Retrieves the given function, adding it to the function queue
+    /// if it is not yet compiled.
+    pub(super) fn get_or_queue_function(&self, id: FuncId) -> Values {
+        let function = self.shared_context.get_or_queue_function(id);
+        Values::Leaf(super::value::Value::Function(function))
+    }
 }
 
 /// True if the given operator cannot be encoded directly and needs
@@ -260,10 +291,38 @@ fn convert_operator(op: noirc_frontend::BinaryOpKind) -> BinaryOp {
 
 impl SharedContext {
     pub(super) fn new(program: Program) -> Self {
-        Self { functions: Default::default(), function_queue: Default::default(), program }
+        Self {
+            functions: Default::default(),
+            function_queue: Default::default(),
+            function_counter: Default::default(),
+            program,
+        }
     }
 
     pub(super) fn pop_next_function_in_queue(&self) -> Option<(ast::FuncId, IrFunctionId)> {
         self.function_queue.lock().expect("Failed to lock function_queue").pop()
+    }
+
+    /// Return the matching id for the given function if known. If it is not known this
+    /// will add the function to the queue of functions to compile, assign it a new id,
+    /// and return this new id.
+    pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
+        // Start a new block to guarantee the destructor for the map lock is released
+        // before map needs to be aquired again in self.functions.write() below
+        {
+            let map = self.functions.read().expect("Failed to read self.functions");
+            if let Some(existing_id) = map.get(&id) {
+                return *existing_id;
+            }
+        }
+
+        let next_id = self.function_counter.next();
+
+        let mut queue = self.function_queue.lock().expect("Failed to lock function queue");
+        queue.push((id, next_id));
+
+        self.functions.write().expect("Failed to write to self.functions").insert(id, next_id);
+
+        next_id
     }
 }

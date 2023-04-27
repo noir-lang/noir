@@ -14,8 +14,8 @@ use super::{
 };
 
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    writeln!(f, "fn {} {{", function.name)?;
-    display_block_with_successors(function, function.entry_block, &mut HashSet::new(), f)?;
+    writeln!(f, "fn {} {} {{", function.name(), function.id())?;
+    display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
     write!(f, "}}")
 }
 
