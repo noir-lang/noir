@@ -8,6 +8,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
   const {
     SEQ_PUBLISHER_PRIVATE_KEY,
     ETHEREUM_HOST,
+    CHAIN_ID,
     SEQ_REQUIRED_CONFS,
     SEQ_RETRY_INTERVAL,
     SEQ_TX_POLLING_INTERVAL,
@@ -18,6 +19,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
 
   return {
     rpcUrl: ETHEREUM_HOST ? ETHEREUM_HOST : '',
+    chainId: CHAIN_ID ? +CHAIN_ID : 31337, // 31337 is the default chain id for anvil
     requiredConfirmations: SEQ_REQUIRED_CONFS ? +SEQ_REQUIRED_CONFS : 1,
     retryIntervalMs: SEQ_RETRY_INTERVAL ? +SEQ_RETRY_INTERVAL : 1_000,
     transactionPollingInterval: SEQ_TX_POLLING_INTERVAL ? +SEQ_TX_POLLING_INTERVAL : 1_000,

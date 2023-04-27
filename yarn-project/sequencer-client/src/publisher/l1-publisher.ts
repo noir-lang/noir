@@ -10,7 +10,7 @@ import { UnverifiedData } from '@aztec/types';
 export interface L1PublisherTxSender {
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
   sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
-  sendEmitNewContractDataTx(l2BlockNum: number, contractData: CompleteContractData[]): Promise<string | undefined>;
+  sendEmitContractDeploymentTx(l2BlockNum: number, contractData: CompleteContractData[]): Promise<string | undefined>;
   getTransactionReceipt(txHash: string): Promise<{ status: boolean; transactionHash: string } | undefined>;
 }
 
@@ -190,7 +190,7 @@ export class L1Publisher implements L2BlockReceiver {
   private async sendEmitNewContractDataTx(l2BlockNum: number, contractData: CompleteContractData[]) {
     while (!this.interrupted) {
       try {
-        return await this.txSender.sendEmitNewContractDataTx(l2BlockNum, contractData);
+        return await this.txSender.sendEmitContractDeploymentTx(l2BlockNum, contractData);
       } catch (err) {
         this.log(`Error sending contract data to L1`, err);
         await this.sleepOrInterrupted();

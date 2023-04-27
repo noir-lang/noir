@@ -26,7 +26,6 @@
   "dependencies": {
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
-    "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-contracts": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
@@ -35,7 +34,8 @@
     "lodash.times": "^4.3.2",
     "ts-jest": "^29.1.0",
     "tslib": "^2.4.0",
-    "typescript": "^4.9.5"
+    "typescript": "^4.9.5",
+    "viem": "^0.3.13"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

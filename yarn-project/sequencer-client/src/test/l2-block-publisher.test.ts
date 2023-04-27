@@ -11,6 +11,7 @@ import { L2Block } from '@aztec/types';
 const sequencerPK = '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a';
 const deployerPK = '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba';
 const anvilHost = process.env.ANVIL_HOST ?? 'http://127.0.0.1:8545';
+const chainId = 31337;
 
 describe.skip('L1Publisher integration', () => {
   let rollup: Rollup;
@@ -29,6 +30,7 @@ describe.skip('L1Publisher integration', () => {
     publisher = new L1Publisher(
       new EthereumjsTxSender({
         rpcUrl: anvilHost,
+        chainId,
         requiredConfirmations: 1,
         rollupContract: rollup.address,
         unverifiedDataEmitterContract: unverifiedDataEmitter.address,

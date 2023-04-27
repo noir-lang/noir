@@ -73,7 +73,7 @@ __metadata:
     tsc-watch: ^6.0.0
     tslib: ^2.5.0
     typescript: ^5.0.4
-    viem: ^0.3.1
+    viem: ^0.3.13
     ws: ^8.13.0
   languageName: unknown
   linkType: soft
@@ -251,7 +251,6 @@ __metadata:
   dependencies:
     "@aztec/aztec-node": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
-    "@aztec/ethereum.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-contracts": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
@@ -267,6 +266,7 @@ __metadata:
     ts-node: ^10.9.1
     tslib: ^2.4.0
     typescript: ^5.0.4
+    viem: ^0.3.13
   languageName: unknown
   linkType: soft
 
@@ -539,6 +539,7 @@ __metadata:
     ts-node: ^10.9.1
     tslib: ^2.4.0
     typescript: ^5.0.4
+    viem: ^0.3.13
   languageName: unknown
   linkType: soft
 
@@ -7830,9 +7831,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^0.3.1":
-  version: 0.3.1
-  resolution: "viem@npm:0.3.1"
+"viem@npm:^0.3.13":
+  version: 0.3.13
+  resolution: "viem@npm:0.3.13"
   dependencies:
     "@adraffy/ens-normalize": 1.9.0
     "@noble/curves": 0.9.0
@@ -7843,7 +7844,7 @@ __metadata:
     abitype: 0.7.1
     isomorphic-ws: 5.0.0
     ws: 8.12.0
-  checksum: fb4a1aeb568221b8e12b912ea8a1dc7361ba87215054e0a903152e7de1f98bbfa5c0931e2f64d2dd140b6c092aeba074159ac8e95eefa77dccaf4d53f3ac442e
+  checksum: 4a1fd40c0b910cf3abdba796c31288b221a6de9f79a9b0417e71ea92d7c2fd1ceb5bdb66ba45c1c6c8bdfa5470dcdd598140ad867cc229eddeccecc822fc8f11
   languageName: node
   linkType: hard
 

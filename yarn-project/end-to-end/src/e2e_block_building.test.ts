@@ -1,13 +1,12 @@
 import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
 import { AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
-import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
-import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { EthAddress, createDebugLogger } from '@aztec/foundation';
+import { createDebugLogger } from '@aztec/foundation';
+import { mnemonicToAccount } from 'viem/accounts';
+import { createAztecRpcServer } from './create_aztec_rpc_client.js';
+import { deployL1Contracts } from './deploy_l1_contracts.js';
 import { ContractAbi } from '@aztec/noir-contracts';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import times from 'lodash.times';
-import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { createProvider, deployRollupContract, deployUnverifiedDataEmitterContract } from './deploy_l1_contracts.js';
 
 const MNEMONIC = 'test test test test test test test test test test test junk';
 
@@ -16,30 +15,24 @@ const logger = createDebugLogger('aztec:e2e_block_building');
 const config = getConfigEnvVars();
 
 describe('e2e_block_building', () => {
-  let provider: WalletProvider;
   let node: AztecNode;
   let aztecRpcServer: AztecRPCServer;
-  let rollupAddress: EthAddress;
-  let unverifiedDataEmitterAddress: EthAddress;
 
   const abi = TestContractAbi as ContractAbi;
 
   beforeEach(async () => {
-    provider = createProvider(config.rpcUrl, MNEMONIC, 1);
-    config.publisherPrivateKey = provider.getPrivateKey(0) || Buffer.alloc(32);
-    const ethRpc = new EthereumRpc(provider);
-    logger('Deploying contracts...');
-    rollupAddress = await deployRollupContract(provider, ethRpc);
-    unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
+    const account = mnemonicToAccount(MNEMONIC);
+    const privKey = account.getHdKey().privateKey;
+    console.log(config);
+    const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(config.rpcUrl, account, logger);
+
+    config.publisherPrivateKey = Buffer.from(privKey!);
     config.rollupContract = rollupAddress;
     config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
-    logger('Deployed contracts...');
-  });
 
-  beforeEach(async () => {
     node = await AztecNode.createAndSync(config);
     aztecRpcServer = await createAztecRpcServer(1, node);
-  }, 10_000);
+  }, 60_000);
 
   afterEach(async () => {
     await node?.stop();

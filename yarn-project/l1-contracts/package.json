@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./viem": "./dest/viem-abis/index.js"
+    "./viem": "./dest/viem-contracts/index.js"
   },
   "typedoc": {
     "entryPoint": "./src/index.ts",

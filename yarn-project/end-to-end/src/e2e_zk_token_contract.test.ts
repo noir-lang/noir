@@ -1,14 +1,11 @@
-import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
-import { EthAddress, Point, toBigIntBE } from '@aztec/foundation';
-import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
-import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { createDebugLogger } from '@aztec/foundation';
+import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
+import { Point, createDebugLogger, toBigIntBE } from '@aztec/foundation';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
-import { getConfigEnvVars } from '@aztec/aztec-node';
 
-import { createProvider, deployRollupContract, deployUnverifiedDataEmitterContract } from './deploy_l1_contracts.js';
+import { mnemonicToAccount } from 'viem/accounts';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
+import { deployL1Contracts } from './deploy_l1_contracts.js';
 
 const MNEMONIC = 'test test test test test test test test test test test junk';
 
@@ -17,33 +14,24 @@ const logger = createDebugLogger('aztec:e2e_zk_token_contract');
 const config = getConfigEnvVars();
 
 describe('e2e_zk_token_contract', () => {
-  let provider: WalletProvider;
   let node: AztecNode;
   let aztecRpcServer: AztecRPCServer;
-  let rollupAddress: EthAddress;
-  let unverifiedDataEmitterAddress: EthAddress;
   let accounts: AztecAddress[];
   let contract: Contract;
 
-  beforeAll(() => {
-    provider = createProvider(config.rpcUrl, MNEMONIC, 1);
-    config.publisherPrivateKey = provider.getPrivateKey(0) || Buffer.alloc(32);
-  });
-
   beforeEach(async () => {
-    const ethRpc = new EthereumRpc(provider);
-    logger('Deploying contracts...');
-    rollupAddress = await deployRollupContract(provider, ethRpc);
-    unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
+    const account = mnemonicToAccount(MNEMONIC);
+    const privKey = account.getHdKey().privateKey;
+    const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(config.rpcUrl, account, logger);
 
+    config.publisherPrivateKey = Buffer.from(privKey!);
     config.rollupContract = rollupAddress;
     config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
 
-    logger('Deployed contracts...');
     node = await AztecNode.createAndSync(config);
     aztecRpcServer = await createAztecRpcServer(2, node);
     accounts = await aztecRpcServer.getAccounts();
-  });
+  }, 60_000);
 
   afterEach(async () => {
     await node?.stop();

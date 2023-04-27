@@ -170,7 +170,6 @@
     "dependencies": [
       "aztec-node",
       "aztec.js",
-      "ethereum.js",
       "foundation",
       "l1-contracts",
       "noir-contracts"
