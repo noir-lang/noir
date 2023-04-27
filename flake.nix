@@ -201,7 +201,7 @@
 
         src = ./.;
 
-        nativeBuildInputs = [ wasmPack ];
+        nativeBuildInputs = [ pkgs.wasm-pack ];
 
         buildPhase = ''
           wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
@@ -213,6 +213,5 @@
           cp -r pkg/* $out/pkg/
         '';
       };
-      # packages.noir-wasm-testing = noirWasmTestingPackage;
     });
 }
