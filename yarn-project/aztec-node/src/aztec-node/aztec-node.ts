@@ -49,6 +49,13 @@ export class AztecNode {
 
     // now create the merkle trees and the world state syncher
     const merkleTreeDB = await MerkleTrees.new(levelup(createMemDown()), await CircuitsWasm.get());
+    for (const [newTree, rootTree] of [
+      [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
+      [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
+    ] as const) {
+      const newTreeInfo = await merkleTreeDB.getTreeInfo(newTree, true);
+      await merkleTreeDB.appendLeaves(rootTree, [newTreeInfo.root]);
+    }
     const worldStateSynchroniser = new ServerWorldStateSynchroniser(merkleTreeDB, archiver);
 
     // start both and wait for them to sync from the block source

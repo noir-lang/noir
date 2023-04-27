@@ -47,7 +47,6 @@ class DummyComposer {
     void log_failures_if_any(std::string from_method_name)
     {
         if (failed()) {
-            info(from_method_name, ": composer.failed() = ", failed());
             info(from_method_name, ": composer.get_first_failure() = ", get_first_failure());
         }
     }

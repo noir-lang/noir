@@ -10,7 +10,7 @@ import {
   TxRequest,
 } from '@aztec/circuits.js';
 import { ContractDataSource, PublicTx, Tx } from '@aztec/types';
-import { MerkleTreeOperations } from '@aztec/world-state';
+import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import { pedersenGetHash } from '@aztec/barretenberg.js/crypto';
 import { createDebugLogger } from '@aztec/foundation';
 import times from 'lodash.times';
@@ -51,14 +51,29 @@ export class PublicProcessor {
   }
 
   protected async processTx(tx: Tx): Promise<ProcessedTx> {
+    let processedTx: ProcessedTx;
     if (tx.isPublic()) {
       const [publicKernelOutput, publicKernelProof] = await this.processPublicTx(tx);
-      return makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
+      processedTx = await makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
     } else if (tx.isPrivate()) {
-      return makeProcessedTx(tx);
+      processedTx = await makeProcessedTx(tx);
     } else {
-      return makeEmptyProcessedTx();
+      processedTx = await makeEmptyProcessedTx();
     }
+
+    // set historic roots to in kernel tx to empty merkle tree root (instead of 0)
+    if (processedTx.data.constants.historicTreeRoots.privateHistoricTreeRoots.privateDataTreeRoot.isZero()) {
+      processedTx.data.constants.historicTreeRoots.privateHistoricTreeRoots.privateDataTreeRoot = Fr.fromBuffer(
+        (await this.db.getTreeInfo(MerkleTreeId.PRIVATE_DATA_TREE)).root,
+      );
+    }
+    if (processedTx.data.constants.historicTreeRoots.privateHistoricTreeRoots.contractTreeRoot.isZero()) {
+      processedTx.data.constants.historicTreeRoots.privateHistoricTreeRoots.contractTreeRoot = Fr.fromBuffer(
+        (await this.db.getTreeInfo(MerkleTreeId.CONTRACT_TREE)).root,
+      );
+    }
+
+    return processedTx;
   }
 
   // TODO: This is just picking up the txRequest and executing one iteration of it. It disregards

@@ -113,7 +113,8 @@ class base_rollup_tests : public ::testing::Test {
   protected:
     void run_cbind(BaseRollupInputs& base_rollup_inputs,
                    BaseOrMergeRollupPublicInputs& expected_public_inputs,
-                   bool compare_pubins = true)
+                   bool compare_pubins = true,
+                   bool assert_no_circuit_failure = true)
     {
         info("Retesting via cbinds....");
         // TODO might be able to get rid of proving key buffer
@@ -138,7 +139,8 @@ class base_rollup_tests : public ::testing::Test {
         // info("simulating circuit via cbind");
         uint8_t* circuit_failure_ptr =
             base_rollup__sim(base_rollup_inputs_vec.data(), &public_inputs_size, &public_inputs_buf);
-        ASSERT_TRUE(circuit_failure_ptr == nullptr);
+
+        ASSERT_TRUE(assert_no_circuit_failure ? circuit_failure_ptr == nullptr : circuit_failure_ptr != nullptr);
         // info("Proof size: ", proof_data_size);
         // info("PublicInputs size: ", public_inputs_size);
 
@@ -892,7 +894,7 @@ TEST_F(base_rollup_tests, native_invalid_public_state_read)
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_TRUE(composer.failed());
-    run_cbind(inputs, outputs);
+    run_cbind(inputs, outputs, true, false);
 }
 
 } // namespace aztec3::circuits::rollup::base::native_base_rollup_circuit
