@@ -1,9 +1,10 @@
+use acvm::acir::BlackBoxFunc;
+
 use super::{basic_block::BasicBlockId, map::Id, types::Type, value::ValueId};
 
 /// Reference to an instruction
 pub(crate) type InstructionId = Id<Instruction>;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
@@ -11,12 +12,48 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-pub(crate) struct IntrinsicOpcodes;
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum Intrinsic {
+    Sort,
+    Println,
+    ToBits(Endian),
+    ToRadix(Endian),
+    BlackBox(BlackBoxFunc),
+}
 
-impl std::fmt::Display for IntrinsicOpcodes {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("intrinsics have no opcodes yet")
+impl std::fmt::Display for Intrinsic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Intrinsic::Println => write!(f, "println"),
+            Intrinsic::Sort => write!(f, "sort"),
+            Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
+            Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
+            Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
+            Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
+            Intrinsic::BlackBox(function) => write!(f, "{function}"),
+        }
     }
+}
+
+impl Intrinsic {
+    pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
+        match name {
+            "println" => Some(Intrinsic::Println),
+            "array_sort" => Some(Intrinsic::Sort),
+            "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
+            "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
+            "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
+            "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
+            other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
+        }
+    }
+}
+
+/// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum Endian {
+    Big,
+    Little,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -40,10 +77,6 @@ pub(crate) enum Instruction {
 
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
-
-    /// Performs a call to an intrinsic function and stores the
-    /// results in `return_arguments`.
-    Intrinsic { func: IntrinsicOpcodes, arguments: Vec<ValueId> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
@@ -72,9 +105,6 @@ impl Instruction {
             Instruction::Constrain(_) => 0,
             // This returns 0 as the result depends on the function being called
             Instruction::Call { .. } => 0,
-            // This also returns 0, but we could get it a compile time,
-            // since we know the signatures for the intrinsics
-            Instruction::Intrinsic { .. } => 0,
             Instruction::Allocate { .. } => 1,
             Instruction::Load { .. } => 1,
             Instruction::Store { .. } => 0,
@@ -94,9 +124,6 @@ impl Instruction {
             Instruction::Constrain(_) => 1,
             // This returns 0 as the arguments depend on the function being called
             Instruction::Call { .. } => 0,
-            // This also returns 0, but we could get it a compile time,
-            // since we know the function definition for the intrinsics
-            Instruction::Intrinsic { .. } => 0,
             Instruction::Allocate { size: _ } => 1,
             Instruction::Load { address: _ } => 1,
             Instruction::Store { address: _, value: _ } => 2,
@@ -113,9 +140,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::Call { .. } | Instruction::Intrinsic { .. } => {
-                InstructionResultType::Unknown
-            }
+            Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
 }
@@ -129,7 +154,7 @@ pub(crate) enum InstructionResultType {
     Known(Type),
 
     /// The result type of this function is unknown and separate from its operand types.
-    /// This occurs for function and intrinsic calls.
+    /// This occurs for function calls and load operations.
     Unknown,
 
     /// This instruction does not return any results.

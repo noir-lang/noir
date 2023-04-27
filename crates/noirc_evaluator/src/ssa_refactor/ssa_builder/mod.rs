@@ -8,6 +8,8 @@ use crate::ssa_refactor::ir::{
     value::{Value, ValueId},
 };
 
+use super::ir::instruction::Intrinsic;
+
 /// The per-function context for each ssa function being generated.
 ///
 /// This is split from the global SsaBuilder context to allow each function
@@ -226,5 +228,18 @@ impl FunctionBuilder {
         self.current_function.dfg.replace_instruction(instruction, store);
         // Clear the results of the previous load for safety
         self.current_function.dfg.make_instruction_results(instruction, None);
+    }
+
+    /// Returns a ValueId pointing to the given function or imports the function
+    /// into the current function if it was not already, and returns that ID.
+    pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
+        self.current_function.dfg.import_function(function)
+    }
+
+    /// Retrieve a value reference to the given intrinsic operation.
+    /// Returns None if there is no intrinsic matching the given name.
+    pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
+        Intrinsic::lookup(name)
+            .map(|intrinsic| self.current_function.dfg.import_intrinsic(intrinsic))
     }
 }

@@ -4,7 +4,9 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
     function::{FunctionId, Signature},
-    instruction::{Instruction, InstructionId, InstructionResultType, TerminatorInstruction},
+    instruction::{
+        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+    },
     map::{DenseMap, Id, TwoWayMap},
     types::Type,
     value::{Value, ValueId},
@@ -70,6 +72,11 @@ pub(crate) struct DataFlowGraph {
     /// Each function's Value::Function is uniqued here so any given FunctionId
     /// will always have the same ValueId within this function.
     functions: HashMap<FunctionId, ValueId>,
+
+    /// Contains each intrinsic that has been imported into the current function.
+    /// This map is used to ensure that the ValueId for any given intrinsic is always
+    /// represented by only 1 ValueId within this function.
+    intrinsics: HashMap<Intrinsic, ValueId>,
 
     /// Function signatures of external methods
     signatures: DenseMap<Signature>,
@@ -162,7 +169,15 @@ impl DataFlowGraph {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
         }
-        self.values.insert(Value::Function { id: function })
+        self.values.insert(Value::Function(function))
+    }
+
+    /// Gets or creates a ValueId for the given Intrinsic.
+    pub(crate) fn import_intrinsic(&mut self, intrinsic: Intrinsic) -> ValueId {
+        if let Some(existing) = self.intrinsics.get(&intrinsic) {
+            return *existing;
+        }
+        self.values.insert(Value::Intrinsic(intrinsic))
     }
 
     /// Attaches results to the instruction, clearing any previous results.
