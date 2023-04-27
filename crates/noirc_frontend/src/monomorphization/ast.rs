@@ -131,6 +131,7 @@ pub struct Call {
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
+    pub element_type: Type,
     pub location: Location,
 }
 
@@ -221,11 +222,20 @@ impl Type {
 pub struct Program {
     pub functions: Vec<Function>,
     pub main_function_signature: FunctionSignature,
+    /// Indicates whether witness indices are allowed to reoccur in the ABI of the resulting ACIR.
+    ///
+    /// Note: this has no impact on monomorphization, and is simply attached here for ease of
+    /// forwarding to the next phase.
+    pub return_distinctness: noirc_abi::AbiDistinctness,
 }
 
 impl Program {
-    pub fn new(functions: Vec<Function>, main_function_signature: FunctionSignature) -> Program {
-        Program { functions, main_function_signature }
+    pub fn new(
+        functions: Vec<Function>,
+        main_function_signature: FunctionSignature,
+        return_distinctness: noirc_abi::AbiDistinctness,
+    ) -> Program {
+        Program { functions, main_function_signature, return_distinctness }
     }
 
     pub fn main(&self) -> &Function {

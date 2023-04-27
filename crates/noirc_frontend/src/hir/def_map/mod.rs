@@ -18,6 +18,9 @@ pub use module_data::*;
 mod namespace;
 pub use namespace::*;
 
+/// The name that is used for a non-contract program's entry-point function.
+pub const MAIN_FUNCTION: &str = "main";
+
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
@@ -104,8 +107,6 @@ impl CrateDefMap {
 
     /// Find the main function for this crate
     pub fn main_function(&self) -> Option<FuncId> {
-        const MAIN_FUNCTION: &str = "main";
-
         let root_module = &self.modules()[self.root.0];
 
         // This function accepts an Ident, so we attach a dummy span to

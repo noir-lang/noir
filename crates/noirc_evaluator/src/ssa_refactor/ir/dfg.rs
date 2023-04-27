@@ -2,7 +2,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
     function::Signature,
-    instruction::{Instruction, InstructionId, InstructionResultType},
+    instruction::{Instruction, InstructionId, InstructionResultType, TerminatorInstruction},
     map::{DenseMap, Id, SecondaryMap, TwoWayMap},
     types::Type,
     value::{Value, ValueId},
@@ -75,14 +75,14 @@ impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn new_block(&mut self) -> BasicBlockId {
+    pub(crate) fn make_block(&mut self) -> BasicBlockId {
         self.blocks.insert(BasicBlock::new(Vec::new()))
     }
 
     /// Creates a new basic block with the given parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn new_block_with_parameters(
+    pub(crate) fn make_block_with_parameters(
         &mut self,
         parameter_types: impl Iterator<Item = Type>,
     ) -> BasicBlockId {
@@ -126,6 +126,17 @@ impl DataFlowGraph {
         id
     }
 
+    /// Replace an instruction id with another.
+    ///
+    /// This function should generally be avoided if possible in favor of inserting new
+    /// instructions since it does not check whether the instruction results of the removed
+    /// instruction are still in use. Users of this function thus need to ensure the old
+    /// instruction's results are no longer in use or are otherwise compatible with the
+    /// new instruction's result count and types.
+    pub(crate) fn replace_instruction(&mut self, id: Id<Instruction>, instruction: Instruction) {
+        self.instructions[id] = instruction;
+    }
+
     /// Insert a value into the dfg's storage and return an id to reference it.
     /// Until the value is used in an instruction it is unreachable.
     pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
@@ -141,8 +152,11 @@ impl DataFlowGraph {
 
     /// Attaches results to the instruction, clearing any previous results.
     ///
+    /// This does not normally need to be called manually as it is called within
+    /// make_instruction automatically.
+    ///
     /// Returns the results of the instruction
-    fn make_instruction_results(
+    pub(crate) fn make_instruction_results(
         &mut self,
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
@@ -229,6 +243,33 @@ impl DataFlowGraph {
         instruction: InstructionId,
     ) {
         self.blocks[block].insert_instruction(instruction);
+    }
+
+    /// Returns the field element represented by this value if it is a numeric constant.
+    /// Returns None if the given value is not a numeric constant.
+    pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
+        self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
+    }
+
+    /// Returns the field element and type represented by this value if it is a numeric constant.
+    /// Returns None if the given value is not a numeric constant.
+    pub(crate) fn get_numeric_constant_with_type(
+        &self,
+        value: Id<Value>,
+    ) -> Option<(FieldElement, Type)> {
+        match self.values[value] {
+            Value::NumericConstant { constant, typ } => Some((self[constant].value(), typ)),
+            _ => None,
+        }
+    }
+
+    /// Sets the terminator instruction for the given basic block
+    pub(crate) fn set_block_terminator(
+        &mut self,
+        block: BasicBlockId,
+        terminator: TerminatorInstruction,
+    ) {
+        self.blocks[block].set_terminator(terminator);
     }
 }
 
