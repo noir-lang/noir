@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
-# Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
+# Clear out the existing build artifacts as these aren't automatically removed.
 if [ -d ./pkg/ ]; then
     rm -rf ./pkg/
 fi
 
-# Build the new wasm package
-wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
+# Build the wasm crate using Nix
+nix-build wasm.nix
 
-wasm-pack build --scope noir-lang --target web --out-dir pkg/web
+# Copy the built wasm to the pkg directory
+cp -r ./result pkg
 
 COMMIT_SHORT=$(git rev-parse --short HEAD)
 VERSION_APPENDIX=""
@@ -18,8 +19,39 @@ else
     VERSION_APPENDIX="-NOGIT"
 fi
 
-jq -s '.[0] * .[1]' pkg/nodejs/package.json pkg/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"$VERSION_APPENDIX\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types | .peerDependencies = { "@noir-lang/noir-source-resolver": "1.1.2" }' | tee ./pkg/package.json
+# Generate the package.json file
+jq -n \
+  --arg version_appendix "$VERSION_APPENDIX" \
+  --arg main "./nodejs/noir_wasm.js" \
+  --arg module "./web/noir_wasm.js", \
+  --arg types "./web/noir_wasm.d.ts" 
+  '{
+    "name": "@noir-lang/noir_wasm",
+    "collaborators": [
+        "The Noir Team <team@noir-lang.org>"
+    ],
+    "version": "0.4.1" + $version_appendix,
+    "main": $main,
+    "module": $module,
+    "types": $types,
+    "files":  [
+        "nodejs",
+        "web",
+        "package.json"
+    ],
+    "peerDependencies": {
+      "@noir-lang/noir-source-resolver": "1.1.2"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/noir-lang/noir_wasm.git"
+    },
+  }' > ./pkg/package.json
 
-rm pkg/nodejs/package.json pkg/nodejs/README.md pkg/nodejs/.gitignore
+# Log the contents of the pkg directory
+echo "Contents of pkg directory:"
+ls -la ./pkg
 
-rm pkg/web/package.json pkg/web/README.md pkg/web/.gitignore
+# Log the contents of the generated package.json file
+echo "Contents of package.json:"
+cat ./pkg/package.json
