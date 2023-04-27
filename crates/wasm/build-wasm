@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
 
-# Clear out the existing build artifacts as these aren't automatically removed.
-if [ -d ./pkg_output/ ]; then
-    rm -rf ./pkg_output/
+# Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
+if [ -d ./pkg/ ]; then
+    rm -rf ./pkg/
 fi
 
-# Build the wasm crate using Nix
-nix-build wasm.nix
+# Enter the nix-shell environment
+nix-shell wasm.nix --run '
 
-# Create the pkg_output directory
-mkdir -p pkg_output
+# Build the new wasm package
+cargo build --target wasm32-unknown-unknown --release
 
-# Copy the built wasm to the pkg_output directory
-cp -r ./result pkg_output
+# Create output directories for nodejs and web
+mkdir -p pkg/nodejs pkg/web
+
+# Copy the generated wasm to the output directories
+cp target/wasm32-unknown-unknown/release/noir_wasm.wasm pkg/nodejs
+cp target/wasm32-unknown-unknown/release/noir_wasm.wasm pkg/web
+
+# Generate the respective package.json files using wasm-bindgen
+wasm-bindgen --out-dir pkg/nodejs --target nodejs target/wasm32-unknown-unknown/release/noir_wasm.wasm
+wasm-bindgen --out-dir pkg/web --target web target/wasm32-unknown-unknown/release/noir_wasm.wasm
 
 COMMIT_SHORT=$(git rev-parse --short HEAD)
 VERSION_APPENDIX=""
@@ -22,39 +30,10 @@ else
     VERSION_APPENDIX="-NOGIT"
 fi
 
-# Generate the package.json file
-jq -n \
-  --arg version_appendix "$VERSION_APPENDIX" \
-  --arg main "./nodejs/noir_wasm.js" \
-  --arg module "./web/noir_wasm.js", \
-  --arg types "./web/noir_wasm.d.ts" 
-  '{
-    "name": "@noir-lang/noir_wasm",
-    "collaborators": [
-        "The Noir Team <team@noir-lang.org>"
-    ],
-    "version": "0.4.1" + $version_appendix,
-    "main": $main,
-    "module": $module,
-    "types": $types,
-    "files":  [
-        "nodejs",
-        "web",
-        "package.json"
-    ],
-    "peerDependencies": {
-      "@noir-lang/noir-source-resolver": "1.1.2"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/noir-lang/noir_wasm.git"
-    },
-  }' > ./pkg_output/package.json
+jq -s ".[0] * .[1]" pkg/nodejs/package.json pkg/web/package.json | jq ".files = [\"nodejs\", \"web\", \"package.json\"]" | jq ".version += \"$VERSION_APPENDIX\"" | jq ".main = \"./nodejs/\" + .main | .module = \"./web/\" + .module | .types = \"./web/\" + .types | .peerDependencies = { \"@noir-lang/noir-source-resolver\": \"1.1.2\" }" | tee ./pkg/package.json
 
-# Log the contents of the pkg_output directory
-echo "Contents of pkg_output directory:"
-ls -la ./pkg_output
+rm pkg/nodejs/package.json pkg/nodejs/README.md pkg/nodejs/.gitignore
 
-# Log the contents of the generated package.json file
-echo "Contents of package.json:"
-cat ./pkg_output/package.json
+rm pkg/web/package.json pkg/web/README.md pkg/web/.gitignore
+'
+
