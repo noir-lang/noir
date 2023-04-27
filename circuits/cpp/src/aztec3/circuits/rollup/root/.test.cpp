@@ -275,16 +275,24 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     RootRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(composer, rootRollupInputs);
 
-    // Check data trees
+    // Check private data trees
     ASSERT_EQ(
         outputs.start_private_data_tree_snapshot,
         rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_private_data_tree_snapshot);
     ASSERT_EQ(
         outputs.end_private_data_tree_snapshot,
         rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_private_data_tree_snapshot);
-    AppendOnlyTreeSnapshot<NT> expected_data_tree_snapshot = { .root = data_tree.root(),
-                                                               .next_available_leaf_index = 16 };
-    ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_data_tree_snapshot);
+    AppendOnlyTreeSnapshot<NT> expected_private_data_tree_snapshot = { .root = data_tree.root(),
+                                                                       .next_available_leaf_index = 16 };
+    ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_private_data_tree_snapshot);
+
+    // Check public data trees
+    ASSERT_EQ(
+        outputs.start_public_data_tree_snapshot,
+        rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(
+        outputs.end_public_data_tree_snapshot,
+        rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_snapshot);
 
     // check contract trees
     ASSERT_EQ(outputs.start_contract_tree_snapshot,

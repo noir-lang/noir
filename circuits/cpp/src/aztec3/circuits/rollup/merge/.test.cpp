@@ -209,6 +209,12 @@ TEST_F(merge_rollup_tests, native_start_and_end_snapshots)
               inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_contract_tree_snapshot,
               inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot);
+
+    ASSERT_EQ(outputs.start_public_data_tree_snapshot,
+              inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.end_public_data_tree_snapshot,
+              inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_snapshot);
+
     ASSERT_FALSE(composer.failed());
 }
 
