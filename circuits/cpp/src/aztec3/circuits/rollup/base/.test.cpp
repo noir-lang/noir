@@ -2,11 +2,13 @@
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
+#include "aztec3/circuits/abis/public_data_read.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/constants.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/stdlib/merkle_tree/memory_store.hpp"
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
 
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
@@ -98,6 +100,9 @@ using aztec3::circuits::rollup::native_base_rollup::NT;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
+
+using aztec3::circuits::rollup::test_utils::utils::make_public_read;
+using aztec3::circuits::rollup::test_utils::utils::make_public_write;
 
 using DummyComposer = aztec3::utils::DummyComposer;
 } // namespace
@@ -760,6 +765,131 @@ TEST_F(base_rollup_tests, native_cbind_0)
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     BaseOrMergeRollupPublicInputs ignored_public_inputs;
     run_cbind(inputs, ignored_public_inputs, false);
+}
+
+TEST_F(base_rollup_tests, native_single_public_state_read)
+{
+    DummyComposer composer = DummyComposer();
+    native_base_rollup::MerkleTree private_data_tree(PRIVATE_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
+    stdlib::merkle_tree::MemoryStore public_data_tree_store;
+    native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+
+    auto data_read = abis::PublicDataRead<NT>{
+        .leaf_index = fr(1),
+        .value = fr(42),
+    };
+
+    std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
+    kernel_data[0].public_inputs.end.state_reads[0] = data_read;
+    auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
+        kernel_data, private_data_tree, contract_tree, public_data_tree);
+
+    BaseOrMergeRollupPublicInputs outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
+
+    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
+    ASSERT_EQ(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_FALSE(composer.failed());
+    run_cbind(inputs, outputs);
+}
+
+TEST_F(base_rollup_tests, native_single_public_state_write)
+{
+    DummyComposer composer = DummyComposer();
+    native_base_rollup::MerkleTree private_data_tree(PRIVATE_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
+    stdlib::merkle_tree::MemoryStore public_data_tree_store;
+    native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+
+    auto data_write = abis::PublicDataWrite<NT>{
+        .leaf_index = fr(1),
+        .old_value = fr(2),
+        .new_value = fr(42),
+    };
+
+    std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
+    kernel_data[0].public_inputs.end.state_transitions[0] = data_write;
+
+    auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
+        kernel_data, private_data_tree, contract_tree, public_data_tree);
+
+    BaseOrMergeRollupPublicInputs outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
+
+    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
+    ASSERT_NE(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_FALSE(composer.failed());
+    run_cbind(inputs, outputs);
+}
+
+TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
+{
+    DummyComposer composer = DummyComposer();
+    native_base_rollup::MerkleTree private_data_tree(PRIVATE_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
+    stdlib::merkle_tree::MemoryStore public_data_tree_store;
+    native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+
+    std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
+
+    // We set up reads and writes such that the right tx will read or write to indices already modified by the left tx
+    kernel_data[0].public_inputs.end.state_reads[0] = make_public_read(fr(1), fr(101));
+    kernel_data[0].public_inputs.end.state_reads[1] = make_public_read(fr(2), fr(102));
+    kernel_data[0].public_inputs.end.state_transitions[0] = make_public_write(fr(3), fr(103), fr(203));
+    kernel_data[0].public_inputs.end.state_transitions[1] = make_public_write(fr(4), fr(104), fr(204));
+    kernel_data[0].public_inputs.end.state_transitions[2] = make_public_write(fr(5), fr(105), fr(205));
+
+    kernel_data[1].public_inputs.end.state_reads[0] = make_public_read(fr(3), fr(203));
+    kernel_data[1].public_inputs.end.state_reads[1] = make_public_read(fr(11), fr(211));
+    kernel_data[1].public_inputs.end.state_transitions[0] = make_public_write(fr(12), fr(212), fr(312));
+    kernel_data[1].public_inputs.end.state_transitions[1] = make_public_write(fr(4), fr(204), fr(304));
+
+    auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
+        kernel_data, private_data_tree, contract_tree, public_data_tree);
+
+    BaseOrMergeRollupPublicInputs outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
+
+    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
+    ASSERT_NE(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_FALSE(composer.failed());
+    run_cbind(inputs, outputs);
+}
+
+TEST_F(base_rollup_tests, native_invalid_public_state_read)
+{
+    DummyComposer composer = DummyComposer();
+    native_base_rollup::MerkleTree private_data_tree(PRIVATE_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
+    stdlib::merkle_tree::MemoryStore public_data_tree_store;
+    native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+
+    auto data_read = abis::PublicDataRead<NT>{
+        .leaf_index = fr(1),
+        .value = fr(42),
+    };
+
+    std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
+    kernel_data[0].public_inputs.end.state_reads[0] = data_read;
+    auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
+        kernel_data, private_data_tree, contract_tree, public_data_tree);
+
+    // We change the initial tree root so the read value does not match
+    public_data_tree.update_element(1, fr(43));
+    inputs.start_public_data_tree_snapshot.root = public_data_tree.root();
+
+    BaseOrMergeRollupPublicInputs outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
+
+    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
+    ASSERT_EQ(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_TRUE(composer.failed());
+    run_cbind(inputs, outputs);
 }
 
 } // namespace aztec3::circuits::rollup::base::native_base_rollup_circuit

@@ -1,3 +1,8 @@
+#include "aztec3/circuits/abis/membership_witness.hpp"
+#include "aztec3/circuits/rollup/base/init.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/stdlib/merkle_tree/memory_store.hpp"
+#include "barretenberg/stdlib/merkle_tree/merkle_tree.hpp"
 #include "nullifier_tree_testing_harness.hpp"
 #include "utils.hpp"
 #include "aztec3/constants.hpp"
@@ -5,6 +10,7 @@
 
 #include <aztec3/circuits/kernel/private/utils.hpp>
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
+#include <set>
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/rollup/root/root_rollup_public_inputs.hpp"
 namespace {
@@ -25,6 +31,8 @@ using NullifierLeafPreimage = aztec3::circuits::abis::NullifierLeafPreimage<NT>;
 using MerkleTree = stdlib::merkle_tree::MemoryTree;
 using NullifierTree = stdlib::merkle_tree::NullifierMemoryTree;
 using NullifierLeaf = stdlib::merkle_tree::nullifier_leaf;
+using MemoryStore = stdlib::merkle_tree::MemoryStore;
+using SparseTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
 
 using aztec3::circuits::abis::BaseOrMergeRollupPublicInputs;
 using aztec3::circuits::abis::MembershipWitness;
@@ -59,16 +67,16 @@ void set_kernel_commitments(KernelData& kernel_data, std::array<fr, KERNEL_NEW_C
     }
 }
 
-BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data)
+BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
+                                                 MerkleTree& private_data_tree,
+                                                 MerkleTree& contract_tree,
+                                                 SparseTree& public_data_tree)
 {
     // @todo Look at the starting points for all of these.
     // By supporting as inputs we can make very generic tests, where it is trivial to try new setups.
     MerkleTree historic_private_data_tree = MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     MerkleTree historic_contract_tree = MerkleTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT);
     MerkleTree historic_l1_to_l2_msg_tree = MerkleTree(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
-
-    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
-    MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
 
     // Historic trees are initialised with an empty root at position 0.
     historic_private_data_tree.update_element(0, private_data_tree.root());
@@ -130,6 +138,62 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
     baseRollupInputs.new_commitments_subtree_sibling_path =
         get_sibling_path<PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH>(private_data_tree, 0, PRIVATE_DATA_SUBTREE_DEPTH);
 
+    // Update public data tree to generate sibling paths: we first set the initial public data tree to the result of all
+    // state reads and old_values from state transitions. Note that, if the right tx reads or writes an index that was
+    // already processed by the left one, we don't want to reflect that as part of the initial state, so we skip those.
+    std::set<uint256_t> visited_indices;
+    for (size_t i = 0; i < 2; i++) {
+        for (auto state_read : kernel_data[i].public_inputs.end.state_reads) {
+            auto leaf_index = uint256_t(state_read.leaf_index);
+            if (state_read.is_empty() || visited_indices.contains(leaf_index))
+                continue;
+            visited_indices.insert(leaf_index);
+            public_data_tree.update_element(leaf_index, state_read.value);
+        }
+
+        for (auto state_write : kernel_data[i].public_inputs.end.state_transitions) {
+            auto leaf_index = uint256_t(state_write.leaf_index);
+            if (state_write.is_empty() || visited_indices.contains(leaf_index))
+                continue;
+            visited_indices.insert(leaf_index);
+            public_data_tree.update_element(leaf_index, state_write.old_value);
+        }
+    }
+
+    baseRollupInputs.start_public_data_tree_snapshot = {
+        .root = public_data_tree.root(),
+        .next_available_leaf_index = 0,
+    };
+
+    // Then we collect all sibling paths for the reads in the left tx, and then apply the state transitions while
+    // collecting their paths. And then repeat for the right tx.
+    for (size_t i = 0; i < 2; i++) {
+        for (size_t j = 0; j < STATE_READS_LENGTH; j++) {
+            auto state_read = kernel_data[i].public_inputs.end.state_reads[j];
+            if (state_read.is_empty())
+                continue;
+            auto leaf_index = uint256_t(state_read.leaf_index);
+            baseRollupInputs.new_state_reads_sibling_paths[i * STATE_READS_LENGTH + j] =
+                MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>{
+                    .leaf_index = state_read.leaf_index,
+                    .sibling_path = get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index),
+                };
+        }
+
+        for (size_t j = 0; j < STATE_TRANSITIONS_LENGTH; j++) {
+            auto state_write = kernel_data[i].public_inputs.end.state_transitions[j];
+            if (state_write.is_empty())
+                continue;
+            auto leaf_index = uint256_t(state_write.leaf_index);
+            public_data_tree.update_element(leaf_index, state_write.new_value);
+            baseRollupInputs.new_state_transitions_sibling_paths[i * STATE_TRANSITIONS_LENGTH + j] =
+                MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>{
+                    .leaf_index = state_write.leaf_index,
+                    .sibling_path = get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index),
+                };
+        }
+    }
+
     baseRollupInputs.historic_private_data_tree_root_membership_witnesses[0] = {
         .leaf_index = 0,
         .sibling_path = get_sibling_path<PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>(historic_private_data_tree, 0, 0),
@@ -145,6 +209,17 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
         baseRollupInputs.historic_contract_tree_root_membership_witnesses[0];
 
     return baseRollupInputs;
+}
+
+BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data)
+{
+    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
+    MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
+
+    MemoryStore public_data_tree_store;
+    SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+
+    return base_rollup_inputs_from_kernels(kernel_data, private_data_tree, contract_tree, public_data_tree);
 }
 
 std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyComposer& composer,

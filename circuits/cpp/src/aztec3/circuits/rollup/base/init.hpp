@@ -6,7 +6,9 @@
 #include "aztec3/circuits/abis/rollup/base/base_rollup_inputs.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
+#include "barretenberg/stdlib/merkle_tree/memory_store.hpp"
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
+#include "barretenberg/stdlib/merkle_tree/merkle_tree.hpp"
 #include "barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_memory_tree.hpp"
 #include <aztec3/circuits/recursion/aggregator.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
@@ -39,5 +41,6 @@ using AppendOnlySnapshot = abis::AppendOnlyTreeSnapshot<NT>;
 using MerkleTree = stdlib::merkle_tree::MemoryTree;
 using NullifierTree = stdlib::merkle_tree::NullifierMemoryTree;
 using NullifierLeaf = stdlib::merkle_tree::nullifier_leaf;
+using SparseTree = stdlib::merkle_tree::MerkleTree<stdlib::merkle_tree::MemoryStore>;
 
 } // namespace aztec3::circuits::rollup::native_base_rollup

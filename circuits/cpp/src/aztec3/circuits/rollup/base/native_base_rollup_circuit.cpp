@@ -1,3 +1,6 @@
+#include "aztec3/circuits/abis/membership_witness.hpp"
+#include "aztec3/circuits/abis/public_data_read.hpp"
+#include "aztec3/circuits/abis/public_data_write.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
@@ -428,15 +431,99 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     };
 }
 
-AppendOnlySnapshot insert_state_transitions(BaseRollupInputs const& baseRollupInputs)
+fr insert_state_transitions(
+    DummyComposer& composer,
+    fr tree_root,
+    std::array<abis::PublicDataWrite<NT>, STATE_TRANSITIONS_LENGTH> const& state_transitions,
+    size_t witnesses_offset,
+    std::array<abis::MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>, 2 * STATE_TRANSITIONS_LENGTH> const& witnesses)
 {
-    // TODO: Implement me
-    auto root = baseRollupInputs.start_public_data_tree_snapshot.root;
+    auto root = tree_root;
 
-    return {
-        .root = root,
-        .next_available_leaf_index = 0,
-    };
+    for (size_t i = 0; i < STATE_TRANSITIONS_LENGTH; ++i) {
+        const auto& state_write = state_transitions[i];
+        const auto& witness = witnesses[i + witnesses_offset];
+
+        if (state_write.is_empty())
+            continue;
+
+        composer.do_assert(
+            witness.leaf_index == state_write.leaf_index,
+            format("mismatch state write ", state_write.leaf_index, " and witness leaf index ", witness.leaf_index),
+            CircuitErrorCode::BASE__INVALID_PUBLIC_READS);
+
+        check_membership<NT>(composer,
+                             state_write.old_value,
+                             state_write.leaf_index,
+                             witness.sibling_path,
+                             root,
+                             format("validate_state_reads index ", i));
+
+        root = root_from_sibling_path<NT>(state_write.new_value, state_write.leaf_index, witness.sibling_path);
+    }
+
+    return root;
+}
+
+void validate_state_reads(
+    DummyComposer& composer,
+    fr tree_root,
+    std::array<abis::PublicDataRead<NT>, STATE_READS_LENGTH> const& state_reads,
+    size_t witnesses_offset,
+    std::array<abis::MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>, 2 * STATE_READS_LENGTH> const& witnesses)
+{
+    for (size_t i = 0; i < STATE_READS_LENGTH; ++i) {
+        const auto& state_read = state_reads[i];
+        const auto& witness = witnesses[i + witnesses_offset];
+
+        if (state_read.is_empty())
+            continue;
+
+        composer.do_assert(
+            witness.leaf_index == state_read.leaf_index,
+            format("mismatch state read ", state_read.leaf_index, " and witness leaf index ", witness.leaf_index),
+            CircuitErrorCode::BASE__INVALID_PUBLIC_READS);
+
+        check_membership<NT>(composer,
+                             state_read.value,
+                             state_read.leaf_index,
+                             witness.sibling_path,
+                             tree_root,
+                             format("validate_state_reads index ", i + witnesses_offset));
+    }
+};
+
+fr validate_and_process_public_state(DummyComposer& composer, BaseRollupInputs const& baseRollupInputs)
+{
+    // Process state reads and transitions for left input
+    validate_state_reads(composer,
+                         baseRollupInputs.start_public_data_tree_snapshot.root,
+                         baseRollupInputs.kernel_data[0].public_inputs.end.state_reads,
+                         0,
+                         baseRollupInputs.new_state_reads_sibling_paths);
+
+    auto mid_public_data_tree_root =
+        insert_state_transitions(composer,
+                                 baseRollupInputs.start_public_data_tree_snapshot.root,
+                                 baseRollupInputs.kernel_data[0].public_inputs.end.state_transitions,
+                                 0,
+                                 baseRollupInputs.new_state_transitions_sibling_paths);
+
+    // Process state reads and transitions for right input using the resulting tree root from the left one
+    validate_state_reads(composer,
+                         mid_public_data_tree_root,
+                         baseRollupInputs.kernel_data[1].public_inputs.end.state_reads,
+                         STATE_READS_LENGTH,
+                         baseRollupInputs.new_state_reads_sibling_paths);
+
+    auto end_public_data_tree_root =
+        insert_state_transitions(composer,
+                                 mid_public_data_tree_root,
+                                 baseRollupInputs.kernel_data[1].public_inputs.end.state_transitions,
+                                 STATE_TRANSITIONS_LENGTH,
+                                 baseRollupInputs.new_state_transitions_sibling_paths);
+
+    return end_public_data_tree_root;
 }
 
 BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseRollupInputs const& baseRollupInputs)
@@ -482,8 +569,13 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     AppendOnlySnapshot end_nullifier_tree_snapshot =
         check_nullifier_tree_non_membership_and_insert_to_tree(composer, baseRollupInputs);
 
-    // Insert state transitions
-    auto end_public_data_tree_snapshot = insert_state_transitions(baseRollupInputs);
+    // Validate public state reads and transitions, and update public data tree
+    fr end_public_data_tree_root = validate_and_process_public_state(composer, baseRollupInputs);
+
+    AppendOnlySnapshot end_public_data_tree_snapshot = {
+        .root = end_public_data_tree_root,
+        .next_available_leaf_index = 0,
+    };
 
     // Calculate the overall calldata hash
     std::array<NT::fr, 2> calldata_hash = calculate_calldata_hash(baseRollupInputs, contract_leaves);
