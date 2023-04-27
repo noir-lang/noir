@@ -160,7 +160,7 @@ impl FunctionBuilder {
     /// the results of the call.
     pub(crate) fn insert_call(
         &mut self,
-        func: FunctionId,
+        func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> &[ValueId] {

@@ -11,7 +11,7 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::{function::FunctionId, instruction::BinaryOp, types::Type, value::ValueId};
+use super::ir::{instruction::BinaryOp, types::Type, value::ValueId};
 
 pub(crate) fn generate_ssa(program: Program) {
     let context = SharedContext::new(program);
@@ -255,18 +255,8 @@ impl<'a> FunctionContext<'a> {
         Self::get_field(tuple, field_index)
     }
 
-    fn codegen_function(&mut self, function: &Expression) -> FunctionId {
-        use crate::ssa_refactor::ssa_gen::value::Value;
-        match self.codegen_expression(function) {
-            Tree::Leaf(Value::Function(id)) => id,
-            other => {
-                panic!("codegen_function: expected function value, found {other:?}")
-            }
-        }
-    }
-
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
-        let function = self.codegen_function(&call.func);
+        let function = self.codegen_non_tuple_expression(&call.func);
 
         let arguments = call
             .arguments
