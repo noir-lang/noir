@@ -1,7 +1,7 @@
 #include "blake3s_plookup.hpp"
 #include "../blake2s/blake_util.hpp"
 
-#include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"

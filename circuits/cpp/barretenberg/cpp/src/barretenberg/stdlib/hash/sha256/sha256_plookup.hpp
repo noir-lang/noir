@@ -1,6 +1,6 @@
 #pragma once
 #include <array>
-#include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/plonk/composer/composer_base.hpp"
 

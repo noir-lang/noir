@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/plonk/composer/composer_base.hpp"
-#include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
@@ -311,7 +311,7 @@ class UltraPlonkComposer {
     std::vector<uint32_t> decompose_into_default_range(
         const uint32_t variable_index,
         const uint64_t num_bits,
-        const uint64_t target_range_bitnum = DEFAULT_PLOOKUP_RANGE_BITNUM,
+        const uint64_t target_range_bitnum = UltraCircuitConstructor::DEFAULT_PLOOKUP_RANGE_BITNUM,
         std::string const& msg = "decompose_into_default_range")
     {
         return circuit_constructor.decompose_into_default_range(variable_index, num_bits, target_range_bitnum, msg);
@@ -370,17 +370,19 @@ class UltraPlonkComposer {
     // /**
     //  * Non Native Field Arithmetic
     //  **/
-    void range_constrain_two_limbs(const uint32_t lo_idx,
-                                   const uint32_t hi_idx,
-                                   const size_t lo_limb_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS,
-                                   const size_t hi_limb_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS)
+    void range_constrain_two_limbs(
+        const uint32_t lo_idx,
+        const uint32_t hi_idx,
+        const size_t lo_limb_bits = UltraCircuitConstructor::DEFAULT_NON_NATIVE_FIELD_LIMB_BITS,
+        const size_t hi_limb_bits = UltraCircuitConstructor::DEFAULT_NON_NATIVE_FIELD_LIMB_BITS)
     {
         circuit_constructor.range_constrain_two_limbs(lo_idx, hi_idx, lo_limb_bits, hi_limb_bits);
     };
     // std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
     //     const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
     std::array<uint32_t, 2> queue_non_native_field_multiplication(
-        const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true)
+        const UltraCircuitConstructor::non_native_field_witnesses& input,
+        const bool range_constrain_quotient_and_remainder = true)
     {
         return circuit_constructor.queue_non_native_field_multiplication(input, range_constrain_quotient_and_remainder);
     };

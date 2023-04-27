@@ -37,7 +37,7 @@ void UltraHonkComposerHelper<CircuitConstructor>::compute_witness(CircuitConstru
     const size_t filled_gates = circuit_constructor.num_gates + circuit_constructor.public_inputs.size();
     const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
-    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
+    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates + NUM_RANDOMIZED_GATES);
 
     // Pad the wires (pointers to `witness_indices` of the `variables` vector).
     // Note: the remaining NUM_RESERVED_GATES indices are padded with zeros within `compute_witness_base` (called

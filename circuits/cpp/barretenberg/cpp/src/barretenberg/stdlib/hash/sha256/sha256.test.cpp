@@ -4,7 +4,7 @@
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"

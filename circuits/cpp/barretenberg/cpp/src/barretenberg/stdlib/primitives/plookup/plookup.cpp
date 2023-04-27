@@ -1,7 +1,7 @@
 #include "./plookup.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
-#include "barretenberg/plonk/composer/plookup_tables/types.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/types.hpp"
 
 namespace proof_system::plonk {
 class UltraComposer;

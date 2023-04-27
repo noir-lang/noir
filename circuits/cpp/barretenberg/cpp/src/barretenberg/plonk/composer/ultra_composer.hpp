@@ -2,7 +2,7 @@
 #include "composer_base.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
-#include "plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include <optional>
 
 namespace proof_system::plonk {

@@ -780,7 +780,7 @@ TEST(ultra_plonk_composer_splitting_tmp, non_native_field_multiplication)
     const auto q_indices = get_limb_witness_indices(split_into_limbs(uint256_t(q)));
     const auto r_indices = get_limb_witness_indices(split_into_limbs(uint256_t(r)));
 
-    non_native_field_witnesses inputs{
+    UltraCircuitConstructor::non_native_field_witnesses inputs{
         a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
     };
     const auto [lo_1_idx, hi_1_idx] = composer.queue_non_native_field_multiplication(inputs);

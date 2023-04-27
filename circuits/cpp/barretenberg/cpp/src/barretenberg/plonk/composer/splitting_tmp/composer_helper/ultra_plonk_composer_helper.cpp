@@ -50,7 +50,7 @@ void UltraPlonkComposerHelper<CircuitConstructor>::compute_witness(CircuitConstr
 
     // TODO(luke): subgroup size was already computed above but compute_witness_base computes it again. If we pass in
     // NUM_RANDOMIZED_GATES (as in the other split composers) the resulting sizes can differ. Reconcile this.
-    auto wire_polynomial_evaluations = compute_witness_base(circuit_constructor, total_num_gates, NUM_RANDOMIZED_GATES);
+    auto wire_polynomial_evaluations = compute_witness_base(circuit_constructor, total_num_gates, NUM_RESERVED_GATES);
 
     for (size_t j = 0; j < program_width; ++j) {
         std::string index = std::to_string(j + 1);
@@ -225,7 +225,7 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper<CircuitConstructor>::compu
     }
 
     const size_t minimum_circuit_size = tables_size + lookups_size;
-    const size_t num_randomized_gates = NUM_RANDOMIZED_GATES;
+    const size_t num_randomized_gates = NUM_RESERVED_GATES;
     // Initialize circuit_proving_key
     // TODO(#229)(Kesha): replace composer types.
     circuit_proving_key = initialize_proving_key(
@@ -359,7 +359,7 @@ std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper<CircuitConstru
     }
     circuit_verification_key = compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
 
-    circuit_verification_key->composer_type = type; // Invariably plookup for this class.
+    circuit_verification_key->composer_type = ComposerType::PLOOKUP; // Invariably plookup for this class.
 
     // See `add_recusrive_proof()` for how this recursive data is assigned.
     circuit_verification_key->recursive_proof_public_input_indices =

@@ -5,7 +5,7 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/uintx/uintx.hpp"
 #include "../proof_system/widgets/random_widgets/plookup_widget.hpp"
-#include "./plookup_tables/sha256.hpp"
+#include "barretenberg/proof_system/plookup_tables/sha256.hpp"
 
 using namespace barretenberg;
 using namespace proof_system;
