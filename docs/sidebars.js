@@ -36,10 +36,11 @@ const sidebars = {
         },
         {
           type: "category",
-          label: "Road-map",
+          label: "Roadmap",
           items: [
             "aztec/milestones/features-initial-ldt",
             "aztec/milestones/milestones",
+            "aztec/cryptography/cryptography-roadmap"
           ],
         },
         {

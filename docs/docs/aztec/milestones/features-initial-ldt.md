@@ -10,7 +10,7 @@ The Aztec Sandbox Node is intended to provide developers with a lightweight & fa
 
 Devs should be able to quickly spin up local, emulated instances of an Ethereum blockchain and an Aztec encrypted rollup, and start deploying confidential contracts and submitting confidential txs.
 
-Here's a summary of the features we intend to support with the first release of the A3 LDT.
+Here's a summary of the features we intend to support with the first release of the A3 sandbox (local developer testnet, LDT).
 
 ## Noir Contracts
 

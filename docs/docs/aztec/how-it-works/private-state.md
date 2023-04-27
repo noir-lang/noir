@@ -8,9 +8,9 @@ import Disclaimer from '../common/\_disclaimer.mdx';
 
 ## Private state semantics and the UTXO model
 
-Private state must be treated differently to public state and this must be expressed in the semantics of the Noir language.
+Private state must be treated differently from public state and this must be expressed in the semantics of the Noir language.
 
-Private state is encrypted and therefore is "owned" by a user or a set of users (via shared secrets).
+Private state is encrypted and therefore is "owned" by a user or a set of users (via shared secrets) that are able to decrypt the state.
 
 Private state is represented in an append-only database since updating a record would leak information about the transaction graph.
 
@@ -18,11 +18,11 @@ The act of "deleting" a private state variable can be represented by adding an a
 
 Modification of state variables can be emulated by nullifying the a state record and creating a new record to represent the variable. Private state has an intrinsic UTXO structure and this must be represented in the language semantics of manipulating private state.
 
-**Abstracting UTXO's from App's / Users**
+### Abstracting UTXO's from App's / Users
 
 The goal of Noir's contract syntax is abstract the UTXO model away from an app user / developer, contract developers are the only actor who should have to think about UTXO's.
 
 This is achieved with two main features:
 
-1. Users sign over transaction, not over specific UTXO's
-2. Noir contracts support developer defined `unconstrained` getter functions to help dApp's make sense of UTXO's. E.g `getBalance()`. These functions can be called outside of a transaction context to read private state.
+1. Users sign over transactions, not over specific UTXO's
+2. Noir contracts support developer defined `unconstrained` getter functions to help dApp's make sense of UTXO's. e.g `getBalance()`. These functions can be called outside of a transaction context to read private state.

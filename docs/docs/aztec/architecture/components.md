@@ -10,13 +10,14 @@ We are building Aztec 3 as transparently as we can. The documents published here
 If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
 :::
 
+You can track the development of these components in the [aztec3-packages repo](https://github.com/AztecProtocol/aztec3-packages/tree/master).
+
 ### KeyStore
 
 Responsibilities:
 
 - Holds and never exposes private keys.
 - Provides sign/decrypt functionality.
-
 
 ### AztecRpcClient (Previously Wallet/Private Client)
 
@@ -27,8 +28,6 @@ Responsibilities:
 - Maintains an up-to-date view of required parts of the global state from state streams to generate a tx.
 - Maintains an up-to-date view of state for accounts in a `KeyStore`.
 
-
-
 ### PublicClient
 
 Responsibilities:
@@ -38,7 +37,6 @@ Responsibilities:
 - Provide methods for requesting storage slot data for public state.
 - Provide methods for requesting published rollup data (`RollupSource`).
 - Receives txs and broadcasts them to the network via the `P2PClient`.
-
 
 ### P2PClient
 
@@ -51,8 +49,6 @@ Responsibilities:
 - Receives rollups and purges settled or now invalid txs from local pool.
 - Purges txs that are older than a certain threshold from the local pool.
 
-
-
 ### SiblingPathSource
 
 Responsibilities:
@@ -60,13 +56,11 @@ Responsibilities:
 - Returns the sibling path for the given `tree_id` at the given leaf `index`.
 - Can be injected into any context that requires path queries for a particular tree. Might be backed by implementations that call out to a server (where privacy doesn't matter, or during early development), or leverages some privacy tech (query via Nym), or could just point to a local `WorldStateSynchroniser`.
 
-
 ### RollupSource
 
 Responsibilities:
 
 - Can be queried for `Rollup` data.
-
 
 ### RollupReceiver
 
@@ -74,20 +68,17 @@ Responsibilities:
 
 - Given the necessary rollup data, verifies it, and updates the underlying state accordingly to advance the state of the system.
 
-
 ### TxReceiver
 
 Responsibilities:
 
 - Receives a tx, performs necessary validation, and makes it available to `SequencerClient` instances for rolling up.
 
-
 ### TxPool
 
 Responsibilities:
 
 - Gives a view of the pending transaction pool.
-
 
 ## Module Implementation Notes
 
