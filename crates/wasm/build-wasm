@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 
 # Clear out the existing build artifacts as these aren't automatically removed.
-if [ -d ./pkg/ ]; then
-    rm -rf ./pkg/
+if [ -d ./pkg_output/ ]; then
+    rm -rf ./pkg_output/
 fi
 
 # Build the wasm crate using Nix
 nix-build wasm.nix
 
-# Copy the built wasm to the pkg directory
-cp -r ./result pkg
+# Create the pkg_output directory
+mkdir -p pkg_output
+
+# Copy the built wasm to the pkg_output directory
+cp -r ./result pkg_output
 
 COMMIT_SHORT=$(git rev-parse --short HEAD)
 VERSION_APPENDIX=""
@@ -46,12 +49,12 @@ jq -n \
         "type": "git",
         "url": "https://github.com/noir-lang/noir_wasm.git"
     },
-  }' > ./pkg/package.json
+  }' > ./pkg_output/package.json
 
-# Log the contents of the pkg directory
-echo "Contents of pkg directory:"
-ls -la ./pkg
+# Log the contents of the pkg_output directory
+echo "Contents of pkg_output directory:"
+ls -la ./pkg_output
 
 # Log the contents of the generated package.json file
 echo "Contents of package.json:"
-cat ./pkg/package.json
+cat ./pkg_output/package.json
