@@ -1,12 +1,12 @@
+import Image from "@theme/IdealImage";
+
 # A brief history of blockchain privacy
 
-<!-- See here for pics: https://hackmd.io/d0VCyKGMTpe-O5GfArSZVg -->
-
-![](https://hackmd.io/_uploads/HytgxpMXn.png)
+<Image img={require("/img/comparison.png")} />
 
 ## Bitcoin
 
-The original blockchain.  
+The original blockchain.
 
 **Programmability**:  
 None.  
@@ -55,14 +55,16 @@ User defi interactions are anonymous.
 
 **Programmability**:  
 Fully programmable private smart contracts:
+
 - private functions which can edit general private state
 - cheap L2 public functions
 - L1 (public) functions.
 
 **Privacy**:  
 Executing private functions grants:
+
 - Function privacy
 - Input privacy
-- User anonymity  
+- User anonymity
 
 Executing a private function which calls a public function grants varying degrees of privacy, depending on the application someone deploys. (Similar to how deposits and withdrawals to/from shielded pools can leak privacy).
