@@ -111,11 +111,13 @@ impl Opcode {
                     BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
                         (32, ObjectType::unsigned_integer(8))
                     }
-                    BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
+                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
+                        (1, ObjectType::native_field())
+                    }
                     // See issue #775 on changing this to return a boolean
-                    BlackBoxFunc::ComputeMerkleRoot
-                    | BlackBoxFunc::SchnorrVerify
-                    | BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::native_field()),
+                    BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => {
+                        (1, ObjectType::native_field())
+                    }
                     BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
