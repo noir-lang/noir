@@ -34,9 +34,19 @@ jobs:
       # - name: Install wasm-pack
       #   run: cargo install wasm-pack
 
-      - name: Build wasm
+      # - name: Build wasm
+      #   working-directory: ./crates/wasm
+      # run: ./build-wasm
+
+      - name: Build noir_wasm with Nix flakes
+        run: |
+          nix build .#wasm
+          echo "Build result:"
+          ls -la result/pkg
+
+      - name: Copy wasm build result
         working-directory: ./crates/wasm
-        run: ./build-wasm
+        run: cp -r ./result ./pkg
 
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
