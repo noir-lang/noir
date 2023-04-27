@@ -34,6 +34,10 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y jq
 
+      - name: Log out wasm output
+        working-directory: ./crates/wasm/result
+        run: ls -la
+
       - name: Inject built wasm into noir-wasm-testing
         run: |
           mkdir -p ./noir-wasm-testing/node_modules/@noir-lang
