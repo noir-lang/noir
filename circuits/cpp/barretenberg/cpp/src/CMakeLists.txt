@@ -52,6 +52,7 @@ add_subdirectory(barretenberg/plonk)
 add_subdirectory(barretenberg/stdlib)
 add_subdirectory(barretenberg/join_split_example)
 add_subdirectory(barretenberg/dsl)
+add_subdirectory(barretenberg/solidity_helpers)
 
 if(BENCHMARKS)
     add_subdirectory(barretenberg/benchmark)
