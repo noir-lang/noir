@@ -177,5 +177,4 @@ std::ostream& operator<<(std::ostream& os, PublicCircuitPublicInputs<NCT> const&
 
               << "prover_address: " << pis.prover_address << "\n";
 }
-
 } // namespace aztec3::circuits::abis

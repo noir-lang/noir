@@ -12,12 +12,23 @@
 #include "aztec3/constants.hpp"
 
 namespace {
+
+/**
+ * @brief Initialises the circuit output end state from provided inputs
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ * @param circuit_outputs The circuit outputs to be initialised
+ */
 void initialise_end_values(PublicKernelInputsNoPreviousKernel<NT> const& public_kernel_inputs,
                            KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     circuit_outputs.constants.tx_context = public_kernel_inputs.signed_tx_request.tx_request.tx_context;
 }
 
+/**
+ * @brief Validates the kernel circuit inputs specific to having no previous kernel
+ * @param composer The circuit composer
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ */
 void validate_inputs(DummyComposer& composer, PublicKernelInputsNoPreviousKernel<NT> const& public_kernel_inputs)
 {
     const auto& this_call_stack_item = public_kernel_inputs.public_call.call_stack_item;
@@ -40,11 +51,16 @@ using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputsNoPreviousKernel;
 using aztec3::circuits::kernel::public_kernel::common_validate_inputs;
 using aztec3::circuits::kernel::public_kernel::common_validate_kernel_execution;
-using aztec3::circuits::kernel::public_kernel::validate_this_public_call_stack;
 using aztec3::utils::push_array_to_array;
 
 using DummyComposer = aztec3::utils::DummyComposer;
 
+/**
+ * @brief Entry point for the native public kernel circuit with no previous kernel
+ * @param composer The circuit composer
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ * @return The circuit public inputs
+ */
 KernelCircuitPublicInputs<NT> native_public_kernel_circuit_no_previous_kernel(
     DummyComposer& composer, PublicKernelInputsNoPreviousKernel<NT> const& public_kernel_inputs)
 {

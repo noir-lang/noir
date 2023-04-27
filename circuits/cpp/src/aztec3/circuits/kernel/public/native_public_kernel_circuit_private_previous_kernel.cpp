@@ -12,6 +12,12 @@
 
 namespace {
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
+
+/**
+ * @brief Validates the kernel circuit inputs specific to having a private previous kernel
+ * @param composer The circuit composer
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ */
 void validate_inputs(DummyComposer& composer, PublicKernelInputs<NT> const& public_kernel_inputs)
 {
     const auto& this_call_stack_item = public_kernel_inputs.public_call.call_stack_item;
@@ -45,6 +51,12 @@ using aztec3::utils::push_array_to_array;
 
 using DummyComposer = aztec3::utils::DummyComposer;
 
+/**
+ * @brief Entry point for the native public kernel circuit with a private previous kernel
+ * @param composer The circuit composer
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ * @return The circuit public inputs
+ */
 KernelCircuitPublicInputs<NT> native_public_kernel_circuit_private_previous_kernel(
     DummyComposer& composer, PublicKernelInputs<NT> const& public_kernel_inputs)
 {

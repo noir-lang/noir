@@ -159,7 +159,9 @@ void check_membership(Composer& composer,
                       std::string const& msg)
 {
     const auto calculated_root = root_from_sibling_path<NCT>(value, index, sibling_path);
-    composer.do_assert(calculated_root == root, std::string("Membership check failed: ") + msg, aztec3::utils::CircuitErrorCode::MEMBERSHIP_CHECK_FAILED);
+    composer.do_assert(calculated_root == root,
+                       std::string("Membership check failed: ") + msg,
+                       aztec3::utils::CircuitErrorCode::MEMBERSHIP_CHECK_FAILED);
 }
 
 /**
@@ -253,7 +255,7 @@ std::array<typename NCT::fr, TREE_HEIGHT> compute_empty_sibling_path(typename NC
  */
 template <typename NCT> typename NCT::fr compute_public_data_tree_value(typename NCT::fr const& value)
 {
-    // as it's a public value, it doens't require hashing.
+    // as it's a public value, it doesn't require hashing.
     // leaving this function here in case we decide to change this.
     return value;
 }
