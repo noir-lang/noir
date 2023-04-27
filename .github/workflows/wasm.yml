@@ -36,8 +36,9 @@ jobs:
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
+          mkdir -p ./noir-wasm-testing/node_modules/@noir-lang
           cp -r ./crates/wasm/result ./noir-wasm-testing/@noir-lang_noir_wasm
-          ln -s ./@noir-lang_noir_wasm ./noir-wasm-testing/node_modules/@noir-lang/noir_wasm
+          ln -s ../../@noir-lang_noir_wasm ./noir-wasm-testing/node_modules/@noir-lang/noir_wasm
           jq '.dependencies["@noir-lang/noir_wasm"] = "file:./node_modules/@noir-lang/noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
