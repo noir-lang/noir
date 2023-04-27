@@ -37,7 +37,7 @@ termcolor = "1.1.2"
 color-eyre = "0.6.2"
 
 # Backends
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/aztec_backend", rev = "ba1d0d61b94de91b15044d97608907c21bfb5299", default-features=false }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/aztec_backend", rev = "880210c5dcb55d29437a68c11913406704a0eb71", default-features=false }
 
 [dev-dependencies]
 tempdir = "0.3.7"

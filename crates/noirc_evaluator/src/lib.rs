@@ -158,7 +158,7 @@ impl Evaluator {
         let inter_var_witness = self.add_witness_to_cs();
 
         // Link that witness to the arithmetic gate
-        let constraint = &arithmetic_gate - &inter_var_witness;
+        let constraint = &arithmetic_gate - inter_var_witness;
         self.opcodes.push(AcirOpcode::Arithmetic(constraint));
         inter_var_witness
     }
