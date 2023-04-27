@@ -37,3 +37,11 @@ rm pkg/nodejs/package.json pkg/nodejs/README.md pkg/nodejs/.gitignore
 rm pkg/web/package.json pkg/web/README.md pkg/web/.gitignore
 '
 
+
+# Log the contents of the pkg directory
+echo "Contents of pkg directory:"
+ls -la ./pkg
+
+# Log the contents of the generated package.json file
+echo "Contents of package.json:"
+cat ./pkg/package.json
