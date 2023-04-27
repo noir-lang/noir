@@ -6,26 +6,26 @@ if [ -d ./pkg/ ]; then
 fi
 
 # Enter the nix-shell environment
-nix-shell wasm.nix --run '
+nix-shell wasm.nix --run "
 
 # Build the new wasm package
 wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
 wasm-pack build --scope noir-lang --target web --out-dir pkg/web
 
 COMMIT_SHORT=$(git rev-parse --short HEAD)
-VERSION_APPENDIX=""
-if [ -n "$COMMIT_SHORT" ]; then
-    VERSION_APPENDIX="-$COMMIT_SHORT"
+VERSION_APPENDIX=''
+if [ -n \"$COMMIT_SHORT\" ]; then
+    VERSION_APPENDIX=\"-$COMMIT_SHORT\"
 else
-    VERSION_APPENDIX="-NOGIT"
+    VERSION_APPENDIX=\"-NOGIT\"
 fi
 
-jq -s ".[0] * .[1]" pkg/nodejs/package.json pkg/web/package.json | jq ".files = [\"nodejs\", \"web\", \"package.json\"]" | jq ".version += \"$VERSION_APPENDIX\"" | jq ".main = \"./nodejs/noir_wasm.js\" | .module = \"./web/noir_wasm.js\" | .types = \"./web/noir_wasm.d.ts\" | .peerDependencies = { \"@noir-lang/noir-source-resolver\": \"1.1.2\" }" | tee ./pkg/package.json
+jq -s '.[0] * .[1]' pkg/nodejs/package.json pkg/web/package.json | jq '.files = [\"nodejs\", \"web\", \"package.json\"]' | jq \".version += \\\"$VERSION_APPENDIX\\\"\" | jq '.main = \"./nodejs/noir_wasm.js\" | .module = \"./web/noir_wasm.js\" | .types = \"./web/noir_wasm.d.ts\" | .peerDependencies = { \"@noir-lang/noir-source-resolver\": \"1.1.2\" }' | tee ./pkg/package.json
 
 rm pkg/nodejs/package.json pkg/nodejs/README.md pkg/nodejs/.gitignore
 
 rm pkg/web/package.json pkg/web/README.md pkg/web/.gitignore
-'
+"
 
 # Log the contents of the pkg directory
 echo "Contents of pkg directory:"
