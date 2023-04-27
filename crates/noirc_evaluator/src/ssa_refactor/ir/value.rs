@@ -1,7 +1,10 @@
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
 
 use super::{
-    constant::NumericConstantId, function::FunctionId, instruction::InstructionId, map::Id,
+    constant::NumericConstantId,
+    function::FunctionId,
+    instruction::{InstructionId, Intrinsic},
+    map::Id,
     types::Type,
 };
 
@@ -36,7 +39,11 @@ pub(crate) enum Value {
     /// If the argument or return types are needed, users should retrieve
     /// their types via the Call instruction's arguments or the Call instruction's
     /// result types respectively.
-    Function { id: FunctionId },
+    Function(FunctionId),
+
+    /// An Intrinsic is a special kind of builtin function that may be handled internally
+    /// or optimized into a special form.
+    Intrinsic(Intrinsic),
 }
 
 impl Value {
@@ -46,6 +53,7 @@ impl Value {
             Value::Param { typ, .. } => *typ,
             Value::NumericConstant { typ, .. } => *typ,
             Value::Function { .. } => Type::Function,
+            Value::Intrinsic { .. } => Type::Function,
         }
     }
 }

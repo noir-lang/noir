@@ -242,9 +242,9 @@ impl<'a> FunctionContext<'a> {
 
     /// Retrieves the given function, adding it to the function queue
     /// if it is not yet compiled.
-    pub(super) fn get_or_queue_function(&self, id: FuncId) -> Values {
+    pub(super) fn get_or_queue_function(&mut self, id: FuncId) -> Values {
         let function = self.shared_context.get_or_queue_function(id);
-        Values::Leaf(super::value::Value::Function(function))
+        self.builder.import_function(function).into()
     }
 }
 

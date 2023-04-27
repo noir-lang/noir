@@ -1,6 +1,5 @@
 use iter_extended::vecmap;
 
-use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::types::Type;
 use crate::ssa_refactor::ir::value::ValueId as IrValueId;
 
@@ -15,7 +14,6 @@ pub(super) enum Tree<T> {
 #[derive(Debug, Copy, Clone)]
 pub(super) enum Value {
     Normal(IrValueId),
-    Function(IrFunctionId),
 
     /// A mutable variable that must be loaded as the given type before being used
     Mutable(IrValueId, Type),
@@ -32,7 +30,6 @@ impl Value {
                 let offset = ctx.builder.field_constant(0u128);
                 ctx.builder.insert_load(address, offset, typ)
             }
-            Value::Function(_) => panic!("Tried to evaluate a function value"),
         }
     }
 }

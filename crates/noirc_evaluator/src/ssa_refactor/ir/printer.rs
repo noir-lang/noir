@@ -64,7 +64,8 @@ fn value(function: &Function, id: ValueId) -> String {
             let value = function.dfg[*constant].value();
             format!("{} {}", typ, value)
         }
-        Value::Function { id } => id.to_string(),
+        Value::Function(id) => id.to_string(),
+        Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         _ => id.to_string(),
     }
 }
@@ -126,9 +127,6 @@ pub(crate) fn display_instruction(
         }
         Instruction::Call { func, arguments } => {
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
-        }
-        Instruction::Intrinsic { func, arguments } => {
-            writeln!(f, "intrinsic {func}({})", value_list(function, arguments))
         }
         Instruction::Allocate { size } => writeln!(f, "alloc {size} fields"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
