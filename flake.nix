@@ -187,11 +187,32 @@
           nil
           nixpkgs-fmt
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
+          wasm-pack
         ];
 
         shellHook = ''
           eval "$(starship init bash)"
         '';
       });
+
+      packages.wasm = pkgs.stdenv.mkDerivation rec {
+        pname = "noir_wasm";
+        version = "1.0.0";
+
+        src = ./.;
+
+        nativeBuildInputs = [ wasmPack ];
+
+        buildPhase = ''
+          wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
+          wasm-pack build --scope noir-lang --target web --out-dir pkg/web
+        '';
+
+        installPhase = ''
+          mkdir -p $out/pkg
+          cp -r pkg/* $out/pkg/
+        '';
+      };
+      # packages.noir-wasm-testing = noirWasmTestingPackage;
     });
 }
