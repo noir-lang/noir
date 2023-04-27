@@ -1,6 +1,9 @@
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
 
-use super::{constant::NumericConstantId, instruction::InstructionId, map::Id, types::Type};
+use super::{
+    constant::NumericConstantId, function::FunctionId, instruction::InstructionId, map::Id,
+    types::Type,
+};
 
 pub(crate) type ValueId = Id<Value>;
 
@@ -27,6 +30,13 @@ pub(crate) enum Value {
 
     /// This Value originates from a numeric constant
     NumericConstant { constant: NumericConstantId, typ: Type },
+
+    /// This Value refers to a function in the IR.
+    /// Functions always have the type Type::Function.
+    /// If the argument or return types are needed, users should retrieve
+    /// their types via the Call instruction's arguments or the Call instruction's
+    /// result types respectively.
+    Function { id: FunctionId },
 }
 
 impl Value {
@@ -35,6 +45,7 @@ impl Value {
             Value::Instruction { typ, .. } => *typ,
             Value::Param { typ, .. } => *typ,
             Value::NumericConstant { typ, .. } => *typ,
+            Value::Function { .. } => Type::Function,
         }
     }
 }

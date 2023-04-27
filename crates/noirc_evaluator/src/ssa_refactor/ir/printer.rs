@@ -55,12 +55,17 @@ pub(crate) fn display_block(
     display_terminator(function, block.terminator(), f)
 }
 
-/// Specialize displaying value ids so that if they refer to constants we
-/// print the constant directly
+/// Specialize displaying value ids so that if they refer to a numeric
+/// constant or a function we print those directly.
 fn value(function: &Function, id: ValueId) -> String {
-    match function.dfg.get_numeric_constant_with_type(id) {
-        Some((value, typ)) => format!("{} {}", value, typ),
-        None => id.to_string(),
+    use super::value::Value;
+    match &function.dfg[id] {
+        Value::NumericConstant { constant, typ } => {
+            let value = function.dfg[*constant].value();
+            format!("{} {}", typ, value)
+        }
+        Value::Function { id } => id.to_string(),
+        _ => id.to_string(),
     }
 }
 
@@ -120,7 +125,7 @@ pub(crate) fn display_instruction(
             writeln!(f, "constrain {}", show(*value))
         }
         Instruction::Call { func, arguments } => {
-            writeln!(f, "call {func}({})", value_list(function, arguments))
+            writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
         }
         Instruction::Intrinsic { func, arguments } => {
             writeln!(f, "intrinsic {func}({})", value_list(function, arguments))

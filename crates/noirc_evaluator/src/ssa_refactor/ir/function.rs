@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
-use super::instruction::Instruction;
-use super::map::{Id, SecondaryMap};
+use super::instruction::InstructionId;
+use super::map::Id;
 use super::types::Type;
 
 use noirc_errors::Location;
@@ -15,7 +17,7 @@ use noirc_errors::Location;
 #[derive(Debug)]
 pub(crate) struct Function {
     /// Maps instructions to source locations
-    source_locations: SecondaryMap<Instruction, Location>,
+    source_locations: HashMap<InstructionId, Location>,
 
     /// The first basic block in the function
     entry_block: BasicBlockId,
@@ -35,7 +37,7 @@ impl Function {
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, source_locations: SecondaryMap::new(), id, entry_block, dfg }
+        Self { name, source_locations: HashMap::new(), id, entry_block, dfg }
     }
 
     pub(crate) fn name(&self) -> &str {

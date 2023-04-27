@@ -1,6 +1,4 @@
-use super::{
-    basic_block::BasicBlockId, function::FunctionId, map::Id, types::Type, value::ValueId,
-};
+use super::{basic_block::BasicBlockId, map::Id, types::Type, value::ValueId};
 
 /// Reference to an instruction
 pub(crate) type InstructionId = Id<Instruction>;
@@ -41,7 +39,7 @@ pub(crate) enum Instruction {
     Constrain(ValueId),
 
     /// Performs a function call with a list of its arguments.
-    Call { func: FunctionId, arguments: Vec<ValueId> },
+    Call { func: ValueId, arguments: Vec<ValueId> },
 
     /// Performs a call to an intrinsic function and stores the
     /// results in `return_arguments`.

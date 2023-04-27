@@ -260,20 +260,6 @@ impl<T> std::ops::Index<Id<T>> for TwoWayMap<T> {
     }
 }
 
-/// A SecondaryMap is for storing secondary data for a given key. Since this
-/// map is for secondary data, it will not return fresh Ids for data, instead
-/// it expects users to provide these ids in order to associate existing ids with
-/// additional data.
-///
-/// Unlike SecondaryMap in cranelift, this version is sparse and thus
-/// does not require inserting default elements for each key in between
-/// the desired key and the previous length of the map.
-///
-/// There is no expectation that there is always secondary data for all relevant
-/// Ids of a given type, so unlike the other Map types, it is possible for
-/// a call to .get(id) to return None.
-pub(crate) type SecondaryMap<K, V> = HashMap<Id<K>, V>;
-
 /// A simple counter to create fresh Ids without any storage.
 /// Useful for assigning ids before the storage is created or assigning ids
 /// for types that have no single owner.

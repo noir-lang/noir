@@ -164,7 +164,7 @@ impl<'a> FunctionContext<'a> {
     /// back into a Values tree of the proper shape.
     pub(super) fn insert_call(
         &mut self,
-        function: IrFunctionId,
+        function: ValueId,
         arguments: Vec<ValueId>,
         result_type: &ast::Type,
     ) -> Values {

@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
-    function::Signature,
+    function::{FunctionId, Signature},
     instruction::{Instruction, InstructionId, InstructionResultType, TerminatorInstruction},
-    map::{DenseMap, Id, SecondaryMap, TwoWayMap},
+    map::{DenseMap, Id, TwoWayMap},
     types::Type,
     value::{Value, ValueId},
 };
@@ -53,7 +55,7 @@ pub(crate) struct DataFlowGraph {
     /// Currently, we need to define them in a better way
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
-    results: SecondaryMap<Instruction, ValueList>,
+    results: HashMap<InstructionId, ValueList>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -63,6 +65,11 @@ pub(crate) struct DataFlowGraph {
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ConstantId.
     constants: TwoWayMap<NumericConstant>,
+
+    /// Contains each function that has been imported into the current function.
+    /// Each function's Value::Function is uniqued here so any given FunctionId
+    /// will always have the same ValueId within this function.
+    functions: HashMap<FunctionId, ValueId>,
 
     /// Function signatures of external methods
     signatures: DenseMap<Signature>,
@@ -148,6 +155,14 @@ impl DataFlowGraph {
     pub(crate) fn make_constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
         let constant = self.constants.insert(NumericConstant::new(value));
         self.values.insert(Value::NumericConstant { constant, typ })
+    }
+
+    /// Gets or creats a ValueId for the given FunctionId.
+    pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
+        if let Some(existing) = self.functions.get(&function) {
+            return *existing;
+        }
+        self.values.insert(Value::Function { id: function })
     }
 
     /// Attaches results to the instruction, clearing any previous results.
