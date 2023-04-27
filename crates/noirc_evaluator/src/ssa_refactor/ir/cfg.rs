@@ -161,32 +161,33 @@ mod tests {
 
         let mut cfg = ControlFlowGraph::with_function(&func);
 
+        #[allow(clippy::needless_collect)]
         {
-            let block0_predecessors = cfg.pred_iter(block0_id).collect::<Vec<_>>();
-            let block1_predecessors = cfg.pred_iter(block1_id).collect::<Vec<_>>();
-            let block2_predecessors = cfg.pred_iter(block2_id).collect::<Vec<_>>();
+            let block0_predecessors: Vec<_> = cfg.pred_iter(block0_id).collect();
+            let block1_predecessors: Vec<_> = cfg.pred_iter(block1_id).collect();
+            let block2_predecessors: Vec<_> = cfg.pred_iter(block2_id).collect();
 
-            let block0_successors = cfg.succ_iter(block0_id).collect::<Vec<_>>();
-            let block1_successors = cfg.succ_iter(block1_id).collect::<Vec<_>>();
-            let block2_successors = cfg.succ_iter(block2_id).collect::<Vec<_>>();
+            let block0_successors: Vec<_> = cfg.succ_iter(block0_id).collect();
+            let block1_successors: Vec<_> = cfg.succ_iter(block1_id).collect();
+            let block2_successors: Vec<_> = cfg.succ_iter(block2_id).collect();
 
             assert_eq!(block0_predecessors.len(), 0);
             assert_eq!(block1_predecessors.len(), 2);
             assert_eq!(block2_predecessors.len(), 2);
 
-            assert_eq!(block1_predecessors.contains(&block0_id), true);
-            assert_eq!(block1_predecessors.contains(&block1_id), true);
-            assert_eq!(block2_predecessors.contains(&block0_id), true);
-            assert_eq!(block2_predecessors.contains(&block1_id), true);
+            assert!(block1_predecessors.contains(&block0_id));
+            assert!(block1_predecessors.contains(&block1_id));
+            assert!(block2_predecessors.contains(&block0_id));
+            assert!(block2_predecessors.contains(&block1_id));
 
             assert_eq!(block0_successors.len(), 2);
             assert_eq!(block1_successors.len(), 2);
             assert_eq!(block2_successors.len(), 0);
 
-            assert_eq!(block0_successors.contains(&block1_id), true);
-            assert_eq!(block0_successors.contains(&block2_id), true);
-            assert_eq!(block1_successors.contains(&block1_id), true);
-            assert_eq!(block1_successors.contains(&block2_id), true);
+            assert!(block0_successors.contains(&block1_id));
+            assert!(block0_successors.contains(&block2_id));
+            assert!(block1_successors.contains(&block1_id));
+            assert!(block1_successors.contains(&block2_id));
         }
 
         // Modify function to form:
@@ -214,37 +215,38 @@ mod tests {
         });
 
         // Recompute new and changed blocks
-        cfg.recompute_block(&mut func, block0_id);
-        cfg.recompute_block(&mut func, block2_id);
-        cfg.recompute_block(&mut func, ret_block_id);
+        cfg.recompute_block(&func, block0_id);
+        cfg.recompute_block(&func, block2_id);
+        cfg.recompute_block(&func, ret_block_id);
 
+        #[allow(clippy::needless_collect)]
         {
-            let block0_predecessors = cfg.pred_iter(block0_id).collect::<Vec<_>>();
-            let block1_predecessors = cfg.pred_iter(block1_id).collect::<Vec<_>>();
-            let block2_predecessors = cfg.pred_iter(block2_id).collect::<Vec<_>>();
+            let block0_predecessors: Vec<_> = cfg.pred_iter(block0_id).collect();
+            let block1_predecessors: Vec<_> = cfg.pred_iter(block1_id).collect();
+            let block2_predecessors: Vec<_> = cfg.pred_iter(block2_id).collect();
 
-            let block0_successors = cfg.succ_iter(block0_id).collect::<Vec<_>>();
-            let block1_successors = cfg.succ_iter(block1_id).collect::<Vec<_>>();
-            let block2_successors = cfg.succ_iter(block2_id).collect::<Vec<_>>();
+            let block0_successors: Vec<_> = cfg.succ_iter(block0_id).collect();
+            let block1_successors: Vec<_> = cfg.succ_iter(block1_id).collect();
+            let block2_successors: Vec<_> = cfg.succ_iter(block2_id).collect();
 
             assert_eq!(block0_predecessors.len(), 0);
             assert_eq!(block1_predecessors.len(), 2);
             assert_eq!(block2_predecessors.len(), 1);
 
-            assert_eq!(block1_predecessors.contains(&block0_id), true);
-            assert_eq!(block1_predecessors.contains(&block1_id), true);
-            assert_eq!(block2_predecessors.contains(&block0_id), false);
-            assert_eq!(block2_predecessors.contains(&block1_id), true);
+            assert!(block1_predecessors.contains(&block0_id));
+            assert!(block1_predecessors.contains(&block1_id));
+            assert!(!block2_predecessors.contains(&block0_id));
+            assert!(block2_predecessors.contains(&block1_id));
 
             assert_eq!(block0_successors.len(), 2);
             assert_eq!(block1_successors.len(), 2);
             assert_eq!(block2_successors.len(), 1);
 
-            assert_eq!(block0_successors.contains(&block1_id), true);
-            assert_eq!(block0_successors.contains(&ret_block_id), true);
-            assert_eq!(block1_successors.contains(&block1_id), true);
-            assert_eq!(block1_successors.contains(&block2_id), true);
-            assert_eq!(block2_successors.contains(&ret_block_id), true);
+            assert!(block0_successors.contains(&block1_id));
+            assert!(block0_successors.contains(&ret_block_id));
+            assert!(block1_successors.contains(&block1_id));
+            assert!(block1_successors.contains(&block2_id));
+            assert!(block2_successors.contains(&ret_block_id));
         }
     }
 }
