@@ -21,9 +21,16 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build wasm crate with Nix
+      # - name: Build wasm crate with Nix
+      #   working-directory: ./crates/wasm
+      #   run: nix-build wasm.nix
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build wasm crate
         working-directory: ./crates/wasm
-        run: nix-build wasm.nix
+        run: ./build-wasm
 
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
