@@ -88,7 +88,7 @@ template <typename OuterComposer> class RecursiveCircuit {
             }
             auto native_result = native_verifier.verify_proof(recursive_proof);
             if (native_result == false) {
-                throw std::runtime_error("Native verification failed");
+                throw_or_abort("Native verification failed");
             }
         }
 
@@ -122,13 +122,13 @@ template <typename OuterComposer> class RecursiveCircuit {
             P, circuit_output.verification_key->reference_string->get_precomputed_g2_lines(), 2);
 
         if (inner_proof_result != barretenberg::fq12::one()) {
-            throw std::runtime_error("inner proof result != 1");
+            throw_or_abort("inner proof result != 1");
         }
 
         circuit_output.aggregation_state.add_proof_outputs_as_public_inputs();
 
         if (outer_composer.failed()) {
-            throw std::runtime_error("outer composer failed");
+            throw_or_abort("outer composer failed");
         }
 
         return outer_composer;

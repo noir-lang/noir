@@ -24,7 +24,7 @@ template <typename Composer, typename Circuit> void generate_proof(std::string s
         auto verifier = composer.create_ultra_with_keccak_verifier();
 
         if (!verifier.verify_proof(proof)) {
-            throw std::runtime_error("Verification failed");
+            throw_or_abort("Verification failed");
         }
 
         std::string proof_bytes = bytes_to_hex_string(proof.proof_data);
