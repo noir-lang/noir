@@ -17,7 +17,6 @@ import {
   RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
-  STATE_TRANSITIONS_LENGTH,
   UInt8Vector,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -253,6 +252,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
       this.validateTree(rollupOutput, MerkleTreeId.CONTRACT_TREE, 'Contract'),
       this.validateTree(rollupOutput, MerkleTreeId.PRIVATE_DATA_TREE, 'PrivateData'),
       this.validateTree(rollupOutput, MerkleTreeId.NULLIFIER_TREE, 'Nullifier'),
+      this.validateTree(rollupOutput, MerkleTreeId.PUBLIC_DATA_TREE, 'PublicData'),
     ]);
   }
 
@@ -280,7 +280,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
   protected async validateTree(
     output: BaseOrMergeRollupPublicInputs | RootRollupPublicInputs,
     treeId: MerkleTreeId,
-    name: 'PrivateData' | 'Contract' | 'Nullifier',
+    name: 'PrivateData' | 'Contract' | 'Nullifier' | 'PublicData',
   ) {
     const localTree = await this.getTreeSnapshot(treeId);
     const simulatedTree = output[`end${name}TreeSnapshot`];
@@ -291,13 +291,15 @@ export class CircuitBlockBuilder implements BlockBuilder {
   protected validateSimulatedTree(
     localTree: AppendOnlyTreeSnapshot,
     simulatedTree: AppendOnlyTreeSnapshot,
-    name: string,
+    name: 'PrivateData' | 'Contract' | 'Nullifier' | 'PublicData',
     label?: string,
   ) {
     if (!simulatedTree.root.toBuffer().equals(localTree.root.toBuffer())) {
       throw new Error(`${label ?? name} tree root mismatch (local ${localTree.root}, simulated ${simulatedTree.root})`);
     }
-    if (simulatedTree.nextAvailableLeafIndex !== localTree.nextAvailableLeafIndex) {
+    // Public data tree is sparse, so the "next available leaf index" doesn't make sense there
+    // We'll eventually drop it, see https://github.com/AztecProtocol/aztec3-packages/issues/379
+    if (name !== 'PublicData' && simulatedTree.nextAvailableLeafIndex !== localTree.nextAvailableLeafIndex) {
       throw new Error(
         `${label ?? name} tree next available leaf index mismatch (local ${
           localTree.nextAvailableLeafIndex

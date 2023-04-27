@@ -1,8 +1,8 @@
-import times from 'lodash.times';
 import { RunningPromise, createDebugLogger } from '@aztec/foundation';
 import { P2P } from '@aztec/p2p';
-import { CompleteContractData, ContractData, PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
+import { ContractData, PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
 import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
+import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
 import { ceilPowerOfTwo } from '../utils.js';
