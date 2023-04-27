@@ -41,31 +41,17 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y jq
 
-      - name: Log out wasm output
-        working-directory: crates/wasm/result
-        run: ls -la
-
       - name: Inject built wasm into noir-wasm-testing
         run: |
-          mkdir -p ./noir-wasm-testing/node_modules/@noir-lang
           cp -r ./crates/wasm/result ./noir-wasm-testing/@noir-lang_noir_wasm
-          ln -s ../../@noir-lang_noir_wasm ./noir-wasm-testing/node_modules/@noir-lang/noir_wasm
           jq '.dependencies["@noir-lang/noir_wasm"] = "file:./node_modules/@noir-lang/noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
-
-      - name: Run build.sh in noir-wasm-testing
-        working-directory: ./noir-wasm-testing
-        run: |
-          chmod +x build.sh
-          ./build.sh
-
-      - name: Install dependencies
-        working-directory: ./noir-wasm-testing
-        run: npm install
 
       - name: Log package information
         working-directory: ./noir-wasm-testing
         run: |
+          echo "Wasm contents:"
+          ls -la ./@noir-lang_noir_wasm
           echo "Directory contents:"
           ls -la
           echo "package.json contents:"
@@ -76,6 +62,16 @@ jobs:
           else
             echo "File does not exist."
           fi
+
+      - name: Run build.sh in noir-wasm-testing
+        working-directory: ./noir-wasm-testing
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Install dependencies
+        working-directory: ./noir-wasm-testing
+        run: npm install
 
       - name: Run tests
         working-directory: ./noir-wasm-testing
