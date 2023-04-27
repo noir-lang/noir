@@ -15,7 +15,7 @@ use noirc_errors::Location;
 /// To reference external functions, one must first import the function signature
 /// into the current function's context.
 #[derive(Debug)]
-pub(crate) struct Function {
+pub struct Function {
     /// Maps instructions to source locations
     source_locations: HashMap<InstructionId, Location>,
 

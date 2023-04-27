@@ -9,4 +9,4 @@
 
 mod ir;
 mod ssa_builder;
-mod ssa_gen;
+pub mod ssa_gen;

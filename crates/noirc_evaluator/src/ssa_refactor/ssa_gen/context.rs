@@ -36,21 +36,8 @@ pub(super) struct SharedContext {
 }
 
 impl<'a> FunctionContext<'a> {
-    pub(super) fn new(
-        function_id: FuncId,
-        function_name: String,
-        parameters: &Parameters,
-        shared_context: &'a SharedContext,
-    ) -> Self {
-        let new_id = shared_context.get_or_queue_function(function_id);
-
-        let mut this = Self {
-            definitions: HashMap::new(),
-            builder: FunctionBuilder::new(function_name, new_id),
-            shared_context,
-        };
-        this.add_parameters_to_scope(parameters);
-        this
+    pub(super) fn new(shared_context: &'a SharedContext) -> Self {
+        Self { definitions: HashMap::new(), builder: FunctionBuilder::default(), shared_context }
     }
 
     pub(super) fn new_function(&mut self, id: IrFunctionId, name: String, parameters: &Parameters) {

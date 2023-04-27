@@ -11,26 +11,35 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::{instruction::BinaryOp, types::Type, value::ValueId};
+use super::ir::{function::Function, instruction::BinaryOp, types::Type, value::ValueId};
 
-pub(crate) fn generate_ssa(program: Program) {
+pub fn generate_ssa(program: Program) -> Vec<Function> {
     let context = SharedContext::new(program);
 
-    let main = context.program.main();
     let main_id = Program::main_id();
-    let main_name = main.name.clone();
 
-    let mut function_context = FunctionContext::new(main_id, main_name, &main.parameters, &context);
-    function_context.codegen_expression(&main.body);
+    // Queue the main function for compilation
+    context.get_or_queue_function(main_id);
 
+    let mut function_context = FunctionContext::new(&context);
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function.name.clone(), &function.parameters);
-        function_context.codegen_expression(&function.body);
+        function_context.codegen_function_body(&function.body);
     }
+
+    function_context.builder.finish()
 }
 
 impl<'a> FunctionContext<'a> {
+    /// Codegen a function's body and set its return value to that of its last parameter.
+    /// For functions returning nothing, this will be an empty list.
+    fn codegen_function_body(&mut self, body: &Expression) {
+        let return_value = self.codegen_expression(body);
+        let results = return_value.into_value_list(self);
+        self.builder.terminate_with_return(results);
+    }
+
     fn codegen_expression(&mut self, expr: &Expression) -> Values {
         match expr {
             Expression::Ident(ident) => self.codegen_ident(ident),
