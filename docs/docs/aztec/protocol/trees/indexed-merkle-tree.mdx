@@ -2,9 +2,10 @@
 title: Indexed Merkle Tree
 ---
 
-import Disclaimer from '../../common/\_disclaimer.mdx';
+import Image from "@theme/IdealImage";
+import Disclaimer from "../../common/_disclaimer.mdx";
 
-<Disclaimer/>
+<Disclaimer />
 
 We're implementing an "Indexed Merkle Tree" for efficient non-membership proofs, which we'll need for our Nullifiers Tree.
 
@@ -21,15 +22,24 @@ where $i_{\textsf{next}}$ is the index of the leaf with the next higher value $v
 Let us look at a toy example of nullifier insertions in an indexed Merkle tree of depth 3.
 
 1. Initial state
-   ![](https://hackmd.io/_uploads/Hy7gDB0Ai.png)
+
+<Image img={require("/img/index-merkle-tree-1.png")} />
+
 2. Add a new value $v=30$
-   ![](https://hackmd.io/_uploads/BkzcLr00s.png)
+
+<Image img={require("/img/index-merkle-tree-2.png")} />
+
 3. Add a new value $v=10$
-   ![](https://hackmd.io/_uploads/By5i8SRAs.png)
+
+<Image img={require("/img/index-merkle-tree-3.png")} />
+
 4. Add a new value $v=20$
-   ![](https://hackmd.io/_uploads/HyR6LBAAs.png)
+
+<Image img={require("/img/index-merkle-tree-4.png")} />
+
 5. Add a new value $v=50$
-   ![](https://hackmd.io/_uploads/r1oAUBC0o.png)
+
+<Image img={require("/img/index-merkle-tree-5.png")} />
 
 ## Analysis - Constraint counts
 
