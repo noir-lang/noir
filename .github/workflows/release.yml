@@ -67,11 +67,11 @@ jobs:
       - name: Dispatch to build-nargo
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: nix-barretenberg.yml
+          workflow: publish.yml
           repo: noir-lang/build-nargo
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-wasm:
     name: Publish noir_wasm package
