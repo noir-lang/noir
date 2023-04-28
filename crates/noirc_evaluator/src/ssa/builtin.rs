@@ -73,6 +73,7 @@ impl Opcode {
                 match op {
                     // Pointers do not overflow
                     BlackBoxFunc::SHA256
+                    | BlackBoxFunc::Keccak256
                     | BlackBoxFunc::Blake2s
                     | BlackBoxFunc::Pedersen
                     | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
@@ -83,9 +84,6 @@ impl Opcode {
                     BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
                     BlackBoxFunc::AES => {
                         todo!("ICE: AES is unimplemented")
-                    }
-                    BlackBoxFunc::Keccak256 => {
-                        todo!("ICE: Keccak256 is unimplemented")
                     }
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
@@ -105,10 +103,7 @@ impl Opcode {
             Opcode::LowLevel(op) => {
                 match op {
                     BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
-                    BlackBoxFunc::Keccak256 => {
-                        todo!("ICE: Keccak256 is unimplemented")
-                    }
-                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
+                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Keccak256 => {
                         (32, ObjectType::unsigned_integer(8))
                     }
                     BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
