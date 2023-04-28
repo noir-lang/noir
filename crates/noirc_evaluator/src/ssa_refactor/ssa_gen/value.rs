@@ -38,7 +38,7 @@ impl Value {
     pub(super) fn eval_reference(self) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, typ) => address,
+            Value::Mutable(address, _) => address,
         }
     }
 }
