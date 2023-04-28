@@ -20,5 +20,8 @@ title: Cryptography Roadmap
 ## Goblin projects
 
 - Goblin is a deferred verification framework thats allow for an order-of-magnitude increase in the complexity of computations that Aztec 3 users can execute with full privacy. This corresponds to a 10x increase in the expressivity of Noir programs that can be run in practice without melting anybody's favorite phone or laptop.
+
+Read more here. https://hackmd.io/@aztec-network/B19AA8812
+
 - List of Goblin projects
   - Aside from some prototype code by Zac, we have not begun working on this yet.
