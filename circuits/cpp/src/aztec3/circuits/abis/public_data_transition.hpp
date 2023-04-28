@@ -11,7 +11,7 @@ using aztec3::GeneratorIndex;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
-template <typename NCT> struct PublicDataWrite {
+template <typename NCT> struct PublicDataTransition {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
@@ -19,16 +19,16 @@ template <typename NCT> struct PublicDataWrite {
     fr old_value = 0;
     fr new_value = 0;
 
-    bool operator==(PublicDataWrite<NCT> const&) const = default;
+    bool operator==(PublicDataTransition<NCT> const&) const = default;
 
-    template <typename Composer> PublicDataWrite<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Composer> PublicDataTransition<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
-        PublicDataWrite<CircuitTypes<Composer>> state_transition = {
+        PublicDataTransition<CircuitTypes<Composer>> state_transition = {
             to_ct(leaf_index),
             to_ct(old_value),
             to_ct(new_value),
@@ -37,13 +37,13 @@ template <typename NCT> struct PublicDataWrite {
         return state_transition;
     };
 
-    template <typename Composer> PublicDataWrite<NativeTypes> to_native_type() const
+    template <typename Composer> PublicDataTransition<NativeTypes> to_native_type() const
     {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
 
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
-        PublicDataWrite<NativeTypes> state_transition = {
+        PublicDataTransition<NativeTypes> state_transition = {
             to_nt(leaf_index),
             to_nt(old_value),
             to_nt(new_value),
@@ -75,7 +75,7 @@ template <typename NCT> struct PublicDataWrite {
     boolean is_empty() const { return leaf_index == 0; }
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicDataWrite<NCT>& state_transition)
+template <typename NCT> void read(uint8_t const*& it, PublicDataTransition<NCT>& state_transition)
 {
     using serialize::read;
 
@@ -84,7 +84,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicDataWrite<NCT>& stat
     read(it, state_transition.new_value);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, PublicDataWrite<NCT> const& state_transition)
+template <typename NCT> void write(std::vector<uint8_t>& buf, PublicDataTransition<NCT> const& state_transition)
 {
     using serialize::write;
 
@@ -93,7 +93,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PublicDataWrite<NC
     write(buf, state_transition.new_value);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataWrite<NCT> const& state_transition)
+template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataTransition<NCT> const& state_transition)
 {
     return os << "leaf_index: " << state_transition.leaf_index << "\n"
               << "old_value: " << state_transition.old_value << "\n"

@@ -7,7 +7,7 @@
 #include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
 #include <aztec3/circuits/abis/state_read.hpp>
 #include <aztec3/circuits/abis/state_transition.hpp>
-#include <aztec3/circuits/abis/public_data_write.hpp>
+#include <aztec3/circuits/abis/public_data_transition.hpp>
 #include <aztec3/utils/dummy_composer.hpp>
 #include <aztec3/utils/array.hpp>
 #include <aztec3/circuits/hash.hpp>
@@ -15,7 +15,7 @@
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
-using aztec3::circuits::abis::PublicDataWrite;
+using aztec3::circuits::abis::PublicDataTransition;
 using aztec3::circuits::abis::StateRead;
 using aztec3::circuits::abis::StateTransition;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
@@ -132,7 +132,7 @@ void propagate_valid_state_transitions(KernelInput const& public_kernel_inputs,
         if (state_transition.is_empty()) {
             continue;
         }
-        const auto new_write = PublicDataWrite<NT>{
+        const auto new_write = PublicDataTransition<NT>{
             .leaf_index = compute_public_data_tree_index<NT>(contract_address, state_transition.storage_slot),
             .new_value = compute_public_data_tree_value<NT>(state_transition.new_value),
         };

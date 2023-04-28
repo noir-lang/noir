@@ -271,7 +271,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated)
     const auto contract_address = inputs.public_call.call_stack_item.contract_address;
     for (size_t i = 0; i < STATE_TRANSITIONS_LENGTH; i++) {
         const auto& st = inputs.public_call.call_stack_item.public_inputs.state_transitions[i];
-        const auto public_write = PublicDataWrite<NT>{
+        const auto public_write = PublicDataTransition<NT>{
             .leaf_index = compute_public_data_tree_index<NT>(contract_address, st.storage_slot),
             .new_value = compute_public_data_tree_value<NT>(st.new_value),
         };
@@ -369,11 +369,11 @@ TEST(public_kernel_tests, only_valid_state_transitions_should_be_propagated)
 
     // only the 2 valid transitions should have been propagated
     const auto contract_address = inputs.public_call.call_stack_item.contract_address;
-    const auto public_write_1 = PublicDataWrite<NT>{
+    const auto public_write_1 = PublicDataTransition<NT>{
         .leaf_index = compute_public_data_tree_index<NT>(contract_address, first_valid.storage_slot),
         .new_value = compute_public_data_tree_value<NT>(first_valid.new_value),
     };
-    const auto public_write_2 = PublicDataWrite<NT>{
+    const auto public_write_2 = PublicDataTransition<NT>{
         .leaf_index = compute_public_data_tree_index<NT>(contract_address, second_valid.storage_slot),
         .new_value = compute_public_data_tree_value<NT>(second_valid.new_value),
     };

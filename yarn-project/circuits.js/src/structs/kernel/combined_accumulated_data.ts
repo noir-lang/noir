@@ -132,13 +132,13 @@ export class PublicDataRead {
 }
 
 /**
- * Write operations on the public state tree.
+ * Write operations on the public state tree including the previous value.
  */
-export class PublicDataWrite {
+export class PublicDataTransition {
   constructor(public readonly leafIndex: Fr, public readonly oldValue: Fr, public readonly newValue: Fr) {}
 
   static from(args: { leafIndex: Fr; oldValue: Fr; newValue: Fr }) {
-    return new PublicDataWrite(args.leafIndex, args.oldValue, args.newValue);
+    return new PublicDataTransition(args.leafIndex, args.oldValue, args.newValue);
   }
 
   toBuffer() {
@@ -147,11 +147,11 @@ export class PublicDataWrite {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PublicDataWrite(reader.readFr(), reader.readFr(), reader.readFr());
+    return new PublicDataTransition(reader.readFr(), reader.readFr(), reader.readFr());
   }
 
   static empty() {
-    return new PublicDataWrite(Fr.ZERO, Fr.ZERO, Fr.ZERO);
+    return new PublicDataTransition(Fr.ZERO, Fr.ZERO, Fr.ZERO);
   }
 }
 
@@ -173,7 +173,7 @@ export class CombinedAccumulatedData {
 
     public optionallyRevealedData: OptionallyRevealedData[],
 
-    public stateTransitions: PublicDataWrite[],
+    public stateTransitions: PublicDataTransition[],
     public stateReads: PublicDataRead[],
   ) {
     assertLength(this, 'newCommitments', KERNEL_NEW_COMMITMENTS_LENGTH);
@@ -221,7 +221,7 @@ export class CombinedAccumulatedData {
       reader.readArray(KERNEL_L1_MSG_STACK_LENGTH, Fr),
       reader.readArray(KERNEL_NEW_CONTRACTS_LENGTH, NewContractData),
       reader.readArray(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, OptionallyRevealedData),
-      reader.readArray(STATE_TRANSITIONS_LENGTH, PublicDataWrite),
+      reader.readArray(STATE_TRANSITIONS_LENGTH, PublicDataTransition),
       reader.readArray(STATE_READS_LENGTH, PublicDataRead),
     );
   }
@@ -238,7 +238,7 @@ export class CombinedAccumulatedData {
       times(KERNEL_L1_MSG_STACK_LENGTH, Fr.zero),
       times(KERNEL_NEW_CONTRACTS_LENGTH, NewContractData.empty),
       times(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, OptionallyRevealedData.empty),
-      times(STATE_TRANSITIONS_LENGTH, PublicDataWrite.empty),
+      times(STATE_TRANSITIONS_LENGTH, PublicDataTransition.empty),
       times(STATE_READS_LENGTH, PublicDataRead.empty),
     );
   }

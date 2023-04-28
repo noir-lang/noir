@@ -39,12 +39,14 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-contracts": "workspace:^",
+    "lodash.times": "^4.3.2",
     "tslib": "^2.5.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.5.0",
+    "@types/lodash.times": "^4.3.7",
     "@types/node": "^18.7.23",
     "jest": "^29.5.0",
     "jest-mock-extended": "^3.0.3",

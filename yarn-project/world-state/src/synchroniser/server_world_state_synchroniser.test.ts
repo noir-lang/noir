@@ -1,5 +1,5 @@
 import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.js';
-import { L2BlockSource, L2Block, ContractData } from '@aztec/types';
+import { L2BlockSource, L2Block, ContractData, PublicDataWrite } from '@aztec/types';
 import { WorldStateRunningState } from './world_state_synchroniser.js';
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
 import { sleep } from '@aztec/foundation';
@@ -34,23 +34,26 @@ const getMockContractData = () => {
 };
 
 const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) => {
-  const block = new L2Block(
-    blockNumber,
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    getMockTreeSnapshot(),
-    [Fr.random()],
-    [Fr.random()],
-    newContractsCommitments?.map(x => Fr.fromBuffer(x)) ?? [Fr.random()],
-    [getMockContractData()],
-  );
+  const block = L2Block.fromFields({
+    number: blockNumber,
+    startPrivateDataTreeSnapshot: getMockTreeSnapshot(),
+    startNullifierTreeSnapshot: getMockTreeSnapshot(),
+    startContractTreeSnapshot: getMockTreeSnapshot(),
+    startTreeOfHistoricPrivateDataTreeRootsSnapshot: getMockTreeSnapshot(),
+    startTreeOfHistoricContractTreeRootsSnapshot: getMockTreeSnapshot(),
+    startPublicDataTreeRoot: Fr.random(),
+    endPrivateDataTreeSnapshot: getMockTreeSnapshot(),
+    endNullifierTreeSnapshot: getMockTreeSnapshot(),
+    endContractTreeSnapshot: getMockTreeSnapshot(),
+    endTreeOfHistoricPrivateDataTreeRootsSnapshot: getMockTreeSnapshot(),
+    endTreeOfHistoricContractTreeRootsSnapshot: getMockTreeSnapshot(),
+    endPublicDataTreeRoot: Fr.random(),
+    newCommitments: [Fr.random()],
+    newNullifiers: [Fr.random()],
+    newContracts: newContractsCommitments?.map(x => Fr.fromBuffer(x)) ?? [Fr.random()],
+    newContractData: [getMockContractData()],
+    newPublicDataWrites: [PublicDataWrite.random()],
+  });
   return block;
 };
 

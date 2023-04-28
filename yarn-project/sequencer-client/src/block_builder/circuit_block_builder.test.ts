@@ -5,7 +5,7 @@ import {
   CircuitsWasm,
   Fr,
   PublicDataRead,
-  PublicDataWrite,
+  PublicDataTransition,
   RootRollupPublicInputs,
   UInt8Vector,
 } from '@aztec/circuits.js';
@@ -19,7 +19,7 @@ import {
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
 import { toBufferBE } from '@aztec/foundation';
-import { Tx } from '@aztec/types';
+import { PublicDataWrite, Tx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
@@ -219,7 +219,7 @@ describe('sequencer/circuit_block_builder', () => {
       const tx = await makeProcessedTx(publicTx, makeKernelPublicInputs(seed), makeProof());
       await setTxHistoricTreeRoots(tx);
       tx.data.end.stateReads[0] = new PublicDataRead(fr(1), fr(0));
-      tx.data.end.stateTransitions[0] = new PublicDataWrite(fr(2), fr(0), fr(12));
+      tx.data.end.stateTransitions[0] = new PublicDataTransition(fr(2), fr(0), fr(12));
       return tx;
     };
 
@@ -258,18 +258,15 @@ describe('sequencer/circuit_block_builder', () => {
 
     it('builds an L2 block with private and public txs', async () => {
       const txs = await Promise.all([
-        makeContractDeployProcessedTx(),
         makePublicCallProcessedTx(),
+        makeContractDeployProcessedTx(),
         makeEmptyProcessedTx(),
         makeEmptyProcessedTx(),
       ]);
 
       const [l2Block] = await builder.buildL2Block(blockNumber, txs);
       expect(l2Block.number).toEqual(blockNumber);
-
-      // TODO: Check that l2 block got the new state transitions once we merge
-      // https://github.com/AztecProtocol/aztec3-packages/pull/360
-
+      expect(l2Block.newPublicDataWrites[0]).toEqual(new PublicDataWrite(fr(2), fr(12)));
       await updateExpectedTreesFromTxs(txs);
     });
 

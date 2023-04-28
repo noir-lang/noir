@@ -1,7 +1,7 @@
 #pragma once
 #include "optionally_revealed_data.hpp"
 #include "new_contract_data.hpp"
-#include "public_data_write.hpp"
+#include "public_data_transition.hpp"
 #include "public_data_read.hpp"
 #include "aztec3/constants.hpp"
 #include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
@@ -42,7 +42,7 @@ template <typename NCT> struct CombinedAccumulatedData {
 
     std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data{};
 
-    std::array<PublicDataWrite<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions{};
+    std::array<PublicDataTransition<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions{};
     std::array<PublicDataRead<NCT>, STATE_READS_LENGTH> state_reads{};
 
     boolean operator==(CombinedAccumulatedData<NCT> const& other) const
@@ -172,7 +172,7 @@ template <typename NCT> struct CombinedAccumulatedData {
         }
     }
 
-    template <size_t SIZE> void set_array_public(std::array<PublicDataWrite<NCT>, SIZE>& arr)
+    template <size_t SIZE> void set_array_public(std::array<PublicDataTransition<NCT>, SIZE>& arr)
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
         for (auto& e : arr) {

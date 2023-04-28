@@ -803,7 +803,7 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     stdlib::merkle_tree::MemoryStore public_data_tree_store;
     native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
-    auto data_write = abis::PublicDataWrite<NT>{
+    auto data_write = abis::PublicDataTransition<NT>{
         .leaf_index = fr(1),
         .old_value = fr(2),
         .new_value = fr(42),

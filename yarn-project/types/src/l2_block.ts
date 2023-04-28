@@ -3,12 +3,15 @@ import {
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
+  STATE_TRANSITIONS_LENGTH,
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr } from '@aztec/foundation';
+import times from 'lodash.times';
 import { ContractData } from './contract_data.js';
 import { L2Tx } from './l2_tx.js';
+import { PublicDataWrite } from './public_data_write.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -24,13 +27,16 @@ export class L2Block {
    * @param startContractTreeSnapshot - The tree snapshot of the contract tree at the start of the rollup.
    * @param startTreeOfHistoricPrivateDataTreeRootsSnapshot - The tree snapshot of the historic private data tree roots at the start of the rollup.
    * @param startTreeOfHistoricContractTreeRootsSnapshot - The tree snapshot of the historic contract tree roots at the start of the rollup.
+   * @param startPublicDataTreeRoot - The tree root of the public data tree at the start of the rollup.
    * @param endPrivateDataTreeSnapshot - The tree snapshot of the private data tree at the end of the rollup.
    * @param endNullifierTreeSnapshot - The tree snapshot of the nullifier tree at the end of the rollup.
    * @param endContractTreeSnapshot - The tree snapshot of the contract tree at the end of the rollup.
    * @param endTreeOfHistoricPrivateDataTreeRootsSnapshot - The tree snapshot of the historic private data tree roots at the end of the rollup.
    * @param endTreeOfHistoricContractTreeRootsSnapshot - The tree snapshot of the historic contract tree roots at the end of the rollup.
+   * @param endPublicDataTreeRoot - The tree root of the public data tree at the end of the rollup.
    * @param newCommitments - The commitments to be inserted into the private data tree.
    * @param newNullifiers - The nullifiers to be inserted into the nullifier tree.
+   * @param newPublicDataWrites - The public data writes to be inserted into the public data tree.
    * @param newContracts - The contracts leafs to be inserted into the contract tree.
    * @param newContractData - The aztec_address and eth_address for the deployed contract and its portal contract.
    */
@@ -41,48 +47,47 @@ export class L2Block {
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
     public startTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
     public startTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    public startPublicDataTreeRoot: Fr,
     public endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
     public endNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
     public endTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
     public endTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    public endPublicDataTreeRoot: Fr,
     public newCommitments: Fr[],
     public newNullifiers: Fr[],
+    public newPublicDataWrites: PublicDataWrite[],
     public newContracts: Fr[],
     public newContractData: ContractData[],
   ) {}
 
   static random(l2BlockNum: number, txsPerBlock = 1) {
-    const newNullifiers = Array(KERNEL_NEW_NULLIFIERS_LENGTH * txsPerBlock)
-      .fill(0)
-      .map(() => Fr.random());
-    const newCommitments = Array(KERNEL_NEW_COMMITMENTS_LENGTH * txsPerBlock)
-      .fill(0)
-      .map(() => Fr.random());
-    const newContracts = Array(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock)
-      .fill(0)
-      .map(() => Fr.random());
-    const newContractsData = Array(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock)
-      .fill(0)
-      .map(() => ContractData.random());
+    const newNullifiers = times(KERNEL_NEW_NULLIFIERS_LENGTH * txsPerBlock, Fr.random);
+    const newCommitments = times(KERNEL_NEW_COMMITMENTS_LENGTH * txsPerBlock, Fr.random);
+    const newContracts = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, Fr.random);
+    const newContractData = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, ContractData.random);
+    const newPublicDataWrites = times(STATE_TRANSITIONS_LENGTH * txsPerBlock, PublicDataWrite.random);
 
-    return new L2Block(
-      l2BlockNum,
-      makeAppendOnlyTreeSnapshot(0),
-      makeAppendOnlyTreeSnapshot(0),
-      makeAppendOnlyTreeSnapshot(0),
-      makeAppendOnlyTreeSnapshot(0),
-      makeAppendOnlyTreeSnapshot(0),
-      makeAppendOnlyTreeSnapshot(newCommitments.length),
-      makeAppendOnlyTreeSnapshot(newNullifiers.length),
-      makeAppendOnlyTreeSnapshot(newContracts.length),
-      makeAppendOnlyTreeSnapshot(1),
-      makeAppendOnlyTreeSnapshot(1),
+    return L2Block.fromFields({
+      number: l2BlockNum,
+      startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+      startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+      startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+      startPublicDataTreeRoot: Fr.random(),
+      startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(0),
+      startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(0),
+      endPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(newCommitments.length),
+      endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(newNullifiers.length),
+      endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(newContracts.length),
+      endPublicDataTreeRoot: Fr.random(),
+      endTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(1),
+      endTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(1),
       newCommitments,
       newNullifiers,
       newContracts,
-      newContractsData,
-    );
+      newContractData,
+      newPublicDataWrites,
+    });
   }
 
   /**
@@ -97,13 +102,16 @@ export class L2Block {
     startContractTreeSnapshot: AppendOnlyTreeSnapshot;
     startTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot;
     startTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot;
+    startPublicDataTreeRoot: Fr;
     endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot;
     endNullifierTreeSnapshot: AppendOnlyTreeSnapshot;
     endContractTreeSnapshot: AppendOnlyTreeSnapshot;
     endTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot;
     endTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot;
+    endPublicDataTreeRoot: Fr;
     newCommitments: Fr[];
     newNullifiers: Fr[];
+    newPublicDataWrites: PublicDataWrite[];
     newContracts: Fr[];
     newContractData: ContractData[];
   }) {
@@ -114,13 +122,16 @@ export class L2Block {
       fields.startContractTreeSnapshot,
       fields.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
       fields.startTreeOfHistoricContractTreeRootsSnapshot,
+      fields.startPublicDataTreeRoot,
       fields.endPrivateDataTreeSnapshot,
       fields.endNullifierTreeSnapshot,
       fields.endContractTreeSnapshot,
       fields.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       fields.endTreeOfHistoricContractTreeRootsSnapshot,
+      fields.endPublicDataTreeRoot,
       fields.newCommitments,
       fields.newNullifiers,
+      fields.newPublicDataWrites,
       fields.newContracts,
       fields.newContractData,
     );
@@ -138,15 +149,19 @@ export class L2Block {
       this.startContractTreeSnapshot,
       this.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
       this.startTreeOfHistoricContractTreeRootsSnapshot,
+      this.startPublicDataTreeRoot,
       this.endPrivateDataTreeSnapshot,
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
       this.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       this.endTreeOfHistoricContractTreeRootsSnapshot,
+      this.endPublicDataTreeRoot,
       this.newCommitments.length,
       this.newCommitments,
       this.newNullifiers.length,
       this.newNullifiers,
+      this.newPublicDataWrites.length,
+      this.newPublicDataWrites,
       this.newContracts.length,
       this.newContracts,
       this.newContractData,
@@ -174,33 +189,39 @@ export class L2Block {
     const startContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startTreeOfHistoricPrivateDataTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startTreeOfHistoricContractTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const startPublicDataTreeRoot = reader.readObject(Fr);
     const endPrivateDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endTreeOfHistoricPrivateDataTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endTreeOfHistoricContractTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endPublicDataTreeRoot = reader.readObject(Fr);
     const newCommitments = reader.readVector(Fr);
     const newNullifiers = reader.readVector(Fr);
+    const newPublicDataWrites = reader.readVector(PublicDataWrite);
     const newContracts = reader.readVector(Fr);
     const newContractData = reader.readArray(newContracts.length, ContractData);
 
-    return new L2Block(
+    return L2Block.fromFields({
       number,
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
       startContractTreeSnapshot,
       startTreeOfHistoricPrivateDataTreeRootsSnapshot,
       startTreeOfHistoricContractTreeRootsSnapshot,
+      startPublicDataTreeRoot,
       endPrivateDataTreeSnapshot,
       endNullifierTreeSnapshot,
       endContractTreeSnapshot,
       endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       endTreeOfHistoricContractTreeRootsSnapshot,
+      endPublicDataTreeRoot,
       newCommitments,
       newNullifiers,
+      newPublicDataWrites,
       newContracts,
       newContractData,
-    );
+    });
   }
 
   /**
@@ -222,6 +243,10 @@ export class L2Block {
       KERNEL_NEW_NULLIFIERS_LENGTH * txIndex,
       KERNEL_NEW_NULLIFIERS_LENGTH * (txIndex + 1),
     );
+    const newPublicDataWrites = this.newPublicDataWrites.slice(
+      STATE_TRANSITIONS_LENGTH * txIndex,
+      STATE_TRANSITIONS_LENGTH * (txIndex + 1),
+    );
     const newContracts = this.newContracts.slice(
       KERNEL_NEW_CONTRACTS_LENGTH * txIndex,
       KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
@@ -230,7 +255,8 @@ export class L2Block {
       KERNEL_NEW_CONTRACTS_LENGTH * txIndex,
       KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
     );
-    return new L2Tx(newCommitments, newNullifiers, newContracts, newContractData);
+
+    return new L2Tx(newCommitments, newNullifiers, newPublicDataWrites, newContracts, newContractData);
   }
 
   /**
@@ -239,22 +265,18 @@ export class L2Block {
    * @returns A human-friendly string representation of the l2Block.
    */
   inspect(maxBufferSize = 4): string {
+    const inspectHex = (fr: { toBuffer: () => Buffer }): string =>
+      `0x${fr.toBuffer().subarray(0, maxBufferSize).toString('hex')}`;
+    const inspectArray = <T>(arr: T[], inspector: (t: T) => string) => '[' + arr.map(inspector).join(', ') + ']';
+
     const inspectTreeSnapshot = (s: AppendOnlyTreeSnapshot): string =>
-      `(${s.nextAvailableLeafIndex}, 0x${s.root.toBuffer().subarray(0, maxBufferSize).toString('hex')})`;
-    const inspectFrArray = (arr: Fr[]): string =>
-      '[' + arr.map(fr => '0x' + fr.toBuffer().subarray(0, maxBufferSize).toString('hex')).join(', ') + ']';
+      `(${s.nextAvailableLeafIndex}, ${inspectHex(s.root)})`;
+    const inspectFrArray = (arr: Fr[]): string => inspectArray(arr, inspectHex);
     const inspectContractDataArray = (arr: ContractData[]): string =>
-      '[' +
-      arr
-        .map(
-          cd =>
-            `(0x${cd.contractAddress
-              .toBuffer()
-              .subarray(0, maxBufferSize)
-              .toString('hex')}, 0x${cd.portalContractAddress.toBuffer().subarray(0, maxBufferSize).toString('hex')})`,
-        )
-        .join(', ') +
-      ']';
+      inspectArray(arr, cd => `(${inspectHex(cd.contractAddress)}, ${inspectHex(cd.portalContractAddress)})`);
+    const inspectPublicDataWriteArray = (arr: PublicDataWrite[]): string =>
+      inspectArray(arr, pdw => `(${inspectHex(pdw.leafIndex)}, ${inspectHex(pdw.newValue)})`);
+
     return [
       `L2Block`,
       `number: ${this.number}`,
@@ -267,6 +289,7 @@ export class L2Block {
       `startTreeOfHistoricContractTreeRootsSnapshot: ${inspectTreeSnapshot(
         this.startTreeOfHistoricContractTreeRootsSnapshot,
       )}`,
+      `startPublicDataTreeRoot: ${this.startPublicDataTreeRoot.toString()}`,
       `endPrivateDataTreeSnapshot: ${inspectTreeSnapshot(this.endPrivateDataTreeSnapshot)}`,
       `endNullifierTreeSnapshot: ${inspectTreeSnapshot(this.endNullifierTreeSnapshot)}`,
       `endContractTreeSnapshot: ${inspectTreeSnapshot(this.endContractTreeSnapshot)}`,
@@ -276,8 +299,10 @@ export class L2Block {
       `endTreeOfHistoricContractTreeRootsSnapshot: ${inspectTreeSnapshot(
         this.endTreeOfHistoricContractTreeRootsSnapshot,
       )}`,
+      `endPublicDataTreeRoot: ${this.endPublicDataTreeRoot.toString()}`,
       `newCommitments: ${inspectFrArray(this.newCommitments)}`,
       `newNullifiers: ${inspectFrArray(this.newNullifiers)}`,
+      `newPublicDataWrite: ${inspectPublicDataWriteArray(this.newPublicDataWrites)}`,
       `newContracts: ${inspectFrArray(this.newContracts)}`,
       `newContractData: ${inspectContractDataArray(this.newContractData)}`,
     ].join('\n');

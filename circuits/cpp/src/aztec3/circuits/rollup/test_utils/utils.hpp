@@ -1,5 +1,5 @@
 #pragma once
-#include "aztec3/circuits/abis/public_data_write.hpp"
+#include "aztec3/circuits/abis/public_data_transition.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "nullifier_tree_testing_harness.hpp"
 #include "init.hpp"
@@ -101,9 +101,9 @@ void set_kernel_nullifiers(KernelData& kernel_data, std::array<fr, KERNEL_NEW_NU
 
 MergeRollupInputs get_merge_rollup_inputs(utils::DummyComposer& composer, std::array<KernelData, 4> kernel_data);
 
-inline abis::PublicDataWrite<NT> make_public_write(fr leaf_index, fr old_value, fr new_value)
+inline abis::PublicDataTransition<NT> make_public_write(fr leaf_index, fr old_value, fr new_value)
 {
-    return abis::PublicDataWrite<NT>{
+    return abis::PublicDataTransition<NT>{
         .leaf_index = leaf_index,
         .old_value = old_value,
         .new_value = new_value,

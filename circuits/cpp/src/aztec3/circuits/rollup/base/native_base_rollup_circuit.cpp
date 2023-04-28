@@ -1,6 +1,6 @@
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/public_data_read.hpp"
-#include "aztec3/circuits/abis/public_data_write.hpp"
+#include "aztec3/circuits/abis/public_data_transition.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
@@ -434,7 +434,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
 fr insert_state_transitions(
     DummyComposer& composer,
     fr tree_root,
-    std::array<abis::PublicDataWrite<NT>, STATE_TRANSITIONS_LENGTH> const& state_transitions,
+    std::array<abis::PublicDataTransition<NT>, STATE_TRANSITIONS_LENGTH> const& state_transitions,
     size_t witnesses_offset,
     std::array<abis::MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>, 2 * STATE_TRANSITIONS_LENGTH> const& witnesses)
 {

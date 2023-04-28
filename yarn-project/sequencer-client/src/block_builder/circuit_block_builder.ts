@@ -24,7 +24,7 @@ import {
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { Fr, createDebugLogger, toBigIntBE, toBufferBE } from '@aztec/foundation';
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
-import { ContractData, L2Block } from '@aztec/types';
+import { ContractData, L2Block, PublicDataWrite } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
@@ -87,6 +87,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
       startContractTreeSnapshot,
+      startPublicDataTreeSnapshot,
       startTreeOfHistoricPrivateDataTreeRootsSnapshot,
       startTreeOfHistoricContractTreeRootsSnapshot,
     ] = await Promise.all(
@@ -94,6 +95,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
         MerkleTreeId.PRIVATE_DATA_TREE,
         MerkleTreeId.NULLIFIER_TREE,
         MerkleTreeId.CONTRACT_TREE,
+        MerkleTreeId.PUBLIC_DATA_TREE,
         MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
         MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
       ].map(tree => this.getTreeSnapshot(tree)),
@@ -106,6 +108,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
       endPrivateDataTreeSnapshot,
       endNullifierTreeSnapshot,
       endContractTreeSnapshot,
+      endPublicDataTreeSnapshot,
       endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       endTreeOfHistoricContractTreeRootsSnapshot,
     } = circuitsOutput;
@@ -118,6 +121,9 @@ export class CircuitBlockBuilder implements BlockBuilder {
     const newContractData = flatMap(txs, tx => tx.data.end.newContracts).map(
       n => new ContractData(n.contractAddress, n.portalContractAddress),
     );
+    const newPublicDataWrites = flatMap(txs, tx =>
+      tx.data.end.stateTransitions.map(t => new PublicDataWrite(t.leafIndex, t.newValue)),
+    );
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
@@ -127,6 +133,8 @@ export class CircuitBlockBuilder implements BlockBuilder {
       endNullifierTreeSnapshot,
       startContractTreeSnapshot,
       endContractTreeSnapshot,
+      startPublicDataTreeRoot: startPublicDataTreeSnapshot.root,
+      endPublicDataTreeRoot: endPublicDataTreeSnapshot.root,
       startTreeOfHistoricPrivateDataTreeRootsSnapshot,
       endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       startTreeOfHistoricContractTreeRootsSnapshot,
@@ -135,6 +143,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
       newNullifiers,
       newContracts,
       newContractData,
+      newPublicDataWrites,
     });
 
     return [l2Block, proof];
