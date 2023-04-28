@@ -1,12 +1,13 @@
 # Trees
 
+import Disclaimer from "../../common/_disclaimer.mdx";
+import Image from "@theme/IdealImage";
+
+<Disclaimer />
+
 ## Private State Tree
 
-import Disclaimer from '../../common/\_disclaimer.mdx';
-
-<Disclaimer/>
-
-An append-only tree, primarily designed for storing private state variables.
+The private state tree is an append-only tree, primarily designed for storing private state variables.
 
 Each leaf value in the tree is a 254-bit altBN-254 scalar field element. Since this tree is primarily intended to keep data private, this leaf value will often be a cryptographic commitment to some larger blob of data. In Aztec, we call any such blob of data a "Note".
 
@@ -16,7 +17,7 @@ Once inserted into this tree, a leaf's value can never be modified. We enforce t
 
 So, if an app needs to edit a private state variable (which will be represented by one or more leaves in the tree), it may do so in a manner inspired by [zerocash](http://zerocash-project.org/media/pdf/zerocash-extended-20140518.pdf). (See Nullifier Tree, further down this page). This allows the leaf to be 'nullified' and a new leaf value inserted into the next empty position in the tree, in a way which prevents observers from linking the old and new leaves.
 
-![](https://hackmd.io/_uploads/SywUwMmmh.png)
+<Image img={require("/img/private-data-tree.png")} />
 
 <!-- TODO: consider separating Note and Nullifier examples into their own doc, because it's actually a very large topic in itself, and can be expanded upon in much more detail than shown here. -->
 
@@ -55,23 +56,22 @@ The Private Kernel circuit will modify this `note_hash` further, before it is in
 
 > Note, all hashes will be appropriately domain-separated.
 
-> The tree is append-only for a few of reasons:
->
-> - It saves on the number of hashes required to perform membership proofs and insertions. As long as we know an upper bound on the number of leaves we'll ever need, we can shrink the tree down to that size (instead of using a gigantic sparse tree with 2^254 leaves).
-> - It allows us to insert leaves in batches with fewer hashes than a sparse tree.
-> - It allows syncing to be performed much quicker than a sparse tree, as a node can sync from left to right, and can adopt some efficient syncing algorithms.
+The tree is append-only for a few of reasons:
 
-> Cryptographic commitments have the nice property that they can _hide_ the contents of the underlying blob of data, whilst ensuring the
+- It saves on the number of hashes required to perform membership proofs and insertions. As long as we know an upper bound on the number of leaves we'll ever need, we can shrink the tree down to that size (instead of using a gigantic sparse tree with 2^254 leaves).
+- It allows us to insert leaves in batches with fewer hashes than a sparse tree.
+- It allows syncing to be performed much quicker than a sparse tree, as a node can sync from left to right, and can adopt some efficient syncing algorithms.
 
+Cryptographic commitments have the nice property that they can _hide_ the contents of the underlying blob of data, whilst ensuring the
 'preimage' of that data cannot be modified (the latter property is called 'binding'). A simple commitment can be achieved by choosing your favourite hash function, and including a large random number in with the data you wish to commit to. (The randomness must be newly-generated for each commitment).
 
-> Instead of the term 'Note', other protocols might refer to a blob of data representing private state as a 'record'. This is terminology used by zexe-like protocols.
+Instead of the term 'Note', other protocols might refer to a blob of data representing private state as a 'record'. This is terminology used by zexe-like protocols.
 
 ## Nullifier Tree
 
 A nullifier tree is basically a tree whose leaf values must be unique. An attempt to insert a duplicate leaf value will be rejected. (See [indexed merkle tree](./indexed-merkle-tree.md) for technical implementation details).
 
-![](https://hackmd.io/_uploads/BkUX0PVX2.png)
+<Image img={require("/img/nullifier-tree.png")} />
 
 ### Example uses of nullifiers
 
@@ -96,7 +96,7 @@ If a function of a smart contract generates this Nullifier and submits it to the
 
 #### Initialising Singleton Notes
 
-'Singleton Note' is a term we've been using to mean: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". That's quite the mouthful. It's in contrast to a Note which only contains a small fragment of a Private State's current value. <!-- TODO: write about fragmented private state, somewhere. -->
+'Singleton Note' is a term we've been using to mean: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". It's in contrast to a Note which only contains a small fragment of a Private State's current value. <!-- TODO: write about fragmented private state, somewhere. -->
 
 We've found that such notes require an 'Initialisation Nullifier'; a nullifier which, when emitted, signals the initialisation of this state variable. I.e. the very first time the state variable has been written-to.
 
@@ -104,9 +104,9 @@ We've found that such notes require an 'Initialisation Nullifier'; a nullifier w
 
 ## Public State Tree
 
-A sparse Merkle tree, intended for storing public state variables of Aztec contracts. Each nonzero leaf contains the current value of some public state variable of some Aztec contract. Leaves of this tree may be updated in-place (as opposed to convoluted nullification of private states).
+A sparse Merkle tree, intended for storing public state variables of Aztec contracts. Each non-zero leaf contains the current value of some public state variable of some Aztec contract. Leaves of this tree may be updated in-place (as opposed to convoluted nullification of private states).
 
-![](https://hackmd.io/_uploads/S18UJ_EQ3.png)
+<Image img={require("/img/public-data-tree.png")} />
 
 Each leaf is a key:value mapping, which maps a `(contract_address, storage_slot)` tuple to the current value of a state variable.
 
@@ -116,15 +116,16 @@ E.g. for a state variable at some `storage_slot` of some `contract_address`, its
 - `leaf_value = value;`
 
 > Note: pedersen hashes are domain-separated in the codebase; this is not shown here.
+
 > Note: we might modify the type of hash used, before mainnet.
 
 Note this tree's data can only be read/written by the Sequencer, since only they can know the very-latest state of the tree when processing a tx.
 
 ## Contract Tree
 
-Contains information about every function of every contract deployed to the Aztec network. This allows the Kernel Circuits to validate that for every function execution request, the requested function actually belongs to a deployed contract.
+The contract tree contains information about every function of every contract deployed to the Aztec network. This allows the Kernel Circuits to validate that for every function execution request, the requested function actually belongs to a deployed contract.
 
-![](https://hackmd.io/_uploads/ByD2CwVQ3.png)
+<Image img={require("/img/contract-tree.png")} />
 
 > Note: Aztec supports the ability to keep the logic of private functions of a smart contract private. In such cases, no information about the logic of that private function will be broadcast; only a randomised merkle root of that contract's data.
 
