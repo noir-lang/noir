@@ -31,6 +31,7 @@ COPY foundation/package.json foundation/package.json
 COPY kernel-prover/package.json kernel-prover/package.json
 COPY key-store/package.json key-store/package.json
 COPY merkle-tree/package.json merkle-tree/package.json
+COPY merkle-tree/package.local.json merkle-tree/package.local.json
 COPY noir-contracts/package.json noir-contracts/package.json
 COPY l1-contracts/package.json l1-contracts/package.json
 COPY barretenberg.js/package.json barretenberg.js/package.json

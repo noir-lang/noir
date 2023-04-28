@@ -37,6 +37,14 @@ function getUpdatedValue(source, target, key) {
   }
 }
 
+function pick(obj, keys) {
+  const result = {};
+  for (const key of keys) {
+    result[key] = obj[key];
+  }
+  return result;
+}
+
 async function main() {
   const checkOnly = process.argv[2] === '--check';
   console.log(
@@ -45,34 +53,33 @@ async function main() {
       : `Updating package.json in yarn-project based on custom inherits directive...`,
   );
   const files = getFiles();
+  const updatedKeys = []; 
 
   for (const file of files) {
-    const packageData = JSON.parse(readFileSync(file));
+    const contents = readFileSync(file);
+    const packageData = JSON.parse(contents);
+    const originalData = JSON.parse(contents);
+
     if (packageData.inherits) {
-      let updated = false;
       for (const parent of packageData.inherits) {
         const parentFullPath = resolve(dirname(file), parent);
         const source = await getSource(parentFullPath);
         for (const key in source) {
           const updatedValue = getUpdatedValue(source, packageData, key);
-          updated = updated || JSON.stringify(updatedValue) !== JSON.stringify(packageData[key]);
-          if (checkOnly) {
-            if (updated) {
-              console.error(
-                `Section ${key} of ${file} is not up to date. Run 'yarn prepare' at the package root to fix.`,
-                `\n Current: ${JSON.stringify(updatedValue)}`,
-                `\n Updated: ${JSON.stringify(packageData[key])}`,
-              );
-              process.exit(2);
-            }
-          } else {
-            packageData[key] = updatedValue;
-          }
+          updatedKeys.push(key);
+          packageData[key] = updatedValue;
         }
       }
-      if (!checkOnly && updated) {
+
+      const updated = JSON.stringify(pick(originalData, updatedKeys)) !== JSON.stringify(pick(packageData, updatedKeys));
+      if (!updated) continue;
+      
+      if (!checkOnly) {
         console.log(`Updated ${file}`);
         writeFileSync(file, JSON.stringify(packageData, null, 2) + '\n');
+      } else {
+        console.error(`File ${file} is not up to date. Run 'yarn prepare' at the package root to fix.`);
+        process.exit(2); 
       }
     }
   }

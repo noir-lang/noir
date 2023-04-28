@@ -1,0 +1,9 @@
+{
+  "files": [
+    "dest",
+    "src",
+    "!*.test.*",
+    "!dest/test",
+    "!src/test"
+  ]
+}
