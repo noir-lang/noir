@@ -1,3 +1,6 @@
+//! The dominator tree of a function, represented as a hash map of each reachable block id to its
+//! immediate dominator.
+
 use std::{cmp::Ordering, collections::HashMap};
 
 use super::{basic_block::BasicBlockId, cfg::ControlFlowGraph, post_order::PostOrder};
