@@ -4,7 +4,7 @@ use crate::ssa_refactor::ir::function::Function;
 
 /// Contains the entire Ssa representation of the program
 pub struct Ssa {
-    functions: Vec<Function>,
+    pub functions: Vec<Function>,
 }
 
 impl Ssa {
