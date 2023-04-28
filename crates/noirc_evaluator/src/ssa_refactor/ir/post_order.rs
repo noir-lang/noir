@@ -48,7 +48,7 @@ impl PostOrder {
                             if !visited.contains(&successor_id) {
                                 // This not visited check would also be cover by the the next
                                 // iteration, but checking here two saves an iteration per successor.
-                                stack.push((Visit::First, successor_id))
+                                stack.push((Visit::First, successor_id));
                             }
                         }
                     }
