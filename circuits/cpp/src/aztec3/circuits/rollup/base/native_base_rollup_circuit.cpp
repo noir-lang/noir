@@ -450,14 +450,14 @@ fr insert_state_transitions(
         composer.do_assert(
             witness.leaf_index == state_write.leaf_index,
             format("mismatch state write ", state_write.leaf_index, " and witness leaf index ", witness.leaf_index),
-            CircuitErrorCode::BASE__INVALID_PUBLIC_READS);
+            CircuitErrorCode::BASE__INVALID_PUBLIC_TRANSITIONS);
 
         check_membership<NT>(composer,
                              state_write.old_value,
                              state_write.leaf_index,
                              witness.sibling_path,
                              root,
-                             format("validate_state_reads index ", i));
+                             format("validate_state_transitions index ", i));
 
         root = root_from_sibling_path<NT>(state_write.new_value, state_write.leaf_index, witness.sibling_path);
     }
