@@ -8,7 +8,7 @@ use crate::ssa_refactor::ir::{
     value::{Value, ValueId},
 };
 
-use super::ir::instruction::Intrinsic;
+use super::{ir::instruction::Intrinsic, ssa_gen::Ssa};
 
 /// The per-function context for each ssa function being generated.
 ///
@@ -20,7 +20,7 @@ use super::ir::instruction::Intrinsic;
 pub(crate) struct FunctionBuilder {
     current_function: Function,
     current_block: BasicBlockId,
-    finished_functions: Vec<(FunctionId, Function)>,
+    finished_functions: Vec<Function>,
 }
 
 impl FunctionBuilder {
@@ -34,14 +34,15 @@ impl FunctionBuilder {
     /// Finish the current function and create a new function
     pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
         let new_function = Function::new(name, function_id);
-        let old_function = std::mem::replace(&mut self.current_function, new_function);
+        self.current_block = new_function.entry_block();
 
-        self.finished_functions.push((self.current_function.id(), old_function));
+        let old_function = std::mem::replace(&mut self.current_function, new_function);
+        self.finished_functions.push(old_function);
     }
 
-    pub(crate) fn finish(mut self) -> Vec<(FunctionId, Function)> {
-        self.finished_functions.push((self.current_function.id(), self.current_function));
-        self.finished_functions
+    pub(crate) fn finish(mut self) -> Ssa {
+        self.finished_functions.push(self.current_function);
+        Ssa::new(self.finished_functions)
     }
 
     pub(crate) fn add_parameter(&mut self, typ: Type) -> ValueId {

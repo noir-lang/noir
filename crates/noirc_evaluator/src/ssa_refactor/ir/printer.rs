@@ -46,7 +46,7 @@ pub(crate) fn display_block(
 ) -> Result {
     let block = &function.dfg[block_id];
 
-    writeln!(f, "  {}({}):", block_id, value_list(function, block.parameters()))?;
+    writeln!(f, "  {}({}):", block_id, value_list_with_types(function, block.parameters()))?;
 
     for instruction in block.instructions() {
         display_instruction(function, *instruction, f)?;
@@ -70,6 +70,16 @@ fn value(function: &Function, id: ValueId) -> String {
     }
 }
 
+/// Display each value along with its type. E.g. `v0: Field, v1: u64, v2: u1`
+fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
+    vecmap(values, |id| {
+        let value = value(function, *id);
+        let typ = function.dfg.type_of_value(*id);
+        format!("{value}: {typ}")
+    })
+    .join(", ")
+}
+
 fn value_list(function: &Function, values: &[ValueId]) -> String {
     vecmap(values, |id| value(function, *id)).join(", ")
 }
@@ -87,7 +97,9 @@ pub(crate) fn display_terminator(
             writeln!(
                 f,
                 "    jmpif {} then: {}, else: {}",
-                condition, then_destination, else_destination
+                value(function, *condition),
+                then_destination,
+                else_destination
             )
         }
         Some(TerminatorInstruction::Return { return_values }) => {
