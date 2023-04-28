@@ -39,7 +39,7 @@ impl ControlFlowGraph {
         }
     }
 
-    /// Compute all the edges for the current block given
+    /// Compute all of the edges for the current block given
     fn compute_block(&mut self, basic_block_id: BasicBlockId, basic_block: &BasicBlock) {
         for dest in basic_block.successors() {
             self.add_edge(basic_block_id, dest);
