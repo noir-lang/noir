@@ -1,4 +1,7 @@
 //! The post-order for a given function represented as a vector of basic block ids.
+//!
+//! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
+//! code elimination and calculating dominance trees.
 
 use std::collections::HashSet;
 
