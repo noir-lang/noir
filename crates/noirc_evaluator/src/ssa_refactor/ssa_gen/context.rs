@@ -36,8 +36,20 @@ pub(super) struct SharedContext {
 }
 
 impl<'a> FunctionContext<'a> {
-    pub(super) fn new(shared_context: &'a SharedContext) -> Self {
-        Self { definitions: HashMap::new(), builder: FunctionBuilder::default(), shared_context }
+    pub(super) fn new(
+        function_name: String,
+        parameters: &Parameters,
+        shared_context: &'a SharedContext,
+    ) -> Self {
+        let function_id = shared_context
+            .pop_next_function_in_queue()
+            .expect("No function in queue for the FunctionContext to compile")
+            .1;
+
+        let builder = FunctionBuilder::new(function_name, function_id);
+        let mut this = Self { definitions: HashMap::new(), builder, shared_context };
+        this.add_parameters_to_scope(parameters);
+        this
     }
 
     pub(super) fn new_function(&mut self, id: IrFunctionId, name: String, parameters: &Parameters) {

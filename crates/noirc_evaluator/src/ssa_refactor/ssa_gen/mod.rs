@@ -1,5 +1,8 @@
 mod context;
+mod program;
 mod value;
+
+pub use program::Ssa;
 
 use context::SharedContext;
 use iter_extended::vecmap;
@@ -11,17 +14,20 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::{function::Function, instruction::BinaryOp, types::Type, value::ValueId};
+use super::ir::{instruction::BinaryOp, types::Type, value::ValueId};
 
-pub fn generate_ssa(program: Program) -> Vec<Function> {
+pub fn generate_ssa(program: Program) -> Ssa {
     let context = SharedContext::new(program);
 
     let main_id = Program::main_id();
+    let main = context.program.main();
 
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
 
-    let mut function_context = FunctionContext::new(&context);
+    let mut function_context = FunctionContext::new(main.name.clone(), &main.parameters, &context);
+    function_context.codegen_function_body(&main.body);
+
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function.name.clone(), &function.parameters);
