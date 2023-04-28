@@ -72,7 +72,10 @@ mod tests {
                 test_dir.file_name().into_string().expect("Directory can't be converted to string");
             let test_program_dir = &test_dir.path();
 
-            if test_name != "iss358" {
+            if (test_name != "iss358")
+                | (test_name != "poseidon_bn254_hash")
+                | (test_name != "poseidonsponge_x5_254")
+            {
                 continue;
             }
             if config_data["exclude"].contains(&test_name) {
