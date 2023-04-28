@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    hash::Hash,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
@@ -65,6 +69,24 @@ impl<T> std::fmt::Debug for Id<T> {
     }
 }
 
+impl std::fmt::Display for Id<super::basic_block::BasicBlock> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "b{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<super::value::Value> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<super::function::Function> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "f{}", self.index)
+    }
+}
+
 /// A DenseMap is a Vec wrapper where each element corresponds
 /// to a unique ID that can be used to access the element. No direct
 /// access to indices is provided. Since IDs must be stable and correspond
@@ -80,12 +102,29 @@ impl<T> DenseMap<T> {
     pub(crate) fn len(&self) -> usize {
         self.storage.len()
     }
+
     /// Adds an element to the map.
     /// Returns the identifier/reference to that element.
-    pub(crate) fn push(&mut self, element: T) -> Id<T> {
+    pub(crate) fn insert(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.push(element);
         id
+    }
+
+    /// Given the Id of the element being created, adds the element
+    /// returned by the given function to the map
+    pub(crate) fn insert_with_id(&mut self, f: impl FnOnce(Id<T>) -> T) -> Id<T> {
+        let id = Id::new(self.storage.len());
+        self.storage.push(f(id));
+        id
+    }
+
+    /// Gets an iterator to a reference to each element in the dense map paired with its id.
+    ///
+    /// The id-element pairs are ordered by the numeric values of the ids.
+    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
+        let ids_iter = (0..self.storage.len()).into_iter().map(|idx| Id::new(idx));
+        ids_iter.zip(self.storage.iter())
     }
 }
 
@@ -132,9 +171,17 @@ impl<T> SparseMap<T> {
 
     /// Adds an element to the map.
     /// Returns the identifier/reference to that element.
-    pub(crate) fn push(&mut self, element: T) -> Id<T> {
+    pub(crate) fn insert(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.insert(id, element);
+        id
+    }
+
+    /// Given the Id of the element being created, adds the element
+    /// returned by the given function to the map
+    pub(crate) fn insert_with_id(&mut self, f: impl FnOnce(Id<T>) -> T) -> Id<T> {
+        let id = Id::new(self.storage.len());
+        self.storage.insert(id, f(id));
         id
     }
 
@@ -163,5 +210,76 @@ impl<T> std::ops::Index<Id<T>> for SparseMap<T> {
 impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
     fn index_mut(&mut self, id: Id<T>) -> &mut Self::Output {
         self.storage.get_mut(&id).expect("Invalid id used in SparseMap::index_mut")
+    }
+}
+
+/// A TwoWayMap is a map from both key to value and value to key.
+/// This is accomplished by keeping the map bijective - for every
+/// value there is exactly one key and vice-versa. Any duplicate values
+/// are prevented in the call to insert.
+#[derive(Debug)]
+pub(crate) struct TwoWayMap<T> {
+    key_to_value: HashMap<Id<T>, T>,
+    value_to_key: HashMap<T, Id<T>>,
+}
+
+impl<T: Clone + Hash + Eq> TwoWayMap<T> {
+    /// Returns the number of elements in the map.
+    pub(crate) fn len(&self) -> usize {
+        self.key_to_value.len()
+    }
+
+    /// Adds an element to the map.
+    /// Returns the identifier/reference to that element.
+    pub(crate) fn insert(&mut self, element: T) -> Id<T> {
+        if let Some(existing) = self.value_to_key.get(&element) {
+            return *existing;
+        }
+
+        let id = Id::new(self.key_to_value.len());
+        self.key_to_value.insert(id, element.clone());
+        self.value_to_key.insert(element, id);
+        id
+    }
+}
+
+impl<T> Default for TwoWayMap<T> {
+    fn default() -> Self {
+        Self { key_to_value: HashMap::new(), value_to_key: HashMap::new() }
+    }
+}
+
+// Note that there is no impl for IndexMut<Id<T>>,
+// if we allowed mutable access to map elements they may be
+// mutated such that elements are no longer unique
+impl<T> std::ops::Index<Id<T>> for TwoWayMap<T> {
+    type Output = T;
+
+    fn index(&self, id: Id<T>) -> &Self::Output {
+        &self.key_to_value[&id]
+    }
+}
+
+/// A simple counter to create fresh Ids without any storage.
+/// Useful for assigning ids before the storage is created or assigning ids
+/// for types that have no single owner.
+///
+/// This type wraps an AtomicUsize so it can safely be used across threads.
+#[derive(Debug)]
+pub(crate) struct AtomicCounter<T> {
+    next: AtomicUsize,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T> AtomicCounter<T> {
+    /// Return the next fresh id
+    pub(crate) fn next(&self) -> Id<T> {
+        Id::new(self.next.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl<T> Default for AtomicCounter<T> {
+    fn default() -> Self {
+        Self { next: Default::default(), _marker: Default::default() }
     }
 }

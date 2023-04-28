@@ -26,6 +26,7 @@ jobs:
           pull-request-title-pattern: "chore(noir): Release ${version}"
           extra-files: |
             Cargo.toml
+            flake.nix
 
   update-lockfile:
     name: Update lockfile

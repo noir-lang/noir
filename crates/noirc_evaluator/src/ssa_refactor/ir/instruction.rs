@@ -1,20 +1,10 @@
-use acvm::FieldElement;
+use acvm::acir::BlackBoxFunc;
 
-use super::{
-    function::FunctionId,
-    map::{Id, SparseMap},
-    types::Type,
-    value::ValueId,
-};
-use crate::ssa_refactor::basic_block::{BasicBlockId, BlockArguments};
-
-// Container for all Instructions, per-function
-pub(crate) type Instructions = SparseMap<Instruction>;
+use super::{basic_block::BasicBlockId, map::Id, types::Type, value::ValueId};
 
 /// Reference to an instruction
 pub(crate) type InstructionId = Id<Instruction>;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
@@ -22,7 +12,49 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-pub(crate) struct IntrinsicOpcodes;
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum Intrinsic {
+    Sort,
+    Println,
+    ToBits(Endian),
+    ToRadix(Endian),
+    BlackBox(BlackBoxFunc),
+}
+
+impl std::fmt::Display for Intrinsic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Intrinsic::Println => write!(f, "println"),
+            Intrinsic::Sort => write!(f, "sort"),
+            Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
+            Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
+            Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
+            Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
+            Intrinsic::BlackBox(function) => write!(f, "{function}"),
+        }
+    }
+}
+
+impl Intrinsic {
+    pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
+        match name {
+            "println" => Some(Intrinsic::Println),
+            "array_sort" => Some(Intrinsic::Sort),
+            "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
+            "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
+            "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
+            "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
+            other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
+        }
+    }
+}
+
+/// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum Endian {
+    Big,
+    Little,
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// Instructions are used to perform tasks.
@@ -44,19 +76,21 @@ pub(crate) enum Instruction {
     Constrain(ValueId),
 
     /// Performs a function call with a list of its arguments.
-    Call { func: FunctionId, arguments: Vec<ValueId> },
-    /// Performs a call to an intrinsic function and stores the
-    /// results in `return_arguments`.
-    Intrinsic { func: IntrinsicOpcodes, arguments: Vec<ValueId> },
+    Call { func: ValueId, arguments: Vec<ValueId> },
+
+    /// Allocates a region of memory. Note that this is not concerned with
+    /// the type of memory, the type of element is determined when loading this memory.
+    ///
+    /// `size` is the size of the region to be allocated by the number of FieldElements it
+    /// contains. Note that non-numeric types like Functions and References are counted as 1 field
+    /// each.
+    Allocate { size: u32 },
 
     /// Loads a value from memory.
-    Load(ValueId),
+    Load { address: ValueId },
 
     /// Writes a value to memory.
-    Store { destination: ValueId, value: ValueId },
-
-    /// Stores an Immediate value
-    Immediate { value: FieldElement },
+    Store { address: ValueId, value: ValueId },
 }
 
 impl Instruction {
@@ -71,49 +105,60 @@ impl Instruction {
             Instruction::Constrain(_) => 0,
             // This returns 0 as the result depends on the function being called
             Instruction::Call { .. } => 0,
-            // This also returns 0, but we could get it a compile time,
-            // since we know the signatures for the intrinsics
-            Instruction::Intrinsic { .. } => 0,
-            Instruction::Load(_) => 1,
+            Instruction::Allocate { .. } => 1,
+            Instruction::Load { .. } => 1,
             Instruction::Store { .. } => 0,
-            Instruction::Immediate { .. } => 1,
         }
     }
 
     /// Returns the number of arguments required for a call
     pub(crate) fn num_fixed_arguments(&self) -> usize {
+        // Match-all fields syntax (..) is avoided on most cases of this match to ensure that
+        // if an extra argument is ever added to any of these variants, an error
+        // is issued pointing to this spot to update it here as well.
         match self {
             Instruction::Binary(_) => 2,
-            Instruction::Cast(..) => 1,
+            Instruction::Cast(_, _) => 1,
             Instruction::Not(_) => 1,
-            Instruction::Truncate { .. } => 1,
+            Instruction::Truncate { value: _, bit_size: _, max_bit_size: _ } => 1,
             Instruction::Constrain(_) => 1,
             // This returns 0 as the arguments depend on the function being called
             Instruction::Call { .. } => 0,
-            // This also returns 0, but we could get it a compile time,
-            // since we know the function definition for the intrinsics
-            Instruction::Intrinsic { .. } => 0,
-            Instruction::Load(_) => 1,
-            Instruction::Store { .. } => 2,
-            Instruction::Immediate { .. } => 0,
+            Instruction::Allocate { size: _ } => 1,
+            Instruction::Load { address: _ } => 1,
+            Instruction::Store { address: _, value: _ } => 2,
         }
     }
 
-    /// Returns the types that this instruction will return.
-    pub(crate) fn return_types(&self, ctrl_typevar: Type) -> Vec<Type> {
+    /// Returns the type that this instruction will return.
+    pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
-            Instruction::Binary(_) => vec![ctrl_typevar],
-            Instruction::Cast(_, typ) => vec![*typ],
-            Instruction::Not(_) => vec![ctrl_typevar],
-            Instruction::Truncate { .. } => vec![ctrl_typevar],
-            Instruction::Constrain(_) => vec![],
-            Instruction::Call { .. } => vec![],
-            Instruction::Intrinsic { .. } => vec![],
-            Instruction::Load(_) => vec![ctrl_typevar],
-            Instruction::Store { .. } => vec![],
-            Instruction::Immediate { .. } => vec![],
+            Instruction::Binary(binary) => binary.result_type(),
+            Instruction::Cast(_, typ) => InstructionResultType::Known(*typ),
+            Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
+            Instruction::Not(value) | Instruction::Truncate { value, .. } => {
+                InstructionResultType::Operand(*value)
+            }
+            Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
+            Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
+}
+
+/// The possible return values for Instruction::return_types
+pub(crate) enum InstructionResultType {
+    /// The result type of this instruction matches that of this operand
+    Operand(ValueId),
+
+    /// The result type of this instruction is known to be this type - independent of its operands.
+    Known(Type),
+
+    /// The result type of this function is unknown and separate from its operand types.
+    /// This occurs for function calls and load operations.
+    Unknown,
+
+    /// This instruction does not return any results.
+    None,
 }
 
 /// These are operations which can exit a basic block
@@ -128,14 +173,23 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// Jump If
     ///
-    /// Jumps to the specified `destination` with
-    /// arguments, if the condition
-    /// if the condition is true.
-    JmpIf { condition: ValueId, destination: BasicBlockId, arguments: BlockArguments },
+    /// If the condition is true: jump to the specified `then_destination`.
+    /// Otherwise, jump to the specified `else_destination`.
+    JmpIf { condition: ValueId, then_destination: BasicBlockId, else_destination: BasicBlockId },
+
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`
-    Jmp { destination: BasicBlockId, arguments: BlockArguments },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId> },
+
+    /// Return from the current function with the given return values.
+    ///
+    /// All finished functions should have exactly 1 return instruction.
+    /// Functions with early returns should instead be structured to
+    /// unconditionally jump to a single exit block with the return values
+    /// as the block arguments. Then the exit block can terminate in a return
+    /// instruction returning these values.
+    Return { return_values: Vec<ValueId> },
 }
 
 /// A binary instruction in the IR.
@@ -149,62 +203,70 @@ pub(crate) struct Binary {
     pub(crate) operator: BinaryOp,
 }
 
+impl Binary {
+    pub(crate) fn result_type(&self) -> InstructionResultType {
+        match self.operator {
+            BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
+            _ => InstructionResultType::Operand(self.lhs),
+        }
+    }
+}
+
 /// Binary Operations allowed in the IR.
+/// Aside from the comparison operators (Eq and Lt), all operators
+/// will return the same type as their operands.
+/// The operand types must match for all binary operators.
+/// All binary operators are also only for numeric types. To implement
+/// e.g. equality for a compound type like a struct, one must add a
+/// separate Eq operation for each field and combine them later with And.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum BinaryOp {
-    /// Addition of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Addition of lhs + rhs.
     Add,
-    /// Subtraction of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Subtraction of lhs - rhs.
     Sub,
-    /// Multiplication of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Multiplication of lhs * rhs.
     Mul,
-    /// Division of two types.
-    /// The result will have the same type as
-    /// the operands.
+    /// Division of lhs / rhs.
     Div,
+    /// Modulus of lhs % rhs.
+    Mod,
     /// Checks whether two types are equal.
     /// Returns true if the types were equal and
     /// false otherwise.
     Eq,
-    /// Checks whether two types are equal.
-    /// Returns true if the types were not equal and
-    /// false otherwise.
-    Ne,
+    /// Checks whether the lhs is less than the rhs.
+    /// All other comparison operators should be translated
+    /// to less than. For example (a > b) = (b < a) = !(a >= b) = !(b <= a).
+    /// The result will always be a u1.
+    Lt,
+    /// Bitwise and (&)
+    And,
+    /// Bitwise or (|)
+    Or,
+    /// Bitwise xor (^)
+    Xor,
+    /// Shift lhs left by rhs bits (<<)
+    Shl,
+    /// Shift lhs right by rhs bits (>>)
+    Shr,
 }
 
-#[test]
-fn smoke_instructions_map_duplicate() {
-    let id = Id::test_new(0);
-
-    let ins = Instruction::Not(id);
-    let same_ins = Instruction::Not(id);
-
-    let mut ins_map = Instructions::default();
-
-    // Document what happens when we insert the same instruction twice
-    let id = ins_map.push(ins);
-    let id_same_ins = ins_map.push(same_ins);
-
-    // The map is quite naive and does not check if the instruction has ben inserted
-    // before. We simply assign a different Id.
-    assert_ne!(id, id_same_ins)
-}
-
-#[test]
-fn num_instructions_smoke() {
-    let n = 100;
-
-    let mut ins_map = Instructions::default();
-    for i in 0..n {
-        let ins = Instruction::Not(Id::test_new(i));
-        ins_map.push(ins);
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOp::Add => write!(f, "add"),
+            BinaryOp::Sub => write!(f, "sub"),
+            BinaryOp::Mul => write!(f, "mul"),
+            BinaryOp::Div => write!(f, "div"),
+            BinaryOp::Eq => write!(f, "eq"),
+            BinaryOp::Mod => write!(f, "mod"),
+            BinaryOp::Lt => write!(f, "lt"),
+            BinaryOp::And => write!(f, "and"),
+            BinaryOp::Or => write!(f, "or"),
+            BinaryOp::Xor => write!(f, "xor"),
+            BinaryOp::Shl => write!(f, "shl"),
+            BinaryOp::Shr => write!(f, "shr"),
+        }
     }
-
-    assert_eq!(n, ins_map.len())
 }

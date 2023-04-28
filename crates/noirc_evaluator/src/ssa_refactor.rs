@@ -5,9 +5,8 @@
 //! elimination and constant folding.
 //!
 //! This module heavily borrows from Cranelift
-#[allow(dead_code)]
-mod basic_block;
-#[allow(dead_code)]
-mod dfg;
-#[allow(dead_code)]
+#![allow(dead_code)]
+
 mod ir;
+mod ssa_builder;
+mod ssa_gen;
