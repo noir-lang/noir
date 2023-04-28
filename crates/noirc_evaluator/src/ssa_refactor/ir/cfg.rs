@@ -32,7 +32,7 @@ impl ControlFlowGraph {
         cfg
     }
 
-    /// Compute all the edges between each block in the function
+    /// Compute all of the edges between each block in the function
     fn compute(&mut self, func: &Function) {
         for (basic_block_id, basic_block) in func.dfg.basic_blocks_iter() {
             self.compute_block(basic_block_id, basic_block);
