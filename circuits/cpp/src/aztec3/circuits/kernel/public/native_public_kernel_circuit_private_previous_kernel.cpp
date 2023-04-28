@@ -44,10 +44,7 @@ namespace aztec3::circuits::kernel::public_kernel {
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
 using aztec3::circuits::kernel::public_kernel::common_initialise_end_values;
-using aztec3::circuits::kernel::public_kernel::common_validate_inputs;
 using aztec3::circuits::kernel::public_kernel::common_validate_kernel_execution;
-using aztec3::circuits::kernel::public_kernel::update_public_end_values;
-using aztec3::utils::push_array_to_array;
 
 using DummyComposer = aztec3::utils::DummyComposer;
 
@@ -74,6 +71,9 @@ KernelCircuitPublicInputs<NT> native_public_kernel_circuit_private_previous_kern
 
     // validate the kernel execution common to all invocation circumstances
     common_validate_kernel_execution(composer, public_kernel_inputs);
+
+    // vallidate our public call hash
+    validate_this_public_call_hash(composer, public_kernel_inputs, public_inputs);
 
     // update the public end state of the circuit
     update_public_end_values(public_kernel_inputs, public_inputs);

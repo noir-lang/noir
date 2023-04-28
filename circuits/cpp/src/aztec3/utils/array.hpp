@@ -42,6 +42,20 @@ template <typename T> bool is_empty(T const& value)
 }
 
 /**
+ * @brief Helper method to generate an 'empty' value of a given type
+ * @tparam The type of the value to return
+ * @return The empty value
+ */
+template <typename T> T empty_value()
+{
+    if constexpr (std::is_same<T, NT::fr>::value) {
+        return NT::fr(0);
+    } else {
+        return T();
+    }
+}
+
+/**
  * @brief Helper method to determine the number of non 'empty' items in an array
  * @tparam The type of the value stored in the array
  * @tparam The size of the array
@@ -67,11 +81,13 @@ template <typename T, size_t SIZE> size_t array_length(std::array<T, SIZE> const
  * @param The array from which we are to return a value
  * @return The returned item
  */
-template <size_t SIZE> NT::fr array_pop(std::array<NT::fr, SIZE> const& arr)
+template <typename T, size_t SIZE> T array_pop(std::array<T, SIZE>& arr)
 {
     for (size_t i = arr.max_size() - 1; i != (size_t)-1; i--) {
         if (!is_empty(arr[i])) {
-            return arr[i];
+            const auto temp = arr[i];
+            arr[i] = empty_value<T>();
+            return temp;
         }
     }
     throw_or_abort("array_pop cannot pop from an empty array");
@@ -139,6 +155,54 @@ void push_array_to_array(std::array<T, size_1> const& source, std::array<T, size
             zero_index++;
         }
     }
+}
+
+/**
+ * @brief Verifies that the contents of 2 arrays are included within a third
+ * Ensures that all values after the concatenated values are zero.
+ * Fails if the `source` arrays combined are too large vs the size of the `target` array.
+ * @tparam The size of the `source` 1 array
+ * @tparam The size of the `source` 2 array
+ * @tparam The size of the `target` array
+ * @tparam The type of the value stored in the arrays
+ * @param The first `source` array
+ * @param The second `source` array
+ * @param The `target` array
+ * @return Whether the source arrays are indeed in the target
+ */
+template <size_t size_1, size_t size_2, size_t size_3, typename T>
+bool source_arrays_are_in_target(std::array<T, size_1> const& source1,
+                                 std::array<T, size_2> const& source2,
+                                 std::array<T, size_3> const& target)
+{
+    // Check if the `source` arrays are too large vs the size of the `target` array
+    size_t source1_size = static_cast<size_t>(uint256_t(array_length(source1)));
+    size_t source2_size = static_cast<size_t>(uint256_t(array_length(source2)));
+    ASSERT(source1_size + source2_size <= size_3);
+
+    // first ensure that all non-empty items in the first source are in the target
+    size_t target_index = 0;
+    for (size_t i = 0; i < source1_size; ++i) {
+        if (source1[i] != target[target_index]) {
+            return false;
+        }
+        ++target_index;
+    }
+
+    // now ensure that all non-empty items in the second source are in the target
+    for (size_t i = 0; i < source2_size; ++i) {
+        if (source2[i] != target[target_index]) {
+            return false;
+        }
+        ++target_index;
+    }
+
+    for (; target_index < size_3; ++target_index) {
+        if (!is_empty(target[target_index])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace aztec3::utils

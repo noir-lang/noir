@@ -39,17 +39,28 @@ namespace aztec3::circuits::kernel::public_kernel {
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
 template <typename KernelInput>
-void common_validate_kernel_execution(DummyComposer& composer, KernelInput const& public_kernel_inputs)
+void common_validate_call_stack(DummyComposer& composer, KernelInput const& public_kernel_inputs)
 {
     // Ensures that the stack of pre-images corresponds to the call stack
     auto& stack = public_kernel_inputs.public_call.call_stack_item.public_inputs.public_call_stack;
     auto& preimages = public_kernel_inputs.public_call.public_call_stack_preimages;
-    auto calling_contract = public_kernel_inputs.public_call.call_stack_item.contract_address;
-    auto storage_address =
+
+    // grab our contract address, our storage contract address and our portal contract address to verify
+    // child executions in the case of delegate call types
+    auto our_contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
+    auto our_storage_address =
         public_kernel_inputs.public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+    auto our_msg_sender = public_kernel_inputs.public_call.call_stack_item.public_inputs.call_context.msg_sender;
+    auto our_portal_contract_address =
+        public_kernel_inputs.public_call.call_stack_item.public_inputs.call_context.portal_contract_address;
+
     for (size_t i = 0; i < stack.size(); ++i) {
         const auto& hash = stack[i];
         const auto& preimage = preimages[i];
+
+        const auto is_delegate_call = preimage.public_inputs.call_context.is_delegate_call;
+        const auto is_static_call = preimage.public_inputs.call_context.is_static_call;
+        const auto contract_being_called = preimage.contract_address;
 
         // Note: this assumes it's computationally infeasible to have `0` as a valid call_stack_item_hash.
         // Assumes `hash == 0` means "this stack item is empty".
@@ -57,31 +68,92 @@ void common_validate_kernel_execution(DummyComposer& composer, KernelInput const
         composer.do_assert(hash == calculated_hash,
                            format("public_call_stack[", i, "] = ", hash, "; does not reconcile"),
                            CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_MISMATCH);
-        const auto preimage_calling_contract = preimage.public_inputs.call_context.msg_sender;
-        composer.do_assert(calling_contract == preimage_calling_contract,
+
+        // here we validate the msg sender for each call on the stack
+        // we need to consider regular vs delegate calls
+        const auto preimage_msg_sender = preimage.public_inputs.call_context.msg_sender;
+        const auto expected_msg_sender = is_delegate_call ? our_msg_sender : our_contract_address;
+        composer.do_assert(expected_msg_sender == preimage_msg_sender,
                            format("call_stack_msg_sender[",
                                   i,
                                   "] = ",
-                                  preimage_calling_contract,
+                                  preimage_msg_sender,
                                   " expected ",
-                                  calling_contract,
+                                  expected_msg_sender,
                                   "; does not reconcile"),
-                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_MISMATCH);
+                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_MSG_SENDER);
+
+        // here we validate the storage address for each call on the stack
+        // we need to consider regular vs delegate calls
         const auto preimage_storage_address = preimage.public_inputs.call_context.storage_contract_address;
-        composer.do_assert(storage_address == preimage_storage_address,
+        const auto expected_storage_address = is_delegate_call ? our_storage_address : contract_being_called;
+        composer.do_assert(expected_storage_address == preimage_storage_address,
                            format("call_stack_storage_address[",
                                   i,
                                   "] = ",
                                   preimage_storage_address,
                                   " expected ",
-                                  storage_address,
+                                  expected_storage_address,
                                   "; does not reconcile"),
-                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_MISMATCH);
-        calling_contract = preimage.contract_address;
-        if (preimage.public_inputs.call_context.is_delegate_call == false) {
-            storage_address = preimage.contract_address;
-        }
+                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_STORAGE_ADDRESS);
+
+        // if it is a delegate call then we check that the portal contract in the pre image is our portal contract
+        const auto preimage_portal_address = preimage.public_inputs.call_context.portal_contract_address;
+        const auto expected_portal_address = our_portal_contract_address;
+        composer.do_assert(!is_delegate_call || expected_portal_address == preimage_portal_address,
+                           format("call_stack_portal_address[",
+                                  i,
+                                  "] = ",
+                                  preimage_portal_address,
+                                  " expected ",
+                                  expected_portal_address,
+                                  "; does not reconcile"),
+                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_PORTAL_ADDRESS);
+
+        const auto num_state_transitions = array_length(preimage.public_inputs.state_transitions);
+        composer.do_assert(!is_static_call || num_state_transitions == 0,
+                           format("call_state_transitions[", i, "] should be empty"),
+                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_TRANSITIONS_PROHIBITED_FOR_STATIC_CALL);
     }
+};
+
+/**
+ * @brief Validates the call context of the current iteration
+ * @tparam The type of kernel input
+ * @param composer The circuit composer
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ */
+template <typename KernelInput>
+void common_validate_call_context(DummyComposer& composer, KernelInput const& public_kernel_inputs)
+{
+    const auto& call_stack_item = public_kernel_inputs.public_call.call_stack_item;
+    const auto is_delegate_call = call_stack_item.public_inputs.call_context.is_delegate_call;
+    const auto is_static_call = call_stack_item.public_inputs.call_context.is_static_call;
+    const auto contract_address = call_stack_item.contract_address;
+    const auto storage_contract_address = call_stack_item.public_inputs.call_context.storage_contract_address;
+    const auto state_transitions_length = array_length(call_stack_item.public_inputs.state_transitions);
+
+    composer.do_assert(!is_delegate_call || contract_address != storage_contract_address,
+                       std::string("call_context contract_address == storage_contract_address on delegate_call"),
+                       CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
+
+    composer.do_assert(!is_static_call || state_transitions_length == 0,
+                       std::string("call_context state transitions found on static call"),
+                       CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_TRANSITIONS_PROHIBITED_FOR_STATIC_CALL);
+};
+
+/**
+ * @brief Validates the kernel execution of the current iteration
+ * @tparam The type of kernel input
+ * @param composer The circuit composer
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ */
+template <typename KernelInput>
+void common_validate_kernel_execution(DummyComposer& composer, KernelInput const& public_kernel_inputs)
+{
+    common_validate_call_context(composer, public_kernel_inputs);
+
+    common_validate_call_stack(composer, public_kernel_inputs);
 };
 
 /**
@@ -134,6 +206,7 @@ void propagate_valid_state_transitions(KernelInput const& public_kernel_inputs,
         }
         const auto new_write = PublicDataTransition<NT>{
             .leaf_index = compute_public_data_tree_index<NT>(contract_address, state_transition.storage_slot),
+            .old_value = compute_public_data_tree_value<NT>(state_transition.old_value),
             .new_value = compute_public_data_tree_value<NT>(state_transition.new_value),
         };
         array_push(circuit_outputs.end.state_transitions, new_write);
@@ -193,4 +266,13 @@ void update_public_end_values(KernelInput const& public_kernel_inputs, KernelCir
 void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_inputs,
                                   KernelCircuitPublicInputs<NT>& circuit_outputs);
 
+/**
+ * @brief Validates that the call stack item for this circuit iteration is at the top of the call stack
+ * @param composer The circuit composer
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ * @param public_inputs The circuit outputs
+ */
+void validate_this_public_call_hash(DummyComposer& composer,
+                                    PublicKernelInputs<NT> const& public_kernel_inputs,
+                                    KernelCircuitPublicInputs<NT>& public_inputs);
 } // namespace aztec3::circuits::kernel::public_kernel

@@ -251,12 +251,14 @@ void update_end_values(DummyComposer& composer,
     // }
 }
 
-void validate_this_private_call_hash(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
+void validate_this_private_call_hash(DummyComposer& composer,
+                                     PrivateInputs<NT> const& private_inputs,
+                                     KernelCircuitPublicInputs<NT>& public_inputs)
 {
-    const auto& start = private_inputs.previous_kernel.public_inputs.end;
+
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
     // and the 'gas rebate' tx).
-    const auto popped_private_call_hash = array_pop(start.private_call_stack);
+    const auto popped_private_call_hash = array_pop(public_inputs.end.private_call_stack);
     const auto calculated_this_private_call_hash = private_inputs.private_call.call_stack_item.hash();
 
     composer.do_assert(
@@ -367,7 +369,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit(DummyComposer& compo
 
     validate_inputs(composer, private_inputs);
 
-    validate_this_private_call_hash(composer, private_inputs);
+    validate_this_private_call_hash(composer, private_inputs, public_inputs);
 
     validate_this_private_call_stack(composer, private_inputs);
 

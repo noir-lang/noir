@@ -1,16 +1,16 @@
 import { simulatePublicKernelCircuit, simulatePublicKernelCircuitNoPreviousKernel } from '../index.js';
-import { makePublicKernelInputs, makePublicKernelInputsNoKernelInput } from '../tests/factories.js';
+import { makePublicKernelInputsNoKernelInput, makePublicKernelInputsWithEmptyOutput } from '../tests/factories.js';
 
 describe('kernel/public_kernel', () => {
-  it.skip('simulates public kernel circuit with previous public kernel', async function () {
-    const input = makePublicKernelInputs();
+  it('simulates public kernel circuit with previous public kernel', async function () {
+    const input = makePublicKernelInputsWithEmptyOutput();
     input.previousKernel.publicInputs.isPrivateKernel = false;
     const result = await simulatePublicKernelCircuit(input);
     expect(result).toBeDefined();
   });
 
-  it.skip('simulates public kernel circuit with previous private kernel', async function () {
-    const input = makePublicKernelInputs();
+  it('simulates public kernel circuit with previous private kernel', async function () {
+    const input = makePublicKernelInputsWithEmptyOutput();
     input.previousKernel.publicInputs.isPrivateKernel = true;
     const result = await simulatePublicKernelCircuit(input);
     expect(result).toBeDefined();
