@@ -4,8 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.9.0"
-source = "git+https://github.com/noir-lang/acvm?rev=15d3c5a9be2dd92f266fcb7e672da17cada9fec5#15d3c5a9be2dd92f266fcb7e672da17cada9fec5"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "510b65efd4d20bf266185ce0a5dc7d29bcdd196a6a1835c20908fd88040de76c"
 dependencies = [
  "acir_field",
  "flate2",
@@ -15,8 +16,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.9.0"
-source = "git+https://github.com/noir-lang/acvm?rev=15d3c5a9be2dd92f266fcb7e672da17cada9fec5#15d3c5a9be2dd92f266fcb7e672da17cada9fec5"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4f032e710c67fd146caedc8fe1dea6e95f01ab59453e42d59b604a51fef3dfe"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -28,8 +30,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.9.0"
-source = "git+https://github.com/noir-lang/acvm?rev=15d3c5a9be2dd92f266fcb7e672da17cada9fec5#15d3c5a9be2dd92f266fcb7e672da17cada9fec5"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2611266039740ffd1978f23258bd6ce3166c22cf15b8227685c2f3bb20ae2ee0"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -46,7 +49,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.0.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=e7c4a2cc68c9d14b083290a3715e97ab05d163e7#e7c4a2cc68c9d14b083290a3715e97ab05d163e7"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=b8eab9b8348e3a761d434aab7724616ddc3c3b45#b8eab9b8348e3a761d434aab7724616ddc3c3b45"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -64,8 +67,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.9.0"
-source = "git+https://github.com/noir-lang/acvm?rev=15d3c5a9be2dd92f266fcb7e672da17cada9fec5#15d3c5a9be2dd92f266fcb7e672da17cada9fec5"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5ec51160c66eba75dc15a028a2391675386fd395b3897478d89a386c64a48dd"
 dependencies = [
  "acir",
 ]
