@@ -292,10 +292,7 @@ impl<'a> FunctionContext<'a> {
         if let_expr.mutable {
             values.map_mut(|value| {
                 let value = value.eval(self);
-                // Size is always 1 here since we're recursively unpacking tuples
-                let alloc = self.builder.insert_allocate(1);
-                self.builder.insert_store(alloc, value);
-                alloc.into()
+                Tree::Leaf(self.new_mutable_variable(value))
             });
         }
 

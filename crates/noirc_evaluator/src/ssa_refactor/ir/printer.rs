@@ -143,7 +143,7 @@ pub(crate) fn display_instruction(
         Instruction::Allocate { size } => writeln!(f, "alloc {size} fields"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
         Instruction::Store { address, value } => {
-            writeln!(f, "store {} at {}", show(*address), show(*value))
+            writeln!(f, "store {} at {}", show(*value), show(*address))
         }
     }
 }
