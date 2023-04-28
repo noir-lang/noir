@@ -91,7 +91,8 @@ impl<'a> FunctionContext<'a> {
         self.definitions.insert(parameter_id, parameter_value);
     }
 
-    /// Create a new mutable storage slot and store into it the given initial value of the variable.
+    /// Allocate a single slot of memory and store into it the given initial value of the variable.
+    /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let alloc = self.builder.insert_allocate(1);
         self.builder.insert_store(alloc, value_to_store);
