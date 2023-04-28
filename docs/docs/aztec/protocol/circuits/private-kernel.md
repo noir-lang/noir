@@ -9,8 +9,8 @@ This circuit is executed by the user, on their own device. This is to ensure pri
 - Verifies an app's proof - i.e. a proof which has been output after the execution of some function in a Noir Contract.
 - Performs private state reads and writes.
 - Exposes (forwards) the following data to the next recursive circuit:
-  - new [note hashes](../notes-and-nullifiers);
-  - new [nullifiers](../notes-and-nullifiers);
+  - new note hashes;
+  - new nullifiers;
   - new messages to L1 contracts;
   - private call stacks: hashes representing calls to other private functions;
   - public call stacks: hashes representing calls to other public functions;

@@ -83,7 +83,6 @@ const sidebars = {
             },
 
             "aztec/protocol/contract-creation",
-            "aztec/protocol/notes-and-nullifiers", // TODO
             "aztec/protocol/public-functions-vm-architectures",
           ],
         },
