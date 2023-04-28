@@ -9,12 +9,12 @@ const katex = require("rehype-katex");
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Aztec Docs",
-  tagline: "Scalable privacy on Ethereum",
+  tagline: "Ethereum, encrypted",
   url: "https://docs.aztec.network",
   baseUrl: "/",
   trailingSlash: false,
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
+  onBrokenMarkdownLinks: "throw",
   favicon: "img/Aztec_docs_icons-02.svg",
 
   // GitHub pages deployment config.
