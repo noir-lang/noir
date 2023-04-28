@@ -32,7 +32,7 @@ A function maps a **function signature** to a **verification key**. The vkey con
 
 Each contract's function data is stored in a Merkle tree, where each leaf contains a hash of the following data:
 
-1. Function Selectors [Why?](./function-selectors)
+1. Function Selectors
 2. `bool isPrivate` flag
 3. Verification Key Hash
 

@@ -48,10 +48,10 @@ const sidebars = {
           label: "Components",
           link: {
             type: "doc",
-            id: "aztec/architecture/components",
+            id: "aztec/components",
           },
           items: [
-            "aztec/architecture/components", // TODO
+            "aztec/components", // TODO
           ],
         },
 
