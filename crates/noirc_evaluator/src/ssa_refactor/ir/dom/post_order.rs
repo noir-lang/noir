@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::Function};
 
-/// DFT stack state marker for computing the cfg postorder.
+/// DFT stack state marker for computing the cfg post-order.
 enum Visit {
     First,
     Last,
@@ -22,10 +22,11 @@ pub(super) fn compute_post_order(func: &Function) -> Vec<BasicBlockId> {
                     // successors and then revisit it.
                     visited.insert(block_id);
                     stack.push((Visit::Last, block_id));
-                    // Note: cranelift choses to instead iterate successors backwards for reasons
-                    // that aren't yet clearly relevant to us:
-                    // https://github.com/bytecodealliance/wasmtime/commit/8abfe928d6073d76ebd991a2e991bf8268b4e5a2
-                    for successor_id in func.dfg[block_id].successors() {
+                    // Stack successors for visiting. Because items are taken from the top of the
+                    // stack, we push the item that's due for a visit first to the top.
+                    for successor_id in
+                        func.dfg[block_id].successors().collect::<Vec<_>>().into_iter().rev()
+                    {
                         if !visited.contains(&successor_id) {
                             // This not visited check would also be cover by the the next
                             // iteration, but checking here two saves an iteration per successor.
@@ -65,14 +66,22 @@ mod tests {
         // A → B   C
         // ↓ ↗ ↓   ↓
         // D ← E → F
-        // Technically correct post-order:
-        // D, F, E, B, A, C
-        // Post-order for our purposes:
-        // F, E, B, D, A
-        // Differences:
-        // - Since C is unreachable we don't want to include it
-        // - Siblings are traversed "backwards" (i.e. "else" before "then") to simply to save on
-        //   an iterator conversion. We could change this if we find a motivation.
+        // (`A` is entry block)
+        // Expected post-order working:
+        // A {
+        //   B {
+        //     E {
+        //       D {
+        //         B (seen)
+        //       } -> push(D)
+        //       F {
+        //       } -> push(F)
+        //     } -> push(E)
+        //   } -> push(B)
+        //   D (seen)
+        // } -> push(A)
+        // Result:
+        // D, F, E, B, A, (C dropped as unreachable)
 
         let func_id = Id::test_new(0);
         let mut func = Function::new("func".into(), func_id);
@@ -131,6 +140,6 @@ mod tests {
         );
 
         let post_order = compute_post_order(&func);
-        assert_eq!(post_order, [block_f_id, block_e_id, block_b_id, block_d_id, block_a_id]);
+        assert_eq!(post_order, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
     }
 }
