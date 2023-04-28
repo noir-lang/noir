@@ -12,6 +12,7 @@
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/numeric/bitop/pow.hpp"
 
+#include <cstddef>
 #include <string_view>
 #include <memory>
 

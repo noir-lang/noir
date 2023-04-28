@@ -36,26 +36,26 @@ TYPED_TEST(IpaCommitmentTest, commit)
 TYPED_TEST(IpaCommitmentTest, open)
 {
     using IPA = InnerProductArgument<TypeParam>;
-    using PubInput = typename IPA::PubInput;
     // generate a random polynomial, degree needs to be a power of two
     size_t n = 128;
     auto poly = this->random_polynomial(n);
     auto [x, eval] = this->random_eval(poly);
-    barretenberg::g1::element commitment = this->commit(poly);
-    PubInput pub_input;
-    pub_input.commitment = commitment;
-    pub_input.challenge_point = x;
-    pub_input.evaluation = eval;
-    pub_input.poly_degree = n;
-    auto aux_scalar = fr::random_element();
-    pub_input.aux_generator = barretenberg::g1::one * aux_scalar;
-    const size_t log_n = static_cast<size_t>(numeric::get_msb(n));
-    pub_input.round_challenges = std::vector<barretenberg::fr>(log_n);
-    for (size_t i = 0; i < log_n; i++) {
-        pub_input.round_challenges[i] = barretenberg::fr::random_element();
-    }
-    auto proof = IPA::reduce_prove(this->ck(), pub_input, poly);
-    auto result = IPA::reduce_verify(this->vk(), proof, pub_input);
+    auto commitment = this->commit(poly);
+    const OpeningPair<TypeParam> opening_pair{ x, eval };
+
+    // initialize empty prover transcript
+    ProverTranscript<Fr> prover_transcript;
+
+    prover_transcript.send_to_verifier("IPA:C", commitment);
+
+    IPA::reduce_prove(this->ck(), opening_pair, poly, prover_transcript);
+
+    // initialize verifier transcript from proof data
+    VerifierTranscript<Fr> verifier_transcript{ prover_transcript.proof_data };
+
+    auto result = IPA::reduce_verify(this->vk(), opening_pair, n, verifier_transcript);
     EXPECT_TRUE(result);
+
+    EXPECT_EQ(prover_transcript.get_manifest(), verifier_transcript.get_manifest());
 }
 } // namespace proof_system::honk::pcs::ipa
