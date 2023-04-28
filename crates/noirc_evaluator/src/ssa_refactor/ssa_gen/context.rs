@@ -243,15 +243,8 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
-                // Re-evaluating these should have no effect
-                let (lhs, rhs) = (lhs.eval(self), rhs.eval(self));
-
-                // Expect lhs to be previously evaluated. If it is a load we need to undo
-                // the load and insert a store instead. This is because normally an expression
-                // like `foo.field` will perform a load from field's address (if field is mutable),
-                // but here we want access to the address itself since we want to store to it
-                // instead of loading.
-                self.replace_load_with_store(lhs, rhs);
+                let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
+                self.builder.insert_store(lhs, rhs);
             }
             (lhs, rhs) => {
                 unreachable!(
@@ -259,35 +252,6 @@ impl<'a> FunctionContext<'a> {
                 )
             }
         }
-    }
-
-    /// Removes a load instruction and inserts a new store instruction to replace it.
-    ///
-    /// This function is used while generating ssa-form for assignments currently.
-    /// To re-use most of the expression infrastructure, the lvalue of an assignment
-    /// is compiled as an expression and to assign to it we replace the final load
-    /// (which should always be present to load a mutable value) with a store of the
-    /// assigned value.
-    pub(crate) fn replace_load_with_store(
-        &mut self,
-        load_result: ValueId,
-        value_to_store: ValueId,
-    ) {
-        use crate::ssa_refactor::ir::instruction::Instruction;
-        use crate::ssa_refactor::ir::value::Value;
-
-        let (instruction, address) = match &self.builder[load_result] {
-            Value::Instruction { instruction, .. } => match &self.builder[*instruction] {
-                Instruction::Load { address } => (*instruction, *address),
-                other => {
-                    panic!("mutate_load_into_store: Expected Load instruction, found {other:?}")
-                }
-            },
-            other => panic!("mutate_load_into_store: Expected Load instruction, found {other:?}"),
-        };
-
-        self.builder.remove_instruction_from_current_block(instruction);
-        self.builder.insert_store(address, value_to_store);
     }
 
     /// Retrieves the given function, adding it to the function queue

@@ -21,7 +21,7 @@ use super::{
 /// Contrary to the name, this struct has the capacity to build as many
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder {
-    current_function: Function,
+    pub(super) current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
 }
