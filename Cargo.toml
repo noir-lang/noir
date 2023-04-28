@@ -24,7 +24,8 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.9.0"
+# acvm = "0.9.0"
+acvm = { version = "0.9.0", features = ["bn254"], path = "/Users/maximvezenov/Documents/dev/noir-lang/acvm/acvm" }
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

@@ -80,9 +80,9 @@ pub(crate) fn evaluate(
         }
         Opcode::LowLevel(op) => {
             let inputs = prepare_inputs(acir_gen, args, ctx, evaluator);
-            let output_count = op.definition().output_size.0 as u32;
+
             outputs =
-                prepare_outputs(&mut acir_gen.memory, instruction_id, output_count, ctx, evaluator);
+                prepare_outputs_no_count(&mut acir_gen.memory, instruction_id, ctx, evaluator);
 
             let func_call = BlackBoxFuncCall {
                 name: op,
@@ -233,6 +233,25 @@ fn prepare_outputs(
         memory_map.map_array(a, &outputs, ctx);
     }
     outputs
+}
+
+fn prepare_outputs_no_count(
+    memory_map: &mut AcirMem,
+    pointer: NodeId,
+    ctx: &SsaContext,
+    evaluator: &mut Evaluator,
+) -> Vec<Witness> {
+    // Create fresh variables that will link to the output
+    let l_obj = ctx.try_get_node(pointer).unwrap();
+    if let node::ObjectType::ArrayPointer(a) = l_obj.get_type() {
+        let mem_array = &ctx.mem[a];
+        let output_nb = mem_array.len;
+        let outputs = vecmap(0..output_nb, |_| evaluator.add_witness_to_cs());
+        memory_map.map_array(a, &outputs, ctx);
+        outputs
+    } else {
+        vec![evaluator.add_witness_to_cs()]
+    }
 }
 
 fn evaluate_println(
