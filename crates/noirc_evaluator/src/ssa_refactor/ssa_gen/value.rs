@@ -32,6 +32,15 @@ impl Value {
             }
         }
     }
+
+    /// Evaluates the value, returning a reference to the mutable variable found within
+    /// if possible. Compared to .eval, this method will not load from self if it is Value::Mutable.
+    pub(super) fn eval_reference(self) -> IrValueId {
+        match self {
+            Value::Normal(value) => value,
+            Value::Mutable(address, _) => address,
+        }
+    }
 }
 
 pub(super) type Values = Tree<Value>;
