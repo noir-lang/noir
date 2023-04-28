@@ -1,48 +1,26 @@
 use crate::abi::CallContext;
 use crate::abi::ContractDeploymentData;
-use crate::abi::Outputs;
+use crate::context::PrivateFunctionContext;
 use crate::abi::PrivateCircuitPublicInputs;
 use crate::types::vec::BoundedVec;
 use crate::utils::arr_copy_slice;
 
-// TODO unconstrained functions fail with arrays as arguments
 #[oracle(callPrivateFunction)]
 fn call_private_function_oracle(
     _contract_address: Field, 
     _function_selector: Field, 
-    _arg0: Field,
-    _arg1: Field,
-    _arg2: Field,
-    _arg3: Field,
-    _arg4: Field,
-    _arg5: Field,
-    _arg6: Field,
-    _arg7: Field,
+    _args: [Field; crate::abi::MAX_ARGS]
 ) -> [Field; 51] {}
 
 unconstrained fn call_private_function_internal(
     contract_address: Field, 
     function_selector: Field,
-    arg0: Field,
-    arg1: Field,
-    arg2: Field,
-    arg3: Field,
-    arg4: Field,
-    arg5: Field,
-    arg6: Field,
-    arg7: Field,
+    args: [Field; crate::abi::MAX_ARGS]
 ) -> [Field; 51] {
     call_private_function_oracle(
         contract_address, 
         function_selector, 
-        arg0,
-        arg1,
-        arg2,
-        arg3,
-        arg4,
-        arg5,
-        arg6,
-        arg7,
+        args,
     )
 }
 
@@ -70,18 +48,11 @@ struct PrivateCallStackItem {
 }
 
 impl PrivateCallStackItem {
-    fn call(contract_address: Field, function_selector: Field, args: [Field; crate::abi::MAX_ARGS], mut outputs: Outputs) -> (Self, Outputs) {
+    fn call(contract_address: Field, function_selector: Field, args: [Field; crate::abi::MAX_ARGS], mut context: PrivateFunctionContext) -> (Self, PrivateFunctionContext) {
         let fields = call_private_function_internal(
             contract_address, 
             function_selector, 
-            args[0],
-            args[1],
-            args[2],
-            args[3],
-            args[4],
-            args[5],
-            args[6],
-            args[7]
+            args
         );
         let item = PrivateCallStackItem {
             contract_address: fields[0],
@@ -126,9 +97,9 @@ impl PrivateCallStackItem {
             constrain args[i] == item.public_inputs.args[i];
         }
 
-        outputs.private_call_stack = outputs.private_call_stack.push(item.hash());
+        context.private_call_stack = context.private_call_stack.push(item.hash());
 
-        (item, outputs)
+        (item, context)
     }
 
     fn hash(self) -> Field {

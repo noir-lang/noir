@@ -1,6 +1,6 @@
 contract PublicToken {
     use dep::aztec3::abi::Inputs;
-    use dep::aztec3::abi::Outputs;
+    use dep::aztec3::context::PrivateFunctionContext;
     use dep::aztec3::abi::CallContext;
     use dep::aztec3::types::point::Point;
     use dep::aztec3::state_vars::storage_map::StorageMap;
@@ -14,7 +14,7 @@ contract PublicToken {
     fn constructor(
         inputs: pub Inputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
-        Outputs::new().finish(inputs)
+        PrivateFunctionContext::new().finish(inputs)
     }
 
     /// ABI mint type "open"

@@ -1,6 +1,6 @@
 use dep::std;
 use crate::abi::Inputs;
-use crate::abi::Outputs;
+use crate::context::PrivateFunctionContext;
 use crate::notes::value_note::Note;
 use crate::types::point::Point;
 use crate::state_vars::note_getter_data::NoteGetterData;
@@ -64,18 +64,17 @@ impl Set {
         Set { storage_slot }
     }
 
-    fn insert(self, mut outputs: Outputs, note: Note) -> Outputs {
+    fn insert(self, mut context: PrivateFunctionContext, note: Note) -> PrivateFunctionContext {
         let storage_slot = self.storage_slot;
 
         let note_hash = note.compute_note_hash();
 
         constrain notify_created_note(storage_slot, note.owner, note) == 0;
-        outputs = outputs.push_new_note_hash(note_hash);
-        outputs.push_new_note(note)
+        context.push_new_note_hash(note_hash)
     }
 
     // The `2` in the name is the number of notes returned
-    fn get_2(self, inputs: Inputs, mut outputs: Outputs) -> (Outputs, (Note, Note)) {
+    fn get_2(self, inputs: Inputs, mut context: PrivateFunctionContext) -> (PrivateFunctionContext, (Note, Note)) {
         let storage_slot = self.storage_slot;
 
         // let note_getter_data: [NoteGetterData; 2] = ORACLE::get_2_notes(contract_address, storage_slot);
@@ -106,10 +105,10 @@ impl Set {
         //     ) == 1;
 
         //     // Set the public input of the 'old private data tree root' to be the computed root (if it hasn't already been set); otherwise constrain equality with the previously-set value.
-        //     if outputs.old_private_data_tree_root == 0 {
-        //         outputs.old_private_data_tree_root = root;
+        //     if context.old_private_data_tree_root == 0 {
+        //         context.old_private_data_tree_root = root;
         //     } else {
-        //         constrain outputs.old_private_data_tree_root == root;
+        //         constrain context.old_private_data_tree_root == root;
         //     }
         // };
         // process_data(note_getter_data.0, storage_slot, contract_address);
@@ -119,11 +118,11 @@ impl Set {
         constrain note_getter_data.1.root == inputs.old_private_data_tree_root;
 
         let notes = (note_getter_data.0.note, note_getter_data.1.note);
-        (outputs, notes)
+        (context, notes)
     }
 
 
-    fn remove(self, inputs: Inputs, mut outputs: Outputs, note: Note) -> Outputs {
+    fn remove(self, inputs: Inputs, mut context: PrivateFunctionContext, note: Note) -> PrivateFunctionContext {
         let contract_address = inputs.call_context.storage_contract_address;
         let storage_slot = self.storage_slot;
 
@@ -140,7 +139,6 @@ impl Set {
         nullifier = note.compute_nullifier(note_hash);
 
         constrain notify_nullified_note(storage_slot, nullifier, note) == 0;
-        outputs = outputs.push_new_nullifier(nullifier);
-        outputs.push_nullified_note(note)
+        context.push_new_nullifier(nullifier)
     }
 }

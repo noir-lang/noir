@@ -36,8 +36,8 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
-    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#41d52a9ad86786c65ab9b0502927e9e2fa93d963",
-    "@noir-lang/noir_util_wasm": "github:joss-aztec/noir_util_wasm#94d5812260636794ab77c437261e6b814b130265",
+    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#f2e10698dfa11cd46f7373cec1ed6184b0505f1e",
+    "@noir-lang/noir_util_wasm": "github:joss-aztec/noir_util_wasm#7dc410f4b4c00b9cfa9e726ae7fca3a3a4a237c5",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"

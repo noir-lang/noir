@@ -33,8 +33,8 @@ __metadata:
     "@aztec/noir-contracts": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
-    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#41d52a9ad86786c65ab9b0502927e9e2fa93d963"
-    "@noir-lang/noir_util_wasm": "github:joss-aztec/noir_util_wasm#94d5812260636794ab77c437261e6b814b130265"
+    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#f2e10698dfa11cd46f7373cec1ed6184b0505f1e"
+    "@noir-lang/noir_util_wasm": "github:joss-aztec/noir_util_wasm#7dc410f4b4c00b9cfa9e726ae7fca3a3a4a237c5"
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
@@ -1660,10 +1660,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/aztec_backend_wasm@github:joss-aztec/barretenberg_browser_stopgap_wasm_build#41d52a9ad86786c65ab9b0502927e9e2fa93d963":
-  version: 0.1.0-c31a641
-  resolution: "@noir-lang/aztec_backend_wasm@https://github.com/joss-aztec/barretenberg_browser_stopgap_wasm_build.git#commit=41d52a9ad86786c65ab9b0502927e9e2fa93d963"
-  checksum: 8acd62a5e442cdff2d3dfcaedc0782ab0fba4a3a26054ba86c6fe84e138781992a33c13bcf474ad9ed2981c67f008db88644aec024cd462290ea9b3d73d562b9
+"@noir-lang/aztec_backend_wasm@github:joss-aztec/barretenberg_browser_stopgap_wasm_build#f2e10698dfa11cd46f7373cec1ed6184b0505f1e":
+  version: 0.1.0-06f13cf
+  resolution: "@noir-lang/aztec_backend_wasm@https://github.com/joss-aztec/barretenberg_browser_stopgap_wasm_build.git#commit=f2e10698dfa11cd46f7373cec1ed6184b0505f1e"
+  checksum: 570b43f4a222e04b580514c5a7536eeccd83154d69a6a452e7d9248b8e8deac1f8eea3edb6dba566480576d61aee19a12687c1b52ba639af372af2fbaebc5c3e
   languageName: node
   linkType: hard
 
@@ -1674,10 +1674,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/noir_util_wasm@github:joss-aztec/noir_util_wasm#94d5812260636794ab77c437261e6b814b130265":
-  version: 0.2.0-bbc5b17c
-  resolution: "@noir-lang/noir_util_wasm@https://github.com/joss-aztec/noir_util_wasm.git#commit=94d5812260636794ab77c437261e6b814b130265"
-  checksum: 56b8cf05de10c8651a5be5375bbad97221056bad2c0619f6bda3f22799e891b56f4c18fa9ac4561abe68d2b8fc1a414ee5dd74fa357ec00b6fea91316e7daef4
+"@noir-lang/noir_util_wasm@github:joss-aztec/noir_util_wasm#7dc410f4b4c00b9cfa9e726ae7fca3a3a4a237c5":
+  version: 0.2.0-843b534
+  resolution: "@noir-lang/noir_util_wasm@https://github.com/joss-aztec/noir_util_wasm.git#commit=7dc410f4b4c00b9cfa9e726ae7fca3a3a4a237c5"
+  checksum: 8a1777d0a6257cda96d3f64f61441e1d5681a074e43ec2bf4b51749e8b0d452cbc8142c2d779663ad73f11a1957336fa871acc877dc07a6c1421f59ec2253980
   languageName: node
   linkType: hard
 

@@ -6,9 +6,9 @@
   ```
   curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
   ```
-- Install the noir branch needed for A3 backend (`joss/ssa-2-brillig-plus-hacks` at the moment)
+- Install the noir branch needed for A3 backend (`aztec3-hacky` at the moment)
   ```
-  noirup --branch joss/ssa-2-brillig-plus-hacks
+  noirup --branch aztec3-hacky
   ```
 - Move to the circuit you want to build
   ```

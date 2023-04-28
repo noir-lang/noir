@@ -1,7 +1,7 @@
 contract Child {
     use dep::aztec3::abi;
     use dep::aztec3::abi::Inputs;
-    use dep::aztec3::abi::Outputs;
+    use dep::aztec3::context::PrivateFunctionContext;
 
     /// ABI constructor type "secret"
     /// ABI constructor params []
@@ -9,7 +9,7 @@ contract Child {
     fn constructor(
         inputs: pub Inputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
-        Outputs::new().finish(inputs)
+        PrivateFunctionContext::new().finish(inputs)
     }
 
     /// ABI value type "secret"
@@ -18,10 +18,10 @@ contract Child {
     fn value(
         inputs: pub Inputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
-        let mut outputs = Outputs::new();
+        let mut context = PrivateFunctionContext::new();
 
-        outputs.return_values = outputs.return_values.push(inputs.args[0] + 42);
+        context.return_values = context.return_values.push(inputs.args[0] + 42);
 
-        outputs.finish(inputs)
+        context.finish(inputs)
     }
 }

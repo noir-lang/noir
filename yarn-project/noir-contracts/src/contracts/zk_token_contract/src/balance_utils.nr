@@ -12,9 +12,6 @@ fn view_notes_page_oracle(
     _offset: Field,
 ) -> [Field; 61] {}
 
-// TODO noir is having issues with array params between unconstrained functions, 
-// rewrite to unconstrained and integrate into noir-aztec3 when fixed
-
 unconstrained fn view_notes_page_internal(
     storage_slot: Field,
     offset: Field,
@@ -38,7 +35,9 @@ fn view_notes_page(
 }
 
 
-
+// TODO(1.5) We don't support yet more than one page of notes
+// noir is having issues with loop handling in unconstrained functions
+// rewrite to unconstrained and integrate into noir-aztec3 when fixed
 fn get_balance(storage_slot: Field) -> Field {
     let mut balance = 0;
 
