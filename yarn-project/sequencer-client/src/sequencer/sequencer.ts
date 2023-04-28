@@ -212,6 +212,7 @@ export class Sequencer {
   protected async buildBlock(txs: ProcessedTx[]) {
     // Pad the txs array with empty txs to be a power of two, at least 4
     const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 4);
+    // TODO: makeEmptyProcessedTx should set the kernel output constants rather than an empty object
     const allTxs = [...txs, ...(await Promise.all(times(txsTargetSize - txs.length, makeEmptyProcessedTx)))];
     const [block] = await this.blockBuilder.buildL2Block(this.lastBlockNumber + 1, allTxs);
     return block;

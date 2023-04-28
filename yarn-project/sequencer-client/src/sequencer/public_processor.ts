@@ -61,6 +61,7 @@ export class PublicProcessor {
       processedTx = await makeEmptyProcessedTx();
     }
 
+    // TODO: this should be part of makeEmptyProcessedTx
     // set historic roots to in kernel tx to empty merkle tree root (instead of 0)
     if (processedTx.data.constants.historicTreeRoots.privateHistoricTreeRoots.privateDataTreeRoot.isZero()) {
       processedTx.data.constants.historicTreeRoots.privateHistoricTreeRoots.privateDataTreeRoot = Fr.fromBuffer(

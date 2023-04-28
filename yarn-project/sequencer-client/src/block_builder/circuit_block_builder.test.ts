@@ -238,6 +238,7 @@ describe('sequencer/circuit_block_builder', () => {
           ...(await Promise.all(times(deployCount, makeContractDeployProcessedTx))),
           ...(await Promise.all(times(totalCount - deployCount, makeEmptyProcessedTx))),
         ];
+        // TODO: this should be part of the makeTx helpers
         // for each kernel tx, set its constants' private_historic_tree_roots to empty merkle trees (rather than 0)
         await Promise.all(txs.map(setTxHistoricTreeRoots));
 
@@ -265,6 +266,10 @@ describe('sequencer/circuit_block_builder', () => {
         makeEmptyProcessedTx(),
         makeEmptyProcessedTx(),
       ]);
+
+      // TODO: this should be part of makeEmptyProcessedTx
+      await setTxHistoricTreeRoots(txs[2]);
+      await setTxHistoricTreeRoots(txs[3]);
 
       const [l2Block] = await builder.buildL2Block(blockNumber, txs);
       expect(l2Block.number).toEqual(blockNumber);
