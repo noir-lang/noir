@@ -132,7 +132,7 @@ void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
     composer.do_assert(left.end_contract_tree_snapshot == right.start_contract_tree_snapshot,
                        "input proofs have different contract tree snapshots",
                        utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
-    composer.do_assert(left.end_public_data_tree_snapshot == right.start_public_data_tree_snapshot,
+    composer.do_assert(left.end_public_data_tree_root == right.start_public_data_tree_root,
                        "input proofs have different public data tree snapshots",
                        utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
 }

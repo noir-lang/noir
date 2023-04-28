@@ -30,8 +30,8 @@ describe('rollup/rollup_wasm_wrapper', () => {
       input.previousRollupData[0].publicInputs.endNullifierTreeSnapshot;
     input.previousRollupData[1].publicInputs.startContractTreeSnapshot =
       input.previousRollupData[0].publicInputs.endContractTreeSnapshot;
-    input.previousRollupData[1].publicInputs.startPublicDataTreeSnapshot =
-      input.previousRollupData[0].publicInputs.endPublicDataTreeSnapshot;
+    input.previousRollupData[1].publicInputs.startPublicDataTreeRoot =
+      input.previousRollupData[0].publicInputs.endPublicDataTreeRoot;
   };
 
   const makeMergeRollupInputsForCircuit = () => {

@@ -46,8 +46,8 @@ BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, Merg
         .end_nullifier_tree_snapshot = right.end_nullifier_tree_snapshot,
         .start_contract_tree_snapshot = left.start_contract_tree_snapshot,
         .end_contract_tree_snapshot = right.end_contract_tree_snapshot,
-        .start_public_data_tree_snapshot = left.start_public_data_tree_snapshot,
-        .end_public_data_tree_snapshot = right.end_public_data_tree_snapshot,
+        .start_public_data_tree_root = left.start_public_data_tree_root,
+        .end_public_data_tree_root = right.end_public_data_tree_root,
         .calldata_hash = new_calldata_hash,
     };
 

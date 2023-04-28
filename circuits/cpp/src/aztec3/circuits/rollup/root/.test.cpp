@@ -287,12 +287,10 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_private_data_tree_snapshot);
 
     // Check public data trees
-    ASSERT_EQ(
-        outputs.start_public_data_tree_snapshot,
-        rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_snapshot);
-    ASSERT_EQ(
-        outputs.end_public_data_tree_snapshot,
-        rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.start_public_data_tree_root,
+              rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_root);
+    ASSERT_EQ(outputs.end_public_data_tree_root,
+              rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_root);
 
     // check contract trees
     ASSERT_EQ(outputs.start_contract_tree_snapshot,

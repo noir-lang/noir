@@ -160,10 +160,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
         }
     }
 
-    baseRollupInputs.start_public_data_tree_snapshot = {
-        .root = public_data_tree.root(),
-        .next_available_leaf_index = 0,
-    };
+    baseRollupInputs.start_public_data_tree_root = public_data_tree.root();
 
     // Then we collect all sibling paths for the reads in the left tx, and then apply the state transitions while
     // collecting their paths. And then repeat for the right tx.

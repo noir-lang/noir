@@ -497,14 +497,14 @@ fr validate_and_process_public_state(DummyComposer& composer, BaseRollupInputs c
 {
     // Process state reads and transitions for left input
     validate_state_reads(composer,
-                         baseRollupInputs.start_public_data_tree_snapshot.root,
+                         baseRollupInputs.start_public_data_tree_root,
                          baseRollupInputs.kernel_data[0].public_inputs.end.state_reads,
                          0,
                          baseRollupInputs.new_state_reads_sibling_paths);
 
     auto mid_public_data_tree_root =
         insert_state_transitions(composer,
-                                 baseRollupInputs.start_public_data_tree_snapshot.root,
+                                 baseRollupInputs.start_public_data_tree_root,
                                  baseRollupInputs.kernel_data[0].public_inputs.end.state_transitions,
                                  0,
                                  baseRollupInputs.new_state_transitions_sibling_paths);
@@ -572,11 +572,6 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     // Validate public state reads and transitions, and update public data tree
     fr end_public_data_tree_root = validate_and_process_public_state(composer, baseRollupInputs);
 
-    AppendOnlySnapshot end_public_data_tree_snapshot = {
-        .root = end_public_data_tree_root,
-        .next_available_leaf_index = 0,
-    };
-
     // Calculate the overall calldata hash
     std::array<NT::fr, 2> calldata_hash = calculate_calldata_hash(baseRollupInputs, contract_leaves);
 
@@ -597,8 +592,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
         .end_nullifier_tree_snapshot = end_nullifier_tree_snapshot,
         .start_contract_tree_snapshot = baseRollupInputs.start_contract_tree_snapshot,
         .end_contract_tree_snapshot = end_contract_tree_snapshot,
-        .start_public_data_tree_snapshot = baseRollupInputs.start_public_data_tree_snapshot,
-        .end_public_data_tree_snapshot = end_public_data_tree_snapshot,
+        .start_public_data_tree_root = baseRollupInputs.start_public_data_tree_root,
+        .end_public_data_tree_root = end_public_data_tree_root,
         .calldata_hash = calldata_hash,
     };
     return public_inputs;

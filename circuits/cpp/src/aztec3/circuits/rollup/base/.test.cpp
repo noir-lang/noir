@@ -788,9 +788,9 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
 
-    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
-    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
-    ASSERT_EQ(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
+    ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
+    ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_FALSE(composer.failed());
     run_cbind(inputs, outputs);
 }
@@ -818,9 +818,9 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
 
-    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
-    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
-    ASSERT_NE(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
+    ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
+    ASSERT_NE(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_FALSE(composer.failed());
     run_cbind(inputs, outputs);
 }
@@ -853,9 +853,9 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
 
-    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
-    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
-    ASSERT_NE(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
+    ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
+    ASSERT_NE(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_FALSE(composer.failed());
     run_cbind(inputs, outputs);
 }
@@ -880,14 +880,14 @@ TEST_F(base_rollup_tests, native_invalid_public_state_read)
 
     // We change the initial tree root so the read value does not match
     public_data_tree.update_element(1, fr(43));
-    inputs.start_public_data_tree_snapshot.root = public_data_tree.root();
+    inputs.start_public_data_tree_root = public_data_tree.root();
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
 
-    ASSERT_EQ(outputs.start_public_data_tree_snapshot, inputs.start_public_data_tree_snapshot);
-    ASSERT_EQ(outputs.end_public_data_tree_snapshot.root, public_data_tree.root());
-    ASSERT_EQ(outputs.end_public_data_tree_snapshot, outputs.start_public_data_tree_snapshot);
+    ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
+    ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
+    ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_TRUE(composer.failed());
     run_cbind(inputs, outputs);
 }

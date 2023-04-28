@@ -53,7 +53,7 @@ async function main() {
       : `Updating package.json in yarn-project based on custom inherits directive...`,
   );
   const files = getFiles();
-  const updatedKeys = []; 
+  const updatedKeys = [];
 
   for (const file of files) {
     const contents = readFileSync(file);
@@ -71,15 +71,16 @@ async function main() {
         }
       }
 
-      const updated = JSON.stringify(pick(originalData, updatedKeys)) !== JSON.stringify(pick(packageData, updatedKeys));
+      const updated =
+        JSON.stringify(pick(originalData, updatedKeys)) !== JSON.stringify(pick(packageData, updatedKeys));
       if (!updated) continue;
-      
+
       if (!checkOnly) {
         console.log(`Updated ${file}`);
         writeFileSync(file, JSON.stringify(packageData, null, 2) + '\n');
       } else {
         console.error(`File ${file} is not up to date. Run 'yarn prepare' at the package root to fix.`);
-        process.exit(2); 
+        process.exit(2);
       }
     }
   }

@@ -305,10 +305,8 @@ start_contract_tree_snapshot:
 root: 0x300
 next_available_leaf_index: 768
 
-start_public_data_tree_snapshot:
-root: 0x400
-next_available_leaf_index: 1024
-
+start_public_data_tree_root:
+0x400
 low_nullifier_leaf_preimages:
 [ leaf_value: 0x1000
 next_value: 0x1100
@@ -487,14 +485,10 @@ end_contract_tree_snapshot:
 root: 0x800
 next_available_leaf_index: 2048
 
-start_public_data_tree_snapshot:
-root: 0x900
-next_available_leaf_index: 2304
-
-end_public_data_tree_snapshot:
-root: 0x1000
-next_available_leaf_index: 4096
-
+start_public_data_tree_root:
+0x900
+end_public_data_tree_root:
+0x1000
 calldata_hash: [ 0x901 0x902 ]
 "
 `;

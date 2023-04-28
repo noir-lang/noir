@@ -93,7 +93,7 @@ export class BaseRollupInputs {
     public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
     public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
-    public startPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startPublicDataTreeRoot: Fr,
 
     public lowNullifierLeafPreimages: NullifierLeafPreimage[],
     public lowNullifierMembershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>[],
@@ -146,7 +146,7 @@ export class BaseRollupInputs {
       fields.startPrivateDataTreeSnapshot,
       fields.startNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
-      fields.startPublicDataTreeSnapshot,
+      fields.startPublicDataTreeRoot,
       fields.lowNullifierLeafPreimages,
       fields.lowNullifierMembershipWitness,
       fields.newCommitmentsSubtreeSiblingPath,

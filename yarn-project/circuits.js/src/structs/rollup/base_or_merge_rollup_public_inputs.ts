@@ -25,8 +25,8 @@ export class BaseOrMergeRollupPublicInputs {
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
 
-    public startPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
-    public endPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startPublicDataTreeRoot: Fr,
+    public endPublicDataTreeRoot: Fr,
 
     // Hashes (sha256), to make public inputs constant-sized (to then be unpacked on-chain). Length 2 for high and low
     public calldataHash: [Fr, Fr],
@@ -49,8 +49,8 @@ export class BaseOrMergeRollupPublicInputs {
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readFr(),
+      reader.readFr(),
       reader.readArray(2, Fr) as [Fr, Fr],
     );
   }
@@ -75,8 +75,8 @@ export class BaseOrMergeRollupPublicInputs {
       this.startContractTreeSnapshot,
       this.endContractTreeSnapshot,
 
-      this.startPublicDataTreeSnapshot,
-      this.endPublicDataTreeSnapshot,
+      this.startPublicDataTreeRoot,
+      this.endPublicDataTreeRoot,
 
       this.calldataHash,
     );
