@@ -1,4 +1,4 @@
-import { makeEmptyProof } from '@aztec/circuits.js';
+import { CombinedHistoricTreeRoots, makeEmptyProof } from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
 import { L2Block, PrivateTx, Tx, UnverifiedData } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations, WorldStateRunningState, WorldStateSynchroniser } from '@aztec/world-state';
@@ -6,7 +6,7 @@ import { MockProxy, mock } from 'jest-mock-extended';
 import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';
 import { L1Publisher, makeEmptyPrivateTx, makePrivateTx } from '../index.js';
-import { makeProcessedTx } from './processed_tx.js';
+import { makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 import { PublicProcessor } from './public_processor.js';
 import { Sequencer } from './sequencer.js';
 
@@ -40,6 +40,7 @@ describe('sequencer', () => {
 
     publicProcessor = mock<PublicProcessor>({
       process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx as PrivateTx))), []],
+      makeEmptyProcessedTx: () => makeEmptyProcessedTx(CombinedHistoricTreeRoots.empty()),
     });
 
     sequencer = new TestSubject(publisher, p2p, worldState, blockBuilder, publicProcessor);

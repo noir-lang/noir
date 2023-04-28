@@ -35,6 +35,7 @@ import { RollupSimulator } from '../simulator/index.js';
 
 import { ProcessedTx } from '../sequencer/processed_tx.js';
 import { BlockBuilder } from './index.js';
+import { toFriendlyJSON } from '@aztec/circuits.js/utils';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
 const bigintToFr = (num: bigint) => new Fr(num);
@@ -101,21 +102,8 @@ export class CircuitBlockBuilder implements BlockBuilder {
       ].map(tree => this.getTreeSnapshot(tree)),
     );
 
-    // TODO: Remove hack for setting historic tree roots of empty txs fed into the block builder
-    // These txs should already have these values set, and we should enforce that via typing
-    for (const tx of txs) {
-      for (const [name, id] of [
-        ['privateDataTreeRoot', MerkleTreeId.PRIVATE_DATA_TREE],
-        ['contractTreeRoot', MerkleTreeId.CONTRACT_TREE],
-        ['nullifierTreeRoot', MerkleTreeId.NULLIFIER_TREE],
-      ] as const) {
-        if (tx.data.constants.historicTreeRoots.privateHistoricTreeRoots[name].isZero()) {
-          tx.data.constants.historicTreeRoots.privateHistoricTreeRoots[name] = Fr.fromBuffer(
-            (await this.db.getTreeInfo(id)).root,
-          );
-        }
-      }
-    }
+    // Check txs are good for processing
+    this.validateTxs(txs);
 
     // We fill the tx batch with empty txs, we process only one tx at a time for now
     const [circuitsOutput, proof] = await this.runCircuits(txs);
@@ -163,6 +151,16 @@ export class CircuitBlockBuilder implements BlockBuilder {
     });
 
     return [l2Block, proof];
+  }
+
+  protected validateTxs(txs: ProcessedTx[]) {
+    for (const tx of txs) {
+      for (const historicTreeRoot of ['privateDataTreeRoot', 'contractTreeRoot', 'nullifierTreeRoot'] as const) {
+        if (tx.data.constants.historicTreeRoots.privateHistoricTreeRoots[historicTreeRoot].isZero()) {
+          throw new Error(`Empty ${historicTreeRoot} for tx: ${toFriendlyJSON(tx)}`);
+        }
+      }
+    }
   }
 
   protected async getTreeSnapshot(id: MerkleTreeId): Promise<AppendOnlyTreeSnapshot> {

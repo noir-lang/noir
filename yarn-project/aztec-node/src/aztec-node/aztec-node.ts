@@ -3,7 +3,7 @@ import { AztecAddress, Fr } from '@aztec/foundation';
 import { ContractPublicData, ContractData, ContractDataSource, L2Block, L2BlockSource } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { P2P, P2PClient } from '@aztec/p2p';
-import { SequencerClient } from '@aztec/sequencer-client';
+import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
 import { Tx, TxHash } from '@aztec/types';
 import { UnverifiedData, UnverifiedDataSource } from '@aztec/types';
 import {
@@ -129,6 +129,11 @@ export class AztecNode {
    * @param tx - The transaction to be submitted.
    */
   public async sendTx(tx: Tx) {
+    // TODO: Patch tx to inject historic tree roots until the private kernel circuit supplies this value
+    if (tx.isPrivate() && tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.isEmpty()) {
+      tx.data.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(this.merkleTreeDB.asLatest());
+    }
+
     await this.p2pClient!.sendTx(tx);
   }
 

@@ -175,7 +175,7 @@ export function toFriendlyJSON(obj: object): string {
         return '0x' + Buffer.from(value.data).toString('hex');
       } else if (typeof value === 'bigint') {
         return value.toString();
-      } else if ((value as { toFriendlyJSON: () => string }).toFriendlyJSON) {
+      } else if (value && (value as { toFriendlyJSON: () => string }).toFriendlyJSON) {
         return value.toFriendlyJSON();
       } else {
         return value;
