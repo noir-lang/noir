@@ -49,10 +49,10 @@ const config = {
         theme: {
           customCss: require.resolve("./src/css/custom.css"),
         },
-//         gtag: {
-//           trackingID: "G-WSBTSFJCSF",
-//           anonymizeIP: true,
-//         }
+        //         gtag: {
+        //           trackingID: "G-WSBTSFJCSF",
+        //           anonymizeIP: true,
+        //         }
       }),
     ],
   ],
@@ -80,7 +80,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      metadata: [{name: 'keywords', content: 'aztec, noir, privacy, encrypted, ethereum, blockchain'}],
+      metadata: [{ name: 'keywords', content: 'aztec, noir, privacy, encrypted, ethereum, blockchain' }],
       algolia: {
         appId: "CL4NK79B0W",
         apiKey: "21d89dadaa37a4d1b6bf4b17978dcf7f",
@@ -158,6 +158,7 @@ const config = {
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
+        additionalLanguages: ['rust']
       },
     }),
 };
