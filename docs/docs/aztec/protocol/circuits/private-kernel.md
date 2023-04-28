@@ -16,7 +16,7 @@ This circuit is executed by the user, on their own device. This is to ensure pri
   - public call stacks: hashes representing calls to other public functions;
   - events;
   - all data accumulated by all previous private kernel circuit recursions of this tx;
-- Hides which private function has been executed, by performing a zero-knowledge proof of membership against the [contract tree](../trees/trees).
+- Hides which private function has been executed, by performing a zero-knowledge proof of membership against the [contract tree](../trees).
 - Ensures the entire stack trace of private functions (for a particular tx) adheres to function execution rules.
 - Verifies a previous 'Private Kernel Proof', recursively, when verifying transactions which are composed of many private function calls.
 - Optionally can [deploy](../contract-creation) a new private contract.
