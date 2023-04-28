@@ -8,57 +8,73 @@ enum Visit {
     Last,
 }
 
-// Calculates the post-order of the
-pub(super) fn compute_post_order(func: &Function) -> Vec<BasicBlockId> {
-    let mut stack = vec![(Visit::First, func.entry_block())];
-    let mut visited: HashSet<BasicBlockId> = HashSet::new();
-    let mut post_order: Vec<BasicBlockId> = Vec::new();
+pub(crate) struct PostOrder(Vec<BasicBlockId>);
 
-    while let Some((visit, block_id)) = stack.pop() {
-        match visit {
-            Visit::First => {
-                if !visited.contains(&block_id) {
-                    // This is the first time we pop the block, so we need to scan its
-                    // successors and then revisit it.
-                    visited.insert(block_id);
-                    stack.push((Visit::Last, block_id));
-                    // Stack successors for visiting. Because items are taken from the top of the
-                    // stack, we push the item that's due for a visit first to the top.
-                    for successor_id in
-                        func.dfg[block_id].successors().collect::<Vec<_>>().into_iter().rev()
-                    {
-                        if !visited.contains(&successor_id) {
-                            // This not visited check would also be cover by the the next
-                            // iteration, but checking here two saves an iteration per successor.
-                            stack.push((Visit::First, successor_id))
+impl PostOrder {
+    pub(crate) fn as_slice(&self) -> &[BasicBlockId] {
+        self.0.as_slice()
+    }
+}
+
+impl PostOrder {
+    /// Allocate and compute a function's block post-order. Pos
+    pub(crate) fn with_function(func: &Function) -> Self {
+        PostOrder(Self::compute_post_order(func))
+    }
+
+    // Computes the post-order of the function by doing a depth-first traversal of the
+    // function's entry block's previously unvisited children. Each block is sequenced according
+    // to when the traversal exits it.
+    fn compute_post_order(func: &Function) -> Vec<BasicBlockId> {
+        let mut stack = vec![(Visit::First, func.entry_block())];
+        let mut visited: HashSet<BasicBlockId> = HashSet::new();
+        let mut post_order: Vec<BasicBlockId> = Vec::new();
+
+        while let Some((visit, block_id)) = stack.pop() {
+            match visit {
+                Visit::First => {
+                    if !visited.contains(&block_id) {
+                        // This is the first time we pop the block, so we need to scan its
+                        // successors and then revisit it.
+                        visited.insert(block_id);
+                        stack.push((Visit::Last, block_id));
+                        // Stack successors for visiting. Because items are taken from the top of the
+                        // stack, we push the item that's due for a visit first to the top.
+                        for successor_id in
+                            func.dfg[block_id].successors().collect::<Vec<_>>().into_iter().rev()
+                        {
+                            if !visited.contains(&successor_id) {
+                                // This not visited check would also be cover by the the next
+                                // iteration, but checking here two saves an iteration per successor.
+                                stack.push((Visit::First, successor_id))
+                            }
                         }
                     }
                 }
-            }
 
-            Visit::Last => {
-                // We've finished all this node's successors.
-                post_order.push(block_id);
+                Visit::Last => {
+                    // We've finished all this node's successors.
+                    post_order.push(block_id);
+                }
             }
         }
+        post_order
     }
-    post_order
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ssa_refactor::ir::{
-        function::Function, instruction::TerminatorInstruction, map::Id, types::Type,
+        function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder,
+        types::Type,
     };
-
-    use super::compute_post_order;
 
     #[test]
     fn single_block() {
         let func_id = Id::test_new(0);
         let func = Function::new("func".into(), func_id);
-        let post_order = compute_post_order(&func);
-        assert_eq!(post_order, [func.entry_block()]);
+        let post_order = PostOrder::with_function(&func);
+        assert_eq!(post_order.0, [func.entry_block()]);
     }
 
     #[test]
@@ -139,7 +155,7 @@ mod tests {
             TerminatorInstruction::Jmp { destination: block_f_id, arguments: vec![] },
         );
 
-        let post_order = compute_post_order(&func);
-        assert_eq!(post_order, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
+        let post_order = PostOrder::with_function(&func);
+        assert_eq!(post_order.0, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
     }
 }

@@ -1,10 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap};
 
-use self::post_order::compute_post_order;
-
-use super::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
-
-mod post_order;
+use super::{basic_block::BasicBlockId, cfg::ControlFlowGraph, post_order::PostOrder};
 
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
@@ -40,10 +36,6 @@ pub(crate) struct DominatorTree {
     /// After dominator tree computation has complete, this will contain a node for every
     /// reachable block, and no nodes for unreachable blocks.
     nodes: HashMap<BasicBlockId, DomNode>,
-
-    /// CFG post-order of all reachable blocks. This is cached and exposed as it is useful for
-    /// more than just computing the dominator tree.
-    post_order: Vec<BasicBlockId>,
 }
 
 /// Methods for querying the dominator tree.
@@ -51,11 +43,6 @@ impl DominatorTree {
     /// Is `block_id` reachable from the entry block?
     pub(crate) fn is_reachable(&self, block_id: BasicBlockId) -> bool {
         self.nodes.contains_key(&block_id)
-    }
-
-    /// Get the CFG post-order of blocks that was used to compute the dominator tree.
-    pub(crate) fn cfg_post_order(&self) -> &[BasicBlockId] {
-        &self.post_order
     }
 
     /// Returns the immediate dominator of `block_id`.
@@ -110,19 +97,17 @@ impl DominatorTree {
     }
 
     /// Allocate and compute a dominator tree.
-    pub(crate) fn with_function(func: &Function, cfg: &ControlFlowGraph) -> Self {
-        let post_order = compute_post_order(func);
-        let mut domtree = DominatorTree { nodes: HashMap::new(), post_order };
-        domtree.compute_dominator_tree(cfg);
+    pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
+        let mut domtree = DominatorTree { nodes: HashMap::new() };
+        domtree.compute_dominator_tree(cfg, post_order);
         domtree
     }
 
     /// Build a dominator tree from a control flow graph using Keith D. Cooper's
     /// "Simple, Fast Dominator Algorithm."
-    fn compute_dominator_tree(&mut self, cfg: &ControlFlowGraph) {
+    fn compute_dominator_tree(&mut self, cfg: &ControlFlowGraph, post_order: &PostOrder) {
         // We'll be iterating over a reverse post-order of the CFG, skipping the entry block.
-        let (entry_block_id, entry_free_post_order) = self
-            .post_order
+        let (entry_block_id, entry_free_post_order) = post_order
             .as_slice()
             .split_last()
             .expect("ICE: functions always have at least one block");
@@ -225,7 +210,7 @@ mod tests {
 
     use crate::ssa_refactor::ir::{
         basic_block::BasicBlockId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function,
-        instruction::TerminatorInstruction, map::Id, types::Type,
+        instruction::TerminatorInstruction, map::Id, post_order::PostOrder, types::Type,
     };
 
     #[test]
@@ -238,8 +223,9 @@ mod tests {
             TerminatorInstruction::Return { return_values: vec![] },
         );
         let cfg = ControlFlowGraph::with_function(&func);
-        let dom_tree = DominatorTree::with_function(&func, &cfg);
-        assert_eq!(dom_tree.cfg_post_order(), &[block0_id]);
+        let post_order = PostOrder::with_function(&func);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        assert_eq!(dom_tree.dominates(block0_id, block0_id), true);
     }
 
     // Testing setup for a function with an unreachable block2
@@ -285,7 +271,8 @@ mod tests {
         );
 
         let cfg = ControlFlowGraph::with_function(&func);
-        let dt = DominatorTree::with_function(&func, &cfg);
+        let post_order = PostOrder::with_function(&func);
+        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         (dt, block0_id, block1_id, block2_id, block3_id)
     }
 
@@ -308,8 +295,6 @@ mod tests {
     #[test]
     fn unreachable_node_asserts() {
         let (dt, b0, _b1, b2, b3) = unreachable_node_setup();
-
-        assert_eq!(dt.cfg_post_order(), &[b3, b2, b0]);
 
         assert_eq!(dt.dominates(b0, b0), true);
         assert_eq!(dt.dominates(b0, b2), true);
@@ -396,7 +381,8 @@ mod tests {
         );
 
         let cfg = ControlFlowGraph::with_function(&func);
-        let dt = DominatorTree::with_function(&func, &cfg);
+        let post_order = PostOrder::with_function(&func);
+        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         // Expected dominance tree:
         // block0 {
