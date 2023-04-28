@@ -117,12 +117,7 @@ impl FunctionBuilder {
         offset: ValueId,
         type_to_load: Type,
     ) -> ValueId {
-        if let Some(offset) = self.current_function.dfg.get_numeric_constant(offset) {
-            if !offset.is_zero() {
-                let offset = self.field_constant(offset);
-                address = self.insert_binary(address, BinaryOp::Add, offset);
-            }
-        };
+        address = self.insert_binary(address, BinaryOp::Add, offset);
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]))[0]
     }
 
