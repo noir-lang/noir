@@ -208,9 +208,13 @@ impl DominatorTree {
 mod tests {
     use std::cmp::Ordering;
 
-    use crate::ssa_refactor::ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function,
-        instruction::TerminatorInstruction, map::Id, post_order::PostOrder, types::Type,
+    use crate::ssa_refactor::{
+        ir::{
+            basic_block::BasicBlockId, cfg::ControlFlowGraph, dom::DominatorTree,
+            function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder,
+            types::Type,
+        },
+        ssa_builder::FunctionBuilder,
     };
 
     #[test]
@@ -242,33 +246,24 @@ mod tests {
         //     return ()
         // }
         let func_id = Id::test_new(0);
-        let mut func = Function::new("func".into(), func_id);
-        let block0_id = func.entry_block();
-        let block1_id = func.dfg.make_block();
-        let block2_id = func.dfg.make_block();
-        let block3_id = func.dfg.make_block();
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
 
-        let cond = func.dfg.add_block_parameter(block0_id, Type::unsigned(1));
-        func.dfg.set_block_terminator(
-            block0_id,
-            TerminatorInstruction::JmpIf {
-                condition: cond,
-                then_destination: block2_id,
-                else_destination: block3_id,
-            },
-        );
-        func.dfg.set_block_terminator(
-            block1_id,
-            TerminatorInstruction::Jmp { destination: block2_id, arguments: vec![] },
-        );
-        func.dfg.set_block_terminator(
-            block2_id,
-            TerminatorInstruction::Jmp { destination: block3_id, arguments: vec![] },
-        );
-        func.dfg.set_block_terminator(
-            block3_id,
-            TerminatorInstruction::Return { return_values: vec![] },
-        );
+        let cond = builder.add_parameter(Type::unsigned(1));
+        let block1_id = builder.insert_block();
+        let block2_id = builder.insert_block();
+        let block3_id = builder.insert_block();
+
+        builder.terminate_with_jmpif(cond, block2_id, block3_id);
+        builder.switch_to_block(block1_id);
+        builder.terminate_with_jmp(block2_id, vec![]);
+        builder.switch_to_block(block2_id);
+        builder.terminate_with_jmp(block3_id, vec![]);
+        builder.switch_to_block(block3_id);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+        let func = ssa.functions.first().unwrap();
+        let block0_id = func.entry_block();
 
         let cfg = ControlFlowGraph::with_function(&func);
         let post_order = PostOrder::with_function(&func);
@@ -362,23 +357,19 @@ mod tests {
         //     jump block1()
         // }
         let func_id = Id::test_new(0);
-        let mut func = Function::new("func".into(), func_id);
-        let block0_id = func.entry_block();
-        let block1_id = func.dfg.make_block();
-        let block2_id = func.dfg.make_block();
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let block1_id = builder.insert_block();
+        let block2_id = builder.insert_block();
 
-        func.dfg.set_block_terminator(
-            block0_id,
-            TerminatorInstruction::Jmp { destination: block2_id, arguments: vec![] },
-        );
-        func.dfg.set_block_terminator(
-            block1_id,
-            TerminatorInstruction::Return { return_values: vec![] },
-        );
-        func.dfg.set_block_terminator(
-            block2_id,
-            TerminatorInstruction::Jmp { destination: block1_id, arguments: vec![] },
-        );
+        builder.terminate_with_jmp(block2_id, vec![]);
+        builder.switch_to_block(block1_id);
+        builder.terminate_with_return(vec![]);
+        builder.switch_to_block(block2_id);
+        builder.terminate_with_jmp(block1_id, vec![]);
+
+        let ssa = builder.finish();
+        let func = ssa.functions.first().unwrap();
+        let block0_id = func.entry_block();
 
         let cfg = ControlFlowGraph::with_function(&func);
         let post_order = PostOrder::with_function(&func);
