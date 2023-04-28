@@ -98,7 +98,7 @@ impl InternalVar {
     /// Expression, this method is infallible.
     pub(crate) fn from_witness(witness: Witness) -> InternalVar {
         InternalVar {
-            expression: Expression::from(&witness),
+            expression: Expression::from(witness),
             cached_witness: Some(witness),
             id: None,
         }

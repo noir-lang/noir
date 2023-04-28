@@ -69,9 +69,21 @@ impl<T> std::fmt::Debug for Id<T> {
     }
 }
 
-impl<T> std::fmt::Display for Id<T> {
+impl std::fmt::Display for Id<super::basic_block::BasicBlock> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "${}", self.index)
+        write!(f, "b{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<super::value::Value> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<super::function::Function> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "f{}", self.index)
     }
 }
 

@@ -32,6 +32,8 @@ pub enum ResolverError {
     UnnecessaryPub { ident: Ident },
     #[error("Required 'pub', main function must return public value")]
     NecessaryPub { ident: Ident },
+    #[error("'distinct' keyword can only be used with main method")]
+    DistinctNotAllowed { ident: Ident },
     #[error("Expected const value where non-constant value was used")]
     ExpectedComptimeVariable { name: String, span: Span },
     #[error("Missing expression for declared constant")]
@@ -174,6 +176,18 @@ impl From<ResolverError> for Diagnostic {
                 );
 
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
+                diag
+            }
+            ResolverError::DistinctNotAllowed { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("Invalid `distinct` keyword on return type of function {name}"),
+                    "Invalid distinct on return type".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `distinct` keyword is only valid when used on the main function of a program, as its only purpose is to ensure that all witness indices that occur in the abi are unique".to_owned());
                 diag
             }
             ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(

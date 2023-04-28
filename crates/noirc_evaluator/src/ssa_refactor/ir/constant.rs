@@ -16,8 +16,8 @@ impl NumericConstant {
         Self(value)
     }
 
-    pub(crate) fn value(&self) -> &FieldElement {
-        &self.0
+    pub(crate) fn value(&self) -> FieldElement {
+        self.0
     }
 }
 

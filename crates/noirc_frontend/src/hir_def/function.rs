@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType, AbiVisibility};
+use noirc_abi::{AbiDistinctness, AbiParameter, AbiType, AbiVisibility};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -130,6 +130,8 @@ pub struct FuncMeta {
     pub parameters: Parameters,
 
     pub return_visibility: AbiVisibility,
+
+    pub return_distinctness: AbiDistinctness,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.

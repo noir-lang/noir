@@ -107,7 +107,7 @@ pub(crate) fn evaluate(
             }
             outputs =
                 prepare_outputs(&mut acir_gen.memory, instruction_id, array.len, ctx, evaluator);
-            let out_expr: Vec<Expression> = outputs.iter().map(|w| w.into()).collect();
+            let out_expr: Vec<Expression> = outputs.iter().map(|w| (*w).into()).collect();
             for i in 0..(out_expr.len() - 1) {
                 bound_constraint_with_offset(
                     &out_expr[i],
