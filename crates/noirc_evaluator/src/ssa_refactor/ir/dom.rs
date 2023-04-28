@@ -1,5 +1,8 @@
 //! The dominator tree of a function, represented as a hash map of each reachable block id to its
 //! immediate dominator.
+//!
+//! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
+//! calculating dominance frontiers.
 
 use std::{cmp::Ordering, collections::HashMap};
 
