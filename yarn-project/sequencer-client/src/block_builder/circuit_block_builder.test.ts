@@ -4,6 +4,7 @@ import {
   BaseRollupInputs,
   CircuitsWasm,
   Fr,
+  KernelCircuitPublicInputs,
   PublicDataRead,
   PublicDataTransition,
   RootRollupPublicInputs,
@@ -216,10 +217,11 @@ describe('sequencer/circuit_block_builder', () => {
 
     const makePublicCallProcessedTx = async (seed = 0x1) => {
       const publicTx = makePublicTx(seed);
-      const tx = await makeProcessedTx(publicTx, makeKernelPublicInputs(seed), makeProof());
+      const kernelOutput = KernelCircuitPublicInputs.empty();
+      kernelOutput.end.stateReads[0] = new PublicDataRead(fr(1), fr(0));
+      kernelOutput.end.stateTransitions[0] = new PublicDataTransition(fr(2), fr(0), fr(12));
+      const tx = await makeProcessedTx(publicTx, kernelOutput, makeProof());
       await setTxHistoricTreeRoots(tx);
-      tx.data.end.stateReads[0] = new PublicDataRead(fr(1), fr(0));
-      tx.data.end.stateTransitions[0] = new PublicDataTransition(fr(2), fr(0), fr(12));
       return tx;
     };
 
