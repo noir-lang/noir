@@ -2,7 +2,7 @@
 title: Public Kernel Circuit
 ---
 
-This circuit is executed by the Sequencer, since only the Sequencer knows the current state of the [public data tree](../trees/trees.md) at any time. The Sequencer might choose to delegate proof generation to the Prover pool.
+This circuit is executed by a Sequencer, since only a Sequencer knows the current state of the [public data tree](../trees/trees) at any time. A Sequencer might choose to delegate proof generation to the Prover pool.
 
 - Exposes (forwards) the following data to the next recursive circuit:
   - all data accumulated by all previous private kernel circuit recursions of this tx;

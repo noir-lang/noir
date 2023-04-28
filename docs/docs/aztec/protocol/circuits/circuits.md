@@ -45,7 +45,7 @@ In other words, since neither the EVM nor other rollups have rules for how to pr
 
 What kind of extra rules / checks does a rollup need, to enforce notions of private states and private functions? Stuff like:
 
-- "Perform state reads and writes using new tree structures which prevent tx linkability" (see [trees](./trees/trees.md) and [notes & nullifiers](./notes-and-nullifiers.md)).
+- "Perform state reads and writes using new tree structures which prevent tx linkability" (see [trees](./trees/trees) and [notes & nullifiers](./notes-and-nullifiers)).
 - "Hide which function was just executed, by wrapping it in a zk-snark"
 - "Hide all functions which were executed as part of this tx's stack trace, by wrapping the whole tx in a zk-snark"
 
@@ -55,8 +55,8 @@ So what kinds of core protocol circuits does Aztec have?
 
 ### Kernel Circuits
 
-- [Private Kernel Circuit](./private-kernel.md)
-- [Public Kernel Circuit](./public-kernel.md)
+- [Private Kernel Circuit](./private-kernel)
+- [Public Kernel Circuit](./public-kernel)
 
 ### Rollup Circuits
 
@@ -70,7 +70,7 @@ The way we 'squish' all this data is in a 'binary tree of proofs' topology.
 
 This 'binary tree of proofs' topology allows proof generation to be greatly parallelised across prover instances. Each layer of the tree can be computed in parallel. Or alternatively, subtrees can be coordinated to be computed in parallel.
 
-> Note: 'binary tree of proofs' is actually an oversimlification. The Rollup Circuits are designed so that a Sequencer can actually deviate from a neat, symmetrical tree, for the purposes of efficiency, and instead sometimes create wonky trees.
+> Note: 'binary tree of proofs' is actually an oversimplification. The Rollup Circuits are designed so that a Sequencer can actually deviate from a neat, symmetrical tree, for the purposes of efficiency, and instead sometimes create wonky trees.
 
 > Some of the Rollup Circuits also do some protocol checks and computations, for efficiency reasons. We might rearrange which circuit does what computation, as we discover opportunities for efficiency.
 
@@ -82,11 +82,11 @@ For both transactions, it:
 
 - Performs public state read membership checks.
 - Updates the public data tree in line with the requested state transitions.
-- Checks that the nullifiers haven't previously been inserted into the [indexed nullifier tree](./trees/indexed-merkle-tree.md).
+- Checks that the nullifiers haven't previously been inserted into the [indexed nullifier tree](./trees/indexed-merkle-tree).
 - Batch-inserts new nullifiers into the nullifier tree.
 - Batch-inserts new commitments into the private data tree
 - Batch-inserts any new contract deployments into the contract tree.
-- Hashes all the new nullifiers, commitments, public state transitions, and new contract deployments, to prevent exponential growth in public inputs with each later layer of recurtion.
+- Hashes all the new nullifiers, commitments, public state transitions, and new contract deployments, to prevent exponential growth in public inputs with each later layer of recursion.
 - Verifies the input kernel proof.
 
 #### Merge Rollup Circuit
@@ -109,4 +109,4 @@ It:
 
 #### Squisher Circuits
 
-We haven't fully specced these out, as Honk and Goblin Plonk schemes are still being improved! But we'll need some extra circuit(s) to squish a Honk proof (as produced by the Root Rollup Circuit) into a Standard Plonk or Fflonk proof, for cheap verification on Ethereum.
+We haven't fully spec'ed these out, as Honk and Goblin Plonk schemes are still being improved! But we'll need some extra circuit(s) to squish a Honk proof (as produced by the Root Rollup Circuit) into a Standard Plonk or Fflonk proof, for cheap verification on Ethereum.
