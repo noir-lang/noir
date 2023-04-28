@@ -1,3 +1,5 @@
+//! The post-order for a given function represented as a vector of basic block ids.
+
 use std::collections::HashSet;
 
 use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::Function};
