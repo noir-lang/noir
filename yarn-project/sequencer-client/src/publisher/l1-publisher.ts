@@ -1,4 +1,4 @@
-import { CompleteContractData, L2Block } from '@aztec/types';
+import { ContractPublicData, L2Block } from '@aztec/types';
 import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';
@@ -10,7 +10,7 @@ import { UnverifiedData } from '@aztec/types';
 export interface L1PublisherTxSender {
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
   sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
-  sendEmitContractDeploymentTx(l2BlockNum: number, contractData: CompleteContractData[]): Promise<string | undefined>;
+  sendEmitContractDeploymentTx(l2BlockNum: number, contractData: ContractPublicData[]): Promise<string | undefined>;
   getTransactionReceipt(txHash: string): Promise<{ status: boolean; transactionHash: string } | undefined>;
 }
 
@@ -115,7 +115,7 @@ export class L1Publisher implements L2BlockReceiver {
    * @param newContractData The new contract data to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processNewContractData(l2BlockNum: number, contractData: CompleteContractData[]) {
+  public async processNewContractData(l2BlockNum: number, contractData: ContractPublicData[]) {
     while (!this.interrupted) {
       if (!(await this.checkFeeDistributorBalance())) {
         this.log(`Fee distributor ETH balance too low, awaiting top up...`);
@@ -187,7 +187,7 @@ export class L1Publisher implements L2BlockReceiver {
     }
   }
 
-  private async sendEmitNewContractDataTx(l2BlockNum: number, contractData: CompleteContractData[]) {
+  private async sendEmitNewContractDataTx(l2BlockNum: number, contractData: ContractPublicData[]) {
     while (!this.interrupted) {
       try {
         return await this.txSender.sendEmitContractDeploymentTx(l2BlockNum, contractData);

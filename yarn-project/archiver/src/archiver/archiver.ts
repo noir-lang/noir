@@ -2,8 +2,8 @@ import { AztecAddress, BufferReader, EthAddress, RunningPromise, createDebugLogg
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
 import {
-  CompleteContractData,
   ContractData,
+  ContractPublicData,
   ContractDataSource,
   EncodedContractFunction,
   L2Block,
@@ -52,7 +52,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   /**
    * A sparse array containing all the contract data that have been fetched so far.
    */
-  private contractData: (CompleteContractData[] | undefined)[] = [];
+  private contractPublicData: (ContractPublicData[] | undefined)[] = [];
 
   /**
    * Next L1 block number to fetch `L2BlockProcessed` logs from (i.e. `fromBlock` in eth_getLogs).
@@ -65,7 +65,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   private nextUnverifiedDataFromBlock = 0n;
 
   /**
-   * Next L1 block number to fetch `NewContractData` logs from (i.e. `fromBlock` in eth_getLogs)
+   * Next L1 block number to fetch `ContractPublicData` logs from (i.e. `fromBlock` in eth_getLogs)
    */
   private nextContractDataFromBlock = 0n;
 
@@ -295,12 +295,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     for (const log of logs) {
       const l2BlockNum = log.args.l2BlockNum;
       const publicFnsReader = BufferReader.asReader(Buffer.from(log.args.acir.slice(2), 'hex'));
-      const contractData = ContractData.createCompleteContractData(
-        AztecAddress.fromString(log.args.aztecAddress),
-        EthAddress.fromString(log.args.portalAddress),
+      const contractData = new ContractPublicData(
+        new ContractData(AztecAddress.fromString(log.args.aztecAddress), EthAddress.fromString(log.args.portalAddress)),
         publicFnsReader.readVector(EncodedContractFunction),
       );
-      (this.contractData[Number(l2BlockNum)] || []).push(contractData);
+      (this.contractPublicData[Number(l2BlockNum)] || []).push(contractData);
     }
     this.log('Processed contractData corresponding to ' + logs.length + ' blocks.');
   }
@@ -365,18 +364,31 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    * @param contractAddress - The contract data address.
    * @returns The contract data.
    */
-  public getL2ContractData(contractAddress: AztecAddress): Promise<CompleteContractData | undefined> {
+  public getL2ContractPublicData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
     // TODO: perhaps store contract data by address as well? to make this more efficient
     let result;
-    for (let i = INITIAL_L2_BLOCK_NUM; i < this.contractData.length; i++) {
-      const contracts = this.contractData[i];
-      const contract = contracts?.find(c => c.contractAddress.equals(contractAddress));
+    for (let i = INITIAL_L2_BLOCK_NUM; i < this.contractPublicData.length; i++) {
+      const contracts = this.contractPublicData[i];
+      const contract = contracts?.find(c => c.contractData.contractAddress.equals(contractAddress));
       if (contract) {
         result = contract;
         break;
       }
     }
     return Promise.resolve(result);
+  }
+
+  /**
+   * Lookup all contract data in an L2 block.
+   * @param blockNumber - The block number to get all contract data from.
+   * @returns All new contract data in the block (if found)
+   */
+  public getL2ContractPublicDataInBlock(blockNum: number): Promise<ContractPublicData[]> {
+    if (blockNum > this.l2Blocks.length) {
+      return Promise.resolve([]);
+    }
+    const contractData = this.contractPublicData[blockNum];
+    return Promise.resolve(contractData || []);
   }
 
   /**
@@ -396,26 +408,27 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     return Promise.resolve(undefined);
   }
 
+  /**
+   * Lookup the L2 contract info inside a block.
+   * Contains contract address & the ethereum portal address.
+   * @param contractAddress - The contract data address.
+   * @returns ContractData with the portal address (if we didn't throw an error).
+   */
+  public getL2ContractInfoInBlock(blockNum: number): Promise<ContractData[] | undefined> {
+    if (blockNum > this.l2Blocks.length) {
+      return Promise.resolve([]);
+    }
+    const block = this.l2Blocks[blockNum];
+    return Promise.resolve(block.newContractData);
+  }
+
   public async getPublicFunction(
     address: AztecAddress,
     functionSelector: Buffer,
   ): Promise<EncodedContractFunction | undefined> {
-    const contractData = await this.getL2ContractData(address);
+    const contractData = await this.getL2ContractPublicData(address);
     const result = contractData?.publicFunctions?.find(fn => fn.functionSelector.equals(functionSelector));
     return result;
-  }
-
-  /**
-   * Lookup all contract data in an L2 block.
-   * @param blockNumber - The block number to get all contract data from.
-   * @returns All new contract data in the block (if found)
-   */
-  public getL2ContractDataInBlock(blockNum: number): Promise<ContractData[]> {
-    if (blockNum > this.l2Blocks.length) {
-      return Promise.resolve([]);
-    }
-    const contractData = this.contractData[blockNum];
-    return Promise.resolve(contractData || []);
   }
 
   /**

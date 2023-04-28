@@ -73,9 +73,9 @@ export class PublicProcessor {
     );
     const functionSelector = txRequest.functionData.functionSelector;
     if (!fn) throw new Error(`Bytecode not found for ${functionSelector}@${contractAddress}`);
-    const contractData = await this.contractDataSource.getL2ContractData(contractAddress);
-    if (!contractData) throw new Error(`Portal contract address not found for contract ${contractAddress}`);
-    const { portalContractAddress } = contractData;
+    const contractPublicData = await this.contractDataSource.getL2ContractPublicData(contractAddress);
+    if (!contractPublicData) throw new Error(`Portal contract address not found for contract ${contractAddress}`);
+    const { portalContractAddress } = contractPublicData.contractData;
 
     const circuitOutput = await this.publicCircuit.publicCircuit(txRequest, fn.bytecode, portalContractAddress);
     const circuitProof = await this.publicProver.getPublicCircuitProof(circuitOutput);

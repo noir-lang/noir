@@ -1,7 +1,7 @@
 import { PUBLIC_DATA_TREE_HEIGHT, makeEmptyProof } from '@aztec/circuits.js';
 import { makeKernelPublicInputs, makePublicCircuitPublicInputs } from '@aztec/circuits.js/factories';
 import { SiblingPath } from '@aztec/merkle-tree';
-import { CompleteContractData, ContractData, ContractDataSource, EncodedContractFunction } from '@aztec/types';
+import { ContractPublicData, ContractDataSource, EncodedContractFunction } from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
@@ -21,7 +21,7 @@ describe('public_processor', () => {
   let contractDataSource: MockProxy<ContractDataSource>;
 
   let publicFunction: EncodedContractFunction;
-  let contractData: CompleteContractData;
+  let contractData: ContractPublicData;
   let proof: Proof;
   let root: Buffer;
 
@@ -34,7 +34,7 @@ describe('public_processor', () => {
     publicProver = mock<PublicProver>();
     contractDataSource = mock<ContractDataSource>();
 
-    contractData = ContractData.random();
+    contractData = ContractPublicData.random();
     publicFunction = EncodedContractFunction.random();
     proof = makeEmptyProof();
     root = Buffer.alloc(32, 5);
@@ -42,7 +42,7 @@ describe('public_processor', () => {
     publicProver.getPublicCircuitProof.mockResolvedValue(proof);
     publicProver.getPublicKernelCircuitProof.mockResolvedValue(proof);
     db.getTreeInfo.mockResolvedValue({ root } as TreeInfo);
-    contractDataSource.getL2ContractData.mockResolvedValue(contractData);
+    contractDataSource.getL2ContractPublicData.mockResolvedValue(contractData);
     contractDataSource.getPublicFunction.mockResolvedValue(publicFunction);
 
     processor = new PublicProcessor(db, publicCircuit, publicKernel, publicProver, contractDataSource);

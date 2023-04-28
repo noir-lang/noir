@@ -1,6 +1,6 @@
 import { AztecAddress, EthAddress, randomBytes, sleep, toBufferBE } from '@aztec/foundation';
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
-import { ContractData, EncodedContractFunction, L2Block } from '@aztec/types';
+import { ContractData, ContractPublicData, EncodedContractFunction, L2Block } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
 import { Archiver } from './archiver.js';
@@ -104,7 +104,7 @@ function makeContractDeployedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
   // const contractData = ContractData.random();
   const aztecAddress = AztecAddress.random();
   const portalAddress = EthAddress.random();
-  const contractData = new ContractData(aztecAddress, portalAddress, [
+  const contractData = new ContractPublicData(new ContractData(aztecAddress, portalAddress), [
     EncodedContractFunction.random(),
     EncodedContractFunction.random(),
   ]);
