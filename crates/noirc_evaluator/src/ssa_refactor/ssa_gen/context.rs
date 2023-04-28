@@ -14,7 +14,7 @@ use crate::ssa_refactor::ir::types::Type;
 use crate::ssa_refactor::ir::value::ValueId;
 use crate::ssa_refactor::ssa_builder::FunctionBuilder;
 
-use super::value::{Tree, Values};
+use super::value::{Tree, Value, Values};
 
 // TODO: Make this a threadsafe queue so we can compile functions in parallel
 type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
@@ -63,8 +63,8 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
-        for (id, _, _, typ) in parameters {
-            self.add_parameter_to_scope(*id, typ);
+        for (id, mutable, _, typ) in parameters {
+            self.add_parameter_to_scope(*id, typ, *mutable);
         }
     }
 
@@ -72,12 +72,32 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Single is in quotes here because in the case of tuple parameters, the tuple is flattened
     /// into a new parameter for each field recursively.
-    fn add_parameter_to_scope(&mut self, parameter_id: LocalId, parameter_type: &ast::Type) {
+    fn add_parameter_to_scope(
+        &mut self,
+        parameter_id: LocalId,
+        parameter_type: &ast::Type,
+        mutable: bool,
+    ) {
         // Add a separate parameter for each field type in 'parameter_type'
-        let parameter_value =
-            Self::map_type(parameter_type, |typ| self.builder.add_parameter(typ).into());
+        let parameter_value = Self::map_type(parameter_type, |typ| {
+            let value = self.builder.add_parameter(typ);
+            if mutable {
+                self.new_mutable_variable(value)
+            } else {
+                value.into()
+            }
+        });
 
         self.definitions.insert(parameter_id, parameter_value);
+    }
+
+    /// Allocate a single slot of memory and store into it the given initial value of the variable.
+    /// Always returns a Value::Mutable wrapping the allocate instruction.
+    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
+        let alloc = self.builder.insert_allocate(1);
+        self.builder.insert_store(alloc, value_to_store);
+        let typ = self.builder.type_of_value(value_to_store);
+        Value::Mutable(alloc, typ)
     }
 
     /// Maps the given type to a Tree of the result type.
@@ -224,12 +244,8 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
-                // Re-evaluating these should have no effect
-                let (lhs, rhs) = (lhs.eval(self), rhs.eval(self));
-
-                // Expect lhs to be previously evaluated. If it is a load we need to undo
-                // the load to get the address to store to.
-                self.builder.mutate_load_into_store(lhs, rhs);
+                let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
+                self.builder.insert_store(lhs, rhs);
             }
             (lhs, rhs) => {
                 unreachable!(
