@@ -12,10 +12,12 @@ use super::map::Id;
 pub(crate) struct NumericConstant(FieldElement);
 
 impl NumericConstant {
+    /// Create a new NumericConstant with the given Field value
     pub(crate) fn new(value: FieldElement) -> Self {
         Self(value)
     }
 
+    /// Retrieves the Field value for this constant
     pub(crate) fn value(&self) -> FieldElement {
         self.0
     }
@@ -23,6 +25,8 @@ impl NumericConstant {
 
 pub(crate) type NumericConstantId = Id<NumericConstant>;
 
+// Implement some common numeric operations for NumericConstants
+// for convenience so developers do not always have to unwrap them to use them.
 impl std::ops::Add for NumericConstant {
     type Output = NumericConstant;
 
