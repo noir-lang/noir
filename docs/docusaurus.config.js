@@ -9,12 +9,12 @@ const katex = require("rehype-katex");
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Aztec Docs",
-  tagline: "Scalable privacy on Ethereum",
+  tagline: "Ethereum, encrypted",
   url: "https://docs.aztec.network",
   baseUrl: "/",
   trailingSlash: false,
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
+  onBrokenMarkdownLinks: "throw",
   favicon: "img/Aztec_docs_icons-02.svg",
 
   // GitHub pages deployment config.
@@ -49,10 +49,10 @@ const config = {
         theme: {
           customCss: require.resolve("./src/css/custom.css"),
         },
-//         gtag: {
-//           trackingID: "G-WSBTSFJCSF",
-//           anonymizeIP: true,
-//         }
+        //         gtag: {
+        //           trackingID: "G-WSBTSFJCSF",
+        //           anonymizeIP: true,
+        //         }
       }),
     ],
   ],
@@ -80,7 +80,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      metadata: [{name: 'keywords', content: 'aztec, noir, privacy, encrypted, ethereum, blockchain'}],
+      metadata: [{ name: 'keywords', content: 'aztec, noir, privacy, encrypted, ethereum, blockchain' }],
       algolia: {
         appId: "CL4NK79B0W",
         apiKey: "21d89dadaa37a4d1b6bf4b17978dcf7f",
@@ -158,7 +158,7 @@ const config = {
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
-        additionalLanguages: ['solidity'],
+        additionalLanguages: ['rust', 'solidity'],
       },
     }),
 };

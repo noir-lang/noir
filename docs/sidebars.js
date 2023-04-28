@@ -15,33 +15,81 @@
 const sidebars = {
   docsSidebar: [
     "intro",
+    "what-is-aztec",
     {
-      type: 'category',
-      label: 'Aztec 3',
+      type: "category",
+      label: "Aztec Rollup",
+      link: {
+        type: "doc",
+        id: "aztec/overview",
+      },
       items: [
-        'aztec3/overview',
-        'aztec3/architecture',
         {
-          type: 'category',
-          label: 'Milestones',
+          type: "category",
+          label: "How it works",
           items: [
-            'aztec3/milestones/milestones',
-            'aztec3/milestones/milestone1-1',
-          ]
+            "aztec/how-it-works/private-smart-contracts",
+            "aztec/how-it-works/private-state",
+            "aztec/how-it-works/private-public-execution",
+            "aztec/how-it-works/l1-l2-messaging",
+          ],
         },
         {
-          type: 'category',
-          label: 'Protocol',
+          type: "category",
+          label: "Roadmap",
           items: [
-            'aztec3/protocol/contract-creation',
-            'aztec3/protocol/function-selectors',
-            'aztec3/protocol/communication-abstractions',
-            'aztec3/protocol/public-functions-vm-architectures'
-          ]
-        }
-      ]
+            "aztec/milestones/features-initial-ldt",
+            "aztec/milestones/milestones",
+            "aztec/cryptography/cryptography-roadmap"
+          ],
+        },
+        {
+          type: "category",
+          label: "Components",
+          link: {
+            type: "doc",
+            id: "aztec/components",
+          },
+          items: [
+            "aztec/components", // TODO
+          ],
+        },
+
+        {
+          type: "category",
+          label: "Protocol Specs",
+          items: [
+            {
+              type: "category",
+              label: "Trees",
+              items: [
+                "aztec/protocol/trees/trees",
+                "aztec/protocol/trees/indexed-merkle-tree",
+              ],
+            },
+
+            {
+              type: "category",
+              label: "Circuits",
+              link: {
+                type: "doc",
+                id: "aztec/protocol/circuits/circuits",
+              },
+              items: [
+                "aztec/protocol/circuits/private-kernel",
+                "aztec/protocol/circuits/public-kernel",
+                "aztec/protocol/circuits/rollup",
+              ],
+            },
+
+            "aztec/protocol/contract-creation",
+            "aztec/protocol/public-functions-vm-architectures",
+          ],
+        },
+      ],
     },
     "noir",
+    "aztec/history",
     "aztec-connect-sunset",
     "glossary",
   ],

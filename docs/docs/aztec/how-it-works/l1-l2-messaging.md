@@ -1,83 +1,10 @@
 ---
-title: Communication Abstractions
+title: L1 <--> L2 communication
 ---
-
-import Image from "@theme/IdealImage";
-
-:::caution
-We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
-
-If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
-:::
-
-## Intra-L2 Communication
-
-The following section will try to outline what _private_ and _public_ functions can do, and give some intuition to why they have the limitations they have.
-
-## Objectives
-
-The goal for L2 communication is to setup the most simple mechanism that will support
-
-- Both _private_ and _public_ functions
-- _private_ functions that can call _private_ or _public_ functions
-- _public_ functions that can call _private_ or _public_ functions
-
-Before diving into the communication abstracts for A3, we need to understand some of our limitations. One being that public functions (as known from Ethereum) must operate on the current state to provide meaningful utility, e.g., at the tip.
-This works fine when there is only one builder (sequencer) executing it first, and then others verifying as the builder always knows the tip. On the left in the diagram below, we see a block where the transactions are applied one after another each building on the state before it. For example, if Tx 1 update storage `a = 5`, then in Tx 2 reading `a` will return `5`.
-
-This works perfectly well when everything is public and a single builder is aware of all changes. However, in a private setting, we require the user to present evidence of correct execution as part of their transaction in the form of a kernel proof. This way, the builder doesn't need to have knowledge of everything happening in the transaction, only the results. If we were to build this proof on the latest state, we would encounter problems. How can two different users build proofs at the same time, given that they will be executed one after the other by the sequencer? The simple answer is that they cannot, as race conditions would arise where one of the proofs would be invalidated by the other due to a change in the state root (which would nullify Merkle paths).
-
-To avoid this issue, we permit the use of historical data as long as the data has not been nullified previously. In this model, instead of informing the builder of our intentions, we construct the proof $\pi$ and then provide them with the transaction results (new commitments and nullifiers, contract deployments and cross-chain messages) in addition to $\pi$. The builder will then be responsible for inserting these new commitments and nullifiers into the state. They will be aware of the intermediates and can discard transactions that try to produce existing nullifiers (double spend), as doing so would invalidate the rollup proof.
-
-On the left-hand side of the diagram below, we see the fully public world where storage is shared, while on the right-hand side, we see the private world where all reads are historic.
-
-<Image img={require("/img/com-abs-1.png")} />
-
-Given that A3 will comprise both private and public functions, it is imperative that we determine the optimal ordering for these functions. From a logical standpoint, it is reasonable to execute the private functions first as they are executed on a state $S_i$, where $i \le n$, with $S_n$ representing the current state where the public functions always operate on the current state $S_n$. Prioritizing the private functions would also afford us the added convenience of enabling them to invoke the public functions, which is particularly advantageous when implementing a peer-to-pool architecture such as that employed by Uniswap.
-
-Transactions that involve both private and public functions will follow a specific order of execution, wherein the private functions will be executed first, followed by the public functions, and then moving on to the next transaction.
-
-It is important to note that the execution of private functions is prioritized before executing any public functions. This means that private functions cannot "wait" on the results of any of their calls to public functions. Stated differently, any calls made across domains are unilateral in nature, akin to shouting into the void with the hope that something will occur at a later time. The figure below illustrates the order of function calls on the left-hand side, while the right-hand side shows how the functions will be executed. Notably, the second private function call is independent of the output of the public function and merely occurs after its execution.
-
-<Image img={require("/img/com-abs-2.png")} />
-
-Multiple of these transactions are then ordered into a L2 block by the sequencer, who will also be executing the public functions (as they require the current head). Example seen below.
-
-<Image img={require("/img/com-abs-3.png")} />
-
-:::info
-Be mindful that if part of a transaction is reverting, say the public part of a call, it will revert the entire transaction. Similarly to Ethereum, it might be possible for the block builder to create a block such that your valid transaction reverts because of altered state, e.g., trade incurring too much slippage or the like.
-:::
-
-To summarise:
-
-- _Private_ function calls are fully "prepared" and proven by the user, which provides the kernel proof along with new commitments and nullifiers to the sequencer.
-- _Public_ functions altering public state (updatable storage) must be executed at the current "head" of the chain, which only the sequencer can ensure, so these must be executed separately to the _private_ functions.
-- _Private_ and _public_ functions within an A3 transaction are therefore ordered such that first _private_ functions are executed, and then _public_.
-
-A more comprehensive overview of the interplay between private and public functions and their ability to manipulate data is presented below. It is worth noting that all data reads performed by private functions are historical in nature, and that private functions are not capable of modifying public storage. Conversely, public functions have the capacity to manipulate private storage (e.g., inserting new commitments, potentially as part of transferring funds from the public domain to the secret domain).
-
-<Image img={require("/img/com-abs-4.png")} />
-
-:::info
-You can think of private and public functions as being executed by two actors that can only communicate to each other by mailbox.
-:::
-
-So, with private functions being able to call public functions (unilaterally) we had a way to go from private to public, what about the other way? Here, you can use the append-only merkle tree, to save messages from a public function call, that can later be executed by a private function. Note again: LATER, i.e., can not be within the same rollup.
-
-Given that private functions have the capability of calling public functions unilaterally, it is feasible to transition from a private to public function within the same transaction. However, the converse is not possible. To achieve this, the append-only merkle tree can be employed to save messages from a public function call, which can then be executed by a private function at a later point in time. It is crucial to reiterate that this can only occur at a later stage and cannot take place within the same rollup because the proof cannot be generated by the user.
-
-:::info
-Theoretically the builder has all the state trees after the public function has inserted a message in the public tree, and is able to create a proof consuming those messages in the same block. But it requires pending UTXO's on a block-level.
-:::
-
-From the above, we should have a decent idea about what private and public functions can do inside the L2, and how they might interact.
-
-# L1 <--> L2 communication
 
 In the following section, we will look at cross-chain communication, mixing L1 and L2 for composability and profits.
 
-# Objective
+## Objective
 
 The goal is to setup a minimal-complexity mechanism, that will allow a base-layer (L1) and the Aztec Network (L2) to communicate arbitrary messages such that:
 
@@ -85,7 +12,7 @@ The goal is to setup a minimal-complexity mechanism, that will allow a base-laye
 - L1 functions can `call` L2 functions.
 - The rollup-block size have a limited impact by the messages and their size.
 
-# High Level Overview
+## High Level Overview
 
 This document will contain communication abstractions that we use to support interaction between _private_ functions, _public_ functions and Layer 1 portal contracts.
 
@@ -220,7 +147,3 @@ function isFresh(pub uint256 blockNumber) public returns(bool){
     return blockNumber > last_updated;
 }
 ```
-
-## Participate
-
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

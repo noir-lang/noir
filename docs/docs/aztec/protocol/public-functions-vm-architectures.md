@@ -1,12 +1,10 @@
 ---
-title: Public Functions and VM Architectures
+title: Public VM Architecture
 ---
 
-:::caution
-We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
+import Disclaimer from '../common/\_disclaimer.mdx';
 
-If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
-:::
+<Disclaimer/>
 
 ## Objectives
 

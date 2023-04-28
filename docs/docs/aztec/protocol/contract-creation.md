@@ -2,11 +2,11 @@
 title: Contract Creation
 ---
 
-:::caution
-We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
+<!-- TODO: Mike to update -->
 
-If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
-:::
+import Disclaimer from '../common/\_disclaimer.mdx';
+
+<Disclaimer/>
 
 ## Objectives
 
@@ -32,7 +32,7 @@ A function maps a **function signature** to a **verification key**. The vkey con
 
 Each contract's function data is stored in a Merkle tree, where each leaf contains a hash of the following data:
 
-1. Function Selectors [Why?](./function-selectors)
+1. Function Selectors
 2. `bool isPrivate` flag
 3. Verification Key Hash
 
@@ -41,8 +41,6 @@ Each contract's function data is stored in a Merkle tree, where each leaf contai
 ### How are function signatures defined?
 
 We can take a leaf from Ethereum and make them the first 4 bytes of a hash of the function definition (defined according to the contract ABI, TBD).
-
-See [here](./function-selectors) for more information on function selectors and why they are necessary in the Function Tree.
 
 ## Contract Representation in Aztec3
 

@@ -8,8 +8,6 @@ Aztec's cryptography back-end. Refer to the graphic at the top of [this page](ht
 
 ### Sequencer
 
-This is also called the Rollup Processor.
-
 This service is responsible for:
 
 - Watching for rollup blocks on Ethereum and updating the representation of Aztec state accordingly
