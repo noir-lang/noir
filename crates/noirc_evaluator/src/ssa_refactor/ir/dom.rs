@@ -109,36 +109,6 @@ impl DominatorTree {
         }
     }
 
-    /// Compute the common dominator of two basic blocks.
-    ///
-    /// Both basic blocks are assumed to be reachable.
-    fn common_dominator(
-        &self,
-        mut block_a_id: BasicBlockId,
-        mut block_b_id: BasicBlockId,
-    ) -> BasicBlockId {
-        loop {
-            match self.reverse_post_order_cmp(block_a_id, block_b_id) {
-                Ordering::Less => {
-                    // "a" comes before "b" in the reverse post-order. Move "b" up.
-                    block_b_id = self.nodes[&block_b_id]
-                        .immediate_dominator
-                        .expect("Unreachable basic block?");
-                }
-                Ordering::Greater => {
-                    // "b" comes before "a" in the reverse post-order. Move "a" up.
-                    block_a_id = self.nodes[&block_a_id]
-                        .immediate_dominator
-                        .expect("Unreachable basic block?");
-                }
-                Ordering::Equal => break,
-            }
-        }
-
-        debug_assert_eq!(block_a_id, block_b_id, "Unreachable block passed to common_dominator?");
-        block_a_id
-    }
-
     /// Allocate and compute a dominator tree.
     pub(crate) fn with_function(func: &Function, cfg: &ControlFlowGraph) -> Self {
         let post_order = compute_post_order(func);
@@ -216,6 +186,36 @@ impl DominatorTree {
         }
 
         immediate_dominator
+    }
+
+    /// Compute the common dominator of two basic blocks.
+    ///
+    /// Both basic blocks are assumed to be reachable.
+    fn common_dominator(
+        &self,
+        mut block_a_id: BasicBlockId,
+        mut block_b_id: BasicBlockId,
+    ) -> BasicBlockId {
+        loop {
+            match self.reverse_post_order_cmp(block_a_id, block_b_id) {
+                Ordering::Less => {
+                    // "a" comes before "b" in the reverse post-order. Move "b" up.
+                    block_b_id = self.nodes[&block_b_id]
+                        .immediate_dominator
+                        .expect("Unreachable basic block?");
+                }
+                Ordering::Greater => {
+                    // "b" comes before "a" in the reverse post-order. Move "a" up.
+                    block_a_id = self.nodes[&block_a_id]
+                        .immediate_dominator
+                        .expect("Unreachable basic block?");
+                }
+                Ordering::Equal => break,
+            }
+        }
+
+        debug_assert_eq!(block_a_id, block_b_id, "Unreachable block passed to common_dominator?");
+        block_a_id
     }
 }
 
