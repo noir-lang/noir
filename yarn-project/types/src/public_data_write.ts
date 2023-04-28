@@ -15,6 +15,10 @@ export class PublicDataWrite {
     return serializeToBuffer(this.leafIndex, this.newValue);
   }
 
+  isEmpty() {
+    return this.leafIndex.isZero() && this.newValue.isZero();
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new PublicDataWrite(reader.readFr(), reader.readFr());

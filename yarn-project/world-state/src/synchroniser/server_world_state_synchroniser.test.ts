@@ -1,13 +1,13 @@
-import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.js';
-import { L2BlockSource, L2Block, ContractData, PublicDataWrite } from '@aztec/types';
-import { WorldStateRunningState } from './world_state_synchroniser.js';
-import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
-import { sleep } from '@aztec/foundation';
-import { jest } from '@jest/globals';
-import { Fr } from '@aztec/foundation';
-import { AppendOnlyTreeSnapshot } from '@aztec/circuits.js';
-import { MerkleTreeDb, MerkleTreeId } from '../index.js';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { AppendOnlyTreeSnapshot } from '@aztec/circuits.js';
+import { fr } from '@aztec/circuits.js/factories';
+import { Fr, sleep } from '@aztec/foundation';
+import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
+import { ContractData, L2Block, L2BlockSource, PublicDataWrite } from '@aztec/types';
+import { jest } from '@jest/globals';
+import { MerkleTreeDb, MerkleTreeId } from '../index.js';
+import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.js';
+import { WorldStateRunningState } from './world_state_synchroniser.js';
 
 /**
  * Generic mock implementation.
@@ -73,6 +73,7 @@ describe('server_world_state_synchroniser', () => {
         Promise.resolve({ treeId: MerkleTreeId.CONTRACT_TREE, root: Buffer.alloc(32, 0), size: 0n }),
       ),
     appendLeaves: jest.fn().mockImplementation(() => Promise.resolve()),
+    updateLeaf: jest.fn().mockImplementation(() => Promise.resolve()),
     getSiblingPath: jest.fn().mockImplementation(() => {
       return async () => {
         const wasm = await BarretenbergWasm.get();
@@ -250,6 +251,18 @@ describe('server_world_state_synchroniser', () => {
         }),
       ).not.toBe(-1);
     }
+    await server.stop();
+  });
+
+  it('updates the public data tree', async () => {
+    merkleTreeDb.appendLeaves.mockReset();
+    const server = createSynchroniser(merkleTreeDb, rollupSource);
+    const block = getMockBlock(LATEST_BLOCK_NUMBER + 1);
+    block.newPublicDataWrites[0] = new PublicDataWrite(fr(1), fr(2));
+    nextBlocks = [block];
+
+    await server.start();
+    expect(merkleTreeDb.updateLeaf).toHaveBeenCalledWith(MerkleTreeId.PUBLIC_DATA_TREE, fr(2).toBuffer(), fr(1).value);
     await server.stop();
   });
 });

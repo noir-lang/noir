@@ -63,9 +63,9 @@ type WithIncludeUncommitted<F> = F extends (...args: [...infer Rest]) => infer R
   : F;
 
 /**
- * Defines the names of the setters on an append only set of Merkle Trees.
+ * Defines the names of the setters on Merkle Trees.
  */
-type MerkleTreeSetters = 'appendLeaves';
+type MerkleTreeSetters = 'appendLeaves' | 'updateLeaf';
 
 /**
  * Defines the interface for operations on a set of Merkle Trees configuring whether to return committed or uncommitted data.

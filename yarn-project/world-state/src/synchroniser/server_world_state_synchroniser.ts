@@ -1,4 +1,4 @@
-import { createDebugLogger } from '@aztec/foundation';
+import { Fr, createDebugLogger } from '@aztec/foundation';
 import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 import { MerkleTreeDb, MerkleTreeId, MerkleTreeOperations } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
@@ -127,20 +127,18 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
    * @param l2Block - The L2 block to handle.
    */
   private async handleL2Block(l2Block: L2Block) {
-    const compareRoot = async (root: Buffer, treeId: MerkleTreeId) => {
+    const compareRoot = async (root: Fr, treeId: MerkleTreeId) => {
       const treeInfo = await this.merkleTreeDb.getTreeInfo(treeId, true);
-      return treeInfo.root.equals(root);
+      return treeInfo.root.equals(root.toBuffer());
     };
     const rootChecks = await Promise.all([
-      compareRoot(l2Block.endContractTreeSnapshot.root.toBuffer(), MerkleTreeId.CONTRACT_TREE),
-      compareRoot(l2Block.endNullifierTreeSnapshot.root.toBuffer(), MerkleTreeId.NULLIFIER_TREE),
-      compareRoot(l2Block.endPrivateDataTreeSnapshot.root.toBuffer(), MerkleTreeId.PRIVATE_DATA_TREE),
+      compareRoot(l2Block.endContractTreeSnapshot.root, MerkleTreeId.CONTRACT_TREE),
+      compareRoot(l2Block.endNullifierTreeSnapshot.root, MerkleTreeId.NULLIFIER_TREE),
+      compareRoot(l2Block.endPrivateDataTreeSnapshot.root, MerkleTreeId.PRIVATE_DATA_TREE),
+      compareRoot(l2Block.endPublicDataTreeRoot, MerkleTreeId.PUBLIC_DATA_TREE),
+      compareRoot(l2Block.endTreeOfHistoricContractTreeRootsSnapshot.root, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE),
       compareRoot(
-        l2Block.endTreeOfHistoricContractTreeRootsSnapshot.root.toBuffer(),
-        MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
-      ),
-      compareRoot(
-        l2Block.endTreeOfHistoricPrivateDataTreeRootsSnapshot.root.toBuffer(),
+        l2Block.endTreeOfHistoricPrivateDataTreeRootsSnapshot.root,
         MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
       ),
     ]);
@@ -161,6 +159,12 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
           tree,
           leaves.map(fr => fr.toBuffer()),
         );
+      }
+
+      for (const dataWrite of l2Block.newPublicDataWrites) {
+        if (dataWrite.isEmpty()) continue;
+        const { newValue, leafIndex } = dataWrite;
+        await this.merkleTreeDb.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, newValue.toBuffer(), leafIndex.value);
       }
 
       for (const [newTree, rootTree] of [

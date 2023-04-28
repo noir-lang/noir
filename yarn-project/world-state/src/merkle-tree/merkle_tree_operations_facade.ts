@@ -68,7 +68,7 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * @returns Empty promise.
    */
   updateLeaf(treeId: MerkleTreeId.NULLIFIER_TREE, leaf: LeafData, index: bigint): Promise<void> {
-    return this.trees.updateLeaf(treeId, leaf, index, this.includeUncommitted);
+    return this.trees.updateLeaf(treeId, leaf, index);
   }
 
   /**
