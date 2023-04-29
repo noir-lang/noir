@@ -10,6 +10,7 @@ global T_LEN = 2; // Type inference is allowed on globals
 // Global arrays that match the input arrays c and d.
 global GlobalC: [Field; 3] = [3, 3, 3];
 global GlobalD: [Field; 5] = [5, 5, 5, 5, 5];
+global GlobalE: str<5> = "hello";
 
 // global badGlobal = if M == 32 {
 //      constrain 1 == 1;
