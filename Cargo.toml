@@ -6,28 +6,30 @@ members = [
     "crates/noirc_errors",
     "crates/noirc_driver",
     "crates/nargo",
+    "crates/nargo_cli",
     "crates/fm",
     "crates/arena",
     "crates/noirc_abi",
     "crates/iter-extended",
     "crates/wasm",
 ]
-default-members = ["crates/nargo"]
+default-members = ["crates/nargo_cli"]
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.1.1"
+version = "0.5.0"
 # x-release-please-end
-authors = ["The Noir Team <kevtheappdev@gmail.com>"]
+authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.4.1"
+acvm = "0.9.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
 nargo = { path = "crates/nargo" }
+nargo_cli = { path = "crates/nargo_cli" }
 noirc_abi = { path = "crates/noirc_abi" }
 noirc_driver = { path = "crates/noirc_driver" }
 noirc_errors = { path = "crates/noirc_errors" }
@@ -36,6 +38,7 @@ noirc_frontend = { path = "crates/noirc_frontend" }
 noir_wasm = { path = "crates/wasm" }
 
 cfg-if = "1.0.0"
+clap = { version = "4.1.4", features = ["derive"]}
 codespan = "0.9.5"
 codespan-reporting = "0.9.5"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
@@ -43,7 +46,7 @@ dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 smol_str = "0.1.17"
 thiserror = "1.0.21"
-toml = "0.5.8"
+toml = "0.7.2"
 url = "2.2.0"
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"

@@ -1,38 +1,53 @@
+//! This file contains type_check_func, the entry point to the type checking pass (for each function).
+//!
+//! The pass structure of type checking is relatively straightforward. It is a single pass through
+//! the HIR of each function and outputs the inferred type of each HIR node into the NodeInterner,
+//! keyed by the ID of the node.
+//!
+//! The algorithm for checking and inferring types itself is somewhat ad-hoc. It includes both
+//! unification and subtyping, with the only difference between the two being how CompTime
+//! is handled (See note on CompTime and make_subtype_of for details). Additionally, although
+//! this algorithm features inference via TypeVariables, there is no generalization step as
+//! all functions are required to give their full signatures. Closures are inferred but are
+//! never generalized and thus cannot be used polymorphically.
 mod errors;
 mod expr;
 mod stmt;
 
-// Type checking at the moment is very simple due to what is supported in the grammar.
-// If polymorphism is never need, then Wands algorithm should be powerful enough to accommodate
-// all foreseeable types, if it is needed then we would need to switch to Hindley-Milner type or maybe bidirectional
-
 pub use errors::TypeCheckError;
-use expr::type_check_expression;
+use noirc_errors::Span;
 
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::{
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
+    Type,
+};
 
-pub(crate) use self::stmt::{bind_pattern, type_check};
+pub struct TypeChecker<'interner> {
+    current_function: Option<FuncId>,
+    interner: &'interner mut NodeInterner,
+    errors: Vec<TypeCheckError>,
+}
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
-    // First fetch the metadata and add the types for parameters
-    // Note that we do not look for the defining Identifier for a parameter,
-    // since we know that it is the parameter itself
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
 
-    let mut errors = vec![];
+    let function_body = interner.function(&func_id);
+    let function_body_id = function_body.as_expr();
+
+    let mut type_checker = TypeChecker::new(func_id, interner);
+
+    // Bind each parameter to its annotated type.
+    // This is locally obvious, but it must be bound here so that the
+    // Definition object of the parameter in the NodeInterner is given the correct type.
     for param in meta.parameters.into_iter() {
-        bind_pattern(interner, &param.0, param.1, &mut errors);
+        type_checker.bind_pattern(&param.0, param.1);
     }
 
-    // Fetch the HirFunction and iterate all of it's statements
-    let hir_func = interner.function(&func_id);
-    let func_as_expr = hir_func.as_expr();
-
-    let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
+    let (function_last_type, mut errors) = type_checker.check_function_body(function_body_id);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
     for type_check_fn in interner.take_delayed_type_check_functions() {
@@ -43,7 +58,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
-        let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         function_last_type.make_subtype_of(&declared_return_type, func_span, &mut errors, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
@@ -56,6 +71,51 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     errors
 }
 
+impl<'interner> TypeChecker<'interner> {
+    fn new(current_function: FuncId, interner: &'interner mut NodeInterner) -> Self {
+        Self { current_function: Some(current_function), interner, errors: vec![] }
+    }
+
+    fn check_function_body(mut self, body: &ExprId) -> (Type, Vec<TypeCheckError>) {
+        let body_type = self.check_expression(body);
+        (body_type, self.errors)
+    }
+
+    pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
+        let mut this = Self { current_function: None, interner, errors: vec![] };
+        this.check_statement(id);
+        this.errors
+    }
+
+    fn is_unconstrained(&self) -> bool {
+        self.current_function.map_or(false, |current_function| {
+            self.interner.function_meta(&current_function).is_unconstrained
+        })
+    }
+
+    /// Wrapper of Type::unify using self.errors
+    fn unify(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        span: Span,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        actual.unify(expected, span, &mut self.errors, make_error);
+    }
+
+    /// Wrapper of Type::make_subtype_of using self.errors
+    fn make_subtype_of(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        span: Span,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        actual.make_subtype_of(expected, span, &mut self.errors, make_error);
+    }
+}
+
 // XXX: These tests are all manual currently.
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
@@ -66,6 +126,9 @@ mod test {
     use iter_extended::vecmap;
     use noirc_errors::{Location, Span};
 
+    use crate::graph::CrateId;
+    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
+    use crate::hir::resolution::import::PathResolutionError;
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
@@ -77,7 +140,6 @@ mod test {
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
     use crate::BinaryOpKind;
-    use crate::{graph::CrateId, Ident};
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -148,6 +210,8 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             location,
+            contract_function_type: None,
+            is_unconstrained: false,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
@@ -155,6 +219,7 @@ mod test {
             ]
             .into(),
             return_visibility: noirc_abi::AbiVisibility::Private,
+            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
             has_body: true,
         };
         interner.push_fn_meta(func_meta, func_id);
@@ -225,19 +290,26 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<ModuleDefId, Ident> {
+        ) -> Result<ModuleDefId, PathResolutionError> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
-            self.0.get(&name.0.contents).cloned().ok_or_else(|| name.clone())
+            self.0
+                .get(&name.0.contents)
+                .cloned()
+                .ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId::dummy_id()
+            LocalModuleId(arena::Index::from_raw_parts(0, 0))
+        }
+
+        fn module_id(&self) -> ModuleId {
+            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
         }
     }
 
     impl TestPathResolver {
-        pub fn insert_func(&mut self, name: String, func_id: FuncId) {
+        fn insert_func(&mut self, name: String, func_id: FuncId) {
             self.0.insert(name, func_id.into());
         }
     }
@@ -263,11 +335,24 @@ mod test {
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
-            path_resolver.insert_func(name, id);
+            path_resolver.insert_func(name.to_owned(), id);
         }
 
-        let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
         let file = FileId::default();
+
+        let mut modules = arena::Arena::new();
+        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        def_maps.insert(
+            CrateId::dummy_id(),
+            CrateDefMap {
+                root: path_resolver.local_module_id(),
+                modules,
+                krate: CrateId::dummy_id(),
+                extern_prelude: HashMap::new(),
+            },
+        );
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
@@ -278,7 +363,7 @@ mod test {
 
         for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
             interner.update_fn(func_id, hir_func);
-            interner.push_fn_meta(meta, func_id)
+            interner.push_fn_meta(meta, func_id);
         }
 
         // Type check section

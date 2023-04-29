@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
+use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use arena::{Arena, Index};
 use fm::FileId;
@@ -11,6 +13,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::type_check::TypeCheckError;
+use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
@@ -18,7 +21,67 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
+use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+
+/// The node interner is the central storage location of all nodes in Noir's Hir (the
+/// various node types can be found in hir_def). The interner is also used to collect
+/// extra information about the Hir, such as the type of each node, information about
+/// each definition or struct, etc. Because it is used on the Hir, the NodeInterner is
+/// useful in passes where the Hir is used - name resolution, type checking, and
+/// monomorphization - and it is not useful afterward.
+pub struct NodeInterner {
+    nodes: Arena<Node>,
+    func_meta: HashMap<FuncId, FuncMeta>,
+    function_definition_ids: HashMap<FuncId, DefinitionId>,
+
+    // Map each `Index` to it's own location
+    id_to_location: HashMap<Index, Location>,
+
+    // Maps each DefinitionId to a DefinitionInfo.
+    definitions: Vec<DefinitionInfo>,
+
+    // Type checking map
+    //
+    // Notice that we use `Index` as the Key and not an ExprId or IdentId
+    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
+    // a Type, as not all Ids have types associated to them.
+    // Further note, that an ExprId and an IdentId will never have the same underlying Index
+    // Because we use one Arena to store all Definitions/Nodes
+    id_to_type: HashMap<Index, Type>,
+
+    // Struct map.
+    //
+    // Each struct definition is possibly shared across multiple type nodes.
+    // It is also mutated through the RefCell during name resolution to append
+    // methods from impls to the type.
+    structs: HashMap<StructId, Shared<StructType>>,
+
+    /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
+    /// filled out during type checking from instantiated variables. Used during monomorphization
+    /// to map call site types back onto function parameter types, and undo this binding as needed.
+    instantiation_bindings: HashMap<ExprId, TypeBindings>,
+
+    /// Remembers the field index a given HirMemberAccess expression was resolved to during type
+    /// checking.
+    field_indices: HashMap<ExprId, usize>,
+
+    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+
+    next_type_variable_id: usize,
+
+    //used for fallback mechanism
+    language: Language,
+
+    delayed_type_checks: Vec<TypeCheckFn>,
+
+    /// A map from a struct type and method name to a function id for the method.
+    struct_methods: HashMap<(StructId, String), FuncId>,
+
+    /// Methods on primitive types defined in the stdlib.
+    primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+}
+
+type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -124,59 +187,6 @@ enum Node {
     Expression(HirExpression),
 }
 
-pub struct NodeInterner {
-    nodes: Arena<Node>,
-    func_meta: HashMap<FuncId, FuncMeta>,
-    function_definition_ids: HashMap<FuncId, DefinitionId>,
-
-    // Map each `Index` to it's own location
-    id_to_location: HashMap<Index, Location>,
-
-    // Maps each DefinitionId to a DefinitionInfo.
-    definitions: Vec<DefinitionInfo>,
-
-    // Type checking map
-    //
-    // Notice that we use `Index` as the Key and not an ExprId or IdentId
-    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
-    // a Type, as not all Ids have types associated to them.
-    // Further note, that an ExprId and an IdentId will never have the same underlying Index
-    // Because we use one Arena to store all Definitions/Nodes
-    id_to_type: HashMap<Index, Type>,
-
-    // Struct map.
-    //
-    // Each struct definition is possibly shared across multiple type nodes.
-    // It is also mutated through the RefCell during name resolution to append
-    // methods from impls to the type.
-    structs: HashMap<StructId, Shared<StructType>>,
-
-    /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
-    /// filled out during type checking from instantiated variables. Used during monomorphization
-    /// to map call site types back onto function parameter types, and undo this binding as needed.
-    instantiation_bindings: HashMap<ExprId, TypeBindings>,
-
-    /// Remembers the field index a given HirMemberAccess expression was resolved to during type
-    /// checking.
-    field_indices: HashMap<ExprId, usize>,
-
-    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
-
-    next_type_variable_id: usize,
-
-    //used for fallback mechanism
-    language: Language,
-
-    delayed_type_checks: Vec<TypeCheckFn>,
-
-    // A map from a struct type and method name to a function id for the method
-    // along with any generic on the struct it may require. E.g. if the impl is
-    // only for `impl Foo<String>` rather than all Foo, the generics will be `vec![String]`.
-    struct_methods: HashMap<(StructId, String), (Vec<Type>, FuncId)>,
-}
-
-type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
-
 #[derive(Debug, Clone)]
 pub struct DefinitionInfo {
     pub name: String,
@@ -192,21 +202,26 @@ impl DefinitionInfo {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DefinitionKind {
     Function(FuncId),
+
     Global(ExprId),
 
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
     Local(Option<ExprId>),
+
+    /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
+    /// in scope in case they resolve to numeric generics later.
+    GenericType(TypeVariable),
 }
 
 impl DefinitionKind {
     /// True if this definition is for a global variable.
     /// Note that this returns false for top-level functions.
     pub fn is_global(&self) -> bool {
-        matches!(self, DefinitionKind::Global(_))
+        matches!(self, DefinitionKind::Global(..))
     }
 
     pub fn get_rhs(self) -> Option<ExprId> {
@@ -214,6 +229,7 @@ impl DefinitionKind {
             DefinitionKind::Function(_) => None,
             DefinitionKind::Global(id) => Some(id),
             DefinitionKind::Local(id) => id,
+            DefinitionKind::GenericType(_) => None,
         }
     }
 }
@@ -222,6 +238,10 @@ impl DefinitionKind {
 pub struct GlobalInfo {
     pub ident: Ident,
     pub local_id: LocalModuleId,
+
+    /// Global definitions have an associated storage slot if they are defined within
+    /// a contract. If they're defined elsewhere, this value is None.
+    pub storage_slot: Option<StorageSlot>,
 }
 
 impl Default for NodeInterner {
@@ -241,6 +261,7 @@ impl Default for NodeInterner {
             language: Language::R1CS,
             delayed_type_checks: vec![],
             struct_methods: HashMap::new(),
+            primitive_methods: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -299,7 +320,7 @@ impl NodeInterner {
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
-        f(&mut value)
+        f(&mut value);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -318,8 +339,14 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
+    pub fn push_global(
+        &mut self,
+        stmt_id: StmtId,
+        ident: Ident,
+        local_id: LocalModuleId,
+        storage_slot: Option<StorageSlot>,
+    ) {
+        self.globals.insert(stmt_id, GlobalInfo { ident, local_id, storage_slot });
     }
 
     /// Intern an empty global stmt. Used for collecting globals
@@ -385,13 +412,12 @@ impl NodeInterner {
         mutable: bool,
         definition: DefinitionKind,
     ) -> DefinitionId {
-        let id = self.definitions.len();
-        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
-
-        let id = DefinitionId(id);
+        let id = DefinitionId(self.definitions.len());
         if let DefinitionKind::Function(func_id) = definition {
             self.function_definition_ids.insert(func_id, id);
         }
+
+        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
         id
     }
 
@@ -559,12 +585,16 @@ impl NodeInterner {
 
     #[allow(deprecated)]
     pub fn foreign(&self, opcode: &str) -> bool {
-        let is_supported = acvm::default_is_black_box_supported(self.language.clone());
+        let is_supported = acvm::default_is_opcode_supported(self.language.clone());
         let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
             Some(black_box_func) => black_box_func,
             None => return false,
         };
-        is_supported(&black_box_func)
+        is_supported(&Opcode::BlackBoxFuncCall(BlackBoxFuncCall {
+            name: black_box_func,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        }))
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
@@ -585,16 +615,69 @@ impl NodeInterner {
         method_id: FuncId,
     ) -> Option<FuncId> {
         match self_type {
-            Type::Struct(struct_type, generics) => {
+            Type::Struct(struct_type, _generics) => {
                 let key = (struct_type.borrow().id, method_name);
-                self.struct_methods.insert(key, (generics.clone(), method_id)).map(|(_, id)| id)
+                self.struct_methods.insert(key, method_id)
             }
-            other => unreachable!("Tried adding method to non-struct type '{}'", other),
+            Type::Error => None,
+
+            other => {
+                let key = get_type_method_key(self_type).unwrap_or_else(|| {
+                    unreachable!("Cannot add a method to the unsupported type '{}'", other)
+                });
+                self.primitive_methods.insert((key, method_name), method_id)
+            }
         }
     }
 
     /// Search by name for a method on the given struct
     pub fn lookup_method(&self, id: StructId, method_name: &str) -> Option<FuncId> {
-        self.struct_methods.get(&(id, method_name.to_owned())).map(|(_, id)| *id)
+        self.struct_methods.get(&(id, method_name.to_owned())).copied()
+    }
+
+    /// Looks up a given method name on the given primitive type.
+    pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
+        get_type_method_key(typ)
+            .and_then(|key| self.primitive_methods.get(&(key, method_name.to_owned())).copied())
+    }
+}
+
+/// These are the primitive type variants that we support adding methods to
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+enum TypeMethodKey {
+    /// Fields and integers share methods for ease of use. These methods may still
+    /// accept only fields or integers, it is just that their names may not clash.
+    FieldOrInt,
+    Array,
+    Bool,
+    String,
+    Unit,
+    Tuple,
+    Function,
+    Vec,
+}
+
+fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
+    use TypeMethodKey::*;
+    let typ = typ.follow_bindings();
+    match &typ {
+        Type::FieldElement(_) => Some(FieldOrInt),
+        Type::Array(_, _) => Some(Array),
+        Type::Integer(_, _, _) => Some(FieldOrInt),
+        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
+        Type::Bool(_) => Some(Bool),
+        Type::String(_) => Some(String),
+        Type::Unit => Some(Unit),
+        Type::Tuple(_) => Some(Tuple),
+        Type::Function(_, _) => Some(Function),
+        Type::Vec(_) => Some(Vec),
+
+        // We do not support adding methods to these types
+        Type::TypeVariable(_)
+        | Type::NamedGeneric(_, _)
+        | Type::Forall(_, _)
+        | Type::Constant(_)
+        | Type::Error
+        | Type::Struct(_, _) => None,
     }
 }

@@ -1,0 +1,29 @@
+name: Wasm
+
+on: [push, pull_request]
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Wasm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Setup rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.66.0
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build wasm crate
+        working-directory: ./crates/wasm
+        run: ./build-wasm

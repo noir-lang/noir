@@ -16,7 +16,7 @@ use std::collections::{hash_map::Entry, HashMap};
 const MAX_INLINE_TRIES: u32 = 100;
 
 //inline main
-pub fn inline_tree(
+pub(super) fn inline_tree(
     ctx: &mut SsaContext,
     block_id: BlockId,
     decision: &DecisionTree,
@@ -33,7 +33,7 @@ pub fn inline_tree(
     Ok(())
 }
 
-pub fn inline_cfg(
+pub(super) fn inline_cfg(
     ctx: &mut SsaContext,
     func_id: FuncId,
     to_inline: Option<FuncId>,
@@ -91,18 +91,18 @@ fn inline_block(
     Ok(result)
 }
 
-pub struct StackFrame {
-    pub stack: Vec<NodeId>,
-    pub block: BlockId,
+pub(crate) struct StackFrame {
+    pub(crate) stack: Vec<NodeId>,
+    pub(crate) block: BlockId,
     array_map: HashMap<ArrayId, ArrayId>,
-    pub created_arrays: HashMap<ArrayId, BlockId>,
+    pub(crate) created_arrays: HashMap<ArrayId, BlockId>,
     zeros: HashMap<ObjectType, NodeId>,
-    pub return_arrays: Vec<ArrayId>,
+    pub(crate) return_arrays: Vec<ArrayId>,
     lca_cache: HashMap<(BlockId, BlockId), BlockId>,
 }
 
 impl StackFrame {
-    pub fn new(block: BlockId) -> StackFrame {
+    pub(crate) fn new(block: BlockId) -> StackFrame {
         StackFrame {
             stack: Vec::new(),
             block,
@@ -114,18 +114,11 @@ impl StackFrame {
         }
     }
 
-    pub fn clear(&mut self) {
-        self.stack.clear();
-        self.array_map.clear();
-        self.created_arrays.clear();
-        self.lca_cache.clear();
-    }
-
-    pub fn push(&mut self, ins_id: NodeId) {
+    pub(crate) fn push(&mut self, ins_id: NodeId) {
         self.stack.push(ins_id);
     }
 
-    pub fn get_or_default(&self, array_idx: ArrayId) -> ArrayId {
+    pub(crate) fn get_or_default(&self, array_idx: ArrayId) -> ArrayId {
         if let Some(&b) = self.try_get(array_idx) {
             b
         } else {
@@ -133,12 +126,18 @@ impl StackFrame {
         }
     }
 
-    pub fn try_get(&self, array_idx: ArrayId) -> Option<&ArrayId> {
+    pub(crate) fn try_get(&self, array_idx: ArrayId) -> Option<&ArrayId> {
         self.array_map.get(&array_idx)
     }
 
     // add instructions to target_block, after/before the provided instruction
-    pub fn apply(&mut self, ctx: &mut SsaContext, block: BlockId, ins_id: NodeId, after: bool) {
+    pub(crate) fn apply(
+        &mut self,
+        ctx: &mut SsaContext,
+        block: BlockId,
+        ins_id: NodeId,
+        after: bool,
+    ) {
         let mut pos = ctx[block].instructions.iter().position(|x| *x == ins_id).unwrap();
         if after {
             pos += 1;
@@ -149,21 +148,21 @@ impl StackFrame {
         self.stack.clear();
     }
 
-    pub fn set_zero(&mut self, ctx: &mut SsaContext, o_type: ObjectType) {
+    pub(crate) fn set_zero(&mut self, ctx: &mut SsaContext, o_type: ObjectType) {
         self.zeros.entry(o_type).or_insert_with(|| ctx.zero_with_type(o_type));
     }
-    pub fn get_zero(&self, o_type: ObjectType) -> NodeId {
+    pub(crate) fn get_zero(&self, o_type: ObjectType) -> NodeId {
         self.zeros[&o_type]
     }
 
     // returns the lca of x and y, using a cache
-    pub fn lca(&mut self, ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
+    pub(crate) fn lca(&mut self, ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
         let ordered_blocks = if x.0 < y.0 { (x, y) } else { (y, x) };
         *self.lca_cache.entry(ordered_blocks).or_insert_with(|| block::lca(ctx, x, y))
     }
 
     // returns true if the array_id is created in the block of the stack
-    pub fn is_new_array(&mut self, ctx: &SsaContext, array_id: &ArrayId) -> bool {
+    pub(crate) fn is_new_array(&mut self, ctx: &SsaContext, array_id: &ArrayId) -> bool {
         if self.return_arrays.contains(array_id) {
             //array is defined by the caller
             return false;
@@ -179,11 +178,18 @@ impl StackFrame {
             true
         }
     }
+
+    //assigns the arrays to the block where they are seen for the first time
+    pub(crate) fn new_array(&mut self, array_id: ArrayId) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.created_arrays.entry(array_id) {
+            e.insert(self.block);
+        }
+    }
 }
 
 //inline a function call
 //Return false if the inlined function performs a function call
-pub fn inline(
+fn inline(
     ctx: &mut SsaContext,
     ssa_func: &function::SsaFunction,
     args: &[NodeId],
@@ -200,7 +206,7 @@ pub fn inline(
 
     //1. return arrays
     for arg_caller in arrays.iter() {
-        if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
+        if let node::ObjectType::ArrayPointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
             stack_frame.array_map.insert(a, arg_caller.0);
             stack_frame.return_arrays.push(arg_caller.0);
         }
@@ -209,8 +215,8 @@ pub fn inline(
     //2. by copy parameters:
     for (&arg_caller, &arg_function) in args.iter().zip(&func_arg) {
         //pass by-ref const array arguments
-        if let node::ObjectType::Pointer(x) = ctx.object_type(arg_function.0) {
-            if let node::ObjectType::Pointer(y) = ctx.object_type(arg_caller) {
+        if let node::ObjectType::ArrayPointer(x) = ctx.object_type(arg_function.0) {
+            if let node::ObjectType::ArrayPointer(y) = ctx.object_type(arg_caller) {
                 if !arg_function.1 && !stack_frame.array_map.contains_key(&x) {
                     stack_frame.array_map.insert(x, y);
                     continue;
@@ -235,14 +241,14 @@ pub fn inline(
             decision,
         )?;
         if result && nested_call {
-            result = false
+            result = false;
         }
     }
     Ok(result)
 }
 
 //inline the given block of the function body into the target_block
-pub fn inline_in_block(
+fn inline_in_block(
     block_id: BlockId,
     inline_map: &mut HashMap<NodeId, NodeId>,
     stack_frame: &mut StackFrame,
@@ -270,7 +276,7 @@ pub fn inline_in_block(
             let mut array_id = None;
             let mut clone = ins.clone();
 
-            if let node::ObjectType::Pointer(id) = ins.res_type {
+            if let node::ObjectType::ArrayPointer(id) = ins.res_type {
                 //We collect data here for potential mapping using the array_map below.
                 array_id = Some(id);
             }
@@ -302,21 +308,27 @@ pub fn inline_in_block(
                     let new_ins = new_cloned_instruction(clone, stack_frame.block);
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
-                Operation::Load { array_id, index } => {
+                Operation::Load { array_id, index, location } => {
                     //Compute the new address:
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
-                        Operation::Load { array_id: b, index: *index },
+                        Operation::Load { array_id: b, index: *index, location: *location },
                         clone.res_type,
                         Some(stack_frame.block),
                     );
                     new_ins.id = clone.id;
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
-                Operation::Store { array_id, index, value } => {
+                Operation::Store { array_id, index, value, predicate, location } => {
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
-                        Operation::Store { array_id: b, index: *index, value: *value },
+                        Operation::Store {
+                            array_id: b,
+                            index: *index,
+                            value: *value,
+                            predicate: *predicate,
+                            location: *location,
+                        },
                         clone.res_type,
                         Some(stack_frame.block),
                     );
@@ -330,7 +342,7 @@ pub fn inline_in_block(
                     let mut new_ins = new_cloned_instruction(clone, stack_frame.block);
                     if let Some(id) = array_id {
                         let new_id = stack_frame.get_or_default(id);
-                        new_ins.res_type = node::ObjectType::Pointer(new_id);
+                        new_ins.res_type = node::ObjectType::ArrayPointer(new_id);
                     }
 
                     let err = optimizations::simplify(ctx, &mut new_ins);
@@ -347,7 +359,7 @@ pub fn inline_in_block(
                     if let Mark::ReplaceWith(replacement) = new_ins.mark {
                         if let Some(id) = array_id {
                             if let Entry::Occupied(mut entry) = stack_frame.array_map.entry(id) {
-                                if let node::ObjectType::Pointer(new_id) =
+                                if let node::ObjectType::ArrayPointer(new_id) =
                                     ctx[replacement].get_type()
                                 {
                                     //we now map the array to rhs array
@@ -358,7 +370,7 @@ pub fn inline_in_block(
 
                         if replacement != new_ins.id {
                             inline_map.insert(i_id, replacement);
-                            debug_assert!(stack_frame.stack.contains(&replacement));
+                            assert!(stack_frame.stack.contains(&replacement));
                         }
                     } else {
                         push_instruction(ctx, new_ins, stack_frame, inline_map);
@@ -408,7 +420,7 @@ fn push_instruction(
 }
 
 impl node::Operation {
-    pub fn map_values_for_inlining(
+    fn map_values_for_inlining(
         &mut self,
         ctx: &mut SsaContext,
         inline_map: &HashMap<NodeId, NodeId>,
@@ -425,7 +437,7 @@ impl node::Operation {
                         if b != a {
                             let new_var = node::Variable {
                                 id: NodeId::dummy(),
-                                obj_type: node::ObjectType::Pointer(b),
+                                obj_type: node::ObjectType::ArrayPointer(b),
                                 name: String::new(),
                                 root: None,
                                 def: None,

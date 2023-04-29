@@ -4,6 +4,101 @@ use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::lexer::errors::LexerErrorKind;
 
+/// Represents a token in noir's grammar - a word, number,
+/// or symbol that can be used in noir's syntax. This is the
+/// smallest unit of grammar. A parser may (will) decide to parse
+/// items differently depending on the Tokens present but will
+/// never parse the same ordering of identical tokens differently.
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum Token {
+    Ident(String),
+    Int(FieldElement),
+    Bool(bool),
+    Str(String),
+    Keyword(Keyword),
+    IntType(IntType),
+    Attribute(Attribute),
+    /// <
+    Less,
+    /// <=
+    LessEqual,
+    /// >
+    Greater,
+    /// >=
+    GreaterEqual,
+    /// ==
+    Equal,
+    /// !=
+    NotEqual,
+    /// +
+    Plus,
+    /// -
+    Minus,
+    /// *
+    Star,
+    /// /
+    Slash,
+    /// %
+    Percent,
+    /// &
+    Ampersand,
+    /// ^
+    Caret,
+    /// <<
+    ShiftLeft,
+    /// >>
+    ShiftRight,
+    /// .
+    Dot,
+    /// ..
+    DoubleDot,
+    /// (
+    LeftParen,
+    /// )
+    RightParen,
+    /// {
+    LeftBrace,
+    /// }
+    RightBrace,
+    /// [
+    LeftBracket,
+    /// ]
+    RightBracket,
+    /// ->
+    Arrow,
+    /// |
+    Pipe,
+    /// #
+    Pound,
+    /// ,
+    Comma,
+    /// :
+    Colon,
+    /// ::
+    DoubleColon,
+    /// ;
+    Semicolon,
+    /// !
+    Bang,
+    /// _
+    Underscore,
+    /// =
+    Assign,
+    #[allow(clippy::upper_case_acronyms)]
+    EOF,
+
+    /// An invalid character is one that is not in noir's language or grammar.
+    ///
+    /// We don't report invalid tokens in the source as errors until parsing to
+    /// avoid reporting the error twice (once while lexing, again when it is encountered
+    /// during parsing). Reporting during lexing then removing these from the token stream
+    /// would not be equivalent as it would change the resulting parse.
+    Invalid(char),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SpannedToken(Spanned<Token>);
+
 impl PartialEq<SpannedToken> for Token {
     fn eq(&self, other: &SpannedToken) -> bool {
         self == &other.0.contents
@@ -14,9 +109,6 @@ impl PartialEq<Token> for SpannedToken {
         &self.0.contents == other
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SpannedToken(Spanned<Token>);
 
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
@@ -46,92 +138,6 @@ impl std::fmt::Display for SpannedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
-}
-
-// XXX(low): Add a Comment Token to force users to have documentation on public functions
-
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-/// All possible tokens allowed in the target language
-pub enum Token {
-    Ident(String),
-    Int(FieldElement),
-    Bool(bool),
-    Str(String),
-    Keyword(Keyword),
-    IntType(IntType),
-    Attribute(Attribute),
-    // <
-    Less,
-    // <=
-    LessEqual,
-    // >
-    Greater,
-    // >=
-    GreaterEqual,
-    // ==
-    Equal,
-    // !=
-    NotEqual,
-    // +
-    Plus,
-    // -
-    Minus,
-    // *
-    Star,
-    // /
-    Slash,
-    // %
-    Percent,
-    // &
-    Ampersand,
-    // ^
-    Caret,
-    // <<
-    ShiftLeft,
-    // >>
-    ShiftRight,
-    // .
-    Dot,
-    // ..
-    DoubleDot,
-    // (
-    LeftParen,
-    // )
-    RightParen,
-    // {
-    LeftBrace,
-    // }
-    RightBrace,
-    // [
-    LeftBracket,
-    // ]
-    RightBracket,
-    // ->
-    Arrow,
-    // |
-    Pipe,
-    // #
-    Pound,
-    // ,
-    Comma,
-    // :
-    Colon,
-    // ::
-    DoubleColon,
-    // ;
-    Semicolon,
-    // !
-    Bang,
-    // _
-    Underscore,
-    // =
-    Assign,
-    #[allow(clippy::upper_case_acronyms)]
-    EOF,
-
-    // An invalid character is one that is not in noir's language or grammar.
-    // Delaying reporting these as errors until parsing improves error messages
-    Invalid(char),
 }
 
 impl fmt::Display for Token {
@@ -401,16 +407,22 @@ impl AsRef<str> for Attribute {
     }
 }
 
+/// All keywords in Noir.
+/// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
+/// only special within `impl`s. Otherwise `self` functions as a normal identifier.
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
-// Special Keywords allowed in the target language
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum Keyword {
     As,
+    Assert,
     Bool,
     Char,
     CompTime,
     Constrain,
+    Contract,
     Crate,
     Dep,
+    Distinct,
     Else,
     Field,
     Fn,
@@ -422,11 +434,14 @@ pub enum Keyword {
     Let,
     Mod,
     Mut,
+    Open,
     Pub,
     String,
     Return,
     Struct,
+    Unconstrained,
     Use,
+    Vec,
     While,
 }
 
@@ -434,12 +449,15 @@ impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Keyword::As => write!(f, "as"),
+            Keyword::Assert => write!(f, "assert"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
             Keyword::CompTime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
+            Keyword::Distinct => write!(f, "distinct"),
             Keyword::Else => write!(f, "else"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
@@ -451,29 +469,33 @@ impl fmt::Display for Keyword {
             Keyword::Let => write!(f, "let"),
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
+            Keyword::Open => write!(f, "open"),
             Keyword::Pub => write!(f, "pub"),
             Keyword::String => write!(f, "str"),
             Keyword::Return => write!(f, "return"),
             Keyword::Struct => write!(f, "struct"),
+            Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
+            Keyword::Vec => write!(f, "Vec"),
             Keyword::While => write!(f, "while"),
         }
     }
 }
 
 impl Keyword {
-    /// If the string is a keyword, return the associated token
-    /// else return None
-    /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
+    /// Looks up a word in the source program and returns the associated keyword, if found.
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
             "as" => Keyword::As,
+            "assert" => Keyword::Assert,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,
             "constrain" => Keyword::Constrain,
+            "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
+            "distinct" => Keyword::Distinct,
             "else" => Keyword::Else,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
@@ -485,11 +507,14 @@ impl Keyword {
             "let" => Keyword::Let,
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
+            "open" => Keyword::Open,
             "pub" => Keyword::Pub,
             "str" => Keyword::String,
             "return" => Keyword::Return,
             "struct" => Keyword::Struct,
+            "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
+            "Vec" => Keyword::Vec,
             "while" => Keyword::While,
 
             "true" => return Some(Token::Bool(true)),
@@ -502,16 +527,34 @@ impl Keyword {
     }
 }
 
+#[cfg(test)]
+mod keywords {
+    use strum::IntoEnumIterator;
+
+    use super::{Keyword, Token};
+
+    #[test]
+    fn lookup_consistency() {
+        for keyword in Keyword::iter() {
+            let resolved_token =
+                Keyword::lookup_keyword(&format!("{keyword}")).unwrap_or_else(|| {
+                    panic!("Keyword::lookup_keyword couldn't find Keyword {}", keyword)
+                });
+
+            assert_eq!(
+                resolved_token,
+                Token::Keyword(keyword),
+                "Keyword::lookup_keyword returns unexpected Keyword"
+            );
+        }
+    }
+}
+
 pub struct Tokens(pub Vec<SpannedToken>);
 
-impl<'a> From<Tokens>
-    for chumsky::Stream<
-        'a,
-        Token,
-        Span,
-        Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>,
-    >
-{
+type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
+
+impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
     fn from(tokens: Tokens) -> Self {
         let end_of_input = match tokens.0.last() {
             Some(spanned_token) => spanned_token.to_span(),

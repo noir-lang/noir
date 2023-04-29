@@ -21,7 +21,9 @@ struct ModCollector<'a> {
     pub(crate) module_id: LocalModuleId,
 }
 
-/// Walk a module and collect it's definitions
+/// Walk a module and collect its definitions.
+///
+/// This performs the entirety of the definition collection phase of the name resolution pass.
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: ParsedModule,
@@ -35,7 +37,7 @@ pub fn collect_defs(
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        collector.parse_module_declaration(context, &decl, crate_id, errors)
+        collector.parse_module_declaration(context, &decl, crate_id, errors);
     }
 
     collector.collect_submodules(context, crate_id, ast.submodules, file_id, errors);
@@ -73,9 +75,8 @@ impl<'a> ModCollector<'a> {
             let stmt_id = context.def_interner.push_empty_global();
 
             // Add the statement to the scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .scope
-                .define_global(name, stmt_id);
+            let result =
+                self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateGlobal { first_def, second_def };
@@ -135,8 +136,7 @@ impl<'a> ModCollector<'a> {
 
             // Add function to scope/ns of the module
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .scope
-                .define_func_def(name, func_id);
+                .declare_function(name, func_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
@@ -159,15 +159,14 @@ impl<'a> ModCollector<'a> {
             let name = struct_definition.name.clone();
 
             // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(&name, self.file_id, false, errors) {
+            let id = match self.push_child_module(&name, self.file_id, false, false, errors) {
                 Some(local_id) => StructId(ModuleId { krate, local_id }),
                 None => continue,
             };
 
             // Add the struct to scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .scope
-                .define_struct_def(name, id);
+            let result =
+                self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
@@ -193,7 +192,13 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<FileDiagnostic>,
     ) {
         for submodule in submodules {
-            if let Some(child) = self.push_child_module(&submodule.name, file_id, true, errors) {
+            if let Some(child) = self.push_child_module(
+                &submodule.name,
+                file_id,
+                true,
+                submodule.is_contract,
+                errors,
+            ) {
                 collect_defs(
                     self.def_collector,
                     submodule.contents,
@@ -232,7 +237,9 @@ impl<'a> ModCollector<'a> {
         let ast = parse_file(&mut context.file_manager, child_file_id, errors);
 
         // Add module into def collector and get a ModuleId
-        if let Some(child_mod_id) = self.push_child_module(mod_name, child_file_id, true, errors) {
+        if let Some(child_mod_id) =
+            self.push_child_module(mod_name, child_file_id, true, false, errors)
+        {
             collect_defs(
                 self.def_collector,
                 ast,
@@ -252,20 +259,14 @@ impl<'a> ModCollector<'a> {
         mod_name: &Ident,
         file_id: FileId,
         add_to_parent_scope: bool,
+        is_contract: bool,
         errors: &mut Vec<FileDiagnostic>,
     ) -> Option<LocalModuleId> {
-        // Create a new default module
-        let module_id = self.def_collector.def_map.modules.insert(ModuleData::default());
+        let parent = Some(self.module_id);
+        let new_module = ModuleData::new(parent, ModuleOrigin::File(file_id), is_contract);
+        let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;
-
-        // Update the child module to reference the parent
-        modules[module_id].parent = Some(self.module_id);
-
-        // Update the origin of the child module
-        // Also note that the FileId is where this module is defined and not declared
-        // To find out where the module was declared, you need to check its parent
-        modules[module_id].origin = ModuleOrigin::File(file_id);
 
         // Update the parent module to reference the child
         modules[self.module_id.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
@@ -284,7 +285,7 @@ impl<'a> ModCollector<'a> {
             };
 
             if let Err((first_def, second_def)) =
-                modules[self.module_id.0].scope.define_module_def(mod_name.to_owned(), mod_id)
+                modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
                 let err = DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def };
                 errors.push(err.into_file_diagnostic(self.file_id));

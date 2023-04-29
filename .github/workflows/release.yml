@@ -17,13 +17,16 @@ jobs:
         id: release
         uses: google-github-actions/release-please-action@v3
         with:
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           release-type: simple
           package-name: noir
           bump-minor-pre-major: true
           bump-patch-for-minor-pre-major: true
+          prerelease: true # Marks GitHub Releases for 0.x.x versions as "Pre-release"
           pull-request-title-pattern: "chore(noir): Release ${version}"
           extra-files: |
             Cargo.toml
+            flake.nix
 
   update-lockfile:
     name: Update lockfile
@@ -35,6 +38,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.65.0
@@ -45,8 +49,8 @@ jobs:
 
       - name: Configure git
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
 
       - name: Commit updates
         run: |
@@ -54,8 +58,8 @@ jobs:
           git commit -m 'chore: Update lockfile'
           git push
 
-  build-linux-binaries:
-    name: Build linux binaries
+  build-binaries:
+    name: Build binaries
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
@@ -63,38 +67,23 @@ jobs:
       - name: Dispatch to build-nargo
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: publish-linux.yml
+          workflow: publish.yml
           repo: noir-lang/build-nargo
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
-  build-windows-binaries:
-    name: Build windows binaries
+  publish-wasm:
+    name: Publish noir_wasm package
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch to build-nargo
+      - name: Dispatch to noir_wasm
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: publish-x86_64-pc-windows-wasm.yml
-          repo: noir-lang/build-nargo
-          ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
-
-  build-mac-binaries:
-    name: Build mac binaries
-    needs: [release-please]
-    if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dispatch to build-nargo
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: publish-apple-darwin-wasm.yml
-          repo: noir-lang/build-nargo
+          workflow: update.yml
+          repo: noir-lang/noir_wasm
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'

@@ -10,13 +10,12 @@ use crate::{Abi, AbiType};
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum InputValue {
     Field(FieldElement),
     Vec(Vec<FieldElement>),
     String(String),
     Struct(BTreeMap<String, InputValue>),
-    Undefined,
 }
 
 impl InputValue {
@@ -28,7 +27,9 @@ impl InputValue {
             (InputValue::Field(field_element), AbiType::Integer { width, .. }) => {
                 field_element.num_bits() <= *width
             }
-            (InputValue::Field(field_element), AbiType::Boolean) => field_element.num_bits() == 1,
+            (InputValue::Field(field_element), AbiType::Boolean) => {
+                field_element.is_one() || field_element.is_zero()
+            }
 
             (InputValue::Vec(field_elements), AbiType::Array { length, typ, .. }) => {
                 if field_elements.len() != *length as usize {
@@ -57,8 +58,6 @@ impl InputValue {
                     }
                 })
             }
-
-            (InputValue::Undefined, _) => true,
 
             // All other InputValue-AbiType combinations are fundamentally incompatible.
             _ => false,
@@ -90,7 +89,7 @@ impl Format {
     pub fn parse(
         &self,
         input_string: &str,
-        abi: Abi,
+        abi: &Abi,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
             Format::Toml => toml::parse_toml(input_string, abi),

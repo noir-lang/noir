@@ -2,12 +2,19 @@
 .DS_Store
 examples/**/target/
 examples/9
-.vscode
 node_modules
 pkg/
+
+# Nix stuff
+result
+.envrc.local
+.direnv/
 
 # Nargo output
 *.proof
 *.acir
+*.acir.sha256
 *.tr
+*.pk
+*.vk
 **/Verifier.toml

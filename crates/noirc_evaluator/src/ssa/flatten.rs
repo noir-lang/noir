@@ -9,7 +9,7 @@ use acvm::FieldElement;
 use std::collections::HashMap;
 
 //Unroll the CFG
-pub fn unroll_tree(
+pub(super) fn unroll_tree(
     ctx: &mut SsaContext,
     block_id: BlockId,
 ) -> Result<HashMap<NodeId, NodeEval>, RuntimeError> {
@@ -26,7 +26,7 @@ pub fn unroll_tree(
     }
     //clean-up
     for b in unroll_ctx.deprecated {
-        debug_assert!(b != ctx.first_block);
+        assert!(b != ctx.first_block);
         ctx.remove_block(b);
     }
     block::compute_dom(ctx);
@@ -52,7 +52,7 @@ fn update_operator(operator: &Operation, eval_map: &HashMap<NodeId, NodeEval>) -
 }
 
 //Unroll from unroll_ctx.to_unroll until it reaches unroll_ctx.unroll_into
-pub fn unroll_until(
+pub(super) fn unroll_until(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
     end: BlockId,
@@ -69,7 +69,7 @@ pub fn unroll_until(
     Ok(prev)
 }
 
-pub fn unroll_block(
+pub(super) fn unroll_block(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<(), RuntimeError> {
@@ -92,7 +92,7 @@ pub fn unroll_block(
 }
 
 //unroll a normal block by generating new instructions into the target block, or by updating its instructions if no target is specified, using and updating the eval_map
-pub fn unroll_std_block(
+pub(super) fn unroll_std_block(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<Option<BlockId>, RuntimeError> // The left block
@@ -157,7 +157,7 @@ pub fn unroll_std_block(
     Ok(Some(next))
 }
 
-pub fn unroll_join(
+pub(super) fn unroll_join(
     ssa_ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<BlockId, RuntimeError> {
@@ -195,7 +195,7 @@ pub fn unroll_join(
         unroll_ctx.to_unroll = body_id;
         from = unroll_until(ssa_ctx, unroll_ctx, end)?;
     }
-    debug_assert!(ssa_ctx.current_block == unroll_ctx.unroll_into);
+    assert!(ssa_ctx.current_block == unroll_ctx.unroll_into);
     let next_block = block::new_sealed_block(ssa_ctx, block::BlockType::Normal, true);
     unroll_ctx.deprecate(join_id);
     unroll_ctx.deprecate(r);
@@ -206,15 +206,15 @@ pub fn unroll_join(
 }
 
 #[derive(Debug)]
-pub struct UnrollContext {
-    pub deprecated: Vec<BlockId>,
-    pub to_unroll: BlockId,
-    pub unroll_into: BlockId,
-    pub eval_map: HashMap<NodeId, NodeEval>,
+pub(super) struct UnrollContext {
+    pub(super) deprecated: Vec<BlockId>,
+    pub(super) to_unroll: BlockId,
+    pub(super) unroll_into: BlockId,
+    pub(super) eval_map: HashMap<NodeId, NodeEval>,
 }
 
 impl UnrollContext {
-    pub fn deprecate(&mut self, block_id: BlockId) {
+    pub(super) fn deprecate(&mut self, block_id: BlockId) {
         if !self.deprecated.contains(&block_id) {
             self.deprecated.push(block_id);
         }
@@ -335,7 +335,7 @@ fn evaluate_one(
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObject::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObject::Variable(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
                 NodeObject::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
@@ -377,7 +377,7 @@ fn evaluate_object(
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObject::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObject::Variable(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
                 NodeObject::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }

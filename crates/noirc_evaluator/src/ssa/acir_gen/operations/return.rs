@@ -1,7 +1,9 @@
+use acvm::acir::native_types::Expression;
+
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{
-        acir_gen::{internal_var_cache::InternalVarCache, memory_map::MemoryMap, InternalVar},
+        acir_gen::{acir_mem::AcirMem, internal_var_cache::InternalVarCache, InternalVar},
         context::SsaContext,
         mem::Memory,
         node::NodeId,
@@ -11,7 +13,7 @@ use crate::{
 
 pub(crate) fn evaluate(
     node_ids: &[NodeId],
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
@@ -37,10 +39,8 @@ pub(crate) fn evaluate(
             }
         };
 
-        for mut object in objects {
-            let witness = object.get_or_compute_witness(evaluator, true).expect(
-                "infallible: `None` can only be returned when we disallow constant Expressions.",
-            );
+        for object in objects {
+            let witness = var_cache.get_or_compute_witness_unwrap(object, evaluator, ctx);
             // Before pushing to the public inputs, we need to check that
             // it was not a private ABI input
             if evaluator.is_private_abi_input(witness) {
@@ -48,7 +48,15 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            evaluator.public_inputs.push(witness);
+            // Check if the outputted witness needs separating from an existing occurrence in the
+            // abi. This behavior stems from usage of the `distinct` keyword.
+            let return_witness = if evaluator.should_proxy_witness_for_abi_output(witness) {
+                let proxy_constraint = Expression::from(witness);
+                evaluator.create_intermediate_variable(proxy_constraint)
+            } else {
+                witness
+            };
+            evaluator.return_values.push(return_witness);
         }
     }
 
