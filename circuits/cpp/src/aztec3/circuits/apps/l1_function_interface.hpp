@@ -30,7 +30,7 @@ template <typename NCT> class L1FunctionInterface {
     fr function_selector = 0;
     size_t num_params = 0;
 
-    L1FunctionInterface(){};
+    L1FunctionInterface() {}
 
     L1FunctionInterface(Contract<NCT>* contract, L1FunctionInterfaceStruct<NCT> const& l1_fn_struct)
         : contract(contract)

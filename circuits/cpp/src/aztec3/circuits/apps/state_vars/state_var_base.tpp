@@ -23,8 +23,11 @@ StateVar<Composer>::StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::
     : exec_ctx(exec_ctx)
     , state_var_name(state_var_name)
 {
+    // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
+    // this ^ linter rule breaks things here here
     start_slot = exec_ctx->contract->get_start_slot(state_var_name);
     storage_slot_point = compute_slot_point();
+    // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
 }
 
 template <typename Composer> typename CircuitTypes<Composer>::grumpkin_point StateVar<Composer>::compute_slot_point()

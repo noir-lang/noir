@@ -85,7 +85,8 @@ void assert_equal_constants(DummyComposer& composer,
 std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>, 2> previous_rollup_data)
 {
     // Generate a 512 bit input from right and left 256 bit hashes
-    std::array<uint8_t, 2 * 32> calldata_hash_input_bytes;
+    constexpr auto num_bytes = 2 * 32;
+    std::array<uint8_t, num_bytes> calldata_hash_input_bytes;
     for (uint8_t i = 0; i < 2; i++) {
         std::array<fr, 2> calldata_hash_fr = previous_rollup_data[i].base_or_merge_rollup_public_inputs.calldata_hash;
 

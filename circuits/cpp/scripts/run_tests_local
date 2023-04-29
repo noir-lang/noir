@@ -59,6 +59,7 @@ echo "*** Running $ARCH tests${GTEST_FILTER:+ (with filter: $GTEST_FILTER)}: $TE
 
 cd $BUILD_DIR;
 for BIN in $TESTS; do
+  echo "Running tests from executable '$BIN'"
   if [ "$ARCH" != "wasm" ]; then
     # run test executables directly
     # if gtest filter is non-empty, use it

@@ -170,7 +170,8 @@ std::array<NT::fr, 2> calculate_calldata_hash(BaseRollupInputs const& baseRollup
     // FIXME
     // Calculate sha256 hash of calldata; TODO: work out typing here
     // 22 * 32 = 22 fields, each 32 bytes
-    std::array<uint8_t, 22 * 32> calldata_hash_inputs_bytes;
+    constexpr auto num_bytes = 22 * 32;
+    std::array<uint8_t, num_bytes> calldata_hash_inputs_bytes;
     // Convert all into a buffer, then copy into the array, then hash
     for (size_t i = 0; i < calldata_hash_inputs.size(); i++) {
         auto as_bytes = calldata_hash_inputs[i].to_buffer();

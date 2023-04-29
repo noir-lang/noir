@@ -2,12 +2,11 @@
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/abis/contract_deployment_data.hpp>
 #include <aztec3/oracle/oracle.hpp>
-
-#include <barretenberg/common/map.hpp>
-
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/common/map.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -38,8 +37,7 @@ template <typename Composer> class OracleWrapperInterface {
     // Initialise from Native.
     // Used when initialising for a user's first call.
     OracleWrapperInterface(Composer& composer, NativeOracle& native_oracle)
-        : composer(composer)
-        , native_oracle(native_oracle){};
+        : composer(composer), native_oracle(native_oracle){};
 
     fr& get_msg_sender_private_key()
     {
@@ -96,10 +94,9 @@ template <typename Composer> class OracleWrapperInterface {
         return native_utxo_sload_datum.to_circuit_type(composer);
     }
 
-    template <typename NotePreimage>
-    auto get_utxo_sload_data(grumpkin_point const& storage_slot_point,
-                             size_t const& num_notes,
-                             NotePreimage const& advice)
+    template <typename NotePreimage> auto get_utxo_sload_data(grumpkin_point const& storage_slot_point,
+                                                              size_t const& num_notes,
+                                                              NotePreimage const& advice)
     {
         auto native_storage_slot_point = aztec3::utils::types::to_nt<Composer>(storage_slot_point);
 
@@ -120,8 +117,8 @@ template <typename Composer> class OracleWrapperInterface {
 
     void validate_msg_sender_private_key()
     {
-        address msg_sender = get_msg_sender();
-        address derived_msg_sender = address::derive_from_private_key(*msg_sender_private_key);
+        const address msg_sender = get_msg_sender();
+        const address derived_msg_sender = address::derive_from_private_key(*msg_sender_private_key);
         msg_sender.assert_equal(derived_msg_sender,
                                 format("msg_sender validation failed.\nmsg_sender_private_key: ",
                                        msg_sender_private_key,
@@ -132,4 +129,4 @@ template <typename Composer> class OracleWrapperInterface {
     }
 };
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps

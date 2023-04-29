@@ -1,8 +1,10 @@
 #pragma once
-#include "aztec3/circuits/abis/public_data_transition.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "nullifier_tree_testing_harness.hpp"
 #include "init.hpp"
+#include "nullifier_tree_testing_harness.hpp"
+
+#include "aztec3/circuits/abis/public_data_transition.hpp"
+
+#include "barretenberg/numeric/uint256/uint256.hpp"
 
 namespace aztec3::circuits::rollup::test_utils::utils {
 
@@ -35,7 +37,7 @@ using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::PreviousRollupData;
 
 using nullifier_tree_testing_values = std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot, AppendOnlyTreeSnapshot>;
-} // namespace
+}  // namespace
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data);
 
@@ -118,4 +120,4 @@ inline abis::PublicDataRead<NT> make_public_read(fr leaf_index, fr value)
     };
 }
 
-} // namespace aztec3::circuits::rollup::test_utils::utils
+}  // namespace aztec3::circuits::rollup::test_utils::utils

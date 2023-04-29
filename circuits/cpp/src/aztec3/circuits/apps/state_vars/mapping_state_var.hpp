@@ -35,7 +35,7 @@ template <typename Composer, typename V> class MappingStateVar : public StateVar
     // native_storage_slot.x => value cache, to prevent creating constraints with each `at()` call.
     std::map<NT::fr, V> value_cache;
 
-    MappingStateVar(){};
+    MappingStateVar() {}
 
     // Instantiate a top-level mapping:
     MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)

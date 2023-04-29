@@ -54,7 +54,7 @@ template <typename Composer> class StateVar {
     // Optionally informs custom notes whether they should commit or partially-commit to this state.
     bool is_partial_slot = false;
 
-    StateVar(){};
+    StateVar() {}
 
     // Instantiate a top-level state:
     StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name);

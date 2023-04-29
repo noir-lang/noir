@@ -1,13 +1,14 @@
 #pragma once
 #include "function_data.hpp"
+#include "kernel_circuit_public_inputs.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "public_circuit_public_inputs.hpp"
-#include "kernel_circuit_public_inputs.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -55,17 +56,18 @@ template <typename NCT, template <class> typename PrivatePublic> struct CallStac
 
     fr hash() const
     {
-        std::vector<fr> inputs = {
+        const std::vector<fr> inputs = {
             contract_address.to_field(),
             function_data.hash(),
             public_inputs.hash(),
         };
 
+        // NOLINTNEXTLINE(misc-const-correctness)
         fr call_stack_item_hash = NCT::compress(inputs, GeneratorIndex::CALL_STACK_ITEM);
 
         return call_stack_item_hash;
     }
-}; // namespace aztec3::circuits::abis
+};  // namespace aztec3::circuits::abis
 
 template <typename NCT, template <class> typename PrivatePublic>
 void read(uint8_t const*& it, CallStackItem<NCT, PrivatePublic>& call_stack_item)
@@ -95,4 +97,4 @@ std::ostream& operator<<(std::ostream& os, CallStackItem<NCT, PrivatePublic> con
               << "public_inputs: " << call_stack_item.public_inputs << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

@@ -328,7 +328,7 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer, std::arr
  * @param initial_values values to pre-populate the tree
  * @return NullifierMemoryTreeTestingHarness
  */
-NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(std::vector<fr> initial_values)
+NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(const std::vector<fr> initial_values)
 {
     NullifierMemoryTreeTestingHarness nullifier_tree = NullifierMemoryTreeTestingHarness(NULLIFIER_TREE_HEIGHT);
     for (size_t i = 0; i < initial_values.size(); ++i) {

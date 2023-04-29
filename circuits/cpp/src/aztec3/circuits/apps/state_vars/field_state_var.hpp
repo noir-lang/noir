@@ -27,7 +27,7 @@ template <typename Composer> class FieldStateVar : public StateVar<Composer> {
         return *this;
     }
 
-    FieldStateVar(){};
+    FieldStateVar() {}
 
     // Instantiate a top-level var:
     FieldStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name, fr const& start_slot)

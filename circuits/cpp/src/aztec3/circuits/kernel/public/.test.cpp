@@ -1,31 +1,31 @@
 #include "init.hpp"
 #include "native_public_kernel_circuit_no_previous_kernel.hpp"
-#include "native_public_kernel_circuit_public_previous_kernel.hpp"
 #include "native_public_kernel_circuit_private_previous_kernel.hpp"
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/public_kernel/public_call_data.hpp>
-#include <gtest/gtest.h>
+#include "native_public_kernel_circuit_public_previous_kernel.hpp"
 
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/abis/call_stack_item.hpp>
+#include <aztec3/circuits/abis/combined_accumulated_data.hpp>
+#include <aztec3/circuits/abis/combined_constant_data.hpp>
 #include <aztec3/circuits/abis/contract_deployment_data.hpp>
 #include <aztec3/circuits/abis/function_data.hpp>
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/previous_kernel_data.hpp>
+#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/private_historic_tree_roots.hpp>
+#include <aztec3/circuits/abis/private_kernel/globals.hpp>
+#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
+#include <aztec3/circuits/abis/public_kernel/public_call_data.hpp>
+#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
 #include <aztec3/circuits/abis/signed_tx_request.hpp>
 #include <aztec3/circuits/abis/tx_context.hpp>
 #include <aztec3/circuits/abis/tx_request.hpp>
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/combined_accumulated_data.hpp>
-#include <aztec3/circuits/abis/combined_constant_data.hpp>
-#include <aztec3/circuits/abis/private_historic_tree_roots.hpp>
-#include <aztec3/circuits/abis/private_kernel/globals.hpp>
 #include <aztec3/circuits/abis/types.hpp>
 #include <aztec3/circuits/apps/function_execution_context.hpp>
-#include <aztec3/circuits/abis/previous_kernel_data.hpp>
 #include <aztec3/utils/array.hpp>
 #include <aztec3/utils/circuit_errors.hpp>
+
+#include <gtest/gtest.h>
 
 namespace {
 using DummyComposer = aztec3::utils::DummyComposer;
@@ -52,7 +52,7 @@ using aztec3::circuits::apps::FunctionExecutionContext;
 using aztec3::utils::CircuitErrorCode;
 using aztec3::utils::source_arrays_are_in_target;
 using aztec3::utils::zero_array;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::kernel::public_kernel {
 
@@ -218,6 +218,7 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
     NT::fr child_portal_contract_address = 200000;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
+        // NOLINTNEXTLINE(readability-suspicious-call-argument)
         child_call_stacks[i] = generate_call_stack_item(child_contract_address,
                                                         contract_address,
                                                         child_contract_address,
@@ -378,12 +379,13 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .public_inputs = public_inputs,
     };
 
-    const PublicKernelInputs<NT> kernel_inputs = {
+    // NOLINTNEXTLINE(misc-const-correctness)
+    PublicKernelInputs<NT> kernel_inputs = {
         .previous_kernel = previous_kernel,
         .public_call = kernel_inputs_no_previous.public_call,
     };
     return kernel_inputs;
-} // namespace aztec3::circuits::kernel::public_kernel
+}  // namespace aztec3::circuits::kernel::public_kernel
 
 template <typename KernelInput>
 void validate_public_kernel_outputs_correctly_propagated(const KernelInput& inputs,
@@ -708,6 +710,7 @@ TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
         child_call_stacks[i] =
+            // NOLINTNEXTLINE(readability-suspicious-call-argument)
             generate_call_stack_item(child_contract_address,
                                      is_delegate_call ? origin_msg_sender : contract_address,
                                      is_delegate_call ? contract_address : child_contract_address,
@@ -742,8 +745,9 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_msg_sender_in
     NT::fr child_contract_address = 100000;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     child_call_stacks[0] =
+        // NOLINTNEXTLINE(readability-suspicious-call-argument)
         generate_call_stack_item(child_contract_address,
-                                 contract_address, // this should be the origin_msg_sender, not the contract address
+                                 contract_address,  // this should be the origin_msg_sender, not the contract address
                                  contract_address,
                                  contract_portal_address,
                                  true,
@@ -773,7 +777,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_storage_contr
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     child_call_stacks[0] = generate_call_stack_item(child_contract_address,
                                                     origin_msg_sender,
-                                                    child_contract_address, // this should be contract_address
+                                                    child_contract_address,  // this should be contract_address
                                                     contract_portal_address,
                                                     true,
                                                     seed);
@@ -801,10 +805,11 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_portal_contra
     NT::fr child_contract_address = 100000;
     NT::fr child_portal_contract = 200000;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
+    // NOLINTNEXTLINE(readability-suspicious-call-argument)
     child_call_stacks[0] = generate_call_stack_item(child_contract_address,
                                                     origin_msg_sender,
                                                     contract_address,
-                                                    child_portal_contract, // this should be contract_portal_address
+                                                    child_portal_contract,  // this should be contract_portal_address
                                                     true,
                                                     seed);
     call_stack_hashes[0] = child_call_stacks[0].hash();
@@ -1056,4 +1061,4 @@ TEST(public_kernel_tests, previous_public_kernel_fails_if_incorrect_storage_cont
     ASSERT_EQ(dc.get_first_failure().code,
               CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
 }
-} // namespace aztec3::circuits::kernel::public_kernel
+}  // namespace aztec3::circuits::kernel::public_kernel

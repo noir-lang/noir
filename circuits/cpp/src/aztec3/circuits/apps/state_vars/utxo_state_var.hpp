@@ -36,7 +36,7 @@ template <typename Composer, typename Note> class UTXOStateVar : public StateVar
 
     typedef typename Note::NotePreimage NotePreimage;
 
-    UTXOStateVar(){};
+    UTXOStateVar() {}
 
     // Instantiate a top-level var:
     UTXOStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)

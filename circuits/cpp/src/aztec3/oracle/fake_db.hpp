@@ -25,7 +25,7 @@ using NT = aztec3::utils::types::NativeTypes;
 // A temporary stub, whilst building other things first.
 class FakeDB {
   public:
-    FakeDB(){};
+    FakeDB() {}
 
     /**
      * For getting a singleton UTXO (not a set).

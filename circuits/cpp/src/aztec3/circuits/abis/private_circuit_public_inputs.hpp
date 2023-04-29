@@ -249,7 +249,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     std::optional<ContractDeploymentData<NCT>> contract_deployment_data;
 
-    OptionalPrivateCircuitPublicInputs<NCT>(){};
+    OptionalPrivateCircuitPublicInputs<NCT>() {}
 
     OptionalPrivateCircuitPublicInputs<NCT>(std::optional<CallContext<NCT>> const& call_context,
 
