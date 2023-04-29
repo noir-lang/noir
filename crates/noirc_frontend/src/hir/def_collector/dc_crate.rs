@@ -295,13 +295,10 @@ fn resolve_globals(
         let name = global.stmt_def.pattern.name_ident().clone();
 
         let hir_stmt = resolver.resolve_global_let(global.stmt_def);
-        let errs = resolver.take_errors();
-        if !errs.is_empty() {
-            extend_errors(errors, global.file_id, errs);
-        } else {
-            context.def_interner.update_global(global.stmt_id, hir_stmt);
-            context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
-        }
+        extend_errors(errors, global.file_id, resolver.take_errors());
+
+        context.def_interner.update_global(global.stmt_id, hir_stmt);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
 
         (global.file_id, global.stmt_id)
     })
