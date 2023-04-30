@@ -200,6 +200,11 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
 }
 
+fn lambda_parameter_pattern_recovery() -> impl NoirParser<Pattern> {
+    use Token::*;
+    try_skip_until([Comma, Pipe, EOF], [Pipe, EOF])
+}
+
 fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
     none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
         .repeated()

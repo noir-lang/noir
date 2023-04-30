@@ -24,9 +24,10 @@
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
 use super::{
-    foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
-    then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
-    ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
+    foldl_with_span, lambda_parameter_pattern_recovery, parameter_name_recovery,
+    parameter_recovery, parenthesized, then_commit, then_commit_ignore,
+    top_level_statement_recovery, ExprParser, ForRange, NoirParser, ParsedModule, ParserError,
+    Precedence, SubModule, TopLevelStatement,
 };
 use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
@@ -259,14 +260,21 @@ fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
 }
 
 fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
-    let typ = parse_type().recover_with(skip_parser(parameter_recovery()));
+    let typ = parse_type();
     let typ = just(Token::Colon).ignore_then(typ);
 
-    let parameter = pattern()
-        .recover_with(skip_parser(parameter_name_recovery()))
+    let parameter =
+        pattern().then(typ.clone().or_not().map(|typ| typ.unwrap_or(UnresolvedType::Unspecified)));
+
+    let parameter_with_recovery = pattern()
+        .recover_with(skip_parser(lambda_parameter_pattern_recovery()))
         .then(typ.or_not().map(|typ| typ.unwrap_or(UnresolvedType::Unspecified)));
 
-    parameter.separated_by(just(Token::Comma)).allow_trailing().labelled("parameter")
+    choice((
+        parameter.separated_by(just(Token::Comma)).allow_trailing(),
+        parameter_with_recovery.separated_by(just(Token::Comma)).allow_trailing(),
+    ))
+    .labelled("parameter")
 }
 
 fn function_parameters<'a>(
@@ -1469,6 +1477,12 @@ mod test {
             ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
             ("constrain x ==", 1, "constrain (plain::x == Error)"),
+            ("let g = || a", 0, "let g: unspecified = || -> unspecified { plain::a }"),
+            (
+                "let g = |a:| a",
+                1,
+                "let g: unspecified = |error: error| -> unspecified { plain::a }",
+            ),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
@@ -1476,7 +1490,7 @@ mod test {
         for (src, expected_errors, expected_result) in cases {
             let (opt, errors) = parse_recover(statement(expression()), src);
             let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s } else { "(none)" };
+            let actual = actual.as_deref().unwrap_or("(none)");
 
             assert_eq!((errors.len(), actual), (expected_errors, expected_result),
                 "\nExpected {} error(s) and got {}:\n\n{}\n\nFrom input:   {}\nExpected AST: {}\nActual AST:   {}\n",
