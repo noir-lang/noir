@@ -430,6 +430,7 @@ where
         constrain(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
+        return_statement(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
     ))
 }
@@ -653,24 +654,18 @@ where
 }
 
 fn expression() -> impl ExprParser {
-    recursive(|expr| {
-        choice((
-            return_expression(expr.clone()),
-            expression_with_precedence(Precedence::Lowest, expr, false),
-        ))
-    })
-    .labelled("expression")
+    recursive(|expr| expression_with_precedence(Precedence::Lowest, expr, false))
+        .labelled("expression")
 }
 
-fn return_expression<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+fn return_statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    keyword(Keyword::Return)
-        .then(expr_parser)
+    ignore_then_commit(keyword(Keyword::Return), expr_parser.or_not())
         .validate(|_, span, emit| {
             emit(ParserError::with_reason("Early 'return' is unsupported".to_owned(), span));
-            Expression::error(span)
+            Statement::error(span)
         })
         .labelled("return expression")
 }
@@ -1506,25 +1501,26 @@ mod test {
     #[test]
     fn return_validation() {
         let cases = vec![
-            ("{ return 42 }", 1, "{\n    Error\n}"),
-            ("{ return 1; return 2; }", 2, "{\n    Error\n    Error;\n}"),
+            ("{ return 42; }", 1, "{\n    Error\n}"),
+            ("{ return 1; return 2; }", 2, "{\n    Error\n    Error\n}"),
             (
                 "{ return 123; let foo = 4 + 3; }",
                 1,
                 "{\n    Error\n    let foo: unspecified = (4 + 3)\n}",
             ),
-            ("{ return return 123; }", 2, "{\n    Error;\n}"),
-            ("{ return 1 + return 2 }", 2, "{\n    Error\n}"),
+            ("{ return 1 + 2; }", 1, "{\n    Error\n}"),
+            ("{ return; }", 1, "{\n    Error\n}"),
         ];
 
         let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
 
-        let results: Vec<_> = cases.into_iter().map(|(src, expected_errors, expected_result)| {
+        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
             let (opt, errors) = parse_recover(block(expression()), src);
             let actual = opt.map(|ast| ast.to_string());
             let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
 
-            let result = ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
+            let result =
+                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
             if result.0 != result.1 {
                 let num_errors = errors.len();
                 let shown_errors = show_errors(errors);
@@ -1533,10 +1529,11 @@ mod test {
                     expected_errors, num_errors, shown_errors, src, expected_result, actual);
             }
             result
-        }).collect();
+        });
+
         assert_eq!(
-            results.iter().cloned().map(|(first, _)| first).collect::<Vec<_>>(),
-            results.into_iter().map(|(_, second)| second).collect::<Vec<_>>()
+            vecmap(&results, |t| t.0.clone()),
+            vecmap(&results, |t| t.1.clone()),
         );
     }
 }
