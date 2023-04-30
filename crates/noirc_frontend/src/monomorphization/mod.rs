@@ -724,37 +724,38 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Option<ast::Expression> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
-                if opcode == "array_len" {
-                    let typ = self.interner.id_type(arguments[0]);
-                    let len = typ.evaluate_to_u64().unwrap();
-                    return Some(ast::Expression::Literal(ast::Literal::Integer(
-                        (len as u128).into(),
-                        ast::Type::Field,
-                    )));
-                } else if opcode == "modulus_num_bits" {
-                    return Some(ast::Expression::Literal(ast::Literal::Integer(
+                return match opcode.as_str() {
+                    "array_len" => {
+                        let typ = self.interner.id_type(arguments[0]);
+                        let len = typ.evaluate_to_u64().unwrap();
+                        Some(ast::Expression::Literal(ast::Literal::Integer(
+                            (len as u128).into(),
+                            ast::Type::Field,
+                        )))
+                    }
+                    "modulus_num_bits" => Some(ast::Expression::Literal(ast::Literal::Integer(
                         (FieldElement::max_num_bits() as u128).into(),
                         ast::Type::Field,
-                    )));
-                } else if opcode == "zeroed" {
-                    return Some(self.zeroed_value_of_type(result_type));
-                }
-
-                let modulus = FieldElement::modulus();
-
-                if opcode == "modulus_le_bits" {
-                    let bits = modulus.to_radix_le(2);
-                    return Some(self.modulus_array_literal(bits, 1));
-                } else if opcode == "modulus_be_bits" {
-                    let bits = modulus.to_radix_be(2);
-                    return Some(self.modulus_array_literal(bits, 1));
-                } else if opcode == "modulus_be_bytes" {
-                    let bytes = modulus.to_bytes_be();
-                    return Some(self.modulus_array_literal(bytes, 8));
-                } else if opcode == "modulus_le_bytes" {
-                    let bytes = modulus.to_bytes_le();
-                    return Some(self.modulus_array_literal(bytes, 8));
-                }
+                    ))),
+                    "zeroed" => Some(self.zeroed_value_of_type(result_type)),
+                    "modulus_le_bits" => {
+                        let bits = FieldElement::modulus().to_radix_le(2);
+                        Some(self.modulus_array_literal(bits, 1))
+                    }
+                    "modulus_be_bits" => {
+                        let bits = FieldElement::modulus().to_radix_be(2);
+                        Some(self.modulus_array_literal(bits, 1))
+                    }
+                    "modulus_be_bytes" => {
+                        let bytes = FieldElement::modulus().to_bytes_be();
+                        Some(self.modulus_array_literal(bytes, 8))
+                    }
+                    "modulus_le_bytes" => {
+                        let bytes = FieldElement::modulus().to_bytes_le();
+                        Some(self.modulus_array_literal(bytes, 8))
+                    }
+                    _ => None,
+                };
             }
         }
         None
