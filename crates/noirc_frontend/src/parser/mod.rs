@@ -192,12 +192,12 @@ fn statement_recovery() -> impl NoirParser<Statement> {
 
 fn parameter_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     use Token::*;
-    try_skip_until([Comma, RightParen], RightParen)
+    try_skip_until([Comma, RightParen, EOF], [RightParen, EOF])
 }
 
 fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     use Token::*;
-    try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
+    try_skip_until([Colon, RightParen, Comma, EOF], [RightParen, Comma, EOF])
 }
 
 fn lambda_parameter_pattern_recovery() -> impl NoirParser<Pattern> {
