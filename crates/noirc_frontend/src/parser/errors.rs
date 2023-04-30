@@ -14,6 +14,7 @@ pub struct ParserError {
     found: Token,
     reason: Option<String>,
     span: Span,
+    is_recovery_error: bool,
 }
 
 impl ParserError {
@@ -24,6 +25,7 @@ impl ParserError {
             found,
             reason: None,
             span,
+            is_recovery_error: false,
         }
     }
 
@@ -42,6 +44,12 @@ impl ParserError {
     pub fn with_reason(reason: String, span: Span) -> ParserError {
         let mut error = ParserError::empty(Token::EOF, span);
         error.reason = Some(reason);
+        error
+    }
+
+    pub fn recovery_error(span: Span) -> ParserError {
+        let mut error = ParserError::with_reason("recovery failure".to_string(), span);
+        error.is_recovery_error = true;
         error
     }
 
@@ -107,6 +115,7 @@ impl chumsky::Error<Token> for ParserError {
             found: found.unwrap_or(Token::EOF),
             reason: None,
             span,
+            is_recovery_error: false,
         }
     }
 
@@ -126,9 +135,7 @@ impl chumsky::Error<Token> for ParserError {
         self.expected_tokens.append(&mut other.expected_tokens);
         self.expected_labels.append(&mut other.expected_labels);
 
-        if self.reason.as_deref() != Some("recovery failure")
-            && other.reason.as_deref() != Some("recovery failure")
-        {
+        if !self.is_recovery_error && !other.is_recovery_error {
             // We compare spans, except for errors for recovery, because the span for recovery does not match
             assert_eq!(self.span, other.span);
         }

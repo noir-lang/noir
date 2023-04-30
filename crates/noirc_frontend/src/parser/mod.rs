@@ -176,8 +176,7 @@ where
         .try_map(move |output, span| {
             match output {
                 // This error will never be shown to the user
-                // The error message "recovery failure" is important: see `errors::ParserError::merge`
-                Some(_) => Err(ParserError::with_reason("recovery failure".to_string(), span)),
+                Some(_) => Err(ParserError::recovery_error(span)),
                 None => Ok(Recoverable::error(span)),
             }
         })
