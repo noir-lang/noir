@@ -3,6 +3,11 @@ use acvm::acir::BlackBoxFunc;
 use super::{basic_block::BasicBlockId, map::Id, types::Type, value::ValueId};
 
 /// Reference to an instruction
+///
+/// Note that InstructionIds are not unique. That is, two InstructionIds
+/// may refer to the same Instruction data. This is because, although
+/// identical, instructions may have different results based on their
+/// placement within a block.
 pub(crate) type InstructionId = Id<Instruction>;
 
 /// These are similar to built-ins in other languages.
@@ -36,6 +41,8 @@ impl std::fmt::Display for Intrinsic {
 }
 
 impl Intrinsic {
+    /// Lookup an Intrinsic by name and return it if found.
+    /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "println" => Some(Intrinsic::Println),
@@ -94,42 +101,6 @@ pub(crate) enum Instruction {
 }
 
 impl Instruction {
-    /// Returns the number of results that this instruction
-    /// produces.
-    pub(crate) fn num_fixed_results(&self) -> usize {
-        match self {
-            Instruction::Binary(_) => 1,
-            Instruction::Cast(..) => 0,
-            Instruction::Not(_) => 1,
-            Instruction::Truncate { .. } => 1,
-            Instruction::Constrain(_) => 0,
-            // This returns 0 as the result depends on the function being called
-            Instruction::Call { .. } => 0,
-            Instruction::Allocate { .. } => 1,
-            Instruction::Load { .. } => 1,
-            Instruction::Store { .. } => 0,
-        }
-    }
-
-    /// Returns the number of arguments required for a call
-    pub(crate) fn num_fixed_arguments(&self) -> usize {
-        // Match-all fields syntax (..) is avoided on most cases of this match to ensure that
-        // if an extra argument is ever added to any of these variants, an error
-        // is issued pointing to this spot to update it here as well.
-        match self {
-            Instruction::Binary(_) => 2,
-            Instruction::Cast(_, _) => 1,
-            Instruction::Not(_) => 1,
-            Instruction::Truncate { value: _, bit_size: _, max_bit_size: _ } => 1,
-            Instruction::Constrain(_) => 1,
-            // This returns 0 as the arguments depend on the function being called
-            Instruction::Call { .. } => 0,
-            Instruction::Allocate { size: _ } => 1,
-            Instruction::Load { address: _ } => 1,
-            Instruction::Store { address: _, value: _ } => 2,
-        }
-    }
-
     /// Returns the type that this instruction will return.
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
@@ -204,6 +175,7 @@ pub(crate) struct Binary {
 }
 
 impl Binary {
+    /// The type of this Binary instruction's result
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self.operator {
             BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),

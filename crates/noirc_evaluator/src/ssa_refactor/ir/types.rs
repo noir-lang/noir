@@ -30,18 +30,22 @@ pub(crate) enum Type {
 }
 
 impl Type {
+    /// Create a new signed integer type with the given amount of bits.
     pub(crate) fn signed(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
     }
 
+    /// Create a new unsigned integer type with the given amount of bits.
     pub(crate) fn unsigned(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Unsigned { bit_size })
     }
 
+    /// Creates the boolean type, represented as u1.
     pub(crate) fn bool() -> Type {
         Type::unsigned(1)
     }
 
+    /// Creates the native field type.
     pub(crate) fn field() -> Type {
         Type::Numeric(NumericType::NativeField)
     }

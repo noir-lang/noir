@@ -47,6 +47,7 @@ pub(crate) enum Value {
 }
 
 impl Value {
+    /// Retrieves the type of this Value
     pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Instruction { typ, .. } => *typ,
