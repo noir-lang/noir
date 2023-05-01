@@ -1,9 +1,10 @@
 use std::path::Path;
 
+use acvm::acir::native_types::WitnessMap;
 use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{InputMap, WitnessMap};
+use noirc_abi::InputMap;
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};

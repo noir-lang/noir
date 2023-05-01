@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "510b65efd4d20bf266185ce0a5dc7d29bcdd196a6a1835c20908fd88040de76c"
+source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
 dependencies = [
  "acir_field",
  "flate2",
@@ -17,8 +16,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f032e710c67fd146caedc8fe1dea6e95f01ab59453e42d59b604a51fef3dfe"
+source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,8 +29,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2611266039740ffd1978f23258bd6ce3166c22cf15b8227685c2f3bb20ae2ee0"
+source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -49,7 +46,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.0.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=c9fb9e806f1400a2ff7594a0669bec56025220bb#c9fb9e806f1400a2ff7594a0669bec56025220bb"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=e68e9572cbac2362ce5fc948d53e31a2628b8cc7#e68e9572cbac2362ce5fc948d53e31a2628b8cc7"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -68,8 +65,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5ec51160c66eba75dc15a028a2391675386fd395b3897478d89a386c64a48dd"
+source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
 dependencies = [
  "acir",
 ]

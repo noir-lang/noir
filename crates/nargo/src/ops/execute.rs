@@ -1,6 +1,5 @@
-use acvm::{acir::circuit::Circuit, pwg::block::Blocks};
+use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap, pwg::block::Blocks};
 use acvm::{PartialWitnessGenerator, PartialWitnessGeneratorStatus};
-use noirc_abi::WitnessMap;
 
 use crate::NargoError;
 

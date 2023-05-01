@@ -113,10 +113,8 @@ fn permutation_layer(
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
-
     use acvm::{
-        acir::{circuit::opcodes::BlackBoxFuncCall, native_types::Witness},
+        acir::{circuit::opcodes::BlackBoxFuncCall, native_types::WitnessMap},
         pwg::block::Blocks,
         FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator,
         PartialWitnessGeneratorStatus,
@@ -132,7 +130,7 @@ mod test {
     impl PartialWitnessGenerator for MockBackend {
         fn solve_black_box_function_call(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _func_call: &BlackBoxFuncCall,
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             unreachable!();
@@ -150,7 +148,7 @@ mod test {
             let mut input = Vec::new();
             let mut a_val = Vec::new();
             let mut b_wit = Vec::new();
-            let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
+            let mut solved_witness = WitnessMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
                 input.push(w.into());
