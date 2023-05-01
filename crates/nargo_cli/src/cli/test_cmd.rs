@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, io::Write, path::Path};
+use std::{io::Write, path::Path};
 
-use acvm::Backend;
+use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::ops::execute_circuit;
 use noirc_driver::{CompileOptions, Driver};
@@ -89,7 +89,7 @@ fn run_test<B: Backend>(
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match execute_circuit(backend, program.circuit, BTreeMap::new()) {
+    match execute_circuit(backend, program.circuit, WitnessMap::new()) {
         Ok(_) => Ok(()),
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);

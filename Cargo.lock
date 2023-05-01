@@ -5,76 +5,35 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310#018d6865e03ddd09ed409b383f38971ec9ec3310"
+source = "git+https://github.com/noir-lang/acvm?rev=bbd9ab7ca5be3fb31f3e141fee2522704852f5de#bbd9ab7ca5be3fb31f3e141fee2522704852f5de"
 dependencies = [
- "acir_field 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acir_field",
  "flate2",
  "rmp-serde",
  "serde",
-]
-
-[[package]]
-name = "acir"
-version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
-dependencies = [
- "acir_field 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
- "flate2",
- "rmp-serde",
- "serde",
-]
-
-[[package]]
-name = "acir_field"
-version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310#018d6865e03ddd09ed409b383f38971ec9ec3310"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "cfg-if 1.0.0",
- "hex",
- "num-bigint",
- "serde",
-]
-
-[[package]]
-name = "acir_field"
-version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "cfg-if 1.0.0",
- "hex",
- "num-bigint",
- "serde",
-]
-
-[[package]]
-name = "acvm"
-version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310#018d6865e03ddd09ed409b383f38971ec9ec3310"
-dependencies = [
- "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
- "acvm_stdlib 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
- "blake2",
- "crc32fast",
- "indexmap",
- "k256",
- "num-bigint",
- "num-traits",
- "sha2 0.10.6",
- "sha3",
  "thiserror",
 ]
 
 [[package]]
+name = "acir_field"
+version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=bbd9ab7ca5be3fb31f3e141fee2522704852f5de#bbd9ab7ca5be3fb31f3e141fee2522704852f5de"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "cfg-if 1.0.0",
+ "hex",
+ "num-bigint",
+ "serde",
+]
+
+[[package]]
 name = "acvm"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
+source = "git+https://github.com/noir-lang/acvm?rev=bbd9ab7ca5be3fb31f3e141fee2522704852f5de#bbd9ab7ca5be3fb31f3e141fee2522704852f5de"
 dependencies = [
- "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
- "acvm_stdlib 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
+ "acir",
+ "acvm_stdlib",
  "blake2",
  "crc32fast",
  "indexmap",
@@ -89,9 +48,9 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.1.2"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=a97dc35affc33db015a0f84f7e0e22dd143ac558#a97dc35affc33db015a0f84f7e0e22dd143ac558"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=4f622b58144330ebc53d8458bd9e456a8efb147c#4f622b58144330ebc53d8458bd9e456a8efb147c"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
+ "acvm",
  "barretenberg-sys",
  "dirs 3.0.2",
  "futures-util",
@@ -108,17 +67,9 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310#018d6865e03ddd09ed409b383f38971ec9ec3310"
+source = "git+https://github.com/noir-lang/acvm?rev=bbd9ab7ca5be3fb31f3e141fee2522704852f5de#bbd9ab7ca5be3fb31f3e141fee2522704852f5de"
 dependencies = [
- "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
-]
-
-[[package]]
-name = "acvm_stdlib"
-version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
-dependencies = [
- "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
+ "acir",
 ]
 
 [[package]]
@@ -1885,7 +1836,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.5.1"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acvm",
  "iter-extended",
  "noirc_abi",
  "noirc_driver",
@@ -1899,7 +1850,7 @@ dependencies = [
 name = "nargo_cli"
 version = "0.5.1"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acvm",
  "acvm-backend-barretenberg",
  "assert_cmd",
  "assert_fs",
@@ -1930,7 +1881,7 @@ dependencies = [
 name = "noir_wasm"
 version = "0.5.1"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acvm",
  "build-data",
  "console_error_panic_hook",
  "gloo-utils",
@@ -1946,7 +1897,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.5.1"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acvm",
  "iter-extended",
  "serde",
  "serde_json",
@@ -1960,7 +1911,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.5.1"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acvm",
  "clap",
  "fm",
  "iter-extended",
@@ -1986,7 +1937,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.5.1"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acvm",
  "arena",
  "iter-extended",
  "noirc_abi",
@@ -2002,7 +1953,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.5.1"
 dependencies = [
- "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=018d6865e03ddd09ed409b383f38971ec9ec3310)",
+ "acvm",
  "arena",
  "chumsky",
  "fm",

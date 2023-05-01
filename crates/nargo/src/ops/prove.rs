@@ -1,6 +1,5 @@
-use acvm::acir::circuit::Circuit;
+use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::ProofSystemCompiler;
-use noirc_abi::WitnessMap;
 
 pub fn prove_execution<B: ProofSystemCompiler>(
     backend: &B,

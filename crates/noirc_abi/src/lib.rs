@@ -5,7 +5,10 @@
 
 use std::{collections::BTreeMap, str};
 
-use acvm::{acir::native_types::Witness, FieldElement};
+use acvm::{
+    acir::native_types::{Witness, WitnessMap},
+    FieldElement,
+};
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
@@ -21,9 +24,6 @@ mod serialization;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
-
-/// A map from the witnesses in a constraint system to the field element values
-pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 /// A tuple of the arguments to a function along with its return value.
 pub type FunctionSignature = (Vec<AbiParameter>, Option<AbiType>);
@@ -254,7 +254,7 @@ impl Abi {
             .collect::<Result<_, _>>()?;
 
         // Write input field elements into witness indices specified in `self.param_witnesses`.
-        let mut witness_map: WitnessMap = encoded_input_map
+        let mut witness_map: BTreeMap<Witness, FieldElement> = encoded_input_map
             .iter()
             .flat_map(|(param_name, encoded_param_fields)| {
                 let param_witness_indices = &self.param_witnesses[param_name];
@@ -297,7 +297,7 @@ impl Abi {
             (_, None) => {}
         }
 
-        Ok(witness_map)
+        Ok(witness_map.into())
     }
 
     fn encode_value(value: InputValue) -> Result<Vec<FieldElement>, AbiError> {

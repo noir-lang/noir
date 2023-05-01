@@ -113,10 +113,8 @@ fn permutation_layer(
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
-
     use acvm::{
-        acir::{circuit::opcodes::FunctionInput, native_types::Witness},
+        acir::{circuit::opcodes::FunctionInput, native_types::Witness, native_types::WitnessMap},
         pwg::{block::Blocks, solve, OpcodeResolution, PartialWitnessGeneratorStatus},
         FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
     };
@@ -131,7 +129,7 @@ mod test {
     impl PartialWitnessGenerator for MockBackend {
         fn aes(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
@@ -139,7 +137,7 @@ mod test {
         }
         fn and(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _lhs: &FunctionInput,
             _rhs: &FunctionInput,
             _output: &Witness,
@@ -148,7 +146,7 @@ mod test {
         }
         fn xor(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _lhs: &FunctionInput,
             _rhs: &FunctionInput,
             _output: &Witness,
@@ -157,14 +155,14 @@ mod test {
         }
         fn range(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _input: &FunctionInput,
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")
         }
         fn sha256(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
@@ -172,7 +170,7 @@ mod test {
         }
         fn blake2s(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
@@ -180,7 +178,7 @@ mod test {
         }
         fn compute_merkle_root(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _leaf: &FunctionInput,
             _index: &FunctionInput,
             _hash_path: &[FunctionInput],
@@ -190,7 +188,7 @@ mod test {
         }
         fn schnorr_verify(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _public_key_x: &FunctionInput,
             _public_key_y: &FunctionInput,
             _signature: &[FunctionInput],
@@ -201,7 +199,7 @@ mod test {
         }
         fn pedersen(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
@@ -209,7 +207,7 @@ mod test {
         }
         fn hash_to_field_128_security(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
             _output: &Witness,
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
@@ -217,7 +215,7 @@ mod test {
         }
         fn ecdsa_secp256k1(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _public_key_x: &[FunctionInput],
             _public_key_y: &[FunctionInput],
             _signature: &[FunctionInput],
@@ -228,7 +226,7 @@ mod test {
         }
         fn fixed_base_scalar_mul(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _input: &FunctionInput,
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
@@ -236,7 +234,7 @@ mod test {
         }
         fn keccak256(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
@@ -255,7 +253,7 @@ mod test {
             let mut input = Vec::new();
             let mut a_val = Vec::new();
             let mut b_wit = Vec::new();
-            let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
+            let mut solved_witness = WitnessMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
                 input.push(w.into());

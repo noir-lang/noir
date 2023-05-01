@@ -1,4 +1,4 @@
-use acvm::{Backend, ProofSystemCompiler, SmartContract};
+use acvm::{acir::native_types::WitnessMapError, Backend, ProofSystemCompiler, SmartContract};
 use hex::FromHexError;
 use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
@@ -21,6 +21,10 @@ pub(crate) enum FilesystemError {
     /// Input parsing error
     #[error(transparent)]
     InputParserError(#[from] InputParserError),
+
+    /// WitnessMap serialization error
+    #[error(transparent)]
+    WitnessMapSerialization(#[from] WitnessMapError),
 }
 
 #[derive(Debug, Error)]
