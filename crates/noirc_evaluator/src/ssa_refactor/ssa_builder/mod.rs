@@ -27,6 +27,10 @@ pub(crate) struct FunctionBuilder {
 }
 
 impl FunctionBuilder {
+    /// Creates a new FunctionBuilder to build the function with the given FunctionId.
+    ///
+    /// This creates the new function internally so there is no need to call .new_function()
+    /// right after constructing a new FunctionBuilder.
     pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
         let new_function = Function::new(function_name, function_id);
         let current_block = new_function.entry_block();
@@ -34,7 +38,11 @@ impl FunctionBuilder {
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }
     }
 
-    /// Finish the current function and create a new function
+    /// Finish the current function and create a new function.
+    ///
+    /// A FunctionBuilder can always only work on one function at a time, so care
+    /// should be taken not to finish a function that is still in progress by calling
+    /// new_function before the current function is finished.
     pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
         let new_function = Function::new(name, function_id);
         self.current_block = new_function.entry_block();
@@ -43,11 +51,14 @@ impl FunctionBuilder {
         self.finished_functions.push(old_function);
     }
 
+    /// Consume the FunctionBuilder returning all the functions it has generated.
     pub(crate) fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
         Ssa::new(self.finished_functions)
     }
 
+    /// Add a parameter to the current function with the given parameter type.
+    /// Returns the newly-added parameter.
     pub(crate) fn add_parameter(&mut self, typ: Type) -> ValueId {
         let entry = self.current_function.entry_block();
         self.current_function.dfg.add_block_parameter(entry, typ)
@@ -67,14 +78,19 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
+    /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
         self.current_function.dfg.type_of_value(value)
     }
 
+    /// Insert a new block into the current function and return it.
+    /// Note that this block is unreachable until another block is set to jump to it.
     pub(crate) fn insert_block(&mut self) -> BasicBlockId {
         self.current_function.dfg.make_block()
     }
 
+    /// Adds a parameter with the given type to the given block.
+    /// Returns the newly-added parameter.
     pub(crate) fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> ValueId {
         self.current_function.dfg.add_block_parameter(block, typ)
     }
