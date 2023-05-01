@@ -155,9 +155,9 @@ pub(super) fn evaluate_bitwise(
         constraints::subtract(
             &Expression::from_field(max),
             FieldElement::one(),
-            &Expression::from(&result),
+            &Expression::from(result),
         )
     } else {
-        Expression::from(&result)
+        Expression::from(result)
     }
 }

@@ -69,7 +69,7 @@ pub(super) fn evaluate_neq(
             .get_or_compute_witness(x, evaluator)
             .expect("unexpected constant expression");
 
-        return Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator));
+        return Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator));
     }
 
     // Arriving here means that `lhs` and `rhs` are not Arrays
@@ -95,7 +95,7 @@ pub(super) fn evaluate_neq(
             .var_cache
             .get_or_compute_witness(x, evaluator)
             .expect("unexpected constant expression");
-        Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
+        Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator))
     }
 }
 

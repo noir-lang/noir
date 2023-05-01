@@ -43,7 +43,7 @@ fn verify_with_path<P: AsRef<Path>>(
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
