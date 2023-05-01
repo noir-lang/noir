@@ -2,7 +2,7 @@ use acvm::FieldElement;
 
 use super::map::Id;
 
-/// Represents a numeric constant in Ssa. Constants themselves are
+/// Represents a numeric constant in SSA. Constants themselves are
 /// uniqued in the DataFlowGraph and immutable.
 ///
 /// This is just a thin wrapper around FieldElement so that

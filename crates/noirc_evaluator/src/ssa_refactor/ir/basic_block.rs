@@ -68,7 +68,7 @@ impl BasicBlock {
 
     /// Returns the terminator of this block.
     ///
-    /// If this block is not still under construction, this is expected to always be Some.
+    /// Once this block has finished construction, this is expected to always be Some.
     pub(crate) fn terminator(&self) -> Option<&TerminatorInstruction> {
         self.terminator.as_ref()
     }

@@ -18,7 +18,7 @@ use super::ir::{instruction::BinaryOp, types::Type, value::ValueId};
 
 /// Generates SSA for the given monomorphized program.
 ///
-/// This function will generate the Ssa but does not perform any optimizations on it.
+/// This function will generate the SSA but does not perform any optimizations on it.
 pub fn generate_ssa(program: Program) -> Ssa {
     let context = SharedContext::new(program);
 
