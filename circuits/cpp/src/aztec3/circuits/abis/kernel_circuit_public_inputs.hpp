@@ -1,10 +1,12 @@
 #pragma once
 #include "combined_accumulated_data.hpp"
 #include "combined_constant_data.hpp"
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -15,13 +17,13 @@ using std::conditional;
 using std::is_same;
 
 template <typename NCT> struct KernelCircuitPublicInputs {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     CombinedAccumulatedData<NCT> end{};
     CombinedConstantData<NCT> constants{};
 
-    boolean is_private = true; // TODO: might need to instantiate from witness!
+    boolean is_private = true;  // TODO: might need to instantiate from witness!
 
     boolean operator==(KernelCircuitPublicInputs<NCT> const& other) const
     {
@@ -100,4 +102,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, KernelCircuit
               << "is_private: " << public_inputs.is_private << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

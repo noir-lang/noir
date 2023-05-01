@@ -68,10 +68,10 @@ typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::co
         return *commitment;
     }
 
-    grumpkin_point storage_slot_point = state_var->storage_slot_point;
+    grumpkin_point const storage_slot_point = state_var->storage_slot_point;
 
-    std::vector<fr> inputs;
-    std::vector<generator_index_t> generators;
+    std::vector<fr> const inputs;
+    std::vector<generator_index_t> const generators;
 
     auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
         if (!input) {
@@ -119,7 +119,7 @@ typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::co
         compute_commitment();
     }
 
-    fr& owner_private_key = get_oracle().get_msg_sender_private_key();
+    fr const& owner_private_key = get_oracle().get_msg_sender_private_key();
 
     nullifier = DefaultSingletonPrivateNote<Composer, V>::compute_nullifier(*commitment, owner_private_key);
     nullifier_preimage = {
@@ -133,8 +133,8 @@ template <typename Composer, typename V>
 typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::compute_dummy_nullifier()
 {
     auto& oracle = get_oracle();
-    fr dummy_commitment = oracle.generate_random_element();
-    fr& owner_private_key = oracle.get_msg_sender_private_key();
+    fr const dummy_commitment = oracle.generate_random_element();
+    fr const& owner_private_key = oracle.get_msg_sender_private_key();
     const boolean is_dummy_commitment = true;
 
     return DefaultSingletonPrivateNote<Composer, V>::compute_nullifier(
@@ -184,8 +184,7 @@ template <typename Composer, typename V>
 void DefaultSingletonPrivateNote<Composer, V>::constrain_against_advice(NoteInterface<Composer> const& advice_note)
 {
     // Cast from a ref to the base (interface) type to a ref to this derived type:
-    const DefaultSingletonPrivateNote<Composer, V>& advice_note_ref =
-        dynamic_cast<const DefaultSingletonPrivateNote<Composer, V>&>(advice_note);
+    const auto& advice_note_ref = dynamic_cast<const DefaultSingletonPrivateNote<Composer, V>&>(advice_note);
 
     auto assert_equal = []<typename T>(std::optional<T>& this_member, std::optional<T> const& advice_member) {
         if (advice_member) {

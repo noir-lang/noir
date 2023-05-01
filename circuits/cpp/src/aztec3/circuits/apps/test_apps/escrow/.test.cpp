@@ -1,13 +1,14 @@
-#include "index.hpp"
 #include "contract.hpp"
+#include "index.hpp"
 
 // #include <aztec3/circuits/abis/call_context.hpp>
 // #include <aztec3/circuits/abis/function_data.hpp>
 
 // #include <aztec3/circuits/apps/function_execution_context.hpp>
 
-#include <gtest/gtest.h>
 #include <barretenberg/common/test.hpp>
+
+#include <gtest/gtest.h>
 // #include <barretenberg/common/serialize.hpp>
 // #include <barretenberg/stdlib/types/types.hpp>
 // #include <barretenberg/numeric/random/engine.hpp>
@@ -16,20 +17,20 @@ namespace aztec3::circuits::apps::test_apps::escrow {
 
 class escrow_tests : public ::testing::Test {
   protected:
-    NativeOracle get_test_native_oracle(DB& db)
+    static NativeOracle get_test_native_oracle(DB& db)
     {
         const NT::address contract_address = 12345;
         const NT::fr msg_sender_private_key = 123456789;
         const NT::address msg_sender = NT::fr(
             uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
 
-        FunctionData<NT> function_data{
-            .function_selector = 1, // TODO: deduce this from the contract, somehow.
+        FunctionData<NT> const function_data{
+            .function_selector = 1,  // TODO: deduce this from the contract, somehow.
             .is_private = true,
             .is_constructor = false,
         };
 
-        CallContext<NT> call_context{
+        CallContext<NT> const call_context{
             .msg_sender = msg_sender,
             .storage_contract_address = contract_address,
             .portal_contract_address = 0,
@@ -121,4 +122,4 @@ TEST_F(escrow_tests, circuit_withdraw)
     info("n: ", composer.num_gates);
 }
 
-} // namespace aztec3::circuits::apps::test_apps::escrow
+}  // namespace aztec3::circuits::apps::test_apps::escrow

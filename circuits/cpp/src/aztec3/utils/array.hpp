@@ -1,5 +1,6 @@
 #pragma once
 #include "./types/native_types.hpp"
+
 #include "barretenberg/common/throw_or_abort.hpp"
 
 /**
@@ -22,7 +23,7 @@ using NT = types::NativeTypes;
 template <typename ELEMS_TYPE, size_t ARRAY_LEN> std::array<ELEMS_TYPE, ARRAY_LEN> zero_array()
 {
     std::array<ELEMS_TYPE, ARRAY_LEN> arr;
-    arr.fill(ELEMS_TYPE(0)); // Assumes that integer type can be used here in initialization
+    arr.fill(ELEMS_TYPE(0));  // Assumes that integer type can be used here in initialization
     return arr;
 }
 
@@ -83,7 +84,7 @@ template <typename T, size_t SIZE> size_t array_length(std::array<T, SIZE> const
  */
 template <typename T, size_t SIZE> T array_pop(std::array<T, SIZE>& arr)
 {
-    for (size_t i = arr.max_size() - 1; i != (size_t)-1; i--) {
+    for (size_t i = arr.max_size() - 1; i != static_cast<size_t>(-1); i--) {
         if (!is_empty(arr[i])) {
             const auto temp = arr[i];
             arr[i] = empty_value<T>();
@@ -119,8 +120,9 @@ template <typename T, size_t SIZE> void array_push(std::array<T, SIZE>& arr, T c
 template <typename T, size_t SIZE> NT::boolean is_array_empty(std::array<T, SIZE> const& arr)
 {
     for (size_t i = 0; i < arr.size(); ++i) {
-        if (!is_empty(arr[i]))
+        if (!is_empty(arr[i])) {
             return false;
+        }
     }
     return true;
 };
@@ -139,8 +141,8 @@ template <size_t size_1, size_t size_2, typename T>
 void push_array_to_array(std::array<T, size_1> const& source, std::array<T, size_2>& target)
 {
     // Check if the `source` array is too large vs the remaining capacity of the `target` array
-    size_t source_size = static_cast<size_t>(uint256_t(array_length(source)));
-    size_t target_size = static_cast<size_t>(uint256_t(array_length(target)));
+    size_t const source_size = static_cast<size_t>(uint256_t(array_length(source)));
+    size_t const target_size = static_cast<size_t>(uint256_t(array_length(target)));
     ASSERT(source_size <= size_2 - target_size);
 
     // Ensure that there are no non-zero values in the `target` array after the first zero-valued index
@@ -176,8 +178,8 @@ bool source_arrays_are_in_target(std::array<T, size_1> const& source1,
                                  std::array<T, size_3> const& target)
 {
     // Check if the `source` arrays are too large vs the size of the `target` array
-    size_t source1_size = static_cast<size_t>(uint256_t(array_length(source1)));
-    size_t source2_size = static_cast<size_t>(uint256_t(array_length(source2)));
+    size_t const source1_size = static_cast<size_t>(uint256_t(array_length(source1)));
+    size_t const source2_size = static_cast<size_t>(uint256_t(array_length(source2)));
     ASSERT(source1_size + source2_size <= size_3);
 
     // first ensure that all non-empty items in the first source are in the target
@@ -205,4 +207,4 @@ bool source_arrays_are_in_target(std::array<T, size_1> const& source1,
     return true;
 }
 
-} // namespace aztec3::utils
+}  // namespace aztec3::utils

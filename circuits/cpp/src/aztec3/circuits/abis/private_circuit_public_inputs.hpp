@@ -2,16 +2,17 @@
 
 #include "call_context.hpp"
 #include "contract_deployment_data.hpp"
+
 #include <aztec3/constants.hpp>
+#include <aztec3/utils/array.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/crypto/generators/generator_data.hpp>
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/array.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -20,8 +21,8 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> class PrivateCircuitPublicInputs {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
   public:
     CallContext<NCT> call_context{};
@@ -153,7 +154,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const
     {
         const auto arr_size = sizeof(arr) / sizeof(fr);
-        vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
+        vec.insert(vec.end(), arr.data(), arr.data() + arr_size);
     }
 };
 
@@ -225,8 +226,8 @@ std::ostream& operator<<(std::ostream& os, PrivateCircuitPublicInputs<NCT> const
 // which aren't set by the circuit can then be safely set to zero when calling `set_public` (by checking for
 // std::nullopt)
 template <typename NCT> class OptionalPrivateCircuitPublicInputs {
-    typedef typename NCT::fr fr;
-    typedef typename std::optional<fr> opt_fr;
+    using fr = typename NCT::fr;
+    using opt_fr = typename std::optional<fr>;
 
   public:
     std::optional<CallContext<NCT>> call_context;
@@ -249,7 +250,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     std::optional<ContractDeploymentData<NCT>> contract_deployment_data;
 
-    OptionalPrivateCircuitPublicInputs<NCT>() {}
+    OptionalPrivateCircuitPublicInputs<NCT>() = default;
 
     OptionalPrivateCircuitPublicInputs<NCT>(std::optional<CallContext<NCT>> const& call_context,
 
@@ -288,7 +289,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     static OptionalPrivateCircuitPublicInputs<NCT> create()
     {
-
         auto new_inputs = OptionalPrivateCircuitPublicInputs<NCT>();
 
         new_inputs.call_context = std::nullopt;
@@ -537,13 +537,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         std::array<fr, SIZE> arr_values = map(arr, get_opt_value);
         const auto arr_size = sizeof(arr_values) / sizeof(fr);
-        vec.insert(vec.end(), &arr_values[0], &arr_values[0] + arr_size);
+        vec.insert(vec.end(), arr_values.data(), arr_values.data() + arr_size);
     }
 
     template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const
     {
         const auto arr_size = sizeof(arr) / sizeof(fr);
-        vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
+        vec.insert(vec.end(), arr.data(), arr.data() + arr_size);
     }
 
     template <typename Composer, typename T, size_t SIZE>
@@ -563,7 +563,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         if (!element) {
             element =
-                T(witness_t<Composer>(&composer, 0)); // convert the nullopt value to a circuit witness value of `0`
+                T(witness_t<Composer>(&composer, 0));  // convert the nullopt value to a circuit witness value of `0`
             fr(*element).assert_is_zero();
         }
     }
@@ -576,7 +576,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         if (!element) {
             element = ABIStruct<NativeTypes>().to_circuit_type(
-                composer); // convert the nullopt value to a circuit witness value of `0`
+                composer);  // convert the nullopt value to a circuit witness value of `0`
             (*element).template assert_is_zero<Composer>();
         }
     }
@@ -588,7 +588,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             fr(*e).set_public();
         }
     }
-}; // namespace aztec3::circuits::abis
+};  // namespace aztec3::circuits::abis
 
 template <typename NCT>
 void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_circuit_public_inputs)
@@ -653,4 +653,4 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
               << "contract_deployment_data: " << pis.contract_deployment_data << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

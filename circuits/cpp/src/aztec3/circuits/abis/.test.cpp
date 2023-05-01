@@ -1,10 +1,11 @@
-#include <gtest/gtest.h>
-#include <barretenberg/common/test.hpp>
-#include <barretenberg/common/serialize.hpp>
 #include "index.hpp"
-
 #include "previous_kernel_data.hpp"
 #include "private_kernel/private_inputs.hpp"
+
+#include <barretenberg/common/serialize.hpp>
+#include <barretenberg/common/test.hpp>
+
+#include <gtest/gtest.h>
 
 namespace {
 // Composer
@@ -13,7 +14,7 @@ using Composer = plonk::UltraComposer;
 // Types
 using CT = aztec3::utils::types::CircuitTypes<Composer>;
 using NT = aztec3::utils::types::NativeTypes;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::abis {
 
@@ -21,7 +22,7 @@ class abi_tests : public ::testing::Test {};
 
 TEST(abi_tests, native_read_write_call_context)
 {
-    CallContext<NT> call_context = {
+    CallContext<NT> const call_context = {
         .msg_sender = 1,
         .storage_contract_address = 2,
         .portal_contract_address = 3,
@@ -40,7 +41,7 @@ TEST(abi_tests, native_read_write_call_context)
 
 TEST(abi_tests, native_read_write_function_data)
 {
-    FunctionData<NT> function_data = {
+    FunctionData<NT> const function_data = {
         .function_selector = 11,
         .is_private = false,
         .is_constructor = false,
@@ -73,7 +74,7 @@ TEST(abi_tests, native_read_write_function_data)
 
 TEST(abi_tests, native_to_circuit_function_data)
 {
-    FunctionData<NT> native_function_data = {
+    FunctionData<NT> const native_function_data = {
         .function_selector = 11,
         .is_private = false,
         .is_constructor = false,
@@ -82,14 +83,14 @@ TEST(abi_tests, native_to_circuit_function_data)
     info("function data: ", native_function_data);
 
     Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
-    FunctionData<CT> circuit_function_data = native_function_data.to_circuit_type(composer);
+    FunctionData<CT> const circuit_function_data = native_function_data.to_circuit_type(composer);
 
     info("function data: ", circuit_function_data);
 }
 
 TEST(abi_tests, native_call_context)
 {
-    CallContext<NT> call_context = {
+    CallContext<NT> const call_context = {
         .msg_sender = 10,
         .storage_contract_address = 11,
         .portal_contract_address = 12,
@@ -102,7 +103,7 @@ TEST(abi_tests, native_call_context)
 
 TEST(abi_tests, native_to_circuit_call_context)
 {
-    CallContext<NT> native_call_context = {
+    CallContext<NT> const native_call_context = {
         .msg_sender = 10,
         .storage_contract_address = 11,
         .portal_contract_address = 12,
@@ -113,9 +114,9 @@ TEST(abi_tests, native_to_circuit_call_context)
     info("call context: ", native_call_context);
 
     Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
-    CallContext<CT> circuit_call_context = native_call_context.to_circuit_type(composer);
+    CallContext<CT> const circuit_call_context = native_call_context.to_circuit_type(composer);
 
     info("call context: ", circuit_call_context);
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

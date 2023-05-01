@@ -1,17 +1,18 @@
 #pragma once
 
-#include "aztec3/constants.hpp"
-#include "aztec3/utils/array.hpp"
 #include "call_context_reconciliation_data.hpp"
 #include "../call_stack_item.hpp"
 #include "../membership_witness.hpp"
 #include "../types.hpp"
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/constants.hpp"
+#include "aztec3/utils/array.hpp"
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis::private_kernel {
 
@@ -21,10 +22,10 @@ using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct PrivateCallData {
-    typedef typename NCT::address address;
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::VK VK;
+    using address = typename NCT::address;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
+    using VK = typename NCT::VK;
 
     CallStackItem<NCT, PrivateTypes> call_stack_item{};
 
@@ -32,13 +33,13 @@ template <typename NCT> struct PrivateCallData {
 
     // std::array<CallStackItem<NCT, CallType::Public>, PUBLIC_CALL_STACK_LENGTH> public_call_stack_preimages;
 
-    NativeTypes::Proof proof{}; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
+    NativeTypes::Proof proof{};  // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
 
     MembershipWitness<NCT, FUNCTION_TREE_HEIGHT> function_leaf_membership_witness{};
     MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness{};
 
-    fr portal_contract_address = 0; // an ETH address
+    fr portal_contract_address = 0;  // an ETH address
     fr acir_hash = 0;
 
     boolean operator==(PrivateCallData<NCT> const& other) const
@@ -67,8 +68,8 @@ template <typename NCT> struct PrivateCallData {
 
             map(private_call_stack_preimages, to_circuit_type),
 
-            proof, // Notice: not converted! Stays as native. This is because of how the verify_proof function
-                   // currently works.
+            proof,  // Notice: not converted! Stays as native. This is because of how the verify_proof function
+                    // currently works.
             CT::VK::from_witness(&composer, vk),
 
             to_circuit_type(function_leaf_membership_witness),
@@ -80,7 +81,7 @@ template <typename NCT> struct PrivateCallData {
 
         return data;
     };
-}; // namespace aztec3::circuits::abis::private_kernel
+};  // namespace aztec3::circuits::abis::private_kernel
 
 template <typename NCT> void read(uint8_t const*& it, PrivateCallData<NCT>& obj)
 {
@@ -128,4 +129,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateCallDa
               << "acir_hash: " << obj.acir_hash << "\n";
 }
 
-} // namespace aztec3::circuits::abis::private_kernel
+}  // namespace aztec3::circuits::abis::private_kernel

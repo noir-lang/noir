@@ -1,7 +1,7 @@
 #pragma once
 
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps {
@@ -10,7 +10,7 @@ template <typename Composer> class FunctionExecutionContext;
 
 namespace aztec3::circuits::apps::state_vars {
 
-using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
+using aztec3::circuits::apps::FunctionExecutionContext;  // Don't #include it!
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
@@ -22,10 +22,10 @@ using aztec3::utils::types::NativeTypes;
  */
 template <typename Composer> class StateVar {
   public:
-    typedef CircuitTypes<Composer> CT;
-    typedef NativeTypes NT;
-    typedef typename CT::fr fr;
-    typedef typename CT::grumpkin_point grumpkin_point;
+    using CT = CircuitTypes<Composer>;
+    using NT = NativeTypes;
+    using fr = typename CT::fr;
+    using grumpkin_point = typename CT::grumpkin_point;
 
     // The execution context of the function currently being executed.
     FunctionExecutionContext<Composer>* exec_ctx;
@@ -54,7 +54,7 @@ template <typename Composer> class StateVar {
     // Optionally informs custom notes whether they should commit or partially-commit to this state.
     bool is_partial_slot = false;
 
-    StateVar() {}
+    StateVar() = default;
 
     // Instantiate a top-level state:
     StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name);
@@ -63,8 +63,8 @@ template <typename Composer> class StateVar {
     StateVar(
         FunctionExecutionContext<Composer>* exec_ctx,
         std::string const& state_var_name,
-        grumpkin_point const& storage_slot_point, // the parent always calculates the storage_slot_point of its child.
-        size_t level_of_container_nesting,        // the parent always calculates the level of nesting of its child.
+        grumpkin_point const& storage_slot_point,  // the parent always calculates the storage_slot_point of its child.
+        size_t level_of_container_nesting,         // the parent always calculates the level of nesting of its child.
         bool is_partial_slot = false)
         : exec_ctx(exec_ctx)
         , state_var_name(state_var_name)
@@ -89,7 +89,7 @@ template <typename Composer> class StateVar {
     grumpkin_point compute_slot_point();
 };
 
-} // namespace aztec3::circuits::apps::state_vars
+}  // namespace aztec3::circuits::apps::state_vars
 
 // Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
 // the following:

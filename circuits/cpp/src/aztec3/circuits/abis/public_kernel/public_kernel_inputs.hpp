@@ -1,13 +1,14 @@
 #pragma once
 
-#include "../previous_kernel_data.hpp"
 #include "public_call_data.hpp"
+#include "../previous_kernel_data.hpp"
 #include "../signed_tx_request.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis::public_kernel {
 
@@ -16,8 +17,8 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct PublicKernelInputs {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     PreviousKernelData<NCT> previous_kernel{};
     PublicCallData<NCT> public_call{};
@@ -64,4 +65,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicKernelI
               << public_kernel_inputs.public_call << "\n";
 }
 
-} // namespace aztec3::circuits::abis::public_kernel
+}  // namespace aztec3::circuits::abis::public_kernel

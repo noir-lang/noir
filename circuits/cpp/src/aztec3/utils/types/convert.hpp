@@ -1,11 +1,13 @@
 #pragma once
 
-#include <array>
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <barretenberg/stdlib/primitives/point/point.hpp>
-#include "native_types.hpp"
 #include "circuit_types.hpp"
+#include "native_types.hpp"
+
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/stdlib/primitives/point/point.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+
+#include <array>
 
 namespace aztec3::utils::types {
 
@@ -16,7 +18,7 @@ namespace {
 template <typename Composer> using CT = aztec3::utils::types::CircuitTypes<Composer>;
 using NT = aztec3::utils::types::NativeTypes;
 
-} // namespace
+}  // namespace
 
 /// TODO: Lots of identical functions here (but for their in/out types). Can we use templates? I couldn't figure out how
 /// to keep the NT:: or CT:: prefixes with templates.
@@ -120,8 +122,7 @@ std::array<typename CT<Composer>::fr, SIZE> to_ct(Composer& composer, std::array
     return map(arr, ref_to_ct);
 };
 
-template <typename Composer, std::size_t SIZE>
-std::array<std::optional<typename CT<Composer>::fr>, SIZE> to_ct(
+template <typename Composer, std::size_t SIZE> std::array<std::optional<typename CT<Composer>::fr>, SIZE> to_ct(
     Composer& composer, std::array<std::optional<typename NT::fr>, SIZE> const& arr)
 {
     auto ref_to_ct = [&](std::optional<typename NT::fr> const& e) { return to_ct(composer, e); };
@@ -148,14 +149,14 @@ template <typename Composer> typename NT::fq to_nt(typename CT<Composer>::fq con
 
 template <typename Composer> typename NT::address to_nt(typename CT<Composer>::address const& e)
 {
-    return NT::address(e.address_.get_value()); // TODO: add get_value() method to address types.
+    return NT::address(e.address_.get_value());  // TODO: add get_value() method to address types.
 };
 
 template <typename Composer> typename NT::uint32 to_nt(typename CT<Composer>::uint32 const& e)
 {
-    NT::uint256 e_256 = e.get_value();
-    NT::uint64 e_64 = e_256.data[0]; // TODO: check that this endianness is correct!
-    NT::uint32 e_32 = static_cast<NT::uint32>(e_64);
+    NT::uint256 const e_256 = e.get_value();
+    NT::uint64 const e_64 = e_256.data[0];  // TODO: check that this endianness is correct!
+    auto const e_32 = static_cast<NT::uint32>(e_64);
     return e_32;
 };
 
@@ -243,8 +244,7 @@ std::array<typename NT::fr, SIZE> to_nt(std::array<typename CT<Composer>::fr, SI
 //     return arr ? std::make_optional<std::array<typename NT::fr, SIZE>>(map(arr, ref_to_nt)) : std::nullopt;
 // };
 
-template <typename Composer, std::size_t SIZE>
-std::array<std::optional<typename NT::fr>, SIZE> to_nt(
+template <typename Composer, std::size_t SIZE> std::array<std::optional<typename NT::fr>, SIZE> to_nt(
     std::array<std::optional<typename CT<Composer>::fr>, SIZE> const& arr)
 {
     auto ref_to_nt = [&](std::optional<typename CT<Composer>::fr> const& e) { return to_nt<Composer>(e); };
@@ -252,4 +252,4 @@ std::array<std::optional<typename NT::fr>, SIZE> to_nt(
     return map(arr, ref_to_nt);
 };
 
-} // namespace aztec3::utils::types
+}  // namespace aztec3::utils::types

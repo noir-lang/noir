@@ -1,7 +1,7 @@
 #pragma once
 
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::apps::notes {
 
@@ -17,16 +17,16 @@ using aztec3::utils::types::NativeTypes;
  */
 template <typename Composer> class NoteInterface {
   public:
-    typedef CircuitTypes<Composer> CT;
-    typedef typename CT::fr fr;
-    typedef typename CT::grumpkin_point grumpkin_point;
-    typedef typename CT::address address;
-    typedef typename CT::boolean boolean;
+    using CT = CircuitTypes<Composer>;
+    using fr = typename CT::fr;
+    using grumpkin_point = typename CT::grumpkin_point;
+    using address = typename CT::address;
+    using boolean = typename CT::boolean;
 
     // Destructor explicitly made virtual, to ensure that the destructor of the derived class is called if the derived
     // object is deleted through a pointer to this base class. (In many places in the code, files handle
     // `NoteInterface*` pointers instead of the derived class).
-    virtual ~NoteInterface() {}
+    virtual ~NoteInterface() = default;
 
     // TODO: maybe rather than have this be a pure interface, we should have a constructor and the `state_var*` and
     // `note_preimage` members here (although that would require a NotePreimage template param).
@@ -51,4 +51,4 @@ template <typename Composer> class NoteInterface {
     virtual fr generate_nonce() = 0;
 };
 
-} // namespace aztec3::circuits::apps::notes
+}  // namespace aztec3::circuits::apps::notes

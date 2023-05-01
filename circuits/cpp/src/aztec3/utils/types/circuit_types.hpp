@@ -1,68 +1,68 @@
 #pragma once
-#include <barretenberg/stdlib/primitives/address/address.hpp>
-#include <barretenberg/stdlib/encryption/schnorr/schnorr.hpp>
+#include "native_types.hpp"
+
+#include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp>
+#include <barretenberg/stdlib/encryption/schnorr/schnorr.hpp>
+#include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/primitives/address/address.hpp>
 #include <barretenberg/stdlib/primitives/bigfield/bigfield.hpp>
 #include <barretenberg/stdlib/primitives/biggroup/biggroup.hpp>
 #include <barretenberg/stdlib/primitives/bit_array/bit_array.hpp>
 #include <barretenberg/stdlib/primitives/bool/bool.hpp>
 #include <barretenberg/stdlib/primitives/byte_array/byte_array.hpp>
-#include <barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
-#include <barretenberg/stdlib/primitives/uint/uint.hpp>
-#include <barretenberg/stdlib/primitives/point/point.hpp>
-#include <barretenberg/stdlib/primitives/group/group.hpp>
 #include <barretenberg/stdlib/primitives/curves/bn254.hpp>
-#include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
+#include <barretenberg/stdlib/primitives/group/group.hpp>
+#include <barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
+#include <barretenberg/stdlib/primitives/point/point.hpp>
+#include <barretenberg/stdlib/primitives/uint/uint.hpp>
 #include <barretenberg/stdlib/recursion/verification_key/verification_key.hpp>
 #include <barretenberg/stdlib/recursion/verifier/program_settings.hpp>
-#include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
-#include "native_types.hpp"
+#include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
 
 using namespace proof_system::plonk;
 
 namespace aztec3::utils::types {
 
 template <typename Composer> struct CircuitTypes {
-
     // Basic uint types
-    typedef stdlib::bool_t<Composer> boolean;
-    typedef stdlib::uint8<Composer> uint8;
-    typedef stdlib::uint16<Composer> uint16;
-    typedef stdlib::uint32<Composer> uint32;
-    typedef stdlib::uint64<Composer> uint64;
+    using boolean = stdlib::bool_t<Composer>;
+    using uint8 = stdlib::uint8<Composer>;
+    using uint16 = stdlib::uint16<Composer>;
+    using uint32 = stdlib::uint32<Composer>;
+    using uint64 = stdlib::uint64<Composer>;
 
     // Types related to the bn254 curve
-    typedef stdlib::field_t<Composer> fr;
-    typedef stdlib::safe_uint_t<Composer> safe_fr;
-    typedef stdlib::address_t<Composer> address;
-    typedef stdlib::bigfield<Composer, barretenberg::Bn254FqParams> fq;
+    using fr = stdlib::field_t<Composer>;
+    using safe_fr = stdlib::safe_uint_t<Composer>;
+    using address = stdlib::address_t<Composer>;
+    using fq = stdlib::bigfield<Composer, barretenberg::Bn254FqParams>;
 
-    typedef stdlib::witness_t<Composer> witness;
+    using witness = stdlib::witness_t<Composer>;
 
     // typedef fq grumpkin_fr;
     // typedef fr grumpkin_fq;
-    typedef stdlib::point<Composer> grumpkin_point; // affine
-    typedef stdlib::group<Composer> grumpkin_group;
+    using grumpkin_point = stdlib::point<Composer>;  // affine
+    using grumpkin_group = stdlib::group<Composer>;
 
-    typedef stdlib::bn254<Composer> bn254;
+    using bn254 = stdlib::bn254<Composer>;
     // typedef bn254::g1_ct bn254_point;
-    typedef stdlib::element<Composer, fq, fr, barretenberg::g1> bn254_point; // affine
+    using bn254_point = stdlib::element<Composer, fq, fr, barretenberg::g1>;  // affine
 
-    typedef stdlib::bit_array<Composer> bit_array;
-    typedef stdlib::byte_array<Composer> byte_array;
-    typedef stdlib::packed_byte_array<Composer> packed_byte_array;
+    using bit_array = stdlib::bit_array<Composer>;
+    using byte_array = stdlib::byte_array<Composer>;
+    using packed_byte_array = stdlib::packed_byte_array<Composer>;
 
-    typedef stdlib::schnorr::signature_bits<Composer> schnorr_signature;
-    typedef stdlib::ecdsa::signature<Composer> ecdsa_signature;
+    using schnorr_signature = stdlib::schnorr::signature_bits<Composer>;
+    using ecdsa_signature = stdlib::ecdsa::signature<Composer>;
 
-    typedef stdlib::recursion::aggregation_state<bn254> AggregationObject;
-    typedef std::conditional_t<std::same_as<Composer, plonk::TurboComposer>,
-                               stdlib::recursion::recursive_turbo_verifier_settings<bn254>,
-                               stdlib::recursion::recursive_ultra_verifier_settings<bn254>>
-        recursive_inner_verifier_settings;
-    typedef stdlib::recursion::verification_key<bn254> VK;
+    using AggregationObject = stdlib::recursion::aggregation_state<bn254>;
+    using recursive_inner_verifier_settings =
+        std::conditional_t<std::same_as<Composer, plonk::TurboComposer>,
+                           stdlib::recursion::recursive_turbo_verifier_settings<bn254>,
+                           stdlib::recursion::recursive_ultra_verifier_settings<bn254>>;
+    using VK = stdlib::recursion::verification_key<bn254>;
     // Notice: no CircuitType for a Proof: we only ever handle native; the verify_proof() function swallows the
     // 'circuit-type-ness' of the proof.
 
@@ -76,7 +76,7 @@ template <typename Composer> struct CircuitTypes {
 
     template <size_t SIZE> static fr compress(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
     {
-        std::vector<fr> inputs_vec(std::begin(inputs), std::end(inputs));
+        std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
         return plonk::stdlib::pedersen_commitment<Composer>::compress(inputs_vec, hash_index);
     }
 
@@ -123,4 +123,4 @@ template <typename Composer> struct CircuitTypes {
     static byte_array blake3s(const byte_array& input) { return plonk::stdlib::blake3s(input); }
 };
 
-} // namespace aztec3::utils::types
+}  // namespace aztec3::utils::types

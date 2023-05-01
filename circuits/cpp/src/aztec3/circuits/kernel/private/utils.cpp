@@ -1,9 +1,10 @@
 #include "index.hpp"
 #include "init.hpp"
 
-#include "barretenberg/proof_system/types/composer_type.hpp"
-#include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
+
+#include "barretenberg/proof_system/types/composer_type.hpp"
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
@@ -11,7 +12,7 @@ using AggregationObject = aztec3::utils::types::NativeTypes::AggregationObject;
 using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::mock::mock_kernel_circuit;
 
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::kernel::private_kernel::utils {
 
@@ -46,17 +47,17 @@ std::shared_ptr<NT::VK> fake_vk()
  */
 PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
 {
-    PreviousKernelData<NT> init_previous_kernel{};
+    PreviousKernelData<NT> const init_previous_kernel{};
 
     auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
     Composer mock_kernel_composer = Composer(crs_factory);
     auto mock_kernel_public_inputs = mock_kernel_circuit(mock_kernel_composer, init_previous_kernel.public_inputs);
 
     auto mock_kernel_prover = mock_kernel_composer.create_prover();
-    NT::Proof mock_kernel_proof =
+    NT::Proof const mock_kernel_proof =
         real_vk_proof ? mock_kernel_prover.construct_proof() : NT::Proof{ .proof_data = std::vector<uint8_t>(64, 0) };
 
-    std::shared_ptr<NT::VK> mock_kernel_vk =
+    std::shared_ptr<NT::VK> const mock_kernel_vk =
         real_vk_proof ? mock_kernel_composer.compute_verification_key() : fake_vk();
 
     PreviousKernelData<NT> previous_kernel = {
@@ -70,4 +71,4 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
     return previous_kernel;
 }
 
-} // namespace aztec3::circuits::kernel::private_kernel::utils
+}  // namespace aztec3::circuits::kernel::private_kernel::utils

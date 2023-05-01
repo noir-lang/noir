@@ -2,10 +2,11 @@
 
 #include "tx_request.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -13,8 +14,8 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct SignedTxRequest {
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::ecdsa_signature Signature;
+    using boolean = typename NCT::boolean;
+    using Signature = typename NCT::ecdsa_signature;
 
     TxRequest<NCT> tx_request{};
     Signature signature{};
@@ -80,4 +81,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, SignedTxReque
               << "signature: " << signed_tx_request.signature << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

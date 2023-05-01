@@ -2,10 +2,11 @@
 
 #include "l1_function_interface.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -20,19 +21,17 @@ template <typename Composer> class L1Call {
     L1FunctionInterface& l1_function;
     std::vector<fr> args;
     fr hash_of_argument_encodings = 0;
-    fr partial_l1_call_stack_item = 0; // keccak(function_selector, hash_of_argument_encodings)
+    fr partial_l1_call_stack_item = 0;  // keccak(function_selector, hash_of_argument_encodings)
 
-    L1Call(L1FunctionInterface const& l1_function, std::vector<fr> const& args)
-        : l1_function(l1_function)
-        , args(args)
+    L1Call(L1FunctionInterface const& l1_function, std::vector<fr> const& args) : l1_function(l1_function), args(args)
     {
         /// TODO: in reality, we'll need to use keccak hash here, as this will need to be replecated on-chain.
         if (args.size() == 0) {
             hash_of_argument_encodings = 0;
         } else {
-            hash_of_argument_encodings = args[0]; // lazy stub for a hash!
+            hash_of_argument_encodings = args[0];  // lazy stub for a hash!
         }
-        partial_l1_call_stack_item = function_selector; // lazy stub for a hash!
+        partial_l1_call_stack_item = function_selector;  // lazy stub for a hash!
     }
 
     bool operator==(L1Call<NCT> const&) const = default;
@@ -81,4 +80,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, L1Call<NCT> c
               << "partial_l1_call_stack_item: " << l1_call.partial_l1_call_stack_item << "\n";
 }
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps

@@ -1,9 +1,11 @@
 #pragma once
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "private_historic_tree_roots.hpp"
+
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
-#include "private_historic_tree_roots.hpp"
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -14,8 +16,8 @@ using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct CombinedHistoricTreeRoots {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     PrivateHistoricTreeRoots<NCT> private_historic_tree_roots{};
 
@@ -79,4 +81,4 @@ std::ostream& operator<<(std::ostream& os, CombinedHistoricTreeRoots<NCT> const&
     return os << "private_historic_tree_roots: " << historic_tree_roots.private_historic_tree_roots << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

@@ -1,12 +1,14 @@
 #pragma once
 #include "contract_deployment_data.hpp"
 #include "function_data.hpp"
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
 #include <barretenberg/crypto/generators/generator_data.hpp>
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -14,9 +16,9 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct TxContext {
-    typedef typename NCT::address address;
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using address = typename NCT::address;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     boolean is_fee_payment_tx = false;
     boolean is_rebate_payment_tx = false;
@@ -77,7 +79,7 @@ template <typename NCT> struct TxContext {
 
     fr hash() const
     {
-        std::vector<fr> inputs = {
+        std::vector<fr> const inputs = {
             fr(is_fee_payment_tx),
             fr(is_rebate_payment_tx),
             fr(is_contract_deployment_tx),
@@ -118,4 +120,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, TxContext<NCT
               << tx_context.contract_deployment_data;
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

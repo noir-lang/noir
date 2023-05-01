@@ -3,8 +3,9 @@
 // #include <barretenberg/stdlib/types/types.hpp>
 // #include <barretenberg/numeric/random/engine.hpp>
 
-#include <gtest/gtest.h>
 #include <barretenberg/common/test.hpp>
+
+#include <gtest/gtest.h>
 
 // #include "utxo_state_var.hpp"
 
@@ -12,24 +13,19 @@
 #include "function_execution_context.hpp"
 #include "oracle_wrapper.hpp"
 #include "utxo_datum.hpp"
-
-#include "notes/note_interface.hpp"
-
 #include "notes/default_private_note/note.hpp"
 #include "notes/default_private_note/note_preimage.hpp"
-
 #include "notes/default_singleton_private_note/note.hpp"
 #include "notes/default_singleton_private_note/note_preimage.hpp"
-
+#include "notes/note_interface.hpp"
 #include "state_vars/field_state_var.hpp"
 #include "state_vars/mapping_state_var.hpp"
-#include "state_vars/utxo_state_var.hpp"
 #include "state_vars/utxo_set_state_var.hpp"
+#include "state_vars/utxo_state_var.hpp"
 
 #include <aztec3/oracle/oracle.hpp>
-
-#include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
 namespace {
@@ -58,7 +54,6 @@ using aztec3::circuits::apps::state_vars::MappingStateVar;
 using aztec3::circuits::apps::state_vars::UTXOSetStateVar;
 using aztec3::circuits::apps::state_vars::UTXOStateVar;
 
-using aztec3::circuits::apps::notes::NoteInterface;
 
 using aztec3::circuits::apps::notes::DefaultPrivateNote;
 
@@ -67,9 +62,9 @@ using aztec3::circuits::apps::notes::DefaultSingletonPrivateNote;
 // State variables
 // Get rid of ugle `Composer` template arg from our state var types:
 template <typename T> struct SpecialisedTypes {
-    typedef MappingStateVar<C, T> mapping;
-    typedef UTXOStateVar<C, T> utxo;
-    typedef UTXOSetStateVar<C, T> utxo_set;
+    using mapping = MappingStateVar<C, T>;
+    using utxo = UTXOStateVar<C, T>;
+    using utxo_set = UTXOSetStateVar<C, T>;
 };
 
 template <typename V> using Mapping = typename SpecialisedTypes<V>::mapping;
@@ -78,31 +73,31 @@ template <typename Note> using UTXO = typename SpecialisedTypes<Note>::utxo;
 template <typename Note> using UTXOSet = typename SpecialisedTypes<Note>::utxo_set;
 
 using Field = FieldStateVar<C>;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::apps {
 
 class state_var_tests : public ::testing::Test {
   protected:
-    NativeOracle get_test_native_oracle(DB& db)
+    static NativeOracle get_test_native_oracle(DB& db)
     {
         const NT::address contract_address = 12345;
         const NT::fr msg_sender_private_key = 123456789;
         const NT::address msg_sender = NT::fr(
             uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
 
-        FunctionData<NT> function_data{
-            .function_selector = 1, // TODO: deduce this from the contract, somehow.
+        FunctionData<NT> const function_data{
+            .function_selector = 1,  // TODO: deduce this from the contract, somehow.
             .is_private = true,
             .is_constructor = false,
         };
 
-        CallContext<NT> call_context{ .msg_sender = msg_sender,
-                                      .storage_contract_address = contract_address,
-                                      .portal_contract_address = 0,
-                                      .is_delegate_call = false,
-                                      .is_static_call = false,
-                                      .is_contract_deployment = false };
+        CallContext<NT> const call_context{ .msg_sender = msg_sender,
+                                            .storage_contract_address = contract_address,
+                                            .portal_contract_address = 0,
+                                            .is_delegate_call = false,
+                                            .is_static_call = false,
+                                            .is_contract_deployment = false };
 
         return NativeOracle(db, contract_address, function_data, call_context, msg_sender_private_key);
     };
@@ -213,11 +208,11 @@ TEST_F(state_var_tests, circuit_utxo_of_default_private_note_fr)
 
     old_note.remove();
 
-    CT::fr old_value = *(old_note.get_preimage().value);
+    CT::fr const old_value = *(old_note.get_preimage().value);
 
     CT::fr new_value = old_value + 5;
 
-    my_utxo.insert({ .value = new_value, //
+    my_utxo.insert({ .value = new_value,  //
                      .owner = msg_sender,
                      .creator_address = msg_sender,
                      .memo = 1234 });
@@ -227,7 +222,7 @@ TEST_F(state_var_tests, circuit_utxo_of_default_private_note_fr)
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
-    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    std::shared_ptr<Note> const debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
     // info("new_note_pointers: ", new_note_pointers);
     // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
@@ -260,15 +255,15 @@ TEST_F(state_var_tests, circuit_utxo_set_of_default_private_notes_fr)
     UTXOSet<Note> balances(&exec_ctx, "balances");
 
     // Imagine these were passed into the function as args:
-    CT::fr amount = 5;
+    CT::fr const amount = 5;
     CT::address to_address = 765976;
 
     const auto& msg_sender = oracle_wrapper.get_msg_sender();
 
     std::vector<Note> old_balance_notes = balances.get(2, { .owner = msg_sender });
 
-    CT::fr old_value_1 = *(old_balance_notes[0].get_preimage().value);
-    CT::fr old_value_2 = *(old_balance_notes[1].get_preimage().value);
+    CT::fr const old_value_1 = *(old_balance_notes[0].get_preimage().value);
+    CT::fr const old_value_2 = *(old_balance_notes[1].get_preimage().value);
 
     old_balance_notes[0].remove();
     old_balance_notes[1].remove();
@@ -289,7 +284,7 @@ TEST_F(state_var_tests, circuit_utxo_set_of_default_private_notes_fr)
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
-    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    std::shared_ptr<Note> const debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
     // info("new_note_pointers: ", new_note_pointers);
     // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
@@ -337,7 +332,7 @@ TEST_F(state_var_tests, circuit_initialise_utxo_of_default_singleton_private_not
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
-    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    std::shared_ptr<Note> const debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
     // info("new_note_pointers: ", new_note_pointers);
     // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
@@ -372,12 +367,12 @@ TEST_F(state_var_tests, circuit_modify_utxo_of_default_singleton_private_note_fr
 
     old_note.remove();
 
-    CT::fr old_value = *(old_note.get_preimage().value);
+    CT::fr const old_value = *(old_note.get_preimage().value);
 
     CT::fr new_value = old_value + 5;
 
     my_utxo.insert({
-        .value = new_value, //
+        .value = new_value,  //
         .owner = msg_sender,
     });
 
@@ -386,7 +381,7 @@ TEST_F(state_var_tests, circuit_modify_utxo_of_default_singleton_private_note_fr
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
-    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    std::shared_ptr<Note> const debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
     // info("new_note_pointers: ", new_note_pointers);
     // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
@@ -394,4 +389,4 @@ TEST_F(state_var_tests, circuit_modify_utxo_of_default_singleton_private_note_fr
     // info("new_nullifiers: ", new_nullifiers);
 }
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps

@@ -1,10 +1,12 @@
 #pragma once
 #include "function_data.hpp"
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+
 #include <aztec3/utils/array.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 namespace aztec3::circuits::abis {
 
 using aztec3::utils::zero_array;
@@ -12,9 +14,9 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct OptionallyRevealedData {
-    typedef typename NCT::address address;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::fr fr;
+    using address = typename NCT::address;
+    using boolean = typename NCT::boolean;
+    using fr = typename NCT::fr;
 
     fr call_stack_item_hash = 0;
     FunctionData<NCT> function_data{};
@@ -140,4 +142,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, OptionallyRev
               << "called_from_public_l2: " << data.called_from_public_l2 << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

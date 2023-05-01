@@ -17,4 +17,4 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
                                                 NT::boolean const& _reveal_msg_sender_to_recipient,
                                                 NT::fr const& _fee);
 
-} // namespace aztec3::circuits::apps::test_apps::escrow
+}  // namespace aztec3::circuits::apps::test_apps::escrow

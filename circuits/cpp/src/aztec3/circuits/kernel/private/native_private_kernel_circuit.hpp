@@ -2,8 +2,8 @@
 
 #include "init.hpp"
 
-#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/utils/dummy_composer.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
@@ -17,4 +17,4 @@ using DummyComposer = aztec3::utils::DummyComposer;
 KernelCircuitPublicInputs<NT> native_private_kernel_circuit(DummyComposer& composer,
                                                             PrivateInputs<NT> const& _private_inputs);
 
-} // namespace aztec3::circuits::kernel::private_kernel
+}  // namespace aztec3::circuits::kernel::private_kernel

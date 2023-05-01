@@ -1,20 +1,21 @@
 #pragma once
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::apps::state_vars {
 template <typename Composer> class StateVar;
 template <typename Composer, typename Note> class UTXOStateVar;
 template <typename Composer, typename Note> class UTXOSetStateVar;
-} // namespace aztec3::circuits::apps::state_vars
+}  // namespace aztec3::circuits::apps::state_vars
 
 namespace aztec3::circuits::apps::opcodes {
 
-using aztec3::circuits::apps::state_vars::StateVar;        // Don't #include it!
-using aztec3::circuits::apps::state_vars::UTXOSetStateVar; // Don't #include it!
-using aztec3::circuits::apps::state_vars::UTXOStateVar;    // Don't #include it!
+using aztec3::circuits::apps::state_vars::StateVar;         // Don't #include it!
+using aztec3::circuits::apps::state_vars::UTXOSetStateVar;  // Don't #include it!
+using aztec3::circuits::apps::state_vars::UTXOStateVar;     // Don't #include it!
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
@@ -32,8 +33,8 @@ using plonk::stdlib::witness_t;
  */
 template <typename Composer> class Opcodes {
   public:
-    typedef CircuitTypes<Composer> CT;
-    typedef typename CT::address address;
+    using CT = CircuitTypes<Composer>;
+    using address = typename CT::address;
 
     /**
      * @brief
@@ -50,10 +51,9 @@ template <typename Composer> class Opcodes {
      * - Generate constraints to prove each datum's existence in the tree
      * - Validate the data
      */
-    template <typename Note>
-    static std::vector<Note> UTXO_SLOAD(UTXOSetStateVar<Composer, Note>* utxo_set_state_var,
-                                        size_t const& num_notes,
-                                        typename Note::NotePreimage const& advice);
+    template <typename Note> static std::vector<Note> UTXO_SLOAD(UTXOSetStateVar<Composer, Note>* utxo_set_state_var,
+                                                                 size_t const& num_notes,
+                                                                 typename Note::NotePreimage const& advice);
 
     /**
      * @brief Compute and push a new nullifier to the public inputs of this exec_ctx.
@@ -73,7 +73,7 @@ template <typename Composer> class Opcodes {
     static void UTXO_SSTORE(StateVar<Composer>* state_var, typename Note::NotePreimage new_note_preimage);
 };
 
-} // namespace aztec3::circuits::apps::opcodes
+}  // namespace aztec3::circuits::apps::opcodes
 
 // Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
 // the following:

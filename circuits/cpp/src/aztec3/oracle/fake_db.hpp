@@ -1,12 +1,9 @@
 #pragma once
 
 #include <aztec3/circuits/abis/call_context.hpp>
-
-#include <aztec3/circuits/apps/utxo_datum.hpp>
-
 #include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
 #include <aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp>
-
+#include <aztec3/circuits/apps/utxo_datum.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::oracle {
@@ -25,7 +22,7 @@ using NT = aztec3::utils::types::NativeTypes;
 // A temporary stub, whilst building other things first.
 class FakeDB {
   public:
-    FakeDB() {}
+    FakeDB() = default;
 
     /**
      * For getting a singleton UTXO (not a set).
@@ -34,7 +31,7 @@ class FakeDB {
      * type being a field.
      * So if you want to test other note types against this stub DB, you'll need to write your own stub DB entry.
      */
-    UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>> get_utxo_sload_datum(
+    static UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>> get_utxo_sload_datum(
         NT::address const& contract_address,
         NT::grumpkin_point const& storage_slot_point,
         DefaultPrivateNotePreimage<NT, typename NT::fr> const& advice)
@@ -42,9 +39,9 @@ class FakeDB {
     // NT::fr required_utxo_tree_root,
     // size_t utxo_tree_depth)
     {
-        (void)storage_slot_point; // Not used in this 'fake' implementation.
+        (void)storage_slot_point;  // Not used in this 'fake' implementation.
 
-        DefaultPrivateNotePreimage<NT, NT::fr> preimage{
+        DefaultPrivateNotePreimage<NT, NT::fr> const preimage{
             .value = 100,
             .owner = advice.owner,
             .creator_address = 0,
@@ -58,7 +55,7 @@ class FakeDB {
         const NT::fr required_utxo_tree_root = 2468;
 
         std::vector<NT::fr> sibling_path(utxo_tree_depth);
-        std::fill(sibling_path.begin(), sibling_path.end(), 1); // Fill with 1's to be lazy. TODO: return a valid path.
+        std::fill(sibling_path.begin(), sibling_path.end(), 1);  // Fill with 1's to be lazy. TODO: return a valid path.
 
         return {
             .commitment = 1,
@@ -78,7 +75,7 @@ class FakeDB {
      * value type being a field.
      * So if you want to test other note types against this stub DB, you'll need to write your own stub DB entry.
      */
-    std::vector<UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>>> get_utxo_sload_data(
+    static std::vector<UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>>> get_utxo_sload_data(
         NT::address const& contract_address,
         NT::grumpkin_point const& storage_slot_point,
         size_t const& num_notes,
@@ -87,7 +84,7 @@ class FakeDB {
     // NT::fr required_utxo_tree_root,
     // size_t utxo_tree_depth)
     {
-        (void)storage_slot_point; // Not used in this 'fake' implementation.
+        (void)storage_slot_point;  // Not used in this 'fake' implementation.
 
         std::vector<UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>>> data;
 
@@ -95,10 +92,10 @@ class FakeDB {
         const NT::fr required_utxo_tree_root = 2468;
 
         std::vector<NT::fr> sibling_path(utxo_tree_depth);
-        std::fill(sibling_path.begin(), sibling_path.end(), 1); // Fill with 1's to be lazy. TODO: return a valid path.
+        std::fill(sibling_path.begin(), sibling_path.end(), 1);  // Fill with 1's to be lazy. TODO: return a valid path.
 
         for (size_t i = 0; i < num_notes; i++) {
-            DefaultPrivateNotePreimage<NT, NT::fr> preimage{
+            DefaultPrivateNotePreimage<NT, NT::fr> const preimage{
                 .value = 100 + i,
                 .owner = advice.owner,
                 .creator_address = 0,
@@ -129,7 +126,7 @@ class FakeDB {
      * the value type being a field. So if you want to test other note types against this stub DB, you'll need to write
      * your own stub DB entry.
      */
-    UTXOSLoadDatum<NT, DefaultSingletonPrivateNotePreimage<NT, typename NT::fr>> get_utxo_sload_datum(
+    static UTXOSLoadDatum<NT, DefaultSingletonPrivateNotePreimage<NT, typename NT::fr>> get_utxo_sload_datum(
         NT::address const& contract_address,
         NT::grumpkin_point const& storage_slot_point,
         DefaultSingletonPrivateNotePreimage<NT, typename NT::fr> const& advice)
@@ -137,9 +134,9 @@ class FakeDB {
     // NT::fr required_utxo_tree_root,
     // size_t utxo_tree_depth)
     {
-        (void)storage_slot_point; // Not used in this 'fake' implementation.
+        (void)storage_slot_point;  // Not used in this 'fake' implementation.
 
-        DefaultSingletonPrivateNotePreimage<NT, NT::fr> preimage{
+        DefaultSingletonPrivateNotePreimage<NT, NT::fr> const preimage{
             .value = 100,
             .owner = advice.owner,
             .salt = 1234,
@@ -150,7 +147,7 @@ class FakeDB {
         const NT::fr required_utxo_tree_root = 2468;
 
         std::vector<NT::fr> sibling_path(utxo_tree_depth);
-        std::fill(sibling_path.begin(), sibling_path.end(), 1); // Fill with 1's to be lazy. TODO: return a valid path.
+        std::fill(sibling_path.begin(), sibling_path.end(), 1);  // Fill with 1's to be lazy. TODO: return a valid path.
 
         return {
             .commitment = 1,
@@ -164,4 +161,4 @@ class FakeDB {
     };
 };
 
-} // namespace aztec3::oracle
+}  // namespace aztec3::oracle

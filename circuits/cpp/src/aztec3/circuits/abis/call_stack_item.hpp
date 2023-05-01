@@ -18,9 +18,9 @@ using std::conditional;
 using std::is_same;
 
 template <typename NCT, template <class> typename PrivatePublic> struct CallStackItem {
-    typedef typename NCT::address address;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::fr fr;
+    using address = typename NCT::address;
+    using boolean = typename NCT::boolean;
+    using fr = typename NCT::fr;
 
     // This is the _actual_ contract address relating to where this function's code resides in the
     // contract tree. Regardless of whether this is a call or delegatecall, this

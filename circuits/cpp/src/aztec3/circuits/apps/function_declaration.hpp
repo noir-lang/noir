@@ -1,8 +1,9 @@
 #pragma once
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -12,11 +13,11 @@ using plonk::stdlib::witness_t;
 
 // This exists just so that designated initialisers can be used when passing this info to a function, for readability.
 template <typename NCT> struct FunctionDeclaration {
-    typedef typename NCT::boolean boolean;
+    using boolean = typename NCT::boolean;
 
     std::string name;
     boolean is_private = false;
     boolean is_constructor = false;
 };
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps

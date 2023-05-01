@@ -1,16 +1,18 @@
 #pragma once
-#include "optionally_revealed_data.hpp"
 #include "new_contract_data.hpp"
-#include "public_data_transition.hpp"
+#include "optionally_revealed_data.hpp"
 #include "public_data_read.hpp"
+#include "public_data_transition.hpp"
+
 #include "aztec3/constants.hpp"
-#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/array.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -20,9 +22,9 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct CombinedAccumulatedData {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::AggregationObject AggregationObject;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
+    using AggregationObject = typename NCT::AggregationObject;
 
     AggregationObject aggregation_object{};
 
@@ -251,4 +253,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedAccum
               << accum_data.state_reads << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

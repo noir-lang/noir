@@ -27,7 +27,7 @@ template <typename NCT> void Contract<NCT>::set_functions(std::vector<FunctionDe
             throw_or_abort("Name already exists");
         }
         function_datas[function.name] = FunctionData<NCT>{
-            .function_selector = uint32(i),
+            .function_selector = static_cast<uint32>(i),
             .is_private = function.is_private,
             .is_constructor = function.is_constructor,
         };
@@ -65,7 +65,7 @@ template <typename NCT> FunctionData<NCT> Contract<NCT>::get_function_data_by_na
 
 template <typename NCT> void Contract<NCT>::import_l1_function(L1FunctionInterfaceStruct<NCT> const& l1_function_struct)
 {
-    L1FunctionInterface<NCT> l1_function = L1FunctionInterface<NCT>(this, l1_function_struct);
+    L1FunctionInterface<NCT> const l1_function = L1FunctionInterface<NCT>(this, l1_function_struct);
     l1_functions.insert(std::make_pair(l1_function_struct.function_name, l1_function));
 };
 

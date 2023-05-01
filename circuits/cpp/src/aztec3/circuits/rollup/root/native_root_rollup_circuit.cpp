@@ -1,4 +1,11 @@
+#include "init.hpp"
+
 #include "aztec3/constants.hpp"
+#include <aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp>
+#include <aztec3/circuits/abis/rollup/root/root_rollup_inputs.hpp>
+#include <aztec3/circuits/abis/rollup/root/root_rollup_public_inputs.hpp>
+#include <aztec3/circuits/rollup/components/components.hpp>
+
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
@@ -6,14 +13,9 @@
 #include "barretenberg/stdlib/merkle_tree/membership.hpp"
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
 #include "barretenberg/stdlib/merkle_tree/merkle_tree.hpp"
-#include "init.hpp"
 
 #include <algorithm>
 #include <array>
-#include <aztec3/circuits/abis/rollup/root/root_rollup_inputs.hpp>
-#include <aztec3/circuits/abis/rollup/root/root_rollup_public_inputs.hpp>
-#include <aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp>
-#include <aztec3/circuits/rollup/components/components.hpp>
 #include <cstdint>
 #include <iostream>
 #include <tuple>
@@ -83,4 +85,4 @@ RootRollupPublicInputs root_rollup_circuit(DummyComposer& composer, RootRollupIn
     return public_inputs;
 }
 
-} // namespace aztec3::circuits::rollup::native_root_rollup
+}  // namespace aztec3::circuits::rollup::native_root_rollup

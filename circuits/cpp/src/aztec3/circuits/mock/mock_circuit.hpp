@@ -1,7 +1,7 @@
 #pragma once
 #include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/primitives/field/field.hpp>
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/primitives/field/field.hpp>
 
 namespace aztec3::circuits::mock {
 
@@ -16,4 +16,4 @@ template <typename Composer> void mock_circuit(Composer& composer, std::vector<f
     plonk::stdlib::pedersen<Composer>::compress(field_t(witness_t(&composer, 1)), field_t(witness_t(&composer, 1)));
 }
 
-} // namespace aztec3::circuits::mock
+}  // namespace aztec3::circuits::mock

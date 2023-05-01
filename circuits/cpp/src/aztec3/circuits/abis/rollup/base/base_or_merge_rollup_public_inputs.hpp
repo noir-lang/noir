@@ -1,11 +1,12 @@
 #pragma once
-#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include "../../append_only_tree_snapshot.hpp"
 #include "../../append_only_tree_snapshot.hpp"
 #include "../constant_rollup_data.hpp"
+
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -17,8 +18,8 @@ const uint32_t BASE_ROLLUP_TYPE = 0;
 const uint32_t MERGE_ROLLUP_TYPE = 1;
 
 template <typename NCT> struct BaseOrMergeRollupPublicInputs {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::AggregationObject AggregationObject;
+    using fr = typename NCT::fr;
+    using AggregationObject = typename NCT::AggregationObject;
 
     uint32_t rollup_type;
     // subtree  height is always 0 for base.
@@ -125,4 +126,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseOrMergeRo
               << obj.calldata_hash << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

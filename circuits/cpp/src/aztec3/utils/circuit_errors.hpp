@@ -77,7 +77,7 @@ enum CircuitErrorCode : uint16_t {
 
 struct CircuitError {
     CircuitErrorCode code = CircuitErrorCode::NO_ERROR;
-    std::string message = "";
+    std::string message;
 
     static CircuitError no_error() { return { CircuitErrorCode::NO_ERROR, "" }; }
 };
@@ -107,4 +107,4 @@ inline std::ostream& operator<<(std::ostream& os, CircuitError const& obj)
     return os << "code: " << as_uint16_t(obj.code) << "\n"
               << "message: " << obj.message << "\n";
 }
-} // namespace aztec3::utils
+}  // namespace aztec3::utils

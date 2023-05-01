@@ -25,10 +25,10 @@ using aztec3::utils::types::CircuitTypes;
  * certain information.
  */
 template <typename Composer> class OracleWrapperInterface {
-    typedef CircuitTypes<Composer> CT;
-    typedef typename CT::fr fr;
-    typedef typename CT::grumpkin_point grumpkin_point;
-    typedef typename CT::address address;
+    using CT = CircuitTypes<Composer>;
+    using fr = typename CT::fr;
+    using grumpkin_point = typename CT::grumpkin_point;
+    using address = typename CT::address;
 
   public:
     Composer& composer;

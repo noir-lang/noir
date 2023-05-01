@@ -1,42 +1,37 @@
+#include "c_bind.h"
+
 #include "index.hpp"
 #include "init.hpp"
 #include "utils.hpp"
-#include "c_bind.h"
 
 // TODO remove these? present in init/index?
+#include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
+#include "aztec3/circuits/abis/signed_tx_request.hpp"
+#include "aztec3/circuits/kernel/private/utils.hpp"
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
+#include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 #include <aztec3/constants.hpp>
 #include <aztec3/utils/types/native_types.hpp>
-#include "aztec3/circuits/abis/signed_tx_request.hpp"
-#include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
-#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include "aztec3/circuits/kernel/private/utils.hpp"
-#include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
-
-#include "barretenberg/srs/reference_string/env_reference_string.hpp"
 
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/srs/reference_string/env_reference_string.hpp"
 
 namespace {
 using Composer = plonk::UltraComposer;
 using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
-using aztec3::circuits::abis::CombinedAccumulatedData;
-using aztec3::circuits::abis::CombinedConstantData;
-using aztec3::circuits::abis::CombinedHistoricTreeRoots;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::SignedTxRequest;
-using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
 using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
-using aztec3::circuits::mock::mock_kernel_circuit;
 
-} // namespace
+}  // namespace
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 // WASM Cbinds
@@ -47,7 +42,7 @@ WASM_EXPORT size_t private_kernel__init_proving_key(uint8_t const** pk_buf)
 {
     std::vector<uint8_t> pk_vec(42, 0);
 
-    auto raw_buf = (uint8_t*)malloc(pk_vec.size());
+    auto* raw_buf = (uint8_t*)malloc(pk_vec.size());
     memcpy(raw_buf, (void*)pk_vec.data(), pk_vec.size());
     *pk_buf = raw_buf;
 
@@ -64,7 +59,7 @@ WASM_EXPORT size_t private_kernel__init_verification_key(uint8_t const* pk_buf, 
     std::vector<uint8_t> vk_vec(42, 0);
     // write(vk_vec, vk_data);
 
-    auto raw_buf = (uint8_t*)malloc(vk_vec.size());
+    auto* raw_buf = (uint8_t*)malloc(vk_vec.size());
     memcpy(raw_buf, (void*)vk_vec.data(), vk_vec.size());
     *vk_buf = raw_buf;
 
@@ -73,12 +68,12 @@ WASM_EXPORT size_t private_kernel__init_verification_key(uint8_t const* pk_buf, 
 
 WASM_EXPORT size_t private_kernel__dummy_previous_kernel(uint8_t const** previous_kernel_buf)
 {
-    PreviousKernelData<NT> previous_kernel = dummy_previous_kernel();
+    PreviousKernelData<NT> const previous_kernel = dummy_previous_kernel();
 
     std::vector<uint8_t> previous_kernel_vec;
     write(previous_kernel_vec, previous_kernel);
 
-    auto raw_buf = (uint8_t*)malloc(previous_kernel_vec.size());
+    auto* raw_buf = (uint8_t*)malloc(previous_kernel_vec.size());
     memcpy(raw_buf, (void*)previous_kernel_vec.data(), previous_kernel_vec.size());
 
     *previous_kernel_buf = raw_buf;
@@ -118,19 +113,19 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
         read(previous_kernel_buf, previous_kernel);
     }
 
-    PrivateInputs<NT> private_inputs = PrivateInputs<NT>{
+    PrivateInputs<NT> const private_inputs = PrivateInputs<NT>{
         .signed_tx_request = signed_tx_request,
         .previous_kernel = previous_kernel,
         .private_call = private_call_data,
     };
 
-    KernelCircuitPublicInputs<NT> public_inputs = native_private_kernel_circuit(composer, private_inputs);
+    KernelCircuitPublicInputs<NT> const public_inputs = native_private_kernel_circuit(composer, private_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
     write(public_inputs_vec, public_inputs);
     // copy public inputs to output buffer
-    auto raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
+    auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *private_kernel_public_inputs_buf = raw_public_inputs_buf;
 
@@ -147,7 +142,7 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
 {
     // TODO might be able to get rid of proving key buffer
     // TODO do we want to accept it or just get it from our factory?
-    (void)pk_buf; // unused
+    (void)pk_buf;  // unused
     auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
 
     SignedTxRequest<NT> signed_tx_request;
@@ -170,7 +165,7 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
     } else {
         read(previous_kernel_buf, previous_kernel);
     }
-    PrivateInputs<NT> private_inputs = PrivateInputs<NT>{
+    PrivateInputs<NT> const private_inputs = PrivateInputs<NT>{
         .signed_tx_request = signed_tx_request,
         .previous_kernel = previous_kernel,
         .private_call = private_call_data,
@@ -185,7 +180,7 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
     private_kernel_proof = private_kernel_prover.construct_proof();
 
     // copy proof data to output buffer
-    auto raw_proof_buf = (uint8_t*)malloc(private_kernel_proof.proof_data.size());
+    auto* raw_proof_buf = (uint8_t*)malloc(private_kernel_proof.proof_data.size());
     memcpy(raw_proof_buf, (void*)private_kernel_proof.proof_data.data(), private_kernel_proof.proof_data.size());
     *proof_data_buf = raw_proof_buf;
 
@@ -194,10 +189,10 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
 
 WASM_EXPORT size_t private_kernel__verify_proof(uint8_t const* vk_buf, uint8_t const* proof, uint32_t length)
 {
-    (void)vk_buf; // unused
-    (void)proof;  // unused
-    (void)length; // unused
-    return true;
+    (void)vk_buf;  // unused
+    (void)proof;   // unused
+    (void)length;  // unused
+    return 1U;
 }
 
-} // extern "C"
+}  // extern "C"

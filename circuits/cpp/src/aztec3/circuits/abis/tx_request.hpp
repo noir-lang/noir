@@ -1,11 +1,13 @@
 #pragma once
 #include "function_data.hpp"
 #include "tx_context.hpp"
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+
 #include <aztec3/utils/array.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -14,9 +16,9 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct TxRequest {
-    typedef typename NCT::address address;
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using address = typename NCT::address;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     address from = 0;
     address to = 0;
@@ -65,7 +67,7 @@ template <typename NCT> struct TxRequest {
     template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const
     {
         const auto arr_size = sizeof(arr) / sizeof(fr);
-        vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
+        vec.insert(vec.end(), arr.data(), arr.data() + arr_size);
     }
 };
 
@@ -106,4 +108,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, TxRequest<NCT
               << "chain_id: " << tx_request.chain_id << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

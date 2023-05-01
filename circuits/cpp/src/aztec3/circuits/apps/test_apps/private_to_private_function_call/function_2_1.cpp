@@ -6,7 +6,6 @@
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
-using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 void function_2_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LENGTH> const& _args)
 {
@@ -41,7 +40,7 @@ void function_2_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
 
     auto product = a * b * c;
 
-    CT::address unique_person_who_may_initialise = 999999;
+    CT::address const unique_person_who_may_initialise = 999999;
 
     unique_person_who_may_initialise.assert_equal(msg_sender);
 
@@ -73,4 +72,4 @@ void function_2_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
     // TODO: also return note preimages and nullifier preimages.
 };
 
-} // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call
+}  // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

@@ -4,9 +4,10 @@
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/rollup/merge/previous_rollup_data.hpp"
 #include "aztec3/constants.hpp"
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
 #include <ostream>
 
 namespace aztec3::circuits::abis {
@@ -18,7 +19,7 @@ using aztec3::utils::types::NativeTypes;
 // Hit when running aztec3-packages/yarn-project/circuits.js/src/rollup/rollup_wasm_wrapper.test.ts."calls
 // root_rollup__sim"
 template <typename NCT> struct RootRollupInputs {
-    typedef typename NCT::fr fr;
+    using fr = typename NCT::fr;
 
     // All below are shared between the base and merge rollups
     std::array<PreviousRollupData<NCT>, 2> previous_rollup_data;
@@ -55,4 +56,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupInp
               << "new_historic_contract_tree_roots: " << obj.new_historic_contract_tree_root_sibling_path << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

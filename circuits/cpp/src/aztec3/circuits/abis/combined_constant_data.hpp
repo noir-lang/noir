@@ -3,10 +3,11 @@
 #include "combined_historic_tree_roots.hpp"
 #include "tx_context.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -17,8 +18,8 @@ using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct CombinedConstantData {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     CombinedHistoricTreeRoots<NCT> historic_tree_roots{};
     TxContext<NCT> tx_context{};
@@ -85,4 +86,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedConst
               << "tx_context: " << constant_data.tx_context << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

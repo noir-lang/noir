@@ -1,57 +1,57 @@
 #pragma once
-#include <barretenberg/stdlib/primitives/address/address.hpp>
-#include <barretenberg/crypto/pedersen_commitment/pedersen.hpp>
-#include <barretenberg/crypto/generators/generator_data.hpp>
-#include <barretenberg/crypto/schnorr/schnorr.hpp>
+#include <barretenberg/crypto/blake3s/blake3s.hpp>
 #include <barretenberg/crypto/ecdsa/ecdsa.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/crypto/pedersen_commitment/pedersen.hpp>
+#include <barretenberg/crypto/schnorr/schnorr.hpp>
 #include <barretenberg/ecc/curves/bn254/fq.hpp>
 #include <barretenberg/ecc/curves/bn254/fr.hpp>
 #include <barretenberg/ecc/curves/bn254/g1.hpp>
 #include <barretenberg/ecc/curves/grumpkin/grumpkin.hpp>
 #include <barretenberg/numeric/uint256/uint256.hpp>
-#include <barretenberg/plonk/proof_system/verification_key/verification_key.hpp>
 #include <barretenberg/plonk/proof_system/types/proof.hpp>
-#include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
+#include <barretenberg/plonk/proof_system/verification_key/verification_key.hpp>
+#include <barretenberg/stdlib/primitives/address/address.hpp>
 #include <barretenberg/stdlib/recursion/aggregation_state/native_aggregation_state.hpp>
-#include <barretenberg/crypto/blake3s/blake3s.hpp>
+#include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
 
 namespace aztec3::utils::types {
 
 struct NativeTypes {
-    typedef bool boolean;
+    using boolean = bool;
 
-    typedef uint8_t uint8;
-    typedef uint16_t uint16;
-    typedef uint32_t uint32;
-    typedef uint64_t uint64;
-    typedef uint256_t uint256;
+    using uint8 = uint8_t;
+    using uint16 = uint16_t;
+    using uint32 = uint32_t;
+    using uint64 = uint64_t;
+    using uint256 = uint256_t;
 
-    typedef barretenberg::fr fr;
-    typedef proof_system::plonk::stdlib::address address;
+    using fr = barretenberg::fr;
+    using address = proof_system::plonk::stdlib::address;
 
-    typedef barretenberg::fq fq;
+    using fq = barretenberg::fq;
 
     // typedef fq grumpkin_fr;
     // typedef fr grumpkin_fq;
-    typedef grumpkin::g1::affine_element grumpkin_point;
+    using grumpkin_point = grumpkin::g1::affine_element;
     // typedef grumpkin::g1::element grumpkin_jac_point;
-    typedef grumpkin::g1 grumpkin_group;
+    using grumpkin_group = grumpkin::g1;
 
-    typedef barretenberg::g1::affine_element bn254_point;
+    using bn254_point = barretenberg::g1::affine_element;
     // typedef barretenberg::g1::element bn254_jac_point;
     // typedef barretenberg::g1 bn254_group;
 
-    typedef std::vector<bool> bit_array;
-    typedef std::vector<uint8_t> byte_array;
-    typedef std::string packed_byte_array;
+    using bit_array = std::vector<bool>;
+    using byte_array = std::vector<uint8_t>;
+    using packed_byte_array = std::string;
 
-    typedef crypto::schnorr::signature schnorr_signature;
-    typedef crypto::ecdsa::signature ecdsa_signature;
+    using schnorr_signature = crypto::schnorr::signature;
+    using ecdsa_signature = crypto::ecdsa::signature;
 
-    typedef proof_system::plonk::stdlib::recursion::native_aggregation_state AggregationObject;
-    typedef plonk::verification_key_data VKData;
-    typedef plonk::verification_key VK;
-    typedef plonk::proof Proof;
+    using AggregationObject = proof_system::plonk::stdlib::recursion::native_aggregation_state;
+    using VKData = plonk::verification_key_data;
+    using VK = plonk::verification_key;
+    using Proof = plonk::proof;
 
     /// TODO: lots of these compress / commit functions aren't actually used: remove them.
 
@@ -63,7 +63,7 @@ struct NativeTypes {
 
     template <size_t SIZE> static fr compress(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
     {
-        std::vector<fr> inputs_vec(std::begin(inputs), std::end(inputs));
+        std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
         return crypto::pedersen_commitment::compress_native(inputs_vec, hash_index);
     }
 
@@ -104,4 +104,4 @@ struct NativeTypes {
     static byte_array blake3s(const byte_array& input) { return blake3::blake3s(input); }
 };
 
-} // namespace aztec3::utils::types
+}  // namespace aztec3::utils::types

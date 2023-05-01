@@ -2,23 +2,18 @@
 
 #include "contract.hpp"
 #include "oracle_wrapper.hpp"
-
 #include "notes/note_interface.hpp"
-
 #include "opcodes/opcodes.hpp"
-
-#include <aztec3/constants.hpp>
 
 #include <aztec3/circuits/abis/call_stack_item.hpp>
 #include <aztec3/circuits/abis/function_data.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include <aztec3/circuits/abis/types.hpp>
-
-#include <barretenberg/stdlib/primitives/field/array.hpp>
+#include <aztec3/constants.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 #include <barretenberg/common/container.hpp>
-
-#include <aztec3/utils/types/convert.hpp>
+#include <barretenberg/stdlib/primitives/field/array.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -40,10 +35,10 @@ using aztec3::utils::types::to_ct;
 using aztec3::utils::types::to_nt;
 
 template <typename Composer> class FunctionExecutionContext {
-    typedef NativeTypes NT;
-    typedef CircuitTypes<Composer> CT;
-    typedef typename CT::fr fr;
-    typedef typename CT::address address;
+    using NT = NativeTypes;
+    using CT = CircuitTypes<Composer>;
+    using fr = typename CT::fr;
+    using address = typename CT::address;
 
     // We restrict only the opcodes to be able to push to the private members of the exec_ctx.
     // This will just help us build better separation of concerns.
@@ -168,7 +163,7 @@ template <typename Composer> class FunctionExecutionContext {
         // Convert function name to bytes and use the first 4 bytes as the function encoding, for now:
         std::vector<uint8_t> f_name_bytes(f_name.begin(), f_name.end());
         std::vector<uint8_t> f_encoding_bytes(f_name_bytes.begin(), f_name_bytes.begin() + 4);
-        uint32_t f_encoding;
+        uint32_t f_encoding = 0;
         memcpy(&f_encoding, f_encoding_bytes.data(), sizeof(f_encoding));
 
         fr f_encoding_ct = fr(f_encoding);
@@ -188,9 +183,9 @@ template <typename Composer> class FunctionExecutionContext {
         };
 
         const CallContext<CT> f_call_context_ct{
-            .msg_sender = oracle.get_this_contract_address(), // the sender is `this` contract!
+            .msg_sender = oracle.get_this_contract_address(),  // the sender is `this` contract!
             .storage_contract_address = f_contract_address,
-            .portal_contract_address = 0, // TODO
+            .portal_contract_address = 0,  // TODO
             .is_delegate_call = false,
             .is_static_call = false,
             .is_contract_deployment = false,
@@ -201,9 +196,9 @@ template <typename Composer> class FunctionExecutionContext {
                               f_function_data_ct.template to_native_type<Composer>(),
                               f_call_context_ct.template to_native_type<Composer>(),
                               oracle.get_msg_sender_private_key()
-                                  .get_value() // TODO: consider whether a nested function should even be able to access
-                                               // a private key, given that the call is now coming from a contract
-                                               // (which cannot own a secret), rather than a human.
+                                  .get_value()  // TODO: consider whether a nested function should even be able to
+                                                // access a private key, given that the call is now coming from a
+                                                // contract (which cannot own a secret), rather than a human.
         );
 
         Composer f_composer = Composer("../barretenberg/cpp/srs_db/ignition");
@@ -240,7 +235,7 @@ template <typename Composer> class FunctionExecutionContext {
             args[i].assert_equal(f_public_inputs_ct.args[i]);
         }
 
-        CallStackItem<CT, PrivateTypes> f_call_stack_item_ct{
+        CallStackItem<CT, PrivateTypes> const f_call_stack_item_ct{
             .contract_address = f_contract_address,
             .function_data = f_function_data_ct,
             .public_inputs = f_public_inputs_ct,
@@ -333,4 +328,4 @@ template <typename Composer> class FunctionExecutionContext {
     }
 };
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps

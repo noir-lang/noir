@@ -8,8 +8,7 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct ConstantRollupData {
-
-    typedef typename NCT::fr fr;
+    using fr = typename NCT::fr;
 
     // The very latest roots as at the very beginning of the entire rollup:
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_private_data_tree_roots_snapshot{};
@@ -65,4 +64,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantRollu
               << "merge_rollup_vk_hash: " << obj.merge_rollup_vk_hash << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

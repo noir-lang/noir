@@ -22,9 +22,9 @@ OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exe
     // Convert params into circuit types:
     auto& composer = exec_ctx.composer;
 
-    CT::fr arg0 = to_ct(composer, args[0]);
-    CT::fr arg1 = to_ct(composer, args[1]);
-    CT::fr arg2 = to_ct(composer, args[2]);
+    CT::fr const arg0 = to_ct(composer, args[0]);
+    CT::fr const arg1 = to_ct(composer, args[1]);
+    CT::fr const arg2 = to_ct(composer, args[2]);
 
     auto& oracle = exec_ctx.oracle;
     const CT::address msg_sender = oracle.get_msg_sender();
@@ -53,4 +53,4 @@ OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exe
     return public_inputs.to_native_type<C>();
 }
 
-} // namespace aztec3::circuits::apps::test_apps::basic_contract_deployment
+}  // namespace aztec3::circuits::apps::test_apps::basic_contract_deployment

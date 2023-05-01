@@ -1,12 +1,11 @@
 #pragma once
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/common/streams.hpp>
-
-#include <barretenberg/crypto/generators/generator_data.hpp>
-
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/common/streams.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
 
 namespace aztec3::circuits::apps::notes {
 
@@ -15,8 +14,8 @@ using aztec3::utils::types::NativeTypes;
 using crypto::generators::generator_index_t;
 
 template <typename NCT> struct DefaultSingletonPrivateNoteNullifierPreimage {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     fr commitment;
     fr owner_private_key;
@@ -69,4 +68,4 @@ std::ostream& operator<<(std::ostream& os, DefaultSingletonPrivateNoteNullifierP
               << "is_dummy: " << preimage.is_dummy << "\n";
 }
 
-} // namespace aztec3::circuits::apps::notes
+}  // namespace aztec3::circuits::apps::notes

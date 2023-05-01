@@ -1,8 +1,8 @@
 #pragma once
+#include <aztec3/constants.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/constants.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -26,10 +26,9 @@ using std::is_same;
  * - writing a preimage to an ostream
  */
 template <typename NCT> struct FunctionLeafPreimage {
-
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::fr fr;
-    typedef typename NCT::uint32 uint32;
+    using boolean = typename NCT::boolean;
+    using fr = typename NCT::fr;
+    using uint32 = typename NCT::uint32;
 
     uint32 function_selector = 0;
     boolean is_private = false;
@@ -86,7 +85,7 @@ template <typename NCT> struct FunctionLeafPreimage {
 
     fr hash() const
     {
-        std::vector<fr> inputs = {
+        std::vector<fr> const inputs = {
             function_selector,
             fr(is_private),
             vk_hash,
@@ -124,4 +123,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionLeafP
               << "acir_hash: " << preimage.acir_hash << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

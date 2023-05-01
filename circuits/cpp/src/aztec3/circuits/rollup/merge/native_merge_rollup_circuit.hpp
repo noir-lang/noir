@@ -4,4 +4,4 @@
 
 namespace aztec3::circuits::rollup::merge {
 BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, MergeRollupInputs const& mergeRollupInputs);
-} // namespace aztec3::circuits::rollup::merge
+}  // namespace aztec3::circuits::rollup::merge

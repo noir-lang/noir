@@ -1,12 +1,13 @@
 
 #pragma once
 
-#include "barretenberg/crypto/sha256/sha256.hpp"
-
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include "barretenberg/crypto/sha256/sha256.hpp"
+
 #include <ostream>
 
 namespace aztec3::circuits::abis {
@@ -15,8 +16,8 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct RootRollupPublicInputs {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::AggregationObject AggregationObject;
+    using fr = typename NCT::fr;
+    using AggregationObject = typename NCT::AggregationObject;
 
     // All below are shared between the base and merge rollups
     AggregationObject end_aggregation_object;
@@ -135,4 +136,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupPub
               << "calldata_hash: " << obj.calldata_hash << "\n";
 };
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis
