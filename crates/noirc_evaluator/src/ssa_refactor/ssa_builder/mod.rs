@@ -8,7 +8,10 @@ use crate::ssa_refactor::ir::{
     value::{Value, ValueId},
 };
 
-use super::ir::instruction::Intrinsic;
+use super::{
+    ir::instruction::{InstructionId, Intrinsic},
+    ssa_gen::Ssa,
+};
 
 /// The per-function context for each ssa function being generated.
 ///
@@ -18,9 +21,9 @@ use super::ir::instruction::Intrinsic;
 /// Contrary to the name, this struct has the capacity to build as many
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder {
-    current_function: Function,
+    pub(super) current_function: Function,
     current_block: BasicBlockId,
-    finished_functions: Vec<(FunctionId, Function)>,
+    finished_functions: Vec<Function>,
 }
 
 impl FunctionBuilder {
@@ -34,14 +37,15 @@ impl FunctionBuilder {
     /// Finish the current function and create a new function
     pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
         let new_function = Function::new(name, function_id);
-        let old_function = std::mem::replace(&mut self.current_function, new_function);
+        self.current_block = new_function.entry_block();
 
-        self.finished_functions.push((self.current_function.id(), old_function));
+        let old_function = std::mem::replace(&mut self.current_function, new_function);
+        self.finished_functions.push(old_function);
     }
 
-    pub(crate) fn finish(mut self) -> Vec<(FunctionId, Function)> {
-        self.finished_functions.push((self.current_function.id(), self.current_function));
-        self.finished_functions
+    pub(crate) fn finish(mut self) -> Ssa {
+        self.finished_functions.push(self.current_function);
+        Ssa::new(self.finished_functions)
     }
 
     pub(crate) fn add_parameter(&mut self, typ: Type) -> ValueId {
@@ -113,12 +117,7 @@ impl FunctionBuilder {
         offset: ValueId,
         type_to_load: Type,
     ) -> ValueId {
-        if let Some(offset) = self.current_function.dfg.get_numeric_constant(offset) {
-            if !offset.is_zero() {
-                let offset = self.field_constant(offset);
-                address = self.insert_binary(address, BinaryOp::Add, offset);
-            }
-        };
+        address = self.insert_binary(address, BinaryOp::Add, offset);
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]))[0]
     }
 
@@ -204,32 +203,6 @@ impl FunctionBuilder {
         self.terminate_block_with(TerminatorInstruction::Return { return_values });
     }
 
-    /// Mutates a load instruction into a store instruction.
-    ///
-    /// This function is used while generating ssa-form for assignments currently.
-    /// To re-use most of the expression infrastructure, the lvalue of an assignment
-    /// is compiled as an expression and to assign to it we replace the final load
-    /// (which should always be present to load a mutable value) with a store of the
-    /// assigned value.
-    pub(crate) fn mutate_load_into_store(&mut self, load_result: ValueId, value_to_store: ValueId) {
-        let (instruction, address) = match &self.current_function.dfg[load_result] {
-            Value::Instruction { instruction, .. } => {
-                match &self.current_function.dfg[*instruction] {
-                    Instruction::Load { address } => (*instruction, *address),
-                    other => {
-                        panic!("mutate_load_into_store: Expected Load instruction, found {other:?}")
-                    }
-                }
-            }
-            other => panic!("mutate_load_into_store: Expected Load instruction, found {other:?}"),
-        };
-
-        let store = Instruction::Store { address, value: value_to_store };
-        self.current_function.dfg.replace_instruction(instruction, store);
-        // Clear the results of the previous load for safety
-        self.current_function.dfg.make_instruction_results(instruction, None);
-    }
-
     /// Returns a ValueId pointing to the given function or imports the function
     /// into the current function if it was not already, and returns that ID.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
@@ -241,5 +214,26 @@ impl FunctionBuilder {
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
         Intrinsic::lookup(name)
             .map(|intrinsic| self.current_function.dfg.import_intrinsic(intrinsic))
+    }
+
+    /// Removes the given instruction from the current block or panics otherwise.
+    pub(crate) fn remove_instruction_from_current_block(&mut self, instruction: InstructionId) {
+        self.current_function.dfg[self.current_block].remove_instruction(instruction);
+    }
+}
+
+impl std::ops::Index<ValueId> for FunctionBuilder {
+    type Output = Value;
+
+    fn index(&self, id: ValueId) -> &Self::Output {
+        &self.current_function.dfg[id]
+    }
+}
+
+impl std::ops::Index<InstructionId> for FunctionBuilder {
+    type Output = Instruction;
+
+    fn index(&self, id: InstructionId) -> &Self::Output {
+        &self.current_function.dfg[id]
     }
 }

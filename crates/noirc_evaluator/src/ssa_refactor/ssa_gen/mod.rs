@@ -1,5 +1,8 @@
 mod context;
+mod program;
 mod value;
+
+pub use program::Ssa;
 
 use context::SharedContext;
 use iter_extended::vecmap;
@@ -13,24 +16,36 @@ use self::{
 
 use super::ir::{instruction::BinaryOp, types::Type, value::ValueId};
 
-pub(crate) fn generate_ssa(program: Program) {
+pub fn generate_ssa(program: Program) -> Ssa {
     let context = SharedContext::new(program);
 
-    let main = context.program.main();
     let main_id = Program::main_id();
-    let main_name = main.name.clone();
+    let main = context.program.main();
 
-    let mut function_context = FunctionContext::new(main_id, main_name, &main.parameters, &context);
-    function_context.codegen_expression(&main.body);
+    // Queue the main function for compilation
+    context.get_or_queue_function(main_id);
+
+    let mut function_context = FunctionContext::new(main.name.clone(), &main.parameters, &context);
+    function_context.codegen_function_body(&main.body);
 
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function.name.clone(), &function.parameters);
-        function_context.codegen_expression(&function.body);
+        function_context.codegen_function_body(&function.body);
     }
+
+    function_context.builder.finish()
 }
 
 impl<'a> FunctionContext<'a> {
+    /// Codegen a function's body and set its return value to that of its last parameter.
+    /// For functions returning nothing, this will be an empty list.
+    fn codegen_function_body(&mut self, body: &Expression) {
+        let return_value = self.codegen_expression(body);
+        let results = return_value.into_value_list(self);
+        self.builder.terminate_with_return(results);
+    }
+
     fn codegen_expression(&mut self, expr: &Expression) -> Values {
         match expr {
             Expression::Ident(ident) => self.codegen_ident(ident),
@@ -146,16 +161,21 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array = self.codegen_non_tuple_expression(&index.collection);
-        self.codegen_array_index(array, &index.index, &index.element_type)
+        self.codegen_array_index(array, &index.index, &index.element_type, true)
     }
 
     /// This is broken off from codegen_index so that it can also be
-    /// used to codegen a LValue::Index
+    /// used to codegen a LValue::Index.
+    ///
+    /// Set load_result to true to load from each relevant index of the array
+    /// (it may be multiple in the case of tuples). Set it to false to instead
+    /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
         &mut self,
         array: super::ir::value::ValueId,
         index: &ast::Expression,
         element_type: &ast::Type,
+        load_result: bool,
     ) -> Values {
         let base_offset = self.codegen_non_tuple_expression(index);
 
@@ -168,7 +188,12 @@ impl<'a> FunctionContext<'a> {
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
-            self.builder.insert_load(array, offset, typ).into()
+            if load_result {
+                self.builder.insert_load(array, offset, typ)
+            } else {
+                self.builder.insert_binary(array, BinaryOp::Add, offset)
+            }
+            .into()
         })
     }
 
@@ -277,10 +302,7 @@ impl<'a> FunctionContext<'a> {
         if let_expr.mutable {
             values.map_mut(|value| {
                 let value = value.eval(self);
-                // Size is always 1 here since we're recursively unpacking tuples
-                let alloc = self.builder.insert_allocate(1);
-                self.builder.insert_store(alloc, value);
-                alloc.into()
+                Tree::Leaf(self.new_mutable_variable(value))
             });
         }
 
@@ -297,16 +319,28 @@ impl<'a> FunctionContext<'a> {
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Values {
         let lhs = self.codegen_lvalue(&assign.lvalue);
         let rhs = self.codegen_expression(&assign.expression);
+
         self.assign(lhs, rhs);
         self.unit_value()
     }
 
     fn codegen_lvalue(&mut self, lvalue: &ast::LValue) -> Values {
         match lvalue {
-            ast::LValue::Ident(ident) => self.codegen_ident(ident),
+            ast::LValue::Ident(ident) => {
+                // Do not .eval the Values here! We do not want to load from any references within
+                // since we want to return the references instead
+                match &ident.definition {
+                    ast::Definition::Local(id) => self.lookup(*id),
+                    other => panic!("Unexpected definition found for mutable value: {other}"),
+                }
+            }
             ast::LValue::Index { array, index, element_type, location: _ } => {
+                // Note that unlike the Ident case, we're .eval'ing the array here.
+                // This is because arrays are already references and thus a mutable reference
+                // to an array would be a Value::Mutable( Value::Mutable ( address ) ), and we
+                // only need the inner mutable value.
                 let array = self.codegen_lvalue(array).into_leaf().eval(self);
-                self.codegen_array_index(array, index, element_type)
+                self.codegen_array_index(array, index, element_type, false)
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 let object = self.codegen_lvalue(object);

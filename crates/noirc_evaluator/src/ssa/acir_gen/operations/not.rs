@@ -19,7 +19,7 @@ pub(crate) fn evaluate(
     let l_c = var_cache.get_or_compute_internal_var_unwrap(*value, evaluator, ctx);
     Some(
         constraints::subtract(
-            &Expression::from(&FieldElement::from(a)),
+            &Expression::from(FieldElement::from(a)),
             FieldElement::one(),
             l_c.expression(),
         )

@@ -46,7 +46,7 @@ fn execute_with_path(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     let compiled_program = compile_circuit(&backend, program_dir, compile_options)?;
 
