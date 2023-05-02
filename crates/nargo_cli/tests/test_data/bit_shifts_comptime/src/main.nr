@@ -3,11 +3,11 @@ fn main(x: u64) {
 	let three: u64 = 3;
 
 	// comptime shifts on comptime values
-	constrain two << 2 == 8;
-	constrain (two << 3) / 8 == two;
-	constrain (three >> 1) == 1;
+	assert(two << 2 == 8);
+	assert((two << 3) / 8 == two);
+	assert((three >> 1) == 1);
 
 	// comptime shifts on runtime values
-	constrain x << 1 == 128;
-	constrain x >> 2 == 16;
+	assert(x << 1 == 128);
+	assert(x >> 2 == 16);
 }

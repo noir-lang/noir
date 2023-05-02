@@ -3,10 +3,10 @@ fn main(x: u64, y: u64) {
 	// See: https://github.com/noir-lang/noir/issues/1265
 		
 	// runtime shifts on comptime values
-	constrain 64 << y == 128;
-	constrain 64 >> y == 32;
+	assert(64 << y == 128);
+	assert(64 >> y == 32);
 
 	// runtime shifts on runtime values
-	constrain x << y == 128;
-	constrain x >> y == 32;
+	assert(x << y == 128);
+	assert(x >> y == 32);
 }
