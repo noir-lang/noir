@@ -30,11 +30,11 @@ fn main() {
         let p4_affine = bjj_affine.mul(2, p1_affine);
         constrain p4_affine.eq(Gaffine::new(6890855772600357754907169075114257697580319025794532037257385534741338397365,
                                             4338620300185947561074059802482547481416142213883829469920100239455078257889));
-        constrain p4_affine.eq(bjj_affine.bit_mul([0,1], p1_affine));
+        assert(p4_affine.eq(bjj_affine.bit_mul([0,1], p1_affine)));
 
         // Test subtraction
         let p5_affine = bjj_affine.subtract(p3_affine, p3_affine);
-        constrain p5_affine.eq(Gaffine::zero());
+        assert(p5_affine.eq(Gaffine::zero()));
 
         // Check that these points are on the curve
         constrain bjj_affine.contains(bjj_affine.gen)
@@ -54,15 +54,15 @@ fn main() {
         let p5 = p5_affine.into_group(); 
 
         // Test addition
-        constrain p3.eq(bjj.add(p1, p2));
+        assert(p3.eq(bjj.add(p1, p2)));
 
         // Test scalar multiplication
-        constrain p4.eq(bjj.mul(2, p1));
-        constrain p4.eq(bjj.bit_mul([0,1], p1));
+        assert(p4.eq(bjj.mul(2, p1)));
+        assert(p4.eq(bjj.bit_mul([0,1], p1)));
 
         // Test subtraction
-        constrain G::zero().eq(bjj.subtract(p3, p3));
-        constrain p5.eq(G::zero());
+        assert(G::zero().eq(bjj.subtract(p3, p3)));
+        assert(p5.eq(G::zero()));
 
         // Check that these points are on the curve
         constrain bjj.contains(bjj.gen)
@@ -89,12 +89,12 @@ fn main() {
             p2_swcurve_affine));
         
         // Doubling
-        constrain p4_swcurve_affine.eq(bjj_swcurve_affine.mul(2, p1_swcurve_affine));
-        constrain p4_swcurve_affine.eq(bjj_swcurve_affine.bit_mul([0,1], p1_swcurve_affine));
+        assert(p4_swcurve_affine.eq(bjj_swcurve_affine.mul(2, p1_swcurve_affine)));
+        assert(p4_swcurve_affine.eq(bjj_swcurve_affine.bit_mul([0,1], p1_swcurve_affine)));
 
         // Subtraction
-        constrain SWGaffine::zero().eq(bjj_swcurve_affine.subtract(p3_swcurve_affine, p3_swcurve_affine));
-        constrain p5_swcurve_affine.eq(SWGaffine::zero());
+        assert(SWGaffine::zero().eq(bjj_swcurve_affine.subtract(p3_swcurve_affine, p3_swcurve_affine)));
+        assert(p5_swcurve_affine.eq(SWGaffine::zero()));
 
         // Check that these points are on the curve
         constrain bjj_swcurve_affine.contains(bjj_swcurve_affine.gen)
@@ -120,12 +120,12 @@ fn main() {
                 p2_swcurve));
         
         // Doubling
-        constrain p4_swcurve.eq(bjj_swcurve.mul(2, p1_swcurve));
-        constrain p4_swcurve.eq(bjj_swcurve.bit_mul([0,1], p1_swcurve));
+        assert(p4_swcurve.eq(bjj_swcurve.mul(2, p1_swcurve)));
+        assert(p4_swcurve.eq(bjj_swcurve.bit_mul([0,1], p1_swcurve)));
 
         // Subtraction
-        constrain SWG::zero().eq(bjj_swcurve.subtract(p3_swcurve, p3_swcurve));
-        constrain p5_swcurve.eq(SWG::zero());
+        assert(SWG::zero().eq(bjj_swcurve.subtract(p3_swcurve, p3_swcurve)));
+        assert(p5_swcurve.eq(SWG::zero()));
 
         // Check that these points are on the curve
         constrain bjj_swcurve.contains(bjj_swcurve.gen)
@@ -152,12 +152,12 @@ fn main() {
                 p2_montcurve_affine));
         
         // Doubling
-        constrain p4_montcurve_affine.eq(bjj_montcurve_affine.mul(2, p1_montcurve_affine));
-        constrain p4_montcurve_affine.eq(bjj_montcurve_affine.bit_mul([0,1], p1_montcurve_affine));
+        assert(p4_montcurve_affine.eq(bjj_montcurve_affine.mul(2, p1_montcurve_affine)));
+        assert(p4_montcurve_affine.eq(bjj_montcurve_affine.bit_mul([0,1], p1_montcurve_affine)));
 
         // Subtraction
-        constrain MGaffine::zero().eq(bjj_montcurve_affine.subtract(p3_montcurve_affine, p3_montcurve_affine));
-        constrain p5_montcurve_affine.eq(MGaffine::zero());
+        assert(MGaffine::zero().eq(bjj_montcurve_affine.subtract(p3_montcurve_affine, p3_montcurve_affine)));
+        assert(p5_montcurve_affine.eq(MGaffine::zero()));
 
         // Check that these points are on the curve
         constrain bjj_montcurve_affine.contains(bjj_montcurve_affine.gen)
@@ -183,12 +183,12 @@ fn main() {
                 p2_montcurve));
         
         // Doubling
-        constrain p4_montcurve.eq(bjj_montcurve.mul(2, p1_montcurve));
-        constrain p4_montcurve.eq(bjj_montcurve.bit_mul([0,1], p1_montcurve));
+        assert(p4_montcurve.eq(bjj_montcurve.mul(2, p1_montcurve)));
+        assert(p4_montcurve.eq(bjj_montcurve.bit_mul([0,1], p1_montcurve)));
 
         // Subtraction
-        constrain MG::zero().eq(bjj_montcurve.subtract(p3_montcurve, p3_montcurve));
-        constrain p5_montcurve.eq(MG::zero());
+        assert(MG::zero().eq(bjj_montcurve.subtract(p3_montcurve, p3_montcurve)));
+        assert(p5_montcurve.eq(MG::zero()));
 
         // Check that these points are on the curve
         constrain bjj_montcurve.contains(bjj_montcurve.gen)
@@ -201,11 +201,11 @@ fn main() {
         // Elligator 2 map-to-curve
         let ell2_pt_map = bjj_affine.elligator2_map(27);
 
-        constrain ell2_pt_map.eq(MGaffine::new(7972459279704486422145701269802978968072470631857513331988813812334797879121, 8142420778878030219043334189293412482212146646099536952861607542822144507872).into_tecurve());
+        assert(ell2_pt_map.eq(MGaffine::new(7972459279704486422145701269802978968072470631857513331988813812334797879121, 8142420778878030219043334189293412482212146646099536952861607542822144507872).into_tecurve()));
 
         // SWU map-to-curve
         let swu_pt_map = bjj_affine.swu_map(5,27);
         
-        constrain swu_pt_map.eq(bjj_affine.map_from_swcurve(SWGaffine::new(2162719247815120009132293839392097468339661471129795280520343931405114293888, 5341392251743377373758788728206293080122949448990104760111875914082289313973)));        
+        assert(swu_pt_map.eq(bjj_affine.map_from_swcurve(SWGaffine::new(2162719247815120009132293839392097468339661471129795280520343931405114293888, 5341392251743377373758788728206293080122949448990104760111875914082289313973))));        
     }            
 }

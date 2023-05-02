@@ -2,18 +2,18 @@ use dep::std;
 
 fn main(x: Field, y: Field) {
     let pair = (x, y);
-    constrain pair.0 == 1;
-    constrain pair.1 == 0;
+    assert(pair.0 == 1);
+    assert(pair.1 == 0);
 
     let (a, b) = if true { (0, 1) } else { (2, 3) };
-    constrain a == 0;
-    constrain b == 1;
+    assert(a == 0);
+    assert(b == 1);
 
     let (u,v) = if x as u32 <1 {
         (x,x+1)
     } else {
         (x+1,x)
     };
-   constrain u==x+1;
-   constrain v==x;
+   assert(u==x+1);
+   assert(v==x);
 }

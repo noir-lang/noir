@@ -17,6 +17,6 @@ fn main(
           pub_y = b_pub_y;
      }
      let res = std::scalar_mul::fixed_base(priv_key);
-     constrain res[0] == pub_x;
-     constrain res[1] == pub_y;
+     assert(res[0] == pub_x);
+     assert(res[1] == pub_y);
 }
