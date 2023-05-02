@@ -17,5 +17,6 @@ export interface L1Addresses {
   unverifiedDataEmitterContract: EthAddress;
 }
 
+export * from './ethereumjs-contracts/DecoderHelper.js';
 export * from './ethereumjs-contracts/Rollup.js';
 export * from './ethereumjs-contracts/UnverifiedDataEmitter.js';

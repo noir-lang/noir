@@ -7,7 +7,7 @@ import {
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
-import { Fr } from '@aztec/foundation';
+import { Fr, sha256, toBigIntBE, toBufferBE } from '@aztec/foundation';
 import times from 'lodash.times';
 import { ContractData } from './contract_data.js';
 import { L2Tx } from './l2_tx.js';
@@ -61,7 +61,7 @@ export class L2Block {
     public newContractData: ContractData[],
   ) {}
 
-  static random(l2BlockNum: number, txsPerBlock = 1) {
+  static random(l2BlockNum: number, txsPerBlock = 4) {
     const newNullifiers = times(KERNEL_NEW_NULLIFIERS_LENGTH * txsPerBlock, Fr.random);
     const newCommitments = times(KERNEL_NEW_COMMITMENTS_LENGTH * txsPerBlock, Fr.random);
     const newContracts = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, Fr.random);
@@ -222,6 +222,131 @@ export class L2Block {
       newContracts,
       newContractData,
     });
+  }
+
+  /**
+   * Computes the public inputs hash for the L2 block.
+   * The same output as the hash of RootRollupPublicInputs
+   * @return The public input hash for the L2 block as a field element
+   */
+  getPublicInputsHash() {
+    const buf = serializeToBuffer(
+      this.startPrivateDataTreeSnapshot,
+      this.startNullifierTreeSnapshot,
+      this.startContractTreeSnapshot,
+      this.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      this.startTreeOfHistoricContractTreeRootsSnapshot,
+      this.startPublicDataTreeRoot,
+      this.endPrivateDataTreeSnapshot,
+      this.endNullifierTreeSnapshot,
+      this.endContractTreeSnapshot,
+      this.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      this.endTreeOfHistoricContractTreeRootsSnapshot,
+      this.endPublicDataTreeRoot,
+      this.getCalldataHash(),
+    );
+    const temp = toBigIntBE(sha256(buf));
+    // Prime order of BN254 curve
+    const p = BigInt('21888242871839275222246405745257275088548364400416034343698204186575808495617');
+    return Fr.fromBuffer(toBufferBE(temp % p, 32));
+  }
+
+  /**
+   * Computes the start state hash (should equal contract data before block)
+   * @returns The start state hash for the L2 block
+   */
+  getStartStateHash() {
+    const inputValue = serializeToBuffer(
+      this.number - 1,
+      this.startPrivateDataTreeSnapshot,
+      this.startNullifierTreeSnapshot,
+      this.startContractTreeSnapshot,
+      this.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      this.startTreeOfHistoricContractTreeRootsSnapshot,
+      this.startPublicDataTreeRoot,
+    );
+    return sha256(inputValue);
+  }
+
+  /**
+   * Computes the end state hash (should equal contract data after block)
+   * @returns The end state hash for the L2 block
+   */
+  getEndStateHash() {
+    const inputValue = serializeToBuffer(
+      this.number,
+      this.endPrivateDataTreeSnapshot,
+      this.endNullifierTreeSnapshot,
+      this.endContractTreeSnapshot,
+      this.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      this.endTreeOfHistoricContractTreeRootsSnapshot,
+      this.endPublicDataTreeRoot,
+    );
+    return sha256(inputValue);
+  }
+
+  /**
+   * Computes the calldata hash for the L2 block
+   * This calldata hash is also computed by the rollup contract when the block is submitted,
+   * and inside the circuit, it is part of the public inputs.
+   * @returns The calldata hash.
+   */
+  getCalldataHash() {
+    const computeRoot = (leafs: Buffer[]): Buffer => {
+      const layers: Buffer[][] = [leafs];
+      let activeLayer = 0;
+
+      while (layers[activeLayer].length > 1) {
+        const layer: Buffer[] = [];
+        const layerLength = layers[activeLayer].length;
+
+        for (let i = 0; i < layerLength; i += 2) {
+          const left = layers[activeLayer][i];
+          const right = layers[activeLayer][i + 1];
+
+          layer.push(sha256(Buffer.concat([left, right])));
+        }
+
+        layers.push(layer);
+        activeLayer++;
+      }
+
+      return layers[layers.length - 1][0];
+    };
+
+    const leafCount = this.newCommitments.length / (KERNEL_NEW_COMMITMENTS_LENGTH * 2);
+    const leafs: Buffer[] = [];
+
+    for (let i = 0; i < leafCount; i++) {
+      const commitmentPerBase = KERNEL_NEW_COMMITMENTS_LENGTH * 2;
+      const nullifierPerBase = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
+      const publicDataWritesPerBase = STATE_TRANSITIONS_LENGTH * 2; // @note why is this constant named differently?
+      const commitmentBuffer = Buffer.concat(
+        this.newCommitments.slice(i * commitmentPerBase, (i + 1) * commitmentPerBase).map(x => x.toBuffer()),
+      );
+      const nullifierBuffer = Buffer.concat(
+        this.newNullifiers.slice(i * nullifierPerBase, (i + 1) * nullifierPerBase).map(x => x.toBuffer()),
+      );
+      const dataWritesBuffer = Buffer.concat(
+        this.newPublicDataWrites
+          .slice(i * publicDataWritesPerBase, (i + 1) * publicDataWritesPerBase)
+          .map(x => x.toBuffer()),
+      );
+
+      const inputValue = Buffer.concat([
+        commitmentBuffer,
+        nullifierBuffer,
+        dataWritesBuffer,
+        this.newContracts[i * 2].toBuffer(),
+        this.newContracts[i * 2 + 1].toBuffer(),
+        this.newContractData[i * 2].contractAddress.toBuffer(),
+        this.newContractData[i * 2].portalContractAddress.toBuffer32(),
+        this.newContractData[i * 2 + 1].contractAddress.toBuffer(),
+        this.newContractData[i * 2 + 1].portalContractAddress.toBuffer32(),
+      ]);
+      leafs.push(sha256(inputValue));
+    }
+    return computeRoot(leafs);
   }
 
   /**

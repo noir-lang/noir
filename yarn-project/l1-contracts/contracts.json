@@ -1,6 +1,10 @@
 {
   "outputPath": "./src/ethereumjs-contracts",
   "contracts": {
+    "DecoderHelper": {
+      "source": "foundry",
+      "buildFile": "../../l1-contracts/out/DecoderHelper.sol/DecoderHelper.json"
+    },
     "Rollup": {
       "source": "foundry",
       "buildFile": "../../l1-contracts/out/Rollup.sol/Rollup.json"
