@@ -3,7 +3,7 @@ import { AztecAddress, Fr } from '@aztec/foundation';
 import { ContractPublicData, ContractData, ContractDataSource, L2Block, L2BlockSource } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { P2P, P2PClient } from '@aztec/p2p';
-import { SequencerClient } from '@aztec/sequencer-client';
+import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
 import { Tx, TxHash } from '@aztec/types';
 import { UnverifiedData, UnverifiedDataSource } from '@aztec/types';
 import {
@@ -49,6 +49,15 @@ export class AztecNode {
 
     // now create the merkle trees and the world state syncher
     const merkleTreeDB = await MerkleTrees.new(levelup(createMemDown()), await CircuitsWasm.get());
+
+    // TODO: refactor, this should only be done on empty initial trees
+    for (const [newTree, rootTree] of [
+      [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
+      [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
+    ] as const) {
+      const newTreeInfo = await merkleTreeDB.getTreeInfo(newTree, true);
+      await merkleTreeDB.appendLeaves(rootTree, [newTreeInfo.root]);
+    }
     const worldStateSynchroniser = new ServerWorldStateSynchroniser(merkleTreeDB, archiver);
 
     // start both and wait for them to sync from the block source
@@ -120,6 +129,11 @@ export class AztecNode {
    * @param tx - The transaction to be submitted.
    */
   public async sendTx(tx: Tx) {
+    // TODO: Patch tx to inject historic tree roots until the private kernel circuit supplies this value
+    if (tx.isPrivate() && tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.isEmpty()) {
+      tx.data.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(this.merkleTreeDB.asLatest());
+    }
+
     await this.p2pClient!.sendTx(tx);
   }
 

@@ -1,3 +1,4 @@
+import { pedersenGetHash } from '@aztec/barretenberg.js/crypto';
 import {
   CircuitsWasm,
   Fr,
@@ -9,14 +10,14 @@ import {
   PublicKernelPublicInputs,
   TxRequest,
 } from '@aztec/circuits.js';
+import { createDebugLogger } from '@aztec/foundation';
 import { ContractDataSource, PublicTx, Tx } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
-import { pedersenGetHash } from '@aztec/barretenberg.js/crypto';
-import { createDebugLogger } from '@aztec/foundation';
 import times from 'lodash.times';
 import { Proof, PublicProver } from '../prover/index.js';
 import { PublicCircuitSimulator, PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
+import { getCombinedHistoricTreeRoots } from './utils.js';
 
 export class PublicProcessor {
   constructor(
@@ -50,6 +51,11 @@ export class PublicProcessor {
     return [result, failed];
   }
 
+  public async makeEmptyProcessedTx() {
+    const historicTreeRoots = await getCombinedHistoricTreeRoots(this.db);
+    return makeEmptyProcessedTx(historicTreeRoots);
+  }
+
   protected async processTx(tx: Tx): Promise<ProcessedTx> {
     if (tx.isPublic()) {
       const [publicKernelOutput, publicKernelProof] = await this.processPublicTx(tx);
@@ -57,7 +63,7 @@ export class PublicProcessor {
     } else if (tx.isPrivate()) {
       return makeProcessedTx(tx);
     } else {
-      return makeEmptyProcessedTx();
+      return this.makeEmptyProcessedTx();
     }
   }
 

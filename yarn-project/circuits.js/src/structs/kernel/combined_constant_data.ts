@@ -19,6 +19,15 @@ export class PrivateHistoricTreeRoots {
     );
   }
 
+  isEmpty() {
+    return (
+      this.privateDataTreeRoot.isZero() &&
+      this.nullifierTreeRoot.isZero() &&
+      this.contractTreeRoot.isZero() &&
+      this.privateKernelVkTreeRoot.isZero()
+    );
+  }
+
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
@@ -43,6 +52,10 @@ export class CombinedHistoricTreeRoots {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new CombinedHistoricTreeRoots(reader.readObject(PrivateHistoricTreeRoots));
+  }
+
+  isEmpty() {
+    return this.privateHistoricTreeRoots.isEmpty();
   }
 
   static empty() {

@@ -4,6 +4,7 @@ import {
   BaseRollupInputs,
   CircuitsWasm,
   Fr,
+  KernelCircuitPublicInputs,
   PublicDataRead,
   PublicDataTransition,
   RootRollupPublicInputs,
@@ -30,7 +31,12 @@ import { makeEmptyUnverifiedData, makePublicTx } from '../mocks/tx.js';
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 import { RollupProver } from '../prover/index.js';
-import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from '../sequencer/processed_tx.js';
+import {
+  ProcessedTx,
+  makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricTreeRoots,
+  makeProcessedTx,
+} from '../sequencer/processed_tx.js';
+import { getCombinedHistoricTreeRoots } from '../sequencer/utils.js';
 import { RollupSimulator } from '../simulator/index.js';
 import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
 import { CircuitBlockBuilder } from './circuit_block_builder.js';
@@ -86,6 +92,11 @@ describe('sequencer/circuit_block_builder', () => {
     simulator.rootRollupCircuit.mockResolvedValue(rootRollupOutput);
   }, 20_000);
 
+  const makeEmptyProcessedTx = async () => {
+    const historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
+    return makeEmptyProcessedTxFromHistoricTreeRoots(historicTreeRoots);
+  };
+
   const updateRootTrees = async () => {
     for (const [newTree, rootTree] of [
       [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
@@ -116,33 +127,19 @@ describe('sequencer/circuit_block_builder', () => {
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   };
 
-  const setTxHistoricTreeRoots = async (tx: ProcessedTx) => {
-    for (const [name, id] of [
-      ['privateDataTreeRoot', MerkleTreeId.PRIVATE_DATA_TREE],
-      ['contractTreeRoot', MerkleTreeId.CONTRACT_TREE],
-      ['nullifierTreeRoot', MerkleTreeId.NULLIFIER_TREE],
-    ] as const) {
-      tx.data.constants.historicTreeRoots.privateHistoricTreeRoots[name] = Fr.fromBuffer(
-        (await builderDb.getTreeInfo(id)).root,
-      );
-    }
-  };
-
   describe('mock simulator', () => {
     it('builds an L2 block using mock simulator', async () => {
       // Create instance to test
       builder = new TestSubject(builderDb, vks, simulator, prover);
       await builder.updateRootTrees();
 
-      // Assemble a fake transaction, we'll tweak some fields below
-      const tx = await makeProcessedTx(
-        Tx.createPrivate(makeKernelPublicInputs(), emptyProof, makeEmptyUnverifiedData()),
-      );
+      // Assemble a fake transaction
+      const kernelOutput = makeKernelPublicInputs();
+      kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(expectsDb);
+      const tx = await makeProcessedTx(Tx.createPrivate(kernelOutput, emptyProof, makeEmptyUnverifiedData()));
+
       const txsLeft = [tx, await makeEmptyProcessedTx()];
       const txsRight = [await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
-
-      // Set tree roots to proper values in the tx
-      await setTxHistoricTreeRoots(tx);
 
       // Calculate what would be the tree roots after the txs from the first base rollup land and update mock circuit output
       await updateExpectedTreesFromTxs(txsLeft);
@@ -209,18 +206,17 @@ describe('sequencer/circuit_block_builder', () => {
 
     const makeContractDeployProcessedTx = async (seed = 0x1) => {
       const tx = await makeEmptyProcessedTx();
-      await setTxHistoricTreeRoots(tx);
       tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
       return tx;
     };
 
     const makePublicCallProcessedTx = async (seed = 0x1) => {
       const publicTx = makePublicTx(seed);
-      const tx = await makeProcessedTx(publicTx, makeKernelPublicInputs(seed), makeProof());
-      await setTxHistoricTreeRoots(tx);
-      tx.data.end.stateReads[0] = new PublicDataRead(fr(1), fr(0));
-      tx.data.end.stateTransitions[0] = new PublicDataTransition(fr(2), fr(0), fr(12));
-      return tx;
+      const kernelOutput = KernelCircuitPublicInputs.empty();
+      kernelOutput.end.stateReads[0] = new PublicDataRead(fr(1), fr(0));
+      kernelOutput.end.stateTransitions[0] = new PublicDataTransition(fr(2), fr(0), fr(12));
+      kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
+      return await makeProcessedTx(publicTx, kernelOutput, makeProof());
     };
 
     it.each([
@@ -280,7 +276,6 @@ describe('sequencer/circuit_block_builder', () => {
       updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
       updateVals[1] = 10246291467305176436335175657884940686778521321101740385288169037814567547848n;
 
-      await builder.updateRootTrees();
       await builderDb.appendLeaves(
         MerkleTreeId.NULLIFIER_TREE,
         updateVals.map(v => toBufferBE(v, 32)),
@@ -298,7 +293,7 @@ describe('sequencer/circuit_block_builder', () => {
 
       const [l2Block] = await builder.buildL2Block(blockNumber, txs);
       expect(l2Block.number).toEqual(blockNumber);
-    });
+    }, 10000);
   });
 });
 

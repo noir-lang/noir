@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace aztec3::utils {
@@ -43,6 +44,13 @@ class DummyComposer {
         auto* raw_failure_buf = static_cast<uint8_t*>(malloc(circuit_failure_vec.size()));
         memcpy(raw_failure_buf, (void*)circuit_failure_vec.data(), circuit_failure_vec.size());
         return raw_failure_buf;
+    }
+
+    void log_failures_if_any(std::string from_method_name)
+    {
+        if (failed()) {
+            info(std::move(from_method_name), ": composer.get_first_failure() = ", get_first_failure());
+        }
     }
 };
 

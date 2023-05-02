@@ -1,6 +1,5 @@
-import { KernelCircuitPublicInputs } from '@aztec/circuits.js';
+import { CombinedHistoricTreeRoots, KernelCircuitPublicInputs, makeEmptyProof } from '@aztec/circuits.js';
 import { PrivateTx, PublicTx, Tx, TxHash } from '@aztec/types';
-import { makeEmptyPrivateTx } from '../index.js';
 import { Proof } from '../prover/index.js';
 
 /**
@@ -51,9 +50,14 @@ export async function makeProcessedTx(
  * Makes an empty tx from an empty kernel circuit public inputs.
  * @returns A processed empty tx.
  */
-export async function makeEmptyProcessedTx(): Promise<ProcessedTx> {
-  const emptyTx = makeEmptyPrivateTx();
+export async function makeEmptyProcessedTx(historicTreeRoots: CombinedHistoricTreeRoots): Promise<ProcessedTx> {
+  const emptyKernelOutput = KernelCircuitPublicInputs.empty();
+  emptyKernelOutput.constants.historicTreeRoots = historicTreeRoots;
+  const emptyProof = makeEmptyProof();
+
+  // TODO: What should be the hash of an empty tx?
+  const emptyTx = Tx.create(emptyKernelOutput, undefined, undefined, undefined);
   const hash = await emptyTx.getTxHash();
 
-  return { hash, data: emptyTx.data, proof: emptyTx.proof };
+  return { hash, data: emptyKernelOutput, proof: emptyProof };
 }

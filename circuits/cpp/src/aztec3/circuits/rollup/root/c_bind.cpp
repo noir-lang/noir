@@ -53,8 +53,9 @@ WASM_EXPORT size_t root_rollup__init_verification_key(uint8_t const* pk_buf, uin
     return vk_vec.size();
 }
 
-WASM_EXPORT size_t root_rollup__sim(uint8_t const* root_rollup_inputs_buf,
-                                    uint8_t const** root_rollup_public_inputs_buf)
+WASM_EXPORT uint8_t* root_rollup__sim(uint8_t const* root_rollup_inputs_buf,
+                                      size_t* root_rollup_public_inputs_size_out,
+                                      uint8_t const** root_rollup_public_inputs_buf)
 {
     RootRollupInputs root_rollup_inputs;
     read(root_rollup_inputs_buf, root_rollup_inputs);
@@ -69,8 +70,9 @@ WASM_EXPORT size_t root_rollup__sim(uint8_t const* root_rollup_inputs_buf,
     auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *root_rollup_public_inputs_buf = raw_public_inputs_buf;
-
-    return public_inputs_vec.size();
+    *root_rollup_public_inputs_size_out = public_inputs_vec.size();
+    composer.log_failures_if_any("root_rollup__sim");
+    return composer.alloc_and_serialize_first_failure();
 }
 
 WASM_EXPORT size_t root_rollup__verify_proof(uint8_t const* vk_buf, uint8_t const* proof, uint32_t length)

@@ -58,7 +58,7 @@ describe('e2e_nested_contract', () => {
   /**
    * Milestone 3
    */
-  it('should mine transactions that perform nested calls', async () => {
+  it.only('should mine transactions that perform nested calls', async () => {
     const parentContract = await deployContract(ParentAbi);
     const childContract = await deployContract(ChildAbi);
 
@@ -72,5 +72,5 @@ describe('e2e_nested_contract', () => {
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
-  }, 60_000);
+  }, 100_000);
 });

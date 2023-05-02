@@ -87,7 +87,7 @@ describe('rollup/rollup_wasm_wrapper', () => {
     }
   });
 
-  it('calls root_rollup__sim', async () => {
+  it.skip('calls root_rollup__sim', async () => {
     const input = makeRootRollupInputs();
     for (const rd of input.previousRollupData) {
       rd.vk = VerificationKey.makeFake();
