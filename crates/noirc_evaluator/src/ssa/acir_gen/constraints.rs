@@ -32,9 +32,6 @@ pub(crate) fn mul_with_witness(
     a: &Expression,
     b: &Expression,
 ) -> Expression {
-    let degree_a = degree(a);
-    let degree_b = degree(b);
-
     let a_arith;
     let b_arith;
 
@@ -43,7 +40,7 @@ pub(crate) fn mul_with_witness(
     // to degree 1 by using an intermediate variable to hold the result.
 
     // If we need to reduce `a`'s degree for `a * b` to be degree 2 then create an intermediate variable.
-    let a_arith = if degree_a == 2 && degree_b >= 1 {
+    let a_arith = if degree(a) == 2 && degree(b) >= 1 {
         let a_witness = evaluator.create_intermediate_variable(a.clone());
         a_arith = Expression::from(a_witness);
         &a_arith
@@ -52,7 +49,7 @@ pub(crate) fn mul_with_witness(
     };
 
     // Do the same for `b`.
-    let b_arith = if degree_b == 2 && degree_a >= 1 {
+    let b_arith = if degree(b) == 2 && degree(a) >= 1 {
         if a == b {
             // Reuse `a`'s temporary variable if possible.
             a_arith
