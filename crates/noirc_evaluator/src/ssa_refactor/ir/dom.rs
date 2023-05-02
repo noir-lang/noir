@@ -104,9 +104,9 @@ impl DominatorTree {
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
-        let mut domtree = DominatorTree { nodes: HashMap::new() };
-        domtree.compute_dominator_tree(cfg, post_order);
-        domtree
+        let mut dom_tree = DominatorTree { nodes: HashMap::new() };
+        dom_tree.compute_dominator_tree(cfg, post_order);
+        dom_tree
     }
 
     /// Allocate and compute a dominator tree for the given function.
@@ -178,16 +178,16 @@ impl DominatorTree {
     ) -> BasicBlockId {
         // Get an iterator with just the reachable, already visited predecessors to `block_id`.
         // Note that during the first pass `node` was pre-populated with all reachable blocks.
-        let mut reachable_preds =
+        let mut reachable_predecessors =
             cfg.predecessors(block_id).filter(|pred_id| self.nodes.contains_key(pred_id));
 
         // This function isn't called on unreachable blocks or the entry block, so the reverse
         // post-order will contain at least one predecessor to this block.
         let mut immediate_dominator =
-            reachable_preds.next().expect("block node must have one reachable predecessor");
+            reachable_predecessors.next().expect("block node must have one reachable predecessor");
 
-        for pred in reachable_preds {
-            immediate_dominator = self.common_dominator(immediate_dominator, pred);
+        for predecessor in reachable_predecessors {
+            immediate_dominator = self.common_dominator(immediate_dominator, predecessor);
         }
 
         immediate_dominator
@@ -230,9 +230,8 @@ mod tests {
 
     use crate::ssa_refactor::{
         ir::{
-            basic_block::BasicBlockId, cfg::ControlFlowGraph, dom::DominatorTree,
-            function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder,
-            types::Type,
+            basic_block::BasicBlockId, dom::DominatorTree, function::Function,
+            instruction::TerminatorInstruction, map::Id, types::Type,
         },
         ssa_builder::FunctionBuilder,
     };
@@ -246,9 +245,7 @@ mod tests {
             block0_id,
             TerminatorInstruction::Return { return_values: vec![] },
         );
-        let cfg = ControlFlowGraph::with_function(&func);
-        let post_order = PostOrder::with_function(&func);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_function(&func);
         assert!(dom_tree.dominates(block0_id, block0_id));
     }
 
