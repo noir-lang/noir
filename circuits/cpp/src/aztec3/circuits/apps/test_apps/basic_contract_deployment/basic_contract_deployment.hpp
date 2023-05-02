@@ -12,4 +12,4 @@ using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exec_ctx,
                                                    std::array<NT::fr, ARGS_LENGTH> const& args);
 
-} // namespace aztec3::circuits::apps::test_apps::basic_contract_deployment
+}  // namespace aztec3::circuits::apps::test_apps::basic_contract_deployment

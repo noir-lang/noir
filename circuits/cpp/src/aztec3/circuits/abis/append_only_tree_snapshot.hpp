@@ -8,9 +8,8 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct AppendOnlyTreeSnapshot {
-
-    typedef typename NCT::fr fr;
-    typedef typename NCT::uint32 uint32;
+    using fr = typename NCT::fr;
+    using uint32 = typename NCT::uint32;
 
     fr root = 0;
     uint32 next_available_leaf_index;
@@ -40,4 +39,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, AppendOnlyTre
               << "next_available_leaf_index: " << obj.next_available_leaf_index << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

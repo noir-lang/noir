@@ -15,6 +15,14 @@
     ],
     "dependencies": []
   },
+  "circuits-x86_64-linux-clang-tidy": {
+    "buildDir": "circuits/cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-tidy",
+    "rebuildPatterns": [
+      "^circuits/"
+    ],
+    "dependencies": []
+  },
   "circuits-x86_64-linux-clang": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",

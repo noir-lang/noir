@@ -1,11 +1,13 @@
+#include "init.hpp"
+
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
+
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
-#include "init.hpp"
 
 #include <algorithm>
 #include <array>
@@ -85,7 +87,8 @@ void assert_equal_constants(DummyComposer& composer,
 std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>, 2> previous_rollup_data)
 {
     // Generate a 512 bit input from right and left 256 bit hashes
-    std::array<uint8_t, 2 * 32> calldata_hash_input_bytes;
+    constexpr auto num_bytes = 2 * 32;
+    std::array<uint8_t, num_bytes> calldata_hash_input_bytes;
     for (uint8_t i = 0; i < 2; i++) {
         std::array<fr, 2> calldata_hash_fr = previous_rollup_data[i].base_or_merge_rollup_public_inputs.calldata_hash;
 
@@ -99,12 +102,13 @@ std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>,
     }
 
     // Compute the sha256
-    std::vector<uint8_t> calldata_hash_input_bytes_vec(calldata_hash_input_bytes.begin(),
-                                                       calldata_hash_input_bytes.end());
+    std::vector<uint8_t> const calldata_hash_input_bytes_vec(calldata_hash_input_bytes.begin(),
+                                                             calldata_hash_input_bytes.end());
     auto h = sha256::sha256(calldata_hash_input_bytes_vec);
 
     // Split the hash into two fields, a high and a low
-    std::array<uint8_t, 32> buf_1, buf_2;
+    std::array<uint8_t, 32> buf_1;
+    std::array<uint8_t, 32> buf_2;
     for (uint8_t i = 0; i < 16; i++) {
         buf_1[i] = 0;
         buf_1[16 + i] = h[i];
@@ -137,4 +141,4 @@ void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
                        utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
 }
 
-} // namespace aztec3::circuits::rollup::components
+}  // namespace aztec3::circuits::rollup::components

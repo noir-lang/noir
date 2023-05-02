@@ -108,6 +108,10 @@
     //
     "clangd.path": "clangd-15",
     //
+    // LLDB
+    //
+    "lldb.dereferencePointers": true,
+    //
     // CMake
     //
     // Location of base CMakeLists file
@@ -161,11 +165,9 @@
         }
       ]
     },
-    //
-    // GTest adapter (not currently used)
-    //
     "[cpp]": {
-      "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
-    }
+      "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+      "editor.formatOnSave": true,
+    },
   }
 }

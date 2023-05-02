@@ -30,4 +30,4 @@ inline Contract init_contract()
     return contract;
 }
 
-} // namespace aztec3::circuits::apps::test_apps::escrow
+}  // namespace aztec3::circuits::apps::test_apps::escrow

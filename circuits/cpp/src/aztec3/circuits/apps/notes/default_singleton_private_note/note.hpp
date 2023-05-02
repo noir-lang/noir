@@ -1,37 +1,36 @@
 #pragma once
 
-#include "../note_interface.hpp"
-
 #include "note_preimage.hpp"
 #include "nullifier_preimage.hpp"
+#include "../note_interface.hpp"
 
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps::state_vars {
 template <typename Composer> class StateVar;
-} // namespace aztec3::circuits::apps::state_vars
+}  // namespace aztec3::circuits::apps::state_vars
 
 namespace aztec3::circuits::apps::notes {
 
-using aztec3::circuits::apps::state_vars::StateVar; // Don't #include it!
+using aztec3::circuits::apps::state_vars::StateVar;  // Don't #include it!
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename Composer, typename ValueType> class DefaultSingletonPrivateNote : public NoteInterface<Composer> {
   public:
-    typedef CircuitTypes<Composer> CT;
-    typedef typename CT::fr fr;
-    typedef typename CT::grumpkin_point grumpkin_point;
-    typedef typename CT::address address;
-    typedef typename CT::boolean boolean;
+    using CT = CircuitTypes<Composer>;
+    using fr = typename CT::fr;
+    using grumpkin_point = typename CT::grumpkin_point;
+    using address = typename CT::address;
+    using boolean = typename CT::boolean;
 
     using NotePreimage = DefaultSingletonPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
     using NullifierPreimage = DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
 
-  public:
+
     StateVar<Composer>* state_var;
 
   private:
@@ -43,10 +42,9 @@ template <typename Composer, typename ValueType> class DefaultSingletonPrivateNo
 
   public:
     DefaultSingletonPrivateNote(StateVar<Composer>* state_var, NotePreimage note_preimage)
-        : state_var(state_var)
-        , note_preimage(note_preimage){};
+        : state_var(state_var), note_preimage(note_preimage){};
 
-    ~DefaultSingletonPrivateNote() {}
+    ~DefaultSingletonPrivateNote() override = default;
 
     // OVERRIDE METHODS:
 
@@ -101,7 +99,7 @@ template <typename Composer, typename ValueType> class DefaultSingletonPrivateNo
     bool is_partial() const;
 };
 
-} // namespace aztec3::circuits::apps::notes
+}  // namespace aztec3::circuits::apps::notes
 
 // Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
 // the following:

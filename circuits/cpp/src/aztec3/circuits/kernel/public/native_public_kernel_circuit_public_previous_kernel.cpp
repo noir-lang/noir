@@ -1,17 +1,16 @@
+#include "native_public_kernel_circuit_public_previous_kernel.hpp"
+
+#include "common.hpp"
 #include "init.hpp"
 
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
+#include "aztec3/constants.hpp"
 #include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include "native_public_kernel_circuit_public_previous_kernel.hpp"
-#include "common.hpp"
-
+#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
 #include <aztec3/utils/array.hpp>
 #include <aztec3/utils/dummy_composer.hpp>
-#include "aztec3/constants.hpp"
 
 namespace {
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
-using aztec3::utils::array_pop;
 /**
  * @brief Validates the kernel circuit inputs specific to having a public previous kernel
  * @param composer The circuit composer
@@ -30,7 +29,7 @@ void validate_inputs(DummyComposer& composer, PublicKernelInputs<NT> const& publ
                        "Previous kernel must be public",
                        CircuitErrorCode::PUBLIC_KERNEL__PREVIOUS_KERNEL_NOT_PUBLIC);
 }
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::kernel::public_kernel {
 
@@ -73,4 +72,4 @@ KernelCircuitPublicInputs<NT> native_public_kernel_circuit_public_previous_kerne
     return public_inputs;
 };
 
-} // namespace aztec3::circuits::kernel::public_kernel
+}  // namespace aztec3::circuits::kernel::public_kernel

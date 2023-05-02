@@ -1,31 +1,31 @@
 #include "init.hpp"
 #include "native_public_kernel_circuit_no_previous_kernel.hpp"
-#include "native_public_kernel_circuit_public_previous_kernel.hpp"
 #include "native_public_kernel_circuit_private_previous_kernel.hpp"
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/public_kernel/public_call_data.hpp>
-#include <gtest/gtest.h>
+#include "native_public_kernel_circuit_public_previous_kernel.hpp"
 
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/abis/call_stack_item.hpp>
+#include <aztec3/circuits/abis/combined_accumulated_data.hpp>
+#include <aztec3/circuits/abis/combined_constant_data.hpp>
 #include <aztec3/circuits/abis/contract_deployment_data.hpp>
 #include <aztec3/circuits/abis/function_data.hpp>
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/previous_kernel_data.hpp>
+#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/private_historic_tree_roots.hpp>
+#include <aztec3/circuits/abis/private_kernel/globals.hpp>
+#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
+#include <aztec3/circuits/abis/public_kernel/public_call_data.hpp>
+#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
 #include <aztec3/circuits/abis/signed_tx_request.hpp>
 #include <aztec3/circuits/abis/tx_context.hpp>
 #include <aztec3/circuits/abis/tx_request.hpp>
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/combined_accumulated_data.hpp>
-#include <aztec3/circuits/abis/combined_constant_data.hpp>
-#include <aztec3/circuits/abis/private_historic_tree_roots.hpp>
-#include <aztec3/circuits/abis/private_kernel/globals.hpp>
 #include <aztec3/circuits/abis/types.hpp>
 #include <aztec3/circuits/apps/function_execution_context.hpp>
-#include <aztec3/circuits/abis/previous_kernel_data.hpp>
 #include <aztec3/utils/array.hpp>
 #include <aztec3/utils/circuit_errors.hpp>
+
+#include <gtest/gtest.h>
 
 namespace {
 using DummyComposer = aztec3::utils::DummyComposer;
@@ -48,15 +48,13 @@ using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::public_kernel::PublicCallData;
-using aztec3::circuits::apps::FunctionExecutionContext;
-using aztec3::utils::CircuitErrorCode;
 using aztec3::utils::source_arrays_are_in_target;
 using aztec3::utils::zero_array;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::kernel::public_kernel {
 
-typedef CallStackItem<NT, PublicTypes> PublicCallStackItem;
+using PublicCallStackItem = CallStackItem<NT, aztec3::circuits::abis::PublicTypes>;
 
 template <size_t SIZE>
 std::array<NT::fr, SIZE> array_of_values(NT::uint32& count, NT::uint32 num_values_required = SIZE)
@@ -109,12 +107,12 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
                                              NT::uint32 seed = 0)
 {
     NT::uint32 count = seed + 1;
-    FunctionData<NT> function_data{
+    FunctionData<NT> const function_data{
         .function_selector = count,
         .is_private = false,
         .is_constructor = false,
     };
-    CallContext<NT> call_context{
+    CallContext<NT> const call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = storage_contract_address,
         .portal_contract_address = portal_contract_address,
@@ -122,16 +120,17 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
         .is_static_call = false,
         .is_contract_deployment = false,
     };
-    std::array<NT::fr, ARGS_LENGTH> args = array_of_values<ARGS_LENGTH>(count);
-    std::array<NT::fr, RETURN_VALUES_LENGTH> return_values = array_of_values<RETURN_VALUES_LENGTH>(count);
-    std::array<NT::fr, EMITTED_EVENTS_LENGTH> emitted_events = array_of_values<EMITTED_EVENTS_LENGTH>(count);
-    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = array_of_values<PUBLIC_CALL_STACK_LENGTH>(count);
-    std::array<NT::fr, L1_MSG_STACK_LENGTH> l1_msg_stack = array_of_values<L1_MSG_STACK_LENGTH>(count);
-    std::array<StateRead<NT>, STATE_READS_LENGTH> reads = generate_state_reads(count);
-    std::array<StateTransition<NT>, STATE_TRANSITIONS_LENGTH> transitions = generate_state_transitions(count);
+    std::array<NT::fr, ARGS_LENGTH> const args = array_of_values<ARGS_LENGTH>(count);
+    std::array<NT::fr, RETURN_VALUES_LENGTH> const return_values = array_of_values<RETURN_VALUES_LENGTH>(count);
+    std::array<NT::fr, EMITTED_EVENTS_LENGTH> const emitted_events = array_of_values<EMITTED_EVENTS_LENGTH>(count);
+    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> const public_call_stack =
+        array_of_values<PUBLIC_CALL_STACK_LENGTH>(count);
+    std::array<NT::fr, L1_MSG_STACK_LENGTH> const l1_msg_stack = array_of_values<L1_MSG_STACK_LENGTH>(count);
+    std::array<StateRead<NT>, STATE_READS_LENGTH> const reads = generate_state_reads(count);
+    std::array<StateTransition<NT>, STATE_TRANSITIONS_LENGTH> const transitions = generate_state_transitions(count);
 
     // create the public circuit public inputs
-    PublicCircuitPublicInputs<NT> public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
+    auto const public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
         .call_context = call_context,
         .args = args,
         .return_values = return_values,
@@ -142,7 +141,7 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
         .l1_msg_stack = l1_msg_stack,
 
     };
-    PublicCallStackItem call_stack_item = PublicCallStackItem{
+    auto call_stack_item = PublicCallStackItem{
         .contract_address = contract_address,
         .function_data = function_data,
         .public_inputs = public_circuit_public_inputs,
@@ -163,15 +162,15 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
     const NT::fr portal_contract_address = 23456;
 
     const NT::address msg_sender = NT::fr(1);
-    const NT::address tx_origin = msg_sender;
+    const NT::address& tx_origin = msg_sender;
 
-    FunctionData<NT> function_data{
+    FunctionData<NT> const function_data{
         .function_selector = 1,
         .is_private = false,
         .is_constructor = false,
     };
 
-    CallContext<NT> call_context{
+    CallContext<NT> const call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
         .portal_contract_address = portal_contract_address,
@@ -190,7 +189,7 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
     // We can create a TxRequest from some of the above data. Users must sign a TxRequest in order to give permission
     // for a tx to take place - creating a SignedTxRequest.
     //***************************************************************************
-    TxRequest<NT> tx_request = TxRequest<NT>{
+    auto const tx_request = TxRequest<NT>{
         .from = tx_origin,
         .to = contract_address,
         .function_data = function_data,
@@ -206,7 +205,7 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
         .chain_id = 1,
     };
 
-    SignedTxRequest<NT> signed_tx_request = SignedTxRequest<NT>{
+    auto const signed_tx_request = SignedTxRequest<NT>{
         .tx_request = tx_request,
 
         //.signature = TODO: need a method for signing a TxRequest.
@@ -218,6 +217,7 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
     NT::fr child_portal_contract_address = 200000;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
+        // NOLINTNEXTLINE(readability-suspicious-call-argument)
         child_call_stacks[i] = generate_call_stack_item(child_contract_address,
                                                         contract_address,
                                                         child_contract_address,
@@ -229,19 +229,20 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
         child_portal_contract_address++;
     }
 
-    std::array<fr, RETURN_VALUES_LENGTH> return_values =
+    std::array<fr, RETURN_VALUES_LENGTH> const return_values =
         array_of_values<RETURN_VALUES_LENGTH>(seed, RETURN_VALUES_LENGTH / 2);
-    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events =
+    std::array<fr, EMITTED_EVENTS_LENGTH> const emitted_events =
         array_of_values<EMITTED_EVENTS_LENGTH>(seed, EMITTED_EVENTS_LENGTH / 2);
-    std::array<StateTransition<NT>, STATE_TRANSITIONS_LENGTH> state_transitions =
+    std::array<StateTransition<NT>, STATE_TRANSITIONS_LENGTH> const state_transitions =
         generate_state_transitions(seed, STATE_TRANSITIONS_LENGTH / 2);
-    std::array<StateRead<NT>, STATE_READS_LENGTH> state_reads = generate_state_reads(seed, STATE_READS_LENGTH / 2);
-    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack =
+    std::array<StateRead<NT>, STATE_READS_LENGTH> const state_reads =
+        generate_state_reads(seed, STATE_READS_LENGTH / 2);
+    std::array<fr, L1_MSG_STACK_LENGTH> const l1_msg_stack =
         array_of_values<L1_MSG_STACK_LENGTH>(seed, L1_MSG_STACK_LENGTH / 2);
-    fr historic_public_data_tree_root = ++seed;
+    fr const historic_public_data_tree_root = ++seed;
 
     // create the public circuit public inputs
-    PublicCircuitPublicInputs<NT> public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
+    auto const public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
         .call_context = call_context,
         .args = args,
         .return_values = return_values,
@@ -334,7 +335,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
 {
     NT::uint32 seed = 1000000;
     const auto kernel_inputs_no_previous = get_kernel_inputs_no_previous_kernel();
-    CombinedConstantData<NT> end_constants = {
+    CombinedConstantData<NT> const end_constants = {
         .historic_tree_roots =
             CombinedHistoricTreeRoots<NT>{ .private_historic_tree_roots =
                                                PrivateHistoricTreeRoots<NT>{ .private_data_tree_root = ++seed,
@@ -354,7 +355,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         zero_array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
     public_call_stack[0] = kernel_inputs_no_previous.public_call.call_stack_item.hash();
 
-    CombinedAccumulatedData<NT> end_accumulated_data = {
+    CombinedAccumulatedData<NT> const end_accumulated_data = {
         .private_call_count = private_previous ? 1 : 0,
         .public_call_count = private_previous ? 0 : 1,
         .new_commitments = array_of_values<KERNEL_NEW_COMMITMENTS_LENGTH>(seed, private_previous ? 2 : 0),
@@ -378,12 +379,13 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .public_inputs = public_inputs,
     };
 
-    const PublicKernelInputs<NT> kernel_inputs = {
+    // NOLINTNEXTLINE(misc-const-correctness)
+    PublicKernelInputs<NT> kernel_inputs = {
         .previous_kernel = previous_kernel,
         .public_call = kernel_inputs_no_previous.public_call,
     };
     return kernel_inputs;
-} // namespace aztec3::circuits::kernel::public_kernel
+}  // namespace aztec3::circuits::kernel::public_kernel
 
 template <typename KernelInput>
 void validate_public_kernel_outputs_correctly_propagated(const KernelInput& inputs,
@@ -446,7 +448,7 @@ void validate_private_data_propagation(const PublicKernelInputs<NT>& inputs,
 TEST(public_kernel_tests, no_previous_kernel_public_call_should_succeed)
 {
     DummyComposer dc;
-    PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
+    PublicKernelInputsNoPreviousKernel<NT> const inputs = get_kernel_inputs_no_previous_kernel();
     auto public_inputs = native_public_kernel_circuit_no_previous_kernel(dc, inputs);
     ASSERT_FALSE(dc.failed());
 }
@@ -454,7 +456,7 @@ TEST(public_kernel_tests, no_previous_kernel_public_call_should_succeed)
 TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated)
 {
     DummyComposer dc;
-    PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
+    PublicKernelInputsNoPreviousKernel<NT> const inputs = get_kernel_inputs_no_previous_kernel();
     auto public_inputs = native_public_kernel_circuit_no_previous_kernel(dc, inputs);
     ASSERT_FALSE(dc.failed());
 
@@ -701,13 +703,14 @@ TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_
 
     // redefine the child calls/stacks to use some delegate calls
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
-    NT::uint32 seed = 1000;
+    NT::uint32 const seed = 1000;
     NT::fr child_contract_address = 100000;
     NT::fr child_portal_contract_address = 200000;
     NT::boolean is_delegate_call = false;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
         child_call_stacks[i] =
+            // NOLINTNEXTLINE(readability-suspicious-call-argument)
             generate_call_stack_item(child_contract_address,
                                      is_delegate_call ? origin_msg_sender : contract_address,
                                      is_delegate_call ? contract_address : child_contract_address,
@@ -738,12 +741,13 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_msg_sender_in
 
     // set the first call stack item to be a delegate call
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
-    NT::uint32 seed = 1000;
-    NT::fr child_contract_address = 100000;
+    NT::uint32 const seed = 1000;
+    NT::fr const child_contract_address = 100000;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     child_call_stacks[0] =
+        // NOLINTNEXTLINE(readability-suspicious-call-argument)
         generate_call_stack_item(child_contract_address,
-                                 contract_address, // this should be the origin_msg_sender, not the contract address
+                                 contract_address,  // this should be the origin_msg_sender, not the contract address
                                  contract_address,
                                  contract_portal_address,
                                  true,
@@ -768,12 +772,12 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_storage_contr
 
     // set the first call stack item to be a delegate call
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
-    NT::uint32 seed = 1000;
-    NT::fr child_contract_address = 100000;
+    NT::uint32 const seed = 1000;
+    NT::fr const child_contract_address = 100000;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
     child_call_stacks[0] = generate_call_stack_item(child_contract_address,
                                                     origin_msg_sender,
-                                                    child_contract_address, // this should be contract_address
+                                                    child_contract_address,  // this should be contract_address
                                                     contract_portal_address,
                                                     true,
                                                     seed);
@@ -797,14 +801,15 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_portal_contra
 
     // set the first call stack item to be a delegate call
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
-    NT::uint32 seed = 1000;
-    NT::fr child_contract_address = 100000;
-    NT::fr child_portal_contract = 200000;
+    NT::uint32 const seed = 1000;
+    NT::fr const child_contract_address = 100000;
+    NT::fr const child_portal_contract = 200000;
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
+    // NOLINTNEXTLINE(readability-suspicious-call-argument)
     child_call_stacks[0] = generate_call_stack_item(child_contract_address,
                                                     origin_msg_sender,
                                                     contract_address,
-                                                    child_portal_contract, // this should be contract_portal_address
+                                                    child_portal_contract,  // this should be contract_portal_address
                                                     true,
                                                     seed);
     call_stack_hashes[0] = child_call_stacks[0].hash();
@@ -819,7 +824,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_portal_contra
 TEST(public_kernel_tests, public_kernel_circuit_with_private_previous_kernel_should_succeed)
 {
     DummyComposer dc;
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(true);
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dc, inputs);
     ASSERT_FALSE(dc.failed());
 }
@@ -827,7 +832,7 @@ TEST(public_kernel_tests, public_kernel_circuit_with_private_previous_kernel_sho
 TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_previous_private_kernel)
 {
     DummyComposer dc;
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(true);
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dc, inputs);
 
     // test that the prior set of private kernel public inputs were copied to the outputs
@@ -919,7 +924,7 @@ TEST(public_kernel_tests, previous_private_kernel_fails_if_incorrect_storage_con
 TEST(public_kernel_tests, public_kernel_circuit_with_public_previous_kernel_should_succeed)
 {
     DummyComposer dc;
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(false);
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dc, inputs);
     ASSERT_FALSE(dc.failed());
 }
@@ -1011,7 +1016,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
                   array_length(inputs.public_call.call_stack_item.public_inputs.state_transitions));
 
     const auto contract_address = inputs.public_call.call_stack_item.contract_address;
-    std::array<PublicDataTransition<NT>, STATE_TRANSITIONS_LENGTH> expected_new_writes =
+    std::array<PublicDataTransition<NT>, STATE_TRANSITIONS_LENGTH> const expected_new_writes =
         public_data_writes_from_state_transitions(inputs.public_call.call_stack_item.public_inputs.state_transitions,
                                                   contract_address);
 
@@ -1019,7 +1024,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
                                             expected_new_writes,
                                             public_inputs.end.state_transitions));
 
-    std::array<PublicDataRead<NT>, STATE_READS_LENGTH> expected_new_reads = public_data_reads_from_state_reads(
+    std::array<PublicDataRead<NT>, STATE_READS_LENGTH> const expected_new_reads = public_data_reads_from_state_reads(
         inputs.public_call.call_stack_item.public_inputs.state_reads, contract_address);
 
     ASSERT_TRUE(source_arrays_are_in_target(
@@ -1056,4 +1061,4 @@ TEST(public_kernel_tests, previous_public_kernel_fails_if_incorrect_storage_cont
     ASSERT_EQ(dc.get_first_failure().code,
               CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
 }
-} // namespace aztec3::circuits::kernel::public_kernel
+}  // namespace aztec3::circuits::kernel::public_kernel

@@ -1,8 +1,9 @@
 #pragma once
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -14,7 +15,7 @@ template <typename NCT> class Contract;
 
 // We use the struct to retain designated initialisation, to make contract creation more readable.
 template <typename NCT> struct L1FunctionInterfaceStruct {
-    typedef typename NCT::fr fr;
+    using fr = typename NCT::fr;
 
     std::string function_name;
     fr function_selector = 0;
@@ -22,7 +23,7 @@ template <typename NCT> struct L1FunctionInterfaceStruct {
 };
 
 template <typename NCT> class L1FunctionInterface {
-    typedef typename NCT::fr fr;
+    using fr = typename NCT::fr;
 
   public:
     Contract<NCT>* contract;
@@ -30,7 +31,7 @@ template <typename NCT> class L1FunctionInterface {
     fr function_selector = 0;
     size_t num_params = 0;
 
-    L1FunctionInterface(){};
+    L1FunctionInterface() = default;
 
     L1FunctionInterface(Contract<NCT>* contract, L1FunctionInterfaceStruct<NCT> const& l1_fn_struct)
         : contract(contract)
@@ -49,10 +50,10 @@ template <typename NCT> class L1FunctionInterface {
     void call(std::vector<fr> args)
     {
         // TODO: implement this function.
-        (void)args; // So the compiler doesn't complain about an unused var.
+        (void)args;  // So the compiler doesn't complain about an unused var.
     }
 };
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps
 
 // #include "l1_function_interface.tpp"

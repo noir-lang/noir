@@ -16,4 +16,4 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext& exec_c
                                                 NT::fr const& _l1_withdrawal_address,
                                                 NT::fr const& _fee);
 
-} // namespace aztec3::circuits::apps::test_apps::escrow
+}  // namespace aztec3::circuits::apps::test_apps::escrow

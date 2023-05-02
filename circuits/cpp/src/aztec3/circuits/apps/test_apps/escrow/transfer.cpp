@@ -31,8 +31,8 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     CT::address to = to_ct(composer, _to);
     CT::fr asset_id = to_ct(composer, _asset_id);
     CT::fr memo = to_ct(composer, _memo);
-    CT::boolean reveal_msg_sender_to_recipient = to_ct(composer, _reveal_msg_sender_to_recipient);
-    CT::fr fee = to_ct(composer, _fee);
+    CT::boolean const reveal_msg_sender_to_recipient = to_ct(composer, _reveal_msg_sender_to_recipient);
+    CT::fr const fee = to_ct(composer, _fee);
 
     /****************************************************************
      * Get States & Globals used by the function
@@ -57,8 +57,8 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     std::vector<DefaultNote> old_balance_notes =
         balances[asset_id][msg_sender.to_field()].get(2, { .owner = msg_sender });
 
-    CT::fr old_value_1 = *(old_balance_notes[0].get_preimage().value);
-    CT::fr old_value_2 = *(old_balance_notes[1].get_preimage().value);
+    CT::fr const old_value_1 = *(old_balance_notes[0].get_preimage().value);
+    CT::fr const old_value_2 = *(old_balance_notes[1].get_preimage().value);
 
     // MISSING: overflow & underflow checks, but I can't be bothered with safe_uint or range checks yet.
     CT::fr change = (old_value_1 + old_value_2) - (amount + fee);
@@ -110,4 +110,4 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     return public_inputs.to_native_type<C>();
 };
 
-} // namespace aztec3::circuits::apps::test_apps::escrow
+}  // namespace aztec3::circuits::apps::test_apps::escrow

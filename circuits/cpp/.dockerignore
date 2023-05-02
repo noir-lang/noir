@@ -2,6 +2,8 @@ build
 build-wasm
 docker*
 .*
+!.clang-format
+!.clang-tidy
 src/wasi-sdk*
 barretenberg/cpp/build*
 barretenberg/cpp/docker*

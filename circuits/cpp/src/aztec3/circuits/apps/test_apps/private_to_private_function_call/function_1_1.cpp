@@ -1,7 +1,7 @@
 #include "function_1_1.hpp"
-#include "function_2_1.hpp"
 
 #include "contract.hpp"
+#include "function_2_1.hpp"
 
 #include <aztec3/circuits/apps/function_execution_context.hpp>
 
@@ -85,4 +85,4 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
     exec_ctx.finalise();
 };
 
-} // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call
+}  // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

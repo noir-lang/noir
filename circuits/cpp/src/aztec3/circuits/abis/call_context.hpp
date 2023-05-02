@@ -1,12 +1,13 @@
 #pragma once
 
-#include <barretenberg/crypto/generators/generator_data.hpp>
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/constants.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/constants.hpp>
+
+#include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -14,9 +15,9 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct CallContext {
-    typedef typename NCT::address address;
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using address = typename NCT::address;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     address msg_sender = 0;
     address storage_contract_address = 0;
@@ -64,7 +65,7 @@ template <typename NCT> struct CallContext {
 
     fr hash() const
     {
-        std::vector<fr> inputs = {
+        std::vector<fr> const inputs = {
             msg_sender.to_field(), storage_contract_address.to_field(), portal_contract_address, fr(is_delegate_call),
             fr(is_static_call),    fr(is_contract_deployment),
         };
@@ -131,4 +132,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CallContext<N
               << "is_contract_deployment: " << call_context.is_contract_deployment << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

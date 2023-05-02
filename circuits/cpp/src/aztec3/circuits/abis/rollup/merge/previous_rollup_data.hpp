@@ -3,9 +3,10 @@
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/constants.hpp"
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
 #include <type_traits>
 
 namespace aztec3::circuits::abis {
@@ -56,4 +57,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PreviousRollu
               << "vk_sibling_path: " << obj.vk_sibling_path << "\n";
 };
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

@@ -1,8 +1,8 @@
 #pragma once
+#include <aztec3/constants.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/constants.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -12,11 +12,11 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct FunctionData {
-    typedef typename NCT::uint32 uint32;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::fr fr;
+    using uint32 = typename NCT::uint32;
+    using boolean = typename NCT::boolean;
+    using fr = typename NCT::fr;
 
-    uint32 function_selector; // e.g. 1st 4-bytes of abi-encoding of function.
+    uint32 function_selector;  // e.g. 1st 4-bytes of abi-encoding of function.
     boolean is_private = false;
     boolean is_constructor = false;
 
@@ -68,7 +68,7 @@ template <typename NCT> struct FunctionData {
     // TODO: this can all be packed into 1 field element, so this `hash` function should just return that field element.
     fr hash() const
     {
-        std::vector<fr> inputs = {
+        std::vector<fr> const inputs = {
             fr(function_selector),
             fr(is_private),
             fr(is_constructor),
@@ -103,4 +103,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionData<
               << "is_constructor: " << function_data.is_constructor << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

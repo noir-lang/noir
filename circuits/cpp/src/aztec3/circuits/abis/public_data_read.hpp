@@ -1,9 +1,10 @@
 #pragma once
 #include "aztec3/constants.hpp"
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -12,8 +13,8 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct PublicDataRead {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     fr leaf_index = 0;
     fr value = 0;
@@ -92,4 +93,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataRea
               << "value: " << state_transition.value << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

@@ -1,8 +1,9 @@
 #pragma once
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -11,8 +12,8 @@ using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
 template <typename NCT> struct StateRead {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     fr storage_slot = 0;
     fr current_value = 0;
@@ -50,7 +51,7 @@ template <typename NCT> struct StateRead {
 
     fr hash() const
     {
-        std::vector<fr> inputs = {
+        std::vector<fr> const inputs = {
             storage_slot,
             current_value,
         };
@@ -91,4 +92,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, StateRead<NCT
               << "current_value: " << state_read.current_value << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

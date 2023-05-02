@@ -3,8 +3,8 @@
 #include "state_var_base.hpp"
 // #include "../function_execution_context.hpp"
 
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps {
@@ -13,7 +13,7 @@ template <typename Composer> class FunctionExecutionContext;
 
 namespace aztec3::circuits::apps::state_vars {
 
-using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
+using aztec3::circuits::apps::FunctionExecutionContext;  // Don't #include it!
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
@@ -27,15 +27,15 @@ using aztec3::utils::types::NativeTypes;
  */
 template <typename Composer, typename V> class MappingStateVar : public StateVar<Composer> {
   public:
-    typedef CircuitTypes<Composer> CT;
-    typedef NativeTypes NT;
-    typedef typename CT::fr fr;
-    typedef typename CT::grumpkin_point grumpkin_point;
+    using CT = CircuitTypes<Composer>;
+    using NT = NativeTypes;
+    using fr = typename CT::fr;
+    using grumpkin_point = typename CT::grumpkin_point;
 
     // native_storage_slot.x => value cache, to prevent creating constraints with each `at()` call.
     std::map<NT::fr, V> value_cache;
 
-    MappingStateVar(){};
+    MappingStateVar() = default;
 
     // Instantiate a top-level mapping:
     MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
@@ -71,7 +71,7 @@ template <typename Composer, typename V> class MappingStateVar : public StateVar
     std::tuple<grumpkin_point, bool> compute_slot_point_at_mapping_key(std::optional<fr> const& key);
 };
 
-} // namespace aztec3::circuits::apps::state_vars
+}  // namespace aztec3::circuits::apps::state_vars
 
 // Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
 // the following:

@@ -1,4 +1,5 @@
 #include "index.hpp"
+
 #include <barretenberg/common/test.hpp>
 // #include <barretenberg/numeric/random/engine.hpp>
 
@@ -39,7 +40,7 @@ TEST(play_tests, circuit_play_app_proof_gen)
     }
 
     auto app_prover = app_composer.create_prover();
-    proof app_proof = app_prover.construct_proof();
+    proof const app_proof = app_prover.construct_proof();
     info("app_proof: ", app_proof.proof_data);
 }
 
@@ -53,10 +54,10 @@ TEST(play_tests, circuit_play_recursive_proof_gen)
     }
 
     auto app_prover = app_composer.create_prover();
-    proof app_proof = app_prover.construct_proof();
+    proof const app_proof = app_prover.construct_proof();
     info("app_proof: ", app_proof.proof_data);
 
-    std::shared_ptr<plonk::verification_key> app_vk = app_composer.compute_verification_key();
+    std::shared_ptr<plonk::verification_key> const app_vk = app_composer.compute_verification_key();
 
     Composer recursive_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     auto aggregation_output = play_recursive_circuit(recursive_composer, app_vk, app_proof);
@@ -76,8 +77,8 @@ TEST(play_tests, circuit_play_recursive_2_proof_gen)
     }
 
     auto app_prover = app_composer.create_prover();
-    proof app_proof = app_prover.construct_proof();
-    std::shared_ptr<plonk::verification_key> app_vk = app_composer.compute_verification_key();
+    proof const app_proof = app_prover.construct_proof();
+    std::shared_ptr<plonk::verification_key> const app_vk = app_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -89,8 +90,8 @@ TEST(play_tests, circuit_play_recursive_2_proof_gen)
     }
 
     auto dummy_circuit_prover = dummy_circuit_composer.create_prover();
-    proof dummy_circuit_proof = dummy_circuit_prover.construct_proof();
-    std::shared_ptr<plonk::verification_key> dummy_circuit_vk = dummy_circuit_composer.compute_verification_key();
+    proof const dummy_circuit_proof = dummy_circuit_prover.construct_proof();
+    std::shared_ptr<plonk::verification_key> const dummy_circuit_vk = dummy_circuit_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -104,9 +105,9 @@ TEST(play_tests, circuit_play_recursive_2_proof_gen)
 
     auto recursion_1_prover = recursion_1_composer.create_prover();
 
-    proof recursion_1_proof = recursion_1_prover.construct_proof();
+    proof const recursion_1_proof = recursion_1_prover.construct_proof();
 
-    std::shared_ptr<plonk::verification_key> recursion_1_vk = recursion_1_composer.compute_verification_key();
+    std::shared_ptr<plonk::verification_key> const recursion_1_vk = recursion_1_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -123,4 +124,4 @@ TEST(play_tests, circuit_play_recursive_2_proof_gen)
     // std::shared_ptr<plonk::verification_key> recursion_2_vk = recursion_2_composer.compute_verification_key();
 }
 
-} // namespace aztec3::circuits::recursion
+}  // namespace aztec3::circuits::recursion

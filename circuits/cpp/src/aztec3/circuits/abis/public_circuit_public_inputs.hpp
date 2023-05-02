@@ -1,15 +1,16 @@
 #pragma once
 
 #include "call_context.hpp"
-#include "state_transition.hpp"
 #include "state_read.hpp"
+#include "state_transition.hpp"
 #include "../../constants.hpp"
+
+#include <aztec3/utils/array.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/array.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -18,9 +19,9 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct PublicCircuitPublicInputs {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::address address;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
+    using address = typename NCT::address;
 
     CallContext<NCT> call_context{};
 
@@ -109,9 +110,9 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const
     {
         const auto arr_size = sizeof(arr) / sizeof(fr);
-        vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
+        vec.insert(vec.end(), arr.data(), arr.data() + arr_size);
     }
-}; // namespace aztec3::circuits::abis
+};  // namespace aztec3::circuits::abis
 
 template <typename NCT> void read(uint8_t const*& it, PublicCircuitPublicInputs<NCT>& public_circuit_public_inputs)
 {
@@ -177,4 +178,4 @@ std::ostream& operator<<(std::ostream& os, PublicCircuitPublicInputs<NCT> const&
 
               << "prover_address: " << pis.prover_address << "\n";
 }
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

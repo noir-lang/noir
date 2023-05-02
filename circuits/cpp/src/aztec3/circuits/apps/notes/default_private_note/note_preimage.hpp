@@ -1,13 +1,12 @@
 #pragma once
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/common/streams.hpp>
-
-#include <barretenberg/crypto/generators/generator_data.hpp>
-
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/common/streams.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
 
 namespace aztec3::circuits::apps::notes {
 
@@ -16,16 +15,16 @@ using aztec3::utils::types::NativeTypes;
 using crypto::generators::generator_index_t;
 
 template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::address address;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using address = typename NCT::address;
+    using boolean = typename NCT::boolean;
 
     // No custom constructors so that designated initializers can be used (for readability of test circuits).
 
     std::optional<V> value;
     std::optional<address> owner;
     std::optional<address> creator_address;
-    std::optional<fr> memo; // numerical representation of a string
+    std::optional<fr> memo;  // numerical representation of a string
 
     std::optional<fr> salt;
     std::optional<fr> nonce;
@@ -73,7 +72,6 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
 
     template <typename Composer> auto to_native_type() const
     {
-
         static_assert(!std::is_same<NativeTypes, NCT>::value);
 
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
@@ -141,4 +139,4 @@ std::ostream& operator<<(std::ostream& os, DefaultPrivateNotePreimage<NCT, V> co
               << "is_dummy: " << preimage.is_dummy << "\n";
 }
 
-} // namespace aztec3::circuits::apps::notes
+}  // namespace aztec3::circuits::apps::notes

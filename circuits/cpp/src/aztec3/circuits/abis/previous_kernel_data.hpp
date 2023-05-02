@@ -1,11 +1,12 @@
 #pragma once
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
-#include <barretenberg/plonk/proof_system/types/proof.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <barretenberg/srs/reference_string/env_reference_string.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/plonk/proof_system/types/proof.hpp>
+#include <barretenberg/srs/reference_string/env_reference_string.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
 
@@ -15,13 +16,13 @@ using std::is_same;
 
 // @todo Naming should not be previous. Annoying.
 template <typename NCT> struct PreviousKernelData {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::VK VK;
-    typedef typename NCT::uint32 uint32;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
+    using VK = typename NCT::VK;
+    using uint32 = typename NCT::uint32;
 
-    KernelCircuitPublicInputs<NCT> public_inputs{}; // TODO: not needed as already contained in proof?
-    NativeTypes::Proof proof{}; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
+    KernelCircuitPublicInputs<NCT> public_inputs{};  // TODO: not needed as already contained in proof?
+    NativeTypes::Proof proof{};  // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
 
     // TODO: this index and path are meant to be those of a leaf within the tree of _kernel circuit_ vks; not the tree
@@ -48,7 +49,7 @@ template <typename NCT> struct PreviousKernelData {
 
         PreviousKernelData<CircuitTypes<Composer>> data = {
             public_inputs.to_circuit_type(composer),
-            proof, // Notice: not converted! Stays as native.
+            proof,  // Notice: not converted! Stays as native.
             CT::VK::from_witness(&composer, vk),
             to_ct(vk_index),
             to_ct(vk_path),
@@ -57,7 +58,7 @@ template <typename NCT> struct PreviousKernelData {
         return data;
     };
 
-}; // namespace aztec3::circuits::abis::private_kernel
+};  // namespace aztec3::circuits::abis::private_kernel
 
 template <typename B> inline void read(B& buf, verification_key& key)
 {
@@ -103,4 +104,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PreviousKerne
               << "vk_path: " << kernel_data.vk_path << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

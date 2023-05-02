@@ -1,12 +1,13 @@
 #pragma once
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/numeric/random/engine.hpp>
+#include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/primitives/field/field.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
 // #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
 namespace {
@@ -34,8 +35,8 @@ KernelCircuitPublicInputs<NT> mock_kernel_circuit(Composer& composer,
         std::vector<uint32_t> dummy_witness_indices;
         // 16 is the number of values added to `proof_witness_indices` at the end of `verify_proof`.
         for (size_t i = 0; i < 16; ++i) {
-            fr witness = fr(witness_t(&composer, i));
-            uint32_t witness_index = witness.get_witness_index();
+            fr const witness = fr(witness_t(&composer, i));
+            uint32_t const witness_index = witness.get_witness_index();
             dummy_witness_indices.push_back(witness_index);
         }
         public_inputs.end.aggregation_object.proof_witness_indices = dummy_witness_indices;
@@ -53,4 +54,4 @@ KernelCircuitPublicInputs<NT> mock_kernel_circuit(Composer& composer,
     return public_inputs.template to_native_type<Composer>();
 }
 
-} // namespace aztec3::circuits::mock
+}  // namespace aztec3::circuits::mock

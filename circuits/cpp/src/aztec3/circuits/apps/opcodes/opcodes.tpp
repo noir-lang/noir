@@ -33,10 +33,10 @@ Note Opcodes<Composer>::UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var,
 {
     auto& oracle = utxo_state_var->exec_ctx->oracle;
 
-    typename CT::grumpkin_point& storage_slot_point = utxo_state_var->storage_slot_point;
+    typename CT::grumpkin_point const& storage_slot_point = utxo_state_var->storage_slot_point;
 
     // Retrieve UTXO witness datum from the DB:
-    UTXOSLoadDatum<CT, typename Note::NotePreimage> utxo_datum =
+    UTXOSLoadDatum<CT, typename Note::NotePreimage> const utxo_datum =
         oracle.template get_utxo_sload_datum<typename Note::NotePreimage>(storage_slot_point, advice);
 
     Note new_note{ utxo_state_var, utxo_datum.preimage };
@@ -68,7 +68,7 @@ std::vector<Note> Opcodes<Composer>::UTXO_SLOAD(UTXOSetStateVar<Composer, Note>*
 {
     auto& oracle = utxo_set_state_var->exec_ctx->oracle;
 
-    typename CT::grumpkin_point& storage_slot_point = utxo_set_state_var->storage_slot_point;
+    typename CT::grumpkin_point const& storage_slot_point = utxo_set_state_var->storage_slot_point;
 
     // Retrieve multiple UTXO witness datum's from the DB:
     std::vector<UTXOSLoadDatum<CT, typename Note::NotePreimage>> utxo_data =
@@ -109,13 +109,13 @@ template <typename Composer>
 template <typename Note>
 void Opcodes<Composer>::UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_nullify)
 {
-    typename CT::fr nullifier = note_to_nullify.get_nullifier();
+    typename CT::fr const nullifier = note_to_nullify.get_nullifier();
 
     auto& exec_ctx = state_var->exec_ctx;
 
     exec_ctx->new_nullifiers.push_back(nullifier);
 
-    std::shared_ptr<Note> nullified_note_ptr = std::make_shared<Note>(note_to_nullify);
+    std::shared_ptr<Note> const nullified_note_ptr = std::make_shared<Note>(note_to_nullify);
 
     exec_ctx->nullified_notes.push_back(nullified_note_ptr);
 };
@@ -124,13 +124,13 @@ template <typename Composer>
 template <typename Note>
 void Opcodes<Composer>::UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_initialise)
 {
-    typename CT::fr init_nullifier = note_to_initialise.get_initialisation_nullifier();
+    typename CT::fr const init_nullifier = note_to_initialise.get_initialisation_nullifier();
 
     auto& exec_ctx = state_var->exec_ctx;
 
     exec_ctx->new_nullifiers.push_back(init_nullifier);
 
-    std::shared_ptr<Note> init_note_ptr = std::make_shared<Note>(note_to_initialise);
+    std::shared_ptr<Note> const init_note_ptr = std::make_shared<Note>(note_to_initialise);
 
     // TODO: consider whether this should actually be pushed-to...
     exec_ctx->nullified_notes.push_back(init_note_ptr);
@@ -146,7 +146,7 @@ void Opcodes<Composer>::UTXO_SSTORE(StateVar<Composer>* state_var, typename Note
 
     // Make a shared pointer, so we don't end up with a dangling pointer in the exec_ctx when this `new_note`
     // immediately goes out of scope.
-    std::shared_ptr<Note> new_note_ptr = std::make_shared<Note>(state_var, new_note_preimage);
+    std::shared_ptr<Note> const new_note_ptr = std::make_shared<Note>(state_var, new_note_preimage);
 
     exec_ctx->new_notes.push_back(new_note_ptr);
 };

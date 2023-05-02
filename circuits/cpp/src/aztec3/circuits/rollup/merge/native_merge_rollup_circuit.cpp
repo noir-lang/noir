@@ -1,10 +1,11 @@
 #include "init.hpp"
+
+#include <aztec3/circuits/rollup/components/components.hpp>
+
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
-
-#include <aztec3/circuits/rollup/components/components.hpp>
 
 #include <algorithm>
 #include <array>
@@ -26,7 +27,7 @@ BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, Merg
 
     // check that both input proofs are either both "BASE" or "MERGE" and not a mix!
     // this prevents having wonky commitment, nullifier and contract subtrees.
-    AggregationObject aggregation_object = components::aggregate_proofs(left, right);
+    AggregationObject const aggregation_object = components::aggregate_proofs(left, right);
     components::assert_both_input_proofs_of_same_rollup_type(composer, left, right);
     auto current_height = components::assert_both_input_proofs_of_same_height_and_return(composer, left, right);
     components::assert_equal_constants(composer, left, right);
@@ -54,4 +55,4 @@ BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, Merg
     return public_inputs;
 }
 
-} // namespace aztec3::circuits::rollup::merge
+}  // namespace aztec3::circuits::rollup::merge

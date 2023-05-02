@@ -2,8 +2,8 @@
 
 #include "state_var_base.hpp"
 
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps {
@@ -12,7 +12,7 @@ template <typename Composer> class FunctionExecutionContext;
 
 namespace aztec3::circuits::apps::state_vars {
 
-using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
+using aztec3::circuits::apps::FunctionExecutionContext;  // Don't #include it!
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
@@ -28,15 +28,15 @@ using aztec3::utils::types::NativeTypes;
  */
 template <typename Composer, typename Note> class UTXOStateVar : public StateVar<Composer> {
   public:
-    typedef CircuitTypes<Composer> CT;
-    typedef NativeTypes NT;
-    typedef typename CT::fr fr;
-    typedef typename CT::grumpkin_point grumpkin_point;
-    typedef typename CT::address address;
+    using CT = CircuitTypes<Composer>;
+    using NT = NativeTypes;
+    using fr = typename CT::fr;
+    using grumpkin_point = typename CT::grumpkin_point;
+    using address = typename CT::address;
 
-    typedef typename Note::NotePreimage NotePreimage;
+    using NotePreimage = typename Note::NotePreimage;
 
-    UTXOStateVar(){};
+    UTXOStateVar() = default;
 
     // Instantiate a top-level var:
     UTXOStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
@@ -68,6 +68,6 @@ template <typename Composer, typename Note> class UTXOStateVar : public StateVar
     void insert(NotePreimage new_note_preimage);
 };
 
-} // namespace aztec3::circuits::apps::state_vars
+}  // namespace aztec3::circuits::apps::state_vars
 
 #include "utxo_state_var.tpp"

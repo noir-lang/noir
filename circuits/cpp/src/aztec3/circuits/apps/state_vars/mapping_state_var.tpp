@@ -44,27 +44,27 @@ template <typename Composer, typename V>
 std::tuple<NativeTypes::grumpkin_point, bool> MappingStateVar<Composer, V>::compute_slot_point_at_mapping_key(
     NT::fr const& start_slot, size_t level_of_container_nesting, std::optional<typename NT::fr> const& key)
 {
-    bool is_partial_slot = false;
+    bool const is_partial_slot = false;
 
     std::vector<std::pair<NativeTypes::fr, generator_index_t>> input_pairs;
 
     // TODO: compare (in a test) this little calc against calling `compute_start_slot_point`.
-    input_pairs.push_back(std::make_pair(
+    input_pairs.emplace_back(
         start_slot,
-        generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT, 0 }))); // hash_sub_index 0 is reserved for the
+        generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT, 0 }));  // hash_sub_index 0 is reserved for the
 
     if (key) {
-        input_pairs.push_back(std::make_pair(
-            *key, generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT, level_of_container_nesting })));
+        input_pairs.emplace_back(
+            *key, generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT, level_of_container_nesting }));
     } else {
         // If this mapping key has no mapping_key_value (std::nullopt), then we must be partially committing and
         // omitting this mapping key from that partial commitment.
         // So use a placeholder generator for this mapping key, to signify "this mapping key is missing".
         // Note: we can't just commit to a value of `0` for this mapping key, since `0` is a valid value to
         // commit to, and so "missing" is distinguished as follows.
-        input_pairs.push_back(std::make_pair(
+        input_pairs.emplace_back(
             NativeTypes::fr(1),
-            generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT_PLACEHOLDER, level_of_container_nesting })));
+            generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT_PLACEHOLDER, level_of_container_nesting }));
     }
 
     return std::make_tuple(NativeTypes::commit(input_pairs), is_partial_slot);
@@ -113,14 +113,14 @@ template <typename Composer, typename V> V& MappingStateVar<Composer, V>::at(std
     if (!key) {
         native_key = std::nullopt;
     } else {
-        native_key = NativeTypes::fr((*key).get_value());
+        native_key = static_cast<NativeTypes::fr>((*key).get_value());
     }
 
-    bool is_partial_slot;
+    bool is_partial_slot = false;
     NativeTypes::grumpkin_point native_new_slot_point;
     std::tie(native_new_slot_point, is_partial_slot) = MappingStateVar<Composer, V>::compute_slot_point_at_mapping_key(
         this->start_slot.get_value(), this->level_of_container_nesting, native_key);
-    NativeTypes::fr native_lookup = native_new_slot_point.x;
+    NativeTypes::fr const native_lookup = native_new_slot_point.x;
 
     // Check cache
     if (this->value_cache.contains(native_lookup)) {
@@ -130,13 +130,13 @@ template <typename Composer, typename V> V& MappingStateVar<Composer, V>::at(std
     // Create gates:
     grumpkin_point new_slot_point;
     std::tie(new_slot_point, is_partial_slot) = compute_slot_point_at_mapping_key(key);
-    NativeTypes::fr lookup = new_slot_point.x.get_value();
+    NativeTypes::fr const lookup = new_slot_point.x.get_value();
 
     if (lookup != native_lookup) {
         throw_or_abort("Expected lookup calcs to be equal!");
     }
 
-    std::string value_name = this->state_var_name + (key ? format("[", *key, "]").c_str() : "[?]");
+    std::string const value_name = this->state_var_name + (key ? format("[", *key, "]").c_str() : "[?]");
 
     V value = V(this->exec_ctx, value_name, new_slot_point, this->level_of_container_nesting + 1, is_partial_slot);
 

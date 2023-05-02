@@ -5,8 +5,9 @@
 
 // #include <aztec3/circuits/apps/function_execution_context.hpp>
 
-#include <gtest/gtest.h>
 #include <barretenberg/common/test.hpp>
+
+#include <gtest/gtest.h>
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
@@ -14,7 +15,6 @@ class private_to_private_function_call_tests : public ::testing::Test {};
 
 TEST(private_to_private_function_call_tests, circuit_private_to_private_function_call)
 {
-
     C fn1_composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
 
@@ -24,7 +24,7 @@ TEST(private_to_private_function_call_tests, circuit_private_to_private_function
         uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL);
 
     const FunctionData<NT> function_data{
-        .function_selector = 1, // TODO: deduce this from the contract, somehow.
+        .function_selector = 1,  // TODO: deduce this from the contract, somehow.
         .is_private = true,
         .is_constructor = false,
     };
@@ -62,4 +62,4 @@ TEST(private_to_private_function_call_tests, circuit_private_to_private_function
     info("n: ", fn1_composer.num_gates);
 }
 
-} // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call
+}  // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

@@ -68,10 +68,10 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_com
         return *commitment;
     }
 
-    grumpkin_point storage_slot_point = state_var->storage_slot_point;
+    grumpkin_point const storage_slot_point = state_var->storage_slot_point;
 
-    std::vector<fr> inputs;
-    std::vector<generator_index_t> generators;
+    std::vector<fr> const inputs;
+    std::vector<generator_index_t> const generators;
 
     auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
         if (!input) {
@@ -127,7 +127,7 @@ typename CircuitTypes<Composer>::grumpkin_point DefaultPrivateNote<Composer, V>:
     grumpkin_point storage_slot_point = state_var->storage_slot_point;
 
     std::vector<fr> inputs;
-    std::vector<generator_index_t> generators;
+    std::vector<generator_index_t> const generators;
 
     auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
         return input ? std::make_pair((*input).to_field(),
@@ -180,7 +180,7 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
         compute_commitment();
     }
 
-    fr& owner_private_key = get_oracle().get_msg_sender_private_key();
+    fr const& owner_private_key = get_oracle().get_msg_sender_private_key();
 
     nullifier =
         DefaultPrivateNote<Composer, V>::compute_nullifier(*commitment, owner_private_key, note_preimage.is_dummy);
@@ -196,8 +196,8 @@ template <typename Composer, typename V>
 typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_dummy_nullifier()
 {
     auto& oracle = get_oracle();
-    fr dummy_commitment = oracle.generate_random_element();
-    fr& owner_private_key = oracle.get_msg_sender_private_key();
+    fr const dummy_commitment = oracle.generate_random_element();
+    fr const& owner_private_key = oracle.get_msg_sender_private_key();
     const boolean is_dummy_commitment = true;
 
     return DefaultPrivateNote<Composer, V>::compute_nullifier(dummy_commitment, owner_private_key, is_dummy_commitment);
@@ -246,8 +246,7 @@ template <typename Composer, typename V>
 void DefaultPrivateNote<Composer, V>::constrain_against_advice(NoteInterface<Composer> const& advice_note)
 {
     // Cast from a ref to the base (interface) type to a ref to this derived type:
-    const DefaultPrivateNote<Composer, V>& advice_note_ref =
-        dynamic_cast<const DefaultPrivateNote<Composer, V>&>(advice_note);
+    const auto& advice_note_ref = dynamic_cast<const DefaultPrivateNote<Composer, V>&>(advice_note);
 
     auto assert_equal = []<typename T>(std::optional<T>& this_member, std::optional<T> const& advice_member) {
         if (advice_member) {

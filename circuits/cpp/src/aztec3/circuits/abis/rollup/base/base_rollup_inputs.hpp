@@ -1,10 +1,12 @@
 #pragma once
 #include "../../append_only_tree_snapshot.hpp"
-#include "../../previous_kernel_data.hpp"
 #include "../../membership_witness.hpp"
-#include "../nullifier_leaf_preimage.hpp"
+#include "../../previous_kernel_data.hpp"
 #include "../constant_rollup_data.hpp"
+#include "../nullifier_leaf_preimage.hpp"
+
 #include "aztec3/constants.hpp"
+
 #include <math.h>
 
 namespace aztec3::circuits::abis {
@@ -14,8 +16,7 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct BaseRollupInputs {
-
-    typedef typename NCT::fr fr;
+    using fr = typename NCT::fr;
 
     std::array<PreviousKernelData<NCT>, 2> kernel_data;
 
@@ -123,4 +124,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupInp
               << obj.constants << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

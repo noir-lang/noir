@@ -1,15 +1,16 @@
 #pragma once
 
-#include "aztec3/constants.hpp"
-#include "aztec3/utils/array.hpp"
 #include "../call_stack_item.hpp"
 #include "../types.hpp"
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/constants.hpp"
+#include "aztec3/utils/array.hpp"
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis::public_kernel {
 
@@ -19,18 +20,18 @@ using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct PublicCallData {
-    typedef typename NCT::address address;
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::VK VK;
+    using address = typename NCT::address;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
+    using VK = typename NCT::VK;
 
     CallStackItem<NCT, PublicTypes> call_stack_item{};
 
     std::array<CallStackItem<NCT, PublicTypes>, PUBLIC_CALL_STACK_LENGTH> public_call_stack_preimages{};
 
-    NativeTypes::Proof proof{}; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
+    NativeTypes::Proof proof{};  // TODO: how to express proof as native/circuit type when it gets used as a buffer?
 
-    fr portal_contract_address = 0; // an ETH address
+    fr portal_contract_address = 0;  // an ETH address
     fr bytecode_hash = 0;
 
     boolean operator==(PublicCallData<NCT> const& other) const
@@ -57,8 +58,8 @@ template <typename NCT> struct PublicCallData {
 
             map(public_call_stack_preimages, to_circuit_type),
 
-            proof, // Notice: not converted! Stays as native. This is because of how the verify_proof function
-                   // currently works.
+            proof,  // Notice: not converted! Stays as native. This is because of how the verify_proof function
+                    // currently works.
             // CT::VK::from_witness(&composer, vk),
 
             // to_circuit_type(function_leaf_membership_witness),
@@ -106,4 +107,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicCallDat
               << "bytecode_hash: " << obj.bytecode_hash << "\n";
 }
 
-} // namespace aztec3::circuits::abis::public_kernel
+}  // namespace aztec3::circuits::abis::public_kernel

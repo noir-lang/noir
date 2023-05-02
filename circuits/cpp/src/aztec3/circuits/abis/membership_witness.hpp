@@ -1,8 +1,8 @@
 #pragma once
 
-#include <aztec3/utils/array.hpp>
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
+#include <aztec3/utils/array.hpp>
 namespace aztec3::circuits::abis {
 
 using aztec3::utils::zero_array;
@@ -11,9 +11,8 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT, unsigned int N> struct MembershipWitness {
-
-    typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
+    using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
     fr leaf_index;
     std::array<fr, N> sibling_path = zero_array<fr, N>();
@@ -61,4 +60,4 @@ template <typename NCT, unsigned int N> std::ostream& operator<<(std::ostream& o
               << "sibling_path: " << obj.sibling_path << "\n";
 }
 
-} // namespace aztec3::circuits::abis
+}  // namespace aztec3::circuits::abis

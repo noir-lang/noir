@@ -2,15 +2,15 @@
 
 #include "init.hpp"
 
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp>
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
 #include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/public_data_transition.hpp>
+#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
+#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp>
 #include <aztec3/circuits/abis/state_read.hpp>
 #include <aztec3/circuits/abis/state_transition.hpp>
-#include <aztec3/circuits/abis/public_data_transition.hpp>
-#include <aztec3/utils/dummy_composer.hpp>
-#include <aztec3/utils/array.hpp>
 #include <aztec3/circuits/hash.hpp>
+#include <aztec3/utils/array.hpp>
+#include <aztec3/utils/dummy_composer.hpp>
 
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
@@ -193,9 +193,8 @@ void common_validate_inputs(DummyComposer& composer, KernelInput const& public_k
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput>
-void propagate_valid_state_transitions(KernelInput const& public_kernel_inputs,
-                                       KernelCircuitPublicInputs<NT>& circuit_outputs)
+template <typename KernelInput> void propagate_valid_state_transitions(KernelInput const& public_kernel_inputs,
+                                                                       KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
     const auto& transitions = public_kernel_inputs.public_call.call_stack_item.public_inputs.state_transitions;
@@ -219,9 +218,8 @@ void propagate_valid_state_transitions(KernelInput const& public_kernel_inputs,
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput>
-void propagate_valid_state_reads(KernelInput const& public_kernel_inputs,
-                                 KernelCircuitPublicInputs<NT>& circuit_outputs)
+template <typename KernelInput> void propagate_valid_state_reads(KernelInput const& public_kernel_inputs,
+                                                                 KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
     const auto& reads = public_kernel_inputs.public_call.call_stack_item.public_inputs.state_reads;
@@ -275,4 +273,4 @@ void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_in
 void validate_this_public_call_hash(DummyComposer& composer,
                                     PublicKernelInputs<NT> const& public_kernel_inputs,
                                     KernelCircuitPublicInputs<NT>& public_inputs);
-} // namespace aztec3::circuits::kernel::public_kernel
+}  // namespace aztec3::circuits::kernel::public_kernel

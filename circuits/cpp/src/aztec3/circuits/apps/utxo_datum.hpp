@@ -1,8 +1,9 @@
 #pragma once
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -15,9 +16,9 @@ using plonk::stdlib::witness_t;
  * @tparam NotePreimage
  */
 template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
-    typedef typename NCT::fr fr;
-    typedef typename NCT::address address;
-    typedef typename NCT::uint32 uint32;
+    using fr = typename NCT::fr;
+    using address = typename NCT::address;
+    using uint32 = typename NCT::uint32;
 
     fr commitment = 0;
     address contract_address = 0;
@@ -45,4 +46,4 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
     };
 };
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps

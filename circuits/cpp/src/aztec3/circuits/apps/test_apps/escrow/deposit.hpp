@@ -12,4 +12,4 @@ using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ctx,
                                                std::array<NT::fr, ARGS_LENGTH> const& args);
 
-} // namespace aztec3::circuits::apps::test_apps::escrow
+}  // namespace aztec3::circuits::apps::test_apps::escrow

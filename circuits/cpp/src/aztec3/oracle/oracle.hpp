@@ -3,14 +3,11 @@
 #include "fake_db.hpp"
 
 #include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/abis/function_data.hpp>
 #include <aztec3/circuits/abis/contract_deployment_data.hpp>
-
-#include <aztec3/circuits/apps/utxo_datum.hpp>
-
+#include <aztec3/circuits/abis/function_data.hpp>
 #include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
 #include <aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp>
-
+#include <aztec3/circuits/apps/utxo_datum.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::oracle {
@@ -130,7 +127,7 @@ template <typename DB> class NativeOracleInterface {
 
     // Note: actual_contract_address and function_data are NOT to be provided to the circuit, so don't include
     // getter methods for these in the OracleWrapper.
-    NT::address actual_contract_address; // not to be confused with call_context.storage_contract_address;
+    NT::address actual_contract_address;  // not to be confused with call_context.storage_contract_address;
     FunctionData<NT> function_data;
 
     CallContext<NT> call_context;
@@ -145,10 +142,11 @@ template <typename DB> class NativeOracleInterface {
     bool contract_deployment_data_already_got = false;
     // bool portal_contract_address_already_got = false;
     bool msg_sender_private_key_already_got = false;
-    std::string already_got_error = "Your circuit has already accessed this value. Don't ask the oracle twice, since "
-                                    "it shouldn't be trusted, and could lead to circuit bugs";
+    std::string already_got_error =
+        "Your circuit has already accessed this value. Don't ask the oracle twice, since "
+        "it shouldn't be trusted, and could lead to circuit bugs";
 };
 
-typedef NativeOracleInterface<FakeDB> NativeOracle;
+using NativeOracle = NativeOracleInterface<FakeDB>;
 
-} // namespace aztec3::oracle
+}  // namespace aztec3::oracle

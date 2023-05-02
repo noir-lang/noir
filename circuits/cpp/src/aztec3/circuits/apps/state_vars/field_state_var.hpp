@@ -3,8 +3,8 @@
 #include "state_var_base.hpp"
 #include "../function_execution_context.hpp"
 
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::apps::state_vars {
 
@@ -14,10 +14,10 @@ using aztec3::utils::types::NativeTypes;
 // TODO: we can probably generalise this to be a PrimitiveStateVar for any stdlib primitive.
 template <typename Composer> class FieldStateVar : public StateVar<Composer> {
   public:
-    typedef CircuitTypes<Composer> CT;
-    typedef NativeTypes NT;
-    typedef typename CT::fr fr;
-    typedef typename CT::grumpkin_point grumpkin_point;
+    using CT = CircuitTypes<Composer>;
+    using NT = NativeTypes;
+    using fr = typename CT::fr;
+    using grumpkin_point = typename CT::grumpkin_point;
 
     fr value = 0;
 
@@ -27,7 +27,7 @@ template <typename Composer> class FieldStateVar : public StateVar<Composer> {
         return *this;
     }
 
-    FieldStateVar(){};
+    FieldStateVar() = default;
 
     // Instantiate a top-level var:
     FieldStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name, fr const& start_slot)
@@ -50,4 +50,4 @@ template <typename Composer> inline std::ostream& operator<<(std::ostream& os, F
     return os << v.value;
 }
 
-} // namespace aztec3::circuits::apps::state_vars
+}  // namespace aztec3::circuits::apps::state_vars

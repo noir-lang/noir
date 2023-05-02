@@ -1,15 +1,15 @@
-#include "aztec3/utils/circuit_errors.hpp"
+#include "native_public_kernel_circuit_no_previous_kernel.hpp"
+
+#include "common.hpp"
 #include "init.hpp"
 
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp>
+#include "aztec3/constants.hpp"
+#include "aztec3/utils/circuit_errors.hpp"
 #include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include "native_public_kernel_circuit_no_previous_kernel.hpp"
-#include "common.hpp"
-
+#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp>
+#include <aztec3/circuits/hash.hpp>
 #include <aztec3/utils/array.hpp>
 #include <aztec3/utils/dummy_composer.hpp>
-#include <aztec3/circuits/hash.hpp>
-#include "aztec3/constants.hpp"
 
 namespace {
 
@@ -43,7 +43,7 @@ void validate_inputs(DummyComposer& composer, PublicKernelInputsNoPreviousKernel
                        "Storage contract address must be that of the called contract",
                        aztec3::utils::CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_ADDRESS_MISMATCH);
 }
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::kernel::public_kernel {
 
@@ -85,4 +85,4 @@ KernelCircuitPublicInputs<NT> native_public_kernel_circuit_no_previous_kernel(
     return public_inputs;
 };
 
-} // namespace aztec3::circuits::kernel::public_kernel
+}  // namespace aztec3::circuits::kernel::public_kernel

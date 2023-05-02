@@ -1,8 +1,7 @@
 #pragma once
 
-#include "init.hpp"
-
 #include "contract.hpp"
+#include "init.hpp"
 
 #include <aztec3/circuits/apps/contract.hpp>
 #include <aztec3/circuits/apps/function_declaration.hpp>
@@ -21,4 +20,4 @@ inline Contract init_contract()
     return contract;
 }
 
-} // namespace aztec3::circuits::apps::test_apps::basic_contract_deployment
+}  // namespace aztec3::circuits::apps::test_apps::basic_contract_deployment

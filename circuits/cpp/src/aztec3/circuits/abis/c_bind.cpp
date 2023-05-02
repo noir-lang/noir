@@ -1,30 +1,31 @@
 #include "c_bind.h"
-#include "barretenberg/srs/reference_string/mem_reference_string.hpp"
+
+#include "function_data.hpp"
+#include "function_leaf_preimage.hpp"
+#include "kernel_circuit_public_inputs.hpp"
+#include "previous_kernel_data.hpp"
+#include "private_circuit_public_inputs.hpp"
+#include "tx_context.hpp"
+#include "tx_request.hpp"
+#include "private_kernel/private_inputs.hpp"
+#include "public_kernel/public_kernel_inputs.hpp"
+#include "public_kernel/public_kernel_inputs_no_previous_kernel.hpp"
+#include "rollup/base/base_or_merge_rollup_public_inputs.hpp"
+#include "rollup/base/base_rollup_inputs.hpp"
+#include "rollup/root/root_rollup_inputs.hpp"
+#include "rollup/root/root_rollup_public_inputs.hpp"
+
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
-#include "private_circuit_public_inputs.hpp"
-#include "tx_request.hpp"
-#include "tx_context.hpp"
-#include "function_data.hpp"
-#include "function_leaf_preimage.hpp"
-#include "rollup/base/base_rollup_inputs.hpp"
-#include "rollup/base/base_or_merge_rollup_public_inputs.hpp"
-#include "rollup/root/root_rollup_public_inputs.hpp"
-#include "rollup/root/root_rollup_inputs.hpp"
-#include "previous_kernel_data.hpp"
-#include "private_kernel/private_inputs.hpp"
-#include "kernel_circuit_public_inputs.hpp"
-#include "public_kernel/public_kernel_inputs.hpp"
-#include "public_kernel/public_kernel_inputs_no_previous_kernel.hpp"
-
 #include <aztec3/circuits/hash.hpp>
 #include <aztec3/constants.hpp>
-
-#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/array.hpp>
-#include <barretenberg/stdlib/merkle_tree/membership.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+
+#include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include <barretenberg/crypto/keccak/keccak.hpp>
+#include <barretenberg/stdlib/merkle_tree/membership.hpp>
 
 namespace {
 
@@ -63,20 +64,20 @@ template <size_t TREE_HEIGHT> void rightfill_with_zeroleaves(std::vector<NT::fr>
     leaves.insert(leaves.end(), max_leaves - leaves.size(), zero_leaf);
 }
 
-} // namespace
+}  // namespace
 
 // Note: We don't have a simple way of calling the barretenberg c-bind.
 // Mimick bbmalloc behaviour.
 static void* bbmalloc(size_t size)
 {
-    auto ptr = aligned_alloc(64, size);
+    auto* ptr = aligned_alloc(64, size);
     return ptr;
 }
 
 /** Copy this string to a bbmalloc'd buffer */
 static const char* bbmalloc_copy_string(const char* data, size_t len)
 {
-    char* output_copy = (char*)bbmalloc(len + 1);
+    char* output_copy = static_cast<char*>(bbmalloc(len + 1));
     memcpy(output_copy, data, len + 1);
     return output_copy;
 }
@@ -89,8 +90,8 @@ template <typename T> static const char* as_string_output(uint8_t const* input_b
     read(input_buf, obj);
     std::ostringstream stream;
     stream << obj;
-    std::string str = stream.str();
-    *size = (uint32_t)str.size();
+    std::string const str = stream.str();
+    *size = static_cast<uint32_t>(str.size());
     return bbmalloc_copy_string(str.c_str(), *size);
 }
 
@@ -102,8 +103,8 @@ template <typename T> static const char* as_serialized_output(uint8_t const* inp
     read(input_buf, obj);
     std::vector<uint8_t> stream;
     write(stream, obj);
-    *size = (uint32_t)stream.size();
-    return bbmalloc_copy_string((char*)stream.data(), *size);
+    *size = static_cast<uint32_t>(stream.size());
+    return bbmalloc_copy_string(reinterpret_cast<char*>(stream.data()), *size);
 }
 
 #define WASM_EXPORT __attribute__((visibility("default")))
@@ -153,7 +154,7 @@ WASM_EXPORT void abis__compute_function_selector(char const* func_sig_cstr, uint
     // hash the function signature using keccak256
     auto keccak_hash = ethash_keccak256(reinterpret_cast<uint8_t const*>(func_sig_cstr), strlen(func_sig_cstr));
     // get a pointer to the start of the hash bytes
-    uint8_t const* hash_bytes = reinterpret_cast<uint8_t const*>(&keccak_hash.word64s[0]);
+    auto const* hash_bytes = reinterpret_cast<uint8_t const*>(&keccak_hash.word64s[0]);
     // get the correct number of bytes from the hash and copy into output buffer
     std::copy_n(hash_bytes, aztec3::FUNCTION_SELECTOR_NUM_BYTES, output);
 }
@@ -214,11 +215,11 @@ WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves
     // fill in nonzero leaves to start
     read(function_leaves_in, leaves);
     // fill in zero leaves to complete tree
-    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
+    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash();  // hash of empty/0 preimage
     rightfill_with_zeroleaves<aztec3::FUNCTION_TREE_HEIGHT>(leaves, zero_leaf);
 
     // compute the root of this complete tree, return
-    NT::fr root = plonk::stdlib::merkle_tree::compute_tree_root_native(leaves);
+    NT::fr const root = plonk::stdlib::merkle_tree::compute_tree_root_native(leaves);
 
     // serialize and return root
     NT::fr::serialize_to_buffer(root, root_out);
@@ -243,10 +244,10 @@ WASM_EXPORT void abis__compute_function_tree(uint8_t const* function_leaves_in, 
     // fill in nonzero leaves to start
     read(function_leaves_in, leaves);
     // fill in zero leaves to complete tree
-    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
+    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash();  // hash of empty/0 preimage
     rightfill_with_zeroleaves<aztec3::FUNCTION_TREE_HEIGHT>(leaves, zero_leaf);
 
-    std::vector<NT::fr> tree = plonk::stdlib::merkle_tree::compute_tree_native(leaves);
+    std::vector<NT::fr> const tree = plonk::stdlib::merkle_tree::compute_tree_native(leaves);
 
     // serialize and return tree
     write(tree_nodes_out, tree);
@@ -278,7 +279,7 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
     read(args_buf, args);
     read(constructor_vk_hash_buf, constructor_vk_hash);
 
-    NT::fr constructor_hash = compute_constructor_hash(function_data, args, constructor_vk_hash);
+    NT::fr const constructor_hash = compute_constructor_hash(function_data, args, constructor_vk_hash);
 
     NT::fr::serialize_to_buffer(constructor_hash, output);
 }
@@ -441,4 +442,4 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(ui
     return as_string_output<aztec3::circuits::abis::FunctionLeafPreimage<NT>>(function_leaf_preimage_buf, size);
 }
 
-} // extern "C"
+}  // extern "C"
