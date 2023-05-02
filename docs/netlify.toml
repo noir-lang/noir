@@ -19,10 +19,9 @@
     to = "/"
     
 [[redirects]]
-    from = "/aztec3"
+    from = "/aztec3/"
     to = "/aztec/overview"    
 
 [[redirects]]
-    from = "/aztec3"
-    to = "/aztec3/overview"   
- 
+    from = "/aztec3/*"
+    to = "/aztec/overview"
