@@ -285,9 +285,7 @@ mod tests {
         let func = ssa.functions.first().unwrap();
         let block0_id = func.entry_block();
 
-        let cfg = ControlFlowGraph::with_function(func);
-        let post_order = PostOrder::with_function(func);
-        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dt = DominatorTree::with_function(func);
         (dt, block0_id, block1_id, block2_id, block3_id)
     }
 
@@ -391,9 +389,7 @@ mod tests {
         let func = ssa.functions.first().unwrap();
         let block0_id = func.entry_block();
 
-        let cfg = ControlFlowGraph::with_function(func);
-        let post_order = PostOrder::with_function(func);
-        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dt = DominatorTree::with_function(func);
 
         // Expected dominance tree:
         // block0 {
