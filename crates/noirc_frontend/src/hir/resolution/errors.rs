@@ -262,7 +262,7 @@ impl From<ResolverError> for Diagnostic {
             ),
             ResolverError::ConstrainDepreciated { span } => Diagnostic::simple_warning(
                 "The 'constrain' keyword has been depreciated in favour of 'assert'".into(),
-                "The 'constrain' keyword has been depreciated, and it now recommended to instead write constraints in form of assertions such as 'assert(some_condition);'. This depreciation can be ignored for the time being by compiling with the '--allow-warnings' flag.".into(),
+                "The 'constrain' keyword has been depreciated, and it is now recommended to instead write constraints in the form of assertions, i.e. 'assert(some_condition);'. This depreciation can be ignored for the time being by compiling with the '--allow-warnings' flag.".into(),
                 span,
             ),
         }
