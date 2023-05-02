@@ -17,8 +17,7 @@
 [[redirects]]
     from = "/compliance"
     to = "/"
-    
+
 [[redirects]]
-    from = "/aztec3"
-    to = "/aztec3/overview"    
- 
+    from = "/aztec3/*"
+    to = "/aztec/overview"

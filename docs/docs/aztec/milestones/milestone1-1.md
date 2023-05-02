@@ -52,7 +52,7 @@ There will be no proofs generated in early milestones. Functions that would norm
 
 ## Thinking About State
 
-The lowest level system state is represented by one or more streams of data. In AC this was the calldata and the off-chain data. A3 will likely have it's state also represented as more than one stream of data. For this milestone we could just adopt a similar separation of data, although longer term some state might make it's way into [danksharding](https://ethereum.org/en/roadmap/danksharding/) blobs, and maybe some state won't go to the ethereum network at all.
+The lowest level system state is represented by one or more streams of data. In AC this was the calldata and the off-chain data. Aztec will likely have it's state also represented as more than one stream of data. For this milestone we could just adopt a similar separation of data, although longer term some state might make it's way into [danksharding](https://ethereum.org/en/roadmap/danksharding/) blobs, and maybe some state won't go to the ethereum network at all.
 
 Regardless, there should be a separation of concern between the stream of data, and how/where it's stored. Data should be stored unprocessed, in an implementation of a simple key-value store interface. So e.g. there maybe a component that when pointed at the rollup contract, stores the calldata for each rollup in a key-value implementation that just saves it to a file named by rollup number.
 
@@ -279,7 +279,7 @@ aztec.js should always be stateless. It offers the ability to interact with stat
 
 The analogous AC component would be the AztecSdk (wraps the CoreSdk which is more analogous to the private client).
 
-- Allows a user to create an Aztec3 keypair. Call `create_account` on Wallet.
+- Allows a user to create an Aztec keypair. Call `create_account` on Wallet.
 - Create a `Contract` instance (similar to web3.js), given a path to a Noir Contract ABI.
 - Construct `tx_request` by calling e.g. `contract.get_deployment_request(constructor_args)`.
 - Call wallet `sign_tx_request(tx_request)` to get signature.

@@ -21,13 +21,13 @@ The goal is to setup a minimal-complexity mechanism, that will allow a base-laye
 
 This document will contain communication abstractions that we use to support interaction between _private_ functions, _public_ functions and Layer 1 portal contracts.
 
-Fundamental restrictions for Aztec 3:
+Fundamental restrictions for Aztec:
 
 - L1 and L2 have very different execution environments, stuff that is cheap on L1 is most often expensive on L2 and vice versa. As an example, `keccak256` is cheap on L1, but very expensive on L2.
 - L1 and L2 have causal ordering, simply meaning that we cannot execute something on L1 that depends on something happening on L2 and vice versa.
 - _Private_ function calls are fully "prepared" and proven by the user, which provides the kernel proof along with commitments and nullifiers to the sequencer.
 - _Public_ functions altering public state (updatable storage) must be executed at the current "head" of the chain, which only the sequencer can ensure, so these must be executed separately to the _private_ functions.
-- _Private_ and _public_ functions within A3 are therefore ordered such that first _private_ functions are executed, and then _public_. For a more detailed description of why, see above.
+- _Private_ and _public_ functions within Aztec are therefore ordered such that first _private_ functions are executed, and then _public_. For a more detailed description of why, see above.
 - There is an **explicit 1:1 link** from a L2 contract to an L1 contract, and only the messages between a pair is allowed. See Portal for more information.
 - Messages are consumables, and can only be consumed by the recipient. See [Message Boxes](#message-boxes) for more information.
 
@@ -45,7 +45,7 @@ Because everything is unilateral and async, the application developer have to ex
 
 ### Portal
 
-A "portal" refers to the part of an application residing on L1, which is associated with a particular L2 address (the confidential part of the application). The link between them is established explicitly to reduce access control complexity. On public chains, access control information such as a whitelist in a mapping or similar data structure can simply be placed in public storage. However, this is not feasible for contracts in A3. Recall that public storage can only be accessed (up to date) by public functions which are called AFTER the private functions. This implies that access control values in public storage only work for public functions. One possible workaround is to store them in private data, but this is not always practical for generic token bridges and other similar use cases where the values must be publicly known to ensure that the system remains operational. Instead, we chose to use a hard link between the portal and the L2 address. See "Linking L1 and L2 contracts" for more information.
+A "portal" refers to the part of an application residing on L1, which is associated with a particular L2 address (the confidential part of the application). The link between them is established explicitly to reduce access control complexity. On public chains, access control information such as a whitelist in a mapping or similar data structure can simply be placed in public storage. However, this is not feasible for contracts in Aztec. Recall that public storage can only be accessed (up to date) by public functions which are called AFTER the private functions. This implies that access control values in public storage only work for public functions. One possible workaround is to store them in private data, but this is not always practical for generic token bridges and other similar use cases where the values must be publicly known to ensure that the system remains operational. Instead, we chose to use a hard link between the portal and the L2 address.
 
 :::info
 Note, that we at no point require the "portal" to be a contract, it could be an EOA on L1.

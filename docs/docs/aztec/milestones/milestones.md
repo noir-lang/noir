@@ -10,7 +10,7 @@ The milestones are written as sets of user stories to make it clear what functio
 
 ## Development Strategy
 
-The goal is that all software components of Aztec3 can be developed as independent modules (e.g. private client, public client, simulators, data sources/sinks, circuit architecture, RPC, cryptography).
+The goal is that all software components of Aztec can be developed as independent modules (e.g. private client, public client, simulators, data sources/sinks, circuit architecture, RPC, cryptography).
 
 When modules need to communicate across module boundaries, they do so via clearly defined APIs.
 

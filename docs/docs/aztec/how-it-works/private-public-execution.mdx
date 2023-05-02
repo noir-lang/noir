@@ -4,9 +4,9 @@ title: Private <--> Public execution
 
 import Image from "@theme/IdealImage";
 
-import Disclaimer from "../common/_disclaimer.mdx";
+import Disclaimer from "../common/\_disclaimer.mdx";
 
-<Disclaimer />
+<Disclaimer/>
 
 The following section will try to outline what _private_ and _public_ functions can do, and give some intuition to why they have the limitations they have.
 
@@ -31,7 +31,7 @@ On the left-hand side of the diagram below, we see the fully public world where 
 
 <Image img={require("/img/com-abs-1.png")} />
 
-Given that A3 will comprise of both private and public functions, it is imperative that we determine the optimal ordering for these functions. From a logical standpoint, it is reasonable to execute the private functions first as they are executed on a state $S_i$, where $i \le n$, with $S_n$ representing the current state where the public functions always operate on the current state $S_n$. Prioritizing the private functions would also afford us the added convenience of enabling them to invoke the public functions, which is particularly advantageous when implementing a peer-to-pool architecture such as that employed by Uniswap.
+Given that Aztec will comprise both private and public functions, it is imperative that we determine the optimal ordering for these functions. From a logical standpoint, it is reasonable to execute the private functions first as they are executed on a state $S_i$, where $i \le n$, with $S_n$ representing the current state where the public functions always operate on the current state $S_n$. Prioritizing the private functions would also afford us the added convenience of enabling them to invoke the public functions, which is particularly advantageous when implementing a peer-to-pool architecture such as that employed by Uniswap.
 
 Transactions that involve both private and public functions will follow a specific order of execution, wherein the private functions will be executed first, followed by the public functions, and then moving on to the next transaction.
 
@@ -51,7 +51,7 @@ To summarise:
 
 - _Private_ function calls are fully "prepared" and proven by the user, which provides the kernel proof along with new commitments and nullifiers to the sequencer.
 - _Public_ functions altering public state (updatable storage) must be executed at the current "head" of the chain, which only the sequencer can ensure, so these must be executed separately to the _private_ functions.
-- _Private_ and _public_ functions within an A3 transaction are therefore ordered such that first _private_ functions are executed, and then _public_.
+- _Private_ and _public_ functions within an Aztec transaction are therefore ordered such that first _private_ functions are executed, and then _public_.
 
 A more comprehensive overview of the interplay between private and public functions and their ability to manipulate data is presented below. It is worth noting that all data reads performed by private functions are historical in nature, and that private functions are not capable of modifying public storage. Conversely, public functions have the capacity to manipulate private storage (e.g., inserting new commitments, potentially as part of transferring funds from the public domain to the secret domain).
 
