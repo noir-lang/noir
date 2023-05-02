@@ -6,7 +6,12 @@ import { EthereumjsTxSender } from '../publisher/ethereumjs-tx-sender.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
 import { hexStringToBuffer } from '../utils.js';
 import { Tx } from '@aztec/types';
-import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from '../sequencer/processed_tx.js';
+import {
+  ProcessedTx,
+  makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricTreeRoots,
+  makeProcessedTx,
+} from '../sequencer/processed_tx.js';
+import { getCombinedHistoricTreeRoots } from '../sequencer/utils.js';
 import {
   makeBaseRollupPublicInputs,
   makeKernelPublicInputs,
@@ -86,6 +91,11 @@ describe.skip('L1Publisher integration', () => {
       },
     );
   }, 60_000);
+
+  const makeEmptyProcessedTx = async () => {
+    const historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
+    return makeEmptyProcessedTxFromHistoricTreeRoots(historicTreeRoots);
+  };
 
   it('Build 2 blocks of 4 txs building on each other', async () => {
     const stateInRollup_ = await rollup.methods.rollupStateHash().call();
