@@ -67,7 +67,9 @@ impl BasicBlock {
     /// Iterate over all the successors of the currently block, as determined by
     /// the blocks jumped to in the terminator instruction. If there is no terminator
     /// instruction yet, this will iterate 0 times.
-    pub(crate) fn successors(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
+    pub(crate) fn successors(
+        &self,
+    ) -> impl ExactSizeIterator<Item = BasicBlockId> + DoubleEndedIterator {
         match &self.terminator {
             Some(TerminatorInstruction::Jmp { destination, .. }) => vec![*destination].into_iter(),
             Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {

@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::Function};
 
-/// DFT stack state marker for computing the cfg post-order.
+/// Depth-first traversal stack state marker for computing the cfg post-order.
 enum Visit {
     First,
     Last,
@@ -45,9 +45,7 @@ impl PostOrder {
                         stack.push((Visit::Last, block_id));
                         // Stack successors for visiting. Because items are taken from the top of the
                         // stack, we push the item that's due for a visit first to the top.
-                        for successor_id in
-                            func.dfg[block_id].successors().collect::<Vec<_>>().into_iter().rev()
-                        {
+                        for successor_id in func.dfg[block_id].successors().rev() {
                             if !visited.contains(&successor_id) {
                                 // This not visited check would also be cover by the the next
                                 // iteration, but checking here two saves an iteration per successor.
@@ -121,7 +119,6 @@ mod tests {
             block_a_id,
             TerminatorInstruction::JmpIf {
                 condition: cond_a,
-                // Ordered backwards for test
                 then_destination: block_b_id,
                 else_destination: block_d_id,
             },
