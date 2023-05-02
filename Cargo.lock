@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
+source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
 dependencies = [
  "acir_field",
  "flate2",
@@ -16,7 +16,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
+source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -29,7 +29,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
+source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -46,7 +46,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.0.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=e68e9572cbac2362ce5fc948d53e31a2628b8cc7#e68e9572cbac2362ce5fc948d53e31a2628b8cc7"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=148521f851d22a1411b8491905585d3c77e22ee1#148521f851d22a1411b8491905585d3c77e22ee1"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -65,7 +65,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=09fcc8e90996cf91716c856c7b646837175454a5#09fcc8e90996cf91716c856c7b646837175454a5"
+source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
 dependencies = [
  "acir",
 ]
