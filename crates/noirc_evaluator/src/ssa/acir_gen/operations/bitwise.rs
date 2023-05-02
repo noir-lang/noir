@@ -40,8 +40,8 @@ pub(super) fn simplify_bitwise(
     let max = FieldElement::from((1_u128 << bit_size) - 1);
 
     let (field, var) = match (lhs.to_const(), rhs.to_const()) {
-        (Some(l_c), None) => (l_c == FieldElement::zero() || l_c == max).then_some((l_c, rhs))?,
-        (None, Some(r_c)) => (r_c == FieldElement::zero() || r_c == max).then_some((r_c, lhs))?,
+        (Some(l_c), None) => (l_c.is_zero() || l_c == max).then_some((l_c, rhs))?,
+        (None, Some(r_c)) => (r_c.is_zero() || r_c == max).then_some((r_c, lhs))?,
         _ => return None,
     };
 
@@ -155,9 +155,9 @@ pub(super) fn evaluate_bitwise(
         constraints::subtract(
             &Expression::from_field(max),
             FieldElement::one(),
-            &Expression::from(&result),
+            &Expression::from(result),
         )
     } else {
-        Expression::from(&result)
+        Expression::from(result)
     }
 }

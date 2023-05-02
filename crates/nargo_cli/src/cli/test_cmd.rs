@@ -1,7 +1,8 @@
 use std::{collections::BTreeMap, io::Write, path::Path};
 
-use acvm::{pwg::block::Blocks, PartialWitnessGenerator, ProofSystemCompiler};
+use acvm::ProofSystemCompiler;
 use clap::Args;
+use nargo::ops::execute_circuit;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -31,7 +32,7 @@ fn run_tests(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
@@ -78,24 +79,16 @@ fn run_test(
     driver: &Driver,
     config: &CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-    let mut blocks = Blocks::default();
+    let backend = crate::backends::ConcreteBackend::default();
 
     let program = driver
         .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
-    let mut solved_witness = BTreeMap::new();
-
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match backend.solve(&mut solved_witness, &mut blocks, program.circuit.opcodes) {
-        Ok((unresolved_opcodes, oracles)) => {
-            if !unresolved_opcodes.is_empty() || !oracles.is_empty() {
-                todo!("Add oracle support to nargo test")
-            }
-            Ok(())
-        }
+    match execute_circuit(&backend, program.circuit, BTreeMap::new()) {
+        Ok(_) => Ok(()),
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);
             let mut writer = writer.lock();

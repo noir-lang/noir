@@ -31,7 +31,7 @@ pub(crate) fn mul_with_witness(
     let a_arith;
     let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
         let a_witness = evaluator.create_intermediate_variable(a.clone());
-        a_arith = Expression::from(&a_witness);
+        a_arith = Expression::from(a_witness);
         &a_arith
     } else {
         a
@@ -42,7 +42,7 @@ pub(crate) fn mul_with_witness(
             a_arith
         } else {
             let b_witness = evaluator.create_intermediate_variable(b.clone());
-            b_arith = Expression::from(&b_witness);
+            b_arith = Expression::from(b_witness);
             &b_arith
         }
     } else {
@@ -54,9 +54,9 @@ pub(crate) fn mul_with_witness(
 //a*b
 pub(crate) fn mul(a: &Expression, b: &Expression) -> Expression {
     if a.is_const() {
-        return b * &a.q_c;
+        return b * a.q_c;
     } else if b.is_const() {
-        return a * &b.q_c;
+        return a * b.q_c;
     } else if !(a.is_linear() && b.is_linear()) {
         unreachable!("Can only multiply linear terms");
     }
@@ -125,9 +125,9 @@ pub(crate) fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expre
 // TODO in either case, we can put this in ACIR, if its useful
 pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     if a.is_const() {
-        return (b * &k) + &a.q_c;
+        return (b * k) + a.q_c;
     } else if b.is_const() {
-        return a.clone() + &(k * b.q_c);
+        return a.clone() + (k * b.q_c);
     }
 
     let mut output = Expression::from_field(a.q_c + k * b.q_c);
@@ -361,7 +361,7 @@ pub(crate) fn bound_constraint_with_offset(
                 0 => evaluator.push_opcode(AcirOpcode::Arithmetic(aof)),
                 1 => {
                     let expr = boolean_expr(&aof, evaluator);
-                    evaluator.push_opcode(AcirOpcode::Arithmetic(expr))
+                    evaluator.push_opcode(AcirOpcode::Arithmetic(expr));
                 }
                 2 => {
                     let y = expression_to_witness(boolean_expr(&aof, evaluator), evaluator);
@@ -497,7 +497,7 @@ pub(crate) fn evaluate_truncate(
     if let Some(a_c) = lhs.to_const() {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         a_big %= exp_big;
-        return Expression::from(&FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+        return Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
     }
     let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
 
@@ -524,7 +524,7 @@ pub(crate) fn evaluate_truncate(
     let my_constraint = add(&res, -FieldElement::one(), lhs);
     evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint));
 
-    Expression::from(&b_witness)
+    Expression::from(b_witness)
 }
 
 pub(crate) fn evaluate_udiv(
@@ -552,8 +552,8 @@ pub(crate) fn evaluate_udiv(
     //range check q<=a
     try_range_constraint(q_witness, bit_size, evaluator);
     // a-b*q-r = 0
-    let mut d = mul_with_witness(evaluator, rhs, &Expression::from(&q_witness));
-    d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
+    let mut d = mul_with_witness(evaluator, rhs, &Expression::from(q_witness));
+    d = add(&d, FieldElement::one(), &Expression::from(r_witness));
     d = mul_with_witness(evaluator, &d, predicate);
     let div_euclidean = subtract(&pa, FieldElement::one(), &d);
 

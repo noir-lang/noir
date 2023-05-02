@@ -1,16 +1,16 @@
-use super::fs::{
-    inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data,
-    program::read_program_from_file,
-};
-use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
+use super::compile_cmd::compile_circuit;
+use super::fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file};
+use super::NargoConfig;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
-use acvm::ProofSystemCompiler;
+
 use clap::Args;
-use noirc_abi::input_parser::{Format, InputValue};
-use noirc_driver::{CompileOptions, CompiledProgram};
+use nargo::artifacts::program::PreprocessedProgram;
+use nargo::ops::preprocess_program;
+use noirc_abi::input_parser::Format;
+use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid
@@ -34,7 +34,12 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         .circuit_name
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
-    verify_with_path(config.program_dir, proof_path, circuit_build_path, args.compile_options)
+    verify_with_path(
+        &config.program_dir,
+        proof_path,
+        circuit_build_path.as_ref(),
+        args.compile_options,
+    )
 }
 
 fn verify_with_path<P: AsRef<Path>>(
@@ -43,56 +48,33 @@ fn verify_with_path<P: AsRef<Path>>(
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
 ) -> Result<(), CliError> {
-    let (compiled_program, verification_key) = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let compiled_program = read_program_from_file(&circuit_build_path)?;
+    let backend = crate::backends::ConcreteBackend::default();
 
-            let (_, verification_key) =
-                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
-            (compiled_program, verification_key)
-        }
+    let preprocessed_program = match circuit_build_path {
+        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
-            let compiled_program = compile_circuit(program_dir.as_ref(), &compile_options)?;
-
-            let backend = crate::backends::ConcreteBackend;
-            let (_, verification_key) = backend.preprocess(&compiled_program.circuit);
-            (compiled_program, verification_key)
+            let compiled_program =
+                compile_circuit(&backend, program_dir.as_ref(), &compile_options)?;
+            preprocess_program(&backend, compiled_program)?
         }
     };
 
+    let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
+
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
-    let public_abi = compiled_program.abi.clone().public_abi();
+    let public_abi = abi.public_abi();
     let (public_inputs_map, return_value) =
         read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
-    verify_proof(
-        &compiled_program,
-        public_inputs_map,
-        return_value,
-        &load_hex_data(&proof_path)?,
-        &verification_key,
-        proof_path,
-    )
-}
-
-pub(crate) fn verify_proof(
-    compiled_program: &CompiledProgram,
-    public_inputs_map: InputMap,
-    return_value: Option<InputValue>,
-    proof: &[u8],
-    verification_key: &[u8],
-    proof_name: PathBuf,
-) -> Result<(), CliError> {
-    let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
+    let proof = load_hex_data(&proof_path)?;
 
-    let backend = crate::backends::ConcreteBackend;
     let valid_proof =
-        backend.verify_with_vk(proof, public_inputs, &compiled_program.circuit, verification_key);
+        nargo::ops::verify_proof(&backend, &bytecode, &proof, public_inputs, &verification_key)?;
 
     if valid_proof {
         Ok(())
     } else {
-        Err(CliError::InvalidProof(proof_name))
+        Err(CliError::InvalidProof(proof_path))
     }
 }

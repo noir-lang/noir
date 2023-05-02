@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Unlike the similar enum in noirc_frontend, 'open' and 'unconstrained'
 /// are mutually exclusive here. In the case a function is both, 'unconstrained'
 /// takes precedence.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ContractFunctionType {
     /// This function will be executed in a private
     /// context.
@@ -20,8 +19,6 @@ pub enum ContractFunctionType {
     Unconstrained,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CompiledContract {
     /// The name of the contract.
     pub name: String,
@@ -36,27 +33,19 @@ pub struct CompiledContract {
 /// A contract function unlike a regular Noir program
 /// however can have additional properties.
 /// One of these being a function type.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct ContractFunction {
     pub name: String,
 
     pub function_type: ContractFunctionType,
 
-    #[serde(flatten)]
     pub abi: Abi,
 
-    #[serde(
-        serialize_with = "crate::program::serialize_circuit",
-        deserialize_with = "crate::program::deserialize_circuit"
-    )]
     pub bytecode: Circuit,
-
-    pub verification_key: Option<Vec<u8>>,
 }
 
 impl ContractFunctionType {
-    pub fn new(kind: noirc_frontend::ContractFunctionType, is_unconstrained: bool) -> Self {
+    pub(super) fn new(kind: noirc_frontend::ContractFunctionType, is_unconstrained: bool) -> Self {
         match (kind, is_unconstrained) {
             (_, true) => Self::Unconstrained,
             (noirc_frontend::ContractFunctionType::Secret, false) => Self::Secret,

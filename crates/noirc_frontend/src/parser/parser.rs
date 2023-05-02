@@ -40,7 +40,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_abi::AbiVisibility;
+use noirc_abi::{AbiDistinctness, AbiVisibility};
 use noirc_errors::{CustomDiagnostic, Span, Spanned};
 
 /// Entry function for the parser - also handles lexing internally.
@@ -162,7 +162,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
             |(
                 (
                     ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
-                    (return_visibility, return_type),
+                    ((return_distinctness, return_visibility), return_type),
                 ),
                 body,
             )| {
@@ -177,6 +177,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                     body,
                     return_type,
                     return_visibility,
+                    return_distinctness,
                 }
                 .into()
             },
@@ -235,12 +236,18 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn function_return_type() -> impl NoirParser<(AbiVisibility, UnresolvedType)> {
+fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), UnresolvedType)> {
     just(Token::Arrow)
-        .ignore_then(optional_visibility())
+        .ignore_then(optional_distinctness())
+        .then(optional_visibility())
         .then(parse_type())
         .or_not()
-        .map(|ret| ret.unwrap_or((AbiVisibility::Private, UnresolvedType::Unit)))
+        .map(|ret| {
+            ret.unwrap_or((
+                (AbiDistinctness::DuplicationAllowed, AbiVisibility::Private),
+                UnresolvedType::Unit,
+            ))
+        })
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
@@ -428,6 +435,7 @@ where
 {
     choice((
         constrain(expr_parser.clone()),
+        assertion(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
@@ -439,6 +447,15 @@ where
     P: ExprParser + 'a,
 {
     ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
+        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+}
+
+fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
+        .labelled("statement")
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
@@ -537,11 +554,12 @@ fn parse_type_inner(
     choice((
         field_type(),
         int_type(),
+        bool_type(),
+        string_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
-        bool_type(),
-        string_type(),
+        vec_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser),
     ))
 }
@@ -550,6 +568,13 @@ fn optional_visibility() -> impl NoirParser<AbiVisibility> {
     keyword(Keyword::Pub).or_not().map(|opt| match opt {
         Some(_) => AbiVisibility::Public,
         None => AbiVisibility::Private,
+    })
+}
+
+fn optional_distinctness() -> impl NoirParser<AbiDistinctness> {
+    keyword(Keyword::Distinct).or_not().map(|opt| match opt {
+        Some(_) => AbiDistinctness::Distinct,
+        None => AbiDistinctness::DuplicationAllowed,
     })
 }
 
@@ -591,6 +616,12 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
     path()
         .then(generic_type_args(type_parser))
         .map(|(path, args)| UnresolvedType::Named(path, args))
+}
+
+fn vec_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Vec)
+        .ignore_then(generic_type_args(type_parser))
+        .map_with_span(UnresolvedType::Vec)
 }
 
 fn generic_type_args(
@@ -849,7 +880,7 @@ where
                 emit(ParserError::with_reason(
                     "Arrays must have at least one element".to_owned(),
                     span,
-                ))
+                ));
             }
             ExpressionKind::array(elements)
         })
@@ -1128,7 +1159,7 @@ mod test {
             match expr_to_array(expr) {
                 ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
                 ArrayLiteral::Repeated { length, .. } => {
-                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
                 }
             }
         }
@@ -1208,6 +1239,47 @@ mod test {
     }
 
     #[test]
+    fn parse_assert() {
+        parse_with(assertion(expression()), "assert(x == y)").unwrap();
+
+        // Currently we disallow constrain statements where the outer infix operator
+        // produces a value. This would require an implicit `==` which
+        // may not be intuitive to the user.
+        //
+        // If this is deemed useful, one would either apply a transformation
+        // or interpret it with an `==` in the evaluator
+        let disallowed_operators = vec![
+            BinaryOpKind::And,
+            BinaryOpKind::Subtract,
+            BinaryOpKind::Divide,
+            BinaryOpKind::Multiply,
+            BinaryOpKind::Or,
+        ];
+
+        for operator in disallowed_operators {
+            let src = format!("assert(x {} y);", operator.as_string());
+            parse_with(assertion(expression()), &src).unwrap_err();
+        }
+
+        // These are general cases which should always work.
+        //
+        // The first case is the most noteworthy. It contains two `==`
+        // The first (inner) `==` is a predicate which returns 0/1
+        // The outer layer is an infix `==` which is
+        // associated with the Constrain statement
+        parse_all(
+            assertion(expression()),
+            vec![
+                "assert(((x + y) == k) + z == y)",
+                "assert((x + !y) == y)",
+                "assert((x ^ y) == y)",
+                "assert((x ^ y) == (y + m))",
+                "assert(x + x ^ x == y | m)",
+            ],
+        );
+    }
+
+    #[test]
     fn parse_let() {
         // Why is it valid to specify a let declaration as having type u8?
         //
@@ -1250,6 +1322,7 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
+                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
             ],
         );
 
@@ -1360,7 +1433,7 @@ mod test {
 
         for (src, expected_path_kind) in cases {
             let path = parse_with(path(), src).unwrap();
-            assert_eq!(path.kind, expected_path_kind)
+            assert_eq!(path.kind, expected_path_kind);
         }
 
         parse_all_failing(
@@ -1461,7 +1534,9 @@ mod test {
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
+            ("assert", 1, "constrain Error"),
             ("constrain x ==", 1, "constrain (plain::x == Error)"),
+            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");

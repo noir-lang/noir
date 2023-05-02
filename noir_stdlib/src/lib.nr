@@ -9,6 +9,7 @@ mod sha512;
 mod field;
 mod ec;
 mod unsafe;
+mod collections;
 
 #[builtin(println)]
 fn println<T>(_input : T) {}

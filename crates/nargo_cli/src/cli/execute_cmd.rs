@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use acvm::pwg::block::Blocks;
+use acvm::acir::circuit::Circuit;
 use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{InputMap, WitnessMap};
+use noirc_abi::{Abi, InputMap, WitnessMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
@@ -47,36 +47,31 @@ fn execute_with_path(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let compiled_program = compile_circuit(program_dir, compile_options)?;
+    let backend = crate::backends::ConcreteBackend::default();
+
+    let CompiledProgram { abi, circuit } = compile_circuit(&backend, program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
-        read_inputs_from_file(program_dir, PROVER_INPUT_FILE, Format::Toml, &compiled_program.abi)?;
+        read_inputs_from_file(program_dir, PROVER_INPUT_FILE, Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
+    let solved_witness = execute_program(&backend, circuit, &abi, &inputs_map)?;
 
-    let public_abi = compiled_program.abi.public_abi();
+    let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
     Ok((return_value, solved_witness))
 }
 
 pub(crate) fn execute_program(
-    compiled_program: &CompiledProgram,
+    backend: &impl PartialWitnessGenerator,
+    circuit: Circuit,
+    abi: &Abi,
     inputs_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let mut solved_witness = compiled_program.abi.encode(inputs_map, None)?;
+    let initial_witness = abi.encode(inputs_map, None)?;
 
-    let backend = crate::backends::ConcreteBackend;
-    let mut blocks = Blocks::default();
-    let (unresolved_opcodes, oracles) = backend.solve(
-        &mut solved_witness,
-        &mut blocks,
-        compiled_program.circuit.opcodes.clone(),
-    )?;
-    if !unresolved_opcodes.is_empty() || !oracles.is_empty() {
-        todo!("Add oracle support to nargo execute")
-    }
+    let solved_witness = nargo::ops::execute_circuit(backend, circuit, initial_witness)?;
 
     Ok(solved_witness)
 }

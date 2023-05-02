@@ -107,7 +107,7 @@ pub(crate) fn evaluate(
             }
             outputs =
                 prepare_outputs(&mut acir_gen.memory, instruction_id, array.len, ctx, evaluator);
-            let out_expr: Vec<Expression> = outputs.iter().map(|w| w.into()).collect();
+            let out_expr: Vec<Expression> = outputs.iter().map(|w| (*w).into()).collect();
             for i in 0..(out_expr.len() - 1) {
                 bound_constraint_with_offset(
                     &out_expr[i],
@@ -149,7 +149,7 @@ fn prepare_inputs(
     let mut inputs: Vec<FunctionInput> = Vec::new();
 
     for argument in arguments {
-        inputs.extend(resolve_node_id(argument, acir_gen, cfg, evaluator))
+        inputs.extend(resolve_node_id(argument, acir_gen, cfg, evaluator));
     }
     inputs
 }
@@ -212,7 +212,7 @@ fn resolve_array(
         arr_element.set_witness(witness);
         acir_gen.memory.insert(array.id, i, arr_element);
 
-        inputs.push(func_input)
+        inputs.push(func_input);
     }
 
     inputs
@@ -329,7 +329,7 @@ fn evaluate_println(
 fn format_field_string(field: FieldElement) -> String {
     let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
     if trimmed_field.len() % 2 != 0 {
-        trimmed_field = "0".to_owned() + &trimmed_field
+        trimmed_field = "0".to_owned() + &trimmed_field;
     };
     "0x".to_owned() + &trimmed_field
 }

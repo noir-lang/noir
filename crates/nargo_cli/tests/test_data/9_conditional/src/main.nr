@@ -17,11 +17,11 @@ fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
     let mut digest = std::hash::sha256(x);
     digest[0] = 5 as u8;
     digest = std::hash::sha256(x);
-    constrain digest == result;
+    assert(digest == result);
 }
 
 fn must_be_zero(x: u8) {
-    constrain x == 0;
+    assert(x == 0);
 }
 
 fn test3 (x: u8) {
@@ -41,19 +41,19 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     let arr: [u8; 2] = [1, 2];
     if arr[0] != arr[1] {
         for i in 0..1 {
-            constrain i != 2;
+            assert(i != 2);
         }
     }
 
     //Issue reported in #421
     if a == c[0] {
-        constrain c[0] == 0;
+        assert(c[0] == 0);
     } else {
         if a == c[1] {
-            constrain c[1] == 0;
+            assert(c[1] == 0);
         } else  {
             if a == c[2] {
-                constrain c[2] == 0;
+                assert(c[2] == 0);
             }
         }
     }
@@ -67,25 +67,25 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {
-            constrain arr[i] == 1;// 1
+            assert(arr[i] == 1);// 1
             for k in 0..2 {
-                constrain as_bits_hardcode_1[k] == as_bits[k];
+                assert(as_bits_hardcode_1[k] == as_bits[k]);
             }
         }
         if i == 1 {
-            constrain arr[i] == 2;//2
+            assert(arr[i] == 2);//2
             for k in 0..2 {
-                constrain as_bits_hardcode_1[k] != as_bits[k];
+                assert(as_bits_hardcode_1[k] != as_bits[k]);
             }
         }
     }
-    constrain c1==1;
+    assert(c1==1);
 
     //Regression for Issue #579
     let result1_true = test(true);
-    constrain result1_true.array_param[0] == 1;
+    assert(result1_true.array_param[0] == 1);
     let result1_false = test(false);
-    constrain result1_false.array_param[0] == 0;
+    assert(result1_false.array_param[0] == 0);
 
     //Test case for short-circuit
     let mut data = [0 as u32; 32];
@@ -104,23 +104,23 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             }
         }
     }
-    constrain data[31] == 0;
-    constrain ba != 13;
+    assert(data[31] == 0);
+    assert(ba != 13);
     //regression for short-circuit2
     if 35 == a {
-        constrain false;
+        assert(false);
     }
     bar(a as Field);
 
     if a == 3 {
        c = test4();
     }
-    constrain c[1] != 2;
+    assert(c[1] != 2);
     call_intrinsic(x, result);
 
     //Test case for conditional with arrays from function parameters
     let b = sort([1,2,3,4]);
-    constrain b[0] == 1;
+    assert(b[0] == 1);
 
     if a == 0 {
         must_be_zero(0);
@@ -130,9 +130,9 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         c[0] = 1;
         c[1] = c[2] / a + 11 % a;
         let f1 = a as Field;
-        constrain 10/f1 != 0;
+        assert(10/f1 != 0);
     }
-    constrain c[0] == 3;
+    assert(c[0] == 3);
 
     let mut y = 0;
     if a == 0 {
@@ -141,9 +141,9 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     } else {
         y = 5;
     }
-    constrain y == result[0];
+    assert(y == result[0]);
     c = sort(c);
-    constrain c[0]==0;
+    assert(c[0]==0);
 
     //test 1
     let mut x: u32 = 0;
@@ -153,16 +153,16 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             x = 6;
         } else {
             x = 2;
-            constrain x == 2;
+            assert(x == 2);
         }
     } else {
         x = 5;
-        constrain x == 5;
+        assert(x == 5);
     }
     if c[0] == 0 {
         x = 3;
     }
-    constrain x == 2;
+    assert(x == 2);
 
     //test2: loops!
     x = 0;
@@ -172,19 +172,19 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             x = i as u32 +2;
         }
     }
-    constrain x == 0;
+    assert(x == 0);
 
     test3(1);
 
     if a == 0 {
         c = test4();
     } else {
-        constrain c[1] != 2;
+        assert(c[1] != 2);
     }
     if false {
         c[1] = 5;
     }
-    constrain c[1] == 2;
+    assert(c[1] == 2);
 
     test5(4);
 
@@ -195,7 +195,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     } else {
         c_661 = issue_661_foo(issue_661_bar(c), x);
     }
-    constrain c_661[0] < 20000;
+    assert(c_661[0] < 20000);
 
     // Test case for function synchronisation
     let mut c_sync = 0;
@@ -204,7 +204,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     } else {
         c_sync = foo2() + foo2();
     }
-    constrain c_sync == 6;
+    assert(c_sync == 6);
     
     // Regression for predicate simplification
     safe_inverse(0);
@@ -213,7 +213,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
 fn test5(a : u32) {
     if a > 1 {
         let q = a / 2;
-        constrain q == 2;
+        assert(q == 2);
     }
 }
 

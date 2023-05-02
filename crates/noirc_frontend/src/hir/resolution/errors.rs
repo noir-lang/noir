@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{parser::ParserError, Ident, Shared, StructType, Type};
+use crate::{parser::ParserError, Ident, Type};
 
 use super::import::PathResolutionError;
 
@@ -32,6 +32,8 @@ pub enum ResolverError {
     UnnecessaryPub { ident: Ident },
     #[error("Required 'pub', main function must return public value")]
     NecessaryPub { ident: Ident },
+    #[error("'distinct' keyword can only be used with main method")]
+    DistinctNotAllowed { ident: Ident },
     #[error("Expected const value where non-constant value was used")]
     ExpectedComptimeVariable { name: String, span: Span },
     #[error("Missing expression for declared constant")]
@@ -53,12 +55,7 @@ pub enum ResolverError {
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
     #[error("Incorrect amount of arguments to generic type constructor")]
-    IncorrectGenericCount {
-        span: Span,
-        struct_type: Shared<StructType>,
-        actual: usize,
-        expected: usize,
-    },
+    IncorrectGenericCount { span: Span, struct_type: String, actual: usize, expected: usize },
     #[error("{0}")]
     ParserError(ParserError),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
@@ -181,6 +178,18 @@ impl From<ResolverError> for Diagnostic {
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
+            ResolverError::DistinctNotAllowed { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("Invalid `distinct` keyword on return type of function {name}"),
+                    "Invalid distinct on return type".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `distinct` keyword is only valid when used on the main function of a program, as its only purpose is to ensure that all witness indices that occur in the abi are unique".to_owned());
+                diag
+            }
             ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(
                 format!("expected constant variable where non-constant variable {name} was used"),
                 "expected const variable".to_string(),
@@ -238,7 +247,7 @@ impl From<ResolverError> for Diagnostic {
                 let actual_plural = if actual == 1 { "is" } else { "are" };
 
                 Diagnostic::simple_error(
-                    format!("The struct type {} has {expected} generic{expected_plural} but {actual} {actual_plural} given here", struct_type.borrow()),
+                    format!("The struct type {struct_type} has {expected} generic{expected_plural} but {actual} {actual_plural} given here"),
                     "Incorrect number of generic arguments".into(),
                     span,
                 )

@@ -22,7 +22,9 @@ fn print_acir_with_path<P: AsRef<Path>>(
     program_dir: P,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), compile_options)?;
+    let backend = crate::backends::ConcreteBackend::default();
+
+    let compiled_program = compile_circuit(&backend, program_dir.as_ref(), compile_options)?;
     println!("{}", compiled_program.circuit);
 
     Ok(())

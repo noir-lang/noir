@@ -1,0 +1,32 @@
+name: Notify Doc Needed
+
+on:
+  pull_request_target:
+    types:
+      - labeled
+      - unlabeled
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'doc needed'
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set workflowId environment variable
+        id: set_workflow_id
+        run: |
+          if [[ "${{ github.event.action }}" == "labeled" ]]; then
+            echo "workflowId=new-migrated-issue.yml" >> $GITHUB_ENV
+          else
+            echo "workflowId=delete-migrated-issue.yml" >> $GITHUB_ENV
+          fi
+
+      - name: Dispatch
+        uses: benc-uk/workflow-dispatch@v1 
+        with: 
+          workflow: ${{ env.workflowId }}
+          repo: noir-lang/docs
+          ref: master 
+          token: ${{ secrets.DOCS_REPO_TOKEN }} 
+          inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }'

@@ -90,7 +90,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
     }
 
     pub fn push_scope(&mut self) {
-        self.0.push(Scope::default())
+        self.0.push(Scope::default());
     }
 
     pub fn pop_scope(&mut self) -> Scope<K, V> {
@@ -135,7 +135,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     }
 
     fn extend_current_scope_tree(&mut self) {
-        self.current_scope_tree().push_scope()
+        self.current_scope_tree().push_scope();
     }
 
     fn remove_scope_tree_extension(&mut self) -> Scope<K, V> {
@@ -145,7 +145,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     /// Starting a function requires a new scope tree, as you do not want the functions scope to
     /// have access to the scope of the caller
     pub fn start_function(&mut self) {
-        self.0.push(ScopeTree::default())
+        self.0.push(ScopeTree::default());
     }
 
     /// Ending a function requires that we removes it's whole tree of scope
@@ -157,7 +157,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     /// The beginning of a scope always correlates with the start of a block {}.
     /// This can be in if expressions, for loops, or functions.
     pub fn start_scope(&mut self) {
-        self.extend_current_scope_tree()
+        self.extend_current_scope_tree();
     }
 
     /// Ends the current scope - this should correspond with the end of a BlockExpression.

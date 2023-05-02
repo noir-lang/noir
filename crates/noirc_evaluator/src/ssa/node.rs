@@ -918,8 +918,10 @@ impl Binary {
                         !res_type.is_native_field(),
                         "ICE: comparisons are not implemented for field elements"
                     );
-                    let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
+                    return Ok(NodeEval::Const(
+                        FieldElement::from(lhs < rhs),
+                        ObjectType::boolean(),
+                    ));
                 }
             }
             BinaryOp::Ule => {
@@ -931,8 +933,10 @@ impl Binary {
                         !res_type.is_native_field(),
                         "ICE: comparisons are not implemented for field elements"
                     );
-                    let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
+                    return Ok(NodeEval::Const(
+                        FieldElement::from(lhs <= rhs),
+                        ObjectType::boolean(),
+                    ));
                 }
             }
             BinaryOp::Slt => (),
@@ -942,8 +946,10 @@ impl Binary {
                     return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
+                    return Ok(NodeEval::Const(
+                        FieldElement::from(lhs < rhs),
+                        ObjectType::boolean(),
+                    ));
                 }
             }
             BinaryOp::Lte => {
@@ -951,30 +957,30 @@ impl Binary {
                     return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
+                    return Ok(NodeEval::Const(
+                        FieldElement::from(lhs <= rhs),
+                        ObjectType::boolean(),
+                    ));
                 }
             }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
                     return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    if lhs == rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
-                    } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
-                    }
+                    return Ok(NodeEval::Const(
+                        FieldElement::from(lhs == rhs),
+                        ObjectType::boolean(),
+                    ));
                 }
             }
             BinaryOp::Ne => {
                 if self.lhs == self.rhs {
                     return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    if lhs != rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
-                    } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
-                    }
+                    return Ok(NodeEval::Const(
+                        FieldElement::from(lhs != rhs),
+                        ObjectType::boolean(),
+                    ));
                 }
             }
             BinaryOp::And => {
@@ -1225,7 +1231,7 @@ impl Operation {
             Cond { condition, val_true: lhs, val_false: rhs } => {
                 *condition = f(*condition);
                 *lhs = f(*lhs);
-                *rhs = f(*rhs)
+                *rhs = f(*rhs);
             }
             Load { index, .. } => *index = f(*index),
             Store { index, value, predicate, .. } => {
@@ -1291,7 +1297,7 @@ impl Operation {
             Nop => (),
             Call { func, arguments, .. } => {
                 f(*func);
-                arguments.iter().copied().for_each(f)
+                arguments.iter().copied().for_each(f);
             }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {

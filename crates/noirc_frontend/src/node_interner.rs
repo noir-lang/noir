@@ -320,7 +320,7 @@ impl NodeInterner {
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
-        f(&mut value)
+        f(&mut value);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -654,6 +654,7 @@ enum TypeMethodKey {
     Unit,
     Tuple,
     Function,
+    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -669,6 +670,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _) => Some(Function),
+        Type::Vec(_) => Some(Vec),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_)

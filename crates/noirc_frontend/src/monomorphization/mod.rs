@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use crate::{
     hir_def::{
         expr::*,
-        function::{Param, Parameters},
+        function::{FuncMeta, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
@@ -88,7 +88,8 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    Program::new(functions, function_sig)
+    let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
+    Program::new(functions, function_sig, return_distinctness)
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -382,8 +383,8 @@ impl<'interner> Monomorphizer<'interner> {
                 },
             )),
 
-            ast::Type::Array(_, _) | ast::Type::String(_) => {
-                unreachable!("Nested arrays and arrays of strings are not supported")
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+                unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
             }
         }
     }
@@ -411,7 +412,7 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Bool
             | ast::Type::Unit
             | ast::Type::Function(_, _) => {
-                ast::Expression::Index(ast::Index { collection, index, location })
+                ast::Expression::Index(ast::Index { collection, index, element_type, location })
             }
 
             ast::Type::Tuple(elements) => {
@@ -425,8 +426,8 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) => {
-                unreachable!("Nested arrays and arrays of strings are not supported")
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+                unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
             }
         }
     }
@@ -663,6 +664,11 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Function(args, ret)
             }
 
+            HirType::Vec(element) => {
+                let element = Self::convert_type(element);
+                ast::Type::Vec(Box::new(element))
+            }
+
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
@@ -683,7 +689,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) => {
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
                 unreachable!("Nested arrays and arrays of strings are not supported")
             }
         }
@@ -941,6 +947,7 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Function(parameter_types, ret_type) => {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
+            ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
         }
     }
 

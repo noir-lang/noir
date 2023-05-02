@@ -1,9 +1,17 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 mod errors;
 mod ssa;
+
+// SSA code to create the SSA based IR
+// for functions and execute different optimizations.
+pub mod ssa_refactor;
+// Frontend helper module to translate a different AST
+// into the SSA IR.
+pub mod frontend;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
@@ -42,7 +50,13 @@ pub struct Evaluator {
     // Witnesses below `num_witnesses_abi_len` and not included in this set
     // correspond to private parameters and must not be made public.
     public_parameters: BTreeSet<Witness>,
-    return_values: BTreeSet<Witness>,
+    // The witness indices for return values are not guaranteed to be contiguous
+    // and increasing as for `public_parameters`. We then use a `Vec` rather
+    // than a `BTreeSet` to preserve this order for the ABI.
+    return_values: Vec<Witness>,
+    // If true, indicates that the resulting ACIR should enforce that all inputs and outputs are
+    // comprised of unique witness indices by having extra constraints if necessary.
+    return_is_distinct: bool,
 
     opcodes: Vec<AcirOpcode>,
 }
@@ -77,7 +91,7 @@ pub fn create_circuit(
             current_witness_index,
             opcodes,
             public_parameters: PublicInputs(public_parameters),
-            return_values: PublicInputs(return_values.clone()),
+            return_values: PublicInputs(return_values.iter().copied().collect()),
         },
         np_language,
         is_opcode_supported,
@@ -85,13 +99,17 @@ pub fn create_circuit(
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
     let (parameters, return_type) = program.main_function_signature;
-    let return_witnesses: Vec<Witness> = return_values.into_iter().collect();
-    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
+    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses: return_values };
 
     Ok((optimized_circuit, abi))
 }
 
 impl Evaluator {
+    // Returns true if the `witness_index` appears in the program's input parameters.
+    fn is_abi_input(&self, witness_index: Witness) -> bool {
+        witness_index.as_usize() <= self.num_witnesses_abi_len
+    }
+
     // Returns true if the `witness_index`
     // was created in the ABI as a private input.
     //
@@ -101,11 +119,17 @@ impl Evaluator {
         // If the `witness_index` is more than the `num_witnesses_abi_len`
         // then it was created after the ABI was processed and is therefore
         // an intermediate variable.
-        let is_intermediate_variable = witness_index.as_usize() > self.num_witnesses_abi_len;
 
         let is_public_input = self.public_parameters.contains(&witness_index);
 
-        !is_intermediate_variable && !is_public_input
+        self.is_abi_input(witness_index) && !is_public_input
+    }
+
+    // True if the main function return has the `distinct` keyword and this particular witness
+    // index has already occurred elsewhere in the abi's inputs and outputs.
+    fn should_proxy_witness_for_abi_output(&self, witness_index: Witness) -> bool {
+        self.return_is_distinct
+            && (self.is_abi_input(witness_index) || self.return_values.contains(&witness_index))
     }
 
     // Creates a new Witness index
@@ -129,6 +153,8 @@ impl Evaluator {
         enable_logging: bool,
         show_output: bool,
     ) -> Result<(), RuntimeError> {
+        self.return_is_distinct =
+            program.return_distinctness == noirc_abi::AbiDistinctness::Distinct;
         let mut ir_gen = IrGenerator::new(program);
         self.parse_abi_alt(&mut ir_gen);
 
@@ -148,7 +174,7 @@ impl Evaluator {
         let inter_var_witness = self.add_witness_to_cs();
 
         // Link that witness to the arithmetic gate
-        let constraint = &arithmetic_gate - &inter_var_witness;
+        let constraint = &arithmetic_gate - inter_var_witness;
         self.opcodes.push(AcirOpcode::Arithmetic(constraint));
         inter_var_witness
     }
@@ -175,7 +201,7 @@ impl Evaluator {
             AbiType::Array { length, typ } => {
                 let witnesses = self.generate_array_witnesses(length, typ)?;
 
-                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses.clone());
+                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, &witnesses);
                 witnesses
             }
             AbiType::Integer { sign: _, width } => {
@@ -203,13 +229,13 @@ impl Evaluator {
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
                 self.generate_struct_witnesses(&mut struct_witnesses, &new_fields)?;
 
-                ir_gen.abi_struct(name, Some(def), fields, struct_witnesses.clone());
-                struct_witnesses.values().flatten().cloned().collect()
+                ir_gen.abi_struct(name, Some(def), fields, &struct_witnesses);
+                struct_witnesses.values().flatten().copied().collect()
             }
             AbiType::String { length } => {
                 let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
                 let witnesses = self.generate_array_witnesses(length, &typ)?;
-                ir_gen.abi_array(name, Some(def), &typ, *length, witnesses.clone());
+                ir_gen.abi_array(name, Some(def), &typ, *length, &witnesses);
                 witnesses
             }
         };
@@ -253,7 +279,7 @@ impl Evaluator {
                         let new_name = format!("{name}.{inner_name}");
                         new_fields.insert(new_name, value.clone());
                     }
-                    self.generate_struct_witnesses(struct_witnesses, &new_fields)?
+                    self.generate_struct_witnesses(struct_witnesses, &new_fields)?;
                 }
                 AbiType::String { length } => {
                     let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
@@ -294,7 +320,7 @@ impl Evaluator {
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
-        let main = ir_gen.program.main();
+        let main = ir_gen.program.main_mut();
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut ir_gen.program.main_function_signature.0);
 

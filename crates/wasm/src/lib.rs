@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+
 use gloo_utils::format::JsValueSerdeExt;
 use log::Level;
 use serde::{Deserialize, Serialize};
@@ -10,8 +12,7 @@ use wasm_bindgen::prelude::*;
 mod circuit;
 mod compile;
 
-#[allow(deprecated)]
-pub use circuit::{acir_from_bytes, acir_read_bytes, acir_to_bytes, acir_write_bytes};
+pub use circuit::{acir_read_bytes, acir_write_bytes};
 pub use compile::{compile, WASMCompileOptions};
 
 #[derive(Serialize, Deserialize)]
