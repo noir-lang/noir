@@ -125,7 +125,8 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
     std::array<NT::fr, EMITTED_EVENTS_LENGTH> const emitted_events = array_of_values<EMITTED_EVENTS_LENGTH>(count);
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> const public_call_stack =
         array_of_values<PUBLIC_CALL_STACK_LENGTH>(count);
-    std::array<NT::fr, L1_MSG_STACK_LENGTH> const l1_msg_stack = array_of_values<L1_MSG_STACK_LENGTH>(count);
+    std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> const new_l2_to_l1_msgs =
+        array_of_values<NEW_L2_TO_L1_MSGS_LENGTH>(count);
     std::array<StateRead<NT>, STATE_READS_LENGTH> const reads = generate_state_reads(count);
     std::array<StateTransition<NT>, STATE_TRANSITIONS_LENGTH> const transitions = generate_state_transitions(count);
 
@@ -138,7 +139,7 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
         .state_transitions = transitions,
         .state_reads = reads,
         .public_call_stack = public_call_stack,
-        .l1_msg_stack = l1_msg_stack,
+        .new_l2_to_l1_msgs = new_l2_to_l1_msgs,
 
     };
     auto call_stack_item = PublicCallStackItem{
@@ -237,8 +238,8 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
         generate_state_transitions(seed, STATE_TRANSITIONS_LENGTH / 2);
     std::array<StateRead<NT>, STATE_READS_LENGTH> const state_reads =
         generate_state_reads(seed, STATE_READS_LENGTH / 2);
-    std::array<fr, L1_MSG_STACK_LENGTH> const l1_msg_stack =
-        array_of_values<L1_MSG_STACK_LENGTH>(seed, L1_MSG_STACK_LENGTH / 2);
+    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> const new_l2_to_l1_msgs =
+        array_of_values<NEW_L2_TO_L1_MSGS_LENGTH>(seed, NEW_L2_TO_L1_MSGS_LENGTH / 2);
     fr const historic_public_data_tree_root = ++seed;
 
     // create the public circuit public inputs
@@ -250,7 +251,7 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
         .state_transitions = state_transitions,
         .state_reads = state_reads,
         .public_call_stack = call_stack_hashes,
-        .l1_msg_stack = l1_msg_stack,
+        .new_l2_to_l1_msgs = new_l2_to_l1_msgs,
         .historic_public_data_tree_root = historic_public_data_tree_root,
     };
 
@@ -362,7 +363,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .new_nullifiers = array_of_values<KERNEL_NEW_NULLIFIERS_LENGTH>(seed, private_previous ? 3 : 0),
         .private_call_stack = array_of_values<KERNEL_PRIVATE_CALL_STACK_LENGTH>(seed, 0),
         .public_call_stack = public_call_stack,
-        .l1_msg_stack = array_of_values<KERNEL_L1_MSG_STACK_LENGTH>(seed, 4),
+        .new_l2_to_l1_msgs = array_of_values<KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>(seed, 4),
         .new_contracts = std::array<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(),
         .optionally_revealed_data = std::array<OptionallyRevealedData<NT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH>(),
         .state_transitions = std::array<PublicDataTransition<NT>, STATE_TRANSITIONS_LENGTH>(),
@@ -433,9 +434,9 @@ void validate_private_data_propagation(const PublicKernelInputs<NT>& inputs,
                                             zero_array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>(),
                                             public_inputs.end.private_call_stack));
 
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.l1_msg_stack,
-                                            zero_array<NT::fr, KERNEL_L1_MSG_STACK_LENGTH>(),
-                                            public_inputs.end.l1_msg_stack));
+    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_l2_to_l1_msgs,
+                                            zero_array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>(),
+                                            public_inputs.end.new_l2_to_l1_msgs));
 
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_contracts,
                                             std::array<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(),

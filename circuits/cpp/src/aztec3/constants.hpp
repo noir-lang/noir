@@ -16,14 +16,14 @@ constexpr size_t STATE_READS_LENGTH = 4;
 
 constexpr size_t PRIVATE_CALL_STACK_LENGTH = 4;
 constexpr size_t PUBLIC_CALL_STACK_LENGTH = 4;
-constexpr size_t L1_MSG_STACK_LENGTH = 2;
+constexpr size_t NEW_L2_TO_L1_MSGS_LENGTH = 2;
 
 constexpr size_t KERNEL_NEW_COMMITMENTS_LENGTH = 4;
 constexpr size_t KERNEL_NEW_NULLIFIERS_LENGTH = 4;
 constexpr size_t KERNEL_NEW_CONTRACTS_LENGTH = 1;
 constexpr size_t KERNEL_PRIVATE_CALL_STACK_LENGTH = 8;
 constexpr size_t KERNEL_PUBLIC_CALL_STACK_LENGTH = 8;
-constexpr size_t KERNEL_L1_MSG_STACK_LENGTH = 4;
+constexpr size_t KERNEL_NEW_L2_TO_L1_MSGS_LENGTH = 4;
 constexpr size_t KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH = 4;
 
 constexpr size_t VK_TREE_HEIGHT = 3;
@@ -73,7 +73,7 @@ enum GeneratorIndex {
     CALL_CONTEXT,
     CALL_STACK_ITEM,
     CALL_STACK_ITEM_2,  // see function where it's used for explanation
-    L1_MSG_STACK_ITEM,
+    L2_TO_L1_MSG,
     PRIVATE_CIRCUIT_PUBLIC_INPUTS,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,
     TX_CONTEXT,

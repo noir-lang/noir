@@ -5,7 +5,7 @@ import { CallContext } from './call_context.js';
 import {
   ARGS_LENGTH,
   EMITTED_EVENTS_LENGTH,
-  L1_MSG_STACK_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_COMMITMENTS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
   PRIVATE_CALL_STACK_LENGTH,
@@ -29,7 +29,7 @@ export class PrivateCircuitPublicInputs {
     public newNullifiers: Fr[],
     public privateCallStack: Fr[],
     public publicCallStack: Fr[],
-    public l1MsgStack: Fr[],
+    public newL2ToL1Msgs: Fr[],
     public historicPrivateDataTreeRoot: Fr,
     public historicPrivateNullifierTreeRoot: Fr,
     public historicContractTreeRoot: Fr,
@@ -42,7 +42,7 @@ export class PrivateCircuitPublicInputs {
     assertLength(this, 'newNullifiers', NEW_NULLIFIERS_LENGTH);
     assertLength(this, 'privateCallStack', PRIVATE_CALL_STACK_LENGTH);
     assertLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
-    assertLength(this, 'l1MsgStack', L1_MSG_STACK_LENGTH);
+    assertLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
   }
   /**
    * Create PrivateCircuitPublicInputs from a fields dictionary.
@@ -67,7 +67,7 @@ export class PrivateCircuitPublicInputs {
       frArray(NEW_NULLIFIERS_LENGTH),
       frArray(PRIVATE_CALL_STACK_LENGTH),
       frArray(PUBLIC_CALL_STACK_LENGTH),
-      frArray(L1_MSG_STACK_LENGTH),
+      frArray(NEW_L2_TO_L1_MSGS_LENGTH),
       Fr.ZERO,
       Fr.ZERO,
       Fr.ZERO,
@@ -90,7 +90,7 @@ export class PrivateCircuitPublicInputs {
       fields.newNullifiers,
       fields.privateCallStack,
       fields.publicCallStack,
-      fields.l1MsgStack,
+      fields.newL2ToL1Msgs,
       fields.historicPrivateDataTreeRoot,
       fields.historicPrivateNullifierTreeRoot,
       fields.historicContractTreeRoot,

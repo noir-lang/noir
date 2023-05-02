@@ -25,7 +25,7 @@ export class FakePublicCircuitSimulator implements PublicCircuitSimulator {
       args: tx.args,
       callContext: execution.callContext,
       emittedEvents: [],
-      l1MsgStack: [],
+      newL2ToL1Msgs: [],
       proverAddress: AztecAddress.random(),
       publicCallStack: [],
       returnValues: result.returnValues,

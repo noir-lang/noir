@@ -40,7 +40,7 @@ impl PrivateFunctionContext {
             new_nullifiers: self.new_nullifiers.storage,
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
-            l1_msg_stack: self.l1_message_stack.storage,
+            new_l2_to_l1_msgs: self.l1_message_stack.storage,
             historic_private_data_tree_root: inputs.old_private_data_tree_root,
             historic_private_nullifier_tree_root: inputs.old_nullifier_tree_root,
             historic_contract_tree_root: inputs.old_contract_tree_root,

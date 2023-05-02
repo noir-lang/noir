@@ -20,13 +20,6 @@ inline Contract init_contract()
         { .name = "withdraw", .is_private = true },
     });
 
-    // TODO: this L1 declaration interface is just to get something working.
-    contract.import_l1_function({
-        .function_name = "withdraw",
-        .function_selector = 12345,
-        .num_params = 3,
-    });
-
     return contract;
 }
 

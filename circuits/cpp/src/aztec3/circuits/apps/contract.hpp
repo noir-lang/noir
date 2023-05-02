@@ -1,7 +1,6 @@
 #pragma once
 
 #include "function_declaration.hpp"
-#include "l1_function_interface.hpp"
 
 #include <aztec3/circuits/abis/function_data.hpp>
 
@@ -32,8 +31,6 @@ template <typename NCT> class Contract {
 
     std::map<std::string, FunctionData<NCT>> function_datas;
 
-    std::map<std::string, L1FunctionInterface<NCT>> l1_functions;
-
     std::map<std::string, Contract<NCT>> imported_contracts;
 
     explicit Contract<NCT>(std::string const& contract_name) : contract_name(contract_name)
@@ -57,10 +54,6 @@ template <typename NCT> class Contract {
     // FunctionData<CT> get_function(std::string name) { return function_data[name]; }
 
     FunctionData<NCT> get_function_data_by_name(std::string const& name);
-
-    void import_l1_function(L1FunctionInterfaceStruct<NCT> const& l1_function_struct);
-
-    L1FunctionInterface<NCT>& get_l1_function(std::string const& name);
 
     // TODO: maybe also declare a type at this stage, so the correct type can be checked-for when the StateVar type is
     // created within the function.

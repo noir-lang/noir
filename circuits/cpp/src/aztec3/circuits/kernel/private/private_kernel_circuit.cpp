@@ -76,7 +76,7 @@ void initialise_end_values(PrivateInputs<CT> const& private_inputs, KernelCircui
 
     end.private_call_stack = start.private_call_stack;
     end.public_call_stack = start.public_call_stack;
-    end.l1_msg_stack = start.l1_msg_stack;
+    end.new_l2_to_l1_msgs = start.new_l2_to_l1_msgs;
 
     // TODO
     end.new_contracts = start.new_contracts;
@@ -186,14 +186,14 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, KernelCircuitPub
     }
 
     // {
-    //     const auto& l1_msg_stack = private_call_public_inputs.l1_msg_stack;
-    //     std::array<CT::fr, L1_MSG_STACK_LENGTH> l1_call_stack;
+    //     const auto& new_l2_to_l1_msgs = private_call_public_inputs.new_l2_to_l1_msgs;
+    //     std::array<CT::fr, NEW_L2_TO_L1_MSGS_LENGTH> l1_call_stack;
 
-    //     for (size_t i = 0; i < l1_msg_stack.size(); ++i) {
+    //     for (size_t i = 0; i < new_l2_to_l1_msgs.size(); ++i) {
     //         l1_call_stack[i] = CT::fr::conditional_assign(
-    //             l1_msg_stack[i] == 0,
+    //             new_l2_to_l1_msgs[i] == 0,
     //             0,
-    //             CT::compress({ portal_contract_address, l1_msg_stack[i] }, GeneratorIndex::L1_MSG_STACK_ITEM));
+    //             CT::compress({ portal_contract_address, new_l2_to_l1_msgs[i] }, GeneratorIndex::L2_TO_L1_MSG));
     //     }
     // }
 }
@@ -259,7 +259,7 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
     // but we want to know "length" in terms of how many nonzero entries have been inserted
     CT::fr const start_private_call_stack_length = array_length<Composer>(start.private_call_stack);
     CT::fr const start_public_call_stack_length = array_length<Composer>(start.public_call_stack);
-    CT::fr const start_l1_msg_stack_length = array_length<Composer>(start.l1_msg_stack);
+    CT::fr const start_new_l2_to_l1_msgs_length = array_length<Composer>(start.new_l2_to_l1_msgs);
 
     // Recall: we can't do traditional `if` statements in a circuit; all code paths are always executed. The below is
     // some syntactic sugar, which seeks readability similar to an `if` statement.
@@ -270,7 +270,7 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
         // rebate can be paid.
         { start_private_call_stack_length == 1, "Private call stack must be length 1" },
         { start_public_call_stack_length == 0, "Public call stack must be empty" },
-        { start_l1_msg_stack_length == 0, "L1 msg stack must be empty" },
+        { start_new_l2_to_l1_msgs_length == 0, "L2 to L1 msgs must be empty" },
 
         { this_call_stack_item.public_inputs.call_context.is_delegate_call == false,
           "Users cannot make a delegatecall" },
