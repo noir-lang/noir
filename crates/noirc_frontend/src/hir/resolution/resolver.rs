@@ -1357,7 +1357,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain y == x;
+                assert(y == x);
             }
         "#;
 
@@ -1369,7 +1369,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain x == x;
+                assert(x == x);
             }
         "#;
 
@@ -1392,7 +1392,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain y == z;
+                assert(y == z);
             }
         "#;
 
@@ -1428,7 +1428,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = 5;
-                constrain y == x;
+                assert(y == x);
             }
         "#;
 

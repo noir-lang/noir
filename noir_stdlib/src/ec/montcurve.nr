@@ -82,13 +82,13 @@ mod affine {
         // Curve constructor
         fn new(j: Field, k: Field, gen: Point) -> Self {
             // Check curve coefficients
-            constrain k != 0;
-            constrain j*j != 4;
+            assert(k != 0);
+            assert(j*j != 4);
 
             let curve = Self {j, k, gen};
 
             // gen should be on the curve
-            constrain curve.contains(curve.gen);
+            assert(curve.contains(curve.gen));
 
             curve
         }
@@ -180,10 +180,10 @@ mod affine {
             let z = ZETA; // Non-square Field element required for map
             
             // Check whether curve is admissible
-            constrain j != 0;
+            assert(j != 0);
             let l = (j*j - 4)/(k*k);
-            constrain l != 0;
-            constrain is_square(l) == false;
+            assert(l != 0);
+            assert(is_square(l) == false);
 
             let x1 = safe_inverse(1+z*u*u)*(0 - (j/k));
             
@@ -284,13 +284,13 @@ mod curvegroup {
         // Curve constructor
         fn new(j: Field, k: Field, gen: Point) -> Self {
             // Check curve coefficients
-            constrain k != 0;
-            constrain j*j != 4;
+            assert(k != 0);
+            assert(j*j != 4);
 
             let curve = Self {j, k, gen};
 
             // gen should be on the curve
-            constrain curve.contains(curve.gen);
+            assert(curve.contains(curve.gen));
 
             curve
         }
