@@ -11,7 +11,7 @@ use nargo::artifacts::program::PreprocessedProgram;
 use nargo::ops::preprocess_program;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
@@ -34,26 +34,20 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         .circuit_name
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
-    let valid_proof = verify_with_path(
+    verify_with_path(
         &config.program_dir,
-        &proof_path,
+        proof_path,
         circuit_build_path.as_ref(),
         args.compile_options,
-    )?;
-
-    if valid_proof {
-        Ok(())
-    } else {
-        Err(CliError::InvalidProof(proof_path))
-    }
+    )
 }
 
 fn verify_with_path<P: AsRef<Path>>(
     program_dir: P,
-    proof_path: P,
+    proof_path: PathBuf,
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
-) -> Result<bool, CliError> {
+) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend::default();
 
     let preprocessed_program = match circuit_build_path {
@@ -78,5 +72,9 @@ fn verify_with_path<P: AsRef<Path>>(
     let valid_proof =
         nargo::ops::verify_proof(&backend, &bytecode, &proof, public_inputs, &verification_key)?;
 
-    Ok(valid_proof)
+    if valid_proof {
+        Ok(())
+    } else {
+        Err(CliError::InvalidProof(proof_path))
+    }
 }
