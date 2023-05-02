@@ -23,21 +23,36 @@ use std::{
 // Code in this file, will generate constraints without
 // using only the Evaluator and ACIR Expression types
 
+/// Multiplies together expressions `a` and `b`. This function potentially creates intermediate variables
+/// in the situation where `a` and `b` cannot be multiplied together directly, adding witnesses to the circuit.
+///
+/// Returns a new [`Expression`] with the value `a * b`.
 pub(crate) fn mul_with_witness(
     evaluator: &mut Evaluator,
     a: &Expression,
     b: &Expression,
 ) -> Expression {
+    let degree_a = degree(a);
+    let degree_b = degree(b);
+
+    // First check if we can perform multiplication directly. We can only do this if the degree of `a * b`
+    // is 2 or less, otherwise the product will not fit in an `Expression`.
+    if degree_a + degree_b <= 2 {
+        return mul(a, b);
+    }
+
+    // Otherwise we need to create a temporary variable to hold the value of either `a` or `b` (or both)
+    // and we then multiply using these temporary variables.
     let a_arith;
-    let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
+    let b_arith;
+    let a_arith = if degree_a == 2 {
         let a_witness = evaluator.create_intermediate_variable(a.clone());
         a_arith = Expression::from(a_witness);
         &a_arith
     } else {
         a
     };
-    let b_arith;
-    let b_arith = if !b.mul_terms.is_empty() && !a.is_const() {
+    let b_arith = if degree_b == 2 {
         if a == b {
             a_arith
         } else {
@@ -49,6 +64,17 @@ pub(crate) fn mul_with_witness(
         b
     };
     mul(a_arith, b_arith)
+}
+
+// TODO: implement `degree()` on `Expression`
+fn degree(expr: &Expression) -> u32 {
+    if expr.is_const() {
+        0
+    } else if expr.is_linear() {
+        1
+    } else {
+        2
+    }
 }
 
 //a*b
