@@ -4,11 +4,9 @@ title: Components
 
 <!-- TODO: Mike to edit. This is a copy of milestone1-1, which actually contained a comprehensive explanation of components (if we remove the json rpc command suggestions) -->
 
-:::caution
-We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
+import Disclaimer from './common/\_disclaimer.mdx';
 
-If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
-:::
+<Disclaimer/>
 
 You can track the development of these components in the [aztec3-packages repo](https://github.com/AztecProtocol/aztec3-packages/tree/master).
 
@@ -110,7 +108,7 @@ aztec.js should always be stateless. It offers the ability to interact with stat
 
 The analogous AC component would be the AztecSdk (wraps the CoreSdk which is more analogous to the private client).
 
-- Allows a user to create an Aztec3 keypair. Call `create_account` on Wallet.
+- Allows a user to create an Aztec keypair. Call `create_account` on Wallet.
 - Create a `Contract` instance (similar to web3.js), given a path to a Noir Contract ABI.
 - Construct `tx_request` by calling e.g. `contract.get_deployment_request(constructor_args)`.
 - Call wallet `sign_tx_request(tx_request)` to get signature.

@@ -20,5 +20,9 @@
     
 [[redirects]]
     from = "/aztec3"
-    to = "/aztec3/overview"    
+    to = "/aztec/overview"    
+
+[[redirects]]
+    from = "/aztec3"
+    to = "/aztec3/overview"   
  

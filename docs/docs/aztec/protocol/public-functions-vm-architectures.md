@@ -309,7 +309,7 @@ The Composer will be able to produce the program-specific components of the veri
 
 ## Validating VM programs
 
-When adding a contract to Aztec 3, we want to validate that the $T_I$ commitments are commitments to a published opcode stream.
+When adding a contract to Aztec, we want to validate that the $T_I$ commitments are commitments to a published opcode stream.
 
 We can do this efficiently in a custom circuit.
 

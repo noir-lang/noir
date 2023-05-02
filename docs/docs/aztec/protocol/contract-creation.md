@@ -12,7 +12,7 @@ import Disclaimer from '../common/\_disclaimer.mdx';
 
 Answer:
 
-- How are contracts represented in Aztec3?
+- How are contracts represented in Aztec?
 - How does a transaction deploy a contract?
 - How do we validate contract bytecode
 
@@ -42,9 +42,9 @@ Each contract's function data is stored in a Merkle tree, where each leaf contai
 
 We can take a leaf from Ethereum and make them the first 4 bytes of a hash of the function definition (defined according to the contract ABI, TBD).
 
-## Contract Representation in Aztec3
+## Contract Representation in Aztec
 
-Aztec3 contains a contract Merkle tree that stores all contract data (the contract tree).
+Aztec contains a contract Merkle tree that stores all contract data (the contract tree).
 
 Each leaf represents a contract, and contains a hash of the following:
 
@@ -69,7 +69,7 @@ L2 contracts can only call L1 contracts via its designated portal contract.
 
 L2 contracts can only be called _from_ L1 via calls from the portal contract.
 
-The goal is to simplify the domain knowledge required for A3 devs - all comms that go across the L2-L1 boundary must go via an L2 contract's respective portal contract.
+The goal is to simplify the domain knowledge required for Aztec devs - all comms that go across the L2-L1 boundary must go via an L2 contract's respective portal contract.
 
 Portal contracts also act as custodians for tokens while they are bridged into their respective L2 contract.
 
@@ -166,7 +166,7 @@ In order to link a `contractAddress`, with with a leafIndex in the `contractTree
 
 The `contractAddress` is stored within the contract's leaf of the `contractTree`, so that the private kernel circuit may validate contract address <--> vk relationships.
 
-> Aside: It would have been neat for a contract's address to be the leaf index of its mini Merkle tree (i.e. the root of the `vkTree`) in the`contractTree`. However, the leaf index is only known at the time the rollup provider runs the 'contract deployment kernel snark', whereas we need the contract address to be known earlier, at the time the deployer generates the private constructor proof. Without a contract address, the private constructor would not be able to: call other functions (and pass them a valid callContext); or [silo](https://github.com/AztecProtocol/aztec3-circuits/blob/master/specs/src/architecture/contracts/states-and-storage.md#preventing-private-state-collisions) newly created commitments.
+> Aside: It would have been neat for a contract's address to be the leaf index of its mini Merkle tree (i.e. the root of the `vkTree`) in the`contractTree`. However, the leaf index is only known at the time the rollup provider runs the 'contract deployment kernel snark', whereas we need the contract address to be known earlier, at the time the deployer generates the private constructor proof. Without a contract address, the private constructor would not be able to: call other functions (and pass them a valid callContext); or silo newly-created commitments.
 
 ## Deployment overview
 
