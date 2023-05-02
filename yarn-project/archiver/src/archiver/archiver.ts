@@ -299,7 +299,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
         new ContractData(AztecAddress.fromString(log.args.aztecAddress), EthAddress.fromString(log.args.portalAddress)),
         publicFnsReader.readVector(EncodedContractFunction),
       );
-      (this.contractPublicData[Number(l2BlockNum)] || []).push(contractData);
+      if (this.contractPublicData[Number(l2BlockNum)]) {
+        this.contractPublicData[Number(l2BlockNum)]?.push(contractData);
+      } else {
+        this.contractPublicData[Number(l2BlockNum)] = [contractData];
+      }
     }
     this.log('Processed contractData corresponding to ' + logs.length + ' blocks.');
   }
