@@ -115,7 +115,7 @@ impl InputValue {
 
                 InputValue::Field(new_value)
             }
-            TomlTypes::Bool(boolean) => InputValue::Field(FieldElement::from(boolean)),
+            TomlTypes::Bool(boolean) => InputValue::Field(boolean.into()),
             TomlTypes::ArrayNum(arr_num) => {
                 let array_elements =
                     vecmap(arr_num, |elem_num| FieldElement::from(i128::from(elem_num)));
