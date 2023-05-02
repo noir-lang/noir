@@ -7,8 +7,8 @@ fn main(x : Field)  {
     // The result of this byte array will be little-endian
     let le_byte_array = x.to_le_bytes(31);
     
-    constrain le_byte_array[0] == 60;
-    constrain le_byte_array[0] == be_byte_array[30];
-    constrain le_byte_array[1] == be_byte_array[29];
-    constrain le_byte_array[2] == be_byte_array[28];
+    assert(le_byte_array[0] == 60);
+    assert(le_byte_array[0] == be_byte_array[30]);
+    assert(le_byte_array[1] == be_byte_array[29]);
+    assert(le_byte_array[2] == be_byte_array[28]);
 }

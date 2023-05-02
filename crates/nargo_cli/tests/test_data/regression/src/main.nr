@@ -2,8 +2,8 @@ global NIBBLE_LENGTH: comptime Field = 16;
 
 fn compact_decode<N>(input: [u8; N], length: Field) -> ([u4; NIBBLE_LENGTH], Field)
 {
-    constrain 2*input.len() as u64 <= NIBBLE_LENGTH as u64;
-    constrain length as u64 <= input.len() as u64;
+    assert(2*input.len() as u64 <= NIBBLE_LENGTH as u64);
+    assert(length as u64 <= input.len() as u64);
     
     let mut nibble = [0 as u4; NIBBLE_LENGTH];
 
@@ -43,7 +43,7 @@ fn compact_decode<N>(input: [u8; N], length: Field) -> ([u4; NIBBLE_LENGTH], Fie
 
 fn enc<N>(value: [u8; N], value_length: Field) -> ([u8; 32], Field)
 {
-    constrain value.len() as u8 >= value_length as u8;
+    assert(value.len() as u8 >= value_length as u8);
     let mut out_value = [0; 32];
     if value_length == 0
     {
@@ -75,8 +75,8 @@ fn main(x: [u8; 5], z: Field)
 {
     //Issue 1144
 	let (nib, len) = compact_decode(x,z);
-	constrain len == 5;
-	constrain [nib[0], nib[1], nib[2], nib[3], nib[4]] == [15, 1, 12, 11, 8];
+	assert(len == 5);
+	assert([nib[0], nib[1], nib[2], nib[3], nib[4]] == [15, 1, 12, 11, 8]);
 
 
 }
@@ -96,6 +96,6 @@ fn enc_test()
 
     let enc_val1 = enc(val1,val1_length);
 
-    constrain enc_val1.0 == [0x94,0xb8,0x8f,0x61,0xe6,0xfb,0xda,0x83,0xfb,0xff,0xfa,0xbe,0x36,0x41,0x12,0x13,0x74,0x80,0x39,0x80,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00];
-    constrain enc_val1.1 == 21;
+    assert(enc_val1.0 == [0x94,0xb8,0x8f,0x61,0xe6,0xfb,0xda,0x83,0xfb,0xff,0xfa,0xbe,0x36,0x41,0x12,0x13,0x74,0x80,0x39,0x80,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]);
+    assert(enc_val1.1 == 21);
 }
