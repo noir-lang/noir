@@ -21,6 +21,7 @@ pub const ERROR_IDENT: &str = "$error";
 pub enum Statement {
     Let(LetStatement),
     Constrain(ConstrainStatement),
+    Assert(ConstrainStatement),
     Expression(Expression),
     Assign(AssignStatement),
     // This is an expression with a trailing semi-colon
@@ -54,6 +55,7 @@ impl Statement {
         match self {
             Statement::Let(_)
             | Statement::Constrain(_)
+            | Statement::Assert(_)
             | Statement::Assign(_)
             | Statement::Semi(_)
             | Statement::Error => {
@@ -391,6 +393,7 @@ impl Display for Statement {
         match self {
             Statement::Let(let_statement) => let_statement.fmt(f),
             Statement::Constrain(constrain) => constrain.fmt(f),
+            Statement::Assert(constrain) => constrain.fmt(f),
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{semi};"),

@@ -60,6 +60,8 @@ pub enum ResolverError {
     ParserError(ParserError),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
     ContractFunctionTypeInNormalFunction { span: Span },
+    #[error("The 'constrain' keyword has been depreciated in favour of 'assert'")]
+    ConstrainDepreciated { span: Span },
 }
 
 impl ResolverError {
@@ -256,6 +258,11 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::ContractFunctionTypeInNormalFunction { span } => Diagnostic::simple_error(
                 "Only functions defined within contracts can set their contract function type".into(),
                 "Non-contract functions cannot be 'open'".into(),
+                span,
+            ),
+            ResolverError::ConstrainDepreciated { span } => Diagnostic::simple_warning(
+                "The 'constrain' keyword has been depreciated in favour of 'assert'".into(),
+                "The 'constrain' keyword has been depreciated, and it now recommended to instead write constraints in form of assertions such as 'assert(some_condition);'. This depreciation can be ignored for the time being by compiling with the '--allow-warnings' flag.".into(),
                 span,
             ),
         }

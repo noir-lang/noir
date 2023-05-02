@@ -810,6 +810,11 @@ impl<'a> Resolver<'a> {
                 })
             }
             Statement::Constrain(constrain_stmt) => {
+                self.push_err(ResolverError::ConstrainDepreciated { span: constrain_stmt.0.span });
+                let expr_id = self.resolve_expression(constrain_stmt.0);
+                HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
+            }
+            Statement::Assert(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
                 HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
             }
