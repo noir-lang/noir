@@ -4,18 +4,30 @@ namespace crypto {
 namespace generators {
 namespace {
 
-// The number of unique base points with default main index with precomputed ladders
-#ifdef __wasm__
-constexpr size_t num_default_generators = 32;
+// Parameters for generator table construction
+struct GeneratorParameters {
+    size_t num_default_generators; // Number of unique base points with default main index with precomputed ladders
+    size_t num_hash_indices; // Number of unique hash indices
+    size_t num_generators_per_hash_index; // Number of generators per hash index
+    size_t hash_indices_generator_offset; // Offset for hash index generators
+};
+
+// Define BARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK to use custom values for generator parameters
+// This hack is to avoid breakage due to generators in aztec circuits while maintaining compatibility
+// with the barretenberg master.
+#ifdef BARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK
+constexpr GeneratorParameters GEN_PARAMS = {BARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK};
 #else
-constexpr size_t num_default_generators = 2048;
+#ifdef __wasm__
+constexpr GeneratorParameters GEN_PARAMS = {32, 16, 8, 2048};
+// TODO need to resolve memory out of bounds when these are too high
+#else
+constexpr GeneratorParameters GEN_PARAMS = {2048, 16, 8, 2048};
+#endif
 #endif
 
-constexpr size_t hash_indices_generator_offset = 2048;
-constexpr size_t num_hash_indices = 16;
-constexpr size_t num_generators_per_hash_index = 8;
-constexpr size_t num_indexed_generators = num_hash_indices * num_generators_per_hash_index;
-constexpr size_t size_of_generator_data_array = hash_indices_generator_offset + num_indexed_generators;
+constexpr size_t num_indexed_generators = GEN_PARAMS.num_hash_indices * GEN_PARAMS.num_generators_per_hash_index;
+constexpr size_t size_of_generator_data_array = GEN_PARAMS.hash_indices_generator_offset + num_indexed_generators;
 constexpr size_t num_generator_types = 3;
 
 ladder_t g1_ladder;
@@ -212,11 +224,11 @@ std::vector<std::unique_ptr<generator_data>> const& init_generator_data()
 
     global_generator_data.resize(size_of_generator_data_array);
 
-    for (size_t i = 0; i < num_default_generators; i++) {
+    for (size_t i = 0; i < GEN_PARAMS.num_default_generators; i++) {
         global_generator_data[i] = compute_generator_data(generators[i], aux_generators[i], skew_generators[i]);
     }
 
-    for (size_t i = hash_indices_generator_offset; i < size_of_generator_data_array; i++) {
+    for (size_t i = GEN_PARAMS.hash_indices_generator_offset; i < size_of_generator_data_array; i++) {
         global_generator_data[i] = compute_generator_data(generators[i], aux_generators[i], skew_generators[i]);
     }
 
@@ -260,12 +272,12 @@ generator_data const& get_generator_data(generator_index_t index)
 {
     auto& global_generator_data = init_generator_data();
     if (index.index == 0) {
-        ASSERT(index.sub_index < num_default_generators);
+        ASSERT(index.sub_index < GEN_PARAMS.num_default_generators);
         return *global_generator_data[index.sub_index];
     }
-    ASSERT(index.index <= num_hash_indices);
-    ASSERT(index.sub_index < num_generators_per_hash_index);
-    return *global_generator_data[hash_indices_generator_offset + ((index.index - 1) * num_generators_per_hash_index) +
+    ASSERT(index.index <= GEN_PARAMS.num_hash_indices);
+    ASSERT(index.sub_index < GEN_PARAMS.num_generators_per_hash_index);
+    return *global_generator_data[GEN_PARAMS.hash_indices_generator_offset + ((index.index - 1) * GEN_PARAMS.num_generators_per_hash_index) +
                                   index.sub_index];
 }
 
