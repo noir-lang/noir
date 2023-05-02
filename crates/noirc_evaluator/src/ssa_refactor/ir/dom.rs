@@ -179,7 +179,7 @@ impl DominatorTree {
         // Get an iterator with just the reachable, already visited predecessors to `block_id`.
         // Note that during the first pass `node` was pre-populated with all reachable blocks.
         let mut reachable_preds =
-            cfg.pred_iter(block_id).filter(|pred_id| self.nodes.contains_key(pred_id));
+            cfg.predecessors(block_id).filter(|pred_id| self.nodes.contains_key(pred_id));
 
         // This function isn't called on unreachable blocks or the entry block, so the reverse
         // post-order will contain at least one predecessor to this block.
