@@ -12,7 +12,7 @@ pub(crate) type ValueId = Id<Value>;
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
@@ -47,6 +47,7 @@ pub(crate) enum Value {
 }
 
 impl Value {
+    /// Retrieves the type of this Value
     pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Instruction { typ, .. } => *typ,

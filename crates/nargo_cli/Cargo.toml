@@ -37,8 +37,7 @@ termcolor = "1.1.2"
 color-eyre = "0.6.2"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "e3d4504f15e1295e637c4da80b1d08c87c267c45" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "e3d4504f15e1295e637c4da80b1d08c87c267c45" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/aztec_backend", rev = "c9fb9e806f1400a2ff7594a0669bec56025220bb", default-features=false }
 
 [dev-dependencies]
 tempdir = "0.3.7"
@@ -49,6 +48,6 @@ predicates = "2.1.5"
 [features]
 default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
-plonk_bn254 = ["aztec_backend"]
-plonk_bn254_wasm = ["aztec_wasm_backend"]
+plonk_bn254 = ["acvm-backend-barretenberg/native"]
+plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
 

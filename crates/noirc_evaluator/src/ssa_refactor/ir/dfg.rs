@@ -15,34 +15,10 @@ use super::{
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
-#[derive(Debug, Default)]
-/// A convenience wrapper to store `Value`s.
-pub(crate) struct ValueList(Vec<Id<Value>>);
-
-impl ValueList {
-    /// Inserts an element to the back of the list and
-    /// returns the `position`
-    pub(crate) fn push(&mut self, value: ValueId) -> usize {
-        self.0.push(value);
-        self.len() - 1
-    }
-
-    /// Returns the number of values in the list.
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Removes all items from the list.
-    fn clear(&mut self) {
-        self.0.clear();
-    }
-
-    /// Returns the ValueId's as a slice.
-    pub(crate) fn as_slice(&self) -> &[ValueId] {
-        &self.0
-    }
-}
-
+/// The DataFlowGraph contains most of the actual data in a function including
+/// its blocks, instructions, and values. This struct is largely responsible for
+/// owning most data in a function and handing out Ids to this data that can be
+/// shared without worrying about ownership.
 #[derive(Debug, Default)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
@@ -57,7 +33,7 @@ pub(crate) struct DataFlowGraph {
     /// Currently, we need to define them in a better way
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
-    results: HashMap<InstructionId, ValueList>,
+    results: HashMap<InstructionId, Vec<ValueId>>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -243,8 +219,7 @@ impl DataFlowGraph {
         });
 
         // Add value to the list of results for this instruction
-        let actual_res_position = results.push(value_id);
-        assert_eq!(actual_res_position, expected_res_position);
+        results.push(value_id);
         value_id
     }
 
@@ -259,6 +234,7 @@ impl DataFlowGraph {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
     }
 
+    /// Add a parameter to the given block
     pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> Id<Value> {
         let block = &mut self.blocks[block_id];
         let position = block.parameters().len();
@@ -267,6 +243,8 @@ impl DataFlowGraph {
         parameter
     }
 
+    /// Insert an instruction at the end of a given block.
+    /// If the block already has a terminator, the instruction is inserted before the terminator.
     pub(crate) fn insert_instruction_in_block(
         &mut self,
         block: BasicBlockId,

@@ -30,7 +30,7 @@ pub(crate) struct CompileCommand {
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let circuit_dir = config.program_dir.join(TARGET_DIR);
 
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {

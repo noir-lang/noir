@@ -8,7 +8,10 @@ use crate::ssa_refactor::ir::{
     value::{Value, ValueId},
 };
 
-use super::{ir::instruction::Intrinsic, ssa_gen::Ssa};
+use super::{
+    ir::instruction::{InstructionId, Intrinsic},
+    ssa_gen::Ssa,
+};
 
 /// The per-function context for each ssa function being generated.
 ///
@@ -18,12 +21,16 @@ use super::{ir::instruction::Intrinsic, ssa_gen::Ssa};
 /// Contrary to the name, this struct has the capacity to build as many
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder {
-    current_function: Function,
+    pub(super) current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
 }
 
 impl FunctionBuilder {
+    /// Creates a new FunctionBuilder to build the function with the given FunctionId.
+    ///
+    /// This creates the new function internally so there is no need to call .new_function()
+    /// right after constructing a new FunctionBuilder.
     pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
         let new_function = Function::new(function_name, function_id);
         let current_block = new_function.entry_block();
@@ -31,7 +38,11 @@ impl FunctionBuilder {
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }
     }
 
-    /// Finish the current function and create a new function
+    /// Finish the current function and create a new function.
+    ///
+    /// A FunctionBuilder can always only work on one function at a time, so care
+    /// should be taken not to finish a function that is still in progress by calling
+    /// new_function before the current function is finished.
     pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
         let new_function = Function::new(name, function_id);
         self.current_block = new_function.entry_block();
@@ -40,11 +51,14 @@ impl FunctionBuilder {
         self.finished_functions.push(old_function);
     }
 
+    /// Consume the FunctionBuilder returning all the functions it has generated.
     pub(crate) fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
         Ssa::new(self.finished_functions)
     }
 
+    /// Add a parameter to the current function with the given parameter type.
+    /// Returns the newly-added parameter.
     pub(crate) fn add_parameter(&mut self, typ: Type) -> ValueId {
         let entry = self.current_function.entry_block();
         self.current_function.dfg.add_block_parameter(entry, typ)
@@ -64,14 +78,19 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
+    /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
         self.current_function.dfg.type_of_value(value)
     }
 
+    /// Insert a new block into the current function and return it.
+    /// Note that this block is unreachable until another block is set to jump to it.
     pub(crate) fn insert_block(&mut self) -> BasicBlockId {
         self.current_function.dfg.make_block()
     }
 
+    /// Adds a parameter with the given type to the given block.
+    /// Returns the newly-added parameter.
     pub(crate) fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> ValueId {
         self.current_function.dfg.add_block_parameter(block, typ)
     }
@@ -114,12 +133,7 @@ impl FunctionBuilder {
         offset: ValueId,
         type_to_load: Type,
     ) -> ValueId {
-        if let Some(offset) = self.current_function.dfg.get_numeric_constant(offset) {
-            if !offset.is_zero() {
-                let offset = self.field_constant(offset);
-                address = self.insert_binary(address, BinaryOp::Add, offset);
-            }
-        };
+        address = self.insert_binary(address, BinaryOp::Add, offset);
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]))[0]
     }
 
@@ -205,32 +219,6 @@ impl FunctionBuilder {
         self.terminate_block_with(TerminatorInstruction::Return { return_values });
     }
 
-    /// Mutates a load instruction into a store instruction.
-    ///
-    /// This function is used while generating ssa-form for assignments currently.
-    /// To re-use most of the expression infrastructure, the lvalue of an assignment
-    /// is compiled as an expression and to assign to it we replace the final load
-    /// (which should always be present to load a mutable value) with a store of the
-    /// assigned value.
-    pub(crate) fn mutate_load_into_store(&mut self, load_result: ValueId, value_to_store: ValueId) {
-        let (instruction, address) = match &self.current_function.dfg[load_result] {
-            Value::Instruction { instruction, .. } => {
-                match &self.current_function.dfg[*instruction] {
-                    Instruction::Load { address } => (*instruction, *address),
-                    other => {
-                        panic!("mutate_load_into_store: Expected Load instruction, found {other:?}")
-                    }
-                }
-            }
-            other => panic!("mutate_load_into_store: Expected Load instruction, found {other:?}"),
-        };
-
-        let store = Instruction::Store { address, value: value_to_store };
-        self.current_function.dfg.replace_instruction(instruction, store);
-        // Clear the results of the previous load for safety
-        self.current_function.dfg.make_instruction_results(instruction, None);
-    }
-
     /// Returns a ValueId pointing to the given function or imports the function
     /// into the current function if it was not already, and returns that ID.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
@@ -242,5 +230,26 @@ impl FunctionBuilder {
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
         Intrinsic::lookup(name)
             .map(|intrinsic| self.current_function.dfg.import_intrinsic(intrinsic))
+    }
+
+    /// Removes the given instruction from the current block or panics otherwise.
+    pub(crate) fn remove_instruction_from_current_block(&mut self, instruction: InstructionId) {
+        self.current_function.dfg[self.current_block].remove_instruction(instruction);
+    }
+}
+
+impl std::ops::Index<ValueId> for FunctionBuilder {
+    type Output = Value;
+
+    fn index(&self, id: ValueId) -> &Self::Output {
+        &self.current_function.dfg[id]
+    }
+}
+
+impl std::ops::Index<InstructionId> for FunctionBuilder {
+    type Output = Instruction;
+
+    fn index(&self, id: InstructionId) -> &Self::Output {
+        &self.current_function.dfg[id]
     }
 }
