@@ -35,25 +35,26 @@ pub(crate) fn mul_with_witness(
     let degree_a = degree(a);
     let degree_b = degree(b);
 
-    // First check if we can perform multiplication directly. We can only do this if the degree of `a * b`
-    // is 2 or less, otherwise the product will not fit in an `Expression`.
-    if degree_a + degree_b <= 2 {
-        return mul(a, b);
-    }
-
-    // Otherwise we need to create a temporary variable to hold the value of either `a` or `b` (or both)
-    // and we then multiply using these temporary variables.
     let a_arith;
     let b_arith;
-    let a_arith = if degree_a == 2 {
+
+    // We can only multiply `a` and `b` directly if the degree of `a * b` is 2 or less,
+    // otherwise the product will not fit in an `Expression`. We can reduce degree 2 expressions
+    // to degree 1 by using an intermediate variable to hold the result.
+
+    // If we need to reduce `a`'s degree for `a * b` to be degree 2 then create an intermediate variable.
+    let a_arith = if degree_a == 2 && degree_b >= 1 {
         let a_witness = evaluator.create_intermediate_variable(a.clone());
         a_arith = Expression::from(a_witness);
         &a_arith
     } else {
         a
     };
-    let b_arith = if degree_b == 2 {
+
+    // Do the same for `b`.
+    let b_arith = if degree_b == 2 && degree_a >= 1 {
         if a == b {
+            // Reuse `a`'s temporary variable if possible.
             a_arith
         } else {
             let b_witness = evaluator.create_intermediate_variable(b.clone());
