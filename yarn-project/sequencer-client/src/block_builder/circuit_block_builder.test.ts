@@ -1,7 +1,6 @@
 import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
-  BaseRollupInputs,
   CircuitsWasm,
   Fr,
   KernelCircuitPublicInputs,
@@ -44,7 +43,7 @@ import { CircuitBlockBuilder } from './circuit_block_builder.js';
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 describe('sequencer/circuit_block_builder', () => {
-  let builder: TestSubject;
+  let builder: CircuitBlockBuilder;
   let builderDb: MerkleTreeOperations;
   let expectsDb: MerkleTreeOperations;
   let vks: VerificationKeys;
@@ -72,11 +71,7 @@ describe('sequencer/circuit_block_builder', () => {
     vks = getVerificationKeys();
     simulator = mock<RollupSimulator>();
     prover = mock<RollupProver>();
-    builder = new TestSubject(builderDb, vks, simulator, prover);
-
-    // Populate root trees with first roots from the empty trees
-    // TODO: Should this be responsibility of the MerkleTreeDb init?
-    await updateRootTrees();
+    builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
 
     // Create mock outputs for simualator
     baseRollupOutputLeft = makeBaseRollupPublicInputs();
@@ -95,16 +90,6 @@ describe('sequencer/circuit_block_builder', () => {
   const makeEmptyProcessedTx = async () => {
     const historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
     return makeEmptyProcessedTxFromHistoricTreeRoots(historicTreeRoots);
-  };
-
-  const updateRootTrees = async () => {
-    for (const [newTree, rootTree] of [
-      [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
-      [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
-    ] as const) {
-      const newTreeInfo = await expectsDb.getTreeInfo(newTree);
-      await expectsDb.appendLeaves(rootTree, [newTreeInfo.root]);
-    }
   };
 
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
@@ -130,8 +115,7 @@ describe('sequencer/circuit_block_builder', () => {
   describe('mock simulator', () => {
     it('builds an L2 block using mock simulator', async () => {
       // Create instance to test
-      builder = new TestSubject(builderDb, vks, simulator, prover);
-      await builder.updateRootTrees();
+      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
 
       // Assemble a fake transaction
       const kernelOutput = makeKernelPublicInputs();
@@ -156,7 +140,7 @@ describe('sequencer/circuit_block_builder', () => {
       baseRollupOutputRight.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
 
       // And update the root trees now to create proper output to the root rollup circuit
-      await updateRootTrees();
+      await expectsDb.updateRootsTrees();
       rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
       rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
@@ -186,7 +170,7 @@ describe('sequencer/circuit_block_builder', () => {
       const leaves = nullifiers.map(i => toBufferBE(BigInt(i), 32));
       await expectsDb.appendLeaves(MerkleTreeId.NULLIFIER_TREE, leaves);
 
-      builder = new TestSubject(builderDb, vks, simulator, prover);
+      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
 
       await builder.performBaseRollupBatchInsertionProofs(leaves);
 
@@ -200,8 +184,7 @@ describe('sequencer/circuit_block_builder', () => {
     beforeEach(async () => {
       const simulator = await WasmRollupCircuitSimulator.new();
       const prover = new EmptyRollupProver();
-      builder = new TestSubject(builderDb, vks, simulator, prover);
-      await builder.updateRootTrees();
+      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
     });
 
     const makeContractDeployProcessedTx = async (seed = 0x1) => {
@@ -270,7 +253,7 @@ describe('sequencer/circuit_block_builder', () => {
     it('e2e_zk_token edge case regression test on nullifier values', async () => {
       const simulator = await WasmRollupCircuitSimulator.new();
       const prover = new EmptyRollupProver();
-      builder = new TestSubject(builderDb, vks, simulator, prover);
+      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
       // update the starting tree
       const updateVals = Array(16).fill(0n);
       updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
@@ -296,14 +279,3 @@ describe('sequencer/circuit_block_builder', () => {
     }, 10000);
   });
 });
-
-// Test subject class that exposes internal functions for testing
-class TestSubject extends CircuitBlockBuilder {
-  public buildBaseRollupInput(tx1: ProcessedTx, tx2: ProcessedTx): Promise<BaseRollupInputs> {
-    return super.buildBaseRollupInput(tx1, tx2);
-  }
-
-  public updateRootTrees(): Promise<void> {
-    return super.updateRootTrees();
-  }
-}

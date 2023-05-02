@@ -167,14 +167,7 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
         await this.merkleTreeDb.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, newValue.toBuffer(), leafIndex.value);
       }
 
-      for (const [newTree, rootTree] of [
-        [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
-        [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
-      ] as const) {
-        const newTreeInfo = await this.merkleTreeDb.getTreeInfo(newTree, true);
-        await this.merkleTreeDb.appendLeaves(rootTree, [newTreeInfo.root]);
-      }
-
+      await this.merkleTreeDb.updateRootsTrees(true);
       await this.merkleTreeDb.commit();
     }
     this.currentL2BlockNum = l2Block.number;

@@ -1,11 +1,21 @@
 import { Archiver } from '@aztec/archiver';
+import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { AztecAddress, Fr } from '@aztec/foundation';
-import { ContractPublicData, ContractData, ContractDataSource, L2Block, L2BlockSource } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { P2P, P2PClient } from '@aztec/p2p';
 import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
-import { Tx, TxHash } from '@aztec/types';
-import { UnverifiedData, UnverifiedDataSource } from '@aztec/types';
+import {
+  ContractData,
+  ContractDataSource,
+  ContractPublicData,
+  L2Block,
+  L2BlockSource,
+  Tx,
+  TxHash,
+  UnverifiedData,
+  UnverifiedDataSource,
+} from '@aztec/types';
 import {
   MerkleTreeId,
   MerkleTrees,
@@ -14,10 +24,8 @@ import {
   computePublicDataTreeLeafIndex,
 } from '@aztec/world-state';
 import { default as levelup } from 'levelup';
-import { default as memdown, MemDown } from 'memdown';
+import { MemDown, default as memdown } from 'memdown';
 import { AztecNodeConfig } from './config.js';
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -50,14 +58,6 @@ export class AztecNode {
     // now create the merkle trees and the world state syncher
     const merkleTreeDB = await MerkleTrees.new(levelup(createMemDown()), await CircuitsWasm.get());
 
-    // TODO: refactor, this should only be done on empty initial trees
-    for (const [newTree, rootTree] of [
-      [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
-      [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
-    ] as const) {
-      const newTreeInfo = await merkleTreeDB.getTreeInfo(newTree, true);
-      await merkleTreeDB.appendLeaves(rootTree, [newTreeInfo.root]);
-    }
     const worldStateSynchroniser = new ServerWorldStateSynchroniser(merkleTreeDB, archiver);
 
     // start both and wait for them to sync from the block source

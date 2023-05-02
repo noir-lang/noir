@@ -81,6 +81,7 @@ describe('server_world_state_synchroniser', () => {
         SiblingPath.ZERO(32, INITIAL_LEAF, pedersen);
       }; //Promise.resolve();
     }),
+    updateRootsTrees: jest.fn().mockImplementation(() => Promise.resolve()),
     commit: jest.fn().mockImplementation(() => Promise.resolve()),
     rollback: jest.fn().mockImplementation(() => Promise.resolve()),
   } as any;
@@ -230,6 +231,7 @@ describe('server_world_state_synchroniser', () => {
 
   it('updates the contract tree', async () => {
     merkleTreeDb.appendLeaves.mockReset();
+    merkleTreeDb.updateRootsTrees.mockReset();
     const server = createSynchroniser(merkleTreeDb, rollupSource);
     const totalBlocks = LATEST_BLOCK_NUMBER + 1;
     nextBlocks = Array(totalBlocks)
@@ -237,8 +239,10 @@ describe('server_world_state_synchroniser', () => {
       .map((_, index) => getMockBlock(index, [Buffer.alloc(32, index)]));
     // sync the server
     await server.start();
-    // there are 5 trees updated
-    expect(merkleTreeDb.appendLeaves).toHaveBeenCalledTimes(totalBlocks * 5);
+    // there are 3 data trees updated
+    expect(merkleTreeDb.appendLeaves).toHaveBeenCalledTimes(totalBlocks * 3);
+    // and 2 root trees
+    expect(merkleTreeDb.updateRootsTrees).toHaveBeenCalledTimes(totalBlocks);
     // there should be a call to append to the contract tree for each block
     for (let i = 0; i < totalBlocks; i++) {
       expect(

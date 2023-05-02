@@ -252,21 +252,10 @@ export class CircuitBlockBuilder implements BlockBuilder {
     // Update the root trees with the latest data and contract tree roots,
     // and validate them against the output of the root circuit simulation
     this.debug(`Updating and validating root trees`);
-    await this.updateRootTrees();
+    await this.db.updateRootsTrees();
     await this.validateRootOutput(rootOutput);
 
     return [rootOutput, rootProof];
-  }
-
-  // Updates our roots trees with the new generated trees after the rollup updates
-  protected async updateRootTrees() {
-    for (const [newTree, rootTree] of [
-      [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
-      [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
-    ] as const) {
-      const newTreeInfo = await this.db.getTreeInfo(newTree);
-      await this.db.appendLeaves(rootTree, [newTreeInfo.root]);
-    }
   }
 
   // Validate that the new roots we calculated from manual insertions match the outputs of the simulation

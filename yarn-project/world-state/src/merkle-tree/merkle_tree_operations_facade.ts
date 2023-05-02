@@ -101,4 +101,13 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
   getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined> {
     return this.trees.getLeafValue(treeId, index, this.includeUncommitted);
   }
+
+  /**
+   * Inserts into the roots trees (CONTRACT_TREE_ROOTS_TREE, PRIVATE_DATA_TREE_ROOTS_TREE)
+   * the current roots of the corresponding trees (CONTRACT_TREE, PRIVATE_DATA_TREE).
+   * @returns Empty promise.
+   */
+  public updateRootsTrees(): Promise<void> {
+    return this.trees.updateRootsTrees(this.includeUncommitted);
+  }
 }
