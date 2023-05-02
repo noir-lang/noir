@@ -27,7 +27,7 @@ compiler_version = "{CARGO_PKG_VERSION}"
 );
 
 const EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
-    constrain x != y;
+    assert(x != y);
 }
 
 #[test]

@@ -81,12 +81,12 @@ mod affine {
         // Curve constructor
         fn new(a: Field, d: Field, gen: Point) -> Curve {
             // Check curve coefficients
-            constrain a*d*(a-d) != 0;
+            assert(a*d*(a-d) != 0);
             
 	    let curve = Curve {a, d, gen};
 
             // gen should be on the curve
-            constrain curve.contains(curve.gen);
+            assert(curve.contains(curve.gen));
 
             curve
         }
@@ -286,12 +286,12 @@ mod curvegroup {
         // Curve constructor
         fn new(a: Field, d: Field, gen: Point) -> Curve {
             // Check curve coefficients
-            constrain a*d*(a-d) != 0;
+            assert(a*d*(a-d) != 0);
             
 	    let curve = Curve { a, d, gen };
 
             // gen should be on the curve
-            constrain curve.contains(curve.gen);
+            assert(curve.contains(curve.gen));
 
             curve
         }
