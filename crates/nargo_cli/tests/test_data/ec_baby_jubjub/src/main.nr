@@ -23,13 +23,21 @@ fn main() {
         let p2_affine = Gaffine::new(16540640123574156134436876038791482806971768689494387082833631921987005038935, 20819045374670962167435360035096875258406992893633759881276124905556507972311);
         
         let p3_affine = bjj_affine.add(p1_affine, p2_affine);
-        constrain p3_affine.eq(Gaffine::new(7916061937171219682591368294088513039687205273691143098332585753343424131937,
-                                            14035240266687799601661095864649209771790948434046947201833777492504781204499));
+        assert(
+            p3_affine.eq(Gaffine::new(
+                7916061937171219682591368294088513039687205273691143098332585753343424131937,
+                14035240266687799601661095864649209771790948434046947201833777492504781204499
+            ))
+        );
 
         // Test scalar multiplication
         let p4_affine = bjj_affine.mul(2, p1_affine);
-        constrain p4_affine.eq(Gaffine::new(6890855772600357754907169075114257697580319025794532037257385534741338397365,
-                                            4338620300185947561074059802482547481416142213883829469920100239455078257889));
+        assert(
+            p4_affine.eq(Gaffine::new(
+                6890855772600357754907169075114257697580319025794532037257385534741338397365,
+                4338620300185947561074059802482547481416142213883829469920100239455078257889
+            ))
+        );
         assert(p4_affine.eq(bjj_affine.bit_mul([0,1], p1_affine)));
 
         // Test subtraction
@@ -37,12 +45,14 @@ fn main() {
         assert(p5_affine.eq(Gaffine::zero()));
 
         // Check that these points are on the curve
-        constrain bjj_affine.contains(bjj_affine.gen)
-            & bjj_affine.contains(p1_affine)
-            & bjj_affine.contains(p2_affine)
-            & bjj_affine.contains(p3_affine)
-            & bjj_affine.contains(p4_affine)
-            & bjj_affine.contains(p5_affine);
+        assert(
+            bjj_affine.contains(bjj_affine.gen) &
+            bjj_affine.contains(p1_affine) &
+            bjj_affine.contains(p2_affine) &
+            bjj_affine.contains(p3_affine) &
+            bjj_affine.contains(p4_affine) &
+            bjj_affine.contains(p5_affine)
+        );
         
         // Test CurveGroup equivalents
         let bjj = bjj_affine.into_group(); // Baby Jubjub
@@ -65,12 +75,14 @@ fn main() {
         assert(p5.eq(G::zero()));
 
         // Check that these points are on the curve
-        constrain bjj.contains(bjj.gen)
-            & bjj.contains(p1)
-            & bjj.contains(p2)
-            & bjj.contains(p3)
-            & bjj.contains(p4)
-            & bjj.contains(p5);
+        assert(
+            bjj.contains(bjj.gen) &
+            bjj.contains(p1) &
+            bjj.contains(p2) &
+            bjj.contains(p3) &
+            bjj.contains(p4) &
+            bjj.contains(p5)
+        );
         
         // Test SWCurve equivalents of the above
         // First the affine representation
@@ -83,10 +95,14 @@ fn main() {
         let p5_swcurve_affine = bjj_affine.map_into_swcurve(p5_affine);
         
         // Addition
-        constrain p3_swcurve_affine.eq(
-            bjj_swcurve_affine.add(
-            p1_swcurve_affine,
-            p2_swcurve_affine));
+        assert(
+            p3_swcurve_affine.eq(
+                bjj_swcurve_affine.add(
+                p1_swcurve_affine,
+                p2_swcurve_affine
+                )
+            )
+        );
         
         // Doubling
         assert(p4_swcurve_affine.eq(bjj_swcurve_affine.mul(2, p1_swcurve_affine)));
@@ -97,12 +113,14 @@ fn main() {
         assert(p5_swcurve_affine.eq(SWGaffine::zero()));
 
         // Check that these points are on the curve
-        constrain bjj_swcurve_affine.contains(bjj_swcurve_affine.gen)
-            & bjj_swcurve_affine.contains(p1_swcurve_affine)
-            & bjj_swcurve_affine.contains(p2_swcurve_affine)
-            & bjj_swcurve_affine.contains(p3_swcurve_affine)
-            & bjj_swcurve_affine.contains(p4_swcurve_affine)
-            & bjj_swcurve_affine.contains(p5_swcurve_affine);
+        assert(
+            bjj_swcurve_affine.contains(bjj_swcurve_affine.gen) &
+            bjj_swcurve_affine.contains(p1_swcurve_affine) &
+            bjj_swcurve_affine.contains(p2_swcurve_affine) &
+            bjj_swcurve_affine.contains(p3_swcurve_affine) &
+            bjj_swcurve_affine.contains(p4_swcurve_affine) &
+            bjj_swcurve_affine.contains(p5_swcurve_affine)
+        );
         
         // Then the CurveGroup representation
         let bjj_swcurve = bjj.into_swcurve();
@@ -114,10 +132,7 @@ fn main() {
         let p5_swcurve = bjj.map_into_swcurve(p5);
         
         // Addition
-        constrain p3_swcurve.eq(
-            bjj_swcurve.add(
-                p1_swcurve,
-                p2_swcurve));
+        assert(p3_swcurve.eq(bjj_swcurve.add(p1_swcurve,p2_swcurve)));
         
         // Doubling
         assert(p4_swcurve.eq(bjj_swcurve.mul(2, p1_swcurve)));
@@ -128,12 +143,14 @@ fn main() {
         assert(p5_swcurve.eq(SWG::zero()));
 
         // Check that these points are on the curve
-        constrain bjj_swcurve.contains(bjj_swcurve.gen)
-            & bjj_swcurve.contains(p1_swcurve)
-            & bjj_swcurve.contains(p2_swcurve)
-            & bjj_swcurve.contains(p3_swcurve)
-            & bjj_swcurve.contains(p4_swcurve)
-            & bjj_swcurve.contains(p5_swcurve);
+        assert(
+            bjj_swcurve.contains(bjj_swcurve.gen) &
+            bjj_swcurve.contains(p1_swcurve) &
+            bjj_swcurve.contains(p2_swcurve) &
+            bjj_swcurve.contains(p3_swcurve) &
+            bjj_swcurve.contains(p4_swcurve) &
+            bjj_swcurve.contains(p5_swcurve)
+        );
 
         // Test MontCurve conversions
         // First the affine representation
@@ -146,10 +163,7 @@ fn main() {
         let p5_montcurve_affine = p5_affine.into_montcurve();
         
         // Addition
-        constrain p3_montcurve_affine.eq(
-            bjj_montcurve_affine.add(
-                p1_montcurve_affine,
-                p2_montcurve_affine));
+        assert(p3_montcurve_affine.eq(bjj_montcurve_affine.add(p1_montcurve_affine, p2_montcurve_affine)));
         
         // Doubling
         assert(p4_montcurve_affine.eq(bjj_montcurve_affine.mul(2, p1_montcurve_affine)));
@@ -160,12 +174,14 @@ fn main() {
         assert(p5_montcurve_affine.eq(MGaffine::zero()));
 
         // Check that these points are on the curve
-        constrain bjj_montcurve_affine.contains(bjj_montcurve_affine.gen)
-            & bjj_montcurve_affine.contains(p1_montcurve_affine)
-            & bjj_montcurve_affine.contains(p2_montcurve_affine)
-            & bjj_montcurve_affine.contains(p3_montcurve_affine)
-            & bjj_montcurve_affine.contains(p4_montcurve_affine)
-            & bjj_montcurve_affine.contains(p5_montcurve_affine);
+        assert(
+            bjj_montcurve_affine.contains(bjj_montcurve_affine.gen) &
+            bjj_montcurve_affine.contains(p1_montcurve_affine) &
+            bjj_montcurve_affine.contains(p2_montcurve_affine) &
+            bjj_montcurve_affine.contains(p3_montcurve_affine) &
+            bjj_montcurve_affine.contains(p4_montcurve_affine) &
+            bjj_montcurve_affine.contains(p5_montcurve_affine)
+        );
 
         // Then the CurveGroup representation
         let bjj_montcurve = bjj.into_montcurve();
@@ -177,11 +193,8 @@ fn main() {
         let p5_montcurve = p5_montcurve_affine.into_group();
         
         // Addition
-        constrain p3_montcurve.eq(
-            bjj_montcurve.add(
-                p1_montcurve,
-                p2_montcurve));
-        
+        assert(p3_montcurve.eq(bjj_montcurve.add(p1_montcurve, p2_montcurve)));
+
         // Doubling
         assert(p4_montcurve.eq(bjj_montcurve.mul(2, p1_montcurve)));
         assert(p4_montcurve.eq(bjj_montcurve.bit_mul([0,1], p1_montcurve)));
@@ -191,12 +204,14 @@ fn main() {
         assert(p5_montcurve.eq(MG::zero()));
 
         // Check that these points are on the curve
-        constrain bjj_montcurve.contains(bjj_montcurve.gen)
-            & bjj_montcurve.contains(p1_montcurve)
-            & bjj_montcurve.contains(p2_montcurve)
-            & bjj_montcurve.contains(p3_montcurve)
-            & bjj_montcurve.contains(p4_montcurve)
-            & bjj_montcurve.contains(p5_montcurve);
+        assert(
+            bjj_montcurve.contains(bjj_montcurve.gen) &
+            bjj_montcurve.contains(p1_montcurve) &
+            bjj_montcurve.contains(p2_montcurve) &
+            bjj_montcurve.contains(p3_montcurve) &
+            bjj_montcurve.contains(p4_montcurve) &
+            bjj_montcurve.contains(p5_montcurve)
+        );
         
         // Elligator 2 map-to-curve
         let ell2_pt_map = bjj_affine.elligator2_map(27);

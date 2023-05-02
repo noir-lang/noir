@@ -48,5 +48,5 @@ fn main(x: Field, y: Field) {
     assert(bar1.get_other() == bar1.other);
 
     // Expected type error
-    // constrain bar2.get_other() == bar2.other;
+    // assert(bar2.get_other() == bar2.other);
 }
