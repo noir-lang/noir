@@ -1,6 +1,5 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use noirc_abi::InputMap;
 use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 

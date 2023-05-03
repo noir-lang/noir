@@ -7,7 +7,25 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
+use noirc_frontend::monomorphization::ast::Program;
+
+use self::acir_gen::Acir;
+
+mod acir_gen;
 mod ir;
 mod opt;
 mod ssa_builder;
 pub mod ssa_gen;
+
+/// Optimize the given program by converting it into SSA
+/// form and performing optimizations there. When finished,
+/// convert the final SSA into ACIR and return it.
+pub fn optimize_into_acir(program: Program) -> Acir {
+    let ssa = ssa_gen::generate_ssa(program);
+    println!("Initial ssa: {ssa}");
+
+    let ssa = ssa.inline_functions();
+    println!("After inlining: {ssa}");
+
+    ssa.into_acir()
+}

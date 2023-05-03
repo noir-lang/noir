@@ -11,6 +11,7 @@ use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
+use noirc_evaluator::ssa_refactor::optimize_into_acir;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -250,6 +251,8 @@ impl Driver {
         main_function: FuncId,
     ) -> Result<CompiledProgram, ReportedError> {
         let program = monomorphize(main_function, &self.context.def_interner);
+
+        optimize_into_acir(program.clone());
 
         let np_language = self.language.clone();
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());

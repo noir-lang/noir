@@ -10,7 +10,7 @@ use super::types::Type;
 /// To reference external functions its FunctionId can be used but this
 /// cannot be checked for correctness until inlining is performed.
 #[derive(Debug)]
-pub struct Function {
+pub(crate) struct Function {
     /// The first basic block in the function
     entry_block: BasicBlockId,
 

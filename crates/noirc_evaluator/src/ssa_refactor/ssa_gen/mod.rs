@@ -2,7 +2,7 @@ mod context;
 mod program;
 mod value;
 
-pub use program::Ssa;
+pub(crate) use program::Ssa;
 
 use context::SharedContext;
 use iter_extended::vecmap;
@@ -19,7 +19,7 @@ use super::ir::{instruction::BinaryOp, types::Type, value::ValueId};
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub fn generate_ssa(program: Program) -> Ssa {
+pub(crate) fn generate_ssa(program: Program) -> Ssa {
     let context = SharedContext::new(program);
 
     let main_id = Program::main_id();

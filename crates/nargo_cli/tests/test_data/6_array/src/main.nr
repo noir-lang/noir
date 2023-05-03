@@ -1,7 +1,6 @@
 //Basic tests for arrays 
 fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {  
     let mut c = 2301;
-    let _idx = (z - 5*t - 5) as Field;
     z = y[4];
     //Test 1: 
     for i in 0..5 {
@@ -51,21 +50,5 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
             assert(x_elem != y_elem);
         }
     }
-
-    //dynamic array test - TODO uncomment the call below when activating dynamic arrays
-    //dyn_array(x, idx, idx - 3); 
 }
 
-// fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
-//     assert(x[y] == 111);
-//     assert(x[z] == 101);
-//     x[z] = 0;
-//     assert(x[y] == 111);
-//     assert(x[1] == 0);
-//     if y as u32 < 10 {
-//       x[y] = x[y] - 2;
-//     } else {
-//       x[y] = 0;
-//     }
-//     assert(x[4] == 109);
-// }

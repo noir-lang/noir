@@ -98,6 +98,11 @@ impl FunctionBuilder {
         self.current_function.dfg.add_block_parameter(block, typ)
     }
 
+    /// Returns the parameters of the given block in the current function.
+    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
+        self.current_function.dfg.block_parameters(block)
+    }
+
     /// Inserts a new instruction at the end of the current block and returns its results
     pub(crate) fn insert_instruction(
         &mut self,

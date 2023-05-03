@@ -78,6 +78,7 @@ impl DataFlowGraph {
         self.blocks.iter()
     }
 
+    /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()
     }
@@ -276,7 +277,11 @@ impl DataFlowGraph {
     /// After self.split_block_at(block1, c):
     ///   block1: a; b; jmp block2
     ///   block2: d; e; jmp block5
-    pub(crate) fn split_block_at(&mut self, block: BasicBlockId, instruction_to_remove: InstructionId) -> BasicBlockId {
+    pub(crate) fn split_block_at(
+        &mut self,
+        block: BasicBlockId,
+        instruction_to_remove: InstructionId,
+    ) -> BasicBlockId {
         let split_block = &mut self.blocks[block];
 
         let mut instructions = split_block.instructions().iter();

@@ -30,11 +30,11 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
-    pub(crate) fn inline_functions(&mut self) {
+    pub(crate) fn inline_functions(self) -> Ssa {
         let main_function = self.main();
         let mut context = InlineContext::new(main_function);
-        let main_id = main_function.id();
-        context.inline_function(self, main_id, &[])
+        context.inline_main(&self);
+        context.finish(self)
     }
 }
 
@@ -73,6 +73,10 @@ struct PerFunctionContext<'function> {
 
     /// Maps InstructionIds from the function being inlined to the function being inlined into.
     instructions: HashMap<InstructionId, InstructionId>,
+
+    /// The TerminatorInstruction::Return in the source_function will be mapped to a jmp to
+    /// this block in the destination function instead.
+    return_destination: BasicBlockId,
 }
 
 impl InlineContext {
@@ -89,7 +93,15 @@ impl InlineContext {
         }
     }
 
-    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[ValueId]) {
+    fn inline_main(&mut self, ssa: &Ssa) {
+        let main = ssa.main();
+        let mut context = PerFunctionContext::new(self, main);
+        context.inline_blocks(ssa);
+    }
+
+    /// Inlines a function into the current function and returns the translated return values
+    /// of the inlined function.
+    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[ValueId]) -> &[ValueId] {
         self.recursion_level += 1;
 
         if self.recursion_level > RECURSION_LIMIT {
@@ -99,8 +111,32 @@ impl InlineContext {
         }
 
         let source_function = &ssa.functions[&id];
-        let mut context = PerFunctionContext::new(self, source_function, arguments);
+        let mut context = PerFunctionContext::new(self, source_function);
+
+        let entry = source_function.entry_block();
+        let parameters = source_function.dfg.block_parameters(entry);
+        assert_eq!(parameters.len(), arguments.len());
+        context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+
         context.inline_blocks(ssa);
+        let return_destination = context.return_destination;
+        self.builder.block_parameters(return_destination)
+    }
+
+    fn finish(self, mut ssa: Ssa) -> Ssa {
+        let mut new_ssa = self.builder.finish();
+
+        for function_id in self.functions_to_keep {
+            let function = ssa
+                .functions
+                .remove(&function_id)
+                .unwrap_or_else(|| panic!("Expected to remove function with id {function_id}"));
+
+            let existing = new_ssa.functions.insert(function.id(), function);
+            assert!(existing.is_none());
+        }
+
+        new_ssa
     }
 }
 
@@ -109,21 +145,18 @@ impl<'function> PerFunctionContext<'function> {
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
-    fn new(
-        context: &'function mut InlineContext,
-        source_function: &'function Function,
-        arguments: &[ValueId],
-    ) -> Self {
-        let entry = source_function.entry_block();
-        let parameters = source_function.dfg.block_parameters(entry);
-        assert_eq!(parameters.len(), arguments.len());
+    fn new(context: &'function mut InlineContext, source_function: &'function Function) -> Self {
+        // Create the block to return to but don't insert its parameters until we
+        // have the types of the actual return values later.
+        let return_destination = context.builder.insert_block();
 
         Self {
             context,
             source_function,
-            values: parameters.iter().copied().zip(arguments.iter().copied()).collect(),
             blocks: HashMap::new(),
             instructions: HashMap::new(),
+            values: HashMap::new(),
+            return_destination,
         }
     }
 
@@ -138,11 +171,11 @@ impl<'function> PerFunctionContext<'function> {
         }
 
         let new_value = match &self.source_function.dfg[id] {
-            Value::Instruction { .. } => {
-                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction")
+            value @ Value::Instruction { .. } => {
+                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
-            Value::Param { .. } => {
-                unreachable!("All Value::Params should already be known from previous calls to translate_block")
+            value @ Value::Param { .. } => {
+                unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
                 let value = self.source_function.dfg[*constant].value();
@@ -196,12 +229,13 @@ impl<'function> PerFunctionContext<'function> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = vec![self.source_function.entry_block()];
 
-        while let Some(block_id) = block_queue.pop() {
-            self.context.builder.switch_to_block(block_id);
-            seen_blocks.insert(block_id);
+        while let Some(source_block_id) = block_queue.pop() {
+            let translated_block_id = self.translate_block(source_block_id);
+            self.context.builder.switch_to_block(translated_block_id);
 
-            self.inline_block(ssa, block_id);
-            self.handle_terminator_instruction(block_id);
+            seen_blocks.insert(source_block_id);
+            self.inline_block(ssa, source_block_id);
+            self.handle_terminator_instruction(source_block_id, &mut block_queue);
         }
     }
 
@@ -212,12 +246,25 @@ impl<'function> PerFunctionContext<'function> {
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(id) => self.context.inline_function(ssa, id, arguments),
+                    Some(function) => self.inline_function(ssa, *id, function, arguments),
                     None => self.push_instruction(*id),
                 },
                 _ => self.push_instruction(*id),
             }
         }
+    }
+
+    /// Inline a function call and remember the inlined return values in the values map
+    fn inline_function(
+        &mut self,
+        ssa: &Ssa,
+        call_id: InstructionId,
+        function: FunctionId,
+        arguments: &[ValueId],
+    ) {
+        let old_results = self.source_function.dfg.instruction_results(call_id);
+        let new_results = self.context.inline_function(ssa, function, arguments);
+        Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
 
     /// Push the given instruction from the source_function into the current block of the
@@ -231,20 +278,40 @@ impl<'function> PerFunctionContext<'function> {
             .then(|| vecmap(results, |result| self.source_function.dfg.type_of_value(*result)));
 
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
+        Self::insert_new_instruction_results(&mut self.values, results, new_results);
+    }
 
-        assert_eq!(results.len(), new_results.len());
-        for (result, new_result) in results.iter().zip(new_results) {
-            self.values.insert(*result, *new_result);
+    /// Modify the values HashMap to remember the mapping between an instruction result's previous
+    /// ValueId (from the source_function) and its new ValueId in the destination function.
+    fn insert_new_instruction_results(
+        values: &mut HashMap<ValueId, ValueId>,
+        old_results: &[ValueId],
+        new_results: &[ValueId],
+    ) {
+        assert_eq!(old_results.len(), new_results.len());
+        for (old_result, new_result) in old_results.iter().zip(new_results) {
+            values.insert(*old_result, *new_result);
         }
     }
 
     /// Handle the given terminator instruction from the given source function block.
     /// This will push any new blocks to the destination function as needed, add them
     /// to the block queue, and set the terminator instruction for the current block.
-    fn handle_terminator_instruction(&mut self, block_id: BasicBlockId) {
+    fn handle_terminator_instruction(
+        &mut self,
+        block_id: BasicBlockId,
+        block_queue: &mut Vec<BasicBlockId>,
+    ) {
+        let mut translate_and_queue_block = |this: &mut Self, block| {
+            if this.blocks.get(block).is_none() {
+                block_queue.push(*block);
+            }
+            this.translate_block(*block)
+        };
+
         match self.source_function.dfg[block_id].terminator() {
             Some(TerminatorInstruction::Jmp { destination, arguments }) => {
-                let destination = self.translate_block(*destination);
+                let destination = translate_and_queue_block(self, destination);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
                 self.context.builder.terminate_with_jmp(destination, arguments);
             }
@@ -252,8 +319,22 @@ impl<'function> PerFunctionContext<'function> {
                 condition,
                 then_destination,
                 else_destination,
-            }) => todo!(),
-            Some(TerminatorInstruction::Return { .. }) => (),
+            }) => {
+                let condition = self.translate_value(*condition);
+                let then_block = translate_and_queue_block(self, then_destination);
+                let else_block = translate_and_queue_block(self, else_destination);
+                self.context.builder.terminate_with_jmpif(condition, then_block, else_block);
+            }
+            Some(TerminatorInstruction::Return { return_values }) => {
+                let return_values = vecmap(return_values, |value| {
+                    // Add the block parameters for the return block here since we don't do
+                    // it when inserting the block in PerFunctionContext::new
+                    let typ = self.source_function.dfg.type_of_value(*value);
+                    self.context.builder.add_block_parameter(self.return_destination, typ);
+                    self.translate_value(*value)
+                });
+                self.context.builder.terminate_with_jmp(self.return_destination, return_values);
+            }
             None => unreachable!("Block has no terminator instruction"),
         }
     }

@@ -5,24 +5,18 @@ use iter_extended::btree_map;
 use crate::ssa_refactor::ir::function::{Function, FunctionId};
 
 /// Contains the entire SSA representation of the program.
-///
-/// It is expected that the main function is always the first
-/// function in the functions vector.
 pub(crate) struct Ssa {
-    pub functions: BTreeMap<FunctionId, Function>,
+    pub(crate) functions: BTreeMap<FunctionId, Function>,
 }
 
 impl Ssa {
     /// Create a new Ssa object from the given SSA functions
-    pub fn new(functions: Vec<Function>) -> Self {
+    pub(crate) fn new(functions: Vec<Function>) -> Self {
         Self { functions: btree_map(functions, |f| (f.id(), f)) }
     }
 
-    pub fn main(&mut self) -> &mut Function {
-        self.functions
-            .first_entry()
-            .expect("Expected there to be at least 1 SSA function")
-            .into_mut()
+    pub(crate) fn main(&self) -> &Function {
+        self.functions.first_key_value().expect("Expected there to be at least 1 SSA function").1
     }
 }
 
