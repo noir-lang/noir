@@ -8,5 +8,6 @@
 #![allow(dead_code)]
 
 mod ir;
+mod opt;
 mod ssa_builder;
 pub mod ssa_gen;

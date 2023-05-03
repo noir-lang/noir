@@ -13,7 +13,6 @@ use super::{
 };
 
 use acvm::FieldElement;
-use iter_extended::vecmap;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -67,22 +66,6 @@ impl DataFlowGraph {
     /// until another block is made to jump to it.
     pub(crate) fn make_block(&mut self) -> BasicBlockId {
         self.blocks.insert(BasicBlock::new(Vec::new()))
-    }
-
-    /// Creates a new basic block with the given parameters.
-    /// After being created, the block is unreachable in the current function
-    /// until another block is made to jump to it.
-    pub(crate) fn make_block_with_parameters(
-        &mut self,
-        parameter_types: impl Iterator<Item = Type>,
-    ) -> BasicBlockId {
-        self.blocks.insert_with_id(|entry_block| {
-            let parameters = vecmap(parameter_types.enumerate(), |(position, typ)| {
-                self.values.insert(Value::Param { block: entry_block, position, typ })
-            });
-
-            BasicBlock::new(parameters)
-        })
     }
 
     /// Get an iterator over references to each basic block within the dfg, paired with the basic
@@ -278,6 +261,33 @@ impl DataFlowGraph {
         terminator: TerminatorInstruction,
     ) {
         self.blocks[block].set_terminator(terminator);
+    }
+
+    /// Splits the given block in two at the given instruction, returning the Id of the new block.
+    /// This will remove the given instruction and place every instruction after it into a new block
+    /// with the same terminator as the old block. The old block is modified to stop
+    /// before the instruction to remove and to unconditionally branch to the new block.
+    /// This function is useful during function inlining to remove the call instruction
+    /// while opening a spot at the end of the current block to insert instructions into.
+    ///
+    /// Example (before):
+    ///   block1: a; b; c; d; e; jmp block5
+    ///
+    /// After self.split_block_at(block1, c):
+    ///   block1: a; b; jmp block2
+    ///   block2: d; e; jmp block5
+    pub(crate) fn split_block_at(&mut self, block: BasicBlockId, instruction_to_remove: InstructionId) -> BasicBlockId {
+        let split_block = &mut self.blocks[block];
+
+        let mut instructions = split_block.instructions().iter();
+        let index = instructions.position(|id| *id == instruction_to_remove).unwrap_or_else(|| {
+            panic!("No instruction found with id {instruction_to_remove:?} in block {block:?}")
+        });
+
+        let instructions = split_block.instructions_mut().drain(index..).collect();
+        split_block.remove_instruction(instruction_to_remove);
+
+        self.blocks.insert(BasicBlock::new(instructions))
     }
 }
 

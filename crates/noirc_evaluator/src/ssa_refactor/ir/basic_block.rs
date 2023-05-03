@@ -29,10 +29,10 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    /// Create a new BasicBlock with the given parameters.
+    /// Create a new BasicBlock with the given instructions.
     /// Parameters can also be added later via BasicBlock::add_parameter
-    pub(crate) fn new(parameters: Vec<ValueId>) -> Self {
-        Self { parameters, instructions: Vec::new(), terminator: None }
+    pub(crate) fn new(instructions: Vec<InstructionId>) -> Self {
+        Self { parameters: Vec::new(), instructions, terminator: None }
     }
 
     /// Returns the parameters of this block
@@ -55,6 +55,11 @@ impl BasicBlock {
     /// Retrieve a reference to all instructions in this block.
     pub(crate) fn instructions(&self) -> &[InstructionId] {
         &self.instructions
+    }
+
+    /// Retrieve a mutable reference to all instructions in this block.
+    pub(crate) fn instructions_mut(&mut self) -> &mut Vec<InstructionId> {
+        &mut self.instructions
     }
 
     /// Sets the terminator instruction of this block.
@@ -90,7 +95,7 @@ impl BasicBlock {
     /// Removes the given instruction from this block if present or panics otherwise.
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         let index =
-            self.instructions.iter().position(|id| *id == instruction).unwrap_or_else(|| {
+            self.instructions.iter().rev().position(|id| *id == instruction).unwrap_or_else(|| {
                 panic!("remove_instruction: No such instruction {instruction:?} in block")
             });
         self.instructions.remove(index);
