@@ -8,9 +8,13 @@ use crate::{
 };
 use acvm::{
     acir::{
-        circuit::{directives::Directive, opcodes::{Opcode as AcirOpcode, MemoryBlock, BlockId as AcirBlockId, MemOp}},
+        circuit::{
+            directives::Directive,
+            opcodes::{BlockId as AcirBlockId, MemOp, MemoryBlock, Opcode as AcirOpcode},
+        },
         native_types::{Expression, Witness},
     },
+    compiler::transformers::IsOpcodeSupported,
     FieldElement,
 };
 
@@ -123,11 +127,10 @@ impl ArrayHeap {
         self.staged.insert(index, (value, op));
     }
 
-
     /// This helper function transforms an expression into a linear expression, by generating a witness if the input expression is not linear nor constant
-    fn normalize_expression(expr: &mut Expression, evaluator: &mut Evaluator) -> Expression {
+    fn normalize_expression(expr: &Expression, evaluator: &mut Evaluator) -> Expression {
         if !expr.is_linear() || expr.linear_combinations.len() > 1 {
-            let w = evaluator.create_intermediate_variable(expr);
+            let w = evaluator.create_intermediate_variable(expr.clone());
             Expression::from(w)
         } else {
             expr.clone()
@@ -135,69 +138,71 @@ impl ArrayHeap {
     }
 
     /// Decide which opcode to use, depending on the backend support
-    fn acir_gen(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32, is_opcde_supported: IsOpcodeSupported) {
-        let (block,ram,rom) = (IsOpcodeSupported(AcirOpcode::Block),IsOpcodeSupported(AcirOpcode::RAM),IsOpcodeSupported(AcirOpcode::ROM));
-       if rom
-       {
-            todo!("Check if the array is read-only and add the rom opcode if it is");   //TODO we need the R-O arrays PR
-            self.add_rom_opcode(evaluator,array_id, array_len);
-            return;
-       }
+    fn acir_gen(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+        is_opcode_supported: IsOpcodeSupported,
+    ) {
+        let dummy = MemoryBlock { id: AcirBlockId(0), len: 0, trace: Vec::new() };
+        let dummy2 = dummy.clone();
+        let dummy3 = dummy.clone();
+        let (block, ram, rom) = (
+            is_opcode_supported(&AcirOpcode::Block(dummy)),
+            is_opcode_supported(&AcirOpcode::RAM(dummy2)),
+            is_opcode_supported(&AcirOpcode::ROM(dummy3)),
+        );
+        if rom {
+            // If the backend support ROM and the array is read-only, we generate the ROM opcode
+            if let ArrayType::ReadOnly(len) = self.typ {
+                self.add_rom_opcode(evaluator, array_id, len.unwrap() as u32);
+                return;
+            }
+        }
 
-        match (block,ram) {
-           (false, false) =>  self.generate_permutation_constraints(evaluator, array_id, array_len),
-           (false, true) => self.add_ram_opcode(evaluator,array_id, array_len),
-           (true, _) => 
-           {
-            evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
-                id: AcirBlockId(id),
-                len: array_len,
-                trace: self.trace.clone(),
-            }));
-           },
-
+        match (block, ram) {
+            (false, false) => self.generate_permutation_constraints(evaluator, array_id, array_len),
+            (false, true) => self.add_ram_opcode(evaluator, array_id, array_len),
+            (true, _) => {
+                evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
+                    id: AcirBlockId(array_id.as_u32()),
+                    len: array_len,
+                    trace: self.trace.clone(),
+                }));
+            }
         }
     }
 
     fn add_rom_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
         let mut trace = Vec::new();
-        for op in self.trace {
-            let index = Self::normalize_expression(&mut op.index, evaluator);
-            let value = Self::normalize_expression(&mut op.value, evaluator);
-            trace.push(MemOp {
-                operation: op.operation,
-                index,
-                value,
-            });
+        for op in &self.trace {
+            let index = Self::normalize_expression(&op.index, evaluator);
+            let value = Self::normalize_expression(&op.value, evaluator);
+            trace.push(MemOp { operation: op.operation.clone(), index, value });
         }
         evaluator.opcodes.push(AcirOpcode::ROM(MemoryBlock {
-            id: AcirBlockId(id),
+            id: AcirBlockId(array_id.as_u32()),
             len: array_len,
             trace,
         }));
     }
 
     fn add_ram_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
-        todo!("Check there is an initialization phase"); //TODO we need the R-O array PR for this
         let mut trace = Vec::new();
-        for op in self.trace {
+        for op in &self.trace {
             //TODO - after the init, we need a witness per-index but this will be managed by BB - we need to wait for the BB ram PR
-            let index = Self::normalize_expression(&mut op.index, evaluator);
-            let value = Self::normalize_expression(&mut op.value, evaluator);
-            trace.push(MemOp {
-                operation: op.operation,
-                index,
-                value,
-            });
+            let index = Self::normalize_expression(&op.index, evaluator);
+            let value = Self::normalize_expression(&op.value, evaluator);
+            debug_assert!(op.operation.is_const());
+            trace.push(MemOp { operation: op.operation.clone(), index, value });
         }
-        evaluator.opcodes.push(AcirOpcode::ROM(MemoryBlock {
-            id: AcirBlockId(id),
+        evaluator.opcodes.push(AcirOpcode::RAM(MemoryBlock {
+            id: AcirBlockId(array_id.as_u32()),
             len: array_len,
             trace,
         }));
     }
-
-   
 
     fn generate_outputs(
         inputs: Vec<Expression>,
@@ -212,13 +217,17 @@ impl ArrayHeap {
         }
         outputs
     }
-    pub(crate) fn generate_permutation_constraints(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
-        let len = self.trace.len();
-        // let (len, read_write) = match self.typ {
-        //     ArrayType::Init(_, _) | ArrayType::WriteOnly => (0, true),
-        //     ArrayType::ReadOnly(last) => (last.unwrap_or(self.trace.len()), false),
-        //     ArrayType::ReadWrite(last) => (last.unwrap_or(self.trace.len()), true),
-        // };
+    pub(crate) fn generate_permutation_constraints(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+    ) {
+        let (len, read_write) = match self.typ {
+            ArrayType::Init(_, _) | ArrayType::WriteOnly => (0, true),
+            ArrayType::ReadOnly(last) => (last.unwrap_or(self.trace.len()), false),
+            ArrayType::ReadWrite(last) => (last.unwrap_or(self.trace.len()), true),
+        };
         if len == 0 {
             return;
         }
@@ -296,15 +305,13 @@ impl ArrayHeap {
             };
             evaluator.opcodes.push(AcirOpcode::Arithmetic(load_on_same_adr));
         }
-        
+
         let id = array_id.as_u32();
         evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
             id: AcirBlockId(id),
             len: array_len,
             trace: self.trace.clone(),
-            init: 0,
         }));
-        
     }
 }
 
@@ -403,10 +410,15 @@ impl AcirMem {
         let item = MemOp { operation: op, value, index };
         self.array_heap_mut(*array_id).push(item);
     }
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, ctx: &SsaContext) {
+    pub(crate) fn acir_gen(
+        &self,
+        evaluator: &mut Evaluator,
+        is_opcode_supported: IsOpcodeSupported,
+        ctx: &SsaContext,
+    ) {
         for mem in &self.virtual_memory {
-            let array = ctx.mem[*mem.0];
-            mem.1.acir_gen(evaluator, array.id, array.len);
+            let array = &ctx.mem[*mem.0];
+            mem.1.acir_gen(evaluator, array.id, array.len, is_opcode_supported);
         }
     }
 }

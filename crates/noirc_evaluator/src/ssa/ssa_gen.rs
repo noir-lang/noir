@@ -10,7 +10,7 @@ use crate::{
         {block, builtin, node, ssa_form},
     },
 };
-use acvm::{acir::native_types::Witness, FieldElement, compiler::transformers::IsOpcodeSupported};
+use acvm::{acir::native_types::Witness, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::{

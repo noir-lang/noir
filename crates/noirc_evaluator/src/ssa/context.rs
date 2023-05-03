@@ -12,6 +12,7 @@ use crate::ssa::{
     {block, builtin, flatten, function, inline, integer, node, optimizations},
 };
 use crate::Evaluator;
+use acvm::compiler::transformers::IsOpcodeSupported;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::Location;
