@@ -19,6 +19,10 @@ import { PublicCircuitSimulator, PublicKernelCircuitSimulator } from '../simulat
 import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 import { getCombinedHistoricTreeRoots } from './utils.js';
 
+/**
+ * Converts Txs lifted from the P2P module into ProcessedTx objects by executing
+ * any public function calls in them. Txs with private calls only are unaffected.
+ */
 export class PublicProcessor {
   constructor(
     protected db: MerkleTreeOperations,
@@ -32,8 +36,8 @@ export class PublicProcessor {
 
   /**
    * Run each tx through the public circuit and the public kernel circuit if needed.
-   * @param txs - txs to process
-   * @returns the list of processed txs with their circuit simulation outputs.
+   * @param txs - Txs to process.
+   * @returns The list of processed txs with their circuit simulation outputs.
    */
   public async process(txs: Tx[]): Promise<[ProcessedTx[], Tx[]]> {
     const result: ProcessedTx[] = [];
@@ -51,6 +55,10 @@ export class PublicProcessor {
     return [result, failed];
   }
 
+  /**
+   * Makes an empty processed tx. Useful for padding a block to a power of two number of txs.
+   * @returns A processed tx with empty data.
+   */
   public async makeEmptyProcessedTx() {
     const historicTreeRoots = await getCombinedHistoricTreeRoots(this.db);
     return makeEmptyProcessedTx(historicTreeRoots);
@@ -117,11 +125,5 @@ export class PublicProcessor {
       portalContractAddress,
       bytecodeHash,
     );
-  }
-}
-
-export class MockPublicProcessor extends PublicProcessor {
-  protected processPublicTx(_tx: PublicTx): Promise<[PublicKernelPublicInputs, Proof]> {
-    throw new Error('Public tx not supported by mock public processor');
   }
 }

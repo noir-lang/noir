@@ -2,8 +2,14 @@ import { SequencerConfig } from './sequencer/config.js';
 import { PublisherConfig, TxSenderConfig } from './publisher/config.js';
 import { EthAddress } from '@aztec/foundation';
 
+/**
+ * Configuration settings for the SequencerClient.
+ */
 export type SequencerClientConfig = PublisherConfig & TxSenderConfig & SequencerConfig;
 
+/**
+ * Creates an instance of SequencerClientConfig out of environment variables using sensible defaults for integration testing if not set.
+ */
 export function getConfigEnvVars(): SequencerClientConfig {
   const {
     SEQ_PUBLISHER_PRIVATE_KEY,

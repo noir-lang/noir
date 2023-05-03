@@ -5,20 +5,65 @@ import { PublisherConfig } from './config.js';
 import { UnverifiedData } from '@aztec/types';
 
 /**
- * Component responsible of pushing the txs to the chain and waiting for completion.
+ * Minimal information from a tx receipt returned by an L1PublisherTxSender.
+ */
+export type MinimalTransactionReceipt = {
+  /**
+   * True if the tx was successful, false if reverted.
+   */
+  status: boolean;
+  /**
+   * Hash of the transaction.
+   */
+  transactionHash: string;
+};
+
+/**
+ * Pushes txs to the L1 chain and waits for their completion.
  */
 export interface L1PublisherTxSender {
+  /**
+   * Sends a tx to the L1 rollup contract with a new L2 block. Returns once the tx has been mined.
+   * @param encodedData - Serialized data for processing the new L2 block.
+   * @returns The hash of the mined tx.
+   */
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
+
+  /**
+   * Sends a tx to the unverified data emitter contract with unverified data. Returns once the tx has been mined.
+   * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param unverifiedData - Data to publish.
+   * @returns The hash of the mined tx.
+   */
   sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
+
+  /**
+   * Sends a tx to the unverified data emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
+   * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param contractData - Data to publish.
+   * @returns The hash of the mined tx.
+   */
   sendEmitContractDeploymentTx(l2BlockNum: number, contractData: ContractPublicData[]): Promise<string | undefined>;
-  getTransactionReceipt(txHash: string): Promise<{ status: boolean; transactionHash: string } | undefined>;
+
+  /**
+   * Returns a tx receipt if the tx has been mined.
+   * @param txHash - Hash of the tx to look for.
+   * @returns Undefined if the tx hasn't been mined yet, the receipt otherwise.
+   */
+  getTransactionReceipt(txHash: string): Promise<MinimalTransactionReceipt | undefined>;
 }
 
 /**
  * Encoded block data and proof ready to be pushed to the L1 contract.
  */
 export type L1ProcessArgs = {
+  /**
+   * Root rollup proof for an L1 block.
+   */
   proof: Buffer;
+  /**
+   * Serialized L2Block data.
+   */
   inputs: Buffer;
 };
 
@@ -42,6 +87,7 @@ export class L1Publisher implements L2BlockReceiver {
 
   /**
    * Processes incoming L2 block data by publishing it to the L1 rollup contract.
+   * @param l2BlockData - L2 block data to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
   public async processL2Block(l2BlockData: L2Block): Promise<boolean> {
@@ -80,8 +126,8 @@ export class L1Publisher implements L2BlockReceiver {
 
   /**
    * Publishes unverifiedData to L1.
-   * @param l2BlockNum The L2 block number that the unverifiedData is associated with.
-   * @param unverifiedData The unverifiedData to publish.
+   * @param l2BlockNum - The L2 block number that the unverifiedData is associated with.
+   * @param unverifiedData - The unverifiedData to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
   public async processUnverifiedData(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<boolean> {
@@ -110,9 +156,9 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   /**
-   * Publishes new contract data to L1
-   * @param l2BlockNum The L2 block number that the new contracts were deployed on
-   * @param newContractData The new contract data to publish.
+   * Publishes new contract data to L1.
+   * @param l2BlockNum - The L2 block number that the new contracts were deployed on.
+   * @param contractData - The new contract data to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
   public async processNewContractData(l2BlockNum: number, contractData: ContractPublicData[]) {
@@ -198,9 +244,7 @@ export class L1Publisher implements L2BlockReceiver {
     }
   }
 
-  private async getTransactionReceipt(
-    txHash: string,
-  ): Promise<{ status: boolean; transactionHash: string } | undefined> {
+  private async getTransactionReceipt(txHash: string): Promise<MinimalTransactionReceipt | undefined> {
     while (!this.interrupted) {
       try {
         return await this.txSender.getTransactionReceipt(txHash);

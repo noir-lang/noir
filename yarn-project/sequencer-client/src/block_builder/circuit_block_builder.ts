@@ -53,19 +53,19 @@ const DELETE_FR = new Fr(0n);
 const DELETE_NUM = 0;
 
 /**
- * All of the data required for the circuit compute and verify nullifiers
+ * All of the data required for the circuit compute and verify nullifiers.
  */
 export interface LowNullifierWitnessData {
   /**
-   * Preimage of the low nullifier that proves non membership
+   * Preimage of the low nullifier that proves non membership.
    */
   preimage: NullifierLeafPreimage;
   /**
-   * Sibling path to prove membership of low nullifier
+   * Sibling path to prove membership of low nullifier.
    */
   siblingPath: SiblingPath;
   /**
-   * The index of low nullifier
+   * The index of low nullifier.
    */
   index: bigint;
 }
@@ -77,6 +77,10 @@ const EMPTY_LOW_NULLIFIER_WITNESS: LowNullifierWitnessData = {
   siblingPath: new SiblingPath(Array(NULLIFIER_TREE_HEIGHT).fill(toBufferBE(0n, 32))),
 };
 
+/**
+ * Builds an L2 block out of a set of ProcessedTx's,
+ * using the base, merge, and root rollup circuits.
+ */
 export class CircuitBlockBuilder implements BlockBuilder {
   constructor(
     protected db: MerkleTreeOperations,
@@ -86,6 +90,13 @@ export class CircuitBlockBuilder implements BlockBuilder {
     protected debug = createDebugLogger('aztec:sequencer'),
   ) {}
 
+  /**
+   * Builds an L2 block with the given number containing the given txs, updating state trees.
+   * @param blockNumber - Number of the block to create.
+   * @param txs - Processed transactions to include in the block.
+   * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
+   * @returns The new L2 block and a correctness proof as returned by the root rollup circuit.
+   */
   public async buildL2Block(
     blockNumber: number,
     txs: ProcessedTx[],
@@ -325,7 +336,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
 
   /**
    * Validates that the root of the public data tree matches the output of the circuit simulation.
-   * @param output The output of the circuit simulation.
+   * @param output - The output of the circuit simulation.
    * Note: Public data tree is sparse, so the "next available leaf index" doesn't make sense there.
    *       For this reason we only validate root.
    */
@@ -548,7 +559,11 @@ export class CircuitBlockBuilder implements BlockBuilder {
     return fullSiblingPath.data.slice(subtreeHeight).map(b => Fr.fromBuffer(b));
   }
 
+  /* eslint-disable jsdoc/require-description-complete-sentence */
+  /* The following doc block messes up with complete-sentence, so we just disable it */
+
   /**
+   *
    * Each base rollup needs to provide non membership / inclusion proofs for each of the nullifier.
    * This method will return membership proofs and perform partial node updates that will
    * allow the circuit to incrementally update the tree and perform a batch insertion.
@@ -653,10 +668,12 @@ export class CircuitBlockBuilder implements BlockBuilder {
    *  nextVal   2      10      15      19       3       5       0       20
    *
    * TODO: this implementation will change once the zero value is changed from h(0,0,0). Changes incoming over the next sprint
-   * @param leaves Values to insert into the tree
-   * @returns
+   * @param leaves - Values to insert into the tree
+   * @returns The witness data for the leaves to be updated when inserting the new ones.
    */
   public async performBaseRollupBatchInsertionProofs(leaves: Buffer[]): Promise<LowNullifierWitnessData[] | undefined> {
+    /* eslint-enable */
+
     // Keep track of touched low nullifiers
     const touched = new Map<number, bigint[]>();
 

@@ -1,13 +1,13 @@
-import { L2Block } from '@aztec/types';
 import { TxHash } from '@aztec/ethereum.js/eth_rpc';
+import { L2Block } from '@aztec/types';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { sleep } from '../utils.js';
-import { L1Publisher, L1PublisherTxSender } from './l1-publisher.js';
+import { L1Publisher, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';
 
 describe('L1Publisher', () => {
   let txSender: MockProxy<L1PublisherTxSender>;
   let txHash: string;
-  let txReceipt: { transactionHash: string; status: boolean };
+  let txReceipt: MinimalTransactionReceipt;
   let l2Block: L2Block;
   let l2Inputs: Buffer;
   let l2Proof: Buffer;

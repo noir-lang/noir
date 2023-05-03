@@ -1,12 +1,4 @@
-import {
-  AppendOnlyTreeSnapshot,
-  CircuitsWasm,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-  NewContractData,
-  makeEmptyProof,
-} from '@aztec/circuits.js';
+import { AppendOnlyTreeSnapshot, CircuitsWasm, NewContractData, makeEmptyProof } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { AztecAddress, Fr, createDebugLogger } from '@aztec/foundation';
 import { ContractData, L2Block, PublicDataWrite } from '@aztec/types';
@@ -31,6 +23,13 @@ export class StandaloneBlockBuilder implements BlockBuilder {
 
   constructor(private db: MerkleTreeOperations, private log = createDebugLogger('aztec:block_builder')) {}
 
+  /**
+   * Creates a new L2Block with the given number, containing the set of processed txs, without calling any circuit.
+   * @param blockNumber - Number of the block to assemble.
+   * @param txs - Processed txs to include.
+   * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
+   * @returns The new L2 block along with an empty proof.
+   */
   async buildL2Block(blockNumber: number, txs: ProcessedTx[], newL1ToL2Messages: Fr[]): Promise<[L2Block, Proof]> {
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);

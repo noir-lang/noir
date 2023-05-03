@@ -10,8 +10,9 @@ import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
 import { ContractPublicData, UnverifiedData } from '@aztec/types';
 import { createDebugLogger } from '@aztec/foundation';
 
-import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender } from './l1-publisher.js';
+import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';
 import { TxSenderConfig } from './config.js';
+
 /**
  * Pushes transactions to the L1 rollup contract using the custom aztec/ethereum.js library.
  */
@@ -42,12 +43,22 @@ export class EthereumjsTxSender implements L1PublisherTxSender {
     this.confirmations = requiredConfirmations;
   }
 
-  getTransactionReceipt(txHash: string): Promise<{ status: boolean; transactionHash: string } | undefined> {
+  /**
+   * Returns a tx receipt if the tx has been mined.
+   * @param txHash - Hash of the tx to look for.
+   * @returns Undefined if the tx hasn't been mined yet, the receipt otherwise.
+   */
+  public getTransactionReceipt(txHash: string): Promise<MinimalTransactionReceipt | undefined> {
     return waitForTxReceipt(TxHash.fromString(txHash), this.ethRpc, this.confirmations).then(
       r => r && { ...r, transactionHash: r.transactionHash.toString() },
     );
   }
 
+  /**
+   * Sends a tx to the L1 rollup contract with a new L2 block. Returns once the tx has been mined.
+   * @param encodedData - Serialized data for processing the new L2 block.
+   * @returns The hash of the mined tx.
+   */
   async sendProcessTx(encodedData: ProcessTxArgs): Promise<string | undefined> {
     const methodCall = this.rollupContract.methods.process(encodedData.proof, encodedData.inputs);
     let gas: number | undefined = undefined;
@@ -65,6 +76,12 @@ export class EthereumjsTxSender implements L1PublisherTxSender {
     }
   }
 
+  /**
+   * Sends a tx to the unverified data emitter contract with unverified data. Returns once the tx has been mined.
+   * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param unverifiedData - Data to publish.
+   * @returns The hash of the mined tx.
+   */
   async sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
     const methodCall = this.unverifiedDataEmitterContract.methods.emitUnverifiedData(
       BigInt(l2BlockNum),
@@ -86,6 +103,12 @@ export class EthereumjsTxSender implements L1PublisherTxSender {
     }
   }
 
+  /**
+   * Sends a tx to the unverified data emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
+   * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param newContractData - Data to publish.
+   * @returns The hash of the mined tx.
+   */
   async sendEmitContractDeploymentTx(
     l2BlockNum: number,
     newContractData: ContractPublicData[],

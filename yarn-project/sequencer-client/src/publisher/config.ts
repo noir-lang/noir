@@ -25,6 +25,9 @@ export interface TxSenderConfig extends L1Addresses {
   requiredConfirmations: number;
 }
 
+/**
+ * Configuration of the L1Publisher.
+ */
 export interface PublisherConfig {
   /**
    * The interval to wait between publish retries.

@@ -1,8 +1,8 @@
 const fs = require('fs');
 
 const contexts = [
-  'TSMethodDefinition',
-  'MethodDefinition',
+  'TSMethodDefinition[accessibility=public]',
+  'MethodDefinition[accessibility=public]',
   'TSParameterProperty[accessibility=public]',
   'TSPropertySignature',
   'PropertySignature',
@@ -55,6 +55,12 @@ module.exports = {
         ]),
       },
     },
+    {
+      files: '*.test.ts',
+      rules: {
+        'jsdoc/require-jsdoc': 'off',
+      }
+    }
   ],
   env: {
     node: true,

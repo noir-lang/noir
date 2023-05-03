@@ -17,6 +17,14 @@ import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
 export class SequencerClient {
   constructor(private sequencer: Sequencer) {}
 
+  /**
+   * Initializes and starts a new instance.
+   * @param config - Configuration for the sequencer, publisher, and L1 tx sender.
+   * @param p2pClient - P2P client that provides the txs to be sequenced.
+   * @param worldStateSynchroniser - Provides access to world state.
+   * @param contractDataSource - Provides access to contract bytecode for public executions.
+   * @returns A new running instance.
+   */
   public static async new(
     config: SequencerClientConfig,
     p2pClient: P2P,
@@ -54,10 +62,16 @@ export class SequencerClient {
     return new SequencerClient(sequencer);
   }
 
+  /**
+   * Stops the sequencer from processing new txs.
+   */
   public async stop() {
     await this.sequencer.stop();
   }
 
+  /**
+   * Restarts the sequencer after being stopped.
+   */
   public restart() {
     this.sequencer.restart();
   }
