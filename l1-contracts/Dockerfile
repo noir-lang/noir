@@ -7,7 +7,7 @@ WORKDIR /usr/src/contracts
 
 # Install foundry
 RUN git init
-COPY . .
+COPY ./scripts/install_foundry.sh ./scripts/install_foundry.sh
 RUN ./scripts/install_foundry.sh
 ENV PATH="/usr/src/contracts/.foundry/bin:${PATH}"
 
@@ -17,7 +17,9 @@ RUN forge install --no-commit \
   https://github.com/openzeppelin/openzeppelin-contracts
 ENV MAINNET_RPC_URL='https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c'
 
+COPY . .
+
 # Run build and tests
-RUN forge clean && forge build && forge test
+RUN forge clean && forge fmt --check && forge build && forge test
 
 WORKDIR /usr/src/contracts
