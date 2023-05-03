@@ -13,12 +13,12 @@ set -e
 # ARGS
 ###############################################################################
 NUM_TRANSCRIPTS=$1 # integer (MANDATORY)
-ARCH=$2 # x86_64 or wasm (MUST BE LOWERCASE) (MANDATORY) used in `run_tests`
-# TESTS=$3 (MANDATORY) used in `run_tests`
-# GTEST_FILTER=$4 (optional) used in `run_tests`
-# *** See `run_tests` for the args forwarded to that script
+ARCH=$2 # x86_64 or wasm (MUST BE LOWERCASE) (MANDATORY) used in `run_tests_local`
+# TESTS=$3 (MANDATORY) used in `run_tests_local`
+# GTEST_FILTER=$4 (optional) used in `run_tests_local`
+# *** See `run_tests_local` for the args forwarded to that script
 
-shift # arg1 (num transcripts) is not forwarded to `run_tests`
+shift # arg1 (num transcripts) is not forwarded to `run_tests_local`
 
 # END ARGS
 ###############################################################################

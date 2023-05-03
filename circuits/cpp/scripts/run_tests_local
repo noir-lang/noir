@@ -37,7 +37,6 @@ fi
 # END ARGS
 ###############################################################################
 
-# uppercase $ARCH and compare to WASM
 if [ "$ARCH" != "wasm" ]; then
   # x86_64 / anything other than wasm
   BUILD_DIR=build
