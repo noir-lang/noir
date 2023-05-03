@@ -1,4 +1,5 @@
 use acvm::acir::BlackBoxFunc;
+use iter_extended::vecmap;
 
 use super::{basic_block::BasicBlockId, map::Id, types::Type, value::ValueId};
 
@@ -114,6 +115,42 @@ impl Instruction {
             Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
+
+    /// True if this instruction requires specifying the control type variables when
+    /// inserting this instruction into a DataFlowGraph.
+    pub(crate) fn requires_ctrl_typevars(&self) -> bool {
+        matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
+    /// Note that the returned instruction is fresh and will not have an assigned InstructionId
+    /// until it is manually inserted in a DataFlowGraph later.
+    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
+        match self {
+            Instruction::Binary(binary) => Instruction::Binary(Binary {
+                lhs: f(binary.lhs),
+                rhs: f(binary.rhs),
+                operator: binary.operator,
+            }),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
+            Instruction::Not(value) => Instruction::Not(f(*value)),
+            Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
+                value: f(*value),
+                bit_size: *bit_size,
+                max_bit_size: *max_bit_size,
+            },
+            Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
+            Instruction::Call { func, arguments } => Instruction::Call {
+                func: f(*func),
+                arguments: vecmap(arguments.iter().copied(), f),
+            },
+            Instruction::Allocate { size } => Instruction::Allocate { size: *size },
+            Instruction::Load { address } => Instruction::Load { address: f(*address) },
+            Instruction::Store { address, value } => {
+                Instruction::Store { address: f(*address), value: f(*value) }
+            }
+        }
+    }
 }
 
 /// The possible return values for Instruction::return_types
@@ -191,7 +228,7 @@ impl Binary {
 /// All binary operators are also only for numeric types. To implement
 /// e.g. equality for a compound type like a struct, one must add a
 /// separate Eq operation for each field and combine them later with And.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub(crate) enum BinaryOp {
     /// Addition of lhs + rhs.
     Add,

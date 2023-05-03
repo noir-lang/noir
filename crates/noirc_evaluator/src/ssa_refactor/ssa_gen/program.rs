@@ -8,7 +8,7 @@ use crate::ssa_refactor::ir::function::{Function, FunctionId};
 ///
 /// It is expected that the main function is always the first
 /// function in the functions vector.
-pub struct Ssa {
+pub(crate) struct Ssa {
     pub functions: BTreeMap<FunctionId, Function>,
 }
 
