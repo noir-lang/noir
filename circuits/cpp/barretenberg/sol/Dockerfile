@@ -17,7 +17,7 @@ COPY ./cpp .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
 RUN cmake --preset default  && cmake --build --preset default --target solidity_key_gen solidity_proof_gen
 
-FROM docker.io/frolvlad/alpine-glibc:alpine-3.16_glibc-2.34 as builder
+FROM docker.io/frolvlad/alpine-glibc:alpine-3.17_glibc-2.34 as builder
 RUN apk update && apk add git curl build-base openmp-dev bash
 
 COPY --from=0 /usr/src/barretenberg/cpp/build/bin /usr/src/barretenberg/cpp/build/bin
