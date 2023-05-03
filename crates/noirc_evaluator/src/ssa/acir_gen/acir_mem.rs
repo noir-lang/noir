@@ -137,31 +137,26 @@ impl ArrayHeap {
         is_opcode_supported: IsOpcodeSupported,
     ) {
         let dummy = MemoryBlock { id: AcirBlockId(0), len: 0, trace: Vec::new() };
-        let dummy2 = dummy.clone();
-        let dummy3 = dummy.clone();
-        let (block, ram, rom) = (
-            is_opcode_supported(&AcirOpcode::Block(dummy)),
-            is_opcode_supported(&AcirOpcode::RAM(dummy2)),
-            is_opcode_supported(&AcirOpcode::ROM(dummy3)),
-        );
-        if rom {
+
+        if is_opcode_supported(&AcirOpcode::ROM(dummy.clone())) {
             // If the backend support ROM and the array is read-only, we generate the ROM opcode
             if let ArrayType::ReadOnly(len) = self.typ {
                 self.add_rom_opcode(evaluator, array_id, len.unwrap() as u32);
                 return;
             }
         }
-
-        match (block, ram) {
-            (false, false) => self.generate_permutation_constraints(evaluator, array_id, array_len),
-            (false, true) => self.add_ram_opcode(evaluator, array_id, array_len),
-            (true, _) => {
-                evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
-                    id: AcirBlockId(array_id.as_u32()),
-                    len: array_len,
-                    trace: self.trace.clone(),
-                }));
+        if !is_opcode_supported(&AcirOpcode::Block(dummy.clone())) {
+            if is_opcode_supported(&AcirOpcode::RAM(dummy)) {
+                self.add_ram_opcode(evaluator, array_id, array_len);
+            } else {
+                self.generate_permutation_constraints(evaluator, array_id, array_len);
             }
+        } else {
+            evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
+                id: AcirBlockId(array_id.as_u32()),
+                len: array_len,
+                trace: self.trace.clone(),
+            }));
         }
     }
 
