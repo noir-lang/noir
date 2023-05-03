@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 // This has been taken and modified from the rust-analyzer codebase
 // For the most part, everything is the same, the differences are quite subtle
 // but still present. Moreover, since RA is uses incremental compilation, the usage of this component may differ.
@@ -121,9 +120,9 @@ impl CrateGraph {
                 return;
             }
             for dep in graph[source].dependencies.iter() {
-                go(graph, visited, res, dep.crate_id)
+                go(graph, visited, res, dep.crate_id);
             }
-            res.push(source)
+            res.push(source);
         }
     }
 
@@ -164,7 +163,7 @@ impl CrateGraph {
 }
 impl CrateData {
     fn add_dep(&mut self, name: CrateName, crate_id: CrateId) {
-        self.dependencies.push(Dependency { crate_id, name })
+        self.dependencies.push(Dependency { crate_id, name });
     }
 }
 impl std::ops::Index<CrateId> for CrateGraph {
@@ -177,6 +176,7 @@ impl std::ops::Index<CrateId> for CrateGraph {
 /// XXX: This is bare-bone for two reasons:
 // There are no display names currently
 // The error would be better if it showed the full cyclic dependency, including transitives.
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct CyclicDependenciesError {
     from: CrateId,

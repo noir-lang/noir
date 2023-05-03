@@ -17,8 +17,9 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
 use num_bigint::BigUint;
-use num_traits::{One, Zero};
 use std::collections::{HashMap, HashSet};
+
+use super::node::Opcode;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -35,6 +36,7 @@ pub(crate) struct SsaContext {
 
     pub(crate) functions: HashMap<FuncId, function::SsaFunction>,
     pub(crate) opcode_ids: HashMap<builtin::Opcode, NodeId>,
+    pub(crate) constants: HashMap<FieldElement, Vec<NodeId>>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub(crate) call_graph: Vec<Vec<u8>>,
@@ -62,21 +64,22 @@ impl Default for SsaContext {
             dummy_store: HashMap::new(),
             dummy_load: HashMap::new(),
             locations: HashMap::new(),
+            constants: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_with_type(node::ObjectType::Boolean);
-        pc.zero_with_type(node::ObjectType::Boolean);
+        pc.one_with_type(ObjectType::boolean());
+        pc.zero_with_type(ObjectType::boolean());
         pc
     }
 }
 
 impl SsaContext {
     pub(crate) fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&FieldElement::zero(), ObjectType::boolean()).unwrap()
     }
 
     pub(crate) fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&FieldElement::one(), ObjectType::boolean()).unwrap()
     }
 
     pub(crate) fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -92,7 +95,7 @@ impl SsaContext {
             return false;
         }
         let typ = self.object_type(id);
-        if let Some(one) = self.find_const_with_type(&BigUint::one(), typ) {
+        if let Some(one) = self.find_const_with_type(&FieldElement::one(), typ) {
             id == one
         } else {
             false
@@ -104,7 +107,7 @@ impl SsaContext {
             return false;
         }
         let typ = self.object_type(id);
-        if let Some(zero) = self.find_const_with_type(&BigUint::zero(), typ) {
+        if let Some(zero) = self.find_const_with_type(&FieldElement::zero(), typ) {
             id == zero
         } else {
             false
@@ -138,7 +141,7 @@ impl SsaContext {
                 predicate: None,
                 location: None,
             };
-            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
+            let dummy_store = node::Instruction::new(op_a, ObjectType::NotAnObject, None);
             let id = self.add_instruction(dummy_store);
             self.dummy_store.insert(a, id);
         }
@@ -162,7 +165,7 @@ impl SsaContext {
             result = format!("{var}");
         }
         if result.is_empty() {
-            result = format!("unknown {:?}", id.0.into_raw_parts().0)
+            result = format!("unknown {:?}", id.0.into_raw_parts().0);
         }
         result
     }
@@ -249,7 +252,7 @@ impl SsaContext {
 
     pub(crate) fn print_instructions(&self, instructions: &[NodeId]) {
         for id in instructions {
-            self.print_node(*id)
+            self.print_node(*id);
         }
     }
 
@@ -571,14 +574,14 @@ impl SsaContext {
 
     pub(crate) fn find_const_with_type(
         &self,
-        value: &BigUint,
+        value: &FieldElement,
         e_type: node::ObjectType,
     ) -> Option<NodeId> {
-        //TODO We should map constant values to id
-        for (idx, o) in &self.nodes {
-            if let node::NodeObject::Const(c) = o {
-                if c.value == *value && c.get_type() == e_type {
-                    return Some(NodeId(idx));
+        // we look for the node in the constants map
+        if let Some(ids) = self.constants.get(value) {
+            for &id in ids {
+                if self[id].get_type() == e_type {
+                    return Some(id);
                 }
             }
         }
@@ -589,16 +592,20 @@ impl SsaContext {
     // If such object does not exist, we create one
     pub(crate) fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
         let value = BigUint::from_bytes_be(&x.to_be_bytes());
-        if let Some(prev_const) = self.find_const_with_type(&value, t) {
+        if let Some(prev_const) = self.find_const_with_type(&x, t) {
             return prev_const;
         }
 
-        self.add_const(node::Constant {
+        let id = self.add_const(node::Constant {
             id: NodeId::dummy(),
             value,
             value_str: String::new(),
             value_type: t,
-        })
+        });
+        // Adds the id into the constants map
+        let ids = self.constants.entry(x).or_default();
+        ids.push(id);
+        id
     }
 
     // Return the type of the operation result, based on the left hand type
@@ -616,7 +623,7 @@ impl SsaContext {
             | Binary(node::Binary { operator: Slt, .. })
             | Binary(node::Binary { operator: Sle, .. })
             | Binary(node::Binary { operator: Lt, .. })
-            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::Boolean,
+            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::boolean(),
             Operation::Jne(_, _)
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
@@ -644,7 +651,7 @@ impl SsaContext {
         //we create a variable pointing to this MemArray
         let new_var = node::Variable {
             id: NodeId::dummy(),
-            obj_type: node::ObjectType::Pointer(array_index),
+            obj_type: ObjectType::ArrayPointer(array_index),
             name: name.to_string(),
             root: None,
             def: def.clone(),
@@ -722,7 +729,6 @@ impl SsaContext {
         inline::inline_tree(self, self.first_block, &decision)?;
 
         block::merge_path(self, self.first_block, BlockId::dummy(), None)?;
-
         //The CFG is now fully flattened, so we keep only the first block.
         let mut to_remove = Vec::new();
         for b in &self.blocks {
@@ -737,7 +743,6 @@ impl SsaContext {
         self[first_block].dominated.clear();
 
         optimizations::cse(self, first_block, true)?;
-
         //Truncation
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
@@ -778,14 +783,18 @@ impl SsaContext {
             return Ok(());
         }
 
-        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+        if let (ObjectType::ArrayPointer(a), ObjectType::ArrayPointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let idx_a = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
                 let op_b = Operation::Load { array_id: b, index: idx_b, location: None };
                 let load = self.new_instruction(op_b, e_type)?;
                 let op_a = Operation::Store {
@@ -830,7 +839,7 @@ impl SsaContext {
         }) = self.try_get_instruction(rhs)
         {
             if index.is_none() {
-                if let ObjectType::Pointer(a) = lhs_type {
+                if let ObjectType::ArrayPointer(a) = lhs_type {
                     ret_array = Some((*func, a, *idx));
                 }
             }
@@ -846,7 +855,7 @@ impl SsaContext {
                 //Issue #579: we initialize the array, unless it is also in arguments in which case it is already initialized.
                 let mut init = false;
                 for i in arguments.clone() {
-                    if let ObjectType::Pointer(b) = self.object_type(i) {
+                    if let ObjectType::ArrayPointer(b) = self.object_type(i) {
                         if a == b {
                             init = true;
                         }
@@ -873,7 +882,7 @@ impl SsaContext {
         }
 
         if let Some(idx) = index {
-            if let ObjectType::Pointer(a) = lhs_type {
+            if let ObjectType::ArrayPointer(a) = lhs_type {
                 //Store
                 let op_a = Operation::Store {
                     array_id: a,
@@ -886,7 +895,7 @@ impl SsaContext {
             } else {
                 unreachable!("Index expression must be for an array");
             }
-        } else if matches!(lhs_type, ObjectType::Pointer(_)) {
+        } else if matches!(lhs_type, ObjectType::ArrayPointer(_)) {
             if let Some(Instruction {
                 operation: Operation::Intrinsic(_, _),
                 res_type: result_type,
@@ -953,8 +962,10 @@ impl SsaContext {
         let e_type = self.mem[array_id].element_type;
         assert_eq!(len, values.len());
         for (i, v) in values.iter().enumerate() {
-            let index =
-                self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+            let index = self.get_or_create_const(
+                FieldElement::from(i as i128),
+                ObjectType::unsigned_integer(32),
+            );
             let op_a =
                 Operation::Store { array_id, index, value: *v, predicate: None, location: None };
             self.new_instruction_inline(op_a, e_type, stack_frame);
@@ -971,14 +982,18 @@ impl SsaContext {
             return;
         }
 
-        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+        if let (ObjectType::ArrayPointer(a), ObjectType::ArrayPointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let idx_a = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
                 let op_b = Operation::Load { array_id: b, index: idx_b, location: None };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
                 let op_a = Operation::Store {
@@ -1004,10 +1019,10 @@ impl SsaContext {
     ) -> NodeId {
         let lhs_type = self.object_type(lhs);
         let rhs_type = self.object_type(rhs);
-        if let ObjectType::Pointer(a) = lhs_type {
+        if let ObjectType::ArrayPointer(a) = lhs_type {
             //Array
             let b = stack_frame.get_or_default(a);
-            self.memcpy_inline(ObjectType::Pointer(b), rhs_type, stack_frame);
+            self.memcpy_inline(ObjectType::ArrayPointer(b), rhs_type, stack_frame);
             lhs
         } else {
             //new ssa
@@ -1058,6 +1073,12 @@ impl SsaContext {
         if a == NodeId::dummy() || b == NodeId::dummy() {
             return NodeId::dummy();
         }
+        if let Some(ins) = self.try_get_instruction(a) {
+            if ins.operation.opcode() == Opcode::Nop {
+                assert_eq!(self.try_get_instruction(b).unwrap().operation.opcode(), Opcode::Nop);
+                return NodeId::dummy();
+            }
+        }
 
         let exit_block = self.current_block;
         let block1 = self[exit_block].predecessor[0];
@@ -1067,13 +1088,13 @@ impl SsaContext {
 
         let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
-        if let node::ObjectType::Pointer(adr1) = a_type {
+        if let ObjectType::ArrayPointer(adr1) = a_type {
             let len = self.mem[adr1].len;
             let el_type = self.mem[adr1].element_type;
             let (id, array_id) = self.new_array(&name, el_type, len, None);
             for i in 0..len {
                 let index = self
-                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::NativeField);
+                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::native_field());
                 self.current_block = block1;
                 let op = Operation::Load { array_id: adr1, index, location: None };
                 let v1 = self.new_instruction(op, el_type).unwrap();
@@ -1174,16 +1195,16 @@ impl SsaContext {
     pub(crate) fn convert_type(&mut self, t: &Type) -> ObjectType {
         use noirc_frontend::Signedness;
         match t {
-            Type::Bool => ObjectType::Boolean,
-            Type::Field => ObjectType::NativeField,
+            Type::Bool => ObjectType::boolean(),
+            Type::Field => ObjectType::native_field(),
             Type::Integer(sign, bit_size) => {
                 assert!(
                     *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
                 );
                 match sign {
-                    Signedness::Signed => ObjectType::Signed(*bit_size),
-                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
+                    Signedness::Signed => ObjectType::signed_integer(*bit_size),
+                    Signedness::Unsigned => ObjectType::unsigned_integer(*bit_size),
                 }
             }
             Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
@@ -1191,6 +1212,7 @@ impl SsaContext {
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
             Type::String(_) => todo!("Conversion to ObjectType is unimplemented for strings"),
+            Type::Vec(_) => todo!("Conversion to ObjectType is unimplemented for Vecs"),
         }
     }
 
@@ -1218,7 +1240,7 @@ impl SsaContext {
                         });
                         let cond = self.add_instruction(Instruction::new(
                             op,
-                            ObjectType::Boolean,
+                            ObjectType::boolean(),
                             Some(stack.block),
                         ));
                         optimizations::simplify_id(self, cond).unwrap();
@@ -1235,7 +1257,7 @@ impl SsaContext {
                     Operation::Cond { condition: pred, val_true: *cond, val_false: self.one() };
                 let c_ins = self.add_instruction(Instruction::new(
                     operation,
-                    ObjectType::Boolean,
+                    ObjectType::boolean(),
                     Some(stack.block),
                 ));
                 stack.push(c_ins);
