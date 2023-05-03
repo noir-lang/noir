@@ -166,7 +166,7 @@ impl ArrayHeap {
     }
 
     fn add_rom_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
-        let mut trace = Vec::new();
+        let mut trace = Vec::with_capacity(self.trace.len());
         for op in &self.trace {
             let index = Self::normalize_expression(&op.index, evaluator);
             let value = Self::normalize_expression(&op.value, evaluator);
@@ -180,7 +180,7 @@ impl ArrayHeap {
     }
 
     fn add_ram_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
-        let mut trace = Vec::new();
+        let mut trace = Vec::with_capacity(self.trace.len());
         for op in &self.trace {
             let index = Self::normalize_expression(&op.index, evaluator);
             let value = Self::normalize_expression(&op.value, evaluator);
