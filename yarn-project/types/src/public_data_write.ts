@@ -5,30 +5,74 @@ import { BufferReader, Fr } from '@aztec/foundation';
  * Write operations on the public state tree.
  */
 export class PublicDataWrite {
-  constructor(public readonly leafIndex: Fr, public readonly newValue: Fr) {}
+  constructor(
+    /**
+     * Index of the updated leaf.
+     */
+    public readonly leafIndex: Fr,
+    /**
+     * New value of the leaf.
+     */
+    public readonly newValue: Fr,
+  ) {}
 
-  static from(args: { leafIndex: Fr; newValue: Fr }) {
+  /**
+   * Creates a new public data write operation from the given arguments.
+   * @param args - Arguments containing info used to create a new public data write operation.
+   * @returns A new public data write operation instance.
+   */
+  static from(args: {
+    /**
+     * Index of the updated leaf.
+     */
+    leafIndex: Fr;
+    /**
+     * New value of the leaf.
+     */
+    newValue: Fr;
+  }) {
     return new PublicDataWrite(args.leafIndex, args.newValue);
   }
 
-  toBuffer() {
+  /**
+   * Serializes the public data write operation to a buffer.
+   * @returns A buffer containing the serialized public data write operation.
+   */
+  toBuffer(): Buffer {
     return serializeToBuffer(this.leafIndex, this.newValue);
   }
 
-  isEmpty() {
+  /**
+   * Checks if the public data write operation is empty.
+   * @returns True if the public data write operation is empty, false otherwise.
+   */
+  isEmpty(): boolean {
     return this.leafIndex.isZero() && this.newValue.isZero();
   }
 
-  static fromBuffer(buffer: Buffer | BufferReader) {
+  /**
+   * Creates a new public data write operation from the given buffer.
+   * @param buffer - Buffer containing the serialized public data write operation.
+   * @returns A new public data write operation instance.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PublicDataWrite {
     const reader = BufferReader.asReader(buffer);
     return new PublicDataWrite(reader.readFr(), reader.readFr());
   }
 
-  static empty() {
+  /**
+   * Creates an empty public data write operation.
+   * @returns A new public data write operation instance.
+   */
+  static empty(): PublicDataWrite {
     return new PublicDataWrite(Fr.ZERO, Fr.ZERO);
   }
 
-  static random() {
+  /**
+   * Creates a random public data write operation.
+   * @returns A new public data write operation instance.
+   */
+  static random(): PublicDataWrite {
     return new PublicDataWrite(Fr.random(), Fr.random());
   }
 }

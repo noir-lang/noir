@@ -5,7 +5,7 @@ import { FUNCTION_SELECTOR_NUM_BYTES } from '@aztec/circuits.js';
 export { BufferReader } from '@aztec/circuits.js/utils';
 
 /**
- * Used for retrieval of contract data (A3 address, portal contract address, bytecode)
+ * Used for retrieval of contract data (A3 address, portal contract address, bytecode).
  */
 export interface ContractDataSource {
   /**
@@ -27,14 +27,14 @@ export interface ContractDataSource {
 
   /**
    * Lookup all contract public data in an L2 block.
-   * @param blockNumber - The block number
+   * @param blockNumber - The block number.
    * @returns Public data of contracts deployed in L2 block, including public function bytecode.
    */
   getL2ContractPublicDataInBlock(blockNumber: number): Promise<ContractPublicData[]>;
 
   /**
    * Lookup contract info in an L2 block.
-   * @param blockNumber - The block number
+   * @param blockNumber - The block number.
    * @returns Portal contract address info of contracts deployed in L2 block.
    */
   getL2ContractInfoInBlock(blockNumber: number): Promise<ContractData[] | undefined>;
@@ -42,27 +42,52 @@ export interface ContractDataSource {
   /**
    * Returns a contract's encoded public function, given its function selector.
    * @param address - The contract aztec address.
-   * @param functionSelector - The function's selector
+   * @param functionSelector - The function's selector.
    * @returns The function's data.
    */
   getPublicFunction(address: AztecAddress, functionSelector: Buffer): Promise<EncodedContractFunction | undefined>;
 }
 
+/**
+ * Represents encoded contract function.
+ */
 export class EncodedContractFunction {
-  constructor(public functionSelector: Buffer, public bytecode: Buffer) {}
+  constructor(
+    /**
+     * The function selector.
+     */
+    public functionSelector: Buffer,
+    /**
+     * The function bytecode.
+     */
+    public bytecode: Buffer,
+  ) {}
 
-  toBuffer() {
+  /**
+   * Serializes this instance into a buffer.
+   * @returns Encoded buffer.
+   */
+  toBuffer(): Buffer {
     const bytecodeBuf = Buffer.concat([numToInt32BE(this.bytecode.length), this.bytecode]);
     return serializeToBuffer(this.functionSelector, bytecodeBuf);
   }
 
-  static fromBuffer(buffer: Buffer | BufferReader) {
+  /**
+   * Deserializes a contract function object from an encoded buffer.
+   * @param buffer - The encoded buffer.
+   * @returns The deserialized contract function.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): EncodedContractFunction {
     const reader = BufferReader.asReader(buffer);
     const fnSelector = reader.readBytes(FUNCTION_SELECTOR_NUM_BYTES);
     return new EncodedContractFunction(fnSelector, reader.readBuffer());
   }
 
-  static random() {
+  /**
+   * Creates a random contract function.
+   * @returns A random contract function.
+   */
+  static random(): EncodedContractFunction {
     return new EncodedContractFunction(randomBytes(4), randomBytes(64));
   }
 }
@@ -82,7 +107,7 @@ export class ContractPublicData {
     public contractData: ContractData,
 
     /**
-     * ABIs of public functions
+     * ABIs of public functions.
      */
     public publicFunctions: EncodedContractFunction[],
   ) {

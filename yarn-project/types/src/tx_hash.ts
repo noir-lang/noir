@@ -1,12 +1,28 @@
 import { toBigInt } from '@aztec/foundation';
 
+/**
+ * A class representing hash of Aztec transaction.
+ */
 export class TxHash {
+  /**
+   * The size of the hash in bytes.
+   */
   public static SIZE = 32;
 
-  constructor(public readonly buffer: Buffer) {}
+  constructor(
+    /**
+     * The buffer containing the hash.
+     */
+    public readonly buffer: Buffer,
+  ) {}
 
-  public equals(rhs: TxHash) {
-    return this.buffer.equals(rhs.buffer);
+  /**
+   * Checks if this hash and another hash are equal.
+   * @param hash - A hash to compare with.
+   * @returns True if the hashes are equal, false otherwise.
+   */
+  public equals(hash: TxHash): boolean {
+    return this.buffer.equals(hash.buffer);
   }
 
   /**

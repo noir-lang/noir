@@ -7,16 +7,36 @@ import { TxHash } from './tx_hash.js';
 import { UnverifiedData } from './unverified_data.js';
 import { EncodedContractFunction } from './contract_data.js';
 
+/**
+ * Defines valid fields for a private transaction.
+ */
 type PrivateTxFields = 'data' | 'proof' | 'unverifiedData';
+
+/**
+ * Defines valid fields for a public transaction.
+ */
 type PublicTxFields = 'txRequest';
 
+/**
+ * Defines private tx type.
+ */
 export type PrivateTx = Required<Pick<Tx, PrivateTxFields>> & Tx;
+
+/**
+ * Defines public tx type.
+ */
 export type PublicTx = Required<Pick<Tx, PublicTxFields>> & Tx;
 
+/**
+ * Checks if a tx is public.
+ */
 export function isPublicTx(tx: Tx): tx is PublicTx {
   return !!tx.txRequest;
 }
 
+/**
+ * Checks if a tx is private.
+ */
 export function isPrivateTx(tx: Tx): tx is PrivateTx {
   return !!tx.data && !!tx.proof && !!tx.unverifiedData;
 }
@@ -27,6 +47,14 @@ export function isPrivateTx(tx: Tx): tx is PrivateTx {
 export class Tx {
   private hashPromise?: Promise<TxHash>;
 
+  /**
+   * Creates a new private transaction.
+   * @param data - Public inputs of the private kernel circuit.
+   * @param proof - Proof from the private kernel circuit.
+   * @param unverifiedData - Unverified data created by this tx.
+   * @param newContractPublicFunctions - Public functions made available by this tx.
+   * @returns A new private tx instance.
+   */
   public static createPrivate(
     data: KernelCircuitPublicInputs,
     proof: UInt8Vector,
@@ -36,10 +64,23 @@ export class Tx {
     return new this(data, proof, unverifiedData, undefined, newContractPublicFunctions) as PrivateTx;
   }
 
+  /**
+   * Creates a new public transaction from the given tx request.
+   * @param txRequest - The tx request.
+   * @returns New public tx instance.
+   */
   public static createPublic(txRequest: SignedTxRequest): PublicTx {
     return new this(undefined, undefined, undefined, txRequest) as PublicTx;
   }
 
+  /**
+   * Creates a new transaction containing both private and public calls.
+   * @param data - Public inputs of the private kernel circuit.
+   * @param proof - Proof from the private kernel circuit.
+   * @param unverifiedData - Unverified data created by this tx.
+   * @param txRequest - The tx request defining the public call.
+   * @returns A new tx instance.
+   */
   public static createPrivatePublic(
     data: KernelCircuitPublicInputs,
     proof: UInt8Vector,
@@ -49,6 +90,14 @@ export class Tx {
     return new this(data, proof, unverifiedData, txRequest) as PrivateTx & PublicTx;
   }
 
+  /**
+   * Creates a new transaction from the given tx request.
+   * @param data - Public inputs of the private kernel circuit.
+   * @param proof - Proof from the private kernel circuit.
+   * @param unverifiedData - Unverified data created by this tx.
+   * @param txRequest - The tx request defining the public call.
+   * @returns A new tx instance.
+   */
   public static create(
     data?: KernelCircuitPublicInputs,
     proof?: UInt8Vector,
@@ -58,27 +107,42 @@ export class Tx {
     return new this(data, proof, unverifiedData, txRequest);
   }
 
+  /**
+   * Checks if a tx is private.
+   * @returns True if the tx is private, false otherwise.
+   */
   public isPrivate(): this is PrivateTx {
     return isPrivateTx(this);
   }
 
+  /**
+   * Checks if a tx is public.
+   * @returns True if the tx is public, false otherwise.
+   */
   public isPublic(): this is PublicTx {
     return isPublicTx(this);
   }
 
-  /**
-   * Creates a new instance.
-   * @param data - Output of the private kernel circuit for this tx.
-   * @param proof - Proof from the private kernel circuit.
-   * @param unverifiedData  - Information not needed to verify the tx (e.g. encrypted note pre-images etc.)
-   * @param txRequest - Signed public function call data.
-   * @param contractsBytecode - Selector + Bytecode of contract functions that were deployed in the tx.
-   */
   protected constructor(
+    /**
+     * Output of the private kernel circuit for this tx.
+     */
     public readonly data?: KernelCircuitPublicInputs,
+    /**
+     * Proof from the private kernel circuit.
+     */
     public readonly proof?: UInt8Vector,
+    /**
+     * Information not needed to verify the tx (e.g. Encrypted note pre-images etc.).
+     */
     public readonly unverifiedData?: UnverifiedData,
+    /**
+     * Signed public function call data.
+     */
     public readonly txRequest?: SignedTxRequest,
+    /**
+     * New public functions made available by this tx.
+     */
     public readonly newContractPublicFunctions?: EncodedContractFunction[],
   ) {}
 
@@ -95,8 +159,8 @@ export class Tx {
 
   /**
    * Convenience function to get array of hashes for an array of txs.
-   * @param txs - the txs to get the hashes from
-   * @returns The corresponding array of hashes
+   * @param txs - The txs to get the hashes from.
+   * @returns The corresponding array of hashes.
    */
   static async getHashes(txs: Tx[]): Promise<TxHash[]> {
     return await Promise.all(txs.map(tx => tx.getTxHash()));

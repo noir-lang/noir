@@ -1,15 +1,21 @@
 import { serializeBufferToVector, deserializeBufferFromVector } from '@aztec/foundation';
 import { randomBytes } from 'crypto';
+
 /**
  * Data container of unverified data corresponding to one L2 block.
  */
 export class UnverifiedData {
-  /**
-   * Constructs an object containing unverified data.
-   * @param dataChunks - Chunks of unverified data corresponding to individual pieces of information (e.g. encrypted preimages).
-   */
-  constructor(public readonly dataChunks: Buffer[]) {}
+  constructor(
+    /**
+     * Chunks of unverified data corresponding to individual pieces of information (e.g. Encrypted preimages).
+     */
+    public readonly dataChunks: Buffer[],
+  ) {}
 
+  /**
+   * Serializes unverified data into a buffer.
+   * @returns A buffer containing the serialized unverified data.
+   */
   public toBuffer(): Buffer {
     // Serialize each buffer into the new buffer with prefix
     const serializedChunks = this.dataChunks.map(buffer => serializeBufferToVector(buffer));
@@ -28,6 +34,11 @@ export class UnverifiedData {
     return new UnverifiedData(datas.flatMap(chunk => chunk.dataChunks));
   }
 
+  /**
+   * Deserializes unverified data from a buffer.
+   * @param buf - The buffer containing the serialized unverified data.
+   * @returns A new UnverifiedData object.
+   */
   public static fromBuffer(buf: Buffer): UnverifiedData {
     let currIndex = 0;
     const chunks: Buffer[] = [];
@@ -46,6 +57,11 @@ export class UnverifiedData {
     return new UnverifiedData(chunks);
   }
 
+  /**
+   * Creates a new UnverifiedData object with `numChunks` random data.
+   * @param numChunks - The number of chunks to create.
+   * @returns A new UnverifiedData object.
+   */
   public static random(numChunks: number): UnverifiedData {
     const chunks: Buffer[] = [];
     for (let i = 0; i < numChunks; i++) {
