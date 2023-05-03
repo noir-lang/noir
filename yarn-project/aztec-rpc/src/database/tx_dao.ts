@@ -1,5 +1,5 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { TxHash } from '@aztec/types';
-import { AztecAddress } from '@aztec/foundation';
 
 export class TxDao {
   constructor(

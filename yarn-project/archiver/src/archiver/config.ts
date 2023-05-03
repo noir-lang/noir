@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { L1Addresses } from '@aztec/l1-contracts';
 
 /**

@@ -1,5 +1,5 @@
 import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
-import { AztecAddress, Fr, EthAddress } from '@aztec/foundation';
+
 import {
   ARGS_LENGTH,
   CallContext,
@@ -13,6 +13,9 @@ import {
   PUBLIC_CALL_STACK_LENGTH,
   RETURN_VALUES_LENGTH,
 } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
 import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-lang/noir_util_wasm';
 
 // Utilities to read TS classes from ACVM Field arrays

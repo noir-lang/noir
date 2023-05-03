@@ -1,6 +1,6 @@
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
-import { BufferReader, Fr } from '@aztec/foundation';
-
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
 /**
  * Write operations on the public state tree.
  */

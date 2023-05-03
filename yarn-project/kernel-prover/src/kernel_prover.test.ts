@@ -12,11 +12,13 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { makeTxRequest } from '@aztec/circuits.js/factories';
-import { AztecAddress, Fr } from '@aztec/foundation';
+
 import { mock } from 'jest-mock-extended';
 import { KernelProver, OutputNoteData } from './kernel_prover.js';
 import { ProofCreator } from './proof_creator.js';
 import { ProvingDataOracle } from './proving_data_oracle.js';
+import { Fr } from '@aztec/foundation/fields';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 describe('Kernel Prover', () => {
   let txRequest: TxRequest;

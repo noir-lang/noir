@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { ContractData } from './contract_data.js';
 import { TxHash } from './tx_hash.js';
 import { createTxHash } from './create_tx_hash.js';

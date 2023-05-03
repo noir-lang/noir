@@ -1,9 +1,10 @@
-import { AztecAddress, Fr } from '@aztec/foundation';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { FunctionData } from './function_data.js';
 import { EcdsaSignature } from './shared.js';
 import { TxContext } from './tx_context.js';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Signed transaction request.

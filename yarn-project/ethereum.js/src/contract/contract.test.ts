@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { EthereumRpc } from '../eth_rpc/ethereum_rpc.js';
 import { mock } from 'jest-mock-extended';
 import { EthereumProvider } from '../provider/ethereum_provider.js';

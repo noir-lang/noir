@@ -1,4 +1,4 @@
-import { serializeBufferToVector, deserializeBufferFromVector } from '@aztec/foundation';
+import { deserializeBufferFromVector, serializeBufferToVector } from '@aztec/foundation/serialize';
 import { randomBytes } from 'crypto';
 
 /**

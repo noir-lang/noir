@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { toRawTransactionRequest } from './transaction_request.js';
 
 const tests = [

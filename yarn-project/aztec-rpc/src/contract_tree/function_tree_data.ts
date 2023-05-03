@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 
 export function computeFunctionTreeData(functionTree: Fr[], functionIndex: number) {
   let rowSize = Math.ceil(functionTree.length / 2);

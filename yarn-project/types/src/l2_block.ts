@@ -8,12 +8,13 @@ import {
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
-import { Fr, sha256, toBigIntBE, toBufferBE } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import times from 'lodash.times';
 import { ContractData } from './contract_data.js';
 import { L2Tx } from './l2_tx.js';
 import { PublicDataWrite } from './public_data_write.js';
-
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { sha256 } from '@aztec/foundation/crypto';
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
  * TODO: Reuse data types and serialization functions from circuits package.

@@ -2,11 +2,12 @@ import { default as levelup } from 'levelup';
 import { Hasher, INITIAL_LEAF, MerkleTree, Pedersen, SiblingPath } from '../index.js';
 import { StandardIndexedTree } from './standard_indexed_tree.js';
 import { treeTestSuite } from '../test/test_suite.js';
-import { toBufferBE } from '@aztec/foundation';
+
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { createMemDown } from '../test/utils/create_mem_down.js';
 import { newTree } from '../new_tree.js';
 import { loadTree } from '../load_tree.js';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 const createDb = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string, depth: number) => {
   return await newTree(StandardIndexedTree, levelUp, hasher, name, depth);

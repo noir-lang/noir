@@ -1,5 +1,5 @@
 import { EthAccount } from '../eth_account/index.js';
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { decryptFromKeyStoreJson, KeyStoreEncryptOptions, KeyStoreJson } from '../keystore/index.js';
 
 /**

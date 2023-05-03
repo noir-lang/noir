@@ -1,8 +1,8 @@
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { randomBytes } from '@aztec/foundation';
 import { Point } from '@aztec/foundation/fields';
 import { TxAuxData } from './tx_aux_data.js';
+import { randomBytes } from '@aztec/foundation/crypto';
 
 describe('tx_aux_data', () => {
   let grumpkin: Grumpkin;

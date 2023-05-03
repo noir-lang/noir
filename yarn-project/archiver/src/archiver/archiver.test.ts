@@ -1,9 +1,13 @@
-import { AztecAddress, EthAddress, randomBytes, sleep, toBufferBE } from '@aztec/foundation';
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
 import { ContractData, ContractPublicData, EncodedContractFunction, L2Block } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
 import { Archiver } from './archiver.js';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { sleep } from '@aztec/foundation/sleep';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { randomBytes } from '@aztec/foundation/crypto';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';

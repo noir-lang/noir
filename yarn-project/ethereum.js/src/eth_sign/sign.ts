@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToUInt8 } from '../serialize/index.js';
 import { keccak256 } from '../crypto/index.js';
 import elliptic from 'elliptic';

@@ -5,7 +5,7 @@ import { NotePreimage } from './note_preimage.js';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { randomBytes } from '@aztec/foundation';
+import { randomBytes } from '@aztec/foundation/crypto';
 
 /**
  * A class which wraps the data required to compute a nullifier. Along with that this class contains the necessary

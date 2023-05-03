@@ -1,4 +1,4 @@
-import { createDebugLogger } from '@aztec/foundation';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { Tx, TxHash } from '@aztec/types';
 
 import { TxPool } from './index.js';

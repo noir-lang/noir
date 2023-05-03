@@ -1,7 +1,8 @@
-import { BufferReader, Fr } from '@aztec/foundation';
+import { BufferReader } from '@aztec/foundation/serialize';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { ComposerType } from './shared.js';
 import times from 'lodash.times';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Curve data.

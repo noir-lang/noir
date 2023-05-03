@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 
 export const INITIAL_L2_BLOCK_NUM = 1;
 

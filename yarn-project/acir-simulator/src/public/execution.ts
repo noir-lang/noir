@@ -1,10 +1,12 @@
 import { CallContext, FunctionData, StateRead, StateTransition, TxRequest } from '@aztec/circuits.js';
-import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-lang/noir_util_wasm';
 import { acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { PublicDB } from './db.js';
 import { StateActionsCollector } from './state_actions.js';
+import { Fr } from '@aztec/foundation/fields';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
 
 export interface PublicExecutionResult {
   returnValues: Fr[];

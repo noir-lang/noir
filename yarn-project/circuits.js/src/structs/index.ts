@@ -26,4 +26,7 @@ export * from './function_leaf_preimage.js';
 export * from './aggregation_object.js';
 export * from './membership_witness.js';
 export * from './generators.js';
-export { Fr, Fq, AztecAddress, EthAddress } from '@aztec/foundation';
+export * from '@aztec/foundation/eth-address';
+
+export * from '@aztec/foundation/fields';
+export * from '@aztec/foundation/aztec-address';

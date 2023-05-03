@@ -1,4 +1,3 @@
-import { AztecAddress, BufferReader, Fr } from '@aztec/foundation';
 import times from 'lodash.times';
 import { FieldsOf, assertLength } from '../utils/jsUtils.js';
 import { CallContext } from './call_context.js';
@@ -12,6 +11,9 @@ import {
   STATE_TRANSITIONS_LENGTH,
 } from './constants.js';
 import { serializeToBuffer } from '../utils/serialize.js';
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 /**
  * Public state read operation on a specific contract.

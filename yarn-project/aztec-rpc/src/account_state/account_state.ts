@@ -2,7 +2,6 @@ import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { EcdsaSignature, KERNEL_NEW_COMMITMENTS_LENGTH, PrivateHistoricTreeRoots, TxRequest } from '@aztec/circuits.js';
-import { AztecAddress, Fr, Point, createDebugLogger } from '@aztec/foundation';
 import { KernelProver, OutputNoteData } from '@aztec/kernel-prover';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { EncodedContractFunction, L2BlockContext, Tx, UnverifiedData } from '@aztec/types';
@@ -14,6 +13,9 @@ import { SimulatorOracle } from '../simulator_oracle/index.js';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { FunctionType } from '@aztec/noir-contracts';
 import { generateFunctionSelector } from '../index.js';
+import { Fr, Point } from '@aztec/foundation/fields';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 export class AccountState {
   public syncedToBlock = 0;

@@ -1,4 +1,3 @@
-import { BufferReader } from '@aztec/foundation';
 import { Buffer } from 'buffer';
 import {
   Fr,
@@ -10,6 +9,7 @@ import {
 } from '../index.js';
 import { boolToBuffer, serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/index.js';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 export async function getDummyPreviousKernelData(wasm: CircuitsWasm) {
   wasm.call('pedersen__init');

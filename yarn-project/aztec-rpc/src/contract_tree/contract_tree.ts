@@ -17,11 +17,14 @@ import {
   hashVK,
 } from '@aztec/circuits.js/abis';
 import { CircuitsWasm } from '@aztec/circuits.js/wasm';
-import { AztecAddress, EthAddress, Fr, keccak } from '@aztec/foundation';
 import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { ContractDao, ContractFunctionDao } from '../contract_database/index.js';
 import { computeFunctionTreeData } from './function_tree_data.js';
+import { Fr } from '@aztec/foundation/fields';
+import { keccak } from '@aztec/foundation/crypto';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 async function hashVKStr(vk: string, wasm: CircuitsWasm) {
   // TODO - check consistent encoding

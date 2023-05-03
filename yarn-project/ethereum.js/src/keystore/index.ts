@@ -1,6 +1,6 @@
 import aes from 'browserify-aes';
 import { v4 } from 'uuid';
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { pbkdf2, scrypt, keccak256, randomBytes } from '../crypto/index.js';
 
 /**

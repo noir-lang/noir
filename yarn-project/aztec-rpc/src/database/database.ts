@@ -1,8 +1,9 @@
-import { AztecAddress, Fr, Point } from '@aztec/foundation';
 import { TxHash } from '@aztec/types';
 import { ContractDatabase } from '../contract_database/index.js';
 import { TxAuxDataDao } from './tx_aux_data_dao.js';
 import { TxDao } from './tx_dao.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr, Point } from '@aztec/foundation/fields';
 
 export interface Database extends ContractDatabase {
   getTx(txHash: TxHash): Promise<TxDao | undefined>;

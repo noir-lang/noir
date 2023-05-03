@@ -1,5 +1,5 @@
 import { abiCoder } from './index.js';
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 
 const address1 = EthAddress.fromString('0x407d73d8a49eeb85d32cf465507dd71d507100c1');
 const address2 = EthAddress.fromString('0x407d73d8a49eeb85d32cf465507dd71d507100c2');

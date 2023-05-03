@@ -1,4 +1,5 @@
-import { AztecAddress, Fr } from '@aztec/foundation';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
 
 export interface PublicDB {
   /**

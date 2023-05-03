@@ -1,4 +1,4 @@
-import { toBigInt } from '@aztec/foundation';
+import { toBigInt } from '@aztec/foundation/serialize';
 
 /**
  * A class representing hash of Aztec transaction.

@@ -1,4 +1,4 @@
-import { AztecAddress } from '@aztec/foundation';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { ContractDao } from './contract_dao.js';
 
 export interface ContractDatabase {

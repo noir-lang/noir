@@ -1,5 +1,4 @@
 import { Buffer } from 'buffer';
-import { AztecAddress, Fr } from '@aztec/foundation';
 import { CircuitsWasm } from '../wasm/index.js';
 import {
   FunctionData,
@@ -11,6 +10,8 @@ import {
 } from '../index.js';
 import { serializeToBuffer, serializeBufferArrayToVector } from '../utils/serialize.js';
 import { AsyncWasmWrapper, WasmWrapper } from '@aztec/foundation/wasm';
+import { Fr } from '@aztec/foundation/fields';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 export function wasmSyncCall(
   wasm: WasmWrapper,

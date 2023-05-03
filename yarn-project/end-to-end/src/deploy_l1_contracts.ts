@@ -1,4 +1,5 @@
-import { DebugLogger, EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { DebugLogger } from '@aztec/foundation/log';
 import {
   RollupAbi,
   RollupBytecode,

@@ -1,7 +1,7 @@
 import { TxSenderConfig } from './config.js';
 import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';
 import { ContractPublicData, UnverifiedData } from '@aztec/types';
-import { createDebugLogger } from '@aztec/foundation';
+
 import {
   GetContractReturnType,
   Hex,
@@ -17,6 +17,7 @@ import {
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 /**
  * Pushes transactions to the L1 rollup contract using viem.

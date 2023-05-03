@@ -1,5 +1,5 @@
-import { toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
-import { Fr } from '../fields/index.js';
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Convert a boolean value to its corresponding byte representation in a Buffer of size 1.

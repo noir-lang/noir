@@ -1,7 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 import { assertLength, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
-import { toBufferBE } from '@aztec/foundation';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 export class MembershipWitness<N extends number> {
   constructor(pathSize: N, public leafIndex: bigint, public siblingPath: Fr[]) {

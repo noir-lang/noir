@@ -1,11 +1,11 @@
 import { CircuitsWasm, KernelCircuitPublicInputs, SignedTxRequest, UInt8Vector } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
-import { keccak } from '@aztec/foundation';
 
 import { createTxHash } from './create_tx_hash.js';
 import { TxHash } from './tx_hash.js';
 import { UnverifiedData } from './unverified_data.js';
 import { EncodedContractFunction } from './contract_data.js';
+import { keccak } from '@aztec/foundation/crypto';
 
 /**
  * Defines valid fields for a private transaction.

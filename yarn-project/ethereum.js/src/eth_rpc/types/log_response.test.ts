@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { TxHash } from '../tx_hash.js';
 import { fromRawLogResponse } from './log_response.js';
 

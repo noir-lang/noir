@@ -11,7 +11,7 @@ import {
   makeEmptyProof,
   privateKernelSim,
 } from '@aztec/circuits.js';
-import { Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 export interface ProofOutput {

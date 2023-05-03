@@ -24,7 +24,7 @@ import {
   VerificationKey,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
-import { Fr, createDebugLogger, toBigIntBE, toBufferBE } from '@aztec/foundation';
+
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
 import { ContractData, L2Block, PublicDataWrite } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
@@ -37,6 +37,9 @@ import { RollupSimulator } from '../simulator/index.js';
 
 import { ProcessedTx } from '../sequencer/processed_tx.js';
 import { BlockBuilder } from './index.js';
+import { Fr } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { toFriendlyJSON } from '@aztec/circuits.js/utils';
 import { AllowedTreeNames, OutputWithTreeSnapshot } from './types.js';
 

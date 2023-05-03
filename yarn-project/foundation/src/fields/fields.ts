@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
-import { toBigIntBE, toBufferBE } from '../index.js';
+
 import { BufferReader } from '../serialize/buffer_reader.js';
+import { toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
 
 /**
  * Fr represents a field of integers modulo the prime number MODULUS.

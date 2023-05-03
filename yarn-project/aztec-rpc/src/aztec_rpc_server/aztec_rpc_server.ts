@@ -10,7 +10,6 @@ import {
   TxContext,
   TxRequest,
 } from '@aztec/circuits.js';
-import { Fr, Point, createDebugLogger } from '@aztec/foundation';
 import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { Tx, TxHash } from '@aztec/types';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
@@ -20,6 +19,8 @@ import { Database, TxDao } from '../database/index.js';
 import { KeyStore } from '../key_store/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
 import { TxReceipt, TxStatus } from '../tx/index.js';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { Fr, Point } from '@aztec/foundation/fields';
 
 /**
  * Implements a remote Aztec RPC client provider.

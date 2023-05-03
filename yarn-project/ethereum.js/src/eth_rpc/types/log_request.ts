@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { bufferToHex } from '../../hex_string/index.js';
 import { NumberOrTag, numberOrTagToHex } from './number_or_tag.js';
 

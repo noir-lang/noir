@@ -1,5 +1,6 @@
-import { Fr, keccak } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { TxHash } from './tx_hash.js';
+import { keccak } from '@aztec/foundation/crypto';
 
 /**
  * Defines transaction data.

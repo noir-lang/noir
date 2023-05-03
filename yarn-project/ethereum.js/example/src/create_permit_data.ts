@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { TypedData } from '@aztec/ethereum.js/eth_typed_data';
 
 /**

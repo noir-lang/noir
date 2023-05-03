@@ -7,13 +7,15 @@ import {
   toAcvmCallPrivateStackItem,
   toACVMWitness,
 } from '../acvm/index.js';
-import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import { CallContext, PrivateCallStackItem, FunctionData } from '@aztec/circuits.js';
 import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
+import { Fr } from '@aztec/foundation/fields';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
 
 export interface NewNoteData {
   preimage: Fr[];

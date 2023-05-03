@@ -1,4 +1,4 @@
-import { toBigIntBE, toBufferBE } from '@aztec/foundation';
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Hasher } from '../hasher.js';
 import { IndexedTree, LeafData } from '../interfaces/indexed_tree.js';
 import { TreeBase } from '../tree_base.js';

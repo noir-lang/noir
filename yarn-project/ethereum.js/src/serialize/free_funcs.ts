@@ -1,4 +1,4 @@
-import { toBigIntBE, toBufferBE } from '../bigint_buffer/index.js';
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 // For serializing bool.
 /**

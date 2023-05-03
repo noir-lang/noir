@@ -1,9 +1,10 @@
-import { AztecAddress, Fr, Point } from '@aztec/foundation';
 import { TxHash } from '@aztec/types';
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database } from './database.js';
 import { TxAuxDataDao } from './tx_aux_data_dao.js';
 import { TxDao } from './tx_dao.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr, Point } from '@aztec/foundation/fields';
 
 export class MemoryDB extends MemoryContractDatabase implements Database {
   private txTable: TxDao[] = [];

@@ -1,7 +1,8 @@
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
-import { keccak } from '@aztec/foundation';
+
 import { L2Block } from './l2_block.js';
 import { TxHash } from './tx_hash.js';
+import { keccak } from '@aztec/foundation/crypto';
 
 /**
  * A wrapper around L2 block used to cache results of expensive operations.

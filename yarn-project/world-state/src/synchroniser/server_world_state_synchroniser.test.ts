@@ -1,13 +1,15 @@
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { AppendOnlyTreeSnapshot, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { fr } from '@aztec/circuits.js/factories';
-import { Fr, sleep } from '@aztec/foundation';
+
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
 import { ContractData, L2Block, L2BlockSource, PublicDataWrite } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { MerkleTreeDb, MerkleTreeId } from '../index.js';
 import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.js';
 import { WorldStateRunningState } from './world_state_synchroniser.js';
+import { Fr } from '@aztec/foundation/fields';
+import { sleep } from '@aztec/foundation/sleep';
 
 /**
  * Generic mock implementation.

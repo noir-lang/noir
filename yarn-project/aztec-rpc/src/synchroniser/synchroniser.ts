@@ -1,9 +1,11 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { AztecAddress, createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { L2BlockContext, TxHash } from '@aztec/types';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
+import { InterruptableSleep } from '@aztec/foundation/sleep';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 export class Synchroniser {
   private runningPromise?: Promise<void>;

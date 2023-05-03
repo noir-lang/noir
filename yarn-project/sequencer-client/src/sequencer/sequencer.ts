@@ -1,4 +1,3 @@
-import { Fr, RunningPromise, createDebugLogger } from '@aztec/foundation';
 import { P2P } from '@aztec/p2p';
 import { ContractData, ContractPublicData, PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
 import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
@@ -9,6 +8,9 @@ import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
 import { PublicProcessor } from './public_processor.js';
+import { RunningPromise } from '@aztec/foundation/running-promise';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { Fr } from '@aztec/foundation/fields';
 import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 
 /**

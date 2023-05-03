@@ -1,4 +1,4 @@
-import { BufferReader, Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import times from 'lodash.times';
 import { CircuitsWasm, getDummyPreviousKernelData } from '../../index.js';
 import { assertLength } from '../../utils/jsUtils.js';
@@ -8,6 +8,7 @@ import { UInt32, UInt8Vector } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';
 import { KernelCircuitPublicInputs } from './public_inputs.js';
 import { makeEmptyProof } from './private_kernel.js';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 export class PreviousKernelData {
   constructor(

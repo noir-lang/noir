@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv } from 'browserify-cipher';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { numToUInt8 } from '@aztec/foundation/serialize';
 import { sha256 } from '@aztec/foundation/crypto';
-import { Point } from '@aztec/foundation';
+import { Point } from '@aztec/foundation/fields';
 
 export function deriveAESSecret(ecdhPubKey: Point, ecdhPrivKey: Buffer, grumpkin: Grumpkin): Buffer {
   const sharedSecret = grumpkin.mul(ecdhPubKey.toBuffer(), ecdhPrivKey);

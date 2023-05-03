@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { assertLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { PublicCallStackItem } from '../call_stack_item.js';

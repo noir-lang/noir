@@ -1,6 +1,7 @@
-import { BufferReader, Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { TxContext } from '../tx_context.js';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 export class PrivateHistoricTreeRoots {
   constructor(

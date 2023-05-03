@@ -1,5 +1,5 @@
 import { TxHash } from '@aztec/types';
-import { AztecAddress } from '@aztec/foundation';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 export enum TxStatus {
   DROPPED = 'dropped',

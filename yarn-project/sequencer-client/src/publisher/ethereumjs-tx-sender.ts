@@ -8,10 +8,10 @@ import {
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
 import { ContractPublicData, UnverifiedData } from '@aztec/types';
-import { createDebugLogger } from '@aztec/foundation';
 
 import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';
 import { TxSenderConfig } from './config.js';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 /**
  * Pushes transactions to the L1 rollup contract using the custom aztec/ethereum.js library.

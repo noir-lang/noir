@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 
 /**
  * A protocol level, type 2, EIP-1559 transaction.

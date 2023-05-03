@@ -1,8 +1,8 @@
-import { BufferReader } from '@aztec/foundation';
 import { Fq, Fr } from '@aztec/foundation/fields';
 import { serializeToBuffer } from '../utils/serialize.js';
 import times from 'lodash.times';
 import { Vector, UInt32, AffineElement } from './shared.js';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 export class AggregationObject {
   public publicInputs: Vector<Fr>;

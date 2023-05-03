@@ -1,7 +1,8 @@
 import { ACVMField, toACVMField, fromACVMField, toAcvmNoteLoadOracleInputs, createDummyNote } from '../acvm/index.js';
-import { AztecAddress, Fr } from '@aztec/foundation';
 import { PrivateHistoricTreeRoots, TxRequest, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
 import { DBOracle } from './db_oracle.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
 
 export class ClientTxExecutionContext {
   constructor(public db: DBOracle, public request: TxRequest, public historicRoots: PrivateHistoricTreeRoots) {}

@@ -8,12 +8,12 @@ import {
   TxReceipt,
   TxRequest,
 } from '@aztec/aztec-rpc';
-import { randomBytes } from '@aztec/foundation';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { mock } from 'jest-mock-extended';
 
 import { EcdsaSignature } from '@aztec/circuits.js';
 import { Contract } from './contract.js';
+import { randomBytes } from '@aztec/foundation/crypto';
 
 describe('Contract Class', () => {
   let arc: ReturnType<typeof mock<AztecRPCClient>>;

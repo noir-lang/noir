@@ -2,7 +2,7 @@ import { LevelUp, LevelUpChain } from 'levelup';
 import { SiblingPath } from './sibling_path/sibling_path.js';
 import { Hasher } from './hasher.js';
 import { MerkleTree } from './interfaces/merkle_tree.js';
-import { toBufferLE, toBigIntLE } from '@aztec/foundation';
+import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
 
 const MAX_DEPTH = 254;
 

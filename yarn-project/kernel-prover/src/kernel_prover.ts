@@ -14,9 +14,11 @@ import {
   VerificationKey,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { AztecAddress, Fr } from '@aztec/foundation';
+
 import { KernelProofCreator, ProofCreator, ProofOutput } from './proof_creator.js';
 import { ProvingDataOracle } from './proving_data_oracle.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
 
 export interface OutputNoteData {
   contractAddress: AztecAddress;

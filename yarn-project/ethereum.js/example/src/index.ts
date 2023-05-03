@@ -1,6 +1,6 @@
 import sourceMapSupport from 'source-map-support';
 sourceMapSupport.install();
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eslint-legacy';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { fromBaseUnits, toBaseUnits } from '@aztec/ethereum.js/units';

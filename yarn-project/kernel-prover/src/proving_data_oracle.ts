@@ -5,7 +5,7 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
 } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 export interface ProvingDataOracle {
   getVkMembershipWitness(vk: VerificationKey): Promise<MembershipWitness<typeof VK_TREE_HEIGHT>>;

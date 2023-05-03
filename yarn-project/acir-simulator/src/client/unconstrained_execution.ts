@@ -1,5 +1,4 @@
 import { ACVMField, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
-import { AztecAddress, Fr } from '@aztec/foundation';
 import { CallContext, FunctionData } from '@aztec/circuits.js';
 import { frToAztecAddress, frToNumber } from '../acvm/deserialize.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
@@ -7,6 +6,8 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { select_return_flattened as selectReturnFlattened } from '@noir-lang/noir_util_wasm';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
 
 const notAvailable = () => {
   return Promise.reject(new Error(`Not available for unconstrained function execution`));

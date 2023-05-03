@@ -1,7 +1,7 @@
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { EcdsaSignature } from '@aztec/circuits.js';
-import { Point } from '@aztec/foundation';
 import { randomBytes } from '../foundation.js';
+import { Point } from '@aztec/foundation/fields';
 
 export interface KeyPair {
   getPublicKey(): Point;

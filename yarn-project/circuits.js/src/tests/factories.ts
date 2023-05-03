@@ -1,4 +1,8 @@
-import { AztecAddress, EthAddress, Fq, Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
+import { Fq } from '@aztec/foundation/fields';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
+
 import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,

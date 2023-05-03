@@ -1,5 +1,5 @@
 import { AztecRPCClient, TxReceipt, TxHash, TxStatus } from '@aztec/aztec-rpc';
-import { retryUntil } from '@aztec/foundation';
+import { retryUntil } from '@aztec/foundation/retry';
 
 export class SentTx {
   constructor(private arc: AztecRPCClient, private txHashPromise: Promise<TxHash>) {}

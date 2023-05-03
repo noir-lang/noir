@@ -1,10 +1,10 @@
-import { createDebugLogger } from '@aztec/foundation';
 import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 import { Tx, TxHash } from '@aztec/types';
 
 import { TxPool } from '../tx_pool/index.js';
 import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';
 import { getConfigEnvVars } from '../config.js';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 /**
  * Enum defining the possible states of the p2p client.

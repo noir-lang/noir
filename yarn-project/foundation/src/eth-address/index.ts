@@ -1,5 +1,6 @@
 import { keccak256String, randomBytes } from '../crypto/index.js';
-import { BufferReader, Fr } from '../index.js';
+import { Fr } from '../fields/index.js';
+import { BufferReader } from '../serialize/index.js';
 
 /**
  * Represents an Ethereum address as a 20-byte buffer and provides various utility methods

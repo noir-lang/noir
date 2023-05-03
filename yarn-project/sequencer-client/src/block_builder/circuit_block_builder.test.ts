@@ -19,7 +19,7 @@ import {
   makeProof,
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
-import { toBufferBE } from '@aztec/foundation';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { PublicDataWrite, Tx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';

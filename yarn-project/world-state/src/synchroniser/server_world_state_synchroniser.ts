@@ -1,9 +1,10 @@
-import { Fr, createDebugLogger } from '@aztec/foundation';
 import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 import { MerkleTreeDb, MerkleTreeId, MerkleTreeOperations } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import { WorldStateRunningState, WorldStateStatus, WorldStateSynchroniser } from './world_state_synchroniser.js';
 import { getConfigEnvVars } from './config.js';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Synchronises the world state with the L2 blocks from a L2BlockSource.

@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { ABIType, FunctionAbi } from '@aztec/noir-contracts';
 
 // Simple decoder. It's missing support for integer and string

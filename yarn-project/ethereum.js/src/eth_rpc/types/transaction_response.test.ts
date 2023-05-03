@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { hexToBuffer } from '../../hex_string/index.js';
 import { fromRawTransactionResponse } from './transaction_response.js';
 

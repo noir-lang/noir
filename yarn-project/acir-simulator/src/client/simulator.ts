@@ -1,4 +1,3 @@
-import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import { CallContext, PrivateHistoricTreeRoots, TxRequest } from '@aztec/circuits.js';
 import { FunctionAbi, FunctionType } from '@aztec/noir-contracts';
 import { DBOracle } from './db_oracle.js';
@@ -7,6 +6,9 @@ import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { pedersenCompressInputs, pedersenCompressWithHashIndex } from '@aztec/barretenberg.js/crypto';
 import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
+import { Fr } from '@aztec/foundation/fields';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
 
 export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);

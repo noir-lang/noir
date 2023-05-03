@@ -2,7 +2,7 @@ import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { AztecAddress, TxRequest } from '@aztec/circuits.js';
 import { ConstantKeyPair, KeyPair } from './key_pair.js';
 import { KeyStore } from './key_store.js';
-import { Point } from '@aztec/foundation';
+import { Point } from '@aztec/foundation/fields';
 
 export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];

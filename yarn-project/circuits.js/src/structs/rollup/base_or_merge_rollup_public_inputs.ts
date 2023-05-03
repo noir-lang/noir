@@ -1,9 +1,10 @@
-import { BufferReader, Fr } from '@aztec/foundation';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { RollupTypes } from '../shared.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { ConstantBaseRollupData } from './base_rollup.js';
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 /**
  * Output of the base rollup circuit

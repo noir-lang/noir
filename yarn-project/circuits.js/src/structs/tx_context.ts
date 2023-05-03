@@ -1,5 +1,7 @@
-import { BufferReader, EthAddress, Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { serializeToBuffer } from '../utils/serialize.js';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 /**
  * Contract deployment data in a TxContext

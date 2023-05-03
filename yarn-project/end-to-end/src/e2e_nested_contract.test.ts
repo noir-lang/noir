@@ -1,6 +1,6 @@
 import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
-import { createDebugLogger } from '@aztec/foundation';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { ContractAbi } from '@aztec/noir-contracts';
 import { ChildAbi, ParentAbi } from '@aztec/noir-contracts/examples';
 

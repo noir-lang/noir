@@ -1,6 +1,6 @@
-import { AztecAddress } from '@aztec/foundation';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EcdsaSignature, TxRequest } from '@aztec/circuits.js';
-import { Point } from '@aztec/foundation';
+import { Point } from '@aztec/foundation/fields';
 
 export interface KeyStore {
   addAccount(): Promise<AztecAddress>;

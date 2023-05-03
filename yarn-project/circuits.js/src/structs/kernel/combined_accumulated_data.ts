@@ -1,4 +1,3 @@
-import { AztecAddress, BufferReader, EthAddress, Fr } from '@aztec/foundation';
 import times from 'lodash.times';
 import { assertLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
@@ -16,6 +15,10 @@ import {
   STATE_TRANSITIONS_LENGTH,
 } from '../constants.js';
 import { FunctionData } from '../function_data.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 // Not to be confused with ContractDeploymentData (maybe think of better names)
 

@@ -2,7 +2,7 @@ import { AztecAddress, EthAddress, Fr, TxRequest, EcdsaSignature } from '@aztec/
 import { Tx, TxHash } from '@aztec/types';
 import { ContractAbi } from '@aztec/noir-contracts';
 import { TxReceipt } from '../tx/index.js';
-import { Point } from '@aztec/foundation';
+import { Point } from '@aztec/foundation/fields';
 
 export interface DeployedContract {
   abi: ContractAbi;

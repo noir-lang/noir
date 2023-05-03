@@ -1,6 +1,7 @@
-import { BufferReader, Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { UInt32 } from '../shared.js';
+import { BufferReader } from '@aztec/foundation/serialize';
 
 export class AppendOnlyTreeSnapshot {
   /**

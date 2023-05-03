@@ -1,5 +1,6 @@
 import { ARGS_LENGTH } from '@aztec/circuits.js';
-import { Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
+
 import { ABIType, FunctionAbi } from '@aztec/noir-contracts';
 
 // Simple encoder. It's missing support for integer and string

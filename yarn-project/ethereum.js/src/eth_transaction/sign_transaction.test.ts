@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { recoverTransaction, signTransaction } from './sign_transaction.js';
 
 // For test with accessList below, not yet supported.

@@ -5,7 +5,7 @@
   https://opensource.org/licenses/MIT
 */
 
-import { EthAddress } from '@aztec/foundation';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { EthereumRpc } from '../../../eth_rpc/index.js';
 import { bufferToHex } from '../../../hex_string/index.js';
 import { JsonRpcProvider } from '../../../provider/json_rpc_provider.js';

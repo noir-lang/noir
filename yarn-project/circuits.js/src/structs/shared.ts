@@ -1,7 +1,8 @@
-import { BufferReader, randomBytes } from '@aztec/foundation';
 import { Fq } from '@aztec/foundation/fields';
 import { assertLength } from '../utils/jsUtils.js';
 import { Bufferable, serializeToBuffer } from '../utils/serialize.js';
+import { BufferReader } from '@aztec/foundation/serialize';
+import { randomBytes } from '@aztec/foundation/crypto';
 
 export class Vector<T extends Bufferable> {
   constructor(public items: T[]) {}

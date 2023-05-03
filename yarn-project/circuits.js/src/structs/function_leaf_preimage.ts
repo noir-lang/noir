@@ -1,5 +1,6 @@
-import { BufferReader, Fr } from '@aztec/foundation';
+import { BufferReader } from '@aztec/foundation/serialize';
 import { serializeToBuffer } from '../utils/serialize.js';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * A class representing the "preimage" of a function tree leaf.

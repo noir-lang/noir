@@ -1,6 +1,9 @@
 import { pedersenCompressWithHashIndex } from '@aztec/barretenberg.js/crypto';
 import { GeneratorIndex } from '@aztec/circuits.js';
-import { AztecAddress, Fr, toBigInt } from '@aztec/foundation';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
+import { toBigInt } from '@aztec/foundation/serialize';
+
 import { WasmWrapper } from '@aztec/foundation/wasm';
 
 /**

@@ -1,6 +1,7 @@
-import { AztecAddress, Fr } from '@aztec/foundation';
+import { Fr } from '@aztec/foundation/fields';
 import { PublicDB } from './db.js';
 import { StateRead, StateTransition } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 /**
  * Implements state read/write operations on a contract public storage, collecting
