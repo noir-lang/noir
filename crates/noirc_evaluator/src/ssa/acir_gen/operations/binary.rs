@@ -146,12 +146,12 @@ pub(crate) fn evaluate(
                     if r_value.is_zero() {
                         panic!("Panic - division by zero");
                     } else {
-                        (l_c.expression() * &r_value.inverse()).into()
+                        (l_c.expression() * r_value.inverse()).into()
                     }
                 } else {
                     //TODO avoid creating witnesses here.
                     let x_witness = acir_gen.var_cache.get_or_compute_witness(r_c, evaluator).expect("unexpected constant expression"); 
-                    let inverse = Expression::from(&constraints::evaluate_inverse(
+                    let inverse = Expression::from(constraints::evaluate_inverse(
                         x_witness, &predicate, evaluator,
                     ));
                     InternalVar::from(constraints::mul_with_witness(
@@ -238,7 +238,7 @@ pub(crate) fn evaluate(
                 };
                 InternalVar::from(bitwise_result)
             }
-            BinaryOp::Shl | BinaryOp::Shr(_) => unreachable!("ICE: ShiftLeft and ShiftRight are replaced by multiplications and divisions in optimization pass."),
+            BinaryOp::Shl | BinaryOp::Shr(_) => todo!("ShiftLeft and ShiftRight operations with shifts which are only known at runtime are not yet implemented."),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         };
     Some(binary_output)

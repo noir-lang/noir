@@ -81,12 +81,12 @@ pub fn compile(args: JsValue) -> JsValue {
     let path = PathBuf::from(&options.entry_point);
     driver.create_local_crate(path, CrateType::Binary);
 
-    // We are always adding std lib implicitly. It comes bundled with binary.
-    add_noir_lib(&mut driver, "std");
-
     for dependency in options.optional_dependencies_set {
         add_noir_lib(&mut driver, dependency.as_str());
     }
+
+    // We are always adding std lib implicitly. It comes bundled with binary.
+    add_noir_lib(&mut driver, "std");
 
     driver.check_crate(&options.compile_options).unwrap_or_else(|_| panic!("Crate check failed"));
 

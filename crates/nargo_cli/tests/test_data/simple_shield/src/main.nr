@@ -30,7 +30,7 @@ fn main(
 
     // Check that the input note nullifier is in the root
     let is_member = std::merkle::check_membership(note_root, note_commitment[0], index, note_hash_path);
-    constrain is_member == 1;
+    assert(is_member == 1);
 
     [nullifier[0], receiver_note_commitment[0]]
 }
