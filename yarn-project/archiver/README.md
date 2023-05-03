@@ -1,6 +1,14 @@
 # Archiver
-To run:
-1. Run `anvil`,
-2. in the aztec3-l1-contracts repo check out my branch `janb/archiver-test-data`,
-3. deploy the contracts and generate initial activity with: `forge script --fork-url "http://127.0.0.1:8545/" --ffi GenerateActivityTest --sig "testGenerateActivity()" --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --broadcast`
-4. in this repository run `yarn start:dev` (Note: this repo is currently messy and eslint will not allow it to be built with `yarn start`)
+Archiver is a service which is used to fetch data on-chain data and present them in a nice-to-consume form.
+The on-chain data specifically are the following events:
+1. `L2BlockProcessed` event emitted on Rollup contract,
+2. `UnverifiedData` event emitted on UnverifiedDataEmitter contract and
+3. `ContractDeployment` event emitted on UnverifiedDataEmitter contract as well.
+
+The interfaces defining how the data can be consumed from the archiver are `L2BlockSource`, `UnverifiedDataSource` and `ContractDataSource`.
+
+## Usage
+To install dependencies and build the package run `yarn install` followed by `yarn build`.
+To run test execute `yarn test`.
+
+To start the service export `ETHEREUM_HOST` (defaults to `http://127.0.0.1:8545/`), `ARCHIVER_POLLING_INTERVAL` (defaults to `1000 ms`), `ROLLUP_CONTRACT_ADDRESS`, `UNVERIFIED_DATA_EMITTER_ADDRESS` environmental variables and start the service with `yarn start`.

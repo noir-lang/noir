@@ -60,12 +60,12 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   private nextL2BlockFromBlock = 0n;
 
   /**
-   * Next L1 block number to fetch `UnverifiedData` logs from (i.e. `fromBlock` in eth_getLogs)
+   * Next L1 block number to fetch `UnverifiedData` logs from (i.e. `fromBlock` in eth_getLogs).
    */
   private nextUnverifiedDataFromBlock = 0n;
 
   /**
-   * Next L1 block number to fetch `ContractPublicData` logs from (i.e. `fromBlock` in eth_getLogs)
+   * Next L1 block number to fetch `ContractPublicData` logs from (i.e. `fromBlock` in eth_getLogs).
    */
   private nextContractDataFromBlock = 0n;
 
@@ -74,7 +74,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
    * @param unverifiedDataEmitterAddress - Ethereum address of the unverifiedDataEmitter contract.
-   * @param pollingInterval - The interval for polling for rollup logs.
+   * @param pollingIntervalMs - The interval for polling for rollup logs (in milliseconds).
    * @param log - A logger.
    */
   constructor(
@@ -136,6 +136,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     await this.syncNewContractData(blockUntilSynced, currentBlockNumber);
   }
 
+  /**
+   * Fetches and processes new blocks.
+   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
+   * @param currentBlockNumber - Latest available block number in the ETH node.
+   */
   private async syncBlocks(blockUntilSynced: boolean, currentBlockNumber: bigint) {
     do {
       if (this.nextL2BlockFromBlock > currentBlockNumber) {
@@ -157,6 +162,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     } while (blockUntilSynced && this.nextL2BlockFromBlock <= currentBlockNumber);
   }
 
+  /**
+   * Fetches and processes new unverified data.
+   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
+   * @param currentBlockNumber - Latest available block number in the ETH node.
+   */
   private async syncUnverifiedData(blockUntilSynced: boolean, currentBlockNumber: bigint) {
     do {
       if (this.nextUnverifiedDataFromBlock > currentBlockNumber) {
@@ -176,6 +186,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     } while (blockUntilSynced && this.nextUnverifiedDataFromBlock <= currentBlockNumber);
   }
 
+  /**
+   * Fetches and processes new contract data.
+   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
+   * @param currentBlockNumber - Latest available block number in the ETH node.
+   */
   private async syncNewContractData(blockUntilSynced: boolean, currentBlockNumber: bigint) {
     do {
       if (this.nextContractDataFromBlock > currentBlockNumber) {
@@ -183,9 +198,9 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
       }
 
       this.log(`Syncing ContractData logs from block ${this.nextContractDataFromBlock}`);
-      const contractDataLogs = await this.getContractDataLogs(this.nextContractDataFromBlock);
+      const contractDataLogs = await this.getContractDeploymentLogs(this.nextContractDataFromBlock);
 
-      this.processContractDataLogs(contractDataLogs);
+      this.processContractDeploymentLogs(contractDataLogs);
       this.nextContractDataFromBlock =
         (contractDataLogs.findLast(cd => !!cd)?.blockNumber || this.nextContractDataFromBlock) + 1n;
     } while (blockUntilSynced && this.nextContractDataFromBlock <= currentBlockNumber);
@@ -229,7 +244,12 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     });
   }
 
-  private async getContractDataLogs(fromBlock: bigint) {
+  /**
+   * Gets relevant `ContractDeployment` logs from chain.
+   * @param fromBlock - First block to get logs from (inclusive).
+   * @returns An array of `ContractDeployment` logs.
+   */
+  private async getContractDeploymentLogs(fromBlock: bigint): Promise<any[]> {
     const abiItem = getAbiItem({
       abi: UnverifiedDataEmitterAbi,
       name: 'ContractDeployment',
@@ -289,7 +309,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     this.log('Processed unverifiedData corresponding to ' + logs.length + ' blocks.');
   }
 
-  private processContractDataLogs(
+  /**
+   * Processes newly received UnverifiedData logs.
+   * @param logs - ContractDeployment logs.
+   */
+  private processContractDeploymentLogs(
     logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployment'>[],
   ) {
     for (const log of logs) {
@@ -384,8 +408,8 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
 
   /**
    * Lookup all contract data in an L2 block.
-   * @param blockNumber - The block number to get all contract data from.
-   * @returns All new contract data in the block (if found)
+   * @param blockNum - The block number to get all contract data from.
+   * @returns All new contract data in the block (if found).
    */
   public getL2ContractPublicDataInBlock(blockNum: number): Promise<ContractPublicData[]> {
     if (blockNum > this.l2Blocks.length) {
@@ -415,22 +439,28 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   /**
    * Lookup the L2 contract info inside a block.
    * Contains contract address & the ethereum portal address.
-   * @param contractAddress - The contract data address.
+   * @param l2BlockNum - The L2 block number to get the contract data from.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  public getL2ContractInfoInBlock(blockNum: number): Promise<ContractData[] | undefined> {
-    if (blockNum > this.l2Blocks.length) {
+  public getL2ContractInfoInBlock(l2BlockNum: number): Promise<ContractData[] | undefined> {
+    if (l2BlockNum > this.l2Blocks.length) {
       return Promise.resolve([]);
     }
-    const block = this.l2Blocks[blockNum];
+    const block = this.l2Blocks[l2BlockNum];
     return Promise.resolve(block.newContractData);
   }
 
+  /**
+   * Gets the public function data for a contract.
+   * @param contractAddress - The contract address containing the function to fetch.
+   * @param functionSelector - The function selector of the function to fetch.
+   * @returns The public function data (if found).
+   */
   public async getPublicFunction(
-    address: AztecAddress,
+    contractAddress: AztecAddress,
     functionSelector: Buffer,
   ): Promise<EncodedContractFunction | undefined> {
-    const contractData = await this.getL2ContractPublicData(address);
+    const contractData = await this.getL2ContractPublicData(contractAddress);
     const result = contractData?.publicFunctions?.find(fn => fn.functionSelector.equals(functionSelector));
     return result;
   }

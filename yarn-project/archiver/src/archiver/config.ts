@@ -16,6 +16,11 @@ export interface ArchiverConfig extends L1Addresses {
   archiverPollingInterval?: number;
 }
 
+/**
+ * Returns the archiver configuration from the environment variables.
+ * Note: If an environment variable is not set, the default value is used.
+ * @returns The archiver configuration.
+ */
 export function getConfigEnvVars(): ArchiverConfig {
   const { ETHEREUM_HOST, ARCHIVER_POLLING_INTERVAL, ROLLUP_CONTRACT_ADDRESS, UNVERIFIED_DATA_EMITTER_ADDRESS } =
     process.env;
