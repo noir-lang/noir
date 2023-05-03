@@ -1,5 +1,5 @@
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { AppendOnlyTreeSnapshot } from '@aztec/circuits.js';
+import { AppendOnlyTreeSnapshot, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { fr } from '@aztec/circuits.js/factories';
 import { Fr, sleep } from '@aztec/foundation';
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
@@ -33,6 +33,10 @@ const getMockContractData = () => {
   return ContractData.random();
 };
 
+const getMockL1ToL2MessagesData = () => {
+  return new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).map(() => Fr.random());
+};
+
 const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) => {
   const block = L2Block.fromFields({
     number: blockNumber,
@@ -42,17 +46,22 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
     startTreeOfHistoricPrivateDataTreeRootsSnapshot: getMockTreeSnapshot(),
     startTreeOfHistoricContractTreeRootsSnapshot: getMockTreeSnapshot(),
     startPublicDataTreeRoot: Fr.random(),
+    startL1ToL2MessageTreeSnapshot: getMockTreeSnapshot(),
+    startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: getMockTreeSnapshot(),
     endPrivateDataTreeSnapshot: getMockTreeSnapshot(),
     endNullifierTreeSnapshot: getMockTreeSnapshot(),
     endContractTreeSnapshot: getMockTreeSnapshot(),
     endTreeOfHistoricPrivateDataTreeRootsSnapshot: getMockTreeSnapshot(),
     endTreeOfHistoricContractTreeRootsSnapshot: getMockTreeSnapshot(),
     endPublicDataTreeRoot: Fr.random(),
+    endL1ToL2MessageTreeSnapshot: getMockTreeSnapshot(),
+    endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: getMockTreeSnapshot(),
     newCommitments: [Fr.random()],
     newNullifiers: [Fr.random()],
     newContracts: newContractsCommitments?.map(x => Fr.fromBuffer(x)) ?? [Fr.random()],
     newContractData: [getMockContractData()],
     newPublicDataWrites: [PublicDataWrite.random()],
+    newL1ToL2Messages: getMockL1ToL2MessagesData(),
   });
   return block;
 };
@@ -81,7 +90,7 @@ describe('server_world_state_synchroniser', () => {
         SiblingPath.ZERO(32, INITIAL_LEAF, pedersen);
       }; //Promise.resolve();
     }),
-    updateRootsTrees: jest.fn().mockImplementation(() => Promise.resolve()),
+    updateHistoricRootsTrees: jest.fn().mockImplementation(() => Promise.resolve()),
     commit: jest.fn().mockImplementation(() => Promise.resolve()),
     rollback: jest.fn().mockImplementation(() => Promise.resolve()),
   } as any;
@@ -231,7 +240,7 @@ describe('server_world_state_synchroniser', () => {
 
   it('updates the contract tree', async () => {
     merkleTreeDb.appendLeaves.mockReset();
-    merkleTreeDb.updateRootsTrees.mockReset();
+    merkleTreeDb.updateHistoricRootsTrees.mockReset();
     const server = createSynchroniser(merkleTreeDb, rollupSource);
     const totalBlocks = LATEST_BLOCK_NUMBER + 1;
     nextBlocks = Array(totalBlocks)
@@ -242,7 +251,7 @@ describe('server_world_state_synchroniser', () => {
     // there are 3 data trees updated
     expect(merkleTreeDb.appendLeaves).toHaveBeenCalledTimes(totalBlocks * 3);
     // and 2 root trees
-    expect(merkleTreeDb.updateRootsTrees).toHaveBeenCalledTimes(totalBlocks);
+    expect(merkleTreeDb.updateHistoricRootsTrees).toHaveBeenCalledTimes(totalBlocks);
     // there should be a call to append to the contract tree for each block
     for (let i = 0; i < totalBlocks; i++) {
       expect(

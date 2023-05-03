@@ -3,6 +3,7 @@
 #include "nullifier_tree_testing_harness.hpp"
 
 #include "aztec3/circuits/abis/public_data_transition.hpp"
+#include "aztec3/constants.hpp"
 
 #include "barretenberg/numeric/uint256/uint256.hpp"
 
@@ -88,6 +89,8 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values(BaseRollupI
                                                                      size_t starting_insertion_value,
                                                                      size_t spacing);
 
+std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> get_empty_l1_to_l2_messages();
+
 nullifier_tree_testing_values generate_nullifier_tree_testing_values(
     BaseRollupInputs inputs, std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers, size_t spacing);
 
@@ -95,7 +98,9 @@ NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(const std::vector<f
 
 KernelData get_empty_kernel();
 
-RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer, std::array<KernelData, 4> kernel_data);
+RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer,
+                                        std::array<KernelData, 4> kernel_data,
+                                        std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> l1_to_l2_messages);
 
 void set_kernel_commitments(KernelData& kernel_data, std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments);
 
@@ -119,5 +124,7 @@ inline abis::PublicDataRead<NT> make_public_read(fr leaf_index, fr value)
         .value = value,
     };
 }
+
+bool compare_field_hash_to_expected(std::array<fr, 2> field_hash, std::array<uint8_t, 32> expected_hash);
 
 }  // namespace aztec3::circuits::rollup::test_utils::utils

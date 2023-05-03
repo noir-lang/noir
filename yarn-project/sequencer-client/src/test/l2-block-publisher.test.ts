@@ -3,6 +3,7 @@ import {
   BaseOrMergeRollupPublicInputs,
   CircuitsWasm,
   Fr,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   RootRollupPublicInputs,
   UInt8Vector,
 } from '@aztec/circuits.js';
@@ -68,8 +69,8 @@ describe.skip('L1Publisher integration', () => {
     const simulator = await WasmRollupCircuitSimulator.new();
     const prover = new EmptyRollupProver();
     builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
-    await expectsDb.updateRootsTrees();
-    await builderDb.updateRootsTrees();
+    await expectsDb.updateHistoricRootsTrees();
+    await builderDb.updateHistoricRootsTrees();
 
     baseRollupOutputLeft = makeBaseRollupPublicInputs();
     baseRollupOutputRight = makeBaseRollupPublicInputs();
@@ -97,6 +98,8 @@ describe.skip('L1Publisher integration', () => {
   };
 
   it('Build 2 blocks of 4 txs building on each other', async () => {
+    const newL1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
+
     const stateInRollup_ = await rollup.methods.rollupStateHash().call();
     expect(hexStringToBuffer(stateInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
 
@@ -105,7 +108,7 @@ describe.skip('L1Publisher integration', () => {
         Tx.createPrivate(makeKernelPublicInputs(1 + i), emptyProof, makeEmptyUnverifiedData()),
       );
 
-      const txsLeft = [tx, await makeEmptyProcessedTx()];
+      const txsLeft = [await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
       const txsRight = [await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
 
       // Set tree roots to proper values in the tx
@@ -124,7 +127,7 @@ describe.skip('L1Publisher integration', () => {
       baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
 
       // And update the root trees now to create proper output to the root rollup circuit
-      await expectsDb.updateRootsTrees();
+      await expectsDb.updateHistoricRootsTrees();
       rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
       rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
@@ -137,8 +140,7 @@ describe.skip('L1Publisher integration', () => {
 
       // Actually build a block!
       const txs = [tx, await makeEmptyProcessedTx(), await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
-      // Here we die.
-      const [block] = await builder.buildL2Block(1 + i, txs);
+      const [block] = await builder.buildL2Block(1 + i, txs, newL1ToL2Messages);
 
       // Now we can use the block we built!
       const blockNumber = await ethRpc.blockNumber();
@@ -151,7 +153,7 @@ describe.skip('L1Publisher integration', () => {
       const expectedData = rollup.methods.process(l2Proof, block.encode()).encodeABI();
       expect(ethTx.input).toEqual(expectedData);
 
-      const decodedCalldataHash = await decoderHelper.methods.computeDiffRoot(block.encode()).call();
+      const decodedHashes = await decoderHelper.methods.computeDiffRootAndMessagesHash(block.encode()).call();
       const decodedRes = await decoderHelper.methods.decode(block.encode()).call();
       const stateInRollup = await rollup.methods.rollupStateHash().call();
 
@@ -161,7 +163,8 @@ describe.skip('L1Publisher integration', () => {
       expect(block.getEndStateHash()).toEqual(hexStringToBuffer(decodedRes[2].toString()));
       expect(block.getEndStateHash()).toEqual(hexStringToBuffer(stateInRollup.toString()));
       expect(block.getPublicInputsHash().toBuffer()).toEqual(hexStringToBuffer(decodedRes[3].toString()));
-      expect(block.getCalldataHash()).toEqual(hexStringToBuffer(decodedCalldataHash.toString()));
+      expect(block.getCalldataHash()).toEqual(hexStringToBuffer(decodedHashes[0].toString()));
+      expect(block.getL1ToL2MessagesHash()).toEqual(hexStringToBuffer(decodedHashes[1].toString()));
     }
   }, 60_000);
 

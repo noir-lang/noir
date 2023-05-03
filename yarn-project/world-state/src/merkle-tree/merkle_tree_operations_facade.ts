@@ -107,7 +107,7 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * the current roots of the corresponding trees (CONTRACT_TREE, PRIVATE_DATA_TREE).
    * @returns Empty promise.
    */
-  public updateRootsTrees(): Promise<void> {
-    return this.trees.updateRootsTrees(this.includeUncommitted);
+  public updateHistoricRootsTrees(): Promise<void> {
+    return this.trees.updateHistoricRootsTrees(this.includeUncommitted);
   }
 }

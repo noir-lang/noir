@@ -8,6 +8,7 @@
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
+#include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
 
 #include <algorithm>
 #include <array>
@@ -17,6 +18,18 @@
 #include <vector>
 
 namespace aztec3::circuits::rollup::components {
+
+/**
+ * @brief Get the root of an empty tree of a given depth
+ *
+ * @param depth
+ * @return NT::fr
+ */
+NT::fr calculate_empty_tree_root(const size_t depth)
+{
+    stdlib::merkle_tree::MemoryTree const empty_tree = stdlib::merkle_tree::MemoryTree(depth);
+    return empty_tree.root();
+}
 
 /**
  * @brief Create an aggregation object for the proofs that are provided

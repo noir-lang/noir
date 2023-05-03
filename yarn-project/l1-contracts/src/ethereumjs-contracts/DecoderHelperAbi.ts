@@ -8,15 +8,20 @@ export default new ContractAbi([
         type: 'bytes',
       },
     ],
-    name: 'computeDiffRoot',
+    name: 'computeDiffRootAndMessagesHash',
     outputs: [
       {
         internalType: 'bytes32',
         name: '',
         type: 'bytes32',
       },
+      {
+        internalType: 'bytes32',
+        name: '',
+        type: 'bytes32',
+      },
     ],
-    stateMutability: 'pure',
+    stateMutability: 'view',
     type: 'function',
   },
   {
@@ -50,7 +55,7 @@ export default new ContractAbi([
         type: 'bytes32',
       },
     ],
-    stateMutability: 'pure',
+    stateMutability: 'view',
     type: 'function',
   },
 ]);

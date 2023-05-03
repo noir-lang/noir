@@ -6,6 +6,7 @@ import {
   KernelCircuitPublicInputs,
   PublicDataRead,
   PublicDataTransition,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   RootRollupPublicInputs,
   UInt8Vector,
 } from '@aztec/circuits.js';
@@ -55,6 +56,7 @@ describe('sequencer/circuit_block_builder', () => {
   let baseRollupOutputLeft: BaseOrMergeRollupPublicInputs;
   let baseRollupOutputRight: BaseOrMergeRollupPublicInputs;
   let rootRollupOutput: RootRollupPublicInputs;
+  let mockL1ToL2Messages: Fr[];
 
   let wasm: CircuitsWasm;
 
@@ -72,6 +74,9 @@ describe('sequencer/circuit_block_builder', () => {
     simulator = mock<RollupSimulator>();
     prover = mock<RollupProver>();
     builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
+
+    // Create mock l1 to L2 messages
+    mockL1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
 
     // Create mock outputs for simualator
     baseRollupOutputLeft = makeBaseRollupPublicInputs();
@@ -107,54 +112,71 @@ describe('sequencer/circuit_block_builder', () => {
     }
   };
 
+  const updateL1ToL2MessagesTree = async (l1ToL2Messages: Fr[]) => {
+    const asBuffer = l1ToL2Messages.map(m => m.toBuffer());
+    await expectsDb.appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, asBuffer);
+  };
+
   const getTreeSnapshot = async (tree: MerkleTreeId) => {
     const treeInfo = await expectsDb.getTreeInfo(tree);
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   };
 
+  const buildMockSimulatorInputs = async () => {
+    const kernelOutput = makeKernelPublicInputs();
+    kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(expectsDb);
+    const tx = await makeProcessedTx(Tx.createPrivate(kernelOutput, emptyProof, makeEmptyUnverifiedData()));
+
+    const txsLeft = [tx, await makeEmptyProcessedTx()];
+    const txsRight = [await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
+
+    // Calculate what would be the tree roots after the txs from the first base rollup land and update mock circuit output
+    await updateExpectedTreesFromTxs(txsLeft);
+    baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
+    baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
+    baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
+    baseRollupOutputLeft.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
+
+    // Same for the two txs on the right
+    await updateExpectedTreesFromTxs(txsRight);
+    baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
+    baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
+    baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
+    baseRollupOutputRight.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
+
+    // Update l1 to l2 data tree
+    // And update the root trees now to create proper output to the root rollup circuit
+    await updateL1ToL2MessagesTree(mockL1ToL2Messages);
+    await expectsDb.updateHistoricRootsTrees();
+    rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
+    rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
+    rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
+    rootRollupOutput.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
+    rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot = await getTreeSnapshot(
+      MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
+    );
+    rootRollupOutput.endTreeOfHistoricPrivateDataTreeRootsSnapshot = await getTreeSnapshot(
+      MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
+    );
+    rootRollupOutput.endL1ToL2MessageTreeSnapshot = await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
+    rootRollupOutput.endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot = await getTreeSnapshot(
+      MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
+    );
+
+    return [...txsLeft, ...txsRight];
+  };
+
   describe('mock simulator', () => {
-    it('builds an L2 block using mock simulator', async () => {
+    beforeEach(() => {
       // Create instance to test
       builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
-
+    });
+    it('builds an L2 block using mock simulator', async () => {
       // Assemble a fake transaction
-      const kernelOutput = makeKernelPublicInputs();
-      kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(expectsDb);
-      const tx = await makeProcessedTx(Tx.createPrivate(kernelOutput, emptyProof, makeEmptyUnverifiedData()));
-
-      const txsLeft = [tx, await makeEmptyProcessedTx()];
-      const txsRight = [await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
-
-      // Calculate what would be the tree roots after the txs from the first base rollup land and update mock circuit output
-      await updateExpectedTreesFromTxs(txsLeft);
-      baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-      baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-      baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
-      baseRollupOutputLeft.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
-
-      // Same for the two txs on the right
-      await updateExpectedTreesFromTxs(txsRight);
-      baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-      baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-      baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
-      baseRollupOutputRight.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
-
-      // And update the root trees now to create proper output to the root rollup circuit
-      await expectsDb.updateRootsTrees();
-      rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-      rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-      rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
-      rootRollupOutput.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
-      rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot = await getTreeSnapshot(
-        MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
-      );
-      rootRollupOutput.endTreeOfHistoricPrivateDataTreeRootsSnapshot = await getTreeSnapshot(
-        MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
-      );
+      const txs = await buildMockSimulatorInputs();
 
       // Actually build a block!
-      const txs = [tx, await makeEmptyProcessedTx(), await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
-      const [l2Block, proof] = await builder.buildL2Block(blockNumber, txs);
+      const [l2Block, proof] = await builder.buildL2Block(blockNumber, txs, mockL1ToL2Messages);
 
       expect(l2Block.number).toEqual(blockNumber);
       expect(proof).toEqual(emptyProof);
@@ -170,13 +192,19 @@ describe('sequencer/circuit_block_builder', () => {
       const leaves = nullifiers.map(i => toBufferBE(BigInt(i), 32));
       await expectsDb.appendLeaves(MerkleTreeId.NULLIFIER_TREE, leaves);
 
-      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
-
       await builder.performBaseRollupBatchInsertionProofs(leaves);
 
       const expected = await expectsDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
       const actual = await builderDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
       expect(actual).toEqual(expected);
+    });
+
+    it('Rejects if too many l1 to l2 messages are provided', async () => {
+      // Assemble a fake transaction
+      const txs = await buildMockSimulatorInputs();
+      const l1ToL2Messages = new Array(100).fill(new Fr(0n));
+
+      await expect(builder.buildL2Block(blockNumber, txs, l1ToL2Messages)).rejects.toThrow();
     });
   });
 
@@ -218,7 +246,7 @@ describe('sequencer/circuit_block_builder', () => {
           ...(await Promise.all(times(totalCount - deployCount, makeEmptyProcessedTx))),
         ];
 
-        const [l2Block] = await builder.buildL2Block(blockNumber, txs);
+        const [l2Block] = await builder.buildL2Block(blockNumber, txs, mockL1ToL2Messages);
         expect(l2Block.number).toEqual(blockNumber);
 
         await updateExpectedTreesFromTxs(txs);
@@ -243,7 +271,7 @@ describe('sequencer/circuit_block_builder', () => {
         makeEmptyProcessedTx(),
       ]);
 
-      const [l2Block] = await builder.buildL2Block(blockNumber, txs);
+      const [l2Block] = await builder.buildL2Block(blockNumber, txs, mockL1ToL2Messages);
       expect(l2Block.number).toEqual(blockNumber);
       expect(l2Block.newPublicDataWrites[0]).toEqual(new PublicDataWrite(fr(2), fr(12)));
       await updateExpectedTreesFromTxs(txs);
@@ -274,8 +302,11 @@ describe('sequencer/circuit_block_builder', () => {
       );
       const txs = [tx, await makeEmptyProcessedTx(), await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
 
-      const [l2Block] = await builder.buildL2Block(blockNumber, txs);
+      const [l2Block] = await builder.buildL2Block(blockNumber, txs, mockL1ToL2Messages);
       expect(l2Block.number).toEqual(blockNumber);
     }, 10000);
   });
+
+  // describe("Input guard tests", () => {
+  // })
 });

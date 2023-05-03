@@ -45,10 +45,13 @@ import {
   KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
   KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
+  L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MESSAGES_SUBTREE_INSERTION_HEIGHT,
   NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_COMMITMENTS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
   NULLIFIER_TREE_HEIGHT,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PRIVATE_CALL_STACK_LENGTH,
   PRIVATE_DATA_TREE_HEIGHT,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
@@ -430,6 +433,11 @@ export function makeRootRollupInputs(seed = 0) {
     [makePreviousBaseRollupData(seed), makePreviousBaseRollupData(seed + 0x1000)],
     range(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT, 0x2000).map(fr),
     range(CONTRACT_TREE_ROOTS_TREE_HEIGHT, 0x2100).map(fr),
+    range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 0x2100).map(fr),
+    range(L1_TO_L2_MESSAGES_SUBTREE_INSERTION_HEIGHT, 0x2100).map(fr),
+    range(L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT, 0x2100).map(fr),
+    makeAppendOnlyTreeSnapshot(seed + 0x2200),
+    makeAppendOnlyTreeSnapshot(seed + 0x2300),
   );
 }
 
@@ -448,7 +456,12 @@ export function makeRootRollupPublicInputs(seed = 0) {
     endTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     calldataHash: [new Fr(1n), new Fr(2n)],
+    l1ToL2MessagesHash: [new Fr(3n), new Fr(4n)],
   });
 }
 

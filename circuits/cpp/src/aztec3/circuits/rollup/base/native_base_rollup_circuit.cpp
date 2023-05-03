@@ -400,7 +400,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     }
 
     // Check that the new subtree is to be inserted at the next location, and is empty currently
-    const auto empty_nullifier_subtree_root = calculate_empty_tree_root(NULLIFIER_SUBTREE_DEPTH);
+    const auto empty_nullifier_subtree_root = components::calculate_empty_tree_root(NULLIFIER_SUBTREE_DEPTH);
     auto leafIndexNullifierSubtreeDepth =
         baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
     check_membership<NT>(composer,
@@ -541,7 +541,7 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     NT::fr const commitments_tree_subroot = calculate_commitments_subtree(composer, baseRollupInputs);
 
     // Insert commitment subtrees:
-    const auto empty_commitments_subtree_root = calculate_empty_tree_root(PRIVATE_DATA_SUBTREE_DEPTH);
+    const auto empty_commitments_subtree_root = components::calculate_empty_tree_root(PRIVATE_DATA_SUBTREE_DEPTH);
     auto end_private_data_tree_snapshot =
         components::insert_subtree_to_snapshot_tree(composer,
                                                     baseRollupInputs.start_private_data_tree_snapshot,
@@ -552,7 +552,7 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
                                                     "empty commitment subtree membership check");
 
     // Insert contract subtrees:
-    const auto empty_contracts_subtree_root = calculate_empty_tree_root(CONTRACT_SUBTREE_DEPTH);
+    const auto empty_contracts_subtree_root = components::calculate_empty_tree_root(CONTRACT_SUBTREE_DEPTH);
     auto end_contract_tree_snapshot =
         components::insert_subtree_to_snapshot_tree(composer,
                                                     baseRollupInputs.start_contract_tree_snapshot,

@@ -15,6 +15,7 @@ namespace aztec3::circuits::abis {
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
+
 template <typename NCT> struct RootRollupPublicInputs {
     using fr = typename NCT::fr;
     using AggregationObject = typename NCT::AggregationObject;
@@ -40,7 +41,14 @@ template <typename NCT> struct RootRollupPublicInputs {
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_contract_tree_roots_snapshot;
     AppendOnlyTreeSnapshot<NCT> end_tree_of_historic_contract_tree_roots_snapshot;
 
+    AppendOnlyTreeSnapshot<NCT> start_l1_to_l2_messages_tree_snapshot;
+    AppendOnlyTreeSnapshot<NCT> end_l1_to_l2_messages_tree_snapshot;
+
+    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot;
+    AppendOnlyTreeSnapshot<NCT> end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot;
+
     std::array<fr, 2> calldata_hash;
+    std::array<fr, 2> l1_to_l2_messages_hash;
 
     bool operator==(RootRollupPublicInputs<NCT> const&) const = default;
 
@@ -53,11 +61,15 @@ template <typename NCT> struct RootRollupPublicInputs {
         write(buf, start_contract_tree_snapshot);
         write(buf, start_tree_of_historic_private_data_tree_roots_snapshot);
         write(buf, start_tree_of_historic_contract_tree_roots_snapshot);
+        write(buf, start_l1_to_l2_messages_tree_snapshot);
+        write(buf, start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
         write(buf, end_private_data_tree_snapshot);
         write(buf, end_nullifier_tree_snapshot);
         write(buf, end_contract_tree_snapshot);
         write(buf, end_tree_of_historic_private_data_tree_roots_snapshot);
         write(buf, end_tree_of_historic_contract_tree_roots_snapshot);
+        write(buf, end_l1_to_l2_messages_tree_snapshot);
+        write(buf, end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
 
         // Stitching calldata hash together
         auto high_buffer = calldata_hash[0].to_buffer();
@@ -68,6 +80,17 @@ template <typename NCT> struct RootRollupPublicInputs {
         }
         for (uint8_t i = 0; i < 16; i++) {
             buf.push_back(low_buffer[16 + i]);
+        }
+
+        // Stitch l1_to_l2_messages_hash
+        auto high_buffer_m = l1_to_l2_messages_hash[0].to_buffer();
+        auto low_buffer_m = l1_to_l2_messages_hash[1].to_buffer();
+
+        for (uint8_t i = 0; i < 16; i++) {
+            buf.push_back(high_buffer_m[16 + i]);
+        }
+        for (uint8_t i = 0; i < 16; i++) {
+            buf.push_back(low_buffer_m[16 + i]);
         }
 
         return sha256::sha256_to_field(buf);
@@ -91,7 +114,12 @@ template <typename NCT> void read(uint8_t const*& it, RootRollupPublicInputs<NCT
     read(it, obj.end_tree_of_historic_private_data_tree_roots_snapshot);
     read(it, obj.start_tree_of_historic_contract_tree_roots_snapshot);
     read(it, obj.end_tree_of_historic_contract_tree_roots_snapshot);
+    read(it, obj.start_l1_to_l2_messages_tree_snapshot);
+    read(it, obj.end_l1_to_l2_messages_tree_snapshot);
+    read(it, obj.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
+    read(it, obj.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
     read(it, obj.calldata_hash);
+    read(it, obj.l1_to_l2_messages_hash);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupPublicInputs<NCT> const& obj)
@@ -111,7 +139,12 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupPublicIn
     write(buf, obj.end_tree_of_historic_private_data_tree_roots_snapshot);
     write(buf, obj.start_tree_of_historic_contract_tree_roots_snapshot);
     write(buf, obj.end_tree_of_historic_contract_tree_roots_snapshot);
+    write(buf, obj.start_l1_to_l2_messages_tree_snapshot);
+    write(buf, obj.end_l1_to_l2_messages_tree_snapshot);
+    write(buf, obj.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
+    write(buf, obj.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
     write(buf, obj.calldata_hash);
+    write(buf, obj.l1_to_l2_messages_hash);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupPublicInputs<NCT> const& obj)
@@ -133,7 +166,15 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupPub
               << obj.start_tree_of_historic_contract_tree_roots_snapshot << "\n"
               << "end_tree_of_historic_contract_tree_roots_snapshot: "
               << obj.end_tree_of_historic_contract_tree_roots_snapshot << "\n"
-              << "calldata_hash: " << obj.calldata_hash << "\n";
+              << "start_l1_to_l2_messages_tree_snapshot: " << obj.start_l1_to_l2_messages_tree_snapshot << "\n"
+              << "end_l1_tol2_messages_tree_snapshot: " << obj.end_l1_to_l2_messages_tree_snapshot << "\n"
+              << "start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: "
+              << obj.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot << "\n"
+              << "end_tree_of_historic_l1_tol2_messages_tree_roots_snapshot: "
+              << obj.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot << "\n"
+              << "calldata_hash: " << obj.calldata_hash << "\n"
+              << "l1_to_l2_messages_hash: " << obj.l1_to_l2_messages_hash << "\n";
+    ;
 };
 
 }  // namespace aztec3::circuits::abis

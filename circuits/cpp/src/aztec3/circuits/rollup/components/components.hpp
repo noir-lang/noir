@@ -8,6 +8,7 @@ using aztec3::circuits::check_membership;
 using aztec3::circuits::root_from_sibling_path;
 
 namespace aztec3::circuits::rollup::components {
+NT::fr calculate_empty_tree_root(size_t depth);
 std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>, 2> previous_rollup_data);
 void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
                                                    BaseOrMergeRollupPublicInputs const& left,

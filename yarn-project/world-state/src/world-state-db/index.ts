@@ -13,6 +13,8 @@ export enum MerkleTreeId {
   PRIVATE_DATA_TREE = 3,
   PRIVATE_DATA_TREE_ROOTS_TREE = 4,
   PUBLIC_DATA_TREE = 5,
+  L1_TO_L2_MESSAGES_TREE = 6,
+  L1_TO_L2_MESSAGES_ROOTS_TREE = 7,
 }
 
 /**
@@ -152,7 +154,7 @@ export interface MerkleTreeOperations {
    * Inserts into the roots trees (CONTRACT_TREE_ROOTS_TREE, PRIVATE_DATA_TREE_ROOTS_TREE)
    * the current roots of the corresponding trees (CONTRACT_TREE, PRIVATE_DATA_TREE).
    */
-  updateRootsTrees(): Promise<void>;
+  updateHistoricRootsTrees(): Promise<void>;
 }
 
 /**

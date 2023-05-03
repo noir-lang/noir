@@ -160,6 +160,15 @@ sibling_path: [ 0x1120 0x1121 0x1122 0x1123 0x1124 0x1125 0x1126 0x1127 ]
  ]
 new_historic_private_data_tree_roots: [ 0x2000 0x2001 0x2002 0x2003 0x2004 0x2005 0x2006 0x2007 ]
 new_historic_contract_tree_roots: [ 0x2100 0x2101 0x2102 0x2103 0x2104 0x2105 0x2106 0x2107 ]
+new_l1_to_l2_messages: [ 0x2100 0x2101 0x2102 0x2103 0x2104 0x2105 0x2106 0x2107 0x2108 0x2109 0x210a 0x210b 0x210c 0x210d 0x210e 0x210f ]
+new_l1_to_l2_message_tree_root_sibling_path: [ 0x2100 0x2101 0x2102 0x2103 ]
+new_historic_l1_to_l2_message_roots_tree_sibling_path: [ 0x2100 0x2101 0x2102 0x2103 0x2104 0x2105 0x2106 0x2107 ]
+start_l1_to_l2_message_tree_snapshot: root: 0x2200
+next_available_leaf_index: 8704
+
+start_historic_tree_l1_to_l2_message_tree_roots_snapshot: root: 0x2300
+next_available_leaf_index: 8960
+
 "
 `;
 
@@ -207,6 +216,19 @@ next_available_leaf_index: 2816
 end_tree_of_historic_contract_tree_roots_snapshot: root: 0xc00
 next_available_leaf_index: 3072
 
+start_l1_to_l2_messages_tree_snapshot: root: 0xd00
+next_available_leaf_index: 3328
+
+end_l1_tol2_messages_tree_snapshot: root: 0xe00
+next_available_leaf_index: 3584
+
+start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: root: 0xf00
+next_available_leaf_index: 3840
+
+end_tree_of_historic_l1_tol2_messages_tree_roots_snapshot: root: 0x1000
+next_available_leaf_index: 4096
+
 calldata_hash: [ 0x1 0x2 ]
+l1_to_l2_messages_hash: [ 0x3 0x4 ]
 "
 `;

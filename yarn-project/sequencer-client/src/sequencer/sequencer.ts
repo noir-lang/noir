@@ -1,4 +1,4 @@
-import { RunningPromise, createDebugLogger } from '@aztec/foundation';
+import { Fr, RunningPromise, createDebugLogger } from '@aztec/foundation';
 import { P2P } from '@aztec/p2p';
 import { ContractData, ContractPublicData, PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
 import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
@@ -9,6 +9,7 @@ import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
 import { PublicProcessor } from './public_processor.js';
+import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 
 /**
  * Sequencer client
@@ -111,9 +112,14 @@ export class Sequencer {
         await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxs));
       }
 
+      // Get l1 to l2 messages from the contract
+      this.log('Requesting L1 to L2 messages from contract');
+      const l1ToL2Messages = this.takeL1ToL2MessagesFromContract();
+      this.log('Successfully retrieved L1 to L2 messages from contract');
+
       // Build the new block by running the rollup circuits
       this.log(`Assembling block with txs ${processedTxs.map(tx => tx.hash).join(', ')}`);
-      const block = await this.buildBlock(processedTxs);
+      const block = await this.buildBlock(processedTxs, l1ToL2Messages);
       this.log(`Assembled block ${block.number}`);
 
       // Publishes new block to the network and awaits the tx to be mined
@@ -209,7 +215,7 @@ export class Sequencer {
     );
   }
 
-  protected async buildBlock(txs: ProcessedTx[]) {
+  protected async buildBlock(txs: ProcessedTx[], newL1ToL2Messages: Fr[]) {
     // Pad the txs array with empty txs to be a power of two, at least 4
     const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 4);
     const emptyTxCount = txsTargetSize - txs.length;
@@ -218,8 +224,17 @@ export class Sequencer {
       ...txs,
       ...(await Promise.all(times(emptyTxCount, () => this.publicProcessor.makeEmptyProcessedTx()))),
     ];
-    const [block] = await this.blockBuilder.buildL2Block(this.lastBlockNumber + 1, allTxs);
+    const [block] = await this.blockBuilder.buildL2Block(this.lastBlockNumber + 1, allTxs, newL1ToL2Messages);
     return block;
+  }
+
+  // TODO: this is a stubbed method
+  /**
+   * Checks on chain messages inbox and selects messages to inlcude within the
+   * next rollup block
+   */
+  protected takeL1ToL2MessagesFromContract(): Fr[] {
+    return new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
   }
 
   /**
