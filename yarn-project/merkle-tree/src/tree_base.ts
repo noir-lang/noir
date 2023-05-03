@@ -45,7 +45,7 @@ export abstract class TreeBase implements MerkleTree {
     root?: Buffer,
   ) {
     if (!(depth >= 1 && depth <= MAX_DEPTH)) {
-      throw Error('Bad depth');
+      throw Error('Invalid depth');
     }
 
     // Compute the zero values at each layer.
