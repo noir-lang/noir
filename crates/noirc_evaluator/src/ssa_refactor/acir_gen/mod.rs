@@ -2,7 +2,7 @@
 use super::ssa_gen::Ssa;
 
 /// Context struct for the acir generation pass.
-/// May be similar to the Evaluator struct in the currrent SSA IR.
+/// May be similar to the Evaluator struct in the current SSA IR.
 struct Context {}
 
 /// The output of the Acir-gen pass
