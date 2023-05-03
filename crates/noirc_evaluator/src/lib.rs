@@ -76,7 +76,12 @@ pub fn create_circuit(
     let mut evaluator = Evaluator::default();
 
     // First evaluate the main function
-    evaluator.evaluate_main_alt(program.clone(), is_blackbox_supported, enable_logging, show_output)?;
+    evaluator.evaluate_main_alt(
+        program.clone(),
+        is_opcode_supported,
+        enable_logging,
+        show_output,
+    )?;
 
     let Evaluator {
         current_witness_index,
