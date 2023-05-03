@@ -26,7 +26,7 @@
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
-    ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
+    ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule, TopLevelStatement,
 };
 use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
@@ -448,6 +448,10 @@ where
 {
     ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+        .validate(|expr, span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
+            expr
+        })
 }
 
 fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -877,10 +881,7 @@ where
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .validate(|elements, span, emit| {
             if elements.is_empty() {
-                emit(ParserError::with_reason(
-                    "Arrays must have at least one element".to_owned(),
-                    span,
-                ));
+                emit(ParserError::with_reason(ParserErrorReason::ZeroSizedArray, span));
             }
             ExpressionKind::array(elements)
         })
@@ -966,8 +967,7 @@ fn field_name() -> impl NoirParser<Ident> {
     ident().or(token_kind(TokenKind::Literal).validate(|token, span, emit| match token {
         Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
         other => {
-            let reason = format!("Unexpected '{other}', expected a field name");
-            emit(ParserError::with_reason(reason, span));
+            emit(ParserError::with_reason(ParserErrorReason::ExpectedFieldName(other), span));
             Ident::error(span)
         }
     }))
