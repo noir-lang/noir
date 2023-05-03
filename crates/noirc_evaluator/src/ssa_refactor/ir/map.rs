@@ -123,7 +123,7 @@ impl<T> DenseMap<T> {
     ///
     /// The id-element pairs are ordered by the numeric values of the ids.
     pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
-        let ids_iter = (0..self.storage.len()).into_iter().map(|idx| Id::new(idx));
+        let ids_iter = (0..self.storage.len()).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
 }
