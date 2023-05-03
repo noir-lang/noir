@@ -26,15 +26,6 @@ use super::{
     operations::{self},
 };
 
-/// Represent a memory operation on the ArrayHeap, at the specified index
-/// Operation is one for a store and 0 for a load
-// #[derive(Clone, Debug)]
-// struct MemOp {
-//     operation: Expression,
-//     value: Expression,
-//     index: Expression,
-// }
-
 type MemAddress = u32;
 
 enum ArrayType {
@@ -191,10 +182,8 @@ impl ArrayHeap {
     fn add_ram_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
         let mut trace = Vec::new();
         for op in &self.trace {
-            //TODO - after the init, we need a witness per-index but this will be managed by BB - we need to wait for the BB ram PR
             let index = Self::normalize_expression(&op.index, evaluator);
             let value = Self::normalize_expression(&op.value, evaluator);
-            debug_assert!(op.operation.is_const());
             trace.push(MemOp { operation: op.operation.clone(), index, value });
         }
         evaluator.opcodes.push(AcirOpcode::RAM(MemoryBlock {
@@ -319,7 +308,6 @@ impl ArrayHeap {
 #[derive(Default)]
 pub(crate) struct AcirMem {
     virtual_memory: BTreeMap<ArrayId, ArrayHeap>,
-    //pub(crate) dummy: Witness,
 }
 
 impl AcirMem {
