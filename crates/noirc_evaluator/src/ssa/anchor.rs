@@ -25,7 +25,7 @@ pub(super) enum CseAction {
 #[derive(Default, Clone)]
 pub(super) struct Anchor {
     map: HashMap<Opcode, HashMap<Operation, NodeId>>, //standard anchor
-    cast_map: HashMap<NodeId, HashMap<crate::node::ObjectType, NodeId>>, //cast anchor
+    cast_map: HashMap<NodeId, HashMap<ObjectType, NodeId>>, //cast anchor
     mem_map: HashMap<ArrayId, Vec<VecDeque<(usize, NodeId)>>>, //Memory anchor: one Vec for each array where Vec[i] contains the list of load and store instructions having index i, and the mem_item position in which they appear
     mem_list: HashMap<ArrayId, VecDeque<MemItem>>, // list of the memory instructions, per array, and grouped into MemItems
 }

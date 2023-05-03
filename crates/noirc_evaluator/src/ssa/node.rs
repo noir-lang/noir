@@ -177,28 +177,23 @@ impl Variable {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum ObjectType {
-    NativeField,
-    Boolean,
-    Unsigned(u32), //bit size
-    Signed(u32),   //bit size
-    Pointer(ArrayId),
+    Numeric(NumericType),
+    ArrayPointer(ArrayId),
     Function,
     NotAnObject, //not an object
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum NumericType {
-    Signed(u32),
-    Unsigned(u32),
+    Signed(u32),   // bit size
+    Unsigned(u32), // bit size
     NativeField,
 }
 
 impl From<ObjectType> for NumericType {
     fn from(object_type: ObjectType) -> NumericType {
         match object_type {
-            ObjectType::Signed(x) => NumericType::Signed(x),
-            ObjectType::Unsigned(x) => NumericType::Unsigned(x),
-            ObjectType::NativeField => NumericType::NativeField,
+            ObjectType::Numeric(numeric_type) => numeric_type,
             _ => unreachable!("failed to convert an object type into a numeric type"),
         }
     }
@@ -207,34 +202,71 @@ impl From<ObjectType> for NumericType {
 impl ObjectType {
     pub(crate) fn bits(&self) -> u32 {
         match self {
-            ObjectType::Boolean => 1,
-            ObjectType::NativeField => FieldElement::max_num_bits(),
             ObjectType::NotAnObject => 0,
-            ObjectType::Signed(c) => *c,
-            ObjectType::Unsigned(c) => *c,
-            ObjectType::Pointer(_) => 0,
+            ObjectType::ArrayPointer(_) => 0,
             ObjectType::Function => 0,
+            ObjectType::Numeric(numeric_type) => match numeric_type {
+                NumericType::Signed(c) | NumericType::Unsigned(c) => *c,
+                NumericType::NativeField => FieldElement::max_num_bits(),
+            },
         }
+    }
+
+    /// Returns the type that represents
+    /// a field element.
+    /// The most basic/fundamental type in the language
+    pub(crate) fn native_field() -> ObjectType {
+        ObjectType::Numeric(NumericType::NativeField)
+    }
+    /// Returns a type that represents an unsigned integer
+    pub(crate) fn unsigned_integer(bit_size: u32) -> ObjectType {
+        ObjectType::Numeric(NumericType::Unsigned(bit_size))
+    }
+    /// Returns a type that represents an boolean
+    /// Booleans are just seen as an unsigned integer
+    /// with a bit size of 1.
+    pub(crate) fn boolean() -> ObjectType {
+        ObjectType::unsigned_integer(1)
+    }
+    /// Returns a type that represents an signed integer
+    pub(crate) fn signed_integer(bit_size: u32) -> ObjectType {
+        ObjectType::Numeric(NumericType::Signed(bit_size))
+    }
+
+    /// Returns true, if the `ObjectType`
+    /// represents a field element
+    pub(crate) fn is_native_field(&self) -> bool {
+        matches!(self, ObjectType::Numeric(NumericType::NativeField))
+    }
+    /// Returns true, if the `ObjectType`
+    /// represents an unsigned integer
+    pub(crate) fn is_unsigned_integer(&self) -> bool {
+        matches!(self, ObjectType::Numeric(NumericType::Unsigned(_)))
     }
 
     //maximum size of the representation (e.g. signed(8).max_size() return 255, not 128.)
     pub(crate) fn max_size(&self) -> BigUint {
         match self {
-            &ObjectType::NativeField => {
+            ObjectType::Numeric(NumericType::NativeField) => {
                 BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_be_bytes())
             }
             _ => (BigUint::one() << self.bits()) - BigUint::one(),
         }
     }
 
+    // TODO: the name of this function is misleading
+    // TODO since the type is not being returned
     pub(crate) fn field_to_type(&self, f: FieldElement) -> FieldElement {
         match self {
-            ObjectType::NotAnObject | ObjectType::Pointer(_) => {
+            // TODO: document why this is unreachable
+            ObjectType::NotAnObject | ObjectType::ArrayPointer(_) => {
                 unreachable!()
             }
-            ObjectType::NativeField => f,
-            ObjectType::Signed(_) => todo!(),
-            _ => {
+            ObjectType::Numeric(NumericType::NativeField) => f,
+            // TODO: document why this is a TODO and create an issue
+            ObjectType::Numeric(NumericType::Signed(_)) => todo!(),
+            ObjectType::Function | ObjectType::Numeric(NumericType::Unsigned(_)) => {
+                // TODO: document where this 128 comes from
                 assert!(self.bits() < 128);
                 FieldElement::from(f.to_u128() % (1_u128 << self.bits()))
             }
@@ -382,7 +414,7 @@ impl Instruction {
             }
             Operation::Cast(value) => {
                 if let Some(l_const) = eval_fn(ctx, *value)?.into_const_value() {
-                    if self.res_type == ObjectType::NativeField {
+                    if self.res_type.is_native_field() {
                         return Ok(NodeEval::Const(l_const, self.res_type));
                     } else if let Some(l_const) = l_const.try_into_u128() {
                         return Ok(NodeEval::Const(
@@ -879,63 +911,69 @@ impl Binary {
             }
             BinaryOp::Ult => {
                 if r_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    assert_ne!(res_type, ObjectType::NativeField); //comparisons are not implemented for field elements
+                    assert!(
+                        !res_type.is_native_field(),
+                        "ICE: comparisons are not implemented for field elements"
+                    );
                     let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Ule => {
                 if l_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    assert_ne!(res_type, ObjectType::NativeField); //comparisons are not implemented for field elements
+                    assert!(
+                        !res_type.is_native_field(),
+                        "ICE: comparisons are not implemented for field elements"
+                    );
                     let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Slt => (),
             BinaryOp::Sle => (),
             BinaryOp::Lt => {
                 if r_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Lte => {
                 if l_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     if lhs == rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     }
                 }
             }
             BinaryOp::Ne => {
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     if lhs != rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     }
                 }
             }
@@ -1081,7 +1119,7 @@ fn wrapping(
     u128_op: impl FnOnce(u128, u128) -> u128,
     field_op: impl FnOnce(FieldElement, FieldElement) -> FieldElement,
 ) -> NodeEval {
-    if res_type != ObjectType::NativeField {
+    if !res_type.is_native_field() {
         let type_modulo = 1_u128 << res_type.bits();
         let lhs = lhs.to_u128() % type_modulo;
         let rhs = rhs.to_u128() % type_modulo;
@@ -1187,7 +1225,7 @@ impl Operation {
             Cond { condition, val_true: lhs, val_false: rhs } => {
                 *condition = f(*condition);
                 *lhs = f(*lhs);
-                *rhs = f(*rhs)
+                *rhs = f(*rhs);
             }
             Load { index, .. } => *index = f(*index),
             Store { index, value, predicate, .. } => {
@@ -1253,7 +1291,7 @@ impl Operation {
             Nop => (),
             Call { func, arguments, .. } => {
                 f(*func);
-                arguments.iter().copied().for_each(f)
+                arguments.iter().copied().for_each(f);
             }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
@@ -1299,7 +1337,8 @@ impl BinaryOp {
         )
     }
 }
-
+// TODO: We should create a constant and explain where the 127 and 126 constants
+// TODO are from
 fn field_to_signed(f: FieldElement, n: u32) -> i128 {
     assert!(n < 127);
     let a = f.to_u128();

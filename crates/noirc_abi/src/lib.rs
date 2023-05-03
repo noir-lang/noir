@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 use std::{collections::BTreeMap, str};
 
@@ -80,6 +81,30 @@ impl std::fmt::Display for AbiVisibility {
         match self {
             AbiVisibility::Public => write!(f, "pub"),
             AbiVisibility::Private => write!(f, "priv"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Represents whether the return value should compromise of unique witness indices such that no
+/// index occurs within the program's abi more than once.
+///
+/// This is useful for application stacks that require an uniform abi across across multiple
+/// circuits. When index duplication is allowed, the compiler may identify that a public input
+/// reaches the output unaltered and is thus referenced directly, causing the input and output
+/// witness indices to overlap. Similarly, repetitions of copied values in the output may be
+/// optimized away.
+pub enum AbiDistinctness {
+    Distinct,
+    DuplicationAllowed,
+}
+
+impl std::fmt::Display for AbiDistinctness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AbiDistinctness::Distinct => write!(f, "distinct"),
+            AbiDistinctness::DuplicationAllowed => write!(f, "duplication-allowed"),
         }
     }
 }
@@ -283,11 +308,11 @@ impl Abi {
             InputValue::String(string) => {
                 let str_as_fields =
                     string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
-                encoded_value.extend(str_as_fields)
+                encoded_value.extend(str_as_fields);
             }
             InputValue::Struct(object) => {
                 for value in object.into_values() {
-                    encoded_value.extend(Self::encode_value(value)?)
+                    encoded_value.extend(Self::encode_value(value)?);
                 }
             }
         }
@@ -442,6 +467,6 @@ mod test {
         }
 
         // We also decode the return value (we can do this immediately as we know it shares a witness with an input).
-        assert_eq!(return_value.unwrap(), reconstructed_inputs["thing2"])
+        assert_eq!(return_value.unwrap(), reconstructed_inputs["thing2"]);
     }
 }

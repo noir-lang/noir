@@ -10,7 +10,7 @@ use crate::{
         {block, builtin, node, ssa_form},
     },
 };
-use acvm::FieldElement;
+use acvm::{acir::native_types::Witness, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::{
@@ -74,12 +74,12 @@ impl IrGenerator {
 
     pub(crate) fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
         match el_type {
-            noirc_abi::AbiType::Field => ObjectType::NativeField,
+            noirc_abi::AbiType::Field => ObjectType::native_field(),
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
-                noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
-                noirc_abi::Sign::Signed => ObjectType::Signed(*width),
+                noirc_abi::Sign::Unsigned => ObjectType::unsigned_integer(*width),
+                noirc_abi::Sign::Signed => ObjectType::signed_integer(*width),
             },
-            noirc_abi::AbiType::Boolean => ObjectType::Boolean,
+            noirc_abi::AbiType::Boolean => ObjectType::boolean(),
             noirc_abi::AbiType::Array { .. } => {
                 unreachable!("array of arrays are not supported for now")
             }
@@ -98,7 +98,7 @@ impl IrGenerator {
         ident_def: Option<Definition>,
         el_type: &noirc_abi::AbiType,
         len: u64,
-        witness: Vec<acvm::acir::native_types::Witness>,
+        witness: &[Witness],
     ) -> NodeId {
         let element_type = self.get_object_type_from_abi(el_type);
         let (v_id, array_idx) = self.new_array(name, element_type, len as u32, ident_def);
@@ -125,30 +125,24 @@ impl IrGenerator {
         struct_name: &str,
         ident_def: Option<Definition>,
         fields: &BTreeMap<String, noirc_abi::AbiType>,
-        witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
+        witnesses: &BTreeMap<String, Vec<Witness>>,
     ) -> Value {
         let values = vecmap(fields, |(name, field_typ)| {
             let new_name = format!("{struct_name}.{name}");
             match field_typ {
                 noirc_abi::AbiType::Array { length, typ } => {
-                    let v_id =
-                        self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
+                    let v_id = self.abi_array(&new_name, None, typ, *length, &witnesses[&new_name]);
                     Value::Node(v_id)
                 }
                 noirc_abi::AbiType::Struct { fields, .. } => {
                     let new_name = format!("{struct_name}.{name}");
-                    self.abi_struct(&new_name, None, fields, witnesses.clone())
+                    self.abi_struct(&new_name, None, fields, witnesses)
                 }
                 noirc_abi::AbiType::String { length } => {
                     let typ =
                         noirc_abi::AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
-                    let v_id = self.abi_array(
-                        &new_name,
-                        None,
-                        &typ,
-                        *length,
-                        witnesses[&new_name].clone(),
-                    );
+                    let v_id =
+                        self.abi_array(&new_name, None, &typ, *length, &witnesses[&new_name]);
                     Value::Node(v_id)
                 }
                 _ => {
@@ -319,7 +313,8 @@ impl IrGenerator {
                 Value::Node(v_id)
             }
             Type::String(len) => {
-                let obj_type = ObjectType::Unsigned(8);
+                // Strings are a packed array of utf-8 encoded bytes
+                let obj_type = ObjectType::unsigned_integer(8);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Node(v_id)
@@ -414,7 +409,7 @@ impl IrGenerator {
         obj_type: node::ObjectType,
         value_id: NodeId,
     ) -> Result<Value, RuntimeError> {
-        let id = if let node::ObjectType::Pointer(a) = obj_type {
+        let id = if let node::ObjectType::ArrayPointer(a) = obj_type {
             let len = self.context.mem[a].len;
             let el_type = self.context.mem[a].element_type;
             self.context.new_array(&variable_name, el_type, len, definition_id).0
@@ -533,7 +528,7 @@ impl IrGenerator {
                 // Evaluate the 'array' expression
                 let expr_node = self.ssa_gen_expression(&indexed_expr.collection)?.unwrap_id();
                 let array = match self.context.object_type(expr_node) {
-                    ObjectType::Pointer(array_id) => &self.context.mem[array_id],
+                    ObjectType::ArrayPointer(array_id) => &self.context.mem[array_id],
                     other => unreachable!("Expected Pointer type, found {:?}", other),
                 };
                 let array_id = array.id;
@@ -594,7 +589,7 @@ impl IrGenerator {
                 for (pos, object) in elements.into_iter().enumerate() {
                     let lhs_adr = self.context.get_or_create_const(
                         FieldElement::from((pos as u32) as u128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let store = Operation::Store {
                         array_id,
@@ -687,7 +682,7 @@ impl IrGenerator {
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
 
         let not_equal = Operation::binary(BinaryOp::Ne, phi, end_idx);
-        let cond = self.context.new_instruction(not_equal, ObjectType::Boolean)?;
+        let cond = self.context.new_instruction(not_equal, ObjectType::boolean())?;
 
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 
@@ -795,6 +790,7 @@ impl IrGenerator {
         self.context.get_current_block_mut().left = Some(exit_block);
 
         //Exit block plumbing
+        let block2 = self.context.current_block;
         self.context.current_block = exit_block;
         self.context.get_current_block_mut().predecessor.push(block2);
         ssa_form::seal_block(&mut self.context, exit_block, entry_block);

@@ -77,10 +77,10 @@ impl Opcode {
                     | BlackBoxFunc::Pedersen
                     | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
                     // Verify returns zero or one
-                    BlackBoxFunc::SchnorrVerify
-                    | BlackBoxFunc::EcdsaSecp256k1
-                    | BlackBoxFunc::MerkleMembership => BigUint::one(),
-                    BlackBoxFunc::HashToField128Security => ObjectType::NativeField.max_size(),
+                    BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
+                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
+                        ObjectType::native_field().max_size()
+                    }
                     BlackBoxFunc::AES => {
                         todo!("ICE: AES is unimplemented")
                     }
@@ -108,21 +108,25 @@ impl Opcode {
                     BlackBoxFunc::Keccak256 => {
                         todo!("ICE: Keccak256 is unimplemented")
                     }
-                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => (32, ObjectType::Unsigned(8)),
-                    BlackBoxFunc::HashToField128Security => (1, ObjectType::NativeField),
+                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
+                        (32, ObjectType::unsigned_integer(8))
+                    }
+                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
+                        (1, ObjectType::native_field())
+                    }
                     // See issue #775 on changing this to return a boolean
-                    BlackBoxFunc::MerkleMembership
-                    | BlackBoxFunc::SchnorrVerify
-                    | BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::NativeField),
-                    BlackBoxFunc::Pedersen => (2, ObjectType::NativeField),
-                    BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::NativeField),
+                    BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => {
+                        (1, ObjectType::native_field())
+                    }
+                    BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
+                    BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unreachable!("ICE: these opcodes do not have Noir builtin functions")
                     }
                 }
             }
-            Opcode::ToBits(_) => (FieldElement::max_num_bits(), ObjectType::Boolean),
-            Opcode::ToRadix(_) => (FieldElement::max_num_bits(), ObjectType::NativeField),
+            Opcode::ToBits(_) => (FieldElement::max_num_bits(), ObjectType::boolean()),
+            Opcode::ToRadix(_) => (FieldElement::max_num_bits(), ObjectType::native_field()),
             Opcode::Println(_) => (0, ObjectType::NotAnObject),
             Opcode::Sort => {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
@@ -135,7 +139,7 @@ impl Opcode {
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub(crate) struct PrintlnInfo {
     // We store strings as arrays and there is no differentiation between them in the SSA.
-    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
+    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string.
     pub(crate) is_string_output: bool,
     // This is a flag used during `nargo test` to determine whether to display println output.
     pub(crate) show_output: bool,

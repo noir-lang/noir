@@ -65,15 +65,12 @@ impl InternalVarCache {
             NodeObject::Variable(variable) => {
                 let variable_type = variable.get_type();
                 match variable_type {
-                    ObjectType::Boolean
-                    | ObjectType::NativeField
-                    | ObjectType::Signed(..)
-                    | ObjectType::Unsigned(..) => {
+                    ObjectType::Numeric(..) => {
                         let witness =
                             variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                         InternalVar::from_witness(witness)
                     }
-                    ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
+                    ObjectType::ArrayPointer(_) | ObjectType::NotAnObject => return None,
                     ObjectType::Function => {
                         unreachable!("ICE: functions should have been removed by this stage")
                     }
@@ -128,8 +125,11 @@ impl InternalVarCache {
             let w = evaluator.create_intermediate_variable(Expression::from(value));
             for &id in ids {
                 let mut cached_var = self.get_or_compute_internal_var_unwrap(id, evaluator, ctx);
-                assert!(cached_var.cached_witness().is_none());
-                cached_var.set_witness(w);
+                if let Some(cached_witness) = cached_var.cached_witness() {
+                    assert_eq!(*cached_witness, w);
+                } else {
+                    cached_var.set_witness(w);
+                }
                 self.update(cached_var);
             }
             w

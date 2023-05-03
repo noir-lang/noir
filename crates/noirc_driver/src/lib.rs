@@ -1,11 +1,13 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::Language;
 use clap::Args;
+use contract::ContractFunction;
 use fm::FileType;
-use iter_extended::{try_btree_map, try_vecmap};
+use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
@@ -20,7 +22,7 @@ use std::path::{Path, PathBuf};
 mod contract;
 mod program;
 
-pub use contract::CompiledContract;
+pub use contract::{CompiledContract, ContractFunctionType};
 pub use program::CompiledProgram;
 
 pub struct Driver {
@@ -38,7 +40,7 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub allow_warnings: bool,
 
-    /// Display output of `println` statements during tests
+    /// Display output of `println` statements
     #[arg(long)]
     pub show_output: bool,
 }
@@ -201,16 +203,28 @@ impl Driver {
         contract: Contract,
         options: &CompileOptions,
     ) -> Result<CompiledContract, ReportedError> {
-        let functions = try_btree_map(&contract.functions, |function| {
-            let function_name = self.function_name(*function).to_owned();
-            let program = self.compile_no_check(options, *function)?;
-            Ok((function_name, program))
+        let functions = try_vecmap(&contract.functions, |function_id| {
+            let name = self.function_name(*function_id).to_owned();
+            let function = self.compile_no_check(options, *function_id)?;
+            let func_meta = self.context.def_interner.function_meta(function_id);
+            let func_type = func_meta
+                .contract_function_type
+                .expect("Expected contract function to have a contract visibility");
+
+            let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+
+            Ok(ContractFunction {
+                name,
+                function_type,
+                abi: function.abi,
+                bytecode: function.circuit,
+            })
         })?;
 
         Ok(CompiledContract { name: contract.name, functions })
     }
 
-    /// Returns the FuncId of the 'main' funciton.
+    /// Returns the FuncId of the 'main' function.
     /// - Expects check_crate to be called beforehand
     /// - Panics if no main function is found
     pub fn main_function(&self) -> Result<FuncId, ReportedError> {
@@ -238,12 +252,12 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
-        let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
+        let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         match create_circuit(
             program,
             np_language,
-            blackbox_supported,
+            is_opcode_supported,
             options.show_ssa,
             options.show_output,
         ) {

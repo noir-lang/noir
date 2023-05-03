@@ -16,6 +16,8 @@ pub trait PathResolver {
     ) -> Result<ModuleDefId, PathResolutionError>;
 
     fn local_module_id(&self) -> LocalModuleId;
+
+    fn module_id(&self) -> ModuleId;
 }
 
 pub struct StandardPathResolver {
@@ -40,6 +42,10 @@ impl PathResolver for StandardPathResolver {
 
     fn local_module_id(&self) -> LocalModuleId {
         self.module_id.local_id
+    }
+
+    fn module_id(&self) -> ModuleId {
+        self.module_id
     }
 }
 

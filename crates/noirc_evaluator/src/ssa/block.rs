@@ -108,7 +108,7 @@ impl BasicBlock {
                         result.insert(*a);
                     }
                     node::Operation::Intrinsic(..) => {
-                        if let node::ObjectType::Pointer(a) = ins.res_type {
+                        if let node::ObjectType::ArrayPointer(a) = ins.res_type {
                             result.insert(a);
                         }
                     }
@@ -118,7 +118,7 @@ impl BasicBlock {
                         }
                         if let Some(f) = ctx.try_get_ssa_func(*func) {
                             for typ in &f.result_types {
-                                if let node::ObjectType::Pointer(a) = typ {
+                                if let node::ObjectType::ArrayPointer(a) = typ {
                                     result.insert(*a);
                                 }
                             }
@@ -528,7 +528,18 @@ pub(super) fn merge_path(
             removed_blocks.push_back(next);
 
             if short_circuit.is_dummy() {
-                instructions.extend(&block.instructions);
+                if instructions.is_empty() {
+                    instructions.extend(&block.instructions);
+                } else {
+                    let nonop = block.instructions.iter().filter(|&i| {
+                        if let Some(ins) = ctx.try_get_instruction(*i) {
+                            ins.operation.opcode() != Opcode::Nop
+                        } else {
+                            true
+                        }
+                    });
+                    instructions.extend(nonop);
+                }
             }
 
             if short_circuit.is_dummy() && block.is_short_circuit(ctx, assumption) {

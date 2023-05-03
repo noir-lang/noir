@@ -52,7 +52,7 @@ pub(crate) fn evaluate(
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
                 let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                if res_type == ObjectType::NativeField {
+                if res_type == ObjectType::native_field() {
                     InternalVar::from(constraints::subtract(
                         l_c.expression(),
                         FieldElement::one(),
@@ -146,12 +146,12 @@ pub(crate) fn evaluate(
                     if r_value.is_zero() {
                         panic!("Panic - division by zero");
                     } else {
-                        (l_c.expression() * &r_value.inverse()).into()
+                        (l_c.expression() * r_value.inverse()).into()
                     }
                 } else {
                     //TODO avoid creating witnesses here.
                     let x_witness = acir_gen.var_cache.get_or_compute_witness(r_c, evaluator).expect("unexpected constant expression"); 
-                    let inverse = Expression::from(&constraints::evaluate_inverse(
+                    let inverse = Expression::from(constraints::evaluate_inverse(
                         x_witness, &predicate, evaluator,
                     ));
                     InternalVar::from(constraints::mul_with_witness(

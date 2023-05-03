@@ -131,6 +131,7 @@ pub struct Call {
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
+    pub element_type: Type,
     pub location: Location,
 }
 
@@ -171,19 +172,22 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, location: Location },
+    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
     MemberAccess { object: Box<LValue>, field_index: usize },
 }
+
+pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub id: FuncId,
     pub name: String,
 
-    pub parameters: Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>,
+    pub parameters: Parameters,
     pub body: Expression,
 
     pub return_type: Type,
+    pub unconstrained: bool,
 }
 
 /// Compared to hir_def::types::Type, this monomorphized Type has:
@@ -201,6 +205,7 @@ pub enum Type {
     String(/*len:*/ u64), // String(4) = str[4]
     Unit,
     Tuple(Vec<Type>),
+    Vec(Box<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
@@ -217,15 +222,28 @@ impl Type {
 pub struct Program {
     pub functions: Vec<Function>,
     pub main_function_signature: FunctionSignature,
+    /// Indicates whether witness indices are allowed to reoccur in the ABI of the resulting ACIR.
+    ///
+    /// Note: this has no impact on monomorphization, and is simply attached here for ease of
+    /// forwarding to the next phase.
+    pub return_distinctness: noirc_abi::AbiDistinctness,
 }
 
 impl Program {
-    pub fn new(functions: Vec<Function>, main_function_signature: FunctionSignature) -> Program {
-        Program { functions, main_function_signature }
+    pub fn new(
+        functions: Vec<Function>,
+        main_function_signature: FunctionSignature,
+        return_distinctness: noirc_abi::AbiDistinctness,
+    ) -> Program {
+        Program { functions, main_function_signature, return_distinctness }
     }
 
-    pub fn main(&mut self) -> &mut Function {
-        &mut self.functions[0]
+    pub fn main(&self) -> &Function {
+        &self[Self::main_id()]
+    }
+
+    pub fn main_mut(&mut self) -> &mut Function {
+        &mut self[Self::main_id()]
     }
 
     pub fn main_id() -> FuncId {
@@ -300,6 +318,7 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
+            Type::Vec(element) => write!(f, "Vec<{element}>"),
         }
     }
 }

@@ -1,5 +1,4 @@
-use acvm::acir::native_types::Witness;
-use noirc_abi::MAIN_RETURN_NAME;
+use acvm::acir::native_types::Expression;
 
 use crate::{
     errors::RuntimeErrorKind,
@@ -40,7 +39,6 @@ pub(crate) fn evaluate(
             }
         };
 
-        let mut witnesses: Vec<Witness> = Vec::new();
         for object in objects {
             let witness = var_cache.get_or_compute_witness_unwrap(object, evaluator, ctx);
             // Before pushing to the public inputs, we need to check that
@@ -50,10 +48,16 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            witnesses.push(witness);
+            // Check if the outputted witness needs separating from an existing occurrence in the
+            // abi. This behavior stems from usage of the `distinct` keyword.
+            let return_witness = if evaluator.should_proxy_witness_for_abi_output(witness) {
+                let proxy_constraint = Expression::from(witness);
+                evaluator.create_intermediate_variable(proxy_constraint)
+            } else {
+                witness
+            };
+            evaluator.return_values.push(return_witness);
         }
-        evaluator.public_inputs.extend(witnesses.clone());
-        evaluator.param_witnesses.insert(MAIN_RETURN_NAME.to_owned(), witnesses);
     }
 
     Ok(None)

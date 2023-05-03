@@ -1,6 +1,0 @@
-x = "0"
-y = "1"
-salt = "42"
-
-out_x = "0x229fb88be21cec523e9223a21324f2e305aea8bff9cdbcb3d0c6bba384666ea1"
-out_y = "0x296b4b4605e586a91caa3202baad557628a8c56d0a1d6dff1a7ca35aed3029d5"

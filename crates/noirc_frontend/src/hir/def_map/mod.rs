@@ -18,6 +18,9 @@ pub use module_data::*;
 mod namespace;
 pub use namespace::*;
 
+/// The name that is used for a non-contract program's entry-point function.
+pub const MAIN_FUNCTION: &str = "main";
+
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
@@ -34,6 +37,12 @@ impl LocalModuleId {
 pub struct ModuleId {
     pub krate: CrateId,
     pub local_id: LocalModuleId,
+}
+
+impl ModuleId {
+    pub fn module(self, def_maps: &HashMap<CrateId, CrateDefMap>) -> &ModuleData {
+        &def_maps[&self.krate].modules()[self.local_id.0]
+    }
 }
 
 /// Map of all modules and scopes defined within a crate.
@@ -98,13 +107,11 @@ impl CrateDefMap {
 
     /// Find the main function for this crate
     pub fn main_function(&self) -> Option<FuncId> {
-        const MAIN_FUNCTION: &str = "main";
-
         let root_module = &self.modules()[self.root.0];
 
         // This function accepts an Ident, so we attach a dummy span to
         // "main". Equality is implemented only on the contents.
-        root_module.scope.find_func_with_name(&MAIN_FUNCTION.into())
+        root_module.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
     pub fn root_file_id(&self) -> FileId {
@@ -123,8 +130,10 @@ impl CrateDefMap {
         interner: &'a NodeInterner,
     ) -> impl Iterator<Item = FuncId> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
-            let functions = module.scope.values().values().filter_map(|(id, _)| id.as_function());
-            functions.filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
+            module
+                .value_definitions()
+                .filter_map(|id| id.as_function())
+                .filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
         })
     }
 
@@ -135,13 +144,8 @@ impl CrateDefMap {
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let functions = module
-                        .scope
-                        .values()
-                        .values()
-                        .filter_map(|(id, _)| id.as_function())
-                        .collect();
-
+                    let functions =
+                        module.value_definitions().filter_map(|id| id.as_function()).collect();
                     let name = self.get_module_path(id, module.parent);
                     Some(Contract { name, functions })
                 } else {
