@@ -55,7 +55,7 @@ impl ParserError {
     }
 
     pub fn with_reason(reason: ParserErrorReason, span: Span) -> ParserError {
-        let mut error: ParserError = ParserError::empty(Token::EOF, span);
+        let mut error = ParserError::empty(Token::EOF, span);
         error.reason = Some(reason);
         error
     }
