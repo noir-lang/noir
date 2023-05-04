@@ -38,7 +38,7 @@
   "dependencies": {
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/l1-contracts": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
     "lodash.times": "^4.3.2",
     "tslib": "^2.5.0"
   },

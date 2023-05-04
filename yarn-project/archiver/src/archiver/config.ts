@@ -1,5 +1,5 @@
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { L1Addresses } from '@aztec/l1-contracts';
+import { L1Addresses } from '@aztec/types';
 
 /**
  * The archiver configuration.

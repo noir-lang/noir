@@ -1,0 +1,35 @@
+{
+  "name": "@aztec/l1-artifacts",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./dest/index.js"
+  },
+  "typedoc": {
+    "entryPoint": "./generated/index.ts",
+    "displayName": "L1 Contracts",
+    "tsconfig": "./tsconfig.json"
+  },
+  "scripts": {
+    "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
+    "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
+    "build": "yarn clean && yarn generate && tsc -b",
+    "clean": "rm -rf ./dest ./generated .tsbuildinfo",
+    "formatting": "run -T prettier --check ./generated && run -T eslint ./generated",
+    "formatting:fix": "run -T prettier -w ./generated",
+    "generate": "bash scripts/generate-artifacts.sh && yarn formatting:fix"
+  },
+  "dependencies": {
+    "tslib": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.23",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  },
+  "files": [
+    "dest",
+    "generated"
+  ],
+  "types": "./dest/index.d.ts"
+}

@@ -1,4 +1,4 @@
-import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
+import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
 import { ContractData, ContractPublicData, EncodedContractFunction, L2Block } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';

@@ -1,0 +1,10 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "generated",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "include": ["generated"],
+  "references": []
+}

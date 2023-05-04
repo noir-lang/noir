@@ -34,9 +34,8 @@
   "dependencies": {
     "@aztec/acir-simulator": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
-    "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/l1-contracts": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/types": "workspace:^",

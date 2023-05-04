@@ -1,4 +1,4 @@
-import { L1Addresses } from '@aztec/l1-contracts';
+import { L1Addresses } from '@aztec/types';
 
 /**
  * The configuration of the rollup transaction publisher.

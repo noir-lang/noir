@@ -14,7 +14,7 @@ import {
   getContract,
   http,
 } from 'viem';
-import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
+import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
 import { createDebugLogger } from '@aztec/foundation/log';

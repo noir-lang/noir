@@ -24,7 +24,6 @@ import {
   VerificationKey,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
-
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
 import { ContractData, L2Block, PublicDataWrite } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';

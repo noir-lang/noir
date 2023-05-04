@@ -12,7 +12,6 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { makeTxRequest } from '@aztec/circuits.js/factories';
-
 import { mock } from 'jest-mock-extended';
 import { KernelProver, OutputNoteData } from './kernel_prover.js';
 import { ProofCreator } from './proof_creator.js';

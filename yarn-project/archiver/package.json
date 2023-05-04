@@ -34,9 +34,8 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/l1-contracts": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
     "@aztec/types": "workspace:^",
     "debug": "^4.3.4",
     "tsc-watch": "^6.0.0",

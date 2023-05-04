@@ -5,7 +5,7 @@ import {
   RollupBytecode,
   UnverifiedDataEmitterAbi,
   UnverifiedDataEmitterBytecode,
-} from '@aztec/l1-contracts/viem';
+} from '@aztec/l1-artifacts';
 import type { Abi, Narrow } from 'abitype';
 import {
   Account,

@@ -52,6 +52,7 @@
     "@koa/cors": "^4.0.0",
     "debug": "^4.3.4",
     "detect-node": "^2.1.0",
+    "hash.js": "^1.1.7",
     "koa": "^2.14.1",
     "koa-bodyparser": "^4.4.0",
     "koa-compress": "^5.1.0",

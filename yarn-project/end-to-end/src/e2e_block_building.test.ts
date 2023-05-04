@@ -1,6 +1,5 @@
 import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
 import { AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
-
 import { mnemonicToAccount } from 'viem/accounts';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { deployL1Contracts } from './deploy_l1_contracts.js';

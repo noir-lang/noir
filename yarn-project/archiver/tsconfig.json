@@ -7,13 +7,10 @@
   },
   "references": [
     {
-      "path": "../ethereum.js"
-    },
-    {
       "path": "../foundation"
     },
     {
-      "path": "../l1-contracts"
+      "path": "../l1-artifacts"
     },
     {
       "path": "../types"

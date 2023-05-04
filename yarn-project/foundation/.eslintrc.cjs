@@ -59,8 +59,8 @@ module.exports = {
       files: '*.test.ts',
       rules: {
         'jsdoc/require-jsdoc': 'off',
-      }
-    }
+      },
+    },
   ],
   env: {
     node: true,

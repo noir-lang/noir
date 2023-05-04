@@ -7,7 +7,6 @@
     "aztec-cli",
     "aztec-rpc",
     "aztec.js",
-    "ethereum.js",
     "kernel-prover",
     "key-store",
     "noir-contracts",

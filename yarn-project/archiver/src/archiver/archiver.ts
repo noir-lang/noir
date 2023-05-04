@@ -4,8 +4,8 @@ import { RunningPromise } from '@aztec/foundation/running-promise';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { BufferReader } from '@aztec/foundation/serialize';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
-import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
+import { INITIAL_L2_BLOCK_NUM } from '@aztec/types';
+import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
 import {
   ContractData,
   ContractPublicData,

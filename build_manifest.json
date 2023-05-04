@@ -53,21 +53,30 @@
     "rebuildPatterns": [
       "^l1-contracts/"
     ],
-    "dependencies": [
-      "ethereum.js",
-      "foundation"
-    ]
+    "dependencies": []
+  },
+  "l1-artifacts": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/l1-artifacts",
+    "dockerfile": "l1-artifacts/Dockerfile",
+    "rebuildPatterns": [
+      "^l1-contracts/",
+      "^yarn-project/l1-artifacts/"
+    ],
+    "dependencies": []
   },
   "yarn-project-base": {
     "buildDir": "yarn-project",
     "dockerfile": "yarn-project-base/Dockerfile",
     "rebuildPatterns": [
       "^circuits/",
+      "^l1-contracts/",
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
     "dependencies": [
-      "circuits-wasm-linux-clang"
+      "circuits-wasm-linux-clang",
+      "l1-contracts"
     ]
   },
   "acir-simulator": {
@@ -94,9 +103,8 @@
       "^yarn-project/archiver/"
     ],
     "dependencies": [
-      "ethereum.js",
       "foundation",
-      "l1-contracts",
+      "l1-artifacts",
       "types"
     ]
   },
@@ -179,19 +187,8 @@
       "aztec-node",
       "aztec.js",
       "foundation",
-      "l1-contracts",
+      "l1-artifacts",
       "noir-contracts"
-    ]
-  },
-  "ethereum.js": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/ethereum.js",
-    "dockerfile": "ethereum.js/Dockerfile",
-    "rebuildPatterns": [
-      "^yarn-project/ethereum.js/"
-    ],
-    "dependencies": [
-      "foundation"
     ]
   },
   "foundation": {
@@ -225,20 +222,6 @@
     ],
     "dependencies": [
       "foundation"
-    ]
-  },
-  "l2-block": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/l2-block",
-    "dockerfile": "l2-block/Dockerfile",
-    "rebuildPatterns": [
-      "^yarn-project/l2-block/"
-    ],
-    "dependencies": [
-      "circuits.js",
-      "foundation",
-      "l1-contracts",
-      "tx"
     ]
   },
   "merkle-tree": {
@@ -298,9 +281,8 @@
     "dependencies": [
       "archiver",
       "barretenberg.js",
-      "ethereum.js",
       "foundation",
-      "l1-contracts",
+      "l1-artifacts",
       "merkle-tree",
       "p2p",
       "sequencer-client",
@@ -318,27 +300,12 @@
     "dependencies": [
       "acir-simulator",
       "circuits.js",
-      "ethereum.js",
       "foundation",
-      "l1-contracts",
+      "l1-artifacts",
       "merkle-tree",
       "p2p",
       "types",
       "world-state"
-    ]
-  },
-  "tx": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/tx",
-    "dockerfile": "tx/Dockerfile",
-    "rebuildPatterns": [
-      "^yarn-project/tx/"
-    ],
-    "dependencies": [
-      "barretenberg.js",
-      "circuits.js",
-      "foundation",
-      "types"
     ]
   },
   "types": {
@@ -351,7 +318,7 @@
     "dependencies": [
       "circuits.js",
       "foundation",
-      "l1-contracts"
+      "l1-artifacts"
     ]
   },
   "world-state": {

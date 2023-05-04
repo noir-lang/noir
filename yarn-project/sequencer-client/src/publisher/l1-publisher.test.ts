@@ -1,4 +1,3 @@
-import { TxHash } from '@aztec/ethereum.js/eth_rpc';
 import { L2Block } from '@aztec/types';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { sleep } from '../utils.js';
@@ -19,7 +18,7 @@ describe('L1Publisher', () => {
     l2Proof = Buffer.alloc(0);
 
     txSender = mock<L1PublisherTxSender>();
-    txHash = TxHash.random().toString();
+    txHash = `0x${Buffer.from('txHash').toString('hex')}`; // random tx hash
     txReceipt = { transactionHash: txHash, status: true };
     txSender.sendProcessTx.mockResolvedValueOnce(txHash);
     txSender.getTransactionReceipt.mockResolvedValueOnce(txReceipt);

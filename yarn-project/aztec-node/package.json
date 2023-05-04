@@ -33,9 +33,8 @@
   "dependencies": {
     "@aztec/archiver": "workspace:^",
     "@aztec/barretenberg.js": "workspace:^",
-    "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/l1-contracts": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",

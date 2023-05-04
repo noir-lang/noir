@@ -157,7 +157,7 @@ jobs:
       - *checkout
       - *setup_env
       - run:
-          name: "Build"
+          name: "Build and test"
           command: build l1-contracts
 
   yarn-project-base:
@@ -176,17 +176,6 @@ jobs:
       - run:
           name: "Build"
           command: build yarn-project-base
-
-  ethereum-js:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build ethereum.js
 
   foundation:
     machine:
@@ -441,9 +430,10 @@ workflows:
       - yarn-project-base:
           requires:
             - circuits-wasm-linux-clang
+            - l1-contracts
           <<: *defaults
+      - l1-contracts: *defaults
 
-      - ethereum-js: *yarn_project
       - aztec-js: *yarn_project
       - end-to-end: *yarn_project
       - foundation: *yarn_project
@@ -461,7 +451,6 @@ workflows:
 
       - e2e-join:
           requires:
-            - ethereum-js
             - aztec-js
             - end-to-end
             - noir-contracts
