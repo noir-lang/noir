@@ -22,8 +22,8 @@ pub struct ParserError {
 impl ParserError {
     pub fn empty(found: Token, span: Span) -> ParserError {
         ParserError {
-            expected_tokens: LateAllocSet::None,
-            expected_labels: LateAllocSet::None,
+            expected_tokens: LateAllocSet::new(),
+            expected_labels: LateAllocSet::new(),
             found,
             reason: None,
             span,
@@ -32,7 +32,7 @@ impl ParserError {
 
     pub fn expected_label(label: ParserLabel, found: Token, span: Span) -> ParserError {
         let mut error = ParserError::empty(found, span);
-        error.expected_labels = error.expected_labels.insert(label);
+        error.expected_labels.insert(label);
         error
     }
 
@@ -100,7 +100,7 @@ impl chumsky::Error<Token> for ParserError {
     {
         ParserError {
             expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
-            expected_labels: LateAllocSet::None,
+            expected_labels: LateAllocSet::new(),
             found: found.unwrap_or(Token::EOF),
             reason: None,
             span,
@@ -108,9 +108,9 @@ impl chumsky::Error<Token> for ParserError {
     }
 
     fn with_label(mut self, label: Self::Label) -> Self {
-        self.expected_tokens = LateAllocSet::None;
-        self.expected_labels = LateAllocSet::None;
-        self.expected_labels = self.expected_labels.insert(label);
+        self.expected_tokens.clear();
+        self.expected_labels.clear();
+        self.expected_labels.insert(label);
         self
     }
 
@@ -120,8 +120,8 @@ impl chumsky::Error<Token> for ParserError {
     // The spans of both errors must match, otherwise the error
     // messages and error spans may not line up.
     fn merge(mut self, other: Self) -> Self {
-        self.expected_tokens = self.expected_tokens.append(other.expected_tokens);
-        self.expected_labels = self.expected_labels.append(other.expected_labels);
+        self.expected_tokens.append(other.expected_tokens);
+        self.expected_labels.append(other.expected_labels);
 
         if self.reason.is_none() {
             self.reason = other.reason;

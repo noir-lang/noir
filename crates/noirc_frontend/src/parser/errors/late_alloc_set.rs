@@ -24,7 +24,7 @@
 use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum LateAllocSet<T> {
+enum LateAllocSetData<T> {
     None,
     One(T),
     Two(T, T),
@@ -32,74 +32,117 @@ pub(super) enum LateAllocSet<T> {
     Set(BTreeSet<T>),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct LateAllocSet<T> {
+    data: LateAllocSetData<T>,
+}
+
 impl<T> LateAllocSet<T>
 where
     T: std::cmp::Ord,
 {
-    pub(super) fn insert(self, x: T) -> Self {
-        match self {
-            LateAllocSet::None => LateAllocSet::One(x),
-            LateAllocSet::One(x0) => {
+    pub(super) fn new() -> Self {
+        LateAllocSet { data: LateAllocSetData::None }
+    }
+
+    pub(super) fn insert(&mut self, x: T) {
+        let old_data = std::mem::replace(&mut self.data, LateAllocSetData::None);
+        self.data = match old_data {
+            LateAllocSetData::None => LateAllocSetData::One(x),
+            LateAllocSetData::One(x0) => {
                 if x0 == x {
-                    LateAllocSet::One(x0)
+                    LateAllocSetData::One(x0)
                 } else {
-                    LateAllocSet::Two(x0, x)
+                    LateAllocSetData::Two(x0, x)
                 }
             }
-            LateAllocSet::Two(x0, x1) => {
+            LateAllocSetData::Two(x0, x1) => {
                 if x0 == x || x1 == x {
-                    LateAllocSet::Two(x0, x1)
+                    LateAllocSetData::Two(x0, x1)
                 } else {
-                    LateAllocSet::Three(x0, x1, x)
+                    LateAllocSetData::Three(x0, x1, x)
                 }
             }
-            LateAllocSet::Three(x0, x1, x2) => {
+            LateAllocSetData::Three(x0, x1, x2) => {
                 if x0 == x || x1 == x || x2 == x {
-                    LateAllocSet::Three(x0, x1, x2)
+                    LateAllocSetData::Three(x0, x1, x2)
                 } else {
-                    LateAllocSet::Set(BTreeSet::from([x0, x1, x2, x]))
+                    LateAllocSetData::Set(BTreeSet::from([x0, x1, x2, x]))
                 }
             }
-            LateAllocSet::Set(mut xs) => {
+            LateAllocSetData::Set(mut xs) => {
                 xs.insert(x);
-                LateAllocSet::Set(xs)
+                LateAllocSetData::Set(xs)
             }
-        }
+        };
     }
 
     pub(super) fn as_vec(&self) -> Vec<&T> {
-        match self {
-            LateAllocSet::None => vec![],
-            LateAllocSet::One(x0) => vec![x0],
-            LateAllocSet::Two(x0, x1) => vec![x0, x1],
-            LateAllocSet::Three(x0, x1, x2) => vec![x0, x1, x2],
-            LateAllocSet::Set(xs) => xs.iter().collect::<Vec<_>>(),
+        match &self.data {
+            LateAllocSetData::None => vec![],
+            LateAllocSetData::One(x0) => vec![x0],
+            LateAllocSetData::Two(x0, x1) => vec![x0, x1],
+            LateAllocSetData::Three(x0, x1, x2) => vec![x0, x1, x2],
+            LateAllocSetData::Set(xs) => xs.iter().collect::<Vec<_>>(),
         }
     }
 
-    pub(super) fn append(self, xs: LateAllocSet<T>) -> Self {
-        let mut out = self;
-        match xs {
-            LateAllocSet::None => {
+    pub(super) fn append(&mut self, other: LateAllocSet<T>) {
+        match other.data {
+            LateAllocSetData::None => {
                 // No work
             }
-            LateAllocSet::One(x0) => out = out.insert(x0),
-            LateAllocSet::Two(x0, x1) => {
-                out = out.insert(x0);
-                out = out.insert(x1);
+            LateAllocSetData::One(x0) => self.insert(x0),
+            LateAllocSetData::Two(x0, x1) => {
+                self.insert(x0);
+                self.insert(x1);
             }
-            LateAllocSet::Three(x0, x1, x2) => {
-                out = out.insert(x0);
-                out = out.insert(x1);
-                out = out.insert(x2);
+            LateAllocSetData::Three(x0, x1, x2) => {
+                self.insert(x0);
+                self.insert(x1);
+                self.insert(x2);
             }
-            LateAllocSet::Set(xs) => {
+            LateAllocSetData::Set(xs) => {
                 for x in xs {
-                    out = out.insert(x);
+                    self.insert(x);
                 }
             }
         }
-        out
+    }
+
+    pub(super) fn clear(&mut self) {
+        self.data = LateAllocSetData::None;
+    }
+}
+
+impl<T> FromIterator<T> for LateAllocSetData<T>
+where
+    T: std::cmp::Ord,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut iter = iter.into_iter();
+        let first = iter.next();
+        if first.is_none() {
+            return LateAllocSetData::None;
+        }
+        let second = iter.next();
+        if second.is_none() {
+            return LateAllocSetData::One(first.unwrap());
+        }
+        let third = iter.next();
+        if third.is_none() {
+            return LateAllocSetData::Two(first.unwrap(), second.unwrap());
+        }
+        let fourth = iter.next();
+        if fourth.is_none() {
+            return LateAllocSetData::Three(first.unwrap(), second.unwrap(), third.unwrap());
+        }
+        let btree_set: BTreeSet<T> =
+            [first.unwrap(), second.unwrap(), third.unwrap(), fourth.unwrap()]
+                .into_iter()
+                .chain(iter)
+                .collect();
+        LateAllocSetData::Set(btree_set)
     }
 }
 
@@ -108,37 +151,15 @@ where
     T: std::cmp::Ord,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut iter = iter.into_iter();
-        let first = iter.next();
-        if first.is_none() {
-            return LateAllocSet::None;
-        }
-        let second = iter.next();
-        if second.is_none() {
-            return LateAllocSet::One(first.unwrap());
-        }
-        let third = iter.next();
-        if third.is_none() {
-            return LateAllocSet::Two(first.unwrap(), second.unwrap());
-        }
-        let fourth = iter.next();
-        if fourth.is_none() {
-            return LateAllocSet::Three(first.unwrap(), second.unwrap(), third.unwrap());
-        }
-        let btree_set: BTreeSet<T> =
-            [first.unwrap(), second.unwrap(), third.unwrap(), fourth.unwrap()]
-                .into_iter()
-                .chain(iter)
-                .collect();
-        LateAllocSet::Set(btree_set)
+        let data: LateAllocSetData<T> = iter.into_iter().collect();
+        LateAllocSet { data }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::{collections::BTreeSet, time::SystemTime};
 
-    use super::LateAllocSet;
+    use super::{LateAllocSet, LateAllocSetData};
     use crate::token::Token;
 
     fn time_1m<F>(f: F)
@@ -163,24 +184,25 @@ mod tests {
     {
         print!("0 -> 1: ");
         time_1m(|| {
-            LateAllocSet::None.insert(x0());
+            LateAllocSet { data: LateAllocSetData::None }.insert(x0());
         });
 
         print!("1 -> 2: ");
         time_1m(|| {
-            LateAllocSet::One(x0()).insert(x1());
+            LateAllocSet { data: LateAllocSetData::One(x0()) }.insert(x1());
         });
         print!("2 -> 3: ");
         time_1m(|| {
-            LateAllocSet::Two(x0(), x1()).insert(x2());
+            LateAllocSet { data: LateAllocSetData::Two(x0(), x1()) }.insert(x2());
         });
         print!("3 -> 4: ");
         time_1m(|| {
-            LateAllocSet::Three(x0(), x1(), x2()).insert(x3());
+            LateAllocSet { data: LateAllocSetData::Three(x0(), x1(), x2()) }.insert(x3());
         });
         print!("4 -> 5: ");
         time_1m(|| {
-            LateAllocSet::Set(BTreeSet::from([x0(), x1(), x2(), x3()])).insert(x4());
+            LateAllocSet { data: LateAllocSetData::Set(BTreeSet::from([x0(), x1(), x2(), x3()])) }
+                .insert(x4());
         });
     }
 
