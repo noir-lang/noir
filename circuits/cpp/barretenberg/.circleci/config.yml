@@ -307,6 +307,7 @@ defaults: &defaults
     - slack
   post-steps:
     - slack/notify:
+        channel: $SLACK_BARRETENBERG_CHANNEL
         event: fail
         branch_pattern: "master"
 
