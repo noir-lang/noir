@@ -10,7 +10,7 @@ use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -258,14 +258,25 @@ impl Driver {
         let np_language = self.language.clone();
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
-        match create_circuit(
-            program,
-            np_language,
-            is_opcode_supported,
-            options.show_ssa,
-            options.show_output,
-            options.experimental_ssa,
-        ) {
+        let circuit_abi = if options.experimental_ssa {
+            experimental_create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        } else {
+            create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        };
+
+        match circuit_abi {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
