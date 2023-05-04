@@ -92,8 +92,8 @@ impl From<ParserError> for Diagnostic {
             Some(reason) => {
                 match reason {
                     ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
-                        "The 'constrain' keyword has been deprecated in favour of 'assert'".into(),
-                        "The 'constrain' keyword has been deprecated, and it is now recommended to instead write constraints in the form of assertions, i.e. 'assert(some_condition);'. This depreciation can be ignored for the time being by compiling with the '--allow-warnings' flag.".into(),
+                        "Use of deprecated keyword 'constrain'".into(),
+                        "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
                     other => {
