@@ -2,6 +2,7 @@
 
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
+#include "../../primitives/uint/uint.hpp"
 #include "../../primitives/composers/composers_fwd.hpp"
 
 namespace proof_system::plonk {
@@ -11,6 +12,7 @@ namespace ecdsa {
 template <typename Composer> struct signature {
     stdlib::byte_array<Composer> r;
     stdlib::byte_array<Composer> s;
+    stdlib::uint8<Composer> v;
 };
 
 template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
@@ -25,9 +27,11 @@ static signature<Composer> from_witness(Composer* ctx, const crypto::ecdsa::sign
     std::vector<uint8_t> s_vec(std::begin(input.s), std::end(input.s));
     stdlib::byte_array<Composer> r(ctx, r_vec);
     stdlib::byte_array<Composer> s(ctx, s_vec);
+    stdlib::uint8<Composer> v(ctx, input.v);
     signature<Composer> out;
     out.r = r;
     out.s = s;
+    out.v = v;
     return out;
 }
 

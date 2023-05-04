@@ -63,6 +63,13 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     constexpr bool on_curve() const noexcept;
 
     /**
+     * @brief Samples a random point on the curve.
+     *
+     * @return A randomly chosen point on the curve
+     */
+    static affine_element random_element(numeric::random::Engine* engine = nullptr) noexcept;
+
+    /**
      * @brief Hash a seed value to curve.
      *
      * @return A point on the curve corresponding to the given seed

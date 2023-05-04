@@ -11,6 +11,7 @@ extern "C" {
 
 WASM_EXPORT void pedersen_hash__init()
 {
+    // TODO: do we need this if we are using lookup-pedersen in merkle trees?
     crypto::generators::init_generator_data();
 }
 
@@ -18,7 +19,7 @@ WASM_EXPORT void pedersen__hash_pair(uint8_t const* left, uint8_t const* right, 
 {
     auto lhs = barretenberg::fr::serialize_from_buffer(left);
     auto rhs = barretenberg::fr::serialize_from_buffer(right);
-    auto r = crypto::pedersen_hash::hash_multiple({ lhs, rhs });
+    auto r = crypto::pedersen_hash::lookup::hash_multiple({ lhs, rhs });
     barretenberg::fr::serialize_to_buffer(r, result);
 }
 
@@ -26,7 +27,7 @@ WASM_EXPORT void pedersen__hash_multiple(uint8_t const* inputs_buffer, uint8_t* 
 {
     std::vector<grumpkin::fq> to_compress;
     read(inputs_buffer, to_compress);
-    auto r = crypto::pedersen_hash::hash_multiple(to_compress);
+    auto r = crypto::pedersen_hash::lookup::hash_multiple(to_compress);
     barretenberg::fr::serialize_to_buffer(r, output);
 }
 
@@ -36,7 +37,7 @@ WASM_EXPORT void pedersen__hash_multiple_with_hash_index(uint8_t const* inputs_b
 {
     std::vector<grumpkin::fq> to_compress;
     read(inputs_buffer, to_compress);
-    auto r = crypto::pedersen_hash::hash_multiple(to_compress, hash_index);
+    auto r = crypto::pedersen_hash::lookup::hash_multiple(to_compress, hash_index);
     barretenberg::fr::serialize_to_buffer(r, output);
 }
 
@@ -54,7 +55,7 @@ WASM_EXPORT uint8_t* pedersen__hash_to_tree(uint8_t const* data)
     fields.reserve(num_outputs);
 
     for (size_t i = 0; fields.size() < num_outputs; i += 2) {
-        fields.push_back(crypto::pedersen_hash::hash_multiple({ fields[i], fields[i + 1] }));
+        fields.push_back(crypto::pedersen_hash::lookup::hash_multiple({ fields[i], fields[i + 1] }));
     }
 
     auto buf_size = 4 + num_outputs * sizeof(grumpkin::fq);

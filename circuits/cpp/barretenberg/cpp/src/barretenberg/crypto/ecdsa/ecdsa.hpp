@@ -30,17 +30,18 @@ bool verify_signature(const std::string& message,
 
 inline bool operator==(signature const& lhs, signature const& rhs)
 {
-    return lhs.r == rhs.r && lhs.s == rhs.s;
+    return lhs.r == rhs.r && lhs.s == rhs.s && lhs.v == rhs.v;
 }
 
 inline std::ostream& operator<<(std::ostream& os, signature const& sig)
 {
-    os << "{ " << sig.r << ", " << sig.s << " }";
+    os << "{ " << sig.r << ", " << sig.s << ", " << static_cast<uint32_t>(sig.v) << " }";
     return os;
 }
 
 template <typename B> inline void read(B& it, signature& sig)
 {
+    using serialize::read;
     read(it, sig.r);
     read(it, sig.s);
     read(it, sig.v);
@@ -48,6 +49,7 @@ template <typename B> inline void read(B& it, signature& sig)
 
 template <typename B> inline void write(B& buf, signature const& sig)
 {
+    using serialize::write;
     write(buf, sig.r);
     write(buf, sig.s);
     write(buf, sig.v);

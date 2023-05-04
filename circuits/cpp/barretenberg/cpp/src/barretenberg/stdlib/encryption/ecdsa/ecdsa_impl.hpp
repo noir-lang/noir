@@ -13,6 +13,36 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
 {
     Composer* ctx = message.get_context() ? message.get_context() : public_key.x.context;
 
+    /**
+     * Check if recovery id v is either 27 ot 28.
+     *
+     * The v in an (r, s, v) ecdsa signature is the 8-bit recovery id s.t. v ∈ {0, 1, 2, 3}.
+     * It is used to recover signing public key from an ecdsa signature. In practice, the value
+     * of v is offset by 27 following the convention from the original bitcoin whitepaper.
+     *
+     * The value of v depends on the the point R = (x, y) s.t. r = x % |Fr|
+     * 0: y is even  &&  x < |Fr| (x = r)
+     * 1: y is odd   &&  x < |Fr| (x = r)
+     * 2: y is even  &&  |Fr| <= x < |Fq| (x = r + |Fr|)
+     * 3: y is odd   &&  |Fr| <= x < |Fq| (x = r + |Fr|)
+     *
+     * It is highly unlikely for x be be in [|Fr|, |Fq|) for the secp256k1 curve because:
+     * P(|Fr| <= x < |Fq|) = 1 - |Fr|/|Fq| ≈ 0.
+     * Therefore, it is reasonable to assume that the value of v will always be 0 or 1
+     * (i.e. 27 or 28 with offset). In fact, the ethereum yellow paper [1] only allows v to be 27 or 28
+     * and considers signatures with v ∈ {29, 30} to be non-standard.
+     *
+     * TODO(Suyash): EIP-155 allows v > 35 to ensure different v on different chains.
+     * Do we need to consider that in our circuits?
+     *
+     * References:
+     * [1] Ethereum yellow paper, Appendix E: https://ethereum.github.io/yellowpaper/paper.pdf
+     * [2] EIP-155: https://eips.ethereum.org/EIPS/eip-155
+     *
+     */
+    field_t<Composer>(sig.v).assert_is_in_set({ field_t<Composer>(27), field_t<Composer>(28) },
+                                              "signature is non-standard");
+
     stdlib::byte_array<Composer> hashed_message =
         static_cast<stdlib::byte_array<Composer>>(stdlib::sha256<Composer>(message));
 

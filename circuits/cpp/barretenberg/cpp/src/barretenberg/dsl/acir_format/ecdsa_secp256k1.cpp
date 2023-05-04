@@ -96,9 +96,11 @@ void create_ecdsa_verify_constraints(Composer& composer, const EcdsaSecp256k1Con
 
     std::vector<uint8_t> rr(new_sig.r.begin(), new_sig.r.end());
     std::vector<uint8_t> ss(new_sig.s.begin(), new_sig.s.end());
+    uint8_t vv = new_sig.v;
 
     stdlib::ecdsa::signature<Composer> sig{ stdlib::byte_array<Composer>(&composer, rr),
-                                            stdlib::byte_array<Composer>(&composer, ss) };
+                                            stdlib::byte_array<Composer>(&composer, ss),
+                                            stdlib::uint8<Composer>(&composer, vv) };
 
     pub_key_x_fq.assert_is_in_field();
     pub_key_y_fq.assert_is_in_field();

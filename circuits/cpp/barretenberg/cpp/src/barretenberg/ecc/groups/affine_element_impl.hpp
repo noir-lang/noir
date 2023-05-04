@@ -229,5 +229,38 @@ affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(const uint64_
 
     return affine_element<Fq, Fr, T>(x_out, y_out_);
 }
+
+template <typename Fq, typename Fr, typename T>
+affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::random_element(numeric::random::Engine* engine) noexcept
+{
+    if (engine == nullptr) {
+        engine = &numeric::random::get_engine();
+    }
+
+    bool found_one = false;
+    Fq yy;
+    Fq x;
+    Fq y;
+    while (!found_one) {
+        // Sample a random x-coordinate and check if it satisfies curve equation.
+        x = Fq::random_element(engine);
+        yy = x.sqr() * x + T::b;
+        if constexpr (T::has_a) {
+            yy += (x * T::a);
+        }
+        auto [found_root, y1] = yy.sqrt();
+        y = y1;
+
+        // Negate the y-coordinate based on a randomly sampled bit.
+        bool random_bit = (engine->get_random_uint8() & 1);
+        if (random_bit) {
+            y = -y;
+        }
+
+        found_one = found_root;
+    }
+    return affine_element<Fq, Fr, T>(x, y);
+}
+
 } // namespace group_elements
 } // namespace barretenberg
