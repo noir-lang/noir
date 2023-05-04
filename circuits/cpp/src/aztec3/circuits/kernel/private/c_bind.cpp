@@ -103,7 +103,8 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
         previous_kernel.public_inputs.end.private_call_stack[0] = private_call_data.call_stack_item.hash();
         previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_private_data_tree_root;
-        // previous_kernel.public_inputs.constants.historic_tree_roots.nullifier_tree_root =
+        previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.nullifier_tree_root =
+            private_call_data.call_stack_item.public_inputs.historic_nullifier_tree_root;
         previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_contract_tree_root;
         // previous_kernel.public_inputs.constants.historic_tree_roots.private_kernel_vk_tree_root =

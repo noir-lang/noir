@@ -1,5 +1,5 @@
-import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
-import { MerkleTreeDb, MerkleTreeId, MerkleTreeOperations } from '../index.js';
+import { L2Block, L2BlockDownloader, L2BlockSource, MerkleTreeId } from '@aztec/types';
+import { MerkleTreeDb, MerkleTreeOperations } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import { WorldStateRunningState, WorldStateStatus, WorldStateSynchroniser } from './world_state_synchroniser.js';
 import { getConfigEnvVars } from './config.js';

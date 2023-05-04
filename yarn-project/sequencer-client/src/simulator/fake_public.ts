@@ -1,7 +1,8 @@
 import { PublicDB, PublicExecution } from '@aztec/acir-simulator';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { AztecAddress, EthAddress, Fr, PublicCircuitPublicInputs, TxRequest } from '@aztec/circuits.js';
-import { MerkleTreeId, MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
+import { MerkleTreeId } from '@aztec/types';
+import { MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
 import { PublicCircuitSimulator } from './index.js';
 
 /**

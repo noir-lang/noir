@@ -43,7 +43,7 @@ export class AztecRPCServer implements AztecRPCClient {
     for (const account of accounts) {
       await this.initAccountState(account);
     }
-    this.synchroniser.start();
+    await this.synchroniser.start();
     this.log(`Started. ${accounts.length} initial accounts.`);
   }
 

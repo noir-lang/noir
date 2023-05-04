@@ -1,21 +1,8 @@
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
+import { MerkleTreeId } from '@aztec/types';
 
 export * from './merkle_trees.js';
 export { LeafData } from '@aztec/merkle-tree';
-
-/**
- * Defines the possible Merkle tree IDs.
- */
-export enum MerkleTreeId {
-  CONTRACT_TREE = 0,
-  CONTRACT_TREE_ROOTS_TREE = 1,
-  NULLIFIER_TREE = 2,
-  PRIVATE_DATA_TREE = 3,
-  PRIVATE_DATA_TREE_ROOTS_TREE = 4,
-  PUBLIC_DATA_TREE = 5,
-  L1_TO_L2_MESSAGES_TREE = 6,
-  L1_TO_L2_MESSAGES_ROOTS_TREE = 7,
-}
 
 /**
  * Type alias for the nullifier tree ID.

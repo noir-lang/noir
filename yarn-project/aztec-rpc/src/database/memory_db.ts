@@ -5,10 +5,12 @@ import { TxAuxDataDao } from './tx_aux_data_dao.js';
 import { TxDao } from './tx_dao.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { MerkleTreeId } from '@aztec/types';
 
 export class MemoryDB extends MemoryContractDatabase implements Database {
   private txTable: TxDao[] = [];
   private txAuxDataTable: TxAuxDataDao[] = [];
+  private treeRoots: Record<MerkleTreeId, Fr> | undefined;
 
   public getTx(txHash: TxHash) {
     return Promise.resolve(this.txTable.find(tx => tx.txHash.equals(txHash)));
@@ -68,5 +70,16 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     this.txAuxDataTable = remaining;
 
     return Promise.resolve(removed);
+  }
+
+  public getTreeRoots(): Promise<Record<MerkleTreeId, Fr>> {
+    const roots = this.treeRoots;
+    if (!roots) throw new Error(`Tree roots not set in memory database`);
+    return Promise.resolve(roots);
+  }
+
+  public setTreeRoots(roots: Record<MerkleTreeId, Fr>) {
+    this.treeRoots = roots;
+    return Promise.resolve();
   }
 }

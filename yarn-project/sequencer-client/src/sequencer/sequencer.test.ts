@@ -1,7 +1,7 @@
 import { CombinedHistoricTreeRoots, Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, makeEmptyProof } from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
-import { L2Block, PrivateTx, Tx, UnverifiedData } from '@aztec/types';
-import { MerkleTreeId, MerkleTreeOperations, WorldStateRunningState, WorldStateSynchroniser } from '@aztec/world-state';
+import { L2Block, MerkleTreeId, PrivateTx, Tx, UnverifiedData } from '@aztec/types';
+import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchroniser } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';

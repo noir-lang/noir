@@ -1,22 +1,24 @@
 import { Archiver } from '@aztec/archiver';
 import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
 import { CircuitsWasm } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { P2P, P2PClient } from '@aztec/p2p';
-import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
+import { SequencerClient } from '@aztec/sequencer-client';
 import {
   ContractData,
   ContractDataSource,
   ContractPublicData,
   L2Block,
   L2BlockSource,
+  MerkleTreeId,
   Tx,
   TxHash,
   UnverifiedData,
   UnverifiedDataSource,
 } from '@aztec/types';
 import {
-  MerkleTreeId,
   MerkleTrees,
   ServerWorldStateSynchroniser,
   WorldStateSynchroniser,
@@ -25,8 +27,6 @@ import {
 import { default as levelup } from 'levelup';
 import { MemDown, default as memdown } from 'memdown';
 import { AztecNodeConfig } from './config.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -130,11 +130,6 @@ export class AztecNode {
    * @param tx - The transaction to be submitted.
    */
   public async sendTx(tx: Tx) {
-    // TODO: Patch tx to inject historic tree roots until the private kernel circuit supplies this value
-    if (tx.isPrivate() && tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.isEmpty()) {
-      tx.data.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(this.merkleTreeDB.asLatest());
-    }
-
     await this.p2pClient!.sendTx(tx);
   }
 
@@ -188,5 +183,25 @@ export class AztecNode {
   public async getStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
     const leafIndex = computePublicDataTreeLeafIndex(contract, new Fr(slot), await PrimitivesWasm.get());
     return this.merkleTreeDB.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, leafIndex, false);
+  }
+
+  /**
+   * Returns the current committed roots for the data trees.
+   * @returns the current committed roots for the data trees.
+   */
+  public async getTreeRoots(): Promise<Record<MerkleTreeId, Fr>> {
+    const getTreeRoot = async (id: MerkleTreeId) =>
+      Fr.fromBuffer((await this.merkleTreeDB.getTreeInfo(id, false)).root);
+
+    return {
+      [MerkleTreeId.CONTRACT_TREE]: await getTreeRoot(MerkleTreeId.CONTRACT_TREE),
+      [MerkleTreeId.PRIVATE_DATA_TREE]: await getTreeRoot(MerkleTreeId.PRIVATE_DATA_TREE),
+      [MerkleTreeId.NULLIFIER_TREE]: await getTreeRoot(MerkleTreeId.NULLIFIER_TREE),
+      [MerkleTreeId.PUBLIC_DATA_TREE]: await getTreeRoot(MerkleTreeId.PUBLIC_DATA_TREE),
+      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: await getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
+      [MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE]: await getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE),
+      [MerkleTreeId.CONTRACT_TREE_ROOTS_TREE]: await getTreeRoot(MerkleTreeId.CONTRACT_TREE_ROOTS_TREE),
+      [MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE]: await getTreeRoot(MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE),
+    };
   }
 }

@@ -20,8 +20,8 @@ import {
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { ContractData, L2Block, PublicDataWrite, Tx } from '@aztec/types';
-import { MerkleTreeId, MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
+import { MerkleTreeId, ContractData, L2Block, PublicDataWrite, Tx } from '@aztec/types';
+import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';

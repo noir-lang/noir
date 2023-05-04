@@ -1,7 +1,8 @@
 import { Fr } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
+import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { TxContext } from '../tx_context.js';
-import { BufferReader } from '@aztec/foundation/serialize';
 
 export class PrivateHistoricTreeRoots {
   constructor(
@@ -11,13 +12,21 @@ export class PrivateHistoricTreeRoots {
     public privateKernelVkTreeRoot: Fr, // future enhancement
   ) {}
 
+  static from(fields: FieldsOf<PrivateHistoricTreeRoots>): PrivateHistoricTreeRoots {
+    return new PrivateHistoricTreeRoots(...PrivateHistoricTreeRoots.getFields(fields));
+  }
+
+  static getFields(fields: FieldsOf<PrivateHistoricTreeRoots>) {
+    return [
+      fields.privateDataTreeRoot,
+      fields.nullifierTreeRoot,
+      fields.contractTreeRoot,
+      fields.privateKernelVkTreeRoot,
+    ] as const;
+  }
+
   toBuffer() {
-    return serializeToBuffer(
-      this.privateDataTreeRoot,
-      this.nullifierTreeRoot,
-      this.contractTreeRoot,
-      this.privateKernelVkTreeRoot,
-    );
+    return serializeToBuffer(...PrivateHistoricTreeRoots.getFields(this));
   }
 
   isEmpty() {

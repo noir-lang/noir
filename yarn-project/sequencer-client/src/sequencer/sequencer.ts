@@ -1,6 +1,15 @@
 import { P2P } from '@aztec/p2p';
-import { ContractData, ContractPublicData, PrivateTx, PublicTx, Tx, UnverifiedData, isPrivateTx } from '@aztec/types';
-import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
+import {
+  MerkleTreeId,
+  ContractData,
+  ContractPublicData,
+  PrivateTx,
+  PublicTx,
+  Tx,
+  UnverifiedData,
+  isPrivateTx,
+} from '@aztec/types';
+import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';

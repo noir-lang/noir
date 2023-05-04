@@ -1,5 +1,6 @@
 import { SiblingPath } from '@aztec/merkle-tree';
-import { LeafData, MerkleTreeDbOperations, MerkleTreeId, MerkleTreeOperations, TreeInfo } from '../index.js';
+import { LeafData, MerkleTreeDbOperations, MerkleTreeOperations, TreeInfo } from '../index.js';
+import { MerkleTreeId } from '@aztec/types';
 
 /**
  * Wraps a MerkleTreeDbOperations to call all functions with a preset includeUncommitted flag.
