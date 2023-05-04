@@ -2,6 +2,7 @@
 #pragma once
 
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
+#include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/circuits/abis/rollup/constant_rollup_data.hpp"
 #include "aztec3/circuits/abis/rollup/merge/merge_rollup_inputs.hpp"

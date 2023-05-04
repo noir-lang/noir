@@ -9,6 +9,7 @@
 #include "aztec3/circuits/abis/public_data_read.hpp"
 #include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
+#include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
 #include "aztec3/constants.hpp"
 #include <aztec3/circuits/abis/call_context.hpp>
@@ -581,46 +582,24 @@ TEST_F(base_rollup_tests, native_calldata_hash)
     // Execute the base rollup circuit with nullifiers, commitments and a contract deployment. Then check the calldata
     // hash against the expected value.
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
-    std::vector<uint8_t> input_data = test_utils::utils::get_empty_calldata_leaf();
 
-    // Update commitment and nullifierss in kernels and testing byte array.
-    // Commitments and nullifiers are 32 bytes long, so we can update them in the byte array by offsetting by 32 bytes
-    // for every insertion. As there are two kernels in every leaf, nullifiers are offset by 8 elements (8*32). To
-    // insert correctly, the insertions of values from the second kernel must be offset by 4*32 bytes (kernel_offset).
-    // Further offset by 32 per prior insertion (j*32), and then only update the last byte (31) with the new value.
     // Commitments inserted are [1,2,3,4,5,6,7,8]. Nullifiers inserted are [8,9,10,11,12,13,14,15]
     for (size_t i = 0; i < 2; ++i) {
-        auto kernel_offset = i * 4 * 32;
         for (size_t j = 0; j < 4; j++) {
-            auto const offset = static_cast<size_t>(kernel_offset + j * 32 + 31);
-            input_data[offset] = static_cast<uint8_t>(i * 4 + j + 1);
             kernel_data[i].public_inputs.end.new_commitments[j] = fr(i * 4 + j + 1);
-            input_data[static_cast<unsigned long>(8 * 32 + offset)] = static_cast<uint8_t>(i * 4 + j + 8);  // NOLINT
             kernel_data[i].public_inputs.end.new_nullifiers[j] = fr(i * 4 + j + 8);
         }
     }
 
     // Add a contract deployment
-    NewContractData<NT> new_contract = {
+    NewContractData<NT> const new_contract = {
         .contract_address = fr(1),
         .portal_contract_address = fr(3),
         .function_tree_root = fr(2),
     };
-    auto contract_leaf = crypto::pedersen_commitment::compress_native(
-        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
-        GeneratorIndex::CONTRACT_LEAF);
     kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
-    auto contract_leaf_buffer = contract_leaf.to_buffer();
-    auto contract_address_buffer = new_contract.contract_address.to_field().to_buffer();
-    auto portal_address_buffer = new_contract.portal_contract_address.to_field().to_buffer();
-    // Insert the contract leaf and contract address into the byte array
-    for (uint8_t i = 0; i < 32; ++i) {
-        input_data[32 * 32 + i] = contract_leaf_buffer[i];
-        input_data[34 * 32 + i] = contract_address_buffer[i];
-        input_data[35 * 32 + i] = portal_address_buffer[i];
-    }
 
-    auto hash = sha256::sha256(input_data);
+    std::array<fr, 2> const expected_hash = components::compute_kernels_calldata_hash(kernel_data);
 
     DummyComposer composer = DummyComposer();
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
@@ -628,17 +607,10 @@ TEST_F(base_rollup_tests, native_calldata_hash)
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
 
     // Take the two fields and stich them together to get the calldata hash.
-    std::array<fr, 2> calldata_hash_fr = outputs.calldata_hash;
-    auto high_buffer = calldata_hash_fr[0].to_buffer();
-    auto low_buffer = calldata_hash_fr[1].to_buffer();
+    std::array<fr, 2> const calldata_hash_fr = outputs.calldata_hash;
 
-    std::array<uint8_t, 32> calldata_hash;
-    for (uint8_t i = 0; i < 16; ++i) {
-        calldata_hash[i] = high_buffer[16 + i];
-        calldata_hash[16 + i] = low_buffer[16 + i];
-    }
+    ASSERT_EQ(expected_hash, calldata_hash_fr);
 
-    ASSERT_EQ(hash, calldata_hash);
     ASSERT_FALSE(composer.failed());
     run_cbind(inputs, outputs);
 }
