@@ -379,3 +379,42 @@ impl<'function> PerFunctionContext<'function> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::ssa_refactor::{
+        ir::{map::Id, types::Type},
+        ssa_builder::FunctionBuilder,
+    };
+
+    #[test]
+    fn basic_inlining() {
+        // fn foo {
+        //   b0():
+        //     v0 = call bar()
+        //     return v0
+        // }
+        // fn bar {
+        //   b0():
+        //     return 72
+        // }
+        let foo_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+
+        let bar_id = Id::test_new(1);
+        let bar = builder.import_function(bar_id);
+        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        builder.terminate_with_return(results);
+
+        builder.new_function("bar".into(), bar_id);
+        let expected_return = 72u128;
+        let seventy_two = builder.field_constant(expected_return);
+        builder.terminate_with_return(vec![seventy_two]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.functions.len(), 2);
+
+        let inlined = ssa.inline_functions();
+        assert_eq!(inlined.functions.len(), 1);
+    }
+}
