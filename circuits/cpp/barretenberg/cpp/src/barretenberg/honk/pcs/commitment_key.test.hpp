@@ -14,7 +14,6 @@
 
 #include "../oracle/oracle.hpp"
 #include "../../transcript/transcript_wrappers.hpp"
-#include "../../proof_system/flavor/flavor.hpp"
 
 #include "claim.hpp"
 #include "commitment_key.hpp"

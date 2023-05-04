@@ -195,8 +195,9 @@ template <typename Composer> class stdlib_field : public testing::Test {
         uint64_t expected = fidget(composer);
         auto prover = composer.create_prover();
 
+        // TODO(Cody): This is a hack and the test should be rewritten.
         if constexpr (Composer::type == ComposerType::STANDARD_HONK) {
-            EXPECT_EQ(prover.wire_polynomials[2][20], fr(expected));
+            EXPECT_EQ(prover.key->w_o[20], fr(expected));
         } else {
             EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[18], fr(expected));
         }
@@ -291,7 +292,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         auto prover = composer.create_prover();
 
         if constexpr (Composer::type == ComposerType::STANDARD_HONK) {
-            EXPECT_EQ(prover.wire_polynomials[2][19], fr(4181));
+            EXPECT_EQ(prover.key->w_o[19], fr(4181));
         } else {
             EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[17], fr(4181));
         }

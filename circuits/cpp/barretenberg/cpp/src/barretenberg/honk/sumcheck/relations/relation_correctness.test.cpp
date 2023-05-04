@@ -1,24 +1,15 @@
+#include <gtest/gtest.h>
+
 #include "barretenberg/honk/composer/ultra_honk_composer.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation_secondary.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
-#include <cstddef>
-#include <cstdint>
-#include "barretenberg/honk/proof_system/prover.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/lookup_grand_product_relation.hpp"
-#include "barretenberg/honk/utils/grand_product_delta.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
-
-#include <gtest/gtest.h>
-#include <string>
-#include <vector>
 
 using namespace proof_system::honk;
 
@@ -36,9 +27,13 @@ namespace test_honk_relations {
  */
 TEST(RelationCorrectness, StandardRelationCorrectness)
 {
+    using Flavor = honk::flavor::Standard;
+    using FF = typename Flavor::FF;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
+    using PurportedEvaluations = typename Flavor::PurportedEvaluations;
+
     // Create a composer and a dummy circuit with a few gates
     auto composer = StandardHonkComposer();
-    static const size_t num_wires = StandardHonkComposer::num_wires;
     fr a = fr::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
     uint32_t a_idx = composer.add_public_variable(a);
@@ -62,56 +57,57 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
     // Compute public input delta
     const auto public_inputs = composer.circuit_constructor.get_public_inputs();
     auto public_input_delta =
-        honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->circuit_size);
+        honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
 
-    sumcheck::RelationParameters<fr> params{
+    sumcheck::RelationParameters<FF> params{
         .beta = beta,
         .gamma = gamma,
         .public_input_delta = public_input_delta,
     };
 
-    constexpr size_t num_polynomials = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
     // Compute grand product polynomial
     polynomial z_permutation =
-        prover_library::compute_permutation_grand_product<num_wires>(prover.key, prover.wire_polynomials, beta, gamma);
+        prover_library::compute_permutation_grand_product<honk::flavor::Standard>(prover.key, beta, gamma);
 
     // Create an array of spans to the underlying polynomials to more easily
     // get the transposition.
     // Ex: polynomial_spans[3][i] returns the i-th coefficient of the third polynomial
     // in the list below
-    std::array<std::span<const fr>, num_polynomials> evaluations_array;
+    ProverPolynomials prover_polynomials;
 
-    using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
-    evaluations_array[POLYNOMIAL::W_L] = prover.wire_polynomials[0];
-    evaluations_array[POLYNOMIAL::W_R] = prover.wire_polynomials[1];
-    evaluations_array[POLYNOMIAL::W_O] = prover.wire_polynomials[2];
-    evaluations_array[POLYNOMIAL::Z_PERM] = z_permutation;
-    evaluations_array[POLYNOMIAL::Z_PERM_SHIFT] = z_permutation.shifted();
-    evaluations_array[POLYNOMIAL::Q_M] = prover.key->polynomial_store.get("q_m_lagrange");
-    evaluations_array[POLYNOMIAL::Q_L] = prover.key->polynomial_store.get("q_1_lagrange");
-    evaluations_array[POLYNOMIAL::Q_R] = prover.key->polynomial_store.get("q_2_lagrange");
-    evaluations_array[POLYNOMIAL::Q_O] = prover.key->polynomial_store.get("q_3_lagrange");
-    evaluations_array[POLYNOMIAL::Q_C] = prover.key->polynomial_store.get("q_c_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_1] = prover.key->polynomial_store.get("sigma_1_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_2] = prover.key->polynomial_store.get("sigma_2_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_3] = prover.key->polynomial_store.get("sigma_3_lagrange");
-    evaluations_array[POLYNOMIAL::ID_1] = prover.key->polynomial_store.get("id_1_lagrange");
-    evaluations_array[POLYNOMIAL::ID_2] = prover.key->polynomial_store.get("id_2_lagrange");
-    evaluations_array[POLYNOMIAL::ID_3] = prover.key->polynomial_store.get("id_3_lagrange");
-    evaluations_array[POLYNOMIAL::LAGRANGE_FIRST] = prover.key->polynomial_store.get("L_first_lagrange");
-    evaluations_array[POLYNOMIAL::LAGRANGE_LAST] = prover.key->polynomial_store.get("L_last_lagrange");
+    prover_polynomials.w_l = prover.key->w_l;
+    prover_polynomials.w_r = prover.key->w_r;
+    prover_polynomials.w_o = prover.key->w_o;
+    prover_polynomials.z_perm = z_permutation;
+    prover_polynomials.z_perm_shift = z_permutation.shifted();
+    prover_polynomials.q_m = prover.key->q_m;
+    prover_polynomials.q_l = prover.key->q_l;
+    prover_polynomials.q_r = prover.key->q_r;
+    prover_polynomials.q_o = prover.key->q_o;
+    prover_polynomials.q_c = prover.key->q_c;
+    prover_polynomials.sigma_1 = prover.key->sigma_1;
+    prover_polynomials.sigma_2 = prover.key->sigma_2;
+    prover_polynomials.sigma_3 = prover.key->sigma_3;
+    prover_polynomials.id_1 = prover.key->id_1;
+    prover_polynomials.id_2 = prover.key->id_2;
+    prover_polynomials.id_3 = prover.key->id_3;
+    prover_polynomials.lagrange_first = prover.key->lagrange_first;
+    prover_polynomials.lagrange_last = prover.key->lagrange_last;
 
     // Construct the round for applying sumcheck relations and results for storing computed results
-    auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<fr>(),
-                                honk::sumcheck::GrandProductComputationRelation<fr>(),
-                                honk::sumcheck::GrandProductInitializationRelation<fr>());
+    auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<FF>(),
+                                honk::sumcheck::GrandProductComputationRelation<FF>(),
+                                honk::sumcheck::GrandProductInitializationRelation<FF>());
 
     fr result = 0;
     for (size_t i = 0; i < prover.key->circuit_size; i++) {
         // Compute an array containing all the evaluations at a given row i
-        std::array<fr, num_polynomials> evaluations_at_index_i;
-        for (size_t j = 0; j < num_polynomials; ++j) {
-            evaluations_at_index_i[j] = evaluations_array[j][i];
+
+        PurportedEvaluations evaluations_at_index_i;
+        size_t poly_idx = 0;
+        for (auto& polynomial : prover_polynomials) {
+            evaluations_at_index_i[poly_idx] = polynomial[i];
+            ++poly_idx;
         }
 
         // For each relation, call the `accumulate_relation_evaluation` over all witness/selector values at the
@@ -142,10 +138,13 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
 // TODO(luke): Ensure all relations are added as they are implemented for Ultra Honk
 TEST(RelationCorrectness, UltraRelationCorrectness)
 {
+    using Flavor = honk::flavor::Ultra;
+    using FF = typename Flavor::FF;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
+    using PurportedEvaluations = typename Flavor::PurportedEvaluations;
+
     // Create a composer and a dummy circuit with a few gates
     auto composer = UltraHonkComposer();
-
-    static const size_t num_wires = 4;
 
     barretenberg::fr pedersen_input_value = fr::random_element();
     fr a = fr::one();
@@ -197,11 +196,11 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
     // Compute public input delta
     const auto public_inputs = composer.circuit_constructor.get_public_inputs();
     auto public_input_delta =
-        honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->circuit_size);
+        honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
     auto lookup_grand_product_delta =
-        honk::compute_lookup_grand_product_delta<fr>(beta, gamma, prover.key->circuit_size);
+        honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
 
-    sumcheck::RelationParameters<fr> params{
+    sumcheck::RelationParameters<FF> params{
         .eta = eta,
         .beta = beta,
         .gamma = gamma,
@@ -209,105 +208,99 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
         .lookup_grand_product_delta = lookup_grand_product_delta,
     };
 
-    constexpr size_t num_polynomials = proof_system::honk::UltraArithmetization::COUNT;
-
-    // Compute permutation grand product polynomial
-    auto z_permutation =
-        prover_library::compute_permutation_grand_product<num_wires>(prover.key, prover.wire_polynomials, beta, gamma);
+    // Compute grand product polynomial
+    auto z_permutation = prover_library::compute_permutation_grand_product<Flavor>(prover.key, beta, gamma);
 
     // Construct local sorted_list_polynomials to pass to compute_sorted_list_accumulator()
+    // TODO(luke): this clunkiness can be cleaned up once we decide where the sorted polynomials will be stored: proving
+    // key or prover
     std::vector<polynomial> sorted_list_polynomials;
+    auto sorted_polynomials = prover.key->get_sorted_polynomials();
     for (size_t i = 0; i < 4; ++i) {
-        std::string label = "s_" + std::to_string(i + 1) + "_lagrange";
-        sorted_list_polynomials.emplace_back(prover.key->polynomial_store.get(label));
+        sorted_list_polynomials.emplace_back(prover.key->circuit_size);
+        for (size_t j = 0; j < prover.key->circuit_size; ++j) {
+            sorted_list_polynomials[i][j] = sorted_polynomials[i][j];
+        }
     }
+
     // Compute sorted witness-table accumulator
     auto sorted_list_accumulator =
-        prover_library::compute_sorted_list_accumulator(prover.key, sorted_list_polynomials, eta);
+        prover_library::compute_sorted_list_accumulator<Flavor>(prover.key, sorted_list_polynomials, eta);
 
     // Compute lookup grand product polynomial
-    auto z_lookup = prover_library::compute_lookup_grand_product(
-        prover.key, prover.wire_polynomials, sorted_list_accumulator, eta, beta, gamma);
+    auto z_lookup =
+        prover_library::compute_lookup_grand_product<Flavor>(prover.key, sorted_list_accumulator, eta, beta, gamma);
 
     // Create an array of spans to the underlying polynomials to more easily
     // get the transposition.
     // Ex: polynomial_spans[3][i] returns the i-th coefficient of the third polynomial
     // in the list below
-    std::array<std::span<const fr>, num_polynomials> evaluations_array;
+    ProverPolynomials prover_polynomials;
 
-    using POLYNOMIAL = proof_system::honk::UltraArithmetization::POLYNOMIAL;
-    evaluations_array[POLYNOMIAL::W_L] = prover.wire_polynomials[0];
-    evaluations_array[POLYNOMIAL::W_R] = prover.wire_polynomials[1];
-    evaluations_array[POLYNOMIAL::W_O] = prover.wire_polynomials[2];
-    evaluations_array[POLYNOMIAL::W_4] = prover.wire_polynomials[3];
-    evaluations_array[POLYNOMIAL::W_1_SHIFT] = prover.wire_polynomials[0].shifted();
-    evaluations_array[POLYNOMIAL::W_2_SHIFT] = prover.wire_polynomials[1].shifted();
-    evaluations_array[POLYNOMIAL::W_3_SHIFT] = prover.wire_polynomials[2].shifted();
-    evaluations_array[POLYNOMIAL::W_4_SHIFT] = prover.wire_polynomials[3].shifted();
-
-    evaluations_array[POLYNOMIAL::S_1] = prover.key->polynomial_store.get("s_1_lagrange");
-    evaluations_array[POLYNOMIAL::S_2] = prover.key->polynomial_store.get("s_2_lagrange");
-    evaluations_array[POLYNOMIAL::S_3] = prover.key->polynomial_store.get("s_3_lagrange");
-    evaluations_array[POLYNOMIAL::S_4] = prover.key->polynomial_store.get("s_4_lagrange");
-
-    evaluations_array[POLYNOMIAL::S_ACCUM] = sorted_list_accumulator;
-    evaluations_array[POLYNOMIAL::S_ACCUM_SHIFT] = sorted_list_accumulator.shifted();
-
-    evaluations_array[POLYNOMIAL::Z_PERM] = z_permutation;
-    evaluations_array[POLYNOMIAL::Z_PERM_SHIFT] = z_permutation.shifted();
-
-    evaluations_array[POLYNOMIAL::Z_LOOKUP] = z_lookup;
-    evaluations_array[POLYNOMIAL::Z_LOOKUP_SHIFT] = z_lookup.shifted();
-
-    evaluations_array[POLYNOMIAL::Q_M] = prover.key->polynomial_store.get("q_m_lagrange");
-    evaluations_array[POLYNOMIAL::Q_L] = prover.key->polynomial_store.get("q_1_lagrange");
-    evaluations_array[POLYNOMIAL::Q_R] = prover.key->polynomial_store.get("q_2_lagrange");
-    evaluations_array[POLYNOMIAL::Q_O] = prover.key->polynomial_store.get("q_3_lagrange");
-    evaluations_array[POLYNOMIAL::Q_4] = prover.key->polynomial_store.get("q_4_lagrange");
-    evaluations_array[POLYNOMIAL::Q_C] = prover.key->polynomial_store.get("q_c_lagrange");
-    evaluations_array[POLYNOMIAL::QARITH] = prover.key->polynomial_store.get("q_arith_lagrange");
-    evaluations_array[POLYNOMIAL::QSORT] = prover.key->polynomial_store.get("q_sort_lagrange");
-    evaluations_array[POLYNOMIAL::QELLIPTIC] = prover.key->polynomial_store.get("q_elliptic_lagrange");
-    evaluations_array[POLYNOMIAL::QAUX] = prover.key->polynomial_store.get("q_aux_lagrange");
-    evaluations_array[POLYNOMIAL::QLOOKUPTYPE] = prover.key->polynomial_store.get("table_type_lagrange");
-
-    evaluations_array[POLYNOMIAL::SIGMA_1] = prover.key->polynomial_store.get("sigma_1_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_2] = prover.key->polynomial_store.get("sigma_2_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_3] = prover.key->polynomial_store.get("sigma_3_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_4] = prover.key->polynomial_store.get("sigma_4_lagrange");
-
-    evaluations_array[POLYNOMIAL::ID_1] = prover.key->polynomial_store.get("id_1_lagrange");
-    evaluations_array[POLYNOMIAL::ID_2] = prover.key->polynomial_store.get("id_2_lagrange");
-    evaluations_array[POLYNOMIAL::ID_3] = prover.key->polynomial_store.get("id_3_lagrange");
-    evaluations_array[POLYNOMIAL::ID_4] = prover.key->polynomial_store.get("id_4_lagrange");
-
-    evaluations_array[POLYNOMIAL::TABLE_1] = prover.key->polynomial_store.get("table_value_1_lagrange");
-    evaluations_array[POLYNOMIAL::TABLE_2] = prover.key->polynomial_store.get("table_value_2_lagrange");
-    evaluations_array[POLYNOMIAL::TABLE_3] = prover.key->polynomial_store.get("table_value_3_lagrange");
-    evaluations_array[POLYNOMIAL::TABLE_4] = prover.key->polynomial_store.get("table_value_4_lagrange");
-
-    evaluations_array[POLYNOMIAL::TABLE_1_SHIFT] = prover.key->polynomial_store.get("table_value_1_lagrange").shifted();
-    evaluations_array[POLYNOMIAL::TABLE_2_SHIFT] = prover.key->polynomial_store.get("table_value_2_lagrange").shifted();
-    evaluations_array[POLYNOMIAL::TABLE_3_SHIFT] = prover.key->polynomial_store.get("table_value_3_lagrange").shifted();
-    evaluations_array[POLYNOMIAL::TABLE_4_SHIFT] = prover.key->polynomial_store.get("table_value_4_lagrange").shifted();
-
-    evaluations_array[POLYNOMIAL::LAGRANGE_FIRST] = prover.key->polynomial_store.get("L_first_lagrange");
-    evaluations_array[POLYNOMIAL::LAGRANGE_LAST] = prover.key->polynomial_store.get("L_last_lagrange");
+    prover_polynomials.w_l = prover.key->w_l;
+    prover_polynomials.w_r = prover.key->w_r;
+    prover_polynomials.w_o = prover.key->w_o;
+    prover_polynomials.w_4 = prover.key->w_4;
+    prover_polynomials.w_l_shift = prover.key->w_l.shifted();
+    prover_polynomials.w_r_shift = prover.key->w_r.shifted();
+    prover_polynomials.w_o_shift = prover.key->w_o.shifted();
+    prover_polynomials.w_4_shift = prover.key->w_4.shifted();
+    prover_polynomials.sorted_1 = prover.key->sorted_1;
+    prover_polynomials.sorted_2 = prover.key->sorted_2;
+    prover_polynomials.sorted_3 = prover.key->sorted_3;
+    prover_polynomials.sorted_4 = prover.key->sorted_4;
+    prover_polynomials.sorted_accum = sorted_list_accumulator;
+    prover_polynomials.sorted_accum_shift = sorted_list_accumulator.shifted();
+    prover_polynomials.table_1 = prover.key->table_1;
+    prover_polynomials.table_2 = prover.key->table_2;
+    prover_polynomials.table_3 = prover.key->table_3;
+    prover_polynomials.table_4 = prover.key->table_4;
+    prover_polynomials.table_1_shift = prover.key->table_1.shifted();
+    prover_polynomials.table_2_shift = prover.key->table_2.shifted();
+    prover_polynomials.table_3_shift = prover.key->table_3.shifted();
+    prover_polynomials.table_4_shift = prover.key->table_4.shifted();
+    prover_polynomials.z_perm = z_permutation;
+    prover_polynomials.z_perm_shift = z_permutation.shifted();
+    prover_polynomials.z_lookup = z_lookup;
+    prover_polynomials.z_lookup_shift = z_lookup.shifted();
+    prover_polynomials.q_m = prover.key->q_m;
+    prover_polynomials.q_l = prover.key->q_l;
+    prover_polynomials.q_r = prover.key->q_r;
+    prover_polynomials.q_o = prover.key->q_o;
+    prover_polynomials.q_c = prover.key->q_c;
+    prover_polynomials.q_4 = prover.key->q_4;
+    prover_polynomials.q_arith = prover.key->q_arith;
+    prover_polynomials.q_sort = prover.key->q_sort;
+    prover_polynomials.q_elliptic = prover.key->q_elliptic;
+    prover_polynomials.q_aux = prover.key->q_aux;
+    prover_polynomials.q_lookup = prover.key->q_lookup;
+    prover_polynomials.sigma_1 = prover.key->sigma_1;
+    prover_polynomials.sigma_2 = prover.key->sigma_2;
+    prover_polynomials.sigma_3 = prover.key->sigma_3;
+    prover_polynomials.sigma_4 = prover.key->sigma_4;
+    prover_polynomials.id_1 = prover.key->id_1;
+    prover_polynomials.id_2 = prover.key->id_2;
+    prover_polynomials.id_3 = prover.key->id_3;
+    prover_polynomials.id_4 = prover.key->id_4;
+    prover_polynomials.lagrange_first = prover.key->lagrange_first;
+    prover_polynomials.lagrange_last = prover.key->lagrange_last;
 
     // Construct the round for applying sumcheck relations and results for storing computed results
-    auto relations = std::tuple(honk::sumcheck::UltraArithmeticRelation<fr>(),
-                                honk::sumcheck::UltraArithmeticRelationSecondary<fr>(),
-                                honk::sumcheck::UltraGrandProductInitializationRelation<fr>(),
-                                honk::sumcheck::UltraGrandProductComputationRelation<fr>(),
-                                honk::sumcheck::LookupGrandProductComputationRelation<fr>(),
-                                honk::sumcheck::LookupGrandProductInitializationRelation<fr>());
+    auto relations = std::tuple(honk::sumcheck::UltraArithmeticRelation<FF>(),
+                                honk::sumcheck::UltraArithmeticRelationSecondary<FF>(),
+                                honk::sumcheck::UltraGrandProductInitializationRelation<FF>(),
+                                honk::sumcheck::UltraGrandProductComputationRelation<FF>(),
+                                honk::sumcheck::LookupGrandProductComputationRelation<FF>(),
+                                honk::sumcheck::LookupGrandProductInitializationRelation<FF>());
 
     fr result = 0;
     for (size_t i = 0; i < prover.key->circuit_size; i++) {
         // Compute an array containing all the evaluations at a given row i
-        std::array<fr, num_polynomials> evaluations_at_index_i;
-        for (size_t j = 0; j < num_polynomials; ++j) {
-            evaluations_at_index_i[j] = evaluations_array[j][i];
+        PurportedEvaluations evaluations_at_index_i;
+        size_t poly_idx = 0;
+        for (auto& polynomial : prover_polynomials) {
+            evaluations_at_index_i[poly_idx] = polynomial[i];
+            ++poly_idx;
         }
 
         // For each relation, call the `accumulate_relation_evaluation` over all witness/selector values at the

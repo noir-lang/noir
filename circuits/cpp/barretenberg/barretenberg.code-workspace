@@ -84,6 +84,10 @@
         // to the default value "clangd".
         //
         "clangd.path": "clangd-15",
+        // We should disable automatic inclusion of headers unless we decide to follow "WhyIWYU".
+        "clangd.arguments": [
+            "-header-insertion=never"
+          ]
         //
         // CMake
         //

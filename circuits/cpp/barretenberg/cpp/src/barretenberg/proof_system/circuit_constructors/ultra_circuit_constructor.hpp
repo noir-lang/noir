@@ -3,7 +3,6 @@
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 #include "circuit_constructor_base.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
@@ -13,7 +12,7 @@
 
 namespace proof_system {
 
-class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::Ultra> {
+class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::Ultra<barretenberg::fr>> {
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::LOOKUP_PEDERSEN;
@@ -531,17 +530,17 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     std::vector<uint32_t>& w_o = std::get<2>(wires);
     std::vector<uint32_t>& w_4 = std::get<3>(wires);
 
-    std::vector<barretenberg::fr>& q_m = std::get<0>(selectors);
-    std::vector<barretenberg::fr>& q_c = std::get<1>(selectors);
-    std::vector<barretenberg::fr>& q_1 = std::get<2>(selectors);
-    std::vector<barretenberg::fr>& q_2 = std::get<3>(selectors);
-    std::vector<barretenberg::fr>& q_3 = std::get<4>(selectors);
-    std::vector<barretenberg::fr>& q_4 = std::get<5>(selectors);
-    std::vector<barretenberg::fr>& q_arith = std::get<6>(selectors);
-    std::vector<barretenberg::fr>& q_sort = std::get<7>(selectors);
-    std::vector<barretenberg::fr>& q_elliptic = std::get<8>(selectors);
-    std::vector<barretenberg::fr>& q_aux = std::get<9>(selectors);
-    std::vector<barretenberg::fr>& q_lookup_type = std::get<10>(selectors);
+    std::vector<barretenberg::fr>& q_m = selectors.q_m;
+    std::vector<barretenberg::fr>& q_c = selectors.q_c;
+    std::vector<barretenberg::fr>& q_1 = selectors.q_1;
+    std::vector<barretenberg::fr>& q_2 = selectors.q_2;
+    std::vector<barretenberg::fr>& q_3 = selectors.q_3;
+    std::vector<barretenberg::fr>& q_4 = selectors.q_4;
+    std::vector<barretenberg::fr>& q_arith = selectors.q_arith;
+    std::vector<barretenberg::fr>& q_sort = selectors.q_sort;
+    std::vector<barretenberg::fr>& q_elliptic = selectors.q_elliptic;
+    std::vector<barretenberg::fr>& q_aux = selectors.q_aux;
+    std::vector<barretenberg::fr>& q_lookup_type = selectors.q_lookup_type;
 
     // These are variables that we have used a gate on, to enforce that they are
     // equal to a defined value.

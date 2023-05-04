@@ -1,7 +1,6 @@
 #pragma once
 #include <array>
 #include "circuit_constructor_base.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
 
 namespace proof_system {
@@ -12,7 +11,7 @@ inline std::vector<std::string> turbo_selector_names()
                                      "q_5", "q_arith", "q_fixed_base", "q_range", "q_logic" };
     return result;
 }
-class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::Turbo> {
+class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::Turbo<barretenberg::fr>> {
 
   public:
     std::vector<uint32_t>& w_l = std::get<0>(wires);
@@ -20,17 +19,17 @@ class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::T
     std::vector<uint32_t>& w_o = std::get<2>(wires);
     std::vector<uint32_t>& w_4 = std::get<3>(wires);
 
-    std::vector<barretenberg::fr>& q_m = std::get<0>(selectors);
-    std::vector<barretenberg::fr>& q_c = std::get<1>(selectors);
-    std::vector<barretenberg::fr>& q_1 = std::get<2>(selectors);
-    std::vector<barretenberg::fr>& q_2 = std::get<3>(selectors);
-    std::vector<barretenberg::fr>& q_3 = std::get<4>(selectors);
-    std::vector<barretenberg::fr>& q_4 = std::get<5>(selectors);
-    std::vector<barretenberg::fr>& q_5 = std::get<6>(selectors);
-    std::vector<barretenberg::fr>& q_arith = std::get<7>(selectors);
-    std::vector<barretenberg::fr>& q_fixed_base = std::get<8>(selectors);
-    std::vector<barretenberg::fr>& q_range = std::get<9>(selectors);
-    std::vector<barretenberg::fr>& q_logic = std::get<10>(selectors);
+    std::vector<barretenberg::fr>& q_m = selectors.q_m;
+    std::vector<barretenberg::fr>& q_c = selectors.q_c;
+    std::vector<barretenberg::fr>& q_1 = selectors.q_1;
+    std::vector<barretenberg::fr>& q_2 = selectors.q_2;
+    std::vector<barretenberg::fr>& q_3 = selectors.q_3;
+    std::vector<barretenberg::fr>& q_4 = selectors.q_4;
+    std::vector<barretenberg::fr>& q_5 = selectors.q_5;
+    std::vector<barretenberg::fr>& q_arith = selectors.q_arith;
+    std::vector<barretenberg::fr>& q_fixed_base = selectors.q_fixed_base;
+    std::vector<barretenberg::fr>& q_range = selectors.q_range;
+    std::vector<barretenberg::fr>& q_logic = selectors.q_logic;
 
     static constexpr ComposerType type = ComposerType::TURBO;
     static constexpr size_t UINT_LOG2_BASE = 2;

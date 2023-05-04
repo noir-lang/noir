@@ -70,7 +70,6 @@ TEST(ultra_plonk_composer_splitting_tmp, debug_composer_discrepencies)
 
     for (const auto& [key, poly] : prover.key->polynomial_store) {
         if (prover_new.key->polynomial_store.contains(key)) {
-            // info(key);
             EXPECT_EQ(prover.key->polynomial_store.get(key), prover_new.key->polynomial_store.get(key));
         }
     }
@@ -79,7 +78,6 @@ TEST(ultra_plonk_composer_splitting_tmp, debug_composer_discrepencies)
     auto verifier_new = composer_new.create_verifier();
 
     for (const auto& [key, poly] : verifier.key->commitments) {
-        // info(key);
         EXPECT_EQ(verifier.key->commitments[key], verifier_new.key->commitments[key]);
     }
 

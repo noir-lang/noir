@@ -1,27 +1,30 @@
 #pragma once
 
+#include "barretenberg/plonk/flavor/flavor.hpp"
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
 #include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 
 #include <cstddef>
 #include <utility>
 
 namespace proof_system::plonk {
-// TODO(Kesha): change initializations to specify this parameter
-// Cody: What does this mean?
-template <typename CircuitConstructor> class UltraPlonkComposerHelper {
+class UltraPlonkComposerHelper {
   public:
+    using Flavor = flavor::Ultra;
+    using CircuitConstructor = UltraCircuitConstructor;
+
     // TODO(luke): In the split composers, NUM_RANDOMIZED_GATES has replaced NUM_RESERVED_GATES (in some places) to
     // determine the next-power-of-2 circuit size. (There are some places in this composer that still use
     // NUM_RESERVED_GATES). Therefore for consistency within this composer itself, and consistency with the original
     // Ultra Composer, this value must match that of NUM_RESERVED_GATES. This issue needs to be reconciled
     // simultaneously here and in the other split composers.
     static constexpr size_t NUM_RESERVED_GATES = 4; // equal to the number of multilinear evaluations leaked
-    static constexpr size_t program_width = CircuitConstructor::program_width;
+    static constexpr size_t program_width = CircuitConstructor::NUM_WIRES;
     std::shared_ptr<plonk::proving_key> circuit_proving_key;
     std::shared_ptr<plonk::verification_key> circuit_verification_key;
     // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "barretenberg/plonk/flavor/flavor.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
@@ -12,10 +13,10 @@
 #include <utility>
 
 namespace proof_system::plonk {
-// TODO(Kesha): change initializations to specify this parameter
-// Cody: What does this mean?
-template <typename CircuitConstructor> class StandardPlonkComposerHelper {
+class StandardPlonkComposerHelper {
   public:
+    using Flavor = plonk::flavor::Standard;
+    using CircuitConstructor = StandardCircuitConstructor;
     static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::program_width;
     std::shared_ptr<plonk::proving_key> circuit_proving_key;

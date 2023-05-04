@@ -1,6 +1,6 @@
 #include "sumcheck.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/transcript/transcript_wrappers.hpp"
 #include "relations/arithmetic_relation.hpp"
 #include "relations/grand_product_computation_relation.hpp"
@@ -22,55 +22,52 @@
 
 using namespace proof_system::honk;
 using namespace proof_system::honk::sumcheck;
-using FF = barretenberg::fr;
-const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
-using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
+using Flavor = honk::flavor::Standard; // TODO(Cody): Generalize this test.
+using FF = typename Flavor::FF;
+using ProverPolynomials = typename Flavor::ProverPolynomials;
+const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
 namespace test_sumcheck_round {
 
-/**
- * @brief Place polynomials into full_polynomials in the order determined by the StandardArithmetization enum.
- *
- */
 template <class FF, size_t N>
-std::array<std::span<FF>, NUM_POLYNOMIALS> construct_full_polynomials(std::array<FF, N>& w_l,
-                                                                      std::array<FF, N>& w_r,
-                                                                      std::array<FF, N>& w_o,
-                                                                      std::array<FF, N>& z_perm,
-                                                                      std::array<FF, N>& z_perm_shift,
-                                                                      std::array<FF, N>& q_m,
-                                                                      std::array<FF, N>& q_l,
-                                                                      std::array<FF, N>& q_r,
-                                                                      std::array<FF, N>& q_o,
-                                                                      std::array<FF, N>& q_c,
-                                                                      std::array<FF, N>& sigma_1,
-                                                                      std::array<FF, N>& sigma_2,
-                                                                      std::array<FF, N>& sigma_3,
-                                                                      std::array<FF, N>& id_1,
-                                                                      std::array<FF, N>& id_2,
-                                                                      std::array<FF, N>& id_3,
-                                                                      std::array<FF, N>& lagrange_first,
-                                                                      std::array<FF, N>& lagrange_last)
+ProverPolynomials construct_full_polynomials(std::array<FF, N>& w_l,
+                                             std::array<FF, N>& w_r,
+                                             std::array<FF, N>& w_o,
+                                             std::array<FF, N>& z_perm,
+                                             std::array<FF, N>& z_perm_shift,
+                                             std::array<FF, N>& q_m,
+                                             std::array<FF, N>& q_l,
+                                             std::array<FF, N>& q_r,
+                                             std::array<FF, N>& q_o,
+                                             std::array<FF, N>& q_c,
+                                             std::array<FF, N>& sigma_1,
+                                             std::array<FF, N>& sigma_2,
+                                             std::array<FF, N>& sigma_3,
+                                             std::array<FF, N>& id_1,
+                                             std::array<FF, N>& id_2,
+                                             std::array<FF, N>& id_3,
+                                             std::array<FF, N>& lagrange_first,
+                                             std::array<FF, N>& lagrange_last)
 {
-    std::array<std::span<FF>, NUM_POLYNOMIALS> full_polynomials;
-    full_polynomials[POLYNOMIAL::W_L] = w_l;
-    full_polynomials[POLYNOMIAL::W_R] = w_r;
-    full_polynomials[POLYNOMIAL::W_O] = w_o;
-    full_polynomials[POLYNOMIAL::Z_PERM] = z_perm;
-    full_polynomials[POLYNOMIAL::Z_PERM_SHIFT] = z_perm_shift;
-    full_polynomials[POLYNOMIAL::Q_M] = q_m;
-    full_polynomials[POLYNOMIAL::Q_L] = q_l;
-    full_polynomials[POLYNOMIAL::Q_R] = q_r;
-    full_polynomials[POLYNOMIAL::Q_O] = q_o;
-    full_polynomials[POLYNOMIAL::Q_C] = q_c;
-    full_polynomials[POLYNOMIAL::SIGMA_1] = sigma_1;
-    full_polynomials[POLYNOMIAL::SIGMA_2] = sigma_2;
-    full_polynomials[POLYNOMIAL::SIGMA_3] = sigma_3;
-    full_polynomials[POLYNOMIAL::ID_1] = id_1;
-    full_polynomials[POLYNOMIAL::ID_2] = id_2;
-    full_polynomials[POLYNOMIAL::ID_3] = id_3;
-    full_polynomials[POLYNOMIAL::LAGRANGE_FIRST] = lagrange_first;
-    full_polynomials[POLYNOMIAL::LAGRANGE_LAST] = lagrange_last;
+    ProverPolynomials full_polynomials;
+    full_polynomials.w_l = w_l;
+    full_polynomials.w_r = w_r;
+    full_polynomials.w_o = w_o;
+    full_polynomials.z_perm = z_perm;
+    full_polynomials.z_perm_shift = z_perm_shift;
+    full_polynomials.q_m = q_m;
+    full_polynomials.q_l = q_l;
+    full_polynomials.q_r = q_r;
+    full_polynomials.q_o = q_o;
+    full_polynomials.q_c = q_c;
+    full_polynomials.sigma_1 = sigma_1;
+    full_polynomials.sigma_2 = sigma_2;
+    full_polynomials.sigma_3 = sigma_3;
+    full_polynomials.id_1 = id_1;
+    full_polynomials.id_2 = id_2;
+    full_polynomials.id_3 = id_3;
+    full_polynomials.lagrange_first = lagrange_first;
+    full_polynomials.lagrange_last = lagrange_last;
 
     return full_polynomials;
 }
@@ -142,7 +139,7 @@ TEST(Sumcheck, PolynomialNormalization)
 
     auto transcript = ProverTranscript<FF>::init_empty();
 
-    auto sumcheck = Sumcheck<FF,
+    auto sumcheck = Sumcheck<Flavor,
                              ProverTranscript<FF>,
                              ArithmeticRelation,
                              GrandProductComputationRelation,
@@ -242,7 +239,7 @@ TEST(Sumcheck, Prover)
 
         auto transcript = ProverTranscript<FF>::init_empty();
 
-        auto sumcheck = Sumcheck<FF,
+        auto sumcheck = Sumcheck<Flavor,
                                  ProverTranscript<FF>,
                                  ArithmeticRelation,
                                  GrandProductComputationRelation,
@@ -323,7 +320,7 @@ TEST(Sumcheck, ProverAndVerifier)
 
     auto prover_transcript = ProverTranscript<FF>::init_empty();
 
-    auto sumcheck_prover = Sumcheck<FF,
+    auto sumcheck_prover = Sumcheck<Flavor,
                                     ProverTranscript<FF>,
                                     ArithmeticRelation,
                                     GrandProductComputationRelation,
@@ -333,7 +330,7 @@ TEST(Sumcheck, ProverAndVerifier)
 
     auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-    auto sumcheck_verifier = Sumcheck<FF,
+    auto sumcheck_verifier = Sumcheck<Flavor,
                                       VerifierTranscript<FF>,
                                       ArithmeticRelation,
                                       GrandProductComputationRelation,
@@ -405,7 +402,7 @@ TEST(Sumcheck, ProverAndVerifierLonger)
 
         auto prover_transcript = ProverTranscript<FF>::init_empty();
 
-        auto sumcheck_prover = Sumcheck<FF,
+        auto sumcheck_prover = Sumcheck<Flavor,
                                         ProverTranscript<FF>,
                                         ArithmeticRelation,
                                         GrandProductComputationRelation,
@@ -415,7 +412,7 @@ TEST(Sumcheck, ProverAndVerifierLonger)
 
         auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-        auto sumcheck_verifier = Sumcheck<FF,
+        auto sumcheck_verifier = Sumcheck<Flavor,
                                           VerifierTranscript<FF>,
                                           ArithmeticRelation,
                                           GrandProductComputationRelation,

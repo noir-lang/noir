@@ -7,24 +7,22 @@
 
 namespace proof_system::honk::prover_library {
 
-using Fr = barretenberg::fr;
-using Polynomial = barretenberg::Polynomial<Fr>;
+template <typename Flavor>
+typename Flavor::Polynomial compute_permutation_grand_product(std::shared_ptr<typename Flavor::ProvingKey>& key,
+                                                              typename Flavor::FF beta,
+                                                              typename Flavor::FF gamma);
 
-template <size_t program_width>
-Polynomial compute_permutation_grand_product(std::shared_ptr<plonk::proving_key>& key,
-                                             std::vector<Polynomial>& wire_polynomials,
-                                             Fr beta,
-                                             Fr gamma);
+template <typename Flavor>
+typename Flavor::Polynomial compute_lookup_grand_product(std::shared_ptr<typename Flavor::ProvingKey>& key,
+                                                         typename Flavor::Polynomial& sorted_list_accumulator,
+                                                         typename Flavor::FF eta,
+                                                         typename Flavor::FF beta,
+                                                         typename Flavor::FF gamma);
 
-Polynomial compute_lookup_grand_product(std::shared_ptr<plonk::proving_key>& key,
-                                        std::vector<Polynomial>& wire_polynomials,
-                                        Polynomial& sorted_list_accumulator,
-                                        Fr eta,
-                                        Fr beta,
-                                        Fr gamma);
-
-Polynomial compute_sorted_list_accumulator(std::shared_ptr<plonk::proving_key>& key,
-                                           std::vector<Polynomial>& sorted_list_polynomials,
-                                           Fr eta);
+template <typename Flavor>
+typename Flavor::Polynomial compute_sorted_list_accumulator(
+    std::shared_ptr<typename Flavor::ProvingKey>& key,
+    std::vector<typename Flavor::Polynomial>& sorted_list_polynomials,
+    typename Flavor::FF eta);
 
 } // namespace proof_system::honk::prover_library

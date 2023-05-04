@@ -1,8 +1,9 @@
 #include "standard_honk_composer_helper.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
+#include "barretenberg/srs/reference_string/reference_string.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -14,7 +15,7 @@ namespace proof_system::honk {
  * Compute proving key base.
  *
  * 1. Load crs.
- * 2. Initialize this.circuit_proving_key.
+ * 2. Initialize this->proving_key.
  * 3. Create constraint selector polynomials from each of this composer's `selectors` vectors and add them to the
  * proving key.
  *
@@ -22,18 +23,17 @@ namespace proof_system::honk {
  * @param num_reserved_gates The number of reserved gates.
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
-template <typename CircuitConstructor>
-std::shared_ptr<plonk::proving_key> StandardHonkComposerHelper<CircuitConstructor>::compute_proving_key_base(
+std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelper::compute_proving_key_base(
     const CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_randomized_gates)
 {
-    // Initialize circuit_proving_key
-    // TODO(#229)(Kesha): replace composer types.
-    circuit_proving_key = initialize_proving_key(
+    // Initialize proving_key
+    // TODO(#392)(Kesha): replace composer types.
+    proving_key = initialize_proving_key<Flavor>(
         constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, ComposerType::STANDARD_HONK);
     // Compute lagrange selectors
-    construct_lagrange_selector_forms(constructor, circuit_proving_key.get());
+    construct_selector_polynomials<Flavor>(constructor, proving_key.get());
 
-    return circuit_proving_key;
+    return proving_key;
 }
 
 /**
@@ -42,29 +42,29 @@ std::shared_ptr<plonk::proving_key> StandardHonkComposerHelper<CircuitConstructo
  * (2) sets the polynomial manifest using the data from proving key.
  */
 
-template <typename CircuitConstructor>
-std::shared_ptr<plonk::verification_key> StandardHonkComposerHelper<CircuitConstructor>::compute_verification_key_base(
-    std::shared_ptr<plonk::proving_key> const& proving_key, std::shared_ptr<VerifierReferenceString> const& vrs)
+std::shared_ptr<StandardHonkComposerHelper::VerificationKey> StandardHonkComposerHelper::compute_verification_key_base(
+    std::shared_ptr<StandardHonkComposerHelper::ProvingKey> const& proving_key,
+    std::shared_ptr<VerifierReferenceString> const& vrs)
 {
-    auto key = std::make_shared<plonk::verification_key>(
+    auto key = std::make_shared<VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
     // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
     auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
 
     // Compute and store commitments to all precomputed polynomials
-    key->commitments["Q_M"] = commitment_key.commit(proving_key->polynomial_store.get("q_m_lagrange"));
-    key->commitments["Q_1"] = commitment_key.commit(proving_key->polynomial_store.get("q_1_lagrange"));
-    key->commitments["Q_2"] = commitment_key.commit(proving_key->polynomial_store.get("q_2_lagrange"));
-    key->commitments["Q_3"] = commitment_key.commit(proving_key->polynomial_store.get("q_3_lagrange"));
-    key->commitments["Q_C"] = commitment_key.commit(proving_key->polynomial_store.get("q_c_lagrange"));
-    key->commitments["SIGMA_1"] = commitment_key.commit(proving_key->polynomial_store.get("sigma_1_lagrange"));
-    key->commitments["SIGMA_2"] = commitment_key.commit(proving_key->polynomial_store.get("sigma_2_lagrange"));
-    key->commitments["SIGMA_3"] = commitment_key.commit(proving_key->polynomial_store.get("sigma_3_lagrange"));
-    key->commitments["ID_1"] = commitment_key.commit(proving_key->polynomial_store.get("id_1_lagrange"));
-    key->commitments["ID_2"] = commitment_key.commit(proving_key->polynomial_store.get("id_2_lagrange"));
-    key->commitments["ID_3"] = commitment_key.commit(proving_key->polynomial_store.get("id_3_lagrange"));
-    key->commitments["LAGRANGE_FIRST"] = commitment_key.commit(proving_key->polynomial_store.get("L_first_lagrange"));
-    key->commitments["LAGRANGE_LAST"] = commitment_key.commit(proving_key->polynomial_store.get("L_last_lagrange"));
+    key->q_m = commitment_key.commit(proving_key->q_m);
+    key->q_l = commitment_key.commit(proving_key->q_l);
+    key->q_r = commitment_key.commit(proving_key->q_r);
+    key->q_o = commitment_key.commit(proving_key->q_o);
+    key->q_c = commitment_key.commit(proving_key->q_c);
+    key->sigma_1 = commitment_key.commit(proving_key->sigma_1);
+    key->sigma_2 = commitment_key.commit(proving_key->sigma_2);
+    key->sigma_3 = commitment_key.commit(proving_key->sigma_3);
+    key->id_1 = commitment_key.commit(proving_key->id_1);
+    key->id_2 = commitment_key.commit(proving_key->id_2);
+    key->id_3 = commitment_key.commit(proving_key->id_3);
+    key->lagrange_first = commitment_key.commit(proving_key->lagrange_first);
+    key->lagrange_last = commitment_key.commit(proving_key->lagrange_last);
 
     return key;
 }
@@ -78,14 +78,18 @@ std::shared_ptr<plonk::verification_key> StandardHonkComposerHelper<CircuitConst
  *
  * @tparam Program settings needed to establish if w_4 is being used.
  * */
-template <typename CircuitConstructor>
-void StandardHonkComposerHelper<CircuitConstructor>::compute_witness(const CircuitConstructor& circuit_constructor,
-                                                                     const size_t minimum_circuit_size)
+void StandardHonkComposerHelper::compute_witness(const CircuitConstructor& circuit_constructor,
+                                                 const size_t minimum_circuit_size)
 {
     if (computed_witness) {
         return;
     }
-    wire_polynomials = compute_witness_base(circuit_constructor, minimum_circuit_size, NUM_RANDOMIZED_GATES);
+    auto wire_polynomials =
+        construct_wire_polynomials_base<Flavor>(circuit_constructor, minimum_circuit_size, NUM_RANDOMIZED_GATES);
+
+    proving_key->w_l = wire_polynomials[0];
+    proving_key->w_r = wire_polynomials[1];
+    proving_key->w_o = wire_polynomials[2];
 
     computed_witness = true;
 }
@@ -97,24 +101,23 @@ void StandardHonkComposerHelper<CircuitConstructor>::compute_witness(const Circu
  * @return Proving key with saved computed polynomials.
  * */
 
-template <typename CircuitConstructor>
-std::shared_ptr<plonk::proving_key> StandardHonkComposerHelper<CircuitConstructor>::compute_proving_key(
+std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelper::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
 {
-    if (circuit_proving_key) {
-        return circuit_proving_key;
+    if (proving_key) {
+        return proving_key;
     }
     // Compute q_l, q_r, q_o, etc polynomials
-    StandardHonkComposerHelper::compute_proving_key_base(circuit_constructor, ComposerType::STANDARD_HONK);
+    StandardHonkComposerHelper::compute_proving_key_base(
+        circuit_constructor, /*minimum_circuit_size=*/0, NUM_RANDOMIZED_GATES);
 
     // Compute sigma polynomials (we should update that late)
-    compute_standard_honk_sigma_permutations<CircuitConstructor::num_wires>(circuit_constructor,
-                                                                            circuit_proving_key.get());
-    compute_standard_honk_id_polynomials<CircuitConstructor::num_wires>(circuit_proving_key.get());
+    compute_standard_honk_sigma_permutations<Flavor>(circuit_constructor, proving_key.get());
+    compute_standard_honk_id_polynomials<Flavor>(proving_key.get());
 
-    compute_first_and_last_lagrange_polynomials(circuit_proving_key.get());
+    compute_first_and_last_lagrange_polynomials<Flavor>(proving_key.get());
 
-    return circuit_proving_key;
+    return proving_key;
 }
 
 /**
@@ -122,30 +125,27 @@ std::shared_ptr<plonk::proving_key> StandardHonkComposerHelper<CircuitConstructo
  *
  * @return Pointer to created circuit verification key.
  * */
-template <typename CircuitConstructor>
-std::shared_ptr<plonk::verification_key> StandardHonkComposerHelper<CircuitConstructor>::compute_verification_key(
+std::shared_ptr<StandardHonkComposerHelper::VerificationKey> StandardHonkComposerHelper::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
-    if (circuit_verification_key) {
-        return circuit_verification_key;
+    if (verification_key) {
+        return verification_key;
     }
-    if (!circuit_proving_key) {
+    if (!proving_key) {
         compute_proving_key(circuit_constructor);
     }
 
-    circuit_verification_key = StandardHonkComposerHelper::compute_verification_key_base(
-        circuit_proving_key, crs_factory_->get_verifier_crs());
-    circuit_verification_key->composer_type = circuit_proving_key->composer_type;
+    verification_key =
+        StandardHonkComposerHelper::compute_verification_key_base(proving_key, crs_factory_->get_verifier_crs());
+    verification_key->composer_type = proving_key->composer_type;
 
-    return circuit_verification_key;
+    return verification_key;
 }
 
-template <typename CircuitConstructor>
-StandardVerifier StandardHonkComposerHelper<CircuitConstructor>::create_verifier(
-    const CircuitConstructor& circuit_constructor)
+StandardVerifier StandardHonkComposerHelper::create_verifier(const CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
-    StandardVerifier output_state(circuit_verification_key);
+    StandardVerifier output_state(verification_key);
 
     // TODO(Cody): This should be more generic
     auto kate_verification_key = std::make_unique<pcs::kzg::VerificationKey>("../srs_db/ignition");
@@ -155,23 +155,13 @@ StandardVerifier StandardHonkComposerHelper<CircuitConstructor>::create_verifier
     return output_state;
 }
 
-template <typename CircuitConstructor>
-template <typename Flavor>
-// TODO(Cody): this file should be generic with regard to flavor/arithmetization/whatever.
-StandardProver StandardHonkComposerHelper<CircuitConstructor>::create_prover(
-    const CircuitConstructor& circuit_constructor)
+StandardProver StandardHonkComposerHelper::create_prover(const CircuitConstructor& circuit_constructor)
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 
-    size_t num_sumcheck_rounds(circuit_proving_key->log_circuit_size);
-    // TODO(luke): what is this manifest? Remove?
-    auto manifest = Flavor::create_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
-    StandardProver output_state(std::move(wire_polynomials), circuit_proving_key);
+    StandardProver output_state(proving_key);
 
     return output_state;
 }
-template class StandardHonkComposerHelper<StandardCircuitConstructor>;
-template StandardProver StandardHonkComposerHelper<StandardCircuitConstructor>::create_prover<StandardHonk>(
-    const StandardCircuitConstructor& circuit_constructor);
 } // namespace proof_system::honk

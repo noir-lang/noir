@@ -119,8 +119,6 @@ template <typename FF> class BaseTranscript {
      */
     void consume_prover_element_bytes(const std::string& label, std::span<const uint8_t> element_bytes)
     {
-        (void)label;
-
         // Add an entry to the current round of the manifest
         manifest.add_entry(round_number, label, element_bytes.size());
 

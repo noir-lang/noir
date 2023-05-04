@@ -1,19 +1,16 @@
 #include "prover_library.hpp"
-#include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
+#include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/flavor/ultra.hpp"
 #include <span>
 #include <string>
 
 namespace proof_system::honk::prover_library {
 
-using Fr = barretenberg::fr;
-using Polynomial = barretenberg::Polynomial<Fr>;
-
 /**
  * @brief Compute the permutation grand product polynomial Z_perm(X)
  * *
- * @detail (This description assumes program_width 3). Z_perm may be defined in terms of its values
- * on X_i = 0,1,...,n-1 as Z_perm[0] = 1 and for i = 1:n-1
- *
+ * @details (This description assumes Flavor::NUM_WIRES 3).
+ * Z_perm may be defined in terms of its values  on X_i = 0,1,...,n-1 as Z_perm[0] = 1 and for i = 1:n-1
  *                  (w_1(j) + β⋅id_1(j) + γ) ⋅ (w_2(j) + β⋅id_2(j) + γ) ⋅ (w_3(j) + β⋅id_3(j) + γ)
  * Z_perm[i] = ∏ --------------------------------------------------------------------------------
  *                  (w_1(j) + β⋅σ_1(j) + γ) ⋅ (w_2(j) + β⋅σ_2(j) + γ) ⋅ (w_3(j) + β⋅σ_3(j) + γ)
@@ -25,55 +22,55 @@ using Polynomial = barretenberg::Polynomial<Fr>;
  * Z_perm[i] = ∏ --------------------------
  *                B_1(j) ⋅ B_2(j) ⋅ B_3(j)
  *
- * Step 1) Compute the 2*program_width length-n polynomials A_i and B_i
- * Step 2) Compute the 2*program_width length-n polynomials ∏ A_i(j) and ∏ B_i(j)
+ * Step 1) Compute the 2*Flavor::NUM_WIRES length-n polynomials A_i and B_i
+ * Step 2) Compute the 2*Flavor::NUM_WIRES length-n polynomials ∏ A_i(j) and ∏ B_i(j)
  * Step 3) Compute the two length-n polynomials defined by
  *          numer[i] = ∏ A_1(j)⋅A_2(j)⋅A_3(j), and denom[i] = ∏ B_1(j)⋅B_2(j)⋅B_3(j)
  * Step 4) Compute Z_perm[i+1] = numer[i]/denom[i] (recall: Z_perm[0] = 1)
  *
  * Note: Step (4) utilizes Montgomery batch inversion to replace n-many inversions with
  * one batch inversion (at the expense of more multiplications)
+ *
+ * @todo TODO(#222)(luke): Parallelize
  */
-// TODO(#222)(luke): Parallelize
-template <size_t program_width>
-Polynomial compute_permutation_grand_product(std::shared_ptr<plonk::proving_key>& key,
-                                             std::vector<Polynomial>& wire_polynomials,
-                                             Fr beta,
-                                             Fr gamma)
+
+template <typename Flavor>
+typename Flavor::Polynomial compute_permutation_grand_product(std::shared_ptr<typename Flavor::ProvingKey>& key,
+                                                              typename Flavor::FF beta,
+                                                              typename Flavor::FF gamma)
 {
     using barretenberg::polynomial_arithmetic::copy_polynomial;
+    using FF = typename Flavor::FF;
+    using Polynomial = typename Flavor::Polynomial;
+
+    auto wire_polynomials = key->get_wires();
 
     // TODO(luke): instantiate z_perm here then make the 0th accum a span of it? avoid extra memory.
 
     // Allocate accumulator polynomials that will serve as scratch space
-    std::array<Polynomial, program_width> numerator_accumulator;
-    std::array<Polynomial, program_width> denominator_accumulator;
-    for (size_t i = 0; i < program_width; ++i) {
+    std::array<Polynomial, Flavor::NUM_WIRES> numerator_accumulator;
+    std::array<Polynomial, Flavor::NUM_WIRES> denominator_accumulator;
+    for (size_t i = 0; i < Flavor::NUM_WIRES; ++i) {
         numerator_accumulator[i] = Polynomial{ key->circuit_size };
         denominator_accumulator[i] = Polynomial{ key->circuit_size };
     }
 
     // Populate wire and permutation polynomials
-    std::array<std::span<const Fr>, program_width> wires;
-    std::array<std::span<const Fr>, program_width> sigmas;
-    std::array<std::span<const Fr>, program_width> ids;
-    for (size_t i = 0; i < program_width; ++i) {
-        wires[i] = wire_polynomials[i];
-        sigmas[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_lagrange");
-        ids[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_lagrange");
-    }
+    auto ids = key->get_id_polynomials();
+    auto sigmas = key->get_sigma_polynomials();
 
     // Step (1)
     // TODO(#222)(kesha): Change the order to engage automatic prefetching and get rid of redundant computation
     for (size_t i = 0; i < key->circuit_size; ++i) {
-        for (size_t k = 0; k < program_width; ++k) {
-            numerator_accumulator[k][i] = wires[k][i] + (ids[k][i] * beta) + gamma;      // w_k(i) + β.id_k(i) + γ
-            denominator_accumulator[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
+        for (size_t k = 0; k < Flavor::NUM_WIRES; ++k) {
+            numerator_accumulator[k][i] = wire_polynomials[k][i] + (ids[k][i] * beta) + gamma; // w_k(i) + β.id_k(i) + γ
+            denominator_accumulator[k][i] =
+                wire_polynomials[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
         }
     }
 
     // Step (2)
-    for (size_t k = 0; k < program_width; ++k) {
+    for (size_t k = 0; k < Flavor::NUM_WIRES; ++k) {
         for (size_t i = 0; i < key->circuit_size - 1; ++i) {
             numerator_accumulator[k][i + 1] *= numerator_accumulator[k][i];
             denominator_accumulator[k][i + 1] *= denominator_accumulator[k][i];
@@ -82,7 +79,7 @@ Polynomial compute_permutation_grand_product(std::shared_ptr<plonk::proving_key>
 
     // Step (3)
     for (size_t i = 0; i < key->circuit_size; ++i) {
-        for (size_t k = 1; k < program_width; ++k) {
+        for (size_t k = 1; k < Flavor::NUM_WIRES; ++k) {
             numerator_accumulator[0][i] *= numerator_accumulator[k][i];
             denominator_accumulator[0][i] *= denominator_accumulator[k][i];
         }
@@ -93,8 +90,8 @@ Polynomial compute_permutation_grand_product(std::shared_ptr<plonk::proving_key>
     // denominator_accumulator[0][i]. At the end of this computation, the quotient numerator_accumulator[0] /
     // denominator_accumulator[0] is stored in numerator_accumulator[0].
     // Note: Since numerator_accumulator[0][i] corresponds to z_lookup[i+1], we only iterate up to i = (n - 2).
-    Fr* inversion_coefficients = &denominator_accumulator[1][0]; // arbitrary scratch space
-    Fr inversion_accumulator = Fr::one();
+    FF* inversion_coefficients = &denominator_accumulator[1][0]; // arbitrary scratch space
+    FF inversion_accumulator = FF::one();
     for (size_t i = 0; i < key->circuit_size - 1; ++i) {
         inversion_coefficients[i] = numerator_accumulator[0][i] * inversion_accumulator;
         inversion_accumulator *= denominator_accumulator[0][i];
@@ -181,15 +178,19 @@ Polynomial compute_permutation_grand_product(std::shared_ptr<plonk::proving_key>
  * @param gamma
  * @return Polynomial
  */
-Polynomial compute_lookup_grand_product(std::shared_ptr<plonk::proving_key>& key,
-                                        std::vector<Polynomial>& wire_polynomials,
-                                        Polynomial& sorted_list_accumulator,
-                                        Fr eta,
-                                        Fr beta,
-                                        Fr gamma)
+template <typename Flavor>
+typename Flavor::Polynomial compute_lookup_grand_product(std::shared_ptr<typename Flavor::ProvingKey>& key,
+                                                         typename Flavor::Polynomial& sorted_list_accumulator,
+                                                         typename Flavor::FF eta,
+                                                         typename Flavor::FF beta,
+                                                         typename Flavor::FF gamma)
+
 {
-    const Fr eta_sqr = eta.sqr();
-    const Fr eta_cube = eta_sqr * eta;
+    using FF = typename Flavor::FF;
+    using Polynomial = typename Flavor::Polynomial;
+
+    const FF eta_sqr = eta.sqr();
+    const FF eta_cube = eta_sqr * eta;
 
     const size_t circuit_size = key->circuit_size;
 
@@ -203,37 +204,35 @@ Polynomial compute_lookup_grand_product(std::shared_ptr<plonk::proving_key>& key
     }
 
     // Obtain column step size values that have been stored in repurposed selctors
-    std::span<const Fr> column_1_step_size = key->polynomial_store.get("q_2_lagrange");
-    std::span<const Fr> column_2_step_size = key->polynomial_store.get("q_m_lagrange");
-    std::span<const Fr> column_3_step_size = key->polynomial_store.get("q_c_lagrange");
+    std::span<const FF> column_1_step_size = key->q_r;
+    std::span<const FF> column_2_step_size = key->q_m;
+    std::span<const FF> column_3_step_size = key->q_c;
 
-    // Utilize three wires; this is not tied to program width
-    std::array<std::span<const Fr>, 3> wires;
-    for (size_t i = 0; i < 3; ++i) {
-        wires[i] = wire_polynomials[i];
-    }
+    // We utilize three wires even when more are available.
+    // TODO(#389): const correctness
+    std::array<std::span<FF>, 3> wires = key->get_table_column_wires();
 
     // Note: the number of table polys is related to program width but '4' is the only value supported
-    std::array<std::span<const Fr>, 4> tables{
-        key->polynomial_store.get("table_value_1_lagrange"),
-        key->polynomial_store.get("table_value_2_lagrange"),
-        key->polynomial_store.get("table_value_3_lagrange"),
-        key->polynomial_store.get("table_value_4_lagrange"),
+    std::array<std::span<const FF>, 4> tables{
+        key->table_1,
+        key->table_2,
+        key->table_3,
+        key->table_4,
     };
 
-    std::span<const Fr> lookup_selector = key->polynomial_store.get("table_type_lagrange");
-    std::span<const Fr> lookup_index_selector = key->polynomial_store.get("q_3_lagrange");
+    std::span<const FF> lookup_selector = key->q_lookup;
+    std::span<const FF> lookup_index_selector = key->q_o;
 
-    const Fr beta_plus_one = beta + Fr(1);                      // (1 + β)
-    const Fr gamma_times_beta_plus_one = gamma * beta_plus_one; // γ(1 + β)
+    const FF beta_plus_one = beta + FF(1);                      // (1 + β)
+    const FF gamma_times_beta_plus_one = gamma * beta_plus_one; // γ(1 + β)
 
     // Step (1)
 
-    Fr T0; // intermediate value for various calculations below
+    FF T0; // intermediate value for various calculations below
     // Note: block_mask is used for efficient modulus, i.e. i % N := i & (N-1), for N = 2^k
     const size_t block_mask = circuit_size - 1;
     // Initialize 't(X)' to be used in an expression of the form t(X) + β*t(Xω)
-    Fr next_table = tables[0][0] + tables[1][0] * eta + tables[2][0] * eta_sqr + tables[3][0] * eta_cube;
+    FF next_table = tables[0][0] + tables[1][0] * eta + tables[2][0] * eta_sqr + tables[3][0] * eta_cube;
 
     for (size_t i = 0; i < circuit_size; ++i) {
 
@@ -290,7 +289,7 @@ Polynomial compute_lookup_grand_product(std::shared_ptr<plonk::proving_key>& key
     // Step (3)
 
     // Compute <Z_lookup numerator> * ∏_{j<i}∏_{k<j}S_k
-    Fr inversion_accumulator = Fr::one();
+    FF inversion_accumulator = FF::one();
     for (size_t i = 0; i < circuit_size - 1; ++i) {
         accumulators[0][i] *= accumulators[2][i];
         accumulators[0][i] *= accumulators[1][i];
@@ -309,7 +308,7 @@ Polynomial compute_lookup_grand_product(std::shared_ptr<plonk::proving_key>& key
 
     Polynomial z_lookup(key->circuit_size);
     // Initialize 0th coefficient to 0 to ensure z_perm is left-shiftable via division by X in gemini
-    z_lookup[0] = Fr::zero();
+    z_lookup[0] = FF::zero();
     barretenberg::polynomial_arithmetic::copy_polynomial(
         accumulators[0].data(), &z_lookup[1], key->circuit_size - 1, key->circuit_size - 1);
 
@@ -327,20 +326,25 @@ Polynomial compute_lookup_grand_product(std::shared_ptr<plonk::proving_key>& key
  * @param eta random challenge
  * @return Polynomial
  */
-Polynomial compute_sorted_list_accumulator(std::shared_ptr<plonk::proving_key>& key,
-                                           std::vector<Polynomial>& sorted_list_polynomials,
-                                           Fr eta)
+template <typename Flavor>
+typename Flavor::Polynomial compute_sorted_list_accumulator(
+    std::shared_ptr<typename Flavor::ProvingKey>& key,
+    std::vector<typename Flavor::Polynomial>& sorted_list_polynomials,
+    typename Flavor::FF eta)
 {
+    using FF = typename Flavor::FF;
+    using Polynomial = typename Flavor::Polynomial;
+
     const size_t circuit_size = key->circuit_size;
 
-    barretenberg::polynomial sorted_list_accumulator(sorted_list_polynomials[0]);
-    std::span<const Fr> s_2 = sorted_list_polynomials[1];
-    std::span<const Fr> s_3 = sorted_list_polynomials[2];
-    std::span<const Fr> s_4 = sorted_list_polynomials[3];
+    Polynomial sorted_list_accumulator(sorted_list_polynomials[0]);
+    std::span<const FF> s_2 = sorted_list_polynomials[1];
+    std::span<const FF> s_3 = sorted_list_polynomials[2];
+    std::span<const FF> s_4 = sorted_list_polynomials[3];
 
     // Construct s via Horner, i.e. s = s_1 + η(s_2 + η(s_3 + η*s_4))
     for (size_t i = 0; i < circuit_size; ++i) {
-        Fr T0 = s_4[i];
+        FF T0 = s_4[i];
         T0 *= eta;
         T0 += s_3[i];
         T0 *= eta;
@@ -352,9 +356,21 @@ Polynomial compute_sorted_list_accumulator(std::shared_ptr<plonk::proving_key>& 
     return sorted_list_accumulator;
 }
 
-template Polynomial compute_permutation_grand_product<plonk::standard_settings::program_width>(
-    std::shared_ptr<plonk::proving_key>&, std::vector<Polynomial>&, Fr, Fr);
-template Polynomial compute_permutation_grand_product<plonk::ultra_settings::program_width>(
-    std::shared_ptr<plonk::proving_key>&, std::vector<Polynomial>&, Fr, Fr);
+template honk::flavor::Standard::Polynomial compute_permutation_grand_product<honk::flavor::Standard>(
+    std::shared_ptr<honk::flavor::Standard::ProvingKey>&, honk::flavor::Standard::FF, honk::flavor::Standard::FF);
 
+template honk::flavor::Ultra::Polynomial compute_permutation_grand_product<honk::flavor::Ultra>(
+    std::shared_ptr<honk::flavor::Ultra::ProvingKey>&, honk::flavor::Ultra::FF, honk::flavor::Ultra::FF);
+
+template typename honk::flavor::Ultra::Polynomial compute_lookup_grand_product<honk::flavor::Ultra>(
+    std::shared_ptr<typename honk::flavor::Ultra::ProvingKey>& key,
+    typename honk::flavor::Ultra::Polynomial& sorted_list_accumulator,
+    typename honk::flavor::Ultra::FF eta,
+    typename honk::flavor::Ultra::FF beta,
+    typename honk::flavor::Ultra::FF gamma);
+
+template typename honk::flavor::Ultra::Polynomial compute_sorted_list_accumulator<honk::flavor::Ultra>(
+    std::shared_ptr<typename honk::flavor::Ultra::ProvingKey>& key,
+    std::vector<typename honk::flavor::Ultra::Polynomial>& sorted_list_polynomials,
+    typename honk::flavor::Ultra::FF eta);
 } // namespace proof_system::honk::prover_library

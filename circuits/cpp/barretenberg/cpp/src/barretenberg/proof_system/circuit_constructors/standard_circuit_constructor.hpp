@@ -1,7 +1,6 @@
 #pragma once
 #include <array>
 #include "circuit_constructor_base.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
 
 namespace proof_system {
@@ -11,17 +10,17 @@ inline std::vector<std::string> standard_selector_names()
     return result;
 }
 
-class StandardCircuitConstructor : public CircuitConstructorBase<arithmetization::Standard> {
+class StandardCircuitConstructor : public CircuitConstructorBase<arithmetization::Standard<barretenberg::fr>> {
   public:
     std::vector<uint32_t>& w_l = std::get<0>(wires);
     std::vector<uint32_t>& w_r = std::get<1>(wires);
     std::vector<uint32_t>& w_o = std::get<2>(wires);
 
-    std::vector<barretenberg::fr>& q_m = std::get<0>(selectors);
-    std::vector<barretenberg::fr>& q_1 = std::get<1>(selectors);
-    std::vector<barretenberg::fr>& q_2 = std::get<2>(selectors);
-    std::vector<barretenberg::fr>& q_3 = std::get<3>(selectors);
-    std::vector<barretenberg::fr>& q_c = std::get<4>(selectors);
+    std::vector<barretenberg::fr>& q_m = selectors.q_m;
+    std::vector<barretenberg::fr>& q_1 = selectors.q_1;
+    std::vector<barretenberg::fr>& q_2 = selectors.q_2;
+    std::vector<barretenberg::fr>& q_3 = selectors.q_3;
+    std::vector<barretenberg::fr>& q_c = selectors.q_c;
 
     static constexpr ComposerType type = ComposerType::STANDARD_HONK; // TODO(Cody): Get rid of this.
     static constexpr size_t UINT_LOG2_BASE = 2;

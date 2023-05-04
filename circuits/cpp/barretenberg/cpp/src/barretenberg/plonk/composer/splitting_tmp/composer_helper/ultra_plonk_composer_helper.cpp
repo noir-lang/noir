@@ -19,8 +19,8 @@ namespace proof_system::plonk {
  * sorted `s` poly, lookup rows of the wire witnesses, the values of `z_lookup`, `z`. These are all calculated
  * elsewhere.
  */
-template <typename CircuitConstructor>
-void UltraPlonkComposerHelper<CircuitConstructor>::compute_witness(CircuitConstructor& circuit_constructor)
+
+void UltraPlonkComposerHelper::compute_witness(CircuitConstructor& circuit_constructor)
 {
     if (computed_witness) {
         return;
@@ -50,7 +50,8 @@ void UltraPlonkComposerHelper<CircuitConstructor>::compute_witness(CircuitConstr
 
     // TODO(luke): subgroup size was already computed above but compute_witness_base computes it again. If we pass in
     // NUM_RANDOMIZED_GATES (as in the other split composers) the resulting sizes can differ. Reconcile this.
-    auto wire_polynomial_evaluations = compute_witness_base(circuit_constructor, total_num_gates, NUM_RESERVED_GATES);
+    auto wire_polynomial_evaluations =
+        construct_wire_polynomials_base<Flavor>(circuit_constructor, total_num_gates, NUM_RESERVED_GATES);
 
     for (size_t j = 0; j < program_width; ++j) {
         std::string index = std::to_string(j + 1);
@@ -141,8 +142,7 @@ void UltraPlonkComposerHelper<CircuitConstructor>::compute_witness(CircuitConstr
     computed_witness = true;
 }
 
-template <typename CircuitConstructor>
-UltraProver UltraPlonkComposerHelper<CircuitConstructor>::create_prover(CircuitConstructor& circuit_constructor)
+UltraProver UltraPlonkComposerHelper::create_prover(CircuitConstructor& circuit_constructor)
 {
     finalize_circuit(circuit_constructor);
 
@@ -191,10 +191,8 @@ UltraProver UltraPlonkComposerHelper<CircuitConstructor>::create_prover(CircuitC
  *
  * @return The verifier.
  * */
-// TODO(Cody): This should go away altogether.
-template <typename CircuitConstructor>
-plonk::UltraVerifier UltraPlonkComposerHelper<CircuitConstructor>::create_verifier(
-    const CircuitConstructor& circuit_constructor)
+
+plonk::UltraVerifier UltraPlonkComposerHelper::create_verifier(const CircuitConstructor& circuit_constructor)
 {
     auto verification_key = compute_verification_key(circuit_constructor);
 
@@ -209,8 +207,7 @@ plonk::UltraVerifier UltraPlonkComposerHelper<CircuitConstructor>::create_verifi
     return output_state;
 }
 
-template <typename CircuitConstructor>
-std::shared_ptr<proving_key> UltraPlonkComposerHelper<CircuitConstructor>::compute_proving_key(
+std::shared_ptr<proving_key> UltraPlonkComposerHelper::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
@@ -227,18 +224,17 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper<CircuitConstructor>::compu
     const size_t minimum_circuit_size = tables_size + lookups_size;
     const size_t num_randomized_gates = NUM_RESERVED_GATES;
     // Initialize circuit_proving_key
-    // TODO(#229)(Kesha): replace composer types.
-    circuit_proving_key = initialize_proving_key(
+    // TODO(#392)(Kesha): replace composer types.
+    circuit_proving_key = initialize_proving_key<Flavor>(
         circuit_constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, ComposerType::PLOOKUP);
 
-    construct_lagrange_selector_forms(circuit_constructor, circuit_proving_key.get());
+    construct_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
 
-    enforce_nonzero_polynomial_selectors(circuit_constructor, circuit_proving_key.get());
+    enforce_nonzero_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
 
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), ultra_selector_properties());
 
-    compute_plonk_generalized_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
-                                                                                    circuit_proving_key.get());
+    compute_plonk_generalized_sigma_permutations<Flavor>(circuit_constructor, circuit_proving_key.get());
 
     const size_t subgroup_size = circuit_proving_key->circuit_size;
 
@@ -346,8 +342,8 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper<CircuitConstructor>::compu
  *
  * @return Pointer to created circuit verification key.
  * */
-template <typename CircuitConstructor>
-std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper<CircuitConstructor>::compute_verification_key(
+
+std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
@@ -370,9 +366,8 @@ std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper<CircuitConstru
     return circuit_verification_key;
 }
 
-template <typename CircuitConstructor>
-void UltraPlonkComposerHelper<CircuitConstructor>::add_table_column_selector_poly_to_proving_key(
-    polynomial& selector_poly_lagrange_form, const std::string& tag)
+void UltraPlonkComposerHelper::add_table_column_selector_poly_to_proving_key(polynomial& selector_poly_lagrange_form,
+                                                                             const std::string& tag)
 {
     polynomial selector_poly_lagrange_form_copy(selector_poly_lagrange_form, circuit_proving_key->small_domain.size);
 
@@ -387,5 +382,4 @@ void UltraPlonkComposerHelper<CircuitConstructor>::add_table_column_selector_pol
     circuit_proving_key->polynomial_store.put(tag + "_fft", std::move(selector_poly_coset_form));
 }
 
-template class UltraPlonkComposerHelper<UltraCircuitConstructor>;
 } // namespace proof_system::plonk

@@ -13,20 +13,22 @@
 #include <vector>
 
 namespace proof_system::honk {
-// TODO(Kesha): change initializations to specify this parameter
-// Cody: What does this mean?
-template <typename CircuitConstructor> class UltraHonkComposerHelper {
+class UltraHonkComposerHelper {
   public:
+    using Flavor = flavor::Ultra;
+    using CircuitConstructor = Flavor::CircuitConstructor;
+    using ProvingKey = Flavor::ProvingKey;
+    using VerificationKey = Flavor::VerificationKey;
+
     // TODO(#340)(luke): In the split composers, NUM_RANDOMIZED_GATES has replaced NUM_RESERVED_GATES (in some places)
     // to determine the next-power-of-2 circuit size. (There are some places in this composer that still use
     // NUM_RESERVED_GATES). Therefore for consistency within this composer itself, and consistency with the original
     // Ultra Composer, this value must match that of NUM_RESERVED_GATES. This issue needs to be reconciled
     // simultaneously here and in the other split composers.
     static constexpr size_t NUM_RANDOMIZED_GATES = 4; // equal to the number of multilinear evaluations leaked
-    static constexpr size_t program_width = CircuitConstructor::program_width;
-    std::vector<barretenberg::polynomial> wire_polynomials;
-    std::shared_ptr<proof_system::plonk::proving_key> circuit_proving_key;
-    std::shared_ptr<proof_system::plonk::verification_key> circuit_verification_key;
+    static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
+    std::shared_ptr<ProvingKey> proving_key;
+    std::shared_ptr<VerificationKey> verification_key;
     // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
     // at all
     std::shared_ptr<ReferenceStringFactory> crs_factory_;
@@ -45,9 +47,9 @@ template <typename CircuitConstructor> class UltraHonkComposerHelper {
         : crs_factory_(std::move(crs_factory))
     {}
 
-    UltraHonkComposerHelper(std::shared_ptr<plonk::proving_key> p_key, std::shared_ptr<plonk::verification_key> v_key)
-        : circuit_proving_key(std::move(p_key))
-        , circuit_verification_key(std::move(v_key))
+    UltraHonkComposerHelper(std::shared_ptr<ProvingKey> p_key, std::shared_ptr<VerificationKey> v_key)
+        : proving_key(std::move(p_key))
+        , verification_key(std::move(v_key))
     {}
 
     UltraHonkComposerHelper(UltraHonkComposerHelper&& other) noexcept = default;
@@ -58,8 +60,8 @@ template <typename CircuitConstructor> class UltraHonkComposerHelper {
 
     void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
-    std::shared_ptr<plonk::proving_key> compute_proving_key(const CircuitConstructor& circuit_constructor);
-    // std::shared_ptr<plonk::verification_key> compute_verification_key(const CircuitConstructor& circuit_constructor);
+    std::shared_ptr<ProvingKey> compute_proving_key(const CircuitConstructor& circuit_constructor);
+    // std::shared_ptr<VerificationKey> compute_verification_key(const CircuitConstructor& circuit_constructor);
 
     void compute_witness(CircuitConstructor& circuit_constructor);
 

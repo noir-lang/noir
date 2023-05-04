@@ -1,5 +1,6 @@
 #pragma once
 
+#include "barretenberg/plonk/flavor/flavor.hpp"
 #include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
@@ -8,8 +9,11 @@
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 
 namespace proof_system::plonk {
-template <typename CircuitConstructor> class TurboPlonkComposerHelper {
+class TurboPlonkComposerHelper {
   public:
+    using Flavor = plonk::flavor::Turbo;
+    using CircuitConstructor = TurboCircuitConstructor;
+
     static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::program_width;
 

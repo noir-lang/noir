@@ -5,12 +5,12 @@
  * @details It is structured to reuse similar components in Honk and Plonk
  *
  */
-
 #pragma once
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/polynomials/iterate_over_domain.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -20,6 +20,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+// TODO(Cody): very little code is shared; should split this up into plonk/honk files.
 
 namespace proof_system {
 
@@ -48,8 +50,8 @@ struct permutation_subgroup_element {
     bool is_tag = false;
 };
 
-template <size_t program_width> struct PermutationMapping {
-    using Mapping = std::array<std::vector<permutation_subgroup_element>, program_width>;
+template <size_t NUM_WIRES> struct PermutationMapping {
+    using Mapping = std::array<std::vector<permutation_subgroup_element>, NUM_WIRES>;
     Mapping sigmas;
     Mapping ids;
 };
@@ -64,23 +66,13 @@ namespace {
  *
  * @tparam program_width Program width
  * */
-template <size_t program_width, typename CircuitConstructor>
-std::vector<CyclicPermutation> compute_wire_copy_cycles(const CircuitConstructor& circuit_constructor)
+template <typename Flavor>
+std::vector<CyclicPermutation> compute_wire_copy_cycles(const typename Flavor::CircuitConstructor& circuit_constructor)
 {
     // Reference circuit constructor members
     const size_t num_gates = circuit_constructor.num_gates;
     std::span<const uint32_t> public_inputs = circuit_constructor.public_inputs;
     const size_t num_public_inputs = public_inputs.size();
-
-    // Get references to the wires containing the index of the value inside constructor.variables
-    // These wires only contain the "real" gate constraints, and are not padded.
-    std::array<std::span<const uint32_t>, program_width> wire_indices;
-    wire_indices[0] = circuit_constructor.w_l;
-    wire_indices[1] = circuit_constructor.w_r;
-    wire_indices[2] = circuit_constructor.w_o;
-    if constexpr (program_width > 3) {
-        wire_indices[3] = circuit_constructor.w_4;
-    }
 
     // Each variable represents one cycle
     const size_t number_of_cycles = circuit_constructor.variables.size();
@@ -110,17 +102,19 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const CircuitConstructor
     }
 
     // Iterate over all variables of the "real" gates, and add a corresponding node to the cycle for that variable
-    for (size_t i = 0; i < num_gates; ++i) {
-        for (size_t j = 0; j < program_width; ++j) {
+    for (size_t gate_idx = 0; gate_idx < num_gates; ++gate_idx) {
+        size_t wire_idx = 0;
+        for (auto& wire : circuit_constructor.wires) {
             // We are looking at the j-th wire in the i-th row.
             // The value in this position should be equal to the value of the element at index `var_index`
             // of the `constructor.variables` vector.
             // Therefore, we add (i,j) to the cycle at index `var_index` to indicate that w^j_i should have the values
             // constructor.variables[var_index].
-            const uint32_t var_index = circuit_constructor.real_variable_index[wire_indices[j][i]];
-            const auto wire_index = static_cast<uint32_t>(j);
-            const auto gate_index = static_cast<uint32_t>(i + num_public_inputs);
-            copy_cycles[var_index].emplace_back(cycle_node{ wire_index, gate_index });
+            const uint32_t var_index = circuit_constructor.real_variable_index[wire[gate_idx]];
+            const auto wire_index = static_cast<uint32_t>(wire_idx);
+            const auto shifted_gate_idx = static_cast<uint32_t>(gate_idx + num_public_inputs);
+            copy_cycles[var_index].emplace_back(cycle_node{ wire_index, shifted_gate_idx });
+            ++wire_idx;
         }
     }
     return copy_cycles;
@@ -139,28 +133,32 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const CircuitConstructor
  * @param key Pointer to the proving key
  * @return PermutationMapping sigma mapping (and id mapping if generalized == true)
  */
-template <size_t program_width, bool generalized, typename CircuitConstructor>
-PermutationMapping<program_width> compute_permutation_mapping(const CircuitConstructor& circuit_constructor,
-                                                              plonk::proving_key* key)
+template <typename Flavor, bool generalized>
+PermutationMapping<Flavor::NUM_WIRES> compute_permutation_mapping(
+    const typename Flavor::CircuitConstructor& circuit_constructor, typename Flavor::ProvingKey* proving_key)
 {
     // Compute wire copy cycles (cycles of permutations)
-    auto wire_copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);
+    auto wire_copy_cycles = compute_wire_copy_cycles<Flavor>(circuit_constructor);
 
-    PermutationMapping<program_width> mapping;
+    PermutationMapping<Flavor::NUM_WIRES> mapping;
 
     // Initialize the table of permutations so that every element points to itself
-    for (size_t i = 0; i < program_width; ++i) {
-        mapping.sigmas[i].reserve(key->circuit_size);
-        if (generalized) {
-            mapping.ids[i].reserve(key->circuit_size);
+    for (size_t i = 0; i < Flavor::NUM_WIRES; ++i) { // TODO(#391) zip and split
+        mapping.sigmas[i].reserve(proving_key->circuit_size);
+        if constexpr (generalized) {
+            mapping.ids[i].reserve(proving_key->circuit_size);
         }
 
-        for (size_t j = 0; j < key->circuit_size; ++j) {
-            mapping.sigmas[i].emplace_back(permutation_subgroup_element{
-                .row_index = (uint32_t)j, .column_index = (uint8_t)i, .is_public_input = false, .is_tag = false });
-            if (generalized) {
-                mapping.ids[i].emplace_back(permutation_subgroup_element{
-                    .row_index = (uint32_t)j, .column_index = (uint8_t)i, .is_public_input = false, .is_tag = false });
+        for (size_t j = 0; j < proving_key->circuit_size; ++j) {
+            mapping.sigmas[i].emplace_back(permutation_subgroup_element{ .row_index = static_cast<uint32_t>(j),
+                                                                         .column_index = static_cast<uint8_t>(i),
+                                                                         .is_public_input = false,
+                                                                         .is_tag = false });
+            if constexpr (generalized) {
+                mapping.ids[i].emplace_back(permutation_subgroup_element{ .row_index = static_cast<uint32_t>(j),
+                                                                          .column_index = static_cast<uint8_t>(i),
+                                                                          .is_public_input = false,
+                                                                          .is_tag = false });
             }
         }
     }
@@ -187,7 +185,7 @@ PermutationMapping<program_width> compute_permutation_mapping(const CircuitConst
                 .row_index = next_row, .column_index = next_column, .is_public_input = false, .is_tag = false
             };
 
-            if (generalized) {
+            if constexpr (generalized) {
                 bool first_node = (node_idx == 0);
                 bool last_node = (next_cycle_node_index == 0);
 
@@ -231,20 +229,17 @@ PermutationMapping<program_width> compute_permutation_mapping(const CircuitConst
  * @param permutation_mappings A table with information about permuting each element
  * @param key Pointer to the proving key
  */
-template <size_t program_width>
+template <typename Flavor>
 void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
-    std::string label,
-    std::array<std::vector<permutation_subgroup_element>, program_width>& permutation_mappings,
-    plonk::proving_key* key)
+    std::vector<typename Flavor::PolynomialHandle> permutation_polynomials, // sigma or ID poly
+    std::array<std::vector<permutation_subgroup_element>, Flavor::NUM_WIRES>& permutation_mappings,
+    typename Flavor::ProvingKey* proving_key)
 {
-    const size_t num_gates = key->circuit_size;
+    const size_t num_gates = proving_key->circuit_size;
 
-    std::array<barretenberg::polynomial, program_width> permutation_poly; // sigma or ID poly
-
-    for (size_t wire_index = 0; wire_index < program_width; wire_index++) {
-        permutation_poly[wire_index] = barretenberg::polynomial(num_gates);
-        auto& current_permutation_poly = permutation_poly[wire_index];
-        ITERATE_OVER_DOMAIN_START(key->small_domain)
+    size_t wire_index = 0;
+    for (auto& current_permutation_poly : permutation_polynomials) {
+        ITERATE_OVER_DOMAIN_START(proving_key->evaluation_domain);
         const auto& current_mapping = permutation_mappings[wire_index][i];
         if (current_mapping.is_public_input) {
             // We intentionally want to break the cycles of the public input variables.
@@ -259,7 +254,7 @@ void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
                 -barretenberg::fr(current_mapping.row_index + 1 + num_gates * current_mapping.column_index);
         } else if (current_mapping.is_tag) {
             // Set evaluations to (arbitrary) values disjoint from non-tag values
-            current_permutation_poly[i] = num_gates * program_width + current_mapping.row_index;
+            current_permutation_poly[i] = num_gates * Flavor::NUM_WIRES + current_mapping.row_index;
         } else {
             // For the regular permutation we simply point to the next location by setting the evaluation to its
             // index
@@ -267,13 +262,10 @@ void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
                 barretenberg::fr(current_mapping.row_index + num_gates * current_mapping.column_index);
         }
         ITERATE_OVER_DOMAIN_END;
-    }
-    // Save to polynomial cache
-    for (size_t j = 0; j < program_width; j++) {
-        std::string index = std::to_string(j + 1);
-        key->polynomial_store.put(label + "_" + index + "_lagrange", std::move(permutation_poly[j]));
+        wire_index++;
     }
 }
+} // namespace
 
 /**
  * Compute sigma permutation polynomial in lagrange base
@@ -404,8 +396,6 @@ void compute_monomial_and_coset_fft_polynomials_from_lagrange(std::string label,
     }
 }
 
-} // namespace
-
 /**
  * @brief Compute standard honk id polynomials and put them into cache
  *
@@ -415,19 +405,17 @@ void compute_monomial_and_coset_fft_polynomials_from_lagrange(std::string label,
  * @tparam program_width The number of witness polynomials
  * @param key Proving key where we will save the polynomials
  */
-template <size_t program_width>
-void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_ptr<proving_key>
+template <typename Flavor>
+void compute_standard_honk_id_polynomials(auto proving_key) // TODO(Cody): proving_key* and shared_ptr<proving_key>
 {
-    const size_t n = key->circuit_size;
     // Fill id polynomials with default values
-    for (size_t j = 0; j < program_width; ++j) {
-        // Construct permutation polynomials in lagrange base
-        barretenberg::polynomial id_j(n);
-        for (size_t i = 0; i < key->circuit_size; ++i) {
-            id_j[i] = (j * n + i);
+    // TODO(Cody): Allocate polynomial space in proving key constructor.
+    size_t coset_idx = 0; // TODO(#391) zip
+    for (auto& id_poly : proving_key->get_id_polynomials()) {
+        for (size_t i = 0; i < proving_key->circuit_size; ++i) {
+            id_poly[i] = coset_idx * proving_key->circuit_size + i;
         }
-        std::string index = std::to_string(j + 1);
-        key->polynomial_store.put("id_" + index + "_lagrange", std::move(id_j));
+        ++coset_idx;
     }
 }
 
@@ -435,7 +423,8 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_p
  * @brief Compute sigma permutations for standard honk and put them into polynomial cache
  *
  * @details These permutations don't involve sets. We only care about equating one witness value to another. The
- * sequences don't use cosets unlike FFT-based Plonk, because there is no need for them. We simply use indices based on
+ * sequences don't use cosets unlike FFT-based Plonk, because there is no need for them. We simply use indices based
+ on
  * the witness vector and index within the vector. These values are permuted to account for wire copy cycles
  *
  * @tparam program_width
@@ -444,13 +433,15 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_p
  * @param key
  */
 // TODO(#293): Update this (and all similar functions) to take a smart pointer.
-template <size_t program_width, typename CircuitConstructor>
-void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, plonk::proving_key* key)
+template <typename Flavor>
+void compute_standard_honk_sigma_permutations(const typename Flavor::CircuitConstructor& circuit_constructor,
+                                              typename Flavor::ProvingKey* proving_key)
 {
     // Compute the permutation table specifying which element becomes which
-    auto mapping = compute_permutation_mapping<program_width, false>(circuit_constructor, key);
-    // Compute Honk-style sigma polynomial fromt the permutation table
-    compute_honk_style_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
+    auto mapping = compute_permutation_mapping<Flavor, /*generalized=*/false>(circuit_constructor, proving_key);
+    // Compute Honk-style sigma polynomial from the permutation table
+    compute_honk_style_permutation_lagrange_polynomials_from_mapping<Flavor>(
+        proving_key->get_sigma_polynomials(), mapping.sigmas, proving_key);
 }
 
 /**
@@ -461,15 +452,16 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
  * @param circuit_constructor An object holdingt he circuit
  * @param key Pointer to a proving key
  */
-template <size_t program_width, typename CircuitConstructor>
-void compute_standard_plonk_sigma_permutations(CircuitConstructor& circuit_constructor, plonk::proving_key* key)
+template <typename Flavor>
+void compute_standard_plonk_sigma_permutations(const typename Flavor::CircuitConstructor& circuit_constructor,
+                                               typename Flavor::ProvingKey* key)
 {
     // Compute the permutation table specifying which element becomes which
-    auto mapping = compute_permutation_mapping<program_width, false>(circuit_constructor, key);
+    auto mapping = compute_permutation_mapping<Flavor, /*generalized=*/false>(circuit_constructor, key);
     // Compute Plonk-style sigma polynomials from the mapping
     compute_plonk_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
     // Compute their monomial and coset versions
-    compute_monomial_and_coset_fft_polynomials_from_lagrange<program_width>("sigma", key);
+    compute_monomial_and_coset_fft_polynomials_from_lagrange<Flavor::NUM_WIRES>("sigma", key);
 }
 
 /**
@@ -477,15 +469,16 @@ void compute_standard_plonk_sigma_permutations(CircuitConstructor& circuit_const
  *
  * @param key Proving key where we will save the polynomials
  */
-inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key* and share_ptr<proving_key>
+template <typename Flavor> inline void compute_first_and_last_lagrange_polynomials(auto proving_key)
 {
-    const size_t n = key->circuit_size;
-    barretenberg::polynomial lagrange_polynomial_0(n);
-    barretenberg::polynomial lagrange_polynomial_n_min_1(n);
+    const size_t n = proving_key->circuit_size;
+    typename Flavor::Polynomial lagrange_polynomial_0(n);
+    typename Flavor::Polynomial lagrange_polynomial_n_min_1(n);
     lagrange_polynomial_0[0] = 1;
+    proving_key->lagrange_first = lagrange_polynomial_0;
+
     lagrange_polynomial_n_min_1[n - 1] = 1;
-    key->polynomial_store.put("L_first_lagrange", std::move(lagrange_polynomial_0));
-    key->polynomial_store.put("L_last_lagrange", std::move(lagrange_polynomial_n_min_1));
+    proving_key->lagrange_last = lagrange_polynomial_n_min_1;
 }
 
 /**
@@ -497,18 +490,18 @@ inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key
  * @param key
  * @return std::array<std::vector<permutation_subgroup_element>, program_width>
  */
-template <size_t program_width, typename CircuitConstructor>
-void compute_plonk_generalized_sigma_permutations(const CircuitConstructor& circuit_constructor,
-                                                  plonk::proving_key* key)
+template <typename Flavor>
+void compute_plonk_generalized_sigma_permutations(const typename Flavor::CircuitConstructor& circuit_constructor,
+                                                  typename Flavor::ProvingKey* key)
 {
-    auto mapping = compute_permutation_mapping<program_width, true>(circuit_constructor, key);
+    auto mapping = compute_permutation_mapping<Flavor, /*generalized=*/true>(circuit_constructor, key);
 
     // Compute Plonk-style sigma and ID polynomials from the corresponding mappings
     compute_plonk_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
     compute_plonk_permutation_lagrange_polynomials_from_mapping("id", mapping.ids, key);
     // Compute the monomial and coset-ffts for sigmas and IDs
-    compute_monomial_and_coset_fft_polynomials_from_lagrange<program_width>("sigma", key);
-    compute_monomial_and_coset_fft_polynomials_from_lagrange<program_width>("id", key);
+    compute_monomial_and_coset_fft_polynomials_from_lagrange<Flavor::NUM_WIRES>("sigma", key);
+    compute_monomial_and_coset_fft_polynomials_from_lagrange<Flavor::NUM_WIRES>("id", key);
 }
 
 /**
@@ -517,17 +510,20 @@ void compute_plonk_generalized_sigma_permutations(const CircuitConstructor& circ
  * @tparam program_width
  * @tparam CircuitConstructor
  * @param circuit_constructor
- * @param key
+ * @param proving_key
  * @return std::array<std::vector<permutation_subgroup_element>, program_width>
  */
-template <size_t program_width, typename CircuitConstructor>
-void compute_honk_generalized_sigma_permutations(const CircuitConstructor& circuit_constructor, plonk::proving_key* key)
+template <typename Flavor>
+void compute_honk_generalized_sigma_permutations(const typename Flavor::CircuitConstructor& circuit_constructor,
+                                                 typename Flavor::ProvingKey* proving_key)
 {
-    auto mapping = compute_permutation_mapping<program_width, true>(circuit_constructor, key);
+    auto mapping = compute_permutation_mapping<Flavor, true>(circuit_constructor, proving_key);
 
     // Compute Honk-style sigma and ID polynomials from the corresponding mappings
-    compute_honk_style_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
-    compute_honk_style_permutation_lagrange_polynomials_from_mapping("id", mapping.ids, key);
+    compute_honk_style_permutation_lagrange_polynomials_from_mapping<Flavor>(
+        proving_key->get_sigma_polynomials(), mapping.sigmas, proving_key);
+    compute_honk_style_permutation_lagrange_polynomials_from_mapping<Flavor>(
+        proving_key->get_id_polynomials(), mapping.ids, proving_key);
 }
 
 } // namespace proof_system

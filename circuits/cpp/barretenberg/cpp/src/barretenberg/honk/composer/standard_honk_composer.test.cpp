@@ -1,12 +1,16 @@
 #include "standard_honk_composer.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 #include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
 #include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
 
 #include <gtest/gtest.h>
@@ -40,22 +44,22 @@ TEST(StandardHonkComposer, SigmaIDCorrectness)
         barretenberg::fr right = barretenberg::fr::one();
 
         // Let's check that indices are the same and nothing is lost, first
-        for (size_t j = 0; j < composer.num_wires; ++j) {
-            std::string index = std::to_string(j + 1);
-            const auto& sigma_j = proving_key->polynomial_store.get("sigma_" + index + "_lagrange");
+        size_t wire_idx = 0;
+        for (auto& sigma_polynomial : proving_key->get_sigma_polynomials()) {
             for (size_t i = 0; i < n; ++i) {
-                left *= (gamma + j * n + i);
-                right *= (gamma + sigma_j[i]);
+                left *= (gamma + wire_idx * n + i);
+                right *= (gamma + sigma_polynomial[i]);
             }
             // Ensure that the public inputs cycles are correctly broken
             // and fix the cycle by adding the extra terms
-            if (j == 0) {
+            if (wire_idx == 0) {
                 for (size_t i = 0; i < num_public_inputs; ++i) {
-                    EXPECT_EQ(sigma_j[i], -fr(i + 1));
+                    EXPECT_EQ(sigma_polynomial[i], -fr(i + 1));
                     left *= (gamma - (i + 1));
                     right *= (gamma + (n + i));
                 }
             }
+            ++wire_idx;
         }
 
         EXPECT_EQ(left, right);
@@ -66,11 +70,14 @@ TEST(StandardHonkComposer, SigmaIDCorrectness)
         // Now let's check that witness values correspond to the permutation
         composer.compute_witness();
 
-        for (size_t j = 0; j < composer.num_wires; ++j) {
+        auto permutation_polynomials = proving_key->get_sigma_polynomials();
+        auto id_polynomials = proving_key->get_id_polynomials();
+        auto wire_polynomials = proving_key->get_wires();
+        for (size_t j = 0; j < StandardHonkComposer::NUM_WIRES; ++j) {
             std::string index = std::to_string(j + 1);
-            const auto& permutation_polynomial = proving_key->polynomial_store.get("sigma_" + index + "_lagrange");
-            const auto& witness_polynomial = composer.composer_helper.wire_polynomials[j];
-            const auto& id_polynomial = proving_key->polynomial_store.get("id_" + index + "_lagrange");
+            const auto& permutation_polynomial = permutation_polynomials[j];
+            const auto& witness_polynomial = wire_polynomials[j];
+            const auto& id_polynomial = id_polynomials[j];
             // left = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅ind(i,j) + γ)
             // right = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅σ(i,j) + γ)
             for (size_t i = 0; i < proving_key->circuit_size; ++i) {
@@ -156,7 +163,8 @@ TEST(StandardHonkComposer, LagrangeCorrectness)
         random_polynomial[i] = barretenberg::fr::random_element();
     }
     // Compute inner product of random polynomial and the first lagrange polynomial
-    barretenberg::polynomial first_lagrange_polynomial = proving_key->polynomial_store.get("L_first_lagrange");
+
+    barretenberg::polynomial first_lagrange_polynomial = proving_key->lagrange_first;
     barretenberg::fr first_product(0);
     for (size_t i = 0; i < proving_key->circuit_size; i++) {
         first_product += random_polynomial[i] * first_lagrange_polynomial[i];
@@ -164,7 +172,7 @@ TEST(StandardHonkComposer, LagrangeCorrectness)
     EXPECT_EQ(first_product, random_polynomial[0]);
 
     // Compute inner product of random polynomial and the last lagrange polynomial
-    barretenberg::polynomial last_lagrange_polynomial = proving_key->polynomial_store.get("L_last_lagrange");
+    auto last_lagrange_polynomial = proving_key->lagrange_last;
     barretenberg::fr last_product(0);
     for (size_t i = 0; i < proving_key->circuit_size; i++) {
         last_product += random_polynomial[i] * last_lagrange_polynomial[i];
@@ -207,14 +215,8 @@ TEST(StandardHonkComposer, AssertEquals)
     auto get_maximum_cycle = [](auto& composer) {
         // Compute the proving key for sigma polynomials
         auto proving_key = composer.compute_proving_key();
-        auto permutation_length = composer.num_wires * proving_key->circuit_size;
-        std::vector<polynomial> sigma_polynomials;
-
-        // Put the sigma polynomials into a vector for easy access
-        for (size_t i = 0; i < composer.num_wires; i++) {
-            std::string index = std::to_string(i + 1);
-            sigma_polynomials.push_back(proving_key->polynomial_store.get("sigma_" + index + "_lagrange"));
-        }
+        auto permutation_length = composer.NUM_WIRES * proving_key->circuit_size;
+        auto sigma_polynomials = proving_key->get_sigma_polynomials();
 
         // Let's compute the maximum cycle
         size_t maximum_cycle = 0;
@@ -300,8 +302,7 @@ TEST(StandardHonkComposer, VerificationKeyCreation)
     // There is nothing we can really check apart from the fact that constraint selectors and permutation selectors were
     // committed to, we simply check that the verification key now contains the appropriate number of constraint and
     // permutation selector commitments. This method should work with any future arithemtization.
-    EXPECT_EQ(verification_key->commitments.size(),
-              composer.circuit_constructor.selectors.size() + composer.num_wires * 2 + 2);
+    EXPECT_EQ(verification_key->size(), composer.circuit_constructor.selectors.size() + composer.NUM_WIRES * 2 + 2);
 }
 
 TEST(StandardHonkComposer, BaseCase)
@@ -349,5 +350,38 @@ TEST(StandardHonkComposer, TwoGates)
 
     run_test(/* expect_verified=*/true);
     run_test(/* expect_verified=*/false);
+}
+
+TEST(StandardHonkComposer, SumcheckEvaluations)
+{
+    auto run_test = [](bool expected_result) {
+        auto composer = StandardHonkComposer();
+        fr a = fr::one();
+        // Construct a small but non-trivial circuit
+        uint32_t a_idx = composer.add_public_variable(a);
+        fr b = fr::one();
+        fr c = a + b;
+        fr d = a + c;
+
+        if (expected_result == false) {
+            d += 1;
+        };
+
+        uint32_t b_idx = composer.add_variable(b);
+        uint32_t c_idx = composer.add_variable(c);
+        uint32_t d_idx = composer.add_variable(d);
+        for (size_t i = 0; i < 16; i++) {
+            composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+            composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+        }
+        auto prover = composer.create_prover();
+        plonk::proof proof = prover.construct_proof();
+
+        auto verifier = composer.create_verifier();
+        bool verified = verifier.verify_proof(proof);
+        ASSERT_EQ(verified, expected_result);
+    };
+    run_test(/*expected_result=*/true);
+    run_test(/*expected_result=*/false);
 }
 } // namespace test_standard_honk_composer

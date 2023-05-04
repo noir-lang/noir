@@ -24,16 +24,15 @@ namespace proof_system::plonk {
  *
  * @tparam Program settings needed to establish if w_4 is being used.
  * */
-template <typename CircuitConstructor>
-void StandardPlonkComposerHelper<CircuitConstructor>::compute_witness(const CircuitConstructor& circuit_constructor,
-                                                                      const size_t minimum_circuit_size)
+void StandardPlonkComposerHelper::compute_witness(const CircuitConstructor& circuit_constructor,
+                                                  const size_t minimum_circuit_size)
 {
 
     if (computed_witness) {
         return;
     }
     auto wire_polynomial_evaluations =
-        compute_witness_base(circuit_constructor, minimum_circuit_size, NUM_RANDOMIZED_GATES);
+        construct_wire_polynomials_base<Flavor>(circuit_constructor, minimum_circuit_size, NUM_RANDOMIZED_GATES);
 
     for (size_t j = 0; j < program_width; ++j) {
         std::string index = std::to_string(j + 1);
@@ -54,8 +53,7 @@ void StandardPlonkComposerHelper<CircuitConstructor>::compute_witness(const Circ
  *
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
-template <typename CircuitConstructor>
-std::shared_ptr<plonk::proving_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_proving_key(
+std::shared_ptr<plonk::proving_key> StandardPlonkComposerHelper::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
@@ -64,19 +62,18 @@ std::shared_ptr<plonk::proving_key> StandardPlonkComposerHelper<CircuitConstruct
     const size_t minimum_circuit_size = 0;
     const size_t num_randomized_gates = NUM_RANDOMIZED_GATES;
     // Initialize circuit_proving_key
-    // TODO(#229)(Kesha): replace composer types.
-    circuit_proving_key = proof_system::initialize_proving_key(
+    // TODO(#392)(Kesha): replace composer types.
+    circuit_proving_key = proof_system::initialize_proving_key<Flavor>(
         circuit_constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, ComposerType::STANDARD);
     // Compute lagrange selectors
-    construct_lagrange_selector_forms(circuit_constructor, circuit_proving_key.get());
+    construct_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
     // Make all selectors nonzero
-    enforce_nonzero_polynomial_selectors(circuit_constructor, circuit_proving_key.get());
+    enforce_nonzero_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
     // Compute selectors in monomial form
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), standard_selector_properties());
 
     // Compute sigma polynomials (we should update that late)
-    compute_standard_plonk_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
-                                                                                 circuit_proving_key.get());
+    compute_standard_plonk_sigma_permutations<Flavor>(circuit_constructor, circuit_proving_key.get());
 
     circuit_proving_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
@@ -90,8 +87,7 @@ std::shared_ptr<plonk::proving_key> StandardPlonkComposerHelper<CircuitConstruct
  *
  * @return Pointer to created circuit verification key.
  * */
-template <typename CircuitConstructor>
-std::shared_ptr<plonk::verification_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_verification_key(
+std::shared_ptr<plonk::verification_key> StandardPlonkComposerHelper::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
@@ -117,10 +113,7 @@ std::shared_ptr<plonk::verification_key> StandardPlonkComposerHelper<CircuitCons
  *
  * @return The verifier.
  * */
-// TODO(Cody): This should go away altogether.
-template <typename CircuitConstructor>
-plonk::Verifier StandardPlonkComposerHelper<CircuitConstructor>::create_verifier(
-    const CircuitConstructor& circuit_constructor)
+plonk::Verifier StandardPlonkComposerHelper::create_verifier(const CircuitConstructor& circuit_constructor)
 {
     auto verification_key = compute_verification_key(circuit_constructor);
 
@@ -143,9 +136,7 @@ plonk::Verifier StandardPlonkComposerHelper<CircuitConstructor>::create_verifier
  *
  * @return Initialized prover.
  * */
-template <typename CircuitConstructor>
-plonk::Prover StandardPlonkComposerHelper<CircuitConstructor>::create_prover(
-    const CircuitConstructor& circuit_constructor)
+plonk::Prover StandardPlonkComposerHelper::create_prover(const CircuitConstructor& circuit_constructor)
 {
     // Compute q_l, etc. and sigma polynomials.
     compute_proving_key(circuit_constructor);
@@ -172,5 +163,4 @@ plonk::Prover StandardPlonkComposerHelper<CircuitConstructor>::create_prover(
     return output_state;
 }
 
-template class StandardPlonkComposerHelper<StandardCircuitConstructor>;
 } // namespace proof_system::plonk

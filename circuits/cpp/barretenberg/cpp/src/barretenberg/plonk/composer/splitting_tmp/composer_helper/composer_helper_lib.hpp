@@ -5,14 +5,15 @@
 namespace proof_system::plonk {
 struct SelectorProperties {
     std::string name;
-    bool requires_lagrange_base_polynomial = false; // does the prover need the raw lagrange-base selector values?
+    // TODO: does the prover need the raw lagrange-base selector values?
+    bool requires_lagrange_base_polynomial = false;
 };
 
 /**
  * @brief Retrieve lagrange forms of selector polynomials and compute monomial and coset-monomial forms and put into
  * cache
  *
- * @param key Pointer to the proving key
+ * @param key Pointer to the proving key TODO(#293)
  * @param selector_properties Names of selectors
  */
 void compute_monomial_and_coset_selector_forms(plonk::proving_key* key,

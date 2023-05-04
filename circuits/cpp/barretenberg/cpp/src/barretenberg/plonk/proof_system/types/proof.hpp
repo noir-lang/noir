@@ -28,7 +28,7 @@ template <typename B> inline void write(B& buf, proof const& data)
 inline std::ostream& operator<<(std::ostream& os, proof const& data)
 {
     // REFACTOR: This is copied from barretenberg/common/streams.hpp,
-    // which means we could just cout proof_data directly, but that breaks the build in the CI with 
+    // which means we could just cout proof_data directly, but that breaks the build in the CI with
     // a redefined operator<< error in barretenberg/stdlib/hash/keccak/keccak.test.cpp,
     // which is something we really don't want to deal with right now.
     std::ios_base::fmtflags f(os.flags());

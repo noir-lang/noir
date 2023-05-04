@@ -7,7 +7,6 @@
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "sumcheck_round.hpp"
 #include "polynomials/univariate.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <span>
@@ -19,17 +18,20 @@
 
 namespace proof_system::honk::sumcheck {
 
-template <typename FF, class Transcript, template <class> class... Relations> class Sumcheck {
+template <typename Flavor, class Transcript, template <class> class... Relations> class Sumcheck {
 
   public:
-    static constexpr size_t MAX_RELATION_LENGTH = std::max({ Relations<FF>::RELATION_LENGTH... });
-    static constexpr size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
+    using FF = typename Flavor::FF;
+    using FoldedPolynomials = typename Flavor::FoldedPolynomials;
+    using PurportedEvaluations = typename Flavor::PurportedEvaluations;
 
-    std::array<FF, NUM_POLYNOMIALS> purported_evaluations;
+    static constexpr size_t MAX_RELATION_LENGTH = std::max({ Relations<FF>::RELATION_LENGTH... });
+    static constexpr size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
+
     Transcript& transcript;
     const size_t multivariate_n;
     const size_t multivariate_d;
-    SumcheckRound<FF, NUM_POLYNOMIALS, Relations...> round;
+    SumcheckRound<Flavor, Relations...> round;
 
     /**
     *
@@ -60,7 +62,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
     * NOTE: With ~40 columns, prob only want to allocate 256 EdgeGroup's at once to keep stack under 1MB?
     * TODO(#224)(Cody): might want to just do C-style multidimensional array? for guaranteed adjacency?
     */
-    std::array<std::vector<FF>, NUM_POLYNOMIALS> folded_polynomials;
+    FoldedPolynomials folded_polynomials;
 
     // prover instantiates sumcheck with circuit size and a prover transcript
     Sumcheck(size_t multivariate_n, ProverTranscript<FF>& transcript)
@@ -87,7 +89,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
      *
      * @details
      */
-    SumcheckOutput<FF> execute_prover(
+    SumcheckOutput<Flavor> execute_prover(
         auto full_polynomials, const RelationParameters<FF>& relation_parameters) // pass by value, not by reference
     {
         auto [alpha, zeta] = transcript.get_challenges("Sumcheck:alpha", "Sumcheck:zeta");
@@ -121,11 +123,13 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         }
 
         // Final round: Extract multivariate evaluations from folded_polynomials and add to transcript
-        std::array<FF, NUM_POLYNOMIALS> multivariate_evaluations;
-        for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-            multivariate_evaluations[i] = folded_polynomials[i][0];
+        PurportedEvaluations multivariate_evaluations;
+        size_t evaluation_idx = 0;
+        for (auto& polynomial : folded_polynomials) { // TODO(#391) zip
+            multivariate_evaluations[evaluation_idx] = polynomial[0];
+            ++evaluation_idx;
         }
-        transcript.send_to_verifier("Sumcheck:evaluations", multivariate_evaluations);
+        transcript.send_to_verifier("Sumcheck:evaluations", multivariate_evaluations._data);
 
         return { multivariate_challenge, multivariate_evaluations };
     };
@@ -137,7 +141,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
      *
      * @details If verification fails, returns std::nullopt, otherwise returns SumcheckOutput
      */
-    std::optional<SumcheckOutput<FF>> execute_verifier(const RelationParameters<FF>& relation_parameters)
+    std::optional<SumcheckOutput<Flavor>> execute_verifier(const RelationParameters<FF>& relation_parameters)
     {
         bool verified(true);
 
@@ -174,17 +178,17 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         }
 
         // Final round
-        auto purported_evaluations =
+        PurportedEvaluations purported_evaluations =
             transcript.template receive_from_prover<std::array<FF, NUM_POLYNOMIALS>>("Sumcheck:evaluations");
 
         FF full_honk_relation_purported_value = round.compute_full_honk_relation_purported_value(
-            purported_evaluations, relation_parameters, pow_univariate, alpha);
+            purported_evaluations._data, relation_parameters, pow_univariate, alpha);
         verified = verified && (full_honk_relation_purported_value == round.target_total_sum);
         if (!verified) {
             return std::nullopt;
         }
 
-        return SumcheckOutput<FF>{ multivariate_challenge, purported_evaluations };
+        return SumcheckOutput<Flavor>{ multivariate_challenge, purported_evaluations };
     };
 
     // TODO(#224)(Cody): Rename. fold is not descriptive, and it's already in use in the Gemini context.

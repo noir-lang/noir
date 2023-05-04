@@ -7,9 +7,11 @@
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/commitment_key.test.hpp"
 using namespace barretenberg;
-namespace proof_system::honk::pcs::ipa {
+namespace proof_system::honk::pcs {
 
-template <class Params> class IpaCommitmentTest : public CommitmentTest<Params> {
+class IPATests : public CommitmentTest<ipa::Params> {
+  public:
+    using Params = ipa::Params;
     using Fr = typename Params::Fr;
     using element = typename Params::Commitment;
     using affine_element = typename Params::C;
@@ -18,9 +20,7 @@ template <class Params> class IpaCommitmentTest : public CommitmentTest<Params> 
     using Polynomial = barretenberg::Polynomial<Fr>;
 };
 
-TYPED_TEST_SUITE(IpaCommitmentTest, IpaCommitmentSchemeParams);
-
-TYPED_TEST(IpaCommitmentTest, commit)
+TEST_F(IPATests, Commit)
 {
     constexpr size_t n = 128;
     auto poly = this->random_polynomial(n);
@@ -33,15 +33,15 @@ TYPED_TEST(IpaCommitmentTest, commit)
     EXPECT_EQ(expected.normalize(), commitment.normalize());
 }
 
-TYPED_TEST(IpaCommitmentTest, open)
+TEST_F(IPATests, Open)
 {
-    using IPA = InnerProductArgument<TypeParam>;
+    using IPA = ipa::InnerProductArgument<Params>;
     // generate a random polynomial, degree needs to be a power of two
     size_t n = 128;
     auto poly = this->random_polynomial(n);
     auto [x, eval] = this->random_eval(poly);
     auto commitment = this->commit(poly);
-    const OpeningPair<TypeParam> opening_pair{ x, eval };
+    const OpeningPair<Params> opening_pair{ x, eval };
 
     // initialize empty prover transcript
     ProverTranscript<Fr> prover_transcript;
@@ -58,4 +58,4 @@ TYPED_TEST(IpaCommitmentTest, open)
 
     EXPECT_EQ(prover_transcript.get_manifest(), verifier_transcript.get_manifest());
 }
-} // namespace proof_system::honk::pcs::ipa
+} // namespace proof_system::honk::pcs

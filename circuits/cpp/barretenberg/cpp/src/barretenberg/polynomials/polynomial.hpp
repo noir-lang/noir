@@ -12,6 +12,8 @@
 namespace barretenberg {
 template <typename Fr> class Polynomial {
   public:
+    using FF = Fr;
+
     // Creates a read only polynomial using mmap.
     Polynomial(std::string const& filename);
 

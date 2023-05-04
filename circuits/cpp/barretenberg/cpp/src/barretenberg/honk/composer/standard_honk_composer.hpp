@@ -3,8 +3,6 @@
 #include "composer_helper/standard_honk_composer_helper.hpp"
 #include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
-#include "barretenberg/transcript/manifest.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 
@@ -17,22 +15,28 @@ namespace proof_system::honk {
  */
 class StandardHonkComposer {
   public:
-    static constexpr ComposerType type = ComposerType::STANDARD_HONK;
+    // TODO(#426): This doesn't belong here
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::LOOKUP_PEDERSEN;
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
 
+    using Flavor = flavor::Standard;
+    using CircuitConstructor = StandardCircuitConstructor;
+    using ProvingKey = typename Flavor::ProvingKey;
+    using VerificationKey = typename Flavor::VerificationKey;
+    static constexpr ComposerType type = ComposerType::STANDARD_HONK; // TODO(Cody): Get rid of this.
+
     static constexpr size_t UINT_LOG2_BASE = 2;
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
-    StandardCircuitConstructor circuit_constructor;
+    CircuitConstructor circuit_constructor;
     // Composer helper contains all proof-related material that is separate from circuit creation such as:
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    StandardHonkComposerHelper<StandardCircuitConstructor> composer_helper;
+    StandardHonkComposerHelper composer_helper;
 
     // Leaving it in for now just in case
     bool contains_recursive_proof = false;
-    static constexpr size_t num_wires = StandardCircuitConstructor::num_wires;
+    static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
 
     /**Standard methods*/
 
@@ -61,8 +65,8 @@ class StandardHonkComposer {
 
     {}
 
-    StandardHonkComposer(std::shared_ptr<plonk::proving_key> const& p_key,
-                         std::shared_ptr<plonk::verification_key> const& v_key,
+    StandardHonkComposer(std::shared_ptr<ProvingKey> const& p_key,
+                         std::shared_ptr<VerificationKey> const& v_key,
                          size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(p_key, v_key)
@@ -165,12 +169,12 @@ class StandardHonkComposer {
 
     /**Proof and verification-related methods*/
 
-    std::shared_ptr<plonk::proving_key> compute_proving_key()
+    std::shared_ptr<ProvingKey> compute_proving_key()
     {
         return composer_helper.compute_proving_key(circuit_constructor);
     }
 
-    std::shared_ptr<plonk::verification_key> compute_verification_key()
+    std::shared_ptr<VerificationKey> compute_verification_key()
     {
         return composer_helper.compute_verification_key(circuit_constructor);
     }
@@ -180,7 +184,7 @@ class StandardHonkComposer {
     void compute_witness() { composer_helper.compute_witness(circuit_constructor); };
 
     StandardVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
-    StandardProver create_prover() { return composer_helper.create_prover<honk::StandardHonk>(circuit_constructor); };
+    StandardProver create_prover() { return composer_helper.create_prover(circuit_constructor); };
 
     size_t& num_gates;
     std::vector<barretenberg::fr>& variables;

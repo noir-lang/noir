@@ -23,7 +23,7 @@ class UltraPlonkComposer {
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    UltraPlonkComposerHelper<UltraCircuitConstructor> composer_helper;
+    UltraPlonkComposerHelper composer_helper;
     size_t& num_gates;
 
     UltraPlonkComposer()

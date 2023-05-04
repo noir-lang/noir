@@ -5,10 +5,11 @@ CompileFlags:                     # Tweak the parse settings
 If:
   PathMatch: [src/.*\.hpp, src/.*\.cpp, src/.*\.tcc]
 Diagnostics:
-  # Checks whether we are including unused header files
+  # Value Strict checks whether we are including unused header files
   # Note that some headers may be _implicitly_ used and still
-  # need to be included, so be careful before removing them.
-  UnusedIncludes: Strict
+  # need to be included. This is very noisy, and is probably best used
+  # by occasionally toggling it on.
+  UnusedIncludes: None
 
   # Static analysis configuration
   ClangTidy:
@@ -56,6 +57,10 @@ Diagnostics:
       - cert-err58-cpp
       # Triggers on some tests that are not complex
       - readability-function-cognitive-complexity
+      # It is often nicer to not be explicit
+      - google-explicit-constructor
+    CheckOptions:
+      - cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: True
 
 --- # this divider is necessary
 # Disable some checks for Google Test/Bench

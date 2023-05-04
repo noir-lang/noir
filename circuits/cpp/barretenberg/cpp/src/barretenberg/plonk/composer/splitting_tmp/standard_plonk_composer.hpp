@@ -4,7 +4,6 @@
 #include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/transcript/manifest.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 
@@ -29,7 +28,7 @@ class StandardPlonkComposer {
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    StandardPlonkComposerHelper<StandardCircuitConstructor> composer_helper;
+    StandardPlonkComposerHelper composer_helper;
 
     // Leaving it in for now just in case
     bool contains_recursive_proof = false;
@@ -195,7 +194,7 @@ class StandardPlonkComposer {
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
-        return StandardPlonkComposerHelper<StandardCircuitConstructor>::create_manifest(num_public_inputs);
+        return StandardPlonkComposerHelper::create_manifest(num_public_inputs);
     }
 
     size_t& num_gates;

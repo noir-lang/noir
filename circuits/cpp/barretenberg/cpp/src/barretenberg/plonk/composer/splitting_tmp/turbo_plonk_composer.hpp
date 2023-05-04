@@ -26,7 +26,7 @@ class TurboPlonkComposer {
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    TurboPlonkComposerHelper<TurboCircuitConstructor> composer_helper;
+    TurboPlonkComposerHelper composer_helper;
     size_t& num_gates;
     std::vector<barretenberg::fr>& variables;
 
@@ -202,7 +202,7 @@ class TurboPlonkComposer {
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
-        return TurboPlonkComposerHelper<TurboCircuitConstructor>::create_manifest(num_public_inputs);
+        return TurboPlonkComposerHelper::create_manifest(num_public_inputs);
     }
 
     bool failed() const { return circuit_constructor.failed(); };

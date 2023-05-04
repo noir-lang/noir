@@ -3,7 +3,6 @@
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include <cstddef>
 #include <cstdint>
 #include "barretenberg/honk/proof_system/prover.hpp"
@@ -19,6 +18,7 @@
 
 #include <gtest/gtest.h>
 #include <string>
+#include <vector>
 
 using namespace proof_system::honk;
 
@@ -41,87 +41,101 @@ std::vector<uint32_t> add_variables(auto& composer, std::vector<fr> variables)
  */
 void verify_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plonk_prover)
 {
-    auto& honk_store = honk_prover.key->polynomial_store;
     auto& plonk_store = plonk_prover.key->polynomial_store;
 
-    // Check that all selectors and table polynomials agree (aside from the final element which will differ
-    // due to not enforcing non-zero polynomials in Honk).
-    for (auto& entry : honk_store) {
-        std::string key = entry.first;
-        bool is_selector = (key.find("q_") != std::string::npos) || (key.find("table_type") != std::string::npos);
-        bool is_table = (key.find("table_value_") != std::string::npos);
-        if (plonk_store.contains(key) && (is_selector || is_table)) {
-            // check equality for all but final entry
-            for (size_t i = 0; i < honk_store.get(key).size() - 1; ++i) {
-                ASSERT_EQ(honk_store.get(key)[i], plonk_store.get(key)[i]);
-            }
+    // Check consistency of table polys (aside from final entry)
+    auto honk_table_polys = honk_prover.key->get_table_polynomials();
+    for (size_t i = 0; i < 4; ++i) {
+        std::string label = "table_value_" + std::to_string(i + 1) + "_lagrange";
+        for (size_t j = 0; j < honk_prover.key->circuit_size - 1; ++j) {
+            ASSERT_EQ(honk_table_polys[i][j], plonk_store.get(label)[j]);
         }
     }
 
-    // Check that sorted witness-table polynomials agree
-    for (auto& entry : honk_store) {
-        std::string key = entry.first;
-        bool is_sorted_table = (key.find("s_") != std::string::npos);
-        if (plonk_store.contains(key) && is_sorted_table) {
-            ASSERT_EQ(honk_store.get(key), plonk_store.get(key));
+    // Check consistency of sorted concatenated witness-table polys (aside from final entry)
+    auto honk_sorted_polys = honk_prover.key->get_sorted_polynomials();
+    for (size_t i = 0; i < 4; ++i) {
+        std::string label = "s_" + std::to_string(i + 1) + "_lagrange";
+        for (size_t j = 0; j < honk_prover.key->circuit_size - 1; ++j) {
+            ASSERT_EQ(honk_sorted_polys[i][j], plonk_store.get(label)[j]);
+        }
+    }
+
+    // Check consistency of selectors (aside from final entry)
+    auto honk_selectors = honk_prover.key->get_selectors();
+    std::vector<std::span<fr>> plonk_selectors = { plonk_prover.key->polynomial_store.get("q_m_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_c_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_1_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_2_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_3_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_4_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_arith_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_sort_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_elliptic_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("q_aux_lagrange"),
+                                                   plonk_prover.key->polynomial_store.get("table_type_lagrange") };
+
+    for (size_t i = 0; i < plonk_selectors.size(); ++i) {
+        for (size_t j = 0; j < honk_prover.key->circuit_size - 1; ++j) {
+            ASSERT_EQ(honk_selectors[i][j], plonk_selectors[i][j]);
         }
     }
 
     // Check that all wires agree
     // Note: for Honk, wires are owned directly by the prover. For Plonk they are stored in the key.
-    for (size_t i = 0; i < 4; ++i) {
-        std::string label = "w_" + std::to_string(i + 1) + "_lagrange";
-        ASSERT_EQ(honk_prover.wire_polynomials[i], plonk_prover.key->polynomial_store.get(label));
-    }
+    ASSERT_EQ(honk_prover.key->w_l, plonk_prover.key->polynomial_store.get("w_1_lagrange"));
+    ASSERT_EQ(honk_prover.key->w_r, plonk_prover.key->polynomial_store.get("w_2_lagrange"));
+    ASSERT_EQ(honk_prover.key->w_o, plonk_prover.key->polynomial_store.get("w_3_lagrange"));
+    ASSERT_EQ(honk_prover.key->w_4, plonk_prover.key->polynomial_store.get("w_4_lagrange"));
 }
 
-/**
- * @brief TEMPORARY (verbose) method for checking consistency of polynomials computed by Ultra Plonk/Honk composers
- *
- * @param honk_prover
- * @param plonk_prover
- */
-void check_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plonk_prover)
-{
-    auto& honk_store = honk_prover.key->polynomial_store;
-    auto& plonk_store = plonk_prover.key->polynomial_store;
-    for (auto& entry : honk_store) {
-        std::string key = entry.first;
-        if (plonk_store.contains(key)) {
+// /**
+//  * @brief TEMPORARY (verbose) method for checking consistency of polynomials computed by Ultra Plonk/Honk composers
+//  *
+//  * @param honk_prover
+//  * @param plonk_prover
+//  */
+// void check_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plonk_prover)
+// {
+//     auto& honk_store = honk_prover.key->polynomial_store;
+//     auto& plonk_store = plonk_prover.key->polynomial_store;
+//     for (auto& entry : honk_store) {
+//         std::string key = entry.first;
+//         if (plonk_store.contains(key)) {
 
-            bool polys_equal = (honk_store.get(key) == plonk_store.get(key));
-            if (polys_equal) {
-                info("Equal: ", key);
-            }
-            if (!polys_equal) {
-                info("UNEQUAL: ", key);
-            }
-        }
-    }
+//             bool polys_equal = (honk_store.get(key) == plonk_store.get(key));
+//             if (polys_equal) {
+//                 info("Equal: ", key);
+//             }
+//             if (!polys_equal) {
+//                 info("UNEQUAL: ", key);
+//             }
+//         }
+//     }
 
-    for (size_t i = 0; i < 4; ++i) {
-        std::string label = "w_" + std::to_string(i + 1) + "_lagrange";
-        bool wire_equal = (honk_prover.wire_polynomials[i] == plonk_prover.key->polynomial_store.get(label));
-        if (wire_equal) {
-            info("Wire Equal: ", i);
-        }
-        if (!wire_equal) {
-            info("Wire UNEQUAL: ", i);
-        }
-    }
+//     for (size_t i = 0; i < 4; ++i) {
+//         std::string label = "w_" + std::to_string(i + 1) + "_lagrange";
+//         bool wire_equal = (honk_prover.wire_polynomials[i] == plonk_prover.key->polynomial_store.get(label));
+//         if (wire_equal) {
+//             info("Wire Equal: ", i);
+//         }
+//         if (!wire_equal) {
+//             info("Wire UNEQUAL: ", i);
+//         }
+//     }
 
-    // std::string label = "w_1_lagrange";
-    // for (size_t i = 0; i < plonk_store.get(label).size(); ++i) {
-    //     auto val_honk = honk_prover.wire_polynomials[0][i];
-    //     // auto val_honk = honk_store.get(label)[i];
-    //     auto val_plonk = plonk_store.get(label)[i];
-    //     if (val_honk != val_plonk) {
-    //         info("UNEQUAL index = ", i);
-    //         info("honk: ",val_honk);
-    //         info("plonk: ", val_plonk);
-    //     }
-    // }
-}
+//     // std::string label = "w_1_lagrange";
+//     // for (size_t i = 0; i < plonk_store.get(label).size(); ++i) {
+//     //     auto val_honk = honk_prover.wire_polynomials[0][i];
+//     //     // auto val_honk = honk_store.get(label)[i];
+//     //     auto val_plonk = plonk_store.get(label)[i];
+//     //     if (val_honk != val_plonk) {
+//     //         info("UNEQUAL index = ", i);
+//     //         info("honk: ",val_honk);
+//     //         info("plonk: ", val_plonk);
+//     //     }
+//     // }
+// }
 
 TEST(UltraHonkComposer, create_gates_from_plookup_accumulators)
 {
@@ -893,7 +907,6 @@ TEST(UltraHonkComposer, rom)
     auto honk_prover = honk_composer.create_prover();
     auto plonk_prover = plonk_composer.create_prover();
 
-    check_consistency(honk_prover, plonk_prover);
     verify_consistency(honk_prover, plonk_prover);
 }
 

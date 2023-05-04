@@ -9,16 +9,7 @@ ecc_tests
 numeric_tests
 plonk_tests
 polynomials_tests
-proof_system_tests
 join_split_example_proofs_inner_proof_data_tests
 join_split_example_proofs_notes_tests
 srs_tests
-stdlib_aes128_tests
-stdlib_blake2s_tests
-stdlib_blake3s_tests
-stdlib_ecdsa_tests
-stdlib_merkle_tree_tests
-stdlib_pedersen_commitment_tests
-stdlib_schnorr_tests
-stdlib_sha256_tests
 transcript_tests

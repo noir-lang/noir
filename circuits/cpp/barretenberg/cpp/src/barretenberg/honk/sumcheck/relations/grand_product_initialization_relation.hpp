@@ -1,6 +1,5 @@
 #pragma once
 #include "relation.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include "../polynomials/univariate.hpp"
 
 namespace proof_system::honk::sumcheck {
@@ -9,7 +8,6 @@ template <typename FF> class GrandProductInitializationRelation {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 3;
-    using MULTIVARIATE = StandardHonk::MULTIVARIATE; // could just get from StandardArithmetization
 
     /**
      * @brief Add contribution of the permutation relation for a given edge
@@ -29,8 +27,8 @@ template <typename FF> class GrandProductInitializationRelation {
                                const RelationParameters<FF>&,
                                const FF& scaling_factor) const
     {
-        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges.z_perm_shift);
+        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges.lagrange_last);
 
         evals += (lagrange_last * z_perm_shift) * scaling_factor;
     };
@@ -39,8 +37,8 @@ template <typename FF> class GrandProductInitializationRelation {
                                               auto& purported_evaluations,
                                               const RelationParameters<FF>&) const
     {
-        auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
-        auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
+        auto z_perm_shift = purported_evaluations.z_perm_shift;
+        auto lagrange_last = purported_evaluations.lagrange_last;
 
         full_honk_relation_value += lagrange_last * z_perm_shift;
     };
@@ -53,7 +51,6 @@ template <typename FF> class UltraGrandProductInitializationRelation {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 3;
-    using MULTIVARIATE = UltraArithmetization::POLYNOMIAL; // could just get from StandardArithmetization
 
     /**
      * @brief Add contribution of the permutation relation for a given edge
@@ -73,8 +70,8 @@ template <typename FF> class UltraGrandProductInitializationRelation {
                                const RelationParameters<FF>&,
                                const FF& scaling_factor) const
     {
-        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges.z_perm_shift);
+        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges.lagrange_last);
 
         evals += (lagrange_last * z_perm_shift) * scaling_factor;
     };
@@ -83,8 +80,8 @@ template <typename FF> class UltraGrandProductInitializationRelation {
                                               auto& purported_evaluations,
                                               const RelationParameters<FF>&) const
     {
-        auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
-        auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
+        auto z_perm_shift = purported_evaluations.z_perm_shift;
+        auto lagrange_last = purported_evaluations.lagrange_last;
 
         full_honk_relation_value += lagrange_last * z_perm_shift;
     };

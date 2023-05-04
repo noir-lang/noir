@@ -11,7 +11,7 @@ namespace proof_system::plonk {
 
 /**
  * @brief Retrieve lagrange forms of selector polynomials and compute monomial and coset-monomial forms and put into
- * cache
+ * cache.
  *
  * @param key Pointer to the proving key
  * @param selector_properties Names of selectors

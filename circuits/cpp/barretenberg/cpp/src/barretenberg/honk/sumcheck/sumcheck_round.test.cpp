@@ -1,4 +1,3 @@
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include "sumcheck_round.hpp"
 #include "relations/arithmetic_relation.hpp"
 #include "relations/grand_product_computation_relation.hpp"
@@ -6,6 +5,7 @@
 #include "polynomials/univariate.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
+#include "barretenberg/honk/flavor/standard.hpp"
 
 #include <tuple>
 
@@ -21,58 +21,56 @@
 
 using namespace proof_system::honk;
 using namespace proof_system::honk::sumcheck;
+
+using Flavor = flavor::Standard;
+using FF = typename Flavor::FF;
+using ProverPolynomials = typename Flavor::ProverPolynomials;
+using PurportedEvaluations = typename Flavor::PurportedEvaluations;
+
+const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 const size_t max_relation_length = 5;
 const size_t input_polynomial_length = 2;
-using FF = barretenberg::fr;
-const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
-using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
 
 namespace test_sumcheck_round {
-/**
- * @brief Place polynomials into full_polynomials in the order determined by the StandardArithmetization enum.
- *
- */
 template <class FF, size_t N>
-std::array<std::span<FF>, NUM_POLYNOMIALS> construct_full_polynomials(std::array<FF, N>& w_l,
-                                                                      std::array<FF, N>& w_r,
-                                                                      std::array<FF, N>& w_o,
-                                                                      std::array<FF, N>& z_perm,
-                                                                      std::array<FF, N>& z_perm_shift,
-                                                                      std::array<FF, N>& q_m,
-                                                                      std::array<FF, N>& q_l,
-                                                                      std::array<FF, N>& q_r,
-                                                                      std::array<FF, N>& q_o,
-                                                                      std::array<FF, N>& q_c,
-                                                                      std::array<FF, N>& sigma_1,
-                                                                      std::array<FF, N>& sigma_2,
-                                                                      std::array<FF, N>& sigma_3,
-                                                                      std::array<FF, N>& id_1,
-                                                                      std::array<FF, N>& id_2,
-                                                                      std::array<FF, N>& id_3,
-                                                                      std::array<FF, N>& lagrange_first,
-                                                                      std::array<FF, N>& lagrange_last)
+void construct_full_polynomials(ProverPolynomials& full_polynomials,
+                                std::array<FF, N>& w_l,
+                                std::array<FF, N>& w_r,
+                                std::array<FF, N>& w_o,
+                                std::array<FF, N>& z_perm,
+                                std::array<FF, N>& z_perm_shift,
+                                std::array<FF, N>& q_m,
+                                std::array<FF, N>& q_l,
+                                std::array<FF, N>& q_r,
+                                std::array<FF, N>& q_o,
+                                std::array<FF, N>& q_c,
+                                std::array<FF, N>& sigma_1,
+                                std::array<FF, N>& sigma_2,
+                                std::array<FF, N>& sigma_3,
+                                std::array<FF, N>& id_1,
+                                std::array<FF, N>& id_2,
+                                std::array<FF, N>& id_3,
+                                std::array<FF, N>& lagrange_first,
+                                std::array<FF, N>& lagrange_last)
 {
-    std::array<std::span<FF>, NUM_POLYNOMIALS> full_polynomials;
-    full_polynomials[POLYNOMIAL::W_L] = w_l;
-    full_polynomials[POLYNOMIAL::W_R] = w_r;
-    full_polynomials[POLYNOMIAL::W_O] = w_o;
-    full_polynomials[POLYNOMIAL::Z_PERM] = z_perm;
-    full_polynomials[POLYNOMIAL::Z_PERM_SHIFT] = z_perm_shift;
-    full_polynomials[POLYNOMIAL::Q_M] = q_m;
-    full_polynomials[POLYNOMIAL::Q_L] = q_l;
-    full_polynomials[POLYNOMIAL::Q_R] = q_r;
-    full_polynomials[POLYNOMIAL::Q_O] = q_o;
-    full_polynomials[POLYNOMIAL::Q_C] = q_c;
-    full_polynomials[POLYNOMIAL::SIGMA_1] = sigma_1;
-    full_polynomials[POLYNOMIAL::SIGMA_2] = sigma_2;
-    full_polynomials[POLYNOMIAL::SIGMA_3] = sigma_3;
-    full_polynomials[POLYNOMIAL::ID_1] = id_1;
-    full_polynomials[POLYNOMIAL::ID_2] = id_2;
-    full_polynomials[POLYNOMIAL::ID_3] = id_3;
-    full_polynomials[POLYNOMIAL::LAGRANGE_FIRST] = lagrange_first;
-    full_polynomials[POLYNOMIAL::LAGRANGE_LAST] = lagrange_last;
-
-    return full_polynomials;
+    full_polynomials.w_l = w_l;
+    full_polynomials.w_r = w_r;
+    full_polynomials.w_o = w_o;
+    full_polynomials.z_perm = z_perm;
+    full_polynomials.z_perm_shift = z_perm_shift;
+    full_polynomials.q_m = q_m;
+    full_polynomials.q_l = q_l;
+    full_polynomials.q_r = q_r;
+    full_polynomials.q_o = q_o;
+    full_polynomials.q_c = q_c;
+    full_polynomials.sigma_1 = sigma_1;
+    full_polynomials.sigma_2 = sigma_2;
+    full_polynomials.sigma_3 = sigma_3;
+    full_polynomials.id_1 = id_1;
+    full_polynomials.id_2 = id_2;
+    full_polynomials.id_3 = id_3;
+    full_polynomials.lagrange_first = lagrange_first;
+    full_polynomials.lagrange_last = lagrange_last;
 }
 
 // The below two methods are used in the test ComputeUnivariateProver
@@ -85,11 +83,9 @@ static Univariate<FF, max_relation_length> compute_round_univariate(
     auto relations = std::tuple(
         ArithmeticRelation<FF>(), GrandProductComputationRelation<FF>(), GrandProductInitializationRelation<FF>());
     // Improvement(Cody): This is ugly? Maye supply some/all of this data through "flavor" class?
-    auto round = SumcheckRound<FF,
-                               NUM_POLYNOMIALS,
-                               ArithmeticRelation,
-                               GrandProductComputationRelation,
-                               GrandProductInitializationRelation>(round_size, relations);
+    auto round =
+        SumcheckRound<Flavor, ArithmeticRelation, GrandProductComputationRelation, GrandProductInitializationRelation>(
+            round_size, relations);
     auto w_l = input_polynomials[0];
     auto w_r = input_polynomials[1];
     auto w_o = input_polynomials[2];
@@ -109,24 +105,26 @@ static Univariate<FF, max_relation_length> compute_round_univariate(
     auto lagrange_first = input_polynomials[16];
     auto lagrange_last = input_polynomials[17];
 
-    auto full_polynomials = construct_full_polynomials(w_l,
-                                                       w_r,
-                                                       w_o,
-                                                       z_perm,
-                                                       z_perm_shift,
-                                                       q_m,
-                                                       q_l,
-                                                       q_r,
-                                                       q_o,
-                                                       q_c,
-                                                       sigma_1,
-                                                       sigma_2,
-                                                       sigma_3,
-                                                       id_1,
-                                                       id_2,
-                                                       id_3,
-                                                       lagrange_first,
-                                                       lagrange_last);
+    ProverPolynomials full_polynomials;
+    construct_full_polynomials(full_polynomials,
+                               w_l,
+                               w_r,
+                               w_o,
+                               z_perm,
+                               z_perm_shift,
+                               q_m,
+                               q_l,
+                               q_r,
+                               q_o,
+                               q_c,
+                               sigma_1,
+                               sigma_2,
+                               sigma_3,
+                               id_1,
+                               id_2,
+                               id_3,
+                               lagrange_first,
+                               lagrange_last);
     PowUnivariate<FF> pow_zeta(1);
     Univariate<FF, max_relation_length> round_univariate =
         round.compute_univariate(full_polynomials, relation_parameters, pow_zeta, alpha);
@@ -189,33 +187,30 @@ static FF compute_full_purported_value(std::array<FF, NUM_POLYNOMIALS>& input_va
                                        const RelationParameters<FF>& relation_parameters,
                                        const FF alpha)
 {
-    std::vector<FF> purported_evaluations;
-    purported_evaluations.resize(NUM_POLYNOMIALS);
-    purported_evaluations[POLYNOMIAL::W_L] = input_values[0];
-    purported_evaluations[POLYNOMIAL::W_R] = input_values[1];
-    purported_evaluations[POLYNOMIAL::W_O] = input_values[2];
-    purported_evaluations[POLYNOMIAL::Z_PERM] = input_values[3];
-    purported_evaluations[POLYNOMIAL::Z_PERM_SHIFT] = input_values[4];
-    purported_evaluations[POLYNOMIAL::Q_M] = input_values[5];
-    purported_evaluations[POLYNOMIAL::Q_L] = input_values[6];
-    purported_evaluations[POLYNOMIAL::Q_R] = input_values[7];
-    purported_evaluations[POLYNOMIAL::Q_O] = input_values[8];
-    purported_evaluations[POLYNOMIAL::Q_C] = input_values[9];
-    purported_evaluations[POLYNOMIAL::SIGMA_1] = input_values[10];
-    purported_evaluations[POLYNOMIAL::SIGMA_2] = input_values[11];
-    purported_evaluations[POLYNOMIAL::SIGMA_3] = input_values[12];
-    purported_evaluations[POLYNOMIAL::ID_1] = input_values[13];
-    purported_evaluations[POLYNOMIAL::ID_2] = input_values[14];
-    purported_evaluations[POLYNOMIAL::ID_3] = input_values[15];
-    purported_evaluations[POLYNOMIAL::LAGRANGE_FIRST] = input_values[16];
-    purported_evaluations[POLYNOMIAL::LAGRANGE_LAST] = input_values[17];
+    PurportedEvaluations purported_evaluations;
+    purported_evaluations.w_l = input_values[0];
+    purported_evaluations.w_r = input_values[1];
+    purported_evaluations.w_o = input_values[2];
+    purported_evaluations.z_perm = input_values[3];
+    purported_evaluations.z_perm_shift = input_values[4];
+    purported_evaluations.q_m = input_values[5];
+    purported_evaluations.q_l = input_values[6];
+    purported_evaluations.q_r = input_values[7];
+    purported_evaluations.q_o = input_values[8];
+    purported_evaluations.q_c = input_values[9];
+    purported_evaluations.sigma_1 = input_values[10];
+    purported_evaluations.sigma_2 = input_values[11];
+    purported_evaluations.sigma_3 = input_values[12];
+    purported_evaluations.id_1 = input_values[13];
+    purported_evaluations.id_2 = input_values[14];
+    purported_evaluations.id_3 = input_values[15];
+    purported_evaluations.lagrange_first = input_values[16];
+    purported_evaluations.lagrange_last = input_values[17];
     auto relations = std::tuple(
         ArithmeticRelation<FF>(), GrandProductComputationRelation<FF>(), GrandProductInitializationRelation<FF>());
-    auto round = SumcheckRound<FF,
-                               NUM_POLYNOMIALS,
-                               ArithmeticRelation,
-                               GrandProductComputationRelation,
-                               GrandProductInitializationRelation>(relations);
+    auto round =
+        SumcheckRound<Flavor, ArithmeticRelation, GrandProductComputationRelation, GrandProductInitializationRelation>(
+            relations);
     PowUnivariate<FF> pow_univariate(1);
     FF full_purported_value = round.compute_full_honk_relation_purported_value(
         purported_evaluations, relation_parameters, pow_univariate, alpha);

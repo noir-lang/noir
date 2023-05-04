@@ -1,6 +1,5 @@
 #pragma once
 #include "relation.hpp"
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include "../polynomials/univariate.hpp"
 // TODO(luke): change name of this file to permutation_grand_product_relation(s).hpp and move 'init' relation into it.
 
@@ -10,7 +9,6 @@ template <typename FF> class GrandProductComputationRelation {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 5;
-    using MULTIVARIATE = StandardHonk::MULTIVARIATE;
 
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
@@ -39,19 +37,19 @@ template <typename FF> class GrandProductComputationRelation {
         const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
-        auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
-        auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_R]);
-        auto w_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_O]);
-        auto sigma_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::SIGMA_1]);
-        auto sigma_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::SIGMA_2]);
-        auto sigma_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::SIGMA_3]);
-        auto id_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_1]);
-        auto id_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_2]);
-        auto id_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_3]);
-        auto z_perm = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM]);
-        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-        auto lagrange_first = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
-        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+        auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_l);
+        auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_r);
+        auto w_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_o);
+        auto sigma_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.sigma_1);
+        auto sigma_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.sigma_2);
+        auto sigma_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.sigma_3);
+        auto id_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.id_1);
+        auto id_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.id_2);
+        auto id_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.id_3);
+        auto z_perm = UnivariateView<FF, RELATION_LENGTH>(extended_edges.z_perm);
+        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges.z_perm_shift);
+        auto lagrange_first = UnivariateView<FF, RELATION_LENGTH>(extended_edges.lagrange_first);
+        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges.lagrange_last);
 
         // Contribution (1)
         evals += (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
@@ -69,19 +67,19 @@ template <typename FF> class GrandProductComputationRelation {
         const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
-        auto w_1 = purported_evaluations[MULTIVARIATE::W_L];
-        auto w_2 = purported_evaluations[MULTIVARIATE::W_R];
-        auto w_3 = purported_evaluations[MULTIVARIATE::W_O];
-        auto sigma_1 = purported_evaluations[MULTIVARIATE::SIGMA_1];
-        auto sigma_2 = purported_evaluations[MULTIVARIATE::SIGMA_2];
-        auto sigma_3 = purported_evaluations[MULTIVARIATE::SIGMA_3];
-        auto id_1 = purported_evaluations[MULTIVARIATE::ID_1];
-        auto id_2 = purported_evaluations[MULTIVARIATE::ID_2];
-        auto id_3 = purported_evaluations[MULTIVARIATE::ID_3];
-        auto z_perm = purported_evaluations[MULTIVARIATE::Z_PERM];
-        auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
-        auto lagrange_first = purported_evaluations[MULTIVARIATE::LAGRANGE_FIRST];
-        auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
+        auto w_1 = purported_evaluations.w_l;
+        auto w_2 = purported_evaluations.w_r;
+        auto w_3 = purported_evaluations.w_o;
+        auto sigma_1 = purported_evaluations.sigma_1;
+        auto sigma_2 = purported_evaluations.sigma_2;
+        auto sigma_3 = purported_evaluations.sigma_3;
+        auto id_1 = purported_evaluations.id_1;
+        auto id_2 = purported_evaluations.id_2;
+        auto id_3 = purported_evaluations.id_3;
+        auto z_perm = purported_evaluations.z_perm;
+        auto z_perm_shift = purported_evaluations.z_perm_shift;
+        auto lagrange_first = purported_evaluations.lagrange_first;
+        auto lagrange_last = purported_evaluations.lagrange_last;
 
         // Contribution (1)
         full_honk_relation_value +=
@@ -98,7 +96,6 @@ template <typename FF> class UltraGrandProductComputationRelation {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6;
-    using MULTIVARIATE = proof_system::honk::UltraArithmetization::POLYNOMIAL;
 
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
@@ -120,22 +117,22 @@ template <typename FF> class UltraGrandProductComputationRelation {
         const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
-        auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
-        auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_R]);
-        auto w_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_O]);
-        auto w_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_4]);
-        auto sigma_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::SIGMA_1]);
-        auto sigma_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::SIGMA_2]);
-        auto sigma_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::SIGMA_3]);
-        auto sigma_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::SIGMA_4]);
-        auto id_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_1]);
-        auto id_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_2]);
-        auto id_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_3]);
-        auto id_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_4]);
-        auto z_perm = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM]);
-        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-        auto lagrange_first = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
-        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+        auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_l);
+        auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_r);
+        auto w_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_o);
+        auto w_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_4);
+        auto sigma_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.sigma_1);
+        auto sigma_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.sigma_2);
+        auto sigma_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.sigma_3);
+        auto sigma_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.sigma_4);
+        auto id_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.id_1);
+        auto id_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.id_2);
+        auto id_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.id_3);
+        auto id_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.id_4);
+        auto z_perm = UnivariateView<FF, RELATION_LENGTH>(extended_edges.z_perm);
+        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges.z_perm_shift);
+        auto lagrange_first = UnivariateView<FF, RELATION_LENGTH>(extended_edges.lagrange_first);
+        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges.lagrange_last);
 
         // Contribution (1)
         evals += (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
@@ -153,22 +150,22 @@ template <typename FF> class UltraGrandProductComputationRelation {
         const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
-        auto w_1 = purported_evaluations[MULTIVARIATE::W_L];
-        auto w_2 = purported_evaluations[MULTIVARIATE::W_R];
-        auto w_3 = purported_evaluations[MULTIVARIATE::W_O];
-        auto w_4 = purported_evaluations[MULTIVARIATE::W_4];
-        auto sigma_1 = purported_evaluations[MULTIVARIATE::SIGMA_1];
-        auto sigma_2 = purported_evaluations[MULTIVARIATE::SIGMA_2];
-        auto sigma_3 = purported_evaluations[MULTIVARIATE::SIGMA_3];
-        auto sigma_4 = purported_evaluations[MULTIVARIATE::SIGMA_4];
-        auto id_1 = purported_evaluations[MULTIVARIATE::ID_1];
-        auto id_2 = purported_evaluations[MULTIVARIATE::ID_2];
-        auto id_3 = purported_evaluations[MULTIVARIATE::ID_3];
-        auto id_4 = purported_evaluations[MULTIVARIATE::ID_4];
-        auto z_perm = purported_evaluations[MULTIVARIATE::Z_PERM];
-        auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
-        auto lagrange_first = purported_evaluations[MULTIVARIATE::LAGRANGE_FIRST];
-        auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
+        auto w_1 = purported_evaluations.w_l;
+        auto w_2 = purported_evaluations.w_r;
+        auto w_3 = purported_evaluations.w_o;
+        auto w_4 = purported_evaluations.w_4;
+        auto sigma_1 = purported_evaluations.sigma_1;
+        auto sigma_2 = purported_evaluations.sigma_2;
+        auto sigma_3 = purported_evaluations.sigma_3;
+        auto sigma_4 = purported_evaluations.sigma_4;
+        auto id_1 = purported_evaluations.id_1;
+        auto id_2 = purported_evaluations.id_2;
+        auto id_3 = purported_evaluations.id_3;
+        auto id_4 = purported_evaluations.id_4;
+        auto z_perm = purported_evaluations.z_perm;
+        auto z_perm_shift = purported_evaluations.z_perm_shift;
+        auto lagrange_first = purported_evaluations.lagrange_first;
+        auto lagrange_last = purported_evaluations.lagrange_last;
 
         // Contribution (1)
         full_honk_relation_value +=

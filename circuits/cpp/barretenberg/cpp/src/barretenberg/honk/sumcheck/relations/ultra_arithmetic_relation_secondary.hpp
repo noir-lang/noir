@@ -2,7 +2,6 @@
 #include <array>
 #include <tuple>
 
-#include "barretenberg/honk/flavor/flavor.hpp"
 #include "../polynomials/univariate.hpp"
 #include "relation.hpp"
 
@@ -13,7 +12,6 @@ template <typename FF> class UltraArithmeticRelationSecondary {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 5; // degree(q_arith^3 * w_l) = 4
-    using MULTIVARIATE = UltraArithmetization::POLYNOMIAL;
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.
@@ -34,11 +32,11 @@ template <typename FF> class UltraArithmeticRelationSecondary {
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
 
-        auto w_l = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
-        auto w_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_4]);
-        auto w_l_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_1_SHIFT]);
-        auto q_m = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_M]);
-        auto q_arith = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::QARITH]);
+        auto w_l = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_l);
+        auto w_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_4);
+        auto w_l_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_l_shift);
+        auto q_m = UnivariateView<FF, RELATION_LENGTH>(extended_edges.q_m);
+        auto q_arith = UnivariateView<FF, RELATION_LENGTH>(extended_edges.q_arith);
 
         auto tmp = w_l + w_4 - w_l_shift + q_m;
         tmp *= (q_arith - 2);
@@ -52,11 +50,11 @@ template <typename FF> class UltraArithmeticRelationSecondary {
                                               const auto& purported_evaluations,
                                               const RelationParameters<FF>&) const
     {
-        auto w_l = purported_evaluations[MULTIVARIATE::W_L];
-        auto w_4 = purported_evaluations[MULTIVARIATE::W_4];
-        auto w_l_shift = purported_evaluations[MULTIVARIATE::W_1_SHIFT];
-        auto q_m = purported_evaluations[MULTIVARIATE::Q_M];
-        auto q_arith = purported_evaluations[MULTIVARIATE::QARITH];
+        auto w_l = purported_evaluations.w_l;
+        auto w_4 = purported_evaluations.w_4;
+        auto w_l_shift = purported_evaluations.w_l_shift;
+        auto q_m = purported_evaluations.q_m;
+        auto q_arith = purported_evaluations.q_arith;
 
         auto tmp = w_l + w_4 - w_l_shift + q_m;
         tmp *= (q_arith - 2);
