@@ -1,11 +1,3 @@
-# This config consists of currently 3 workflows.
-# - system: The main Aztec infrastructure, services, frontends etc.
-# - metrics: The metrics grafana and prometheus instances, and some prometheus data sources.
-# - website: The company website.
-#
-# The default workflow is system. To trigger the other workflows, trigger a workflow from CCI
-# setting a string variable called `workflow` to another name.
-#
 # This file uses YAML anchors and aliases to prevent repetition of blocks of config:
 # https://support.atlassian.com/bitbucket-cloud/docs/yaml-anchors/
 #
@@ -23,6 +15,14 @@
 # There are some `join` steps that are just noops. They are just used to produce cleaner graph rendering in CCI.
 
 version: 2.1
+
+orbs:
+  slack: circleci/slack@4.12.1
+
+parameters:
+  workflow:
+    type: string
+    default: "system"
 
 # This build step checks out the code from the repository. It has a hardcoded readonly key to allow the checkout.
 # Initially it just fetches the repo metadata for the current commit hash to a depth of 50 commits.
@@ -42,13 +42,17 @@ checkout: &checkout
 
       chmod 0600 .ssh/id_rsa
 
+      # IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: build-system/remote_build/remote_build
       # Shallow checkout this commit.
       mkdir -p project
       cd project
       git init
       git remote add origin $CIRCLE_REPOSITORY_URL
+      # Only download metadata when fetching.
       git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
       git checkout FETCH_HEAD
+      # Initialize submodules recursively
+      git submodule update --init --recursive
 
 # This build step checks out the code from the benchmark-archive repository. The key is saved in CircleCi environment in base64 format.
 # Initially it just fetches the latest version.
@@ -82,8 +86,7 @@ benchmark_add_keys: &benchmark_add_keys
 setup_env: &setup_env
   run:
     name: "Setup environment"
-    command: |
-      cd .circleci && ./setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
+    command: ./build-system/scripts/setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
 
 setup_aztec_commit: &setup_aztec_commit
   run:
@@ -278,7 +281,7 @@ jobs:
       - *setup_aztec_commit
       - run:
           name: "Build"
-          command: cond_spot_run_test_script barretenberg-circuits-wasm-linux-clang-builder-runner ./scripts/run_aztec_circuits_tests "$AZTEC_COMMIT" 1 wasm scripts/a3-tests -*.skip*:*.circuit*
+          command: cond_spot_run_test_script ./scripts/run_aztec_circuits_tests barretenberg-circuits-wasm-linux-clang-builder-runner "$AZTEC_COMMIT" 1 wasm scripts/a3-tests -*.skip*:*.circuit*
 
   circuits-x86_64-tests:
     docker:
@@ -290,22 +293,35 @@ jobs:
       - *setup_aztec_commit
       - run:
           name: "Build"
-          command: cond_spot_run_test_script barretenberg-circuits-x86_64-linux-clang-builder-runner ./scripts/run_aztec_circuits_tests "$AZTEC_COMMIT" 1 x86_64 scripts/a3-tests -*.skip*
+          command: cond_spot_run_test_script ./scripts/run_aztec_circuits_tests barretenberg-circuits-x86_64-linux-clang-builder-runner "$AZTEC_COMMIT" 1 x86_64 scripts/a3-tests -*.skip*
   # End Aztec integration tests
   ###################################
 
 # Repeatable config for defining the workflow below.
+tag_regex: &tag_regex /v[0-9]+(\.[0-9]+)*(-[a-zA-Z-]+\.[0-9]+)?/
+defaults: &defaults
+  filters:
+    tags:
+      only: *tag_regex
+  context:
+    - slack
+  post-steps:
+    - slack/notify:
+        event: fail
+        branch_pattern: "master"
+
 bb_test: &bb_test
   requires:
     - x86_64-linux-clang-assert
+  <<: *defaults
 
 workflows:
   system:
     jobs:
-      - x86_64-linux-gcc
-      - x86_64-linux-clang
-      - x86_64-linux-clang-assert
-      - wasm-linux-clang
+      - x86_64-linux-gcc: *defaults
+      - x86_64-linux-clang: *defaults
+      - x86_64-linux-clang-assert: *defaults
+      - wasm-linux-clang: *defaults
       - honk-tests: *bb_test
       - barretenberg-tests: *bb_test
       - stdlib-primitives-tests: *bb_test
@@ -325,11 +341,14 @@ workflows:
             branches:
               only:
                 - master
-      - circuits-wasm-linux-clang-builder-runner
-      - circuits-x86_64-linux-clang-builder-runner
+          <<: *defaults
+      - circuits-wasm-linux-clang-builder-runner: *defaults
+      - circuits-x86_64-linux-clang-builder-runner: *defaults
       - circuits-wasm-tests:
           requires:
             - circuits-wasm-linux-clang-builder-runner
+          <<: *defaults
       - circuits-x86_64-tests:
           requires:
             - circuits-x86_64-linux-clang-builder-runner
+          <<: *defaults

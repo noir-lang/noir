@@ -10,3 +10,6 @@
 [submodule "sol/lib/openzeppelin-contracts"]
 	path = sol/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "build-system"]
+	path = build-system
+	url = git@github.com:AztecProtocol/build-system.git
