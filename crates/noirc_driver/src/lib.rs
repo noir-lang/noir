@@ -43,11 +43,15 @@ pub struct CompileOptions {
     /// Display output of `println` statements
     #[arg(long)]
     pub show_output: bool,
+
+    /// Compile and optimize using the new experimental SSA pass
+    #[arg(long)]
+    pub experimental_ssa: bool,
 }
 
 impl Default for CompileOptions {
     fn default() -> Self {
-        Self { show_ssa: false, allow_warnings: false, show_output: true }
+        Self { show_ssa: false, allow_warnings: false, show_output: true, experimental_ssa: false }
     }
 }
 
@@ -260,6 +264,7 @@ impl Driver {
             is_opcode_supported,
             options.show_ssa,
             options.show_output,
+            options.experimental_ssa,
         ) {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
