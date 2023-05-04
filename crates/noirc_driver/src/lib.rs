@@ -10,7 +10,7 @@ use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -43,11 +43,15 @@ pub struct CompileOptions {
     /// Display output of `println` statements
     #[arg(long)]
     pub show_output: bool,
+
+    /// Compile and optimize using the new experimental SSA pass
+    #[arg(long)]
+    pub experimental_ssa: bool,
 }
 
 impl Default for CompileOptions {
     fn default() -> Self {
-        Self { show_ssa: false, allow_warnings: false, show_output: true }
+        Self { show_ssa: false, allow_warnings: false, show_output: true, experimental_ssa: false }
     }
 }
 
@@ -254,13 +258,25 @@ impl Driver {
         let np_language = self.language.clone();
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
-        match create_circuit(
-            program,
-            np_language,
-            is_opcode_supported,
-            options.show_ssa,
-            options.show_output,
-        ) {
+        let circuit_abi = if options.experimental_ssa {
+            experimental_create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        } else {
+            create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        };
+
+        match circuit_abi {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
