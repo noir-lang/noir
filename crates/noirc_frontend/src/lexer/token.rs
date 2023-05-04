@@ -189,7 +189,7 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Ord, PartialOrd)]
 /// The different kinds of tokens that are possible in the target language
 pub enum TokenKind {
     Token(Token),

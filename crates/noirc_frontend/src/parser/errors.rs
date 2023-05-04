@@ -1,16 +1,19 @@
-use std::collections::BTreeSet;
-
 use crate::lexer::token::Token;
 use crate::BinaryOp;
+use late_alloc_set::LateAllocSet;
 
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 
+use super::labels::ParserLabel;
+
+mod late_alloc_set;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserError {
-    expected_tokens: BTreeSet<Token>,
-    expected_labels: BTreeSet<String>,
+    expected_tokens: LateAllocSet<Token>,
+    expected_labels: LateAllocSet<ParserLabel>,
     found: Token,
     reason: Option<String>,
     span: Span,
@@ -19,23 +22,17 @@ pub struct ParserError {
 impl ParserError {
     pub fn empty(found: Token, span: Span) -> ParserError {
         ParserError {
-            expected_tokens: BTreeSet::new(),
-            expected_labels: BTreeSet::new(),
+            expected_tokens: LateAllocSet::None,
+            expected_labels: LateAllocSet::None,
             found,
             reason: None,
             span,
         }
     }
 
-    pub fn expected(token: Token, found: Token, span: Span) -> ParserError {
+    pub fn expected_label(label: ParserLabel, found: Token, span: Span) -> ParserError {
         let mut error = ParserError::empty(found, span);
-        error.expected_tokens.insert(token);
-        error
-    }
-
-    pub fn expected_label(label: String, found: Token, span: Span) -> ParserError {
-        let mut error = ParserError::empty(found, span);
-        error.expected_labels.insert(label);
+        error.expected_labels = error.expected_labels.insert(label);
         error
     }
 
@@ -58,8 +55,8 @@ impl ParserError {
 
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
-        expected.append(&mut vecmap(&self.expected_labels, Clone::clone));
+        let mut expected = vecmap(self.expected_tokens.as_vec(), ToString::to_string);
+        expected.append(&mut vecmap(self.expected_labels.as_vec(), |ref_str| format!("{ref_str}")));
 
         if expected.is_empty() {
             write!(f, "Unexpected {} in input", self.found)
@@ -95,7 +92,7 @@ impl From<ParserError> for Diagnostic {
 
 impl chumsky::Error<Token> for ParserError {
     type Span = Span;
-    type Label = String;
+    type Label = ParserLabel;
 
     fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
     where
@@ -103,7 +100,7 @@ impl chumsky::Error<Token> for ParserError {
     {
         ParserError {
             expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
-            expected_labels: BTreeSet::new(),
+            expected_labels: LateAllocSet::None,
             found: found.unwrap_or(Token::EOF),
             reason: None,
             span,
@@ -111,9 +108,9 @@ impl chumsky::Error<Token> for ParserError {
     }
 
     fn with_label(mut self, label: Self::Label) -> Self {
-        self.expected_tokens.clear();
-        self.expected_labels.clear();
-        self.expected_labels.insert(label);
+        self.expected_tokens = LateAllocSet::None;
+        self.expected_labels = LateAllocSet::None;
+        self.expected_labels = self.expected_labels.insert(label);
         self
     }
 
@@ -122,9 +119,9 @@ impl chumsky::Error<Token> for ParserError {
     // that reason and discard the other if present.
     // The spans of both errors must match, otherwise the error
     // messages and error spans may not line up.
-    fn merge(mut self, mut other: Self) -> Self {
-        self.expected_tokens.append(&mut other.expected_tokens);
-        self.expected_labels.append(&mut other.expected_labels);
+    fn merge(mut self, other: Self) -> Self {
+        self.expected_tokens = self.expected_tokens.append(other.expected_tokens);
+        self.expected_labels = self.expected_labels.append(other.expected_labels);
 
         if self.reason.is_none() {
             self.reason = other.reason;
