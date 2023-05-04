@@ -1,6 +1,6 @@
-# Aztec 3 Monorepo
+# Aztec Monorepo
 
-All the packages that make up [Aztec 3](https://docs.aztec.network/aztec3/overview).
+All the packages that make up [Aztec](https://docs.aztec.network/what-is-aztec).
 
 - [**`circuits`**](/circuits): C++ code for circuits and cryptographic functions
 - [**`l1-contracts`**](/l1-contracts): Solidity code for the Ethereum contracts that process rollups
@@ -8,7 +8,7 @@ All the packages that make up [Aztec 3](https://docs.aztec.network/aztec3/overvi
 
 ## Issues Board
 
-All issues being worked on are tracked on the [A3 Github Project](https://github.com/orgs/AztecProtocol/projects/22). For a higher-level roadmap, check the [milestones overview](https://docs.aztec.network/aztec3/milestones) section of our docs.
+All issues being worked on are tracked on the [Aztec Github Project](https://github.com/orgs/AztecProtocol/projects/22). For a higher-level roadmap, check the [milestones overview](https://docs.aztec.network/aztec/milestones) section of our docs.
 
 ## Development Setup
 
@@ -28,4 +28,4 @@ Logging goes through the [`info` and `debug`](circuits/cpp/barretenberg/cpp/src/
 
 ## Contributing
 
-To contribute, make sure to pick an existing issue and assign yourself to it, or notify that you'll be working on it. If you're new to the repository, look for those tagged as [`good-first-issue`](https://github.com/AztecProtocol/aztec3-packages/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). Then send a pull request with your contribution, linking back to the issue it fixes.
+To contribute, make sure to pick an existing issue and assign yourself to it, or notify that you'll be working on it. If you're new to the repository, look for those tagged as [`good-first-issue`](https://github.com/AztecProtocol/aztec-packages/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). Then send a pull request with your contribution, linking back to the issue it fixes.
