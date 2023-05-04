@@ -143,10 +143,7 @@ class root_rollup_tests : public ::testing::Test {
 
 TEST_F(root_rollup_tests, native_check_block_hashes_empty_blocks)
 {
-    MemoryTree const data_tree = MemoryTree(PRIVATE_DATA_TREE_HEIGHT);
-
-    // calculate calldata hash
-    std::vector<uint8_t> const zero_bytes_vec(704, 0);
+    std::vector<uint8_t> const zero_bytes_vec = test_utils::utils::get_empty_calldata_leaf();
     auto call_data_hash_inner = sha256::sha256(zero_bytes_vec);
 
     std::array<uint8_t, 64> hash_input;
@@ -183,7 +180,8 @@ TEST_F(root_rollup_tests, native_check_block_hashes_empty_blocks)
     EXPECT_FALSE(composer.failed());
 
     // Expected hash of public inputs for an empty L2 block. Also used in the contract tests.
-    fr const expected_hash = uint256_t("11840efc30e9fcbdd0aae30da2a5b441132420b4f0cc4ffd6bdc41888845f775");
+    // Computed using l2-block-publisher.test.ts
+    fr const expected_hash = uint256_t("23f698e487c4e1b7383889f8864bc19591773d136c364c01d980bd13d0786ba1");
     ASSERT_EQ(outputs.hash(), expected_hash);
 
     run_cbind(inputs, outputs, true);

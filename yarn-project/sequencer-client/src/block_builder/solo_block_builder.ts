@@ -19,7 +19,6 @@ import {
   RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
-  UInt8Vector,
   VK_TREE_HEIGHT,
   VerificationKey,
 } from '@aztec/circuits.js';
@@ -83,7 +82,7 @@ const EMPTY_LOW_NULLIFIER_WITNESS: LowNullifierWitnessData = {
  * Builds an L2 block out of a set of ProcessedTx's,
  * using the base, merge, and root rollup circuits.
  */
-export class CircuitBlockBuilder implements BlockBuilder {
+export class SoloBlockBuilder implements BlockBuilder {
   constructor(
     protected db: MerkleTreeOperations,
     protected vks: VerificationKeys,
@@ -103,7 +102,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     blockNumber: number,
     txs: ProcessedTx[],
     newL1ToL2Messages: Fr[],
-  ): Promise<[L2Block, UInt8Vector]> {
+  ): Promise<[L2Block, Proof]> {
     const [
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -180,6 +179,14 @@ export class CircuitBlockBuilder implements BlockBuilder {
       newPublicDataWrites,
       newL1ToL2Messages,
     });
+
+    if (!l2Block.getCalldataHash().equals(circuitsOutput.sha256CalldataHash())) {
+      throw new Error(
+        `Calldata hash mismatch, ${l2Block.getCalldataHash().toString('hex')} == ${circuitsOutput
+          .sha256CalldataHash()
+          .toString('hex')} `,
+      );
+    }
 
     return [l2Block, proof];
   }

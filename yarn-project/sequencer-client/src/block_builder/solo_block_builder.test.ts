@@ -20,7 +20,7 @@ import {
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { PublicDataWrite, Tx } from '@aztec/types';
+import { ContractData, L2Block, PublicDataWrite, Tx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
@@ -39,12 +39,12 @@ import {
 import { getCombinedHistoricTreeRoots } from '../sequencer/utils.js';
 import { RollupSimulator } from '../simulator/index.js';
 import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
-import { CircuitBlockBuilder } from './circuit_block_builder.js';
+import { SoloBlockBuilder } from './solo_block_builder.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
-describe('sequencer/circuit_block_builder', () => {
-  let builder: CircuitBlockBuilder;
+describe('sequencer/solo_block_builder', () => {
+  let builder: SoloBlockBuilder;
   let builderDb: MerkleTreeOperations;
   let expectsDb: MerkleTreeOperations;
   let vks: VerificationKeys;
@@ -73,12 +73,12 @@ describe('sequencer/circuit_block_builder', () => {
     vks = getVerificationKeys();
     simulator = mock<RollupSimulator>();
     prover = mock<RollupProver>();
-    builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
+    builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
 
     // Create mock l1 to L2 messages
     mockL1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
 
-    // Create mock outputs for simualator
+    // Create mock outputs for simulator
     baseRollupOutputLeft = makeBaseRollupPublicInputs();
     baseRollupOutputRight = makeBaseRollupPublicInputs();
     rootRollupOutput = makeRootRollupPublicInputs();
@@ -163,14 +163,60 @@ describe('sequencer/circuit_block_builder', () => {
       MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
     );
 
-    return [...txsLeft, ...txsRight];
+    const txs = [...txsLeft, ...txsRight];
+
+    const newNullifiers = flatMap(txs, tx => tx.data.end.newNullifiers);
+    const newCommitments = flatMap(txs, tx => tx.data.end.newCommitments);
+    const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd => computeContractLeaf(wasm, cd));
+    const newContractData = flatMap(txs, tx => tx.data.end.newContracts).map(
+      n => new ContractData(n.contractAddress, n.portalContractAddress),
+    );
+    const newPublicDataWrites = flatMap(txs, tx =>
+      tx.data.end.stateTransitions.map(t => new PublicDataWrite(t.leafIndex, t.newValue)),
+    );
+
+    const l2Block = L2Block.fromFields({
+      number: blockNumber,
+      startPrivateDataTreeSnapshot: rootRollupOutput.startPrivateDataTreeSnapshot,
+      endPrivateDataTreeSnapshot: rootRollupOutput.endPrivateDataTreeSnapshot,
+      startNullifierTreeSnapshot: rootRollupOutput.startNullifierTreeSnapshot,
+      endNullifierTreeSnapshot: rootRollupOutput.endNullifierTreeSnapshot,
+      startContractTreeSnapshot: rootRollupOutput.startContractTreeSnapshot,
+      endContractTreeSnapshot: rootRollupOutput.endContractTreeSnapshot,
+      startPublicDataTreeRoot: rootRollupOutput.startPublicDataTreeRoot,
+      endPublicDataTreeRoot: rootRollupOutput.endPublicDataTreeRoot,
+      startTreeOfHistoricPrivateDataTreeRootsSnapshot: rootRollupOutput.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      endTreeOfHistoricPrivateDataTreeRootsSnapshot: rootRollupOutput.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      startTreeOfHistoricContractTreeRootsSnapshot: rootRollupOutput.startTreeOfHistoricContractTreeRootsSnapshot,
+      endTreeOfHistoricContractTreeRootsSnapshot: rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot,
+      startL1ToL2MessageTreeSnapshot: rootRollupOutput.startL1ToL2MessageTreeSnapshot,
+      endL1ToL2MessageTreeSnapshot: rootRollupOutput.endL1ToL2MessageTreeSnapshot,
+      startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot:
+        rootRollupOutput.startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
+      endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: rootRollupOutput.endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
+      newCommitments,
+      newNullifiers,
+      newContracts,
+      newContractData,
+      newPublicDataWrites,
+      newL1ToL2Messages: mockL1ToL2Messages,
+    });
+
+    const callDataHash = l2Block.getCalldataHash();
+    const high = Fr.fromBuffer(callDataHash.slice(0, 16));
+    const low = Fr.fromBuffer(callDataHash.slice(16, 32));
+
+    rootRollupOutput.calldataHash = [high, low];
+
+    return txs;
   };
 
   describe('mock simulator', () => {
     beforeEach(() => {
       // Create instance to test
-      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
+      builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
     });
+
     it('builds an L2 block using mock simulator', async () => {
       // Assemble a fake transaction
       const txs = await buildMockSimulatorInputs();
@@ -212,7 +258,7 @@ describe('sequencer/circuit_block_builder', () => {
     beforeEach(async () => {
       const simulator = await WasmRollupCircuitSimulator.new();
       const prover = new EmptyRollupProver();
-      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
+      builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
     });
 
     const makeContractDeployProcessedTx = async (seed = 0x1) => {
@@ -275,13 +321,13 @@ describe('sequencer/circuit_block_builder', () => {
       expect(l2Block.number).toEqual(blockNumber);
       expect(l2Block.newPublicDataWrites[0]).toEqual(new PublicDataWrite(fr(2), fr(12)));
       await updateExpectedTreesFromTxs(txs);
-    });
+    }, 10_000);
 
     // This test specifically tests nullifier values which previously caused e2e_zk_token test to fail
     it('e2e_zk_token edge case regression test on nullifier values', async () => {
       const simulator = await WasmRollupCircuitSimulator.new();
       const prover = new EmptyRollupProver();
-      builder = new CircuitBlockBuilder(builderDb, vks, simulator, prover);
+      builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
       // update the starting tree
       const updateVals = Array(16).fill(0n);
       updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
@@ -303,6 +349,7 @@ describe('sequencer/circuit_block_builder', () => {
       const txs = [tx, await makeEmptyProcessedTx(), await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
 
       const [l2Block] = await builder.buildL2Block(blockNumber, txs, mockL1ToL2Messages);
+
       expect(l2Block.number).toEqual(blockNumber);
     }, 10000);
   });

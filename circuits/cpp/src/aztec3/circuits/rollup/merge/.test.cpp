@@ -218,7 +218,7 @@ TEST_F(merge_rollup_tests, native_start_and_end_snapshots)
 TEST_F(merge_rollup_tests, native_calldata_hash)
 {
     DummyComposer composer = DummyComposer();
-    std::vector<uint8_t> const zero_bytes_vec(704, 0);
+    std::vector<uint8_t> const zero_bytes_vec = test_utils::utils::get_empty_calldata_leaf();
     auto call_data_hash_inner = sha256::sha256(zero_bytes_vec);
 
     std::array<uint8_t, 64> hash_input;

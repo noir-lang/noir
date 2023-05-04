@@ -77,20 +77,11 @@ std::vector<NT::fr> calculate_contract_leaves(BaseRollupInputs const& baseRollup
 
         // loop over the new contracts
         // TODO: NOTE: we are currently assuming that there is only going to be one
-        for (auto& new_contact : new_contacts) {
-            NT::address contract_address = new_contact.contract_address;
-            NT::address portal_contract_address = new_contact.portal_contract_address;
-            NT::fr const function_tree_root = new_contact.function_tree_root;
-
-            // Pedersen hash of the 3 fields (contract_address, portal_contract_address, function_tree_root)
-            auto contract_leaf = crypto::pedersen_commitment::compress_native(
-                { contract_address, portal_contract_address, function_tree_root }, GeneratorIndex::CONTRACT_LEAF);
-
+        for (auto& leaf_preimage : new_contacts) {
             // When there is no contract deployment, we should insert a zero leaf into the tree and ignore the
             // member-ship check. This is to ensure that we don't hit "already deployed" errors when we are not
             // deploying contracts. e.g., when we are only calling functions on existing contracts.
-            auto to_push = contract_address == NT::address(0) ? NT::fr(0) : contract_leaf;
-
+            auto to_push = leaf_preimage.contract_address == NT::address(0) ? NT::fr(0) : leaf_preimage.hash();
             contract_leaves.push_back(to_push);
         }
     }
@@ -139,34 +130,49 @@ std::array<NT::fr, 2> calculate_calldata_hash(BaseRollupInputs const& baseRollup
                                               std::vector<NT::fr> const& contract_leaves)
 {
     // Compute calldata hashes
-    // 22 = (4 + 4 + 1 + 2) * 2 (2 kernels, 4 nullifiers per kernel, 4 commitments per kernel, 1 contract
-    // deployments, 2 contracts data fields (size 2 for each) )
-    std::array<NT::fr, 22> calldata_hash_inputs;
+    // Consist of 2 kernels
+    // 8 commitments (4 per kernel) -> 8 fields
+    // 8 nullifiers (4 per kernel) -> 8 fields
+    // 8 public state transitions (4 per kernel) -> 16 fields
+    // 2 contract deployments (1 per kernel) -> 6 fields
+    auto const number_of_inputs = (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH +
+                                   STATE_TRANSITIONS_LENGTH * 2 + KERNEL_NEW_CONTRACTS_LENGTH * 3) *
+                                  2;
+    std::array<NT::fr, number_of_inputs> calldata_hash_inputs;
 
     for (size_t i = 0; i < 2; i++) {
-        // Nullifiers
-        auto new_nullifiers = baseRollupInputs.kernel_data[i].public_inputs.end.new_nullifiers;
         auto new_commitments = baseRollupInputs.kernel_data[i].public_inputs.end.new_commitments;
-        for (size_t j = 0; j < KERNEL_NEW_COMMITMENTS_LENGTH; j++) {
-            calldata_hash_inputs[i * KERNEL_NEW_COMMITMENTS_LENGTH + j] = new_nullifiers[j];
-            calldata_hash_inputs[(KERNEL_NEW_NULLIFIERS_LENGTH * 2) + i * KERNEL_NEW_NULLIFIERS_LENGTH + j] =
-                new_commitments[j];
-        }
+        auto new_nullifiers = baseRollupInputs.kernel_data[i].public_inputs.end.new_nullifiers;
+        auto state_transitions = baseRollupInputs.kernel_data[i].public_inputs.end.state_transitions;
 
-        // yuck - TODO: is contract_leaves fixed size?
-        calldata_hash_inputs[16 + i] = contract_leaves[i];
+        size_t offset = 0;
+
+        for (size_t j = 0; j < KERNEL_NEW_COMMITMENTS_LENGTH; j++) {
+            calldata_hash_inputs[offset + i * KERNEL_NEW_COMMITMENTS_LENGTH + j] = new_commitments[j];
+        }
+        offset += KERNEL_NEW_COMMITMENTS_LENGTH * 2;
+
+        for (size_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
+            calldata_hash_inputs[offset + i * KERNEL_NEW_NULLIFIERS_LENGTH + j] = new_nullifiers[j];
+        }
+        offset += KERNEL_NEW_NULLIFIERS_LENGTH * 2;
+
+        for (size_t j = 0; j < STATE_TRANSITIONS_LENGTH; j++) {
+            calldata_hash_inputs[offset + i * STATE_TRANSITIONS_LENGTH * 2 + j * 2] = state_transitions[j].leaf_index;
+            calldata_hash_inputs[offset + i * STATE_TRANSITIONS_LENGTH * 2 + j * 2 + 1] =
+                state_transitions[j].new_value;
+        }
+        offset += STATE_TRANSITIONS_LENGTH * 2 * 2;
+
+        calldata_hash_inputs[offset + i] = contract_leaves[i];
+        offset += KERNEL_NEW_CONTRACTS_LENGTH * 2;
 
         auto new_contracts = baseRollupInputs.kernel_data[i].public_inputs.end.new_contracts;
-
-        // TODO: this assumes that there is only one contract deployment
-        calldata_hash_inputs[18 + i] = new_contracts[0].contract_address;
-        calldata_hash_inputs[20 + i] = new_contracts[0].portal_contract_address;
+        calldata_hash_inputs[offset + i * 2] = new_contracts[0].contract_address;
+        calldata_hash_inputs[offset + i * 2 + 1] = new_contracts[0].portal_contract_address;
     }
 
-    // FIXME
-    // Calculate sha256 hash of calldata; TODO: work out typing here
-    // 22 * 32 = 22 fields, each 32 bytes
-    constexpr auto num_bytes = 22 * 32;
+    constexpr auto num_bytes = calldata_hash_inputs.size() * 32;
     std::array<uint8_t, num_bytes> calldata_hash_inputs_bytes;
     // Convert all into a buffer, then copy into the array, then hash
     for (size_t i = 0; i < calldata_hash_inputs.size(); i++) {
@@ -175,7 +181,7 @@ std::array<NT::fr, 2> calculate_calldata_hash(BaseRollupInputs const& baseRollup
         auto offset = i * 32;
         std::copy(as_bytes.begin(), as_bytes.end(), calldata_hash_inputs_bytes.begin() + offset);
     }
-    // TODO: double check this gpt code
+
     std::vector<uint8_t> const calldata_hash_inputs_bytes_vec(calldata_hash_inputs_bytes.begin(),
                                                               calldata_hash_inputs_bytes.end());
 
