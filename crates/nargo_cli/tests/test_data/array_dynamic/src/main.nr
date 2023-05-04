@@ -6,15 +6,15 @@ fn main(x: [u32; 5], mut z: u32, t: u32) {
 }
 
 fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
-    constrain x[y] == 111;
-    constrain x[z] == 101;
+    assert(x[y] == 111);
+    assert(x[z] == 101);
     x[z] = 0;
-    constrain x[y] == 111;
-    constrain x[1] == 0;
+    assert(x[y] == 111);
+    assert(x[1] == 0);
     if y as u32 < 10 {
       x[y] = x[y] - 2;
     } else {
       x[y] = 0;
     }
-    constrain x[4] == 109;
+    assert(x[4] == 109);
 }
