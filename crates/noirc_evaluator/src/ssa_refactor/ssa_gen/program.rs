@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::ssa_refactor::ir::function::Function;
 
+#[derive(Debug)]
 /// Contains the entire SSA representation of the program.
 pub struct Ssa {
     pub functions: Vec<Function>,
