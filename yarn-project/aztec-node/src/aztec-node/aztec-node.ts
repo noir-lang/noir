@@ -137,11 +137,11 @@ export class AztecNode {
    * Method to stop the aztec node.
    */
   public async stop() {
+    await this.sequencer.stop();
     await this.p2pClient.stop();
     await this.worldStateSynchroniser.stop();
-    await this.merkleTreeDB.stop();
-    await this.sequencer.stop();
     await this.blockSource.stop();
+    await this.merkleTreeDB.stop();
   }
 
   /**

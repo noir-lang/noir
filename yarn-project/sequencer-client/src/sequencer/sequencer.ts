@@ -136,6 +136,11 @@ export class Sequencer {
         await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxs));
       }
 
+      if (processedTxs.length === 0) {
+        this.log('No txs processed correctly to build block. Exiting');
+        return;
+      }
+
       // Get l1 to l2 messages from the contract
       this.log('Requesting L1 to L2 messages from contract');
       const l1ToL2Messages = this.takeL1ToL2MessagesFromContract();
