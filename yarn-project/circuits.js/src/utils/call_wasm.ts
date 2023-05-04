@@ -13,8 +13,8 @@ export async function callAsyncWasm<T>(
   // Allocate memory for the input buffer and the pointer to the pointer to the output buffer
   const inputBufPtr = wasm.call('bbmalloc', inputBuf.length);
   wasm.writeMemory(inputBufPtr, inputBuf);
-  if (method.indexOf('_rollup_') != -1) {
-    // TODO: Remove this once kernel circuits also return failures
+  if (!method.startsWith('private_kernel__')) {
+    // TODO: Remove this once private kernel circuits also return failures
     const outputBufSizePtr = wasm.call('bbmalloc', 4);
     const outputBufPtrPtr = wasm.call('bbmalloc', 4);
     // Run and read outputs

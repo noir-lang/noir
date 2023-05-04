@@ -945,11 +945,11 @@ public_call:
 call_stack_item:
 contract_address: 0x1001
 function_data: function_selector: 4098
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
 public_inputs: call_context: msg_sender: 0x1011
-storage_contract_address: 0x1012
+storage_contract_address: 0x1001
 portal_contract_address: 0x1313131313131313131313131313131313131313
 is_delegate_call: 0
 is_static_call: 0
@@ -980,7 +980,7 @@ current_value: 0x1514
  storage_slot: 0x1514
 current_value: 0x1515
  ]
-public_call_stack: [ 0x1611 0x1612 0x1613 0x1614 ]
+public_call_stack: [ 0x1f7ec2163f0e78b25257ca693b8606d5e6c940c36e2e77cd0aa1afbbf167e95a 0xbfa6e6e8892f68b806bca1fd20cf704dd5c449440b54ef2957a3d267342bda6 0x29618099103194faea4e2c1c2a77bbb165bfe89961c16369b797cfd38671a2ba 0x1403602a993517c978fd5ea6ea17c02280692bb4b84e38e1a92f8c6d1d7b858b ]
 new_l2_to_l1_msgs: [ 0x1711 0x1712 ]
 historic_public_data_tree_root: 0x1811
 prover_address: 0x1812
@@ -989,11 +989,11 @@ prover_address: 0x1812
 public_call_stack_preimages:
 [ contract_address: 0x1301
 function_data: function_selector: 1302
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x1311
-storage_contract_address: 0x1312
+public_inputs: call_context: msg_sender: 0x1001
+storage_contract_address: 0x1301
 portal_contract_address: 0x1313131313131313131313131313131313131313
 is_delegate_call: 0
 is_static_call: 0
@@ -1031,11 +1031,11 @@ prover_address: 0x1b12
 
  contract_address: 0x1302
 function_data: function_selector: 1303
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x1312
-storage_contract_address: 0x1313
+public_inputs: call_context: msg_sender: 0x1001
+storage_contract_address: 0x1302
 portal_contract_address: 0x1414141414141414141414141414141414141414
 is_delegate_call: 0
 is_static_call: 0
@@ -1073,11 +1073,11 @@ prover_address: 0x1b13
 
  contract_address: 0x1303
 function_data: function_selector: 1304
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x1313
-storage_contract_address: 0x1314
+public_inputs: call_context: msg_sender: 0x1001
+storage_contract_address: 0x1303
 portal_contract_address: 0x1515151515151515151515151515151515151515
 is_delegate_call: 0
 is_static_call: 0
@@ -1115,11 +1115,11 @@ prover_address: 0x1b14
 
  contract_address: 0x1304
 function_data: function_selector: 1305
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x1314
-storage_contract_address: 0x1315
+public_inputs: call_context: msg_sender: 0x1001
+storage_contract_address: 0x1304
 portal_contract_address: 0x1616161616161616161616161616161616161616
 is_delegate_call: 0
 is_static_call: 0
@@ -1192,11 +1192,11 @@ public_call:
 call_stack_item:
 contract_address: 0x101
 function_data: function_selector: 258
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
 public_inputs: call_context: msg_sender: 0x111
-storage_contract_address: 0x112
+storage_contract_address: 0x101
 portal_contract_address: 0x1313131313131313131313131313131313131313
 is_delegate_call: 0
 is_static_call: 0
@@ -1227,7 +1227,7 @@ current_value: 0x614
  storage_slot: 0x614
 current_value: 0x615
  ]
-public_call_stack: [ 0x711 0x712 0x713 0x714 ]
+public_call_stack: [ 0x2d514733a86bef4a33e2d599e01f3a73cbb7c17c316dfc5009838ce546587685 0x80562236b9b336749abfe2e71c4d2688ef96a2e2c09accce5e34fbb61c5416a 0x2569d412538dd4259fd18e60c166f3adbd0ab124dca7175a8448a7afdc1e7c40 0x1acab4b3623e71d9b08ecc27a170d06e38d1fca67ee03b3efe92365ebfb250f4 ]
 new_l2_to_l1_msgs: [ 0x811 0x812 ]
 historic_public_data_tree_root: 0x911
 prover_address: 0x912
@@ -1236,11 +1236,11 @@ prover_address: 0x912
 public_call_stack_preimages:
 [ contract_address: 0x401
 function_data: function_selector: 402
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x411
-storage_contract_address: 0x412
+public_inputs: call_context: msg_sender: 0x101
+storage_contract_address: 0x401
 portal_contract_address: 0x1313131313131313131313131313131313131313
 is_delegate_call: 0
 is_static_call: 0
@@ -1278,11 +1278,11 @@ prover_address: 0xc12
 
  contract_address: 0x402
 function_data: function_selector: 403
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x412
-storage_contract_address: 0x413
+public_inputs: call_context: msg_sender: 0x101
+storage_contract_address: 0x402
 portal_contract_address: 0x1414141414141414141414141414141414141414
 is_delegate_call: 0
 is_static_call: 0
@@ -1320,11 +1320,11 @@ prover_address: 0xc13
 
  contract_address: 0x403
 function_data: function_selector: 404
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x413
-storage_contract_address: 0x414
+public_inputs: call_context: msg_sender: 0x101
+storage_contract_address: 0x403
 portal_contract_address: 0x1515151515151515151515151515151515151515
 is_delegate_call: 0
 is_static_call: 0
@@ -1362,11 +1362,11 @@ prover_address: 0xc14
 
  contract_address: 0x404
 function_data: function_selector: 405
-is_private: 1
-is_constructor: 1
+is_private: 0
+is_constructor: 0
 
-public_inputs: call_context: msg_sender: 0x414
-storage_contract_address: 0x415
+public_inputs: call_context: msg_sender: 0x101
+storage_contract_address: 0x404
 portal_contract_address: 0x1616161616161616161616161616161616161616
 is_delegate_call: 0
 is_static_call: 0

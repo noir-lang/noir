@@ -7,6 +7,7 @@ import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
   CallContext,
+  CircuitsWasm,
   CombinedAccumulatedData,
   CombinedConstantData,
   CombinedHistoricTreeRoots,
@@ -76,6 +77,7 @@ import { SignedTxRequest, TxRequest } from '../structs/tx_request.js';
 import { CommitmentMap, G1AffineElement, VerificationKey } from '../structs/verification_key.js';
 import { range } from '../utils/jsUtils.js';
 import { numToUInt32BE } from '../utils/serialize.js';
+import { computeCallStackItemHash } from '../abis/abis.js';
 
 export function makeTxContext(seed: number): TxContext {
   const deploymentData = new ContractDeploymentData(fr(seed), fr(seed + 1), fr(seed + 2), makeEthAddress(seed + 3));
@@ -131,7 +133,7 @@ export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
     fr(seed + 13),
     range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr),
     range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr),
-    range(KERNEL_PRIVATE_CALL_STACK_LENGTH, seed + 0x300).map(fr),
+    new Array(KERNEL_PRIVATE_CALL_STACK_LENGTH).fill(Fr.ZERO), // private call stack must be empty
     range(KERNEL_PUBLIC_CALL_STACK_LENGTH, seed + 0x400).map(fr),
     range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x500).map(fr),
     range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
@@ -185,21 +187,17 @@ export function makeAggregationObject(seed = 1): AggregationObject {
   );
 }
 
-export function makeCallContext(seed = 0): CallContext {
-  return new CallContext(
-    makeAztecAddress(seed),
-    makeAztecAddress(seed + 1),
-    makeEthAddress(seed + 2),
-    false,
-    false,
-    false,
-  );
+export function makeCallContext(seed = 0, storageContractAddress = makeAztecAddress(seed + 1)): CallContext {
+  return new CallContext(makeAztecAddress(seed), storageContractAddress, makeEthAddress(seed + 2), false, false, false);
 }
 
-export function makePublicCircuitPublicInputs(seed = 0): PublicCircuitPublicInputs {
+export function makePublicCircuitPublicInputs(
+  seed = 0,
+  storageContractAddress?: AztecAddress,
+): PublicCircuitPublicInputs {
   const frArray = (num: number, seed: number) => range(num, seed).map(fr);
   return new PublicCircuitPublicInputs(
-    makeCallContext(seed),
+    makeCallContext(seed, storageContractAddress),
     frArray(ARGS_LENGTH, seed + 0x100),
     frArray(RETURN_VALUES_LENGTH, seed + 0x200),
     frArray(EMITTED_EVENTS_LENGTH, seed + 0x300),
@@ -264,46 +262,78 @@ export function makePrivateKernelInputs(seed = 1): PrivateKernelInputs {
 }
 
 export function makePublicCallStackItem(seed = 1): PublicCallStackItem {
-  return new PublicCallStackItem(
+  const callStackItem = new PublicCallStackItem(
     makeAztecAddress(seed),
-    new FunctionData(makeSelector(seed + 0x1), true, true),
+    // in the public kernel, function can't be a constructor or private
+    new FunctionData(makeSelector(seed + 0x1), false, false),
     makePublicCircuitPublicInputs(seed + 0x10),
   );
+  callStackItem.publicInputs.callContext.storageContractAddress = callStackItem.contractAddress;
+  return callStackItem;
 }
 
-export function makePublicCallData(seed = 1) {
-  return new PublicCallData(
+export async function makePublicCallData(seed = 1) {
+  const publicCallData = new PublicCallData(
     makePublicCallStackItem(seed),
     range(PUBLIC_CALL_STACK_LENGTH, seed + 0x300).map(makePublicCallStackItem),
     makeProof(seed + 0x1000),
     fr(seed + 1),
     fr(seed + 2),
   );
+  // publicCallStack should be a hash of the preimages:
+  const wasm = await CircuitsWasm.get();
+  publicCallData.callStackItem.publicInputs.publicCallStack = [];
+  publicCallData.publicCallStackPreimages.forEach(preimage => {
+    publicCallData.callStackItem.publicInputs.publicCallStack.push(computeCallStackItemHash(wasm!, preimage));
+  });
+
+  // one kernel circuit call can have several methods in call stack. But all of them should have the same msg.sender - set these correctly in the preimages!
+  for (let i = 0; i < publicCallData.publicCallStackPreimages.length; i++) {
+    const isDelegateCall = publicCallData.publicCallStackPreimages[i].publicInputs.callContext.isDelegateCall;
+    publicCallData.publicCallStackPreimages[i].publicInputs.callContext.msgSender = isDelegateCall
+      ? publicCallData.callStackItem.publicInputs.callContext.msgSender
+      : publicCallData.callStackItem.contractAddress;
+  }
+
+  // set the storage address for each call on the stack (handle delegatecall case)
+  for (let i = 0; i < publicCallData.publicCallStackPreimages.length; i++) {
+    const isDelegateCall = publicCallData.publicCallStackPreimages[i].publicInputs.callContext.isDelegateCall;
+    publicCallData.publicCallStackPreimages[i].publicInputs.callContext.storageContractAddress = isDelegateCall
+      ? publicCallData.callStackItem.publicInputs.callContext.storageContractAddress
+      : publicCallData.publicCallStackPreimages[i].contractAddress;
+  }
+
+  return publicCallData;
 }
 
-export function makeWitnessedPublicCallData(seed = 1): WitnessedPublicCallData {
+export async function makeWitnessedPublicCallData(seed = 1): Promise<WitnessedPublicCallData> {
   return new WitnessedPublicCallData(
-    makePublicCallData(seed),
+    await makePublicCallData(seed),
     range(STATE_TRANSITIONS_LENGTH, seed + 0x100).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
     range(STATE_READS_LENGTH, seed + 0x200).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
     fr(seed + 0x300),
   );
 }
 
-export function makePublicKernelInputs(seed = 1): PublicKernelInputs {
-  return new PublicKernelInputs(makePreviousKernelData(seed), makePublicCallData(seed + 0x1000));
+export async function makePublicKernelInputs(seed = 1): Promise<PublicKernelInputs> {
+  return new PublicKernelInputs(makePreviousKernelData(seed), await makePublicCallData(seed + 0x1000));
 }
 
-export function makePublicKernelInputsWithEmptyOutput(seed = 1): PublicKernelInputs {
+export async function makePublicKernelInputsWithEmptyOutput(seed = 1): Promise<PublicKernelInputs> {
   const kernelCircuitPublicInputs = makeEmptyKernelPublicInputs(seed);
-  return new PublicKernelInputs(
+  const publicKernelInputs = new PublicKernelInputs(
     makePreviousKernelData(seed, kernelCircuitPublicInputs),
-    makePublicCallData(seed + 0x1000),
+    await makePublicCallData(seed + 0x1000),
   );
+  //Set the call stack item for this circuit iteration at the top of the call stack
+  const wasm = await CircuitsWasm.get();
+  publicKernelInputs.previousKernel.publicInputs.end.publicCallStack[KERNEL_PUBLIC_CALL_STACK_LENGTH - 1] =
+    computeCallStackItemHash(wasm, publicKernelInputs.publicCallData.callStackItem);
+  return publicKernelInputs;
 }
 
-export function makePublicKernelInputsNoKernelInput(seed = 1) {
-  return new PublicKernelInputsNoPreviousKernel(makeSignedTxRequest(seed), makePublicCallData(seed + 0x100));
+export async function makePublicKernelInputsNoKernelInput(seed = 1) {
+  return new PublicKernelInputsNoPreviousKernel(makeSignedTxRequest(seed), await makePublicCallData(seed + 0x100));
 }
 
 export function makeSignedTxRequest(seed = 1): SignedTxRequest {

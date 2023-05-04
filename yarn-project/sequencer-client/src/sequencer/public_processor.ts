@@ -114,6 +114,13 @@ export class PublicProcessor {
     const callStackItem = new PublicCallStackItem(contractAddress, txRequest.functionData, publicCircuitOutput);
     const publicCallStackPreimages: PublicCallStackItem[] = times(PUBLIC_CALL_STACK_LENGTH, PublicCallStackItem.empty);
 
+    // set the msgSender for each call in the call stack
+    for (let i = 0; i < publicCallStackPreimages.length; i++) {
+      const isDelegateCall = publicCallStackPreimages[i].publicInputs.callContext.isDelegateCall;
+      publicCallStackPreimages[i].publicInputs.callContext.msgSender = isDelegateCall
+        ? callStackItem.publicInputs.callContext.msgSender
+        : callStackItem.contractAddress;
+    }
     // TODO: Determine how to calculate bytecode hash
     // See https://github.com/AztecProtocol/aztec3-packages/issues/378
     const bytecodeHash = Fr.fromBuffer(pedersenGetHash(await CircuitsWasm.get(), functionBytecode));

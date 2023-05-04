@@ -51,7 +51,7 @@ describe('structs/kernel', () => {
   });
 
   it(`serializes and prints public_kernel_inputs`, async () => {
-    const kernelInputs = makePublicKernelInputs();
+    const kernelInputs = await makePublicKernelInputs();
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
       'abis__test_roundtrip_serialize_public_kernel_inputs',
@@ -59,7 +59,7 @@ describe('structs/kernel', () => {
   });
 
   it(`serializes and prints public_kernel_inputs_no_previous_kernel`, async () => {
-    const kernelInputs = makePublicKernelInputsNoKernelInput();
+    const kernelInputs = await makePublicKernelInputsNoKernelInput();
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
       'abis__test_roundtrip_serialize_public_kernel_inputs_no_previous_kernel',

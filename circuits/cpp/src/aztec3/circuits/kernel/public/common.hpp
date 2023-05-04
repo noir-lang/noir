@@ -65,9 +65,11 @@ void common_validate_call_stack(DummyComposer& composer, KernelInput const& publ
         // Note: this assumes it's computationally infeasible to have `0` as a valid call_stack_item_hash.
         // Assumes `hash == 0` means "this stack item is empty".
         const auto calculated_hash = hash == 0 ? 0 : preimage.hash();
-        composer.do_assert(hash == calculated_hash,
-                           format("public_call_stack[", i, "] = ", hash, "; does not reconcile"),
-                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_MISMATCH);
+        composer.do_assert(
+            hash == calculated_hash,
+            format(
+                "public_call_stack[", i, "] = ", hash, "; does not reconcile with calculatedHash = ", calculated_hash),
+            CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_MISMATCH);
 
         // here we validate the msg sender for each call on the stack
         // we need to consider regular vs delegate calls
