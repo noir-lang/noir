@@ -6,7 +6,7 @@ use crate::{
 use acvm::{
     acir::{
         circuit::{
-            directives::Directive,
+            directives::{Directive, QuotientDirective},
             opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         },
         native_types::{Expression, Witness},
@@ -265,13 +265,13 @@ pub(crate) fn range_constraint(
         let b_witness = evaluator.add_witness_to_cs();
         let exp_big = BigUint::from(2_u128).pow(num_bits - 1);
         let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
-        evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
+        evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
             a: Expression::from(witness),
             b: Expression::from_field(exp),
             q: b_witness,
             r: r_witness,
             predicate: None,
-        }));
+        })));
 
         try_range_constraint(r_witness, num_bits - 1, evaluator);
         try_range_constraint(b_witness, 1, evaluator);
@@ -311,13 +311,13 @@ pub(crate) fn bound_check(
     //2^s+a-b=q*2^s +r
     let expr = add(&r_witness.into(), two_s, &q_witness.into());
     evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(&sub, FieldElement::one(), &expr)));
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
+    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
         a: sub,
         b: Expression::from_field(two_s),
         q: q_witness,
         r: r_witness,
         predicate: None,
-    }));
+    })));
     try_range_constraint(r_witness, max_bits, evaluator);
     evaluator.push_opcode(AcirOpcode::Arithmetic(boolean(q_witness)));
     q_witness
@@ -358,7 +358,7 @@ pub(crate) fn bound_constraint_with_offset(
 
         if f < 3 {
             match f {
-                0 => evaluator.push_opcode(AcirOpcode::Arithmetic(aof)),
+                0 => { evaluator.push_opcode(AcirOpcode::Arithmetic(aof)); },
                 1 => {
                     let expr = boolean_expr(&aof, evaluator);
                     evaluator.push_opcode(AcirOpcode::Arithmetic(expr));
@@ -504,13 +504,13 @@ pub(crate) fn evaluate_truncate(
     //1. Generate witnesses a,b,c
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
+    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
         a: lhs.clone(),
         b: Expression::from_field(exp),
         q: c_witness,
         r: b_witness,
         predicate: None,
-    }));
+    })));
 
     try_range_constraint(b_witness, rhs, evaluator); //TODO propagate the error using ?
     try_range_constraint(c_witness, max_bits - rhs, evaluator);
@@ -537,13 +537,13 @@ pub(crate) fn evaluate_udiv(
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
     let pa = mul_with_witness(evaluator, lhs, predicate);
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
+    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
         a: lhs.clone(),
         b: rhs.clone(),
         q: q_witness,
         r: r_witness,
         predicate: Some(predicate.clone()),
-    }));
+    })));
 
     //r<b
     let r_expr = Expression::from(r_witness);
