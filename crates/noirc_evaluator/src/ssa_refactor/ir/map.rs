@@ -284,6 +284,12 @@ pub(crate) struct AtomicCounter<T> {
 }
 
 impl<T> AtomicCounter<T> {
+    /// Create a new counter starting after the given Id.
+    /// Use AtomicCounter::default() to start at zero.
+    pub(crate) fn starting_after(id: Id<T>) -> Self {
+        Self { next: AtomicUsize::new(id.index + 1), _marker: Default::default() }
+    }
+
     /// Return the next fresh id
     pub(crate) fn next(&self) -> Id<T> {
         Id::new(self.next.fetch_add(1, Ordering::Relaxed))

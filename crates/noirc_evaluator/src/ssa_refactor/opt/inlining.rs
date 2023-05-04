@@ -1,3 +1,7 @@
+//! This module defines the function inlining pass for the SSA IR.
+//! The purpose of this pass is to inline the instructions of each function call
+//! within the function caller. If all function calls are known, there will only
+//! be a single function remaining when the pass finishes.
 use std::collections::{HashMap, HashSet};
 
 use iter_extended::vecmap;
@@ -31,10 +35,7 @@ impl Ssa {
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
     pub(crate) fn inline_functions(self) -> Ssa {
-        let main_function = self.main();
-        let mut context = InlineContext::new(main_function);
-        context.inline_main(&self);
-        context.finish(self)
+        InlineContext::new(&self).inline_all(self)
     }
 }
 
@@ -45,8 +46,12 @@ impl Ssa {
 /// reuse the existing API at the cost of essentially cloning each of main's instructions.
 struct InlineContext {
     recursion_level: u32,
-    functions_to_keep: HashSet<FunctionId>,
     builder: FunctionBuilder,
+
+    /// True if we failed to inline at least one call. If this is still false when finishing
+    /// inlining we can remove all other functions from the resulting Ssa struct and keep only
+    /// the function that was inlined into.
+    failed_to_inline_a_call: bool,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -77,26 +82,44 @@ struct PerFunctionContext<'function> {
     /// The TerminatorInstruction::Return in the source_function will be mapped to a jmp to
     /// this block in the destination function instead.
     return_destination: BasicBlockId,
+
+    /// True if we're currently working on the main function.
+    inlining_main: bool,
 }
 
 impl InlineContext {
     /// Create a new context object for the function inlining pass.
     /// This starts off with an empty mapping of instructions for main's parameters.
-    ///
-    /// main: The main function of the program to start inlining into. Only this function
-    ///       and all functions still reachable from it will be returned when inlining is finished.
-    fn new(main: &Function) -> InlineContext {
-        Self {
-            recursion_level: 0,
-            builder: FunctionBuilder::new(main.name().to_owned(), main.id()),
-            functions_to_keep: HashSet::new(),
-        }
+    /// The function being inlined into will always be the main function, although it is
+    /// actually a copy that is created in case the original main is still needed from a function
+    /// that could not be inlined calling it.
+    fn new(ssa: &Ssa) -> InlineContext {
+        let main_name = ssa.main().name().to_owned();
+        let builder = FunctionBuilder::new(main_name, ssa.next_id.next());
+        Self { builder, recursion_level: 0, failed_to_inline_a_call: false }
     }
 
-    fn inline_main(&mut self, ssa: &Ssa) {
+    /// Start inlining the main function and all functions reachable from it.
+    fn inline_all(mut self, ssa: Ssa) -> Ssa {
         let main = ssa.main();
-        let mut context = PerFunctionContext::new(self, main);
-        context.inline_blocks(ssa);
+        let mut context = PerFunctionContext::new(&mut self, main);
+        context.inlining_main = true;
+
+        // The main block is already inserted so we have to add it to context.blocks and add
+        // its parameters here. Failing to do so would cause context.translate_block() to add
+        // a fresh block for the entry block rather than use the existing one.
+        let entry_block = context.context.builder.current_function.entry_block();
+        let original_parameters = context.source_function.parameters();
+
+        for parameter in original_parameters {
+            let typ = context.source_function.dfg.type_of_value(*parameter);
+            let new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
+            context.values.insert(*parameter, new_parameter);
+        }
+
+        context.blocks.insert(context.source_function.entry_block(), entry_block);
+        context.inline_blocks(&ssa);
+        self.finish(ssa)
     }
 
     /// Inlines a function into the current function and returns the translated return values
@@ -113,30 +136,36 @@ impl InlineContext {
         let source_function = &ssa.functions[&id];
         let mut context = PerFunctionContext::new(self, source_function);
 
-        let entry = source_function.entry_block();
-        let parameters = source_function.dfg.block_parameters(entry);
+        let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
         context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+
+        let current_block = context.context.builder.current_block();
+        context.blocks.insert(source_function.entry_block(), current_block);
 
         context.inline_blocks(ssa);
         let return_destination = context.return_destination;
         self.builder.block_parameters(return_destination)
     }
 
+    /// Finish inlining and return the new Ssa struct with the inlined version of main.
+    /// If any functions failed to inline, they are not removed from the final Ssa struct.
     fn finish(self, mut ssa: Ssa) -> Ssa {
         let mut new_ssa = self.builder.finish();
+        assert_eq!(new_ssa.functions.len(), 1);
 
-        for function_id in self.functions_to_keep {
-            let function = ssa
-                .functions
-                .remove(&function_id)
-                .unwrap_or_else(|| panic!("Expected to remove function with id {function_id}"));
-
-            let existing = new_ssa.functions.insert(function.id(), function);
-            assert!(existing.is_none());
+        // If we failed to inline any call, any function may still be reachable so we
+        // don't remove any from the final program. We could be more precise here and
+        // do a reachability analysis but it should be fine to keep the extra functions
+        // around longer if they are not called.
+        if self.failed_to_inline_a_call {
+            let new_main = new_ssa.functions.pop_first().unwrap().1;
+            ssa.main_id = new_main.id();
+            ssa.functions.insert(new_main.id(), new_main);
+            ssa
+        } else {
+            new_ssa
         }
-
-        new_ssa
     }
 }
 
@@ -148,15 +177,14 @@ impl<'function> PerFunctionContext<'function> {
     fn new(context: &'function mut InlineContext, source_function: &'function Function) -> Self {
         // Create the block to return to but don't insert its parameters until we
         // have the types of the actual return values later.
-        let return_destination = context.builder.insert_block();
-
         Self {
+            return_destination: context.builder.insert_block(),
             context,
             source_function,
             blocks: HashMap::new(),
             instructions: HashMap::new(),
             values: HashMap::new(),
-            return_destination,
+            inlining_main: false,
         }
     }
 
@@ -193,15 +221,22 @@ impl<'function> PerFunctionContext<'function> {
     ///
     /// If the block isn't already known, this will insert a new block into the target function
     /// with the same parameter types as the source block.
-    fn translate_block(&mut self, id: BasicBlockId) -> BasicBlockId {
-        if let Some(block) = self.blocks.get(&id) {
+    fn translate_block(
+        &mut self,
+        source_block: BasicBlockId,
+        block_queue: &mut Vec<BasicBlockId>,
+    ) -> BasicBlockId {
+        if let Some(block) = self.blocks.get(&source_block) {
             return *block;
         }
+
+        // The block is not yet inlined, queue it
+        block_queue.push(source_block);
 
         // The block is not already present in the function being inlined into so we must create it.
         // The block's instructions are not copied over as they will be copied later in inlining.
         let new_block = self.context.builder.insert_block();
-        let original_parameters = self.source_function.dfg.block_parameters(id);
+        let original_parameters = self.source_function.dfg.block_parameters(source_block);
 
         for parameter in original_parameters {
             let typ = self.source_function.dfg.type_of_value(*parameter);
@@ -209,6 +244,7 @@ impl<'function> PerFunctionContext<'function> {
             self.values.insert(*parameter, new_parameter);
         }
 
+        self.blocks.insert(source_block, new_block);
         new_block
     }
 
@@ -220,7 +256,11 @@ impl<'function> PerFunctionContext<'function> {
         id = self.translate_value(id);
         match self.context.builder[id] {
             Value::Function(id) => Some(id),
-            _ => None,
+            Value::Intrinsic(_) => None,
+            _ => {
+                self.context.failed_to_inline_a_call = true;
+                None
+            }
         }
     }
 
@@ -230,13 +270,15 @@ impl<'function> PerFunctionContext<'function> {
         let mut block_queue = vec![self.source_function.entry_block()];
 
         while let Some(source_block_id) = block_queue.pop() {
-            let translated_block_id = self.translate_block(source_block_id);
+            let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
 
             seen_blocks.insert(source_block_id);
             self.inline_block(ssa, source_block_id);
             self.handle_terminator_instruction(source_block_id, &mut block_queue);
         }
+
+        self.context.builder.switch_to_block(self.return_destination);
     }
 
     /// Inline each instruction in the given block into the function being inlined into.
@@ -302,16 +344,9 @@ impl<'function> PerFunctionContext<'function> {
         block_id: BasicBlockId,
         block_queue: &mut Vec<BasicBlockId>,
     ) {
-        let mut translate_and_queue_block = |this: &mut Self, block| {
-            if this.blocks.get(block).is_none() {
-                block_queue.push(*block);
-            }
-            this.translate_block(*block)
-        };
-
         match self.source_function.dfg[block_id].terminator() {
             Some(TerminatorInstruction::Jmp { destination, arguments }) => {
-                let destination = translate_and_queue_block(self, destination);
+                let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
                 self.context.builder.terminate_with_jmp(destination, arguments);
             }
@@ -321,19 +356,24 @@ impl<'function> PerFunctionContext<'function> {
                 else_destination,
             }) => {
                 let condition = self.translate_value(*condition);
-                let then_block = translate_and_queue_block(self, then_destination);
-                let else_block = translate_and_queue_block(self, else_destination);
+                let then_block = self.translate_block(*then_destination, block_queue);
+                let else_block = self.translate_block(*else_destination, block_queue);
                 self.context.builder.terminate_with_jmpif(condition, then_block, else_block);
             }
             Some(TerminatorInstruction::Return { return_values }) => {
-                let return_values = vecmap(return_values, |value| {
-                    // Add the block parameters for the return block here since we don't do
-                    // it when inserting the block in PerFunctionContext::new
-                    let typ = self.source_function.dfg.type_of_value(*value);
-                    self.context.builder.add_block_parameter(self.return_destination, typ);
-                    self.translate_value(*value)
-                });
-                self.context.builder.terminate_with_jmp(self.return_destination, return_values);
+                let return_values = vecmap(return_values, |value| self.translate_value(*value));
+
+                if self.inlining_main {
+                    self.context.builder.terminate_with_return(return_values);
+                } else {
+                    for value in &return_values {
+                        // Add the block parameters for the return block here since we don't do
+                        // it when inserting the block in PerFunctionContext::new
+                        let typ = self.context.builder.current_function.dfg.type_of_value(*value);
+                        self.context.builder.add_block_parameter(self.return_destination, typ);
+                    }
+                    self.context.builder.terminate_with_jmp(self.return_destination, return_values);
+                }
             }
             None => unreachable!("Block has no terminator instruction"),
         }

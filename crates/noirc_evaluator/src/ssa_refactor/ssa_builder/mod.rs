@@ -121,6 +121,11 @@ impl FunctionBuilder {
         self.current_block = block;
     }
 
+    /// Returns the block currently being inserted into
+    pub(crate) fn current_block(&mut self) -> BasicBlockId {
+        self.current_block
+    }
+
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.

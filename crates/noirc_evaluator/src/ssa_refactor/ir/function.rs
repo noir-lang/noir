@@ -2,6 +2,7 @@ use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
 use super::map::Id;
 use super::types::Type;
+use super::value::ValueId;
 
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
@@ -53,6 +54,12 @@ impl Function {
     /// entry block's parameters.
     pub(crate) fn entry_block(&self) -> BasicBlockId {
         self.entry_block
+    }
+
+    /// Returns the parameters of this function.
+    /// The parameters will always match that of this function's entry block.
+    pub(crate) fn parameters(&self) -> &[ValueId] {
+        self.dfg.block_parameters(self.entry_block)
     }
 }
 
