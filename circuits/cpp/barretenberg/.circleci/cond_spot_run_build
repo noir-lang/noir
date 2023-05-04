@@ -13,7 +13,7 @@ LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY)
 echo "Last successful commit: $LAST_SUCCESSFUL_COMMIT"
 
 if check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
-  spot_run_script $SPEC ../.circleci/remote_build/remote_build $REPOSITORY $@
+  spot_run_script $SPEC $BUILD_SYSTEM_PATH/remote_build/remote_build $REPOSITORY $@
 else
   echo "No rebuild necessary. Retagging..."
   STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')

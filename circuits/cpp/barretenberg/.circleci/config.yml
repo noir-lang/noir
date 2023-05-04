@@ -82,7 +82,16 @@ benchmark_add_keys: &benchmark_add_keys
 setup_env: &setup_env
   run:
     name: "Setup environment"
-    command: cd .circleci && ./setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
+    command: |
+      cd .circleci && ./setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
+
+setup_aztec_commit: &setup_aztec_commit
+  run:
+    name: "Setup environment for Aztec Integration Testing"
+    command: |
+      # Load the aztec commit into env for use in integration tests
+      echo "export AZTEC_COMMIT=$(cat cpp/.aztec-packages-commit 2>/dev/null || echo master)" >> "$BASH_ENV"
+      source "$BASH_ENV"
 
 # This step is used to save logs from various barretenberg test to the workspace so that they can be used later to parse benchmark values out of them
 save_logs: &save_logs
@@ -235,6 +244,56 @@ jobs:
           name: "Test"
           command: store_test_benchmark_logs barretenberg-x86_64-linux-clang-assert
 
+  ###################################
+  # Aztec integration tests
+  circuits-wasm-linux-clang-builder-runner:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-circuits-wasm-linux-clang-builder-runner 64
+
+  circuits-x86_64-linux-clang-builder-runner:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-circuits-x86_64-linux-clang-builder-runner 64
+
+  circuits-wasm-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - *setup_aztec_commit
+      - run:
+          name: "Build"
+          command: cond_spot_run_test_script barretenberg-circuits-wasm-linux-clang-builder-runner ./scripts/run_aztec_circuits_tests "$AZTEC_COMMIT" 1 wasm scripts/a3-tests -*.skip*:*.circuit*
+
+  circuits-x86_64-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - *setup_aztec_commit
+      - run:
+          name: "Build"
+          command: cond_spot_run_test_script barretenberg-circuits-x86_64-linux-clang-builder-runner ./scripts/run_aztec_circuits_tests "$AZTEC_COMMIT" 1 x86_64 scripts/a3-tests -*.skip*
+  # End Aztec integration tests
+  ###################################
+
 # Repeatable config for defining the workflow below.
 bb_test: &bb_test
   requires:
@@ -266,3 +325,11 @@ workflows:
             branches:
               only:
                 - master
+      - circuits-wasm-linux-clang-builder-runner
+      - circuits-x86_64-linux-clang-builder-runner
+      - circuits-wasm-tests:
+          requires:
+            - circuits-wasm-linux-clang-builder-runner
+      - circuits-x86_64-tests:
+          requires:
+            - circuits-x86_64-linux-clang-builder-runner

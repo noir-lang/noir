@@ -23,10 +23,16 @@
     "rebuildPatterns": ["^cpp/"],
     "dependencies": []
   },
-  "barretenberg.js": {
-    "buildDir": "js",
-    "dockerfile": "js/Dockerfile",
-    "rebuildPatterns": ["^js/"],
-    "dependencies": ["barretenberg-wasm-linux-clang"]
+  "barretenberg-circuits-x86_64-linux-clang-builder-runner": {
+    "buildDir": "cpp",
+    "dockerfile": "dockerfiles/Dockerfile.circuits-x86_64-linux-clang-builder-runner",
+    "rebuildPatterns": ["^cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-circuits-wasm-linux-clang-builder-runner": {
+    "buildDir": "cpp",
+    "dockerfile": "dockerfiles/Dockerfile.circuits-wasm-linux-clang-builder-runner",
+    "rebuildPatterns": ["^cpp/"],
+    "dependencies": []
   }
 }
