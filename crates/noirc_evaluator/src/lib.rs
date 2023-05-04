@@ -13,8 +13,9 @@ pub mod ssa_refactor;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::transformers::IsOpcodeSupported,
+    compiler::{transformers::IsOpcodeSupported, optimizers::simplify::{CircuitSimplifier, self}},
     Language,
+    //compiler::optimizers::simplify,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
@@ -23,7 +24,9 @@ use noirc_frontend::monomorphization::ast::*;
 use ssa::{node::ObjectType, ssa_gen::IrGenerator};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Default)]
+static UNSASTISFIED_CONSTRAIN_ERR: &str = "Cannot satisfy constraint";
+
+//#[derive(Default)]
 pub struct Evaluator {
     // Why is this not u64?
     //
@@ -56,8 +59,24 @@ pub struct Evaluator {
     return_is_distinct: bool,
 
     opcodes: Vec<AcirOpcode>,
+    simplifier: CircuitSimplifier,
+
 }
 
+impl Default for Evaluator {
+    fn default() -> Self {
+        Evaluator {
+            current_witness_index: u32::default(),
+            num_witnesses_abi_len: usize::default(),
+            param_witnesses: BTreeMap::default(),
+            public_parameters: BTreeSet::default(),
+            return_values: Vec::default(),
+            return_is_distinct: bool::default(),
+            opcodes: Vec::default(),
+            simplifier: CircuitSimplifier::new(0),
+        }
+    }
+}
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 // XXX: We return the num_witnesses, but this is the max number of witnesses
 // Some of these could have been removed due to optimizations. We need this number because the
@@ -92,6 +111,7 @@ pub fn create_circuit(
         },
         np_language,
         is_opcode_supported,
+        &evaluator.simplifier,
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
@@ -139,8 +159,17 @@ impl Evaluator {
         self.current_witness_index
     }
 
-    pub fn push_opcode(&mut self, gate: AcirOpcode) {
+    pub fn push_opcode(&mut self, gate: AcirOpcode) -> Result<(), RuntimeErrorKind> {
         self.opcodes.push(gate);
+        if let simplify::SimplifyResult::UnsatisfiedConstrain(_g) =
+        self.simplifier.simplify(&mut self.opcodes)
+        {
+            //TODO add location
+            return Err(RuntimeErrorKind::UnstructuredError {
+                message: UNSASTISFIED_CONSTRAIN_ERR.to_string(),
+            });
+        }
+        Ok(())
     }
 
     /// Compiles the AST into the intermediate format by evaluating the main function
