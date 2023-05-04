@@ -438,6 +438,7 @@ where
         assertion(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
+        early_return(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
     ))
 }
@@ -461,6 +462,19 @@ where
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
         .labelled("statement")
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+}
+
+fn early_return<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    ignore_then_commit(keyword(Keyword::Return), expr_parser)
+        .labelled("statement")
+        .map(|_| Statement::Error)
+        .validate(|expr, span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::EarlyReturnUnsupported, span));
+            expr
+        })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a

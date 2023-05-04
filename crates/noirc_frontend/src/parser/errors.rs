@@ -18,6 +18,8 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
+    #[error("early return unsupported")]
+    EarlyReturnUnsupported,
     #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
     InvalidArrayLengthExpression(Expression),
 }
@@ -96,6 +98,7 @@ impl From<ParserError> for Diagnostic {
                         "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
+                    ParserErrorReason::EarlyReturnUnsupported =>Diagnostic::simple_error("early return unsupported".into(), "Noir doesn't support return statements. The return value of a function is instead inferred from the function body's final expression.".into(), error.span),
                     other => {
 
                         Diagnostic::simple_error(format!("{other}"), String::new(), error.span)
