@@ -401,7 +401,7 @@ export function makeAztecAddress(seed = 1): AztecAddress {
 }
 
 export function makeEcdsaSignature(seed = 1): EcdsaSignature {
-  return new EcdsaSignature(Buffer.alloc(32, seed), Buffer.alloc(32, seed + 1));
+  return new EcdsaSignature(Buffer.alloc(32, seed), Buffer.alloc(32, seed + 1), Buffer.alloc(1, seed + 2));
 }
 
 export function makeBaseRollupPublicInputs(seed = 0) {

@@ -83,6 +83,12 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "wasm32")
     set(BENCHMARKS OFF)
     set(DISABLE_TBB 1)
     add_compile_definitions(_WASI_EMULATED_PROCESS_CLOCKS=1)
+    # TODO resolve how we can all get on the same generator counts
+    # Wasm (currently) takes less generators
+    set(CMAKE_BBERG_CXX_FLAGS "-DBARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK=64,32,16,64")
+else()
+    # Native can take more generators
+    set(CMAKE_BBERG_CXX_FLAGS "-DBARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK=2048,32,128,2048")
 endif()
 
 set(CMAKE_C_STANDARD 11)

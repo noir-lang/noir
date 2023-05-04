@@ -27,16 +27,31 @@ endif()
 # "Enabling this option forces the build step to always be run. This can be the easiest way to robustly
 #  ensure that the external project's own build dependencies are evaluated rather than relying on the
 #  default success timestamp-based method." - https://cmake.org/cmake/help/latest/module/ExternalProject.html
+
 ExternalProject_Add(Barretenberg
     SOURCE_DIR ${BBERG_DIR}
     BUILD_IN_SOURCE TRUE
     BUILD_ALWAYS TRUE
     UPDATE_COMMAND ""
     INSTALL_COMMAND ""
-    CONFIGURE_COMMAND ${CMAKE_COMMAND} --preset ${CMAKE_BBERG_PRESET} -DSERIALIZE_CANARY=${SERIALIZE_CANARY} -DENABLE_ASAN=${ENABLE_ASAN} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    BUILD_COMMAND ${CMAKE_COMMAND} --build --preset ${CMAKE_BBERG_PRESET} ${BBERG_TARGETS}
+    CONFIGURE_COMMAND 
+        ${CMAKE_COMMAND} 
+        --preset ${CMAKE_BBERG_PRESET}
+        -DCMAKE_CXX_FLAGS=${CMAKE_BBERG_CXX_FLAGS}
+        -DSERIALIZE_CANARY=${SERIALIZE_CANARY}
+        -DMULTITHREADING=${MULTITHREADING}
+        -DENABLE_ASAN=${ENABLE_ASAN}
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    BUILD_COMMAND 
+        ${CMAKE_COMMAND}
+        --build
+        --preset ${CMAKE_BBERG_PRESET}
+        ${BBERG_TARGETS}
     # byproducts needed by ninja generator (not needed by make)
-    BUILD_BYPRODUCTS ${BBERG_BUILD_DIR}/lib/libbarretenberg.a ${BBERG_BUILD_DIR}/lib/libenv.a)
+    BUILD_BYPRODUCTS
+        ${BBERG_BUILD_DIR}/lib/libbarretenberg.a
+        ${BBERG_BUILD_DIR}/lib/libenv.a
+)
 
 include_directories(${BBERG_DIR}/src)
 

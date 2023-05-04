@@ -15,6 +15,9 @@ class DummyComposer {
     void do_assert(bool const& assertion, std::string const& msg, CircuitErrorCode error_code)
     {
         if (!assertion) {
+#ifdef __wasm__
+            info("Error(", error_code, "): ", msg);
+#endif
             failure_msgs.push_back(CircuitError{ error_code, msg });
         }
     }

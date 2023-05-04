@@ -180,7 +180,7 @@ template <typename Composer> typename NT::ecdsa_signature to_nt(typename CT<Comp
     std::copy(r_bytes.begin(), r_bytes.end(), r_array.begin());
     std::copy(s_bytes.begin(), s_bytes.end(), s_array.begin());
 
-    return NT::ecdsa_signature{ r_array, s_array };
+    return NT::ecdsa_signature{ r_array, s_array, e.v };
 };
 
 template <typename Composer>

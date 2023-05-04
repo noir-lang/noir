@@ -15,14 +15,17 @@
 #include "rollup/root/root_rollup_inputs.hpp"
 #include "rollup/root/root_rollup_public_inputs.hpp"
 
+#include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/signed_tx_request.hpp"
 #include <aztec3/circuits/hash.hpp>
 #include <aztec3/constants.hpp>
 #include <aztec3/utils/array.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
+#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include <barretenberg/crypto/keccak/keccak.hpp>
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
@@ -412,6 +415,21 @@ WASM_EXPORT const char* abis__test_roundtrip_reserialize_root_rollup_public_inpu
                                                                                    uint32_t* size)
 {
     return as_serialized_output<aztec3::circuits::abis::RootRollupPublicInputs<NT>>(rollup_inputs_buf, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_combined_accumulated_data(uint8_t const* input, uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::CombinedAccumulatedData<NT>>(input, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_signature(uint8_t const* input, uint32_t* size)
+{
+    return as_string_output<NT::ecdsa_signature>(input, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_signed_tx_request(uint8_t const* input, uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::SignedTxRequest<NT>>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs(uint8_t const* input, uint32_t* size)
