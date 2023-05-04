@@ -69,32 +69,27 @@ pub fn create_circuit(
     is_opcode_supported: IsOpcodeSupported,
     enable_logging: bool,
     show_output: bool,
-    experimental_ssa: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
-    let (circuit, param_witnesses) = if experimental_ssa {
-        experimental_compile_program_to_acir_and_abi(program.clone())
-    } else {
-        let mut evaluator = Evaluator::default();
+    let mut evaluator = Evaluator::default();
 
-        // First evaluate the main function
-        evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
+    // First evaluate the main function
+    evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
 
-        let Evaluator {
-            current_witness_index,
-            param_witnesses,
-            public_parameters,
-            return_values,
-            opcodes,
-            ..
-        } = evaluator;
-        let circuit = Circuit {
-            current_witness_index,
-            opcodes,
-            public_parameters: PublicInputs(public_parameters),
-            return_values: PublicInputs(return_values.iter().copied().collect()),
-        };
-        (circuit, param_witnesses)
+    let Evaluator {
+        current_witness_index,
+        param_witnesses,
+        public_parameters,
+        return_values,
+        opcodes,
+        ..
+    } = evaluator;
+    let circuit = Circuit {
+        current_witness_index,
+        opcodes,
+        public_parameters: PublicInputs(public_parameters),
+        return_values: PublicInputs(return_values.iter().copied().collect()),
     };
+
     let return_witnesses: Vec<_> =
         circuit.return_values.indices().iter().map(|idx| Witness(*idx)).collect();
 
@@ -105,18 +100,6 @@ pub fn create_circuit(
     let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
 
     Ok((optimized_circuit, abi))
-}
-
-fn experimental_compile_program_to_acir_and_abi(
-    program: Program,
-) -> (Circuit, BTreeMap<String, Vec<Witness>>) {
-    // This Acir struct is currently stubbed as an empty struct
-    let _acir = ssa_refactor::optimize_into_acir(program);
-
-    // The current evaluator implementation computes the `param_witnesses` at the start of
-    // `evaluate_main_alt`. We'll likely want to consider some other process for deriving this
-    // information.
-    todo!()
 }
 
 impl Evaluator {
