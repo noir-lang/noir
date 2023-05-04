@@ -140,8 +140,8 @@ impl ArrayHeap {
 
         if is_opcode_supported(&AcirOpcode::ROM(dummy.clone())) {
             // If the backend support ROM and the array is read-only, we generate the ROM opcode
-            if let ArrayType::ReadOnly(len) = self.typ {
-                self.add_rom_opcode(evaluator, array_id, len.unwrap() as u32);
+            if matches!(self.typ, ArrayType::ReadOnly(_)) {
+                self.add_rom_opcode(evaluator, array_id, array_len);
                 return;
             }
         }
@@ -149,15 +149,20 @@ impl ArrayHeap {
             if is_opcode_supported(&AcirOpcode::RAM(dummy)) {
                 self.add_ram_opcode(evaluator, array_id, array_len);
             } else {
+                self.add_block_opcode(evaluator, array_id, array_len);
                 self.generate_permutation_constraints(evaluator, array_id, array_len);
             }
         } else {
-            evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
-                id: AcirBlockId(array_id.as_u32()),
-                len: array_len,
-                trace: self.trace.clone(),
-            }));
+            self.add_block_opcode(evaluator, array_id, array_len);
         }
+    }
+
+    fn add_block_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
+        evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
+            id: AcirBlockId(array_id.as_u32()),
+            len: array_len,
+            trace: self.trace.clone(),
+        }));
     }
 
     fn add_rom_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
