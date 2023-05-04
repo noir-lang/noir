@@ -83,21 +83,20 @@ pub fn create_circuit(
         opcodes,
         ..
     } = evaluator;
-    let circuit = Circuit {
-        current_witness_index,
-        opcodes,
-        public_parameters: PublicInputs(public_parameters),
-        return_values: PublicInputs(return_values.iter().copied().collect()),
-    };
-
-    let return_witnesses: Vec<_> =
-        circuit.return_values.indices().iter().map(|idx| Witness(*idx)).collect();
-
-    let optimized_circuit = acvm::compiler::compile(circuit, np_language, is_opcode_supported)
-        .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
+    let optimized_circuit = acvm::compiler::compile(
+        Circuit {
+            current_witness_index,
+            opcodes,
+            public_parameters: PublicInputs(public_parameters),
+            return_values: PublicInputs(return_values.iter().copied().collect()),
+        },
+        np_language,
+        is_opcode_supported,
+    )
+    .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
     let (parameters, return_type) = program.main_function_signature;
-    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
+    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses: return_values };
 
     Ok((optimized_circuit, abi))
 }
