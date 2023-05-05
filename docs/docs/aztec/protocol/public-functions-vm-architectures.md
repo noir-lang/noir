@@ -17,7 +17,7 @@ We need to ensure that the execution environment for public functions has the fo
 
 ### Why we need a VM
 
-Point 2 requires a Virtual Machine architecture. The older model of having ACIR++ directly produce a circuit + verification key is flawed. For any witness that is _not_ a public input, a dishonest Prover could assign an incorrect value and create a failing proof.
+Point 2 requires a Virtual Machine architecture. The older model of having ACIR directly produce a circuit + verification key is flawed. For any witness that is _not_ a public input, a dishonest Prover could assign an incorrect value and create a failing proof.
 
 The kernel circuit cannot prevent this by _requiring_ the public function proof to succeed, as it is trivial for a malicious contract writer to create unsatisfiable programs (e.g. `assert(true == false)`).
 
@@ -89,7 +89,7 @@ Kernel proof is generated, but public function verifier circuit always returns `
 
 #### Phase 3: Honest prover assumption
 
-The verifier circuit verifies a circuit whose verification key is directly computed from ACIR++ (like the private functions)
+The verifier circuit verifies a circuit whose verification key is directly computed from ACIR (like the private functions)
 
 In theory we could go into production with this model, but without full decentralization.
 
@@ -112,23 +112,23 @@ This VM arch design makes the following assumptions:
 
 On the tradeoff space between public function prover efficiency and reduced protocol complexity, I think it's better to bias towards reduced protocol complexity.
 
-Given that private functions compile to ACIR++ opcodes, it is natural to define a VM architecture that directly _simulates_ ACIR++ opcodes.
+Given that private functions compile to ACIR opcodes, it is natural to define a VM architecture that directly _simulates_ ACIR opcodes.
 
-Consider a crypto backend that produces circuit constraints from ACIR++ opcodes. Minimal complexity solution requires a VM architecture that will execute _identical constraints_ within the context of a VM simulator.
+Consider a crypto backend that produces circuit constraints from ACIR opcodes. Minimal complexity solution requires a VM architecture that will execute _identical constraints_ within the context of a VM simulator.
 
 i.e. we can repurpose our existing crypto backend and ACIR constraint generation modules to build the VM.
 
 ## VM architecture overview
 
-ACIR++ opcodes do not directly map to constraints; they map to subroutines composed of constraints (however the subroutine size can be 1 for a simple opcode e.g. ADD)
+ACIR opcodes do not directly map to constraints; they map to subroutines composed of constraints (however the subroutine size can be 1 for a simple opcode e.g. ADD)
 
 The subroutine constraints for a given opcode is described by _microcode_.
 
-<!-- The ACIR++ opcode specification is fixed for a given version of ACIR++.
+<!-- The ACIR opcode specification is fixed for a given version of ACIR.
 
 The VM microcode specification is fixed for a given VM version.
 
-i.e. the same opcode stream can produce different microcode constraint depending on the VM version. This decouples the VM from ACIR++ and allows for VM optimizations w/o changing the ACIR++ spec.
+i.e. the same opcode stream can produce different microcode constraint depending on the VM version. This decouples the VM from ACIR and allows for VM optimizations w/o changing the ACIR spec.
 
 TODO: this would be nice but I don't think it's possible?!
 -->
@@ -263,7 +263,7 @@ Plus 2 opening proofs for KZG.
 
 i.e. the overall number of Prover multi-exponentiations has grown from $8n$ to $40n$
 
-TLDR: a VM simulator circuit of an ACIR++ program is approx. 6 times more expensive to prove than a proof of a natively-compiled ACIR++ circuit.
+TLDR: a VM simulator circuit of an ACIR program is approx. 6 times more expensive to prove than a proof of a natively-compiled ACIR circuit.
 
 We can afford to pay this for public functions, but this is far too great an overhead for locally-generated private function proofs.
 
@@ -280,7 +280,7 @@ i.e. stdlib code is re-used and only composer code changes.
 
 ### Computing $T_Q, T_G$ using the stdlib
 
-A program is written that executes every ACIR++ opcode in sequence.
+A program is written that executes every ACIR opcode in sequence.
 
 Composer will track an 'instruction counter'. If the opcode makes a standard library call, the stdlib function is executed as normal, but the Composer will do the following:
 
@@ -292,7 +292,7 @@ Composer will track an 'instruction counter'. If the opcode makes a standard lib
 
 In this context, the Composer already posesses $T_Q$.
 
-Consider the execution of an ACIR++ opcode stream. If the opcode makes a standard library call, the stdlib function is executed as normal, but the Composer will do the following when a constraint is added:
+Consider the execution of an ACIR opcode stream. If the opcode makes a standard library call, the stdlib function is executed as normal, but the Composer will do the following when a constraint is added:
 
 - Current program counter value added into $PC$
 - Composer validates the selector values are present in $T_Q$ and looks up the instruction value
@@ -325,7 +325,7 @@ In addition, we can perform checks on each opcode to validate conditions on sele
 
 No doubt many, but first one on my mind is:
 
-Q: Do we want to support JUMP/JUMPI instructions for public ACIR++ functions? Would be _very_ nice to have but creates discontinuity between public/private functions.
+Q: Do we want to support JUMP/JUMPI instructions for public ACIR functions? Would be _very_ nice to have but creates discontinuity between public/private functions.
 
 ## Participate
 
