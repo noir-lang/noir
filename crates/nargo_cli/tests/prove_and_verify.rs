@@ -71,15 +71,13 @@ mod tests {
             let test_name =
                 test_dir.file_name().into_string().expect("Directory can't be converted to string");
             let test_program_dir = &test_dir.path();
-            if test_name != "pedersen_check" {
-                continue;
-            }
+
             if config_data["exclude"].contains(&test_name) {
-                println!("Skipping test {test_name}");
+                dbg!("Skipping test {test_name}");
                 continue;
             }
 
-            println!("Running test {test_name}");
+            dbg!("Running test {test_name}");
 
             let verified = std::panic::catch_unwind(|| {
                 nargo_cli::cli::prove_and_verify("pp", test_program_dir, false)
