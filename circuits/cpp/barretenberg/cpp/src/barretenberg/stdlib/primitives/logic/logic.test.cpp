@@ -86,7 +86,7 @@ TYPED_TEST(LogicTest, TestCorrectLogic)
 
     auto composer = Composer();
     for (size_t i = 8; i < 248; i += 8) {
-        run_test(8, composer);
+        run_test(i, composer);
     }
     auto prover = composer.create_prover();
     plonk::proof proof = prover.construct_proof();
