@@ -122,7 +122,7 @@ export class L1Publisher implements L2BlockReceiver {
       await this.sleepOrInterrupted();
     }
 
-    this.log('L2 block interrupted interrupted.');
+    this.log('L2 block data syncing interrupted while processing blocks.');
     return false;
   }
 
@@ -153,7 +153,7 @@ export class L1Publisher implements L2BlockReceiver {
       await this.sleepOrInterrupted();
     }
 
-    this.log('L2 block interrupted interrupted.');
+    this.log('L2 block data syncing interrupted while processing unverified data.');
     return false;
   }
 
@@ -184,7 +184,7 @@ export class L1Publisher implements L2BlockReceiver {
       await this.sleepOrInterrupted();
     }
 
-    this.log('L2 block interrupted interrupted.');
+    this.log('L2 block data syncing interrupted while processing contract data.');
     return false;
   }
 

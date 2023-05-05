@@ -137,6 +137,7 @@ describe('L1Publisher integration', () => {
 
     tx.data.end.newCommitments = range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr);
     tx.data.end.newNullifiers = range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr);
+    tx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = Fr.ZERO;
     tx.data.end.newL2ToL1Msgs = range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x300).map(fr);
     tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
 

@@ -357,7 +357,7 @@ export class AztecRPCServer implements AztecRPCClient {
     // until the synchroniser picks this up
 
     const accountState = this.synchroniser.getAccount(localTx.from);
-    if (accountState && !(await accountState.isSynchronised())) {
+    if (accountState && !(await accountState?.isSynchronised())) {
       // there is a pending L2 block, which means the transaction will not be in the tx pool but may be awaiting mine on L1
       return {
         ...partialReceipt,

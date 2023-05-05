@@ -1,10 +1,38 @@
-import { PublicStateDB, PublicExecution, PublicExecutor, PublicContractsDB } from '@aztec/acir-simulator';
+import { PublicStateDB, PublicExecutor, PublicContractsDB } from '@aztec/acir-simulator';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { AztecAddress, EthAddress, Fr, PublicCircuitPublicInputs, TxRequest } from '@aztec/circuits.js';
-import { MerkleTreeId } from '@aztec/types';
+import {
+  ARGS_LENGTH,
+  AztecAddress,
+  EMITTED_EVENTS_LENGTH,
+  EthAddress,
+  Fr,
+  NEW_L2_TO_L1_MSGS_LENGTH,
+  PUBLIC_CALL_STACK_LENGTH,
+  PublicCircuitPublicInputs,
+  RETURN_VALUES_LENGTH,
+  STATE_READS_LENGTH,
+  STATE_TRANSITIONS_LENGTH,
+  StateRead,
+  StateTransition,
+  TxRequest,
+} from '@aztec/circuits.js';
 import { MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
+import { MerkleTreeId } from '@aztec/types';
 import { PublicCircuitSimulator } from './index.js';
 import { ContractDataSource } from '@aztec/types';
+
+/**
+ * Helper function to pad arrays with empty elements, in order to reach the required length.
+ * @param array - The array to be padded.
+ * @param element - The (empty) element instance that will fill the array.
+ * @param requiredLength - The total length that the array needs to reach.
+ * @returns The padded array.
+ */
+function padArray<T>(array: T[], element: T, requiredLength: number): T[] {
+  const initialLength = array.length;
+  array.push(...new Array<T>(requiredLength - initialLength).fill(element));
+  return array;
+}
 
 /**
  * Emulates the PublicCircuit simulator by executing ACIR as if it were Brillig opcodes.
@@ -35,17 +63,18 @@ export class FakePublicCircuitSimulator implements PublicCircuitSimulator {
     const executor = new PublicExecutor(this.stateDb, this.contractsDb);
     const execution = await executor.getPublicExecution(tx);
     const result = await executor.execute(execution);
+    const { stateReads, stateTransitions, returnValues } = result;
 
     return PublicCircuitPublicInputs.from({
-      args: tx.args,
+      args: padArray<Fr>(tx.args, Fr.ZERO, ARGS_LENGTH),
       callContext: execution.callContext,
-      emittedEvents: [],
-      newL2ToL1Msgs: [],
+      emittedEvents: padArray([], Fr.ZERO, EMITTED_EVENTS_LENGTH),
+      newL2ToL1Msgs: padArray([], Fr.ZERO, NEW_L2_TO_L1_MSGS_LENGTH),
       proverAddress: AztecAddress.random(),
-      publicCallStack: [],
-      returnValues: result.returnValues,
-      stateReads: result.stateReads,
-      stateTransitions: result.stateTransitions,
+      publicCallStack: padArray([], Fr.ZERO, PUBLIC_CALL_STACK_LENGTH),
+      returnValues: padArray<Fr>(returnValues, Fr.ZERO, RETURN_VALUES_LENGTH),
+      stateReads: padArray<StateRead>(stateReads, StateRead.empty(), STATE_READS_LENGTH),
+      stateTransitions: padArray<StateTransition>(stateTransitions, StateTransition.empty(), STATE_TRANSITIONS_LENGTH),
       historicPublicDataTreeRoot,
     });
   }

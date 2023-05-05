@@ -397,6 +397,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end integration_l1_publisher.test.ts
 
+  e2e-public-token-contract:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_public_token_contract.test.ts
+
   e2e-join:
     docker:
       - image: cimg/base:current

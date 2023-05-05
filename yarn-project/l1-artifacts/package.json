@@ -17,7 +17,7 @@
     "clean": "rm -rf ./dest ./generated .tsbuildinfo",
     "formatting": "run -T prettier --check ./generated && run -T eslint ./generated",
     "formatting:fix": "run -T prettier -w ./generated",
-    "generate": "bash scripts/generate-artifacts.sh && yarn formatting:fix"
+    "generate": "bash scripts/generate-artifacts.sh"
   },
   "dependencies": {
     "tslib": "^2.4.0"

@@ -52,7 +52,6 @@ const FUTURE_NUM = 0;
 
 // Denotes fields that should be deleted
 const DELETE_FR = new Fr(0n);
-const DELETE_NUM = 0;
 
 /**
  * All of the data required for the circuit compute and verify nullifiers.

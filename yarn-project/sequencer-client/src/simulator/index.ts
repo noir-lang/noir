@@ -1,7 +1,6 @@
 import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
-  EthAddress,
   MergeRollupInputs,
   PublicCircuitPublicInputs,
   PublicKernelInputsNoPreviousKernel,

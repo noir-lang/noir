@@ -49,9 +49,9 @@ describe('ACIR public execution simulator', () => {
     describe('mint', () => {
       it('should run the mint function', async () => {
         const contractAddress = AztecAddress.random();
-        const abi = PublicTokenContractAbi.functions.find(f => f.name === 'mint')!;
+        const mintAbi = PublicTokenContractAbi.functions.find(f => f.name === 'mint')!;
         const functionData = new FunctionData(Buffer.alloc(4), false, false);
-        const args = encodeArguments(abi, [140, recipient], false);
+        const args = encodeArguments(mintAbi, [140, recipient], false);
 
         const callContext = CallContext.from({
           msgSender: AztecAddress.random(),
@@ -62,7 +62,7 @@ describe('ACIR public execution simulator', () => {
           isStaticCall: false,
         });
 
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(abi.bytecode, 'hex'));
+        publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintAbi.bytecode, 'hex'));
 
         // Mock the old value for the recipient balance to be 20
         const previousBalance = new Fr(20n);

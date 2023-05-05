@@ -9,6 +9,7 @@ pragma solidity >=0.8.18;
 contract UnverifiedDataEmitter {
   /**
    * @notice Links L1 and L2 addresses and stores the acir bytecode of the L2 contract
+   * @param l2BlockNum - The L2 block number that the information is related to
    * @param aztecAddress - The address of the L2 counterparty
    * @param portalAddress - The address of the L1 counterparty
    * @param acir - The acir bytecode of the L2 contract

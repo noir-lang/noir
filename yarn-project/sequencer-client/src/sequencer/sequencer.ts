@@ -179,13 +179,13 @@ export class Sequencer {
         .filter((cd): cd is Exclude<typeof cd, undefined> => cd !== undefined);
 
       const publishedUnverifiedData = await this.publisher.processUnverifiedData(block.number, unverifiedData);
-      const publishedContractData = await this.publisher.processNewContractData(block.number, newContractData);
       if (publishedUnverifiedData) {
         this.log(`Successfully published unverifiedData for block ${block.number}`);
       } else {
         this.log(`Failed to publish unverifiedData for block ${block.number}`);
       }
 
+      const publishedContractData = await this.publisher.processNewContractData(block.number, newContractData);
       if (publishedContractData) {
         this.log(`Successfully published new contract data for block ${block.number}`);
       } else if (!publishedContractData && newContractData.length) {
