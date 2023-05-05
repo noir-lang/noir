@@ -20,3 +20,14 @@ export function keccak256String(input: string) {
   hash.update(input);
   return hash.digest('hex');
 }
+
+/**
+ * Computes the Keccak-224 hash of the given input buffer.
+ *
+ * @param input - The input buffer to be hashed.
+ * @returns The computed Keccak-224 hash as a Buffer.
+ */
+export function keccak224(input: Buffer) {
+  const hash = new Keccak(224);
+  return hash.update(input).digest();
+}

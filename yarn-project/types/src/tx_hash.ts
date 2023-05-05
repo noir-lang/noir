@@ -1,3 +1,4 @@
+import { assertLength } from '@aztec/circuits.js';
 import { toBigInt } from '@aztec/foundation/serialize';
 
 /**
@@ -13,8 +14,10 @@ export class TxHash {
     /**
      * The buffer containing the hash.
      */
-    public readonly buffer: Buffer,
-  ) {}
+    public buffer: Buffer,
+  ) {
+    assertLength(this, 'buffer', TxHash.SIZE);
+  }
 
   /**
    * Checks if this hash and another hash are equal.
@@ -38,5 +41,18 @@ export class TxHash {
    */
   public toBigInt() {
     return toBigInt(this.buffer);
+  }
+  /**
+   * Converts this hash from a buffer of 28 bytes.
+   * Verifies the input is 28 bytes.
+   * @param buffer - The 28 byte buffer to construct from.
+   * @returns A TxHash created from the input buffer with 4 bytes 0 padding at the front.
+   */
+  public static fromBuffer28(buffer: Buffer) {
+    if (buffer.length != 28) {
+      throw new Error(`Expected TxHash input buffer to be 28 bytes`);
+    }
+    const padded = Buffer.concat([Buffer.alloc(this.SIZE - 28), buffer]);
+    return new TxHash(padded);
   }
 }

@@ -42,7 +42,7 @@ export class L2Tx {
    */
   get txHash() {
     if (!this.hash) {
-      this.hash = createTxHash(this);
+      this.hash = new TxHash(this.newNullifiers[0].toBuffer());
     }
     return this.hash;
   }

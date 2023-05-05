@@ -1,6 +1,8 @@
 import { Fr } from '@aztec/foundation/fields';
 import { TxHash } from './tx_hash.js';
-import { keccak } from '@aztec/foundation/crypto';
+import { keccak224 } from '@aztec/foundation/crypto';
+import { CircuitsWasm, CombinedAccumulatedData } from '@aztec/circuits.js';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
 
 /**
  * Defines transaction data.
@@ -35,5 +37,5 @@ export function createTxHash({ newCommitments, newNullifiers, newContracts }: Tx
       newContracts.map(x => x.toBuffer()),
     ].flat(),
   );
-  return new TxHash(keccak(data));
+  return TxHash.fromBuffer28(keccak224(data));
 }

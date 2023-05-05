@@ -7,6 +7,7 @@ import {
   TxRequest,
   NewContractData,
   FunctionLeafPreimage,
+  SignedTxRequest,
   PublicCallStackItem,
 } from '../index.js';
 import { serializeToBuffer, serializeBufferArrayToVector } from '../utils/serialize.js';
@@ -146,6 +147,12 @@ export async function computeContractAddress(
 export function computeContractLeaf(wasm: WasmWrapper, cd: NewContractData) {
   wasm.call('pedersen__init');
   const value = wasmSyncCall(wasm, 'abis__compute_contract_leaf', cd, 32);
+  return Fr.fromBuffer(value);
+}
+
+export function computeTxHash(wasm: WasmWrapper, txRequest: SignedTxRequest) {
+  wasm.call('pedersen__init');
+  const value = wasmSyncCall(wasm, 'abis__compute_transaction_hash', txRequest, 32);
   return Fr.fromBuffer(value);
 }
 

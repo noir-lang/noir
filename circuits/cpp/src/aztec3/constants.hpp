@@ -86,6 +86,7 @@ enum GeneratorIndex {
     TX_REQUEST,
     PUBLIC_LEAF_INDEX,
     PUBLIC_DATA_LEAF,
+    SIGNED_TX_REQUEST,
 };
 
 enum StorageSlotGeneratorIndex {

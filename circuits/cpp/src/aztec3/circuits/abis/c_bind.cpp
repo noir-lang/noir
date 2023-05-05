@@ -40,6 +40,7 @@ using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::NewContractData;
+using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using NT = aztec3::utils::types::NativeTypes;
@@ -346,6 +347,25 @@ WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preima
     read(contract_leaf_preimage_buf, leaf_preimage);
     // as per the circuit implementation, if contract address == zero then return a zero leaf
     auto to_write = leaf_preimage.contract_address == NT::address(0) ? NT::fr(0) : leaf_preimage.hash();
+    NT::fr::serialize_to_buffer(to_write, output);
+}
+
+/**
+ * @brief Generates a signed tx request hash from it's pre-image
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details given a `uint8_t const*` buffer representing a signed tx request's pre-image,
+ * construct a SignedTxRequest instance, hash, and return the serialized results
+ * in the `output` buffer.
+ *
+ * @param signed_tx_request_buf a buffer of bytes representing the signed tx request
+ * @param output buffer that will contain the output. The hashed and serialized signed tx request.
+ */
+WASM_EXPORT void abis__compute_transaction_hash(uint8_t const* signed_tx_request_buf, uint8_t* output)
+{
+    SignedTxRequest<NT> signed_tx_request_preimage;
+    read(signed_tx_request_buf, signed_tx_request_preimage);
+    auto to_write = signed_tx_request_preimage.hash();
     NT::fr::serialize_to_buffer(to_write, output);
 }
 

@@ -12,6 +12,10 @@ export type ProcessedTx = Pick<Tx, 'txRequest' | 'unverifiedData'> &
      * Hash of the transaction.
      */
     hash: TxHash;
+    /**
+     * Flag indicating the tx is 'empty' i.e. it's a padding tx to take us to a power of 2.
+     */
+    isEmpty: boolean;
   };
 
 /**
@@ -49,6 +53,7 @@ export async function makeProcessedTx(
     proof: proof ?? tx.proof!,
     unverifiedData: tx.unverifiedData,
     txRequest: tx.txRequest,
+    isEmpty: false,
   };
 }
 
@@ -65,5 +70,5 @@ export async function makeEmptyProcessedTx(historicTreeRoots: CombinedHistoricTr
   const emptyTx = Tx.create(emptyKernelOutput, undefined, undefined, undefined);
   const hash = await emptyTx.getTxHash();
 
-  return { hash, data: emptyKernelOutput, proof: emptyProof };
+  return { hash, data: emptyKernelOutput, proof: emptyProof, isEmpty: true };
 }

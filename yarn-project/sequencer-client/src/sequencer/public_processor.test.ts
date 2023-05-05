@@ -53,7 +53,7 @@ describe('public_processor', () => {
     const hash = await tx.getTxHash();
     const [processed, failed] = await processor.process([tx]);
 
-    expect(processed).toEqual([{ hash, ...pick(tx, 'data', 'proof', 'unverifiedData') }]);
+    expect(processed).toEqual([{ isEmpty: false, hash, ...pick(tx, 'data', 'proof', 'unverifiedData') }]);
     expect(failed).toEqual([]);
   });
 
@@ -81,7 +81,7 @@ describe('public_processor', () => {
     const hash = await tx.getTxHash();
     const [processed, failed] = await processor.process([tx]);
 
-    expect(processed).toEqual([{ hash, data: output, proof, ...pick(tx, 'txRequest') }]);
+    expect(processed).toEqual([{ isEmpty: false, hash, data: output, proof, ...pick(tx, 'txRequest') }]);
     expect(failed).toEqual([]);
 
     expect(publicCircuit.publicCircuit).toHaveBeenCalled();
@@ -111,7 +111,7 @@ describe('public_processor', () => {
     const [processed, failed] = await processor.process([tx]);
 
     expect(processed[0].data.isPrivateKernel).toBeFalsy();
-    expect(processed).toEqual([expect.objectContaining({ hash, proof, ...pick(tx, 'txRequest') })]);
+    expect(processed).toEqual([expect.objectContaining({ isEmpty: false, hash, proof, ...pick(tx, 'txRequest') })]);
     expect(failed).toEqual([]);
 
     expect(publicCircuit.publicCircuit).toHaveBeenCalled();
