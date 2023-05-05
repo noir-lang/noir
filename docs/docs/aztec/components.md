@@ -89,7 +89,7 @@ These tasks are lower priority than providing a handcrafted ABI.
 
 Design a Noir Contract ABI, similar to a Solidity ABI which is output by Solc (see [here](https://docs.soliditylang.org/en/v0.8.13/abi-spec.html#json)). It might include for each function:
 
-- ACIR++ opcodes (akin to Solidity bytecode).
+- ACIR opcodes (akin to Solidity bytecode).
 - Function name and parameter names & types.
 - Public input/output witness indices?
 - Sourcemap information, allowing building of stack traces in simulator error cases.

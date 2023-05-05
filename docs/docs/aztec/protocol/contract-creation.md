@@ -116,10 +116,10 @@ The following data is required to process a deployment and must also be broadcas
 1. Contents of the contract leaf being added to the tree
 2. Contents of the constructor function
 3. Contents of the leaves that define the function tree
-4. ACIR++ opcodes for public functions
+4. ACIR opcodes for public functions
 5. Address of portal contract
 
-In addition, for public functions the protocol needs to validate the provided ACIR++ opcodes map to a given verification key. This is to prevent griefing sequencers/provers, by requesting they compute a public function proof but with bad ACIR++ opcode data; they will only notice this on generating an invalid proof.
+In addition, for public functions the protocol needs to validate the provided ACIR opcodes map to a given verification key. This is to prevent griefing sequencers/provers, by requesting they compute a public function proof but with bad ACIR opcode data; they will only notice this on generating an invalid proof.
 
 ## Processing Contract Deployments
 
@@ -129,19 +129,19 @@ Deploying contracts is a distinct action that can only be instigated by a user.
 
 This limitation is due to the fact that contracts present a large data payload . Every "output" of a function call must be allocated as a public input to the function circuit as defined in the kernel specification (TODO: link/write).
 
-Large contract deployments would require the specification allocates many public inputs to represent the ACIR++ bytecode of the deployed contract (e.g. 24kb contract = 768 public inputs). Each function circuit must have a fixed number of public inputs as defined by the kernel spec, which makes it impossible to efficiently output the large amounts of data required to deploy contracts.
+Large contract deployments would require the specification allocates many public inputs to represent the ACIR bytecode of the deployed contract (e.g. 24kb contract = 768 public inputs). Each function circuit must have a fixed number of public inputs as defined by the kernel spec, which makes it impossible to efficiently output the large amounts of data required to deploy contracts.
 
 ## Bytecode validation proofs
 
-In the VM model, the only part of a verification key that depends on the contract's ACIR++ opcodes is a BN254 commitment to the opcodes.
+In the VM model, the only part of a verification key that depends on the contract's ACIR opcodes is a BN254 commitment to the opcodes.
 
 It is relatively straightforward to create a grumpkin circuit that will do the following:
 
-1. Take in ACIR++ bytecode as public inputs
+1. Take in ACIR bytecode as public inputs
 2. Take the BN254 commitment as a public input
 3. Perform native ecc multi-exponentiation to reproduce the commitment, validate it matches the provided input
 
-This proof has a large number of public inputs due to the need to pass in ACIR++ code.
+This proof has a large number of public inputs due to the need to pass in ACIR code.
 
 This proof is not processed by user-generated kernel circuits because of this; it will be processed/verified as part of the rollup circuit.
 
@@ -241,7 +241,7 @@ For each kernel proof, iterate over `deployedContracts[]`. For each entry:
 
 1. Unwrap `contractDataHash`, extract `contractData.verificationKey` validate `contractData.verificationKey.vkRoot == vkRoot`
 2. extract `verificationKey.acirCommitment`
-3. Validate a circuit validation proof that takes in a sequence of ACIR++ opcodes (provided by rollup prover) and the `acirCommitment` (and validates both are correct)
+3. Validate a circuit validation proof that takes in a sequence of ACIR opcodes (provided by rollup prover) and the `acirCommitment` (and validates both are correct)
 4. Emit `contractData` and `AcirOpcodes` as public inputs
 5. extract `verificationKey.constructor` and validate the hash of the verification key matches `contractData.constructorVkHash`
 
@@ -261,7 +261,7 @@ For each new contract, the `portalId` is mapped to the L1 portal contract addres
 
 ## Distributing L2 contract data
 
-ACIR++ opcodes for public functions must be avaidable on a data availability solution, as their knowledge is required by rollup providers to create valid public function proofs.
+ACIR opcodes for public functions must be avaidable on a data availability solution, as their knowledge is required by rollup providers to create valid public function proofs.
 
 This is not required for private functions, it is left to developers to ensure their contract data is distributed and disseminated (e.g. github).
 
