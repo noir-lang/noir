@@ -1,5 +1,5 @@
 import { keccak } from '@aztec/foundation/crypto';
-import { ABIParameter } from '@aztec/noir-contracts';
+import { ABIParameter } from '@aztec/foundation/abi';
 
 /**
  * Generate a function signature string for a given function name and parameters.

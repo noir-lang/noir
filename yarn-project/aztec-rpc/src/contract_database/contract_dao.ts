@@ -1,5 +1,5 @@
-import { ContractAbi, FunctionAbi } from '@aztec/noir-contracts';
 import { generateFunctionSelector } from '../abi_coder/index.js';
+import { ContractAbi, FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 

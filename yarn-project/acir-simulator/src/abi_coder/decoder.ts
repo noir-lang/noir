@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { ABIType, FunctionAbi } from '@aztec/noir-contracts';
+import { ABIType, FunctionAbi } from '@aztec/foundation/abi';
 
 /**
  * Decodes return values from a function call.

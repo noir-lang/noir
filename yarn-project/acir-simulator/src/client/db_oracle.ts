@@ -1,7 +1,7 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { FunctionAbi } from '@aztec/noir-contracts';
+import { FunctionAbi } from '@aztec/foundation/abi';
 
 /**
  * The format that noir contracts use to get notes.

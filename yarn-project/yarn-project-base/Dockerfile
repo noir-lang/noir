@@ -30,6 +30,7 @@ COPY key-store/package.json key-store/package.json
 COPY merkle-tree/package.json merkle-tree/package.json
 COPY merkle-tree/package.local.json merkle-tree/package.local.json
 COPY noir-contracts/package.json noir-contracts/package.json
+COPY noir-compiler/package.json noir-compiler/package.json
 COPY l1-artifacts/package.json l1-artifacts/package.json
 COPY barretenberg.js/package.json barretenberg.js/package.json
 COPY circuits.js/package.json circuits.js/package.json

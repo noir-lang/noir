@@ -13,7 +13,7 @@ import {
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { KeyStore } from '@aztec/key-store';
-import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { Tx, TxHash } from '@aztec/types';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
 import { toContractDao } from '../contract_database/index.js';

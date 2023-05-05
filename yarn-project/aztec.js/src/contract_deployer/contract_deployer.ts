@@ -1,5 +1,5 @@
 import { AztecRPCClient } from '@aztec/aztec-rpc';
-import { ContractAbi } from '@aztec/noir-contracts';
+import { ContractAbi } from '@aztec/foundation/abi';
 import { DeployMethod } from './deploy_method.js';
 
 /**

@@ -8,6 +8,7 @@
     "./eslint": "./.eslintrc.cjs",
     "./eslint-legacy": "./.eslintrc.legacy.cjs",
     "./prettier": "./.prettierrc.json",
+    "./abi": "./dest/abi/index.js",
     "./async-map": "./dest/async-map/index.js",
     "./aztec-address": "./dest/aztec-address/index.js",
     "./collection": "./dest/collection/index.js",

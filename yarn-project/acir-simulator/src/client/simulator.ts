@@ -1,5 +1,5 @@
 import { CallContext, PrivateHistoricTreeRoots, TxRequest } from '@aztec/circuits.js';
-import { FunctionAbi, FunctionType } from '@aztec/noir-contracts';
+import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { DBOracle } from './db_oracle.js';
 import { PrivateFunctionExecution, ExecutionResult } from './private_execution.js';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';

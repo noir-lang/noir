@@ -8,11 +8,11 @@ import {
   TxReceipt,
   TxRequest,
 } from '@aztec/aztec-rpc';
-import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { mock } from 'jest-mock-extended';
 
 import { EcdsaSignature } from '@aztec/circuits.js';
 import { Contract } from './contract.js';
+import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 
 describe('Contract Class', () => {

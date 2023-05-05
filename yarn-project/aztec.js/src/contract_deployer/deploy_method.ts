@@ -1,5 +1,5 @@
 import { AztecRPCClient } from '@aztec/aztec-rpc';
-import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';

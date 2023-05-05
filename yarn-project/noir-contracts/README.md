@@ -1,6 +1,8 @@
 # Noir contracts
 
-## Building
+This package contains the source code and the Aztec ABIs for the example contracts used in the e2e tests.
+
+## Building the contracts
 
 - Install [noirup](https://github.com/noir-lang/noirup)
   ```

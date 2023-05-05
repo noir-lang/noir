@@ -17,10 +17,10 @@ import {
   hashVK,
 } from '@aztec/circuits.js/abis';
 import { CircuitsWasm } from '@aztec/circuits.js/wasm';
-import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { ContractDao, ContractFunctionDao } from '../contract_database/index.js';
 import { computeFunctionTreeData } from './function_tree_data.js';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { keccak } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';

@@ -28,6 +28,7 @@
     "key-store",
     "merkle-tree",
     "noir-contracts",
+    "noir-compiler",
     "l1-artifacts",
     "p2p",
     "prover-client",

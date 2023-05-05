@@ -232,6 +232,17 @@ jobs:
           name: "Build and test"
           command: build noir-contracts
 
+  noir-compiler:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build noir-compiler
+
   world-state:
     machine:
       image: ubuntu-2004:202010-01
@@ -456,6 +467,7 @@ workflows:
       - merkle-tree: *yarn_project
       - p2p: *yarn_project
       - noir-contracts: *yarn_project
+      - noir-compiler: *yarn_project
       - sequencer-client: *yarn_project
       - types: *yarn_project
       - circuits-js: *yarn_project

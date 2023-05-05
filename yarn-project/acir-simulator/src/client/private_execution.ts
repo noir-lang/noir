@@ -9,7 +9,7 @@ import {
 } from '../acvm/index.js';
 import { CallContext, PrivateCallStackItem, FunctionData } from '@aztec/circuits.js';
 import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
-import { FunctionAbi } from '@aztec/noir-contracts';
+import { FunctionAbi } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';

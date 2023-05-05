@@ -168,6 +168,17 @@
     "rebuildPatterns": ["^yarn-project/noir-contracts/"],
     "dependencies": ["foundation"]
   },
+  "noir-compiler": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/noir-compiler",
+    "dockerfile": "noir-compiler/Dockerfile",
+    "rebuildPatterns": [
+      "^yarn-project/noir-compiler/"
+    ],
+    "dependencies": [
+      "foundation"
+    ]
+  },
   "p2p": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/p2p",

@@ -1,4 +1,4 @@
-import { ABIType, BasicType, ContractAbi, StructType } from '@aztec/noir-contracts';
+import { ABIType, BasicType, ContractAbi, StructType } from '@aztec/foundation/abi';
 
 /**
  * Represents a type derived from input type T with the 'kind' property removed.

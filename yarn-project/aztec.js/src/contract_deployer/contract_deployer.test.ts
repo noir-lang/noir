@@ -1,6 +1,6 @@
 import { AztecRPCClient, Tx, TxHash, TxReceipt, TxRequest } from '@aztec/aztec-rpc';
 import { AztecAddress, EcdsaSignature, EthAddress, Fr } from '@aztec/circuits.js';
-import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from 'crypto';
 import { mock } from 'jest-mock-extended';
 import { ContractDeployer } from './contract_deployer.js';

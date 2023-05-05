@@ -3,7 +3,6 @@ import { AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js'
 import { mnemonicToAccount } from 'viem/accounts';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { deployL1Contracts } from './deploy_l1_contracts.js';
-import { ContractAbi } from '@aztec/noir-contracts';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import times from 'lodash.times';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -18,7 +17,7 @@ describe('e2e_block_building', () => {
   let node: AztecNode;
   let aztecRpcServer: AztecRPCServer;
 
-  const abi = TestContractAbi as ContractAbi;
+  const abi = TestContractAbi;
 
   beforeEach(async () => {
     const account = mnemonicToAccount(MNEMONIC);

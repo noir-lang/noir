@@ -1,8 +1,13 @@
-import { ABIType } from '@aztec/noir-contracts';
+import { ABIType } from '@aztec/foundation/abi';
 
 export * from './encoder.js';
 export * from './decoder.js';
 
+/**
+ * Get the size of an ABI type in field elements.
+ * @param type - The ABI type.
+ * @returns The size of the type in field elements.
+ */
 export function sizeOfType(type: ABIType): number {
   switch (type.kind) {
     case 'field':

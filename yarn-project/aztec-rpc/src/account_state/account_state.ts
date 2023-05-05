@@ -7,7 +7,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ConstantKeyPair, KeyPair } from '@aztec/key-store';
-import { FunctionType } from '@aztec/noir-contracts';
+import { FunctionType } from '@aztec/foundation/abi';
 import {
   EncodedContractFunction,
   INITIAL_L2_BLOCK_NUM,

@@ -9,6 +9,7 @@
     "aztec.js",
     "key-store",
     "noir-contracts",
+    "noir-compiler",
     "p2p",
     "prover-client",
     "aztec-node",

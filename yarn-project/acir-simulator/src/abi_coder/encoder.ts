@@ -1,7 +1,6 @@
 import { ARGS_LENGTH } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
-
-import { ABIType, FunctionAbi } from '@aztec/noir-contracts';
+import { ABIType, FunctionAbi } from '@aztec/foundation/abi';
 
 /**
  * Encodes arguments for a function call.
