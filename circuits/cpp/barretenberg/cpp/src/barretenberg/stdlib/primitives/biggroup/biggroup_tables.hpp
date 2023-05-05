@@ -1,13 +1,14 @@
 #pragma once
+#include "barretenberg/proof_system/plookup_tables/types.hpp"
 namespace proof_system::plonk {
 namespace stdlib {
 
+using plookup::MultiTableId;
 template <typename C, class Fq, class Fr, class G>
 template <size_t num_elements, typename>
 std::array<twin_rom_table<C>, 5> element<C, Fq, Fr, G>::create_group_element_rom_tables(
     const std::array<element, num_elements>& rom_data)
 {
-
     std::vector<std::array<field_t<C>, 2>> x_lo_limbs;
     std::vector<std::array<field_t<C>, 2>> x_hi_limbs;
     std::vector<std::array<field_t<C>, 2>> y_lo_limbs;

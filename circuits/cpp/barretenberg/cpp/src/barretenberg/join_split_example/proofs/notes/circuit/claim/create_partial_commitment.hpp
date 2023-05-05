@@ -9,8 +9,6 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace proof_system::plonk::stdlib;
-
 inline auto create_partial_commitment(field_ct const& deposit_value,
                                       field_ct const& bridge_call_data,
                                       field_ct const& value_note_partial_commitment,

@@ -4,16 +4,15 @@
 #include "../generators/generator_data.hpp"
 #include "../generators/fixed_base_scalar_mul.hpp"
 
-using namespace crypto::generators;
-
 namespace crypto {
 namespace pedersen_commitment {
 
-grumpkin::g1::element commit_single(const barretenberg::fr& in, generator_index_t const& index);
+grumpkin::g1::element commit_single(const barretenberg::fr& in, generators::generator_index_t const& index);
 
 grumpkin::g1::affine_element commit_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index = 0);
 
-grumpkin::g1::affine_element commit_native(const std::vector<std::pair<grumpkin::fq, generator_index_t>>& input_pairs);
+grumpkin::g1::affine_element commit_native(
+    const std::vector<std::pair<grumpkin::fq, generators::generator_index_t>>& input_pairs);
 
 grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index = 0);
 
@@ -25,7 +24,7 @@ template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, 
 
 grumpkin::fq compress_native(const std::vector<uint8_t>& input);
 
-grumpkin::fq compress_native(const std::vector<std::pair<grumpkin::fq, generator_index_t>>& input_pairs);
+grumpkin::fq compress_native(const std::vector<std::pair<grumpkin::fq, generators::generator_index_t>>& input_pairs);
 
 } // namespace pedersen_commitment
 } // namespace crypto

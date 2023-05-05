@@ -13,6 +13,8 @@ namespace stdlib {
 
 namespace blake3s_plookup {
 
+using namespace blake_util;
+
 /*
  * Constants and more.
  */

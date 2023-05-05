@@ -15,6 +15,7 @@ namespace join_split {
 using namespace proof_system::plonk;
 using namespace notes::circuit;
 using namespace proof_system::plonk::stdlib::merkle_tree;
+using namespace crypto::schnorr;
 
 /**
  * Check that the input note data, follows the given hash paths, to the publically given merkle root.

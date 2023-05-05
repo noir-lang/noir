@@ -10,6 +10,8 @@ class UltraComposer;
 namespace proof_system::plonk {
 namespace stdlib {
 
+using plookup::ColumnIdx;
+using plookup::MultiTableId;
 using namespace barretenberg;
 
 template <typename Composer>

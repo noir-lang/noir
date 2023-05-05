@@ -10,6 +10,7 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
+using namespace plookup;
 using namespace barretenberg;
 
 template <typename C>

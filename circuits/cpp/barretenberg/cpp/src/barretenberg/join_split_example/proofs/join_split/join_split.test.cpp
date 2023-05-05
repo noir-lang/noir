@@ -13,6 +13,8 @@
 
 namespace join_split_example::proofs::join_split {
 
+using namespace proof_system::plonk::stdlib::merkle_tree;
+
 template <typename Composer> class join_split : public testing::Test {
 
   protected:

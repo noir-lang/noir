@@ -8,13 +8,11 @@
 #include "../../hash/pedersen/pedersen.hpp"
 #include "../../hash/pedersen/pedersen_gates.hpp"
 
-using namespace proof_system;
-
 namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace barretenberg;
-using namespace crypto::pedersen_hash;
+using namespace crypto::generators;
 
 template <typename ComposerContext> class group {
   public:
@@ -137,7 +135,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     fr three = ((one + one) + one);
 
     for (size_t i = 0; i < num_quads; ++i) {
-        uint64_t entry = wnaf_entries[i + 1] & crypto::generators::WNAF_MASK;
+        uint64_t entry = wnaf_entries[i + 1] & WNAF_MASK;
 
         fr prev_accumulator = accumulator_transcript[i] + accumulator_transcript[i];
         prev_accumulator = prev_accumulator + prev_accumulator;

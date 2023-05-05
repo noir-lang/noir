@@ -12,6 +12,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace barretenberg;
+using namespace plookup;
 
 /**
  * Add two curve points in one of the following ways:

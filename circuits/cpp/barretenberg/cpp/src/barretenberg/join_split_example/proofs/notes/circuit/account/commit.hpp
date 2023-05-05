@@ -10,8 +10,6 @@ namespace notes {
 namespace circuit {
 namespace account {
 
-using namespace proof_system::plonk::stdlib;
-
 inline auto commit(field_ct const& account_alias_hash,
                    point_ct const& account_public_key,
                    point_ct const& signing_pub_key)

@@ -4,12 +4,10 @@
 #include "../generators/generator_data.hpp"
 #include "../generators/fixed_base_scalar_mul.hpp"
 
-using namespace crypto::generators;
-
 namespace crypto {
 namespace pedersen_hash {
 
-grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t const& index);
+grumpkin::g1::element hash_single(const barretenberg::fr& in, generators::generator_index_t const& index);
 
 grumpkin::fq hash_multiple(const std::vector<grumpkin::fq>& inputs, const size_t hash_index = 0);
 

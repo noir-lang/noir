@@ -14,6 +14,8 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace sha256_plookup {
 
+using namespace plookup;
+
 namespace internal {
 
 constexpr size_t get_num_blocks(const size_t num_bits)

@@ -19,8 +19,6 @@
 #include <cstddef>
 namespace proof_system {
 
-using namespace barretenberg;
-
 class EnvReferenceString : public ProverReferenceString {
   public:
     EnvReferenceString(const size_t num_points)

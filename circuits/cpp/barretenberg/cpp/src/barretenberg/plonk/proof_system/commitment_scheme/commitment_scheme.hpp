@@ -5,13 +5,11 @@
 #include "../types/commitment_open_proof.hpp"
 #include "../types/program_settings.hpp"
 
-using namespace barretenberg;
-
 namespace proof_system::plonk {
 
 class CommitmentScheme {
   public:
-    typedef barretenberg::fr fr;
+    using fr = barretenberg::fr;
 
     // Constructors for CommitmentScheme
     CommitmentScheme() {}

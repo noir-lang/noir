@@ -8,8 +8,6 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace barretenberg;
-using namespace crypto::pedersen_hash;
-
 template <typename ComposerContext> class pedersen_hash {
 
   private:

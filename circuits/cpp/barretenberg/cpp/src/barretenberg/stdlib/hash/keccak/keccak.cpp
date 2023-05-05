@@ -6,6 +6,8 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
+using namespace plookup;
+
 /**
  * @brief Normalize a base-11 limb and left-rotate by keccak::ROTATIONS[lane_index] bits.
  *        This method also extracts the most significant bit of the normalised rotated limb.

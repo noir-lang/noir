@@ -6,6 +6,7 @@
 using namespace barretenberg;
 using namespace proof_system;
 using namespace crypto::pedersen_commitment;
+using namespace crypto::generators;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

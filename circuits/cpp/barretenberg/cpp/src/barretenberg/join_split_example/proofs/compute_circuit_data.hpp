@@ -84,7 +84,7 @@ circuit_data get_circuit_data(std::string const& name,
         info(name, ": Circuit size: ", composer.get_num_gates());
         if (mock) {
             auto public_inputs = composer.get_public_inputs();
-            mock::mock_circuit(mock_proof_composer, public_inputs);
+            ::join_split_example::proofs::mock::mock_circuit(mock_proof_composer, public_inputs);
             info(name, ": Mock circuit size: ", mock_proof_composer.get_num_gates());
             benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",

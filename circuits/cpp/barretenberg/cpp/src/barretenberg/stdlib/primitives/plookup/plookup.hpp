@@ -9,21 +9,21 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-using namespace plookup;
-
 template <typename Composer> class plookup_ {
     typedef field_t<Composer> field_pt;
 
   public:
-    static std::pair<field_pt, field_pt> read_pair_from_table(const MultiTableId id, const field_pt& key);
+    static std::pair<field_pt, field_pt> read_pair_from_table(const plookup::MultiTableId id, const field_pt& key);
 
-    static field_pt read_from_2_to_1_table(const MultiTableId id, const field_pt& key_a, const field_pt& key_b);
-    static field_pt read_from_1_to_2_table(const MultiTableId id, const field_pt& key_a);
+    static field_pt read_from_2_to_1_table(const plookup::MultiTableId id,
+                                           const field_pt& key_a,
+                                           const field_pt& key_b);
+    static field_pt read_from_1_to_2_table(const plookup::MultiTableId id, const field_pt& key_a);
 
-    static ReadData<field_pt> get_lookup_accumulators(const MultiTableId id,
-                                                      const field_pt& key_a,
-                                                      const field_pt& key_b = 0,
-                                                      const bool is_2_to_1_lookup = false);
+    static plookup::ReadData<field_pt> get_lookup_accumulators(const plookup::MultiTableId id,
+                                                               const field_pt& key_a,
+                                                               const field_pt& key_b = 0,
+                                                               const bool is_2_to_1_lookup = false);
 };
 
 extern template class plookup_<plonk::UltraComposer>;

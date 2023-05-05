@@ -9,7 +9,7 @@ namespace notes {
 namespace native {
 namespace account {
 
-using namespace barretenberg;
+using fr = barretenberg::fr;
 
 inline fr compute_account_alias_hash_nullifier(fr const& alias_hash)
 {

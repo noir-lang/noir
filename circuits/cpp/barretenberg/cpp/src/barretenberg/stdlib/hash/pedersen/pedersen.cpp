@@ -9,6 +9,7 @@ namespace stdlib {
 
 using namespace barretenberg;
 using namespace crypto::pedersen_hash;
+using namespace crypto::generators;
 using namespace proof_system;
 
 /**

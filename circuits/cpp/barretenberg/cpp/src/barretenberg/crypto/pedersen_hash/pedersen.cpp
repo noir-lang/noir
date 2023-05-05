@@ -8,6 +8,8 @@
 namespace crypto {
 namespace pedersen_hash {
 
+using namespace generators;
+
 grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t const& index)
 {
     auto gen_data = get_generator_data(index);
@@ -18,7 +20,7 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t 
     constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
     constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
 
-    const crypto::generators::fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
+    const fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
 
     uint64_t wnaf_entries[num_quads + 2] = { 0 };
     bool skew = false;

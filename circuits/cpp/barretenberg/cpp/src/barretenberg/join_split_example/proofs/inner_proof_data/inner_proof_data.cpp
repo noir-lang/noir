@@ -3,6 +3,8 @@
 namespace join_split_example {
 namespace proofs {
 
+using namespace barretenberg;
+
 inner_proof_data::inner_proof_data(std::vector<uint8_t> const& proof_data)
 {
     proof_id = from_buffer<uint256_t>(proof_data, InnerProofOffsets::PROOF_ID);

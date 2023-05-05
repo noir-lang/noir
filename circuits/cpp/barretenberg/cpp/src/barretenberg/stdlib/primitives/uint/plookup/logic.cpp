@@ -6,6 +6,8 @@ using namespace barretenberg;
 namespace proof_system::plonk {
 namespace stdlib {
 
+using namespace plookup;
+
 template <typename Composer, typename Native>
 uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator&(const uint_plookup& other) const
 {

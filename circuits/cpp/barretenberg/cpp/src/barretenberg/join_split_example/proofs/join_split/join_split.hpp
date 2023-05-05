@@ -7,8 +7,6 @@ namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-using namespace proof_system::plonk::stdlib::merkle_tree;
-
 void init_proving_key(std::shared_ptr<proof_system::ReferenceStringFactory> const& crs_factory, bool mock);
 
 void init_proving_key(std::shared_ptr<proof_system::ProverReferenceString> const& crs,

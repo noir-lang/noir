@@ -9,8 +9,6 @@ namespace notes {
 namespace circuit {
 namespace value {
 
-using namespace proof_system::plonk::stdlib;
-
 inline auto complete_partial_commitment(field_ct const& value_note_partial_commitment,
                                         suint_ct const& value,
                                         suint_ct const& asset_id,

@@ -14,7 +14,7 @@ namespace proof_system::plonk::stdlib {
  *
  * @details Defaults to basic Composer method if not using plookup-compatible composer. If the left and right operands
  * are larger than num_bit, the result will be truncated to num_bits. However, the two operands could be
- * range-constrained to num_bits before the call which would remove the need to range constrain inside this function.
+ * range-constrained to num_bits before the call, which would remove the need to range constrain inside this function.
  *
  * @tparam Composer
  * @param a

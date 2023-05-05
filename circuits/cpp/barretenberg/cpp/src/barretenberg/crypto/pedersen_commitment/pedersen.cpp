@@ -6,7 +6,7 @@
 #include <omp.h>
 #endif
 
-// using namespace crypto::generators;
+using namespace crypto::generators;
 
 namespace crypto {
 namespace pedersen_commitment {

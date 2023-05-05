@@ -2,7 +2,6 @@
 #include "barretenberg/common/map.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
-
 namespace join_split_example {
 namespace proofs {
 namespace mock {

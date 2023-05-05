@@ -11,6 +11,8 @@ namespace stdlib {
 
 namespace blake_util {
 
+using namespace plookup;
+
 // constants
 enum blake_constant { BLAKE3_STATE_SIZE = 16 };
 

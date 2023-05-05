@@ -5,8 +5,6 @@
 #include "../../primitives/point/point.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
 
-using namespace crypto::generators;
-
 namespace proof_system::plonk {
 namespace stdlib {
 
@@ -23,9 +21,9 @@ template <typename ComposerContext> class pedersen_commitment {
     static point commit(const std::vector<field_t>& inputs, const size_t hash_index = 0);
 
     static point commit(const std::vector<field_t>& inputs,
-                        const std::vector<generator_index_t>& hash_generator_indices);
+                        const std::vector<crypto::generators::generator_index_t>& hash_generator_indices);
 
-    static point commit(const std::vector<std::pair<field_t, generator_index_t>>& input_pairs);
+    static point commit(const std::vector<std::pair<field_t, crypto::generators::generator_index_t>>& input_pairs);
 
     static field_t compress_unsafe(const field_t& left,
                                    const field_t& right,
@@ -40,9 +38,9 @@ template <typename ComposerContext> class pedersen_commitment {
     static field_t compress(const std::vector<field_t>& inputs, const size_t hash_index = 0);
 
     static field_t compress(const std::vector<field_t>& inputs,
-                            const std::vector<generator_index_t>& hash_generator_indices);
+                            const std::vector<crypto::generators::generator_index_t>& hash_generator_indices);
 
-    static field_t compress(const std::vector<std::pair<field_t, generator_index_t>>& input_pairs);
+    static field_t compress(const std::vector<std::pair<field_t, crypto::generators::generator_index_t>>& input_pairs);
 
     template <size_t T> static field_t compress(const std::array<field_t, T>& inputs)
     {

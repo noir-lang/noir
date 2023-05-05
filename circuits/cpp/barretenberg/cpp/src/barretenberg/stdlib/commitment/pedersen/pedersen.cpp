@@ -9,6 +9,7 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
+using namespace crypto::generators;
 using namespace barretenberg;
 using namespace crypto::pedersen_commitment;
 
