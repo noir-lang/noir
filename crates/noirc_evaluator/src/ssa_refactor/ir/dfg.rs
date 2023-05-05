@@ -263,37 +263,6 @@ impl DataFlowGraph {
     ) {
         self.blocks[block].set_terminator(terminator);
     }
-
-    /// Splits the given block in two at the given instruction, returning the Id of the new block.
-    /// This will remove the given instruction and place every instruction after it into a new block
-    /// with the same terminator as the old block. The old block is modified to stop
-    /// before the instruction to remove and to unconditionally branch to the new block.
-    /// This function is useful during function inlining to remove the call instruction
-    /// while opening a spot at the end of the current block to insert instructions into.
-    ///
-    /// Example (before):
-    ///   block1: a; b; c; d; e; jmp block5
-    ///
-    /// After self.split_block_at(block1, c):
-    ///   block1: a; b; jmp block2
-    ///   block2: d; e; jmp block5
-    pub(crate) fn split_block_at(
-        &mut self,
-        block: BasicBlockId,
-        instruction_to_remove: InstructionId,
-    ) -> BasicBlockId {
-        let split_block = &mut self.blocks[block];
-
-        let mut instructions = split_block.instructions().iter();
-        let index = instructions.position(|id| *id == instruction_to_remove).unwrap_or_else(|| {
-            panic!("No instruction found with id {instruction_to_remove:?} in block {block:?}")
-        });
-
-        let instructions = split_block.instructions_mut().drain(index..).collect();
-        split_block.remove_instruction(instruction_to_remove);
-
-        self.blocks.insert(BasicBlock::new(instructions))
-    }
 }
 
 impl std::ops::Index<InstructionId> for DataFlowGraph {
