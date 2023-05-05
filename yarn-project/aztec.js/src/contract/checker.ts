@@ -1,7 +1,19 @@
 import { ABIType, BasicType, ContractAbi, StructType } from '@aztec/noir-contracts';
 
+/**
+ * Represents a type derived from input type T with the 'kind' property removed.
+ * Useful when checking attributes of a specific kind and validating their types.
+ */
 type TypeWithoutKind<T> = Omit<{ [key in keyof T]: any }, 'kind'>;
 
+/**
+ * Validates the given ContractAbi object by checking its functions and their parameters.
+ * Ensures that the ABI has at least one function, a constructor, valid bytecode, and correct parameter types.
+ * Throws an error if any inconsistency is detected during the validation process.
+ *
+ * @param abi - The ContractAbi object to be validated.
+ * @returns A boolean value indicating whether the ABI is valid or not.
+ */
 export function abiChecker(abi: ContractAbi) {
   if (!abi.functions || abi.functions.length === 0) {
     throw new Error('ABI has no functions');
@@ -34,6 +46,14 @@ export function abiChecker(abi: ContractAbi) {
   return true;
 }
 
+/**
+ * Validates the ABI function parameter's type by checking its kind and attributes.
+ * Throws an error if the type has an unrecognized kind or incorrectly formed attributes.
+ * Additionally, checks nested types for array and struct kinds.
+ *
+ * @param type - The ABIType object representing the type of the ABI function parameter.
+ * @returns A boolean value indicating whether the type is valid or not.
+ */
 function abiParameterTypeChecker(type: ABIType): boolean {
   switch (type.kind) {
     case 'field':
@@ -52,6 +72,14 @@ function abiParameterTypeChecker(type: ABIType): boolean {
   }
 }
 
+/**
+ * Check if the structure of the ABIType 'struct' is valid by ensuring field names are strings
+ * and their type attribute passes the abiParameterTypeChecker. Returns true on successful validation,
+ * otherwise throws an error providing insight into the incorrect formation in the struct.
+ *
+ * @param type - The StructType object containing an array of fields to validate.
+ * @returns A boolean value indicating successful validation of the struct's fields.
+ */
 function checkStruct(type: StructType) {
   return type.fields.reduce((acc, field) => {
     if (!('name' in field && typeof field.name === 'string')) {
@@ -61,6 +89,16 @@ function checkStruct(type: StructType) {
   }, true);
 }
 
+/**
+ * Check if a provided ABI type has the correct attributes and their associated types.
+ * This function compares the given 'type' object's keys with the expected attribute types
+ * specified in 'incompleteAttributes', as well as the required 'kind' property.
+ * Throws an error if there are any unrecognised attributes or incorrect attribute types.
+ *
+ * @param type - The ABI type object to be checked for correct attributes.
+ * @param incompleteAttributes - An object representing the expected attribute types without the 'kind' property.
+ * @returns Returns true if the provided ABI type has the correct attributes and their associated types, otherwise throws an error.
+ */
 function checkAttributes<T extends BasicType<string>>(type: T, incompleteAttributes: TypeWithoutKind<T>) {
   const typeKeys = Object.keys(type);
   const attributes = { ...incompleteAttributes, kind: 'string' };
