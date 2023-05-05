@@ -1,4 +1,4 @@
-#include "sha256.hpp"
+#include "../../sha256/sha256.hpp"
 #include <benchmark/benchmark.h>
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
