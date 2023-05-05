@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
+use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
@@ -637,6 +637,12 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
 
+        if !self.distinct_allowed(func)
+            && func.def.return_distinctness != noirc_abi::AbiDistinctness::DuplicationAllowed
+        {
+            self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
+        }
+
         if attributes == Some(Attribute::Test) && !parameters.is_empty() {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
@@ -661,6 +667,7 @@ impl<'a> Resolver<'a> {
             typ,
             parameters: parameters.into(),
             return_visibility: func.def.return_visibility,
+            return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
         }
     }
@@ -670,7 +677,18 @@ impl<'a> Resolver<'a> {
         if self.in_contract() {
             !func.def.is_unconstrained && !func.def.is_open
         } else {
-            func.name() == "main"
+            func.name() == MAIN_FUNCTION
+        }
+    }
+
+    /// True if the `distinct` keyword is allowed on a function's return type
+    fn distinct_allowed(&self, func: &NoirFunction) -> bool {
+        if self.in_contract() {
+            // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
+            // witness indices in their abis is not a concern.
+            !func.def.is_unconstrained && !func.def.is_open
+        } else {
+            func.name() == MAIN_FUNCTION
         }
     }
 
@@ -1339,7 +1357,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain y == x;
+                assert(y == x);
             }
         "#;
 
@@ -1351,7 +1369,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain x == x;
+                assert(x == x);
             }
         "#;
 
@@ -1374,7 +1392,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain y == z;
+                assert(y == z);
             }
         "#;
 
@@ -1410,7 +1428,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = 5;
-                constrain y == x;
+                assert(y == x);
             }
         "#;
 

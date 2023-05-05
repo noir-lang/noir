@@ -26,7 +26,7 @@
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
-    ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
+    ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule, TopLevelStatement,
 };
 use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
@@ -40,7 +40,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_abi::AbiVisibility;
+use noirc_abi::{AbiDistinctness, AbiVisibility};
 use noirc_errors::{CustomDiagnostic, Span, Spanned};
 
 /// Entry function for the parser - also handles lexing internally.
@@ -162,7 +162,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
             |(
                 (
                     ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
-                    (return_visibility, return_type),
+                    ((return_distinctness, return_visibility), return_type),
                 ),
                 body,
             )| {
@@ -177,6 +177,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                     body,
                     return_type,
                     return_visibility,
+                    return_distinctness,
                 }
                 .into()
             },
@@ -235,12 +236,18 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn function_return_type() -> impl NoirParser<(AbiVisibility, UnresolvedType)> {
+fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), UnresolvedType)> {
     just(Token::Arrow)
-        .ignore_then(optional_visibility())
+        .ignore_then(optional_distinctness())
+        .then(optional_visibility())
         .then(parse_type())
         .or_not()
-        .map(|ret| ret.unwrap_or((AbiVisibility::Private, UnresolvedType::Unit)))
+        .map(|ret| {
+            ret.unwrap_or((
+                (AbiDistinctness::DuplicationAllowed, AbiVisibility::Private),
+                UnresolvedType::Unit,
+            ))
+        })
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
@@ -428,6 +435,7 @@ where
 {
     choice((
         constrain(expr_parser.clone()),
+        assertion(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
@@ -439,6 +447,19 @@ where
     P: ExprParser + 'a,
 {
     ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
+        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+        .validate(|expr, span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
+            expr
+        })
+}
+
+fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
+        .labelled("statement")
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
@@ -551,6 +572,13 @@ fn optional_visibility() -> impl NoirParser<AbiVisibility> {
     keyword(Keyword::Pub).or_not().map(|opt| match opt {
         Some(_) => AbiVisibility::Public,
         None => AbiVisibility::Private,
+    })
+}
+
+fn optional_distinctness() -> impl NoirParser<AbiDistinctness> {
+    keyword(Keyword::Distinct).or_not().map(|opt| match opt {
+        Some(_) => AbiDistinctness::Distinct,
+        None => AbiDistinctness::DuplicationAllowed,
     })
 }
 
@@ -853,10 +881,7 @@ where
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .validate(|elements, span, emit| {
             if elements.is_empty() {
-                emit(ParserError::with_reason(
-                    "Arrays must have at least one element".to_owned(),
-                    span,
-                ));
+                emit(ParserError::with_reason(ParserErrorReason::ZeroSizedArray, span));
             }
             ExpressionKind::array(elements)
         })
@@ -942,8 +967,7 @@ fn field_name() -> impl NoirParser<Ident> {
     ident().or(token_kind(TokenKind::Literal).validate(|token, span, emit| match token {
         Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
         other => {
-            let reason = format!("Unexpected '{other}', expected a field name");
-            emit(ParserError::with_reason(reason, span));
+            emit(ParserError::with_reason(ParserErrorReason::ExpectedFieldName(other), span));
             Ident::error(span)
         }
     }))
@@ -1172,10 +1196,12 @@ mod test {
         );
     }
 
-    /// This is the standard way to declare a constrain statement
+    /// Deprecated constrain usage test
     #[test]
     fn parse_constrain() {
-        parse_with(constrain(expression()), "constrain x == y").unwrap();
+        let errors = parse_with(constrain(expression()), "constrain x == y").unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
 
         // Currently we disallow constrain statements where the outer infix operator
         // produces a value. This would require an implicit `==` which
@@ -1193,7 +1219,53 @@ mod test {
 
         for operator in disallowed_operators {
             let src = format!("constrain x {} y;", operator.as_string());
-            parse_with(constrain(expression()), &src).unwrap_err();
+            let errors = parse_with(constrain(expression()), &src).unwrap_err();
+            assert_eq!(errors.len(), 2);
+            assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
+        }
+
+        // These are general cases which should always work.
+        //
+        // The first case is the most noteworthy. It contains two `==`
+        // The first (inner) `==` is a predicate which returns 0/1
+        // The outer layer is an infix `==` which is
+        // associated with the Constrain statement
+        let errors = parse_all_failing(
+            constrain(expression()),
+            vec![
+                "constrain ((x + y) == k) + z == y",
+                "constrain (x + !y) == y",
+                "constrain (x ^ y) == y",
+                "constrain (x ^ y) == (y + m)",
+                "constrain x + x ^ x == y | m",
+            ],
+        );
+        assert_eq!(errors.len(), 5);
+        assert!(errors.iter().all(|err| { format!("{}", err).contains("deprecated") }));
+    }
+
+    /// This is the standard way to declare an assert statement
+    #[test]
+    fn parse_assert() {
+        parse_with(assertion(expression()), "assert(x == y)").unwrap();
+
+        // Currently we disallow constrain statements where the outer infix operator
+        // produces a value. This would require an implicit `==` which
+        // may not be intuitive to the user.
+        //
+        // If this is deemed useful, one would either apply a transformation
+        // or interpret it with an `==` in the evaluator
+        let disallowed_operators = vec![
+            BinaryOpKind::And,
+            BinaryOpKind::Subtract,
+            BinaryOpKind::Divide,
+            BinaryOpKind::Multiply,
+            BinaryOpKind::Or,
+        ];
+
+        for operator in disallowed_operators {
+            let src = format!("assert(x {} y);", operator.as_string());
+            parse_with(assertion(expression()), &src).unwrap_err();
         }
 
         // These are general cases which should always work.
@@ -1203,13 +1275,13 @@ mod test {
         // The outer layer is an infix `==` which is
         // associated with the Constrain statement
         parse_all(
-            constrain(expression()),
+            assertion(expression()),
             vec![
-                "constrain ((x + y) == k) + z == y",
-                "constrain (x + !y) == y",
-                "constrain (x ^ y) == y",
-                "constrain (x ^ y) == (y + m)",
-                "constrain x + x ^ x == y | m",
+                "assert(((x + y) == k) + z == y)",
+                "assert((x + !y) == y)",
+                "assert((x ^ y) == y)",
+                "assert((x ^ y) == (y + m))",
+                "assert(x + x ^ x == y | m)",
             ],
         );
     }
@@ -1257,6 +1329,7 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
+                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
             ],
         );
 
@@ -1467,8 +1540,10 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 1, "constrain Error"),
-            ("constrain x ==", 1, "constrain (plain::x == Error)"),
+            ("constrain", 2, "constrain Error"),
+            ("assert", 1, "constrain Error"),
+            ("constrain x ==", 2, "constrain (plain::x == Error)"),
+            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");

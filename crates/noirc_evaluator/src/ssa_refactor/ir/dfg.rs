@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
-    function::Signature,
-    instruction::{Instruction, InstructionId},
-    map::{DenseMap, Id, SecondaryMap, TwoWayMap},
+    function::{FunctionId, Signature},
+    instruction::{
+        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+    },
+    map::{DenseMap, Id, TwoWayMap},
     types::Type,
     value::{Value, ValueId},
 };
@@ -11,34 +15,10 @@ use super::{
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
-#[derive(Debug, Default)]
-/// A convenience wrapper to store `Value`s.
-pub(crate) struct ValueList(Vec<Id<Value>>);
-
-impl ValueList {
-    /// Inserts an element to the back of the list and
-    /// returns the `position`
-    pub(crate) fn push(&mut self, value: ValueId) -> usize {
-        self.0.push(value);
-        self.len() - 1
-    }
-
-    /// Returns the number of values in the list.
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Removes all items from the list.
-    fn clear(&mut self) {
-        self.0.clear();
-    }
-
-    /// Returns the ValueId's as a slice.
-    pub(crate) fn as_slice(&self) -> &[ValueId] {
-        &self.0
-    }
-}
-
+/// The DataFlowGraph contains most of the actual data in a function including
+/// its blocks, instructions, and values. This struct is largely responsible for
+/// owning most data in a function and handing out Ids to this data that can be
+/// shared without worrying about ownership.
 #[derive(Debug, Default)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
@@ -53,7 +33,7 @@ pub(crate) struct DataFlowGraph {
     /// Currently, we need to define them in a better way
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
-    results: SecondaryMap<Instruction, ValueList>,
+    results: HashMap<InstructionId, Vec<ValueId>>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -63,6 +43,16 @@ pub(crate) struct DataFlowGraph {
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ConstantId.
     constants: TwoWayMap<NumericConstant>,
+
+    /// Contains each function that has been imported into the current function.
+    /// Each function's Value::Function is uniqued here so any given FunctionId
+    /// will always have the same ValueId within this function.
+    functions: HashMap<FunctionId, ValueId>,
+
+    /// Contains each intrinsic that has been imported into the current function.
+    /// This map is used to ensure that the ValueId for any given intrinsic is always
+    /// represented by only 1 ValueId within this function.
+    intrinsics: HashMap<Intrinsic, ValueId>,
 
     /// Function signatures of external methods
     signatures: DenseMap<Signature>,
@@ -75,14 +65,14 @@ impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn new_block(&mut self) -> BasicBlockId {
+    pub(crate) fn make_block(&mut self) -> BasicBlockId {
         self.blocks.insert(BasicBlock::new(Vec::new()))
     }
 
     /// Creates a new basic block with the given parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn new_block_with_parameters(
+    pub(crate) fn make_block_with_parameters(
         &mut self,
         parameter_types: impl Iterator<Item = Type>,
     ) -> BasicBlockId {
@@ -110,12 +100,31 @@ impl DataFlowGraph {
     }
 
     /// Inserts a new instruction into the DFG.
-    /// This does not add the instruction to the block or populate the instruction's result list
-    pub(crate) fn make_instruction(&mut self, instruction_data: Instruction) -> InstructionId {
+    /// This does not add the instruction to the block.
+    /// Returns the id of the new instruction and its results.
+    ///
+    /// Populates the instruction's results with the given ctrl_typevars if the instruction
+    /// is a Load, Call, or Intrinsic. Otherwise the instruction's results will be known
+    /// by the instruction itself and None can safely be passed for this parameter.
+    pub(crate) fn make_instruction(
+        &mut self,
+        instruction_data: Instruction,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InstructionId {
         let id = self.instructions.insert(instruction_data);
-        // Create a new vector to store the potential results for the instruction.
-        self.results.insert(id, Default::default());
+        self.make_instruction_results(id, ctrl_typevars);
         id
+    }
+
+    /// Replace an instruction id with another.
+    ///
+    /// This function should generally be avoided if possible in favor of inserting new
+    /// instructions since it does not check whether the instruction results of the removed
+    /// instruction are still in use. Users of this function thus need to ensure the old
+    /// instruction's results are no longer in use or are otherwise compatible with the
+    /// new instruction's result count and types.
+    pub(crate) fn replace_instruction(&mut self, id: Id<Instruction>, instruction: Instruction) {
+        self.instructions[id] = instruction;
     }
 
     /// Insert a value into the dfg's storage and return an id to reference it.
@@ -131,47 +140,71 @@ impl DataFlowGraph {
         self.values.insert(Value::NumericConstant { constant, typ })
     }
 
+    /// Gets or creates a ValueId for the given FunctionId.
+    pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
+        if let Some(existing) = self.functions.get(&function) {
+            return *existing;
+        }
+        self.values.insert(Value::Function(function))
+    }
+
+    /// Gets or creates a ValueId for the given Intrinsic.
+    pub(crate) fn import_intrinsic(&mut self, intrinsic: Intrinsic) -> ValueId {
+        if let Some(existing) = self.intrinsics.get(&intrinsic) {
+            return *existing;
+        }
+        self.values.insert(Value::Intrinsic(intrinsic))
+    }
+
     /// Attaches results to the instruction, clearing any previous results.
+    ///
+    /// This does not normally need to be called manually as it is called within
+    /// make_instruction automatically.
     ///
     /// Returns the results of the instruction
     pub(crate) fn make_instruction_results(
         &mut self,
         instruction_id: InstructionId,
-        ctrl_typevar: Type,
-    ) -> &[ValueId] {
-        // Clear all of the results instructions associated with this
-        // instruction.
-        self.results.get_mut(&instruction_id).expect("all instructions should have a `result` allocation when instruction was added to the DFG").clear();
+        ctrl_typevars: Option<Vec<Type>>,
+    ) {
+        self.results.insert(instruction_id, Default::default());
 
         // Get all of the types that this instruction produces
         // and append them as results.
-        let typs = self.instruction_result_types(instruction_id, ctrl_typevar);
+        let typs = self.instruction_result_types(instruction_id, ctrl_typevars);
 
         for typ in typs {
             self.append_result(instruction_id, typ);
         }
-
-        self.results.get_mut(&instruction_id)
-            .expect("all instructions should have a `result` allocation when instruction was added to the DFG")
-            .as_slice()
     }
 
     /// Return the result types of this instruction.
     ///
-    /// For example, an addition instruction will return
-    /// one type which is the type of the operands involved.
-    /// This is the `ctrl_typevar` in this case.
+    /// In the case of Load, Call, and Intrinsic, the function's result
+    /// type may be unknown. In this case, the given ctrl_typevars are returned instead.
+    /// ctrl_typevars is taken in as an Option since it is common to omit them when getting
+    /// the type of an instruction that does not require them. Compared to passing an empty Vec,
+    /// Option has the benefit of panicking if it is accidentally used for a Call instruction,
+    /// rather than silently returning the empty Vec and continuing.
     fn instruction_result_types(
         &self,
         instruction_id: InstructionId,
-        ctrl_typevar: Type,
+        ctrl_typevars: Option<Vec<Type>>,
     ) -> Vec<Type> {
-        // Check if it is a call instruction. If so, we don't support that yet
-        let ins_data = &self.instructions[instruction_id];
-        match ins_data {
-            Instruction::Call { .. } => todo!("function calls are not supported yet"),
-            ins => ins.return_types(ctrl_typevar),
+        let instruction = &self.instructions[instruction_id];
+        match instruction.result_type() {
+            InstructionResultType::Known(typ) => vec![typ],
+            InstructionResultType::Operand(value) => vec![self.type_of_value(value)],
+            InstructionResultType::None => vec![],
+            InstructionResultType::Unknown => {
+                ctrl_typevars.expect("Control typevars required but not given")
+            }
         }
+    }
+
+    /// Returns the type of a given value
+    pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
+        self.values[value].get_type()
     }
 
     /// Appends a result type to the instruction.
@@ -186,8 +219,7 @@ impl DataFlowGraph {
         });
 
         // Add value to the list of results for this instruction
-        let actual_res_position = results.push(value_id);
-        assert_eq!(actual_res_position, expected_res_position);
+        results.push(value_id);
         value_id
     }
 
@@ -202,6 +234,7 @@ impl DataFlowGraph {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
     }
 
+    /// Add a parameter to the given block
     pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> Id<Value> {
         let block = &mut self.blocks[block_id];
         let position = block.parameters().len();
@@ -210,12 +243,41 @@ impl DataFlowGraph {
         parameter
     }
 
+    /// Insert an instruction at the end of a given block.
+    /// If the block already has a terminator, the instruction is inserted before the terminator.
     pub(crate) fn insert_instruction_in_block(
         &mut self,
         block: BasicBlockId,
         instruction: InstructionId,
     ) {
         self.blocks[block].insert_instruction(instruction);
+    }
+
+    /// Returns the field element represented by this value if it is a numeric constant.
+    /// Returns None if the given value is not a numeric constant.
+    pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
+        self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
+    }
+
+    /// Returns the field element and type represented by this value if it is a numeric constant.
+    /// Returns None if the given value is not a numeric constant.
+    pub(crate) fn get_numeric_constant_with_type(
+        &self,
+        value: Id<Value>,
+    ) -> Option<(FieldElement, Type)> {
+        match self.values[value] {
+            Value::NumericConstant { constant, typ } => Some((self[constant].value(), typ)),
+            _ => None,
+        }
+    }
+
+    /// Sets the terminator instruction for the given basic block
+    pub(crate) fn set_block_terminator(
+        &mut self,
+        block: BasicBlockId,
+        terminator: TerminatorInstruction,
+    ) {
+        self.blocks[block].set_terminator(terminator);
     }
 }
 
@@ -257,21 +319,15 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa_refactor::ir::{
-        instruction::Instruction,
-        types::{NumericType, Type},
-    };
+    use crate::ssa_refactor::ir::instruction::Instruction;
 
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate { size: 20 };
-        let ins_id = dfg.make_instruction(ins);
-
-        let num_results =
-            dfg.make_instruction_results(ins_id, Type::Numeric(NumericType::NativeField)).len();
+        let ins_id = dfg.make_instruction(ins, None);
 
         let results = dfg.instruction_results(ins_id);
-        assert_eq!(results.len(), num_results);
+        assert_eq!(results.len(), 1);
     }
 }

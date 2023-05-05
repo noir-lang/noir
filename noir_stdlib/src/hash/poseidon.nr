@@ -20,9 +20,9 @@ fn config<M,N>(
     mds: [Field; N])
     -> PoseidonConfig<M,N> {
     // Input checks
-    constrain t as u8 * (rf + rp) == ark.len() as u8;
-    constrain t * t == mds.len();
-    constrain alpha != 0;
+    assert(t as u8 * (rf + rp) == ark.len() as u8);
+    assert(t * t == mds.len());
+    assert(alpha != 0);
     
     PoseidonConfig {t, rf, rp, alpha, ark, mds}
 }
@@ -34,7 +34,7 @@ fn permute<M,N,O>(
     -> [Field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
-    constrain t == state.len();
+    assert(t == state.len());
     
     let mut count = 0;
 
@@ -68,7 +68,7 @@ fn absorb<M,N,O,P>(
     capacity: comptime Field, // Capacity; usually 1
     msg: [Field; P]) // Arbitrary length message
     -> [Field; O] {
-    constrain pos_conf.t == rate + capacity;
+    assert(pos_conf.t == rate + capacity);
     
     let mut i = 0;
 

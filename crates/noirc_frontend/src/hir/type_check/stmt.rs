@@ -170,21 +170,16 @@ impl<'interner> TypeChecker<'interner> {
                 let index_type = self.check_expression(&index);
                 let expr_span = self.interner.expr_span(&index);
 
-                self.unify(&index_type, &Type::comp_time(Some(expr_span)), expr_span, || {
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: "comptime Field".to_owned(),
+                index_type.make_subtype_of(
+                    &Type::field(Some(expr_span)),
+                    expr_span,
+                    &mut self.errors,
+                    || TypeCheckError::TypeMismatch {
+                        expected_typ: "Field".to_owned(),
                         expr_typ: index_type.to_string(),
                         expr_span,
-                    }
-                });
-                //TODO replace the above by the below in order to activate dynamic arrays
-                // index_type.make_subtype_of(&Type::field(Some(expr_span)), expr_span, || {
-                //     TypeCheckError::TypeMismatch {
-                //         expected_typ: "Field".to_owned(),
-                //         expr_typ: index_type.to_string(),
-                //         expr_span,
-                //     }
-                // });
+                    },
+                );
 
                 let (result, array) = self.check_lvalue(*array, assign_span);
                 let array = Box::new(array);

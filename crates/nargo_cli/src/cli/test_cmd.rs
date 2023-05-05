@@ -32,7 +32,7 @@ fn run_tests(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
@@ -79,7 +79,7 @@ fn run_test(
     driver: &Driver,
     config: &CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend::default();
 
     let program = driver
         .compile_no_check(config, main)
