@@ -3,9 +3,61 @@
     "arcanis.vscode-zipfs",
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
-    "ms-vscode.cpptools",
     "eamodio.gitlens",
     "ms-vsliveshare.vsliveshare",
-    "juanblanco.solidity"
+    "juanblanco.solidity",
+    // Generate nicer Doxygen comments
+    "cschlosser.doxdocgen",
+    ///////////////////////////////////////
+    // C++/Circuits extensions
+    ///////////////////////////////////////
+    // Enables CMake integration and configuration
+    // for easier building
+    "ms-vscode.cmake-tools",
+    // Provides a nice UI for listing all Google Test
+    // tests, including launching a debug session
+    // for a specific test directly.
+    // Also provides buttons alongside test definitions.
+    "matepek.vscode-catch2-test-adapter",
+    // Integrates the `clangd` language server for
+    // - code formatting (clang-format)
+    // - static analysis (clang-tidy)
+    // - hints, tooltips, and more.
+    "llvm-vs-code-extensions.vscode-clangd",
+    // Better syntax highlighting for C++.
+    // Make sure to select one of the themes suggested
+    // (e.g. "Dark+")
+    "jeff-hykin.better-cpp-syntax",
+    // Handle CMakeLists.txt editing
+    "twxs.cmake",
+    // Integrates LLDB debugger
+    "vadimcn.vscode-lldb",
+    // Makes the CMake build output slightly prettier.
+    "IBM.output-colorizer",
+    // Displays code coverage report information within vscode
+    "ryanluker.vscode-coverage-gutters",
+    // End C++/Circuits extensions
+    ///////////////////////////////////////
+  ],
+  "unwantedRecommendations": [
+    ///////////////////////////////////////
+    // C++/Circuits unwanted extensions
+    ///////////////////////////////////////
+    // The following may have been installed and
+    // cause some confusion when running tests.
+    // The options provided by C++ TestMate
+    // should be good enough.
+    "ms-vscode.cpptools-themes",
+    "hbenl.vscode-test-explorer",
+    "ms-vscode.test-adapter-converter",
+    "fredericbonnet.cmake-test-adapter",
+    "ms-vscode.cpptools-extension-pack",
+    // Used to enable GDB debugging
+    // Most features are disabled in `settings.json`
+    // which confict with `clangd`
+    // Since we ignore GDB, we no longer need this extension
+    "ms-vscode.cpptools",
+    // End C++/Circuits unwanted extensions
+    ///////////////////////////////////////
   ]
 }

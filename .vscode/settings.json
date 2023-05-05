@@ -114,9 +114,6 @@
     "**/node_modules": true,
     "**/.pnp.*": true
   },
-  "[cpp]": {
-    "editor.defaultFormatter": "ms-vscode.cpptools"
-  },
   "[terraform]": {
     "editor.defaultFormatter": "hashicorp.terraform"
   },
@@ -126,5 +123,47 @@
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "cmake.sourceDirectory": "${workspaceFolder}/circuits/cpp"
+  ///////////////////////////////////////
+  // C++/Circuits settings
+  ///////////////////////////////////////
+  "[cpp]": {
+     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+      "editor.formatOnSave": true,
+  },
+  //
+  // Clangd. Note that this setting may be overridden by user settings
+  // to the default value "clangd".
+  //
+  "clangd.path": "clangd-15",
+  //
+  // CMake
+  //
+  // Location of base CMakeLists file
+  "cmake.sourceDirectory": "${workspaceFolder}/circuits/cpp/",
+  "cmake.buildDirectory": "${workspaceFolder}/circuits/cpp/build",
+  //
+  // C/C++ (should be disabled)
+  //
+  // Make sure all C++ IntelliSense features are disabled
+  // and don't interfere with clangd
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "C_Cpp.autocomplete": "disabled",
+  "C_Cpp.codeAnalysis.clangTidy.codeAction.formatFixes": false,
+  "C_Cpp.codeAnalysis.runAutomatically": false,
+  "C_Cpp.configurationWarnings": "disabled",
+  "C_Cpp.debugShortcut": false,
+  "C_Cpp.default.enableConfigurationSquiggles": false,
+  "C_Cpp.formatting": "disabled",
+  "C_Cpp.vcpkg.enabled": false,
+  "C_Cpp.default.includePath": ["cpp/barretenberg/cpp/src"],
+  //
+  // TestMate C++
+  //
+  // Ensures tests are run from the `build` directory
+  // which ensures SRS can be read
+  "testMate.cpp.test.workingDirectory": "${workspaceFolder}/circuits/cpp/build",
+  // Filter all binaries that are not tests
+  "testMate.cpp.test.executables": "${workspaceFolder}/circuits/cpp/build/bin/*{test,Test,TEST}*",
+  // End C++/Circuits settings
+  ///////////////////////////////////////
 }
