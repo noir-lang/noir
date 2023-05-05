@@ -4,25 +4,19 @@ contract Parent {
     use dep::aztec3::context::PrivateFunctionContext;
     use dep::aztec3::private_call_stack_item::PrivateCallStackItem;
 
-    /// ABI constructor type "secret"
-    /// ABI constructor params []
-    /// ABI constructor return []
     fn constructor(
         inputs: pub Inputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         PrivateFunctionContext::new().finish(inputs)
     }
 
-    /// ABI entryPoint type "secret"
-    /// ABI entryPoint params [{"name":"targetContract","type":{"kind":"field"},"visibility":"public"},{"name":"targetSelector","type":{"kind":"field"}}]
-    /// ABI entryPoint return [{"kind":"field"}]
     fn entryPoint(
         inputs: pub Inputs,
+        targetContract: pub Field,
+        targetSelector: pub Field,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
-        let targetContract = inputs.args[0];
-        let targetSelector = inputs.args[1];
-
         let mut initialContext = PrivateFunctionContext::new();
+        initialContext.args = initialContext.args.push_array([targetContract, targetSelector]);
 
         let (callStackItem, mut context) = PrivateCallStackItem::call(targetContract, targetSelector, [0; dep::aztec3::abi::MAX_ARGS], initialContext);
 

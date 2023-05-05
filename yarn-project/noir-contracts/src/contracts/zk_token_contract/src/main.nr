@@ -13,25 +13,16 @@ contract ZkToken {
     // `balances: Mapping<Field, Set<Note>>;`
     //*********************************/
 
-    /// ABI constructor type "secret"
-    /// ABI constructor params [{"name":"value","type":{"kind":"field"},"visibility":"public"},{"name":"owner","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}]},"visibility":"public"}]
-    /// ABI constructor return []
     fn constructor(
         //*********************************/
         // Should eventually be hidden:
         inputs: pub Inputs,
         //*********************************/
-
-        // initial_supply: pub Field, 
-        // owner: pub Point,
+        initial_supply: pub Field, 
+        owner: pub Point,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
-        //*********************************/
-        // Should eventually be hidden:
-        let initial_supply = inputs.args[0];
-        let owner = Point::new(inputs.args[1], inputs.args[2]);
-
         let mut context = PrivateFunctionContext::new();
-        //*********************************/
+        context.args = context.args.push_array([initial_supply, owner.x, owner.y]);
 
         let owner_balance = balances.at(owner.x);
         let note = Note::new(initial_supply, owner);
@@ -40,25 +31,16 @@ contract ZkToken {
             .finish(inputs)
     }
 
-    /// ABI mint type "secret"
-    /// ABI mint params [{"name":"value","type":{"kind":"field"},"visibility":"public"},{"name":"owner","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}]},"visibility":"public"}]
-    /// ABI mint return []
     fn mint(
         //*********************************/
         // Should eventually be hidden:
         inputs: pub Inputs,
         //*********************************/
-
-        // amount: pub Field, 
-        // owner: pub Point,
+        amount: pub Field, 
+        owner: pub Point,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
-        //*********************************/
-        // Should eventually be hidden:
-        let amount = inputs.args[0];
-        let owner = Point::new(inputs.args[1], inputs.args[2]);
-
         let mut context = PrivateFunctionContext::new();
-        //*********************************/
+        context.args = context.args.push_array([amount, owner.x, owner.y]);
 
         let owner_balance = balances.at(owner.x);
         let note = Note::new(amount, owner);
@@ -67,30 +49,20 @@ contract ZkToken {
             .finish(inputs)
     }
 
-    /// ABI transfer type "secret"
-    /// ABI transfer params [{"name":"amount","type":{"kind":"field"},"visibility":"public"},{"name":"sender","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}},{"name":"recipient","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}}]
-    /// ABI transfer return []
     fn transfer(
         //*********************************/
         // Should eventually be hidden:
         inputs: pub Inputs,
         //*********************************/
-        // 
-        // amount: pub Field, 
-        // sender: pub Point, 
-        // recipient: pub Point
+        amount: pub Field, 
+        sender: pub Point, 
+        recipient: pub Point,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
-        //*********************************/
-        // Should eventually be hidden:
-        let amount = inputs.args[0];
-        let sender = Point::new(inputs.args[1], inputs.args[2]);
-        let recipient = Point::new(inputs.args[3], inputs.args[4]);
-
-        let context1 = PrivateFunctionContext::new();
-        //*********************************/
+        let mut initialContext = PrivateFunctionContext::new();
+        initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient.x, recipient.y]);
 
         let sender_balance = balances.at(sender.x);
-        let (mut context, (note1, note2)) = sender_balance.get_2(inputs, context1);
+        let (mut context, (note1, note2)) = sender_balance.get_2(inputs, initialContext);
 
         // TODO: Removing this return breaks the circuit (???)
         context.return_values = context.return_values.push(note1.is_real as Field);

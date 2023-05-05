@@ -8,32 +8,25 @@ contract PublicToken {
 
     global balances = StorageMap { storage_slot: 1 };
 
-    /// ABI constructor type "secret"
-    /// ABI constructor params []
-    /// ABI constructor return []
     fn constructor(
         inputs: pub Inputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         PrivateFunctionContext::new().finish(inputs)
     }
 
-    /// ABI mint type "open"
-    /// ABI mint params [{"name":"amount","type":{"kind":"field"},"visibility":"public"},{"name":"recipient","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}}]
-    fn mint(
-        _call_context: pub CallContext,
-        amount: pub Field,
-        recipient: pub Point,
+    open fn mint(
+        _call_context: CallContext,
+        amount: Field,
+        recipient: Point,
     ) -> pub Field {
         let recipient_balance = balances.at(recipient.x);
         recipient_balance.write(recipient_balance.read() + amount)
     }
 
-    /// ABI transfer type "open"
-    /// ABI transfer params [{"name":"amount","type":{"kind":"field"},"visibility":"public"},{"name":"recipient","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}}]
-    fn transfer(
-        call_context: pub CallContext,
-        amount: pub Field,
-        recipient: pub Point,
+    open fn transfer(
+        call_context: CallContext,
+        amount: Field,
+        recipient: Point,
     ) -> pub Field {
         let sender = call_context.msg_sender;
         

@@ -298,7 +298,7 @@ describe('Private Execution test suite', () => {
       );
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.ZERO, EthAddress.ZERO, historicRoots);
 
-      expect(result.returnValues[0]).toEqual(142n);
+      expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(142n));
     });
 
     it('parent should call child', async () => {
@@ -327,11 +327,11 @@ describe('Private Execution test suite', () => {
         historicRoots,
       );
 
-      expect(result.returnValues[0]).toEqual(42n);
+      expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(42n));
       expect(oracle.getFunctionABI.mock.calls[0]).toEqual([childAddress, childSelector]);
       expect(oracle.getPortalContractAddress.mock.calls[0]).toEqual([childAddress]);
       expect(result.nestedExecutions).toHaveLength(1);
-      expect(result.nestedExecutions[0].returnValues[0]).toEqual(42n);
+      expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(42n));
     });
   });
 });

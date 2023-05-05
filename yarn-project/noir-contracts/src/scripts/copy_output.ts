@@ -12,8 +12,11 @@ function getFunction(type: FunctionType, params: ABIParameter[], returns: ABITyp
   return {
     name: fn.name,
     functionType: type,
-    parameters: params,
-    returnTypes: returns,
+    // If the function is not unconstrained, the first item is inputs or CallContext
+    // Which we should omit
+    parameters: type !== FunctionType.UNCONSTRAINED ? params.slice(1) : params,
+    // If the function is secret, the return is the public inputs, which should be omitted
+    returnTypes: type === FunctionType.SECRET ? [] : returns,
     bytecode: Buffer.from(fn.bytecode).toString('hex'),
     // verificationKey: Buffer.from(fn.verification_key).toString('hex'),
     verificationKey: mockedKeys.verificationKey,
@@ -41,7 +44,7 @@ function getFunctions(source: string, output: any) {
           {} as Record<(typeof STATEMENT_TYPES)[number], any>,
         );
       return getFunction(
-        thisFunctionAbisComments.type || 'secret',
+        thisFunctionAbisComments.type || (fn.function_type.toLowerCase() as FunctionType),
         thisFunctionAbisComments.params || fn.abi.parameters,
         thisFunctionAbisComments.return || [fn.abi.return_type],
         fn,

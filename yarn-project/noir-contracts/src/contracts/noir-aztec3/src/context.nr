@@ -3,6 +3,7 @@ use crate::abi;
 
 // When finished, one can call .finish() to convert back to the abi
 struct PrivateFunctionContext {
+    args : BoundedVec<Field, abi::MAX_ARGS>,
     return_values : BoundedVec<Field, abi::MAX_RETURN_VALUES>,
     logs : BoundedVec<Field, abi::MAX_LOGS>,
 
@@ -17,6 +18,7 @@ struct PrivateFunctionContext {
 impl PrivateFunctionContext {
     fn new() -> PrivateFunctionContext {
         PrivateFunctionContext {
+            args: BoundedVec::new(0),
             return_values: BoundedVec::new(0),
             logs: BoundedVec::new(0),
 
@@ -33,7 +35,7 @@ impl PrivateFunctionContext {
     fn finish(self, inputs: abi::Inputs) -> [Field; abi::PUBLIC_INPUTS_LENGTH] {
         let priv_circuit_pub_inputs = abi::PrivateCircuitPublicInputs {
             call_context: inputs.call_context,
-            args: inputs.args,
+            args: self.args.storage,
             return_values: self.return_values.storage,
             emitted_events: self.logs.storage,
             new_commitments: self.new_commitments.storage,

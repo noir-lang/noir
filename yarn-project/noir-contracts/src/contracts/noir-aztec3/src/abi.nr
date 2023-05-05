@@ -19,7 +19,6 @@ struct Inputs {
     old_contract_tree_root : Field,
 
     contract_deployment_data: ContractDeploymentData,
-    args: [Field; MAX_ARGS],
 }
 
 struct CallContext {

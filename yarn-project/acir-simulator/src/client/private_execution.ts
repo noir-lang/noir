@@ -16,6 +16,7 @@ import { ClientTxExecutionContext } from './client_execution_context.js';
 import { Fr } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { sizeOfType } from '../index.js';
 
 export interface NewNoteData {
   preimage: Fr[];
@@ -73,6 +74,7 @@ export class PrivateFunctionExecution {
 
     const acir = Buffer.from(this.abi.bytecode, 'hex');
     const initialWitness = this.writeInputs();
+
     const newNotePreimages: NewNoteData[] = [];
     const newNullifiers: NewNullifierData[] = [];
     const nestedExecutionContexts: ExecutionResult[] = [];
@@ -142,9 +144,8 @@ export class PrivateFunctionExecution {
   // We still need this function until we can get user-defined ordering of structs for fn arguments
   // TODO When that is sorted out on noir side, we can use instead the utilities in serialize.ts
   private writeInputs() {
+    const argsSize = this.abi.parameters.reduce((acc, param) => acc + sizeOfType(param.type), 0);
     const fields = [
-      ...this.args,
-
       this.callContext.isContractDeployment,
       this.callContext.isDelegateCall,
       this.callContext.isStaticCall,
@@ -160,6 +161,7 @@ export class PrivateFunctionExecution {
       this.context.historicRoots.contractTreeRoot,
       this.context.historicRoots.nullifierTreeRoot,
       this.context.historicRoots.privateDataTreeRoot,
+      ...this.args.slice(0, argsSize),
     ];
 
     return toACVMWitness(1, fields);
