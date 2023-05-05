@@ -186,9 +186,12 @@
     "dependencies": [
       "aztec-node",
       "aztec.js",
+      "circuits.js",
       "foundation",
       "l1-artifacts",
-      "noir-contracts"
+      "noir-contracts",
+      "sequencer-client",
+      "world-state"
     ]
   },
   "foundation": {

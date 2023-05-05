@@ -23,7 +23,6 @@ describe('e2e_block_building', () => {
   beforeEach(async () => {
     const account = mnemonicToAccount(MNEMONIC);
     const privKey = account.getHdKey().privateKey;
-    console.log(config);
     const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(config.rpcUrl, account, logger);
 
     config.publisherPrivateKey = Buffer.from(privKey!);

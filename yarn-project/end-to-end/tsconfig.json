@@ -13,6 +13,9 @@
       "path": "../aztec.js"
     },
     {
+      "path": "../circuits.js"
+    },
+    {
       "path": "../foundation"
     },
     {
@@ -20,6 +23,12 @@
     },
     {
       "path": "../noir-contracts"
+    },
+    {
+      "path": "../sequencer-client"
+    },
+    {
+      "path": "../world-state"
     }
   ],
   "include": ["src"]

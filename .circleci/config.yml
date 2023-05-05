@@ -375,6 +375,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_nested_contract.test.ts
 
+  integration-l1-publisher:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end integration_l1_publisher.test.ts
+
   e2e-join:
     docker:
       - image: cimg/base:current
@@ -452,11 +463,15 @@ workflows:
       - e2e-join:
           requires:
             - aztec-js
+            - circuits-js
             - end-to-end
-            - noir-contracts
             - foundation
+            - noir-contracts
+            - sequencer-client
+            - world-state
           <<: *defaults
       - e2e-deploy-contract: *e2e_test
       - e2e-zk-token-contract: *e2e_test
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
+      - integration-l1-publisher: *e2e_test

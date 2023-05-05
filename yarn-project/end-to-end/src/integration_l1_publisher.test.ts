@@ -1,5 +1,7 @@
+import { createMemDown, getConfigEnvVars } from '@aztec/aztec-node';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
 import {
-  Fr,
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   KernelCircuitPublicInputs,
@@ -9,37 +11,58 @@ import {
   range,
 } from '@aztec/circuits.js';
 import { fr, makeNewContractData, makeProof } from '@aztec/circuits.js/factories';
-import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
-import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { DecoderHelper, Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { DecoderHelperAbi, RollupAbi } from '@aztec/l1-artifacts';
+import {
+  EmptyRollupProver,
+  L1Publisher,
+  SoloBlockBuilder,
+  WasmRollupCircuitSimulator,
+  getCombinedHistoricTreeRoots,
+  getL1Publisher,
+  getVerificationKeys,
+  makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricTreeRoots,
+  makeProcessedTx,
+  makePublicTx,
+} from '@aztec/sequencer-client';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { beforeAll, describe, expect, it } from '@jest/globals';
 import { default as levelup } from 'levelup';
-import { SoloBlockBuilder } from '../block_builder/solo_block_builder.js';
-import { createMemDown } from '../block_builder/solo_block_builder.test.js';
-import { getVerificationKeys, makePublicTx } from '../index.js';
-import { EmptyRollupProver } from '../prover/empty.js';
-import { EthereumjsTxSender } from '../publisher/ethereumjs-tx-sender.js';
-import { L1Publisher } from '../publisher/l1-publisher.js';
 import {
-  makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricTreeRoots,
-  makeProcessedTx,
-} from '../sequencer/processed_tx.js';
-import { getCombinedHistoricTreeRoots } from '../sequencer/utils.js';
-import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
-import { hexStringToBuffer } from '../utils.js';
+  Address,
+  Chain,
+  GetContractReturnType,
+  HttpTransport,
+  PublicClient,
+  createPublicClient,
+  encodeFunctionData,
+  getAbiItem,
+  getAddress,
+  getContract,
+  http,
+} from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { foundry } from 'viem/chains';
+import { deployL1Contracts } from './deploy_l1_contracts.js';
 
 // Accounts 4 and 5 of Anvil default startup with mnemonic: 'test test test test test test test test test test test junk'
 const sequencerPK = '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a';
 const deployerPK = '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba';
-const anvilHost = process.env.ANVIL_HOST ?? 'http://127.0.0.1:8545';
-const chainId = 31337;
 
-describe.skip('L1Publisher integration', () => {
-  let decoderHelper: DecoderHelper;
-  let rollup: Rollup;
-  let unverifiedDataEmitter: UnverifiedDataEmitter;
-  let ethRpc: EthereumRpc;
+const logger = createDebugLogger('aztec:integration_l1_publisher');
+
+const config = getConfigEnvVars();
+
+describe('L1Publisher integration', () => {
+  let publicClient: PublicClient<HttpTransport, Chain>;
+
+  let rollupAddress: Address;
+  let unverifiedDataEmitterAddress: Address;
+  let decoderHelperAddress: Address;
+
+  let rollup: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, Chain>>;
+  let decoderHelper: GetContractReturnType<typeof DecoderHelperAbi, PublicClient<HttpTransport, Chain>>;
+
   let publisher: L1Publisher;
   let l2Proof: Buffer;
 
@@ -47,7 +70,33 @@ describe.skip('L1Publisher integration', () => {
   let builderDb: MerkleTreeOperations;
 
   beforeAll(async () => {
-    ({ ethRpc, decoderHelper, rollup, unverifiedDataEmitter } = await deployRollup());
+    const deployerAccount = privateKeyToAccount(deployerPK);
+    const {
+      rollupAddress: rollupAddress_,
+      unverifiedDataEmitterAddress: unverifiedDataEmitterAddress_,
+      decoderHelperAddress: decoderHelperAddress_,
+    } = await deployL1Contracts(config.rpcUrl, deployerAccount, logger, true);
+
+    rollupAddress = getAddress(rollupAddress_.toString());
+    unverifiedDataEmitterAddress = getAddress(unverifiedDataEmitterAddress_.toString());
+    decoderHelperAddress = getAddress(decoderHelperAddress_!.toString());
+
+    publicClient = createPublicClient({
+      chain: foundry,
+      transport: http(config.rpcUrl),
+    });
+
+    // Set up contract instances
+    rollup = getContract({
+      address: rollupAddress,
+      abi: RollupAbi,
+      publicClient,
+    });
+    decoderHelper = getContract({
+      address: decoderHelperAddress!,
+      abi: DecoderHelperAbi,
+      publicClient,
+    });
 
     builderDb = await MerkleTrees.new(levelup(createMemDown())).then(t => t.asLatest());
     const vks = getVerificationKeys();
@@ -57,19 +106,15 @@ describe.skip('L1Publisher integration', () => {
 
     l2Proof = Buffer.alloc(0);
 
-    publisher = new L1Publisher(
-      new EthereumjsTxSender({
-        rpcUrl: anvilHost,
-        chainId,
-        requiredConfirmations: 1,
-        rollupContract: rollup.address,
-        unverifiedDataEmitterContract: unverifiedDataEmitter.address,
-        publisherPrivateKey: hexStringToBuffer(sequencerPK),
-      }),
-      {
-        retryIntervalMs: 100,
-      },
-    );
+    publisher = getL1Publisher({
+      rpcUrl: config.rpcUrl,
+      chainId: config.chainId,
+      requiredConfirmations: 1,
+      rollupContract: EthAddress.fromString(rollupAddress),
+      unverifiedDataEmitterContract: EthAddress.fromString(unverifiedDataEmitterAddress),
+      publisherPrivateKey: hexStringToBuffer(sequencerPK),
+      retryIntervalMs: 100,
+    });
   }, 60_000);
 
   const makeEmptyProcessedTx = async () => {
@@ -100,7 +145,7 @@ describe.skip('L1Publisher integration', () => {
   };
 
   it('Build 2 blocks of 4 txs building on each other', async () => {
-    const stateInRollup_ = await rollup.methods.rollupStateHash().call();
+    const stateInRollup_ = await rollup.read.rollupStateHash();
     expect(hexStringToBuffer(stateInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
 
     for (let i = 0; i < 2; i++) {
@@ -116,19 +161,35 @@ describe.skip('L1Publisher integration', () => {
       const [block] = await builder.buildL2Block(1 + i, txs, l1ToL2Messages);
 
       // Now we can use the block we built!
-      const blockNumber = await ethRpc.blockNumber();
+      const blockNumber = await publicClient.getBlockNumber();
       await publisher.processL2Block(block);
-      const logs = await rollup.getLogs('L2BlockProcessed', { fromBlock: blockNumber + 1 });
+
+      const logs = await publicClient.getLogs({
+        address: rollupAddress,
+        event: getAbiItem({
+          abi: RollupAbi,
+          name: 'L2BlockProcessed',
+        }),
+        fromBlock: blockNumber + 1n,
+      });
       expect(logs).toHaveLength(1);
       expect(logs[0].args.blockNum).toEqual(BigInt(i + 1));
 
-      const ethTx = await ethRpc.getTransactionByHash(logs[0].transactionHash!);
-      const expectedData = rollup.methods.process(l2Proof, block.encode()).encodeABI();
+      const ethTx = await publicClient.getTransaction({
+        hash: logs[0].transactionHash!,
+      });
+
+      const expectedData = encodeFunctionData({
+        abi: RollupAbi,
+        functionName: 'process',
+        args: [`0x${l2Proof.toString('hex')}`, `0x${block.encode().toString('hex')}`],
+      });
       expect(ethTx.input).toEqual(expectedData);
 
-      const decodedHashes = await decoderHelper.methods.computeDiffRootAndMessagesHash(block.encode()).call();
-      const decodedRes = await decoderHelper.methods.decode(block.encode()).call();
-      const stateInRollup = await rollup.methods.rollupStateHash().call();
+      const decoderArgs = [`0x${block.encode().toString('hex')}`] as const;
+      const decodedHashes = await decoderHelper.read.computeDiffRootAndMessagesHash(decoderArgs);
+      const decodedRes = await decoderHelper.read.decode(decoderArgs);
+      const stateInRollup = await rollup.read.rollupStateHash();
 
       // @note There seems to be something wrong here. The Bytes32 returned are actually strings :(
       expect(block.number).toEqual(Number(decodedRes[0]));
@@ -145,29 +206,11 @@ describe.skip('L1Publisher integration', () => {
   }, 60_000);
 });
 
-async function deployRollup() {
-  // Set up client
-  const provider = WalletProvider.fromHost(anvilHost);
-  provider.addAccount(hexStringToBuffer(deployerPK));
-  provider.addAccount(hexStringToBuffer(sequencerPK));
-  const [sequencer, deployer] = provider.getAccounts();
-  const ethRpc = new EthereumRpc(provider);
-
-  // Deploy DecodeHelper, Rollup and unverifiedDataEmitter contracts
-  const decoderHelper = new DecoderHelper(ethRpc, undefined, { from: deployer, gas: 1e6 });
-  await decoderHelper.deploy().send().getReceipt();
-
-  const deployedRollup = new Rollup(ethRpc, undefined, { from: deployer, gas: 1e6 });
-  await deployedRollup.deploy().send().getReceipt();
-
-  const deployedUnverifiedDataEmitter = new UnverifiedDataEmitter(ethRpc, undefined, { from: deployer, gas: 1e6 });
-  await deployedUnverifiedDataEmitter.deploy().send().getReceipt();
-
-  // Create new instance so we can attach the sequencer as sender
-  const rollup = new Rollup(ethRpc, deployedRollup.address, { from: sequencer });
-  const unverifiedDataEmitter = new UnverifiedDataEmitter(ethRpc, deployedUnverifiedDataEmitter.address, {
-    from: sequencer,
-  });
-
-  return { decoderHelper, rollup, deployer, unverifiedDataEmitter, sequencer, ethRpc };
+/**
+ * Converts a hex string into a buffer. String may be 0x-prefixed or not.
+ */
+function hexStringToBuffer(hex: string): Buffer {
+  if (!/^(0x)?[a-fA-F0-9]+$/.test(hex)) throw new Error(`Invalid format for hex string: "${hex}"`);
+  if (hex.length % 2 === 1) throw new Error(`Invalid length for hex string: "${hex}"`);
+  return Buffer.from(hex.replace(/^0x/, ''), 'hex');
 }
