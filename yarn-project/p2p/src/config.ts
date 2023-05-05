@@ -13,6 +13,10 @@ export interface P2PConfig {
   l2QueueSize: number;
 }
 
+/**
+ * Gets the config values for p2p client from environment variables.
+ * @returns The config values for p2p client.
+ */
 export function getConfigEnvVars(): P2PConfig {
   const { P2P_CHECK_INTERVAL, P2P_L2_BLOCK_QUEUE_SIZE } = process.env;
   const envVars: P2PConfig = {
