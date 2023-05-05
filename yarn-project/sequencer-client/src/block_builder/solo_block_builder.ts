@@ -562,9 +562,8 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   protected async getSubtreeSiblingPath(treeId: MerkleTreeId, subtreeHeight: number): Promise<Fr[]> {
-    // Get sibling path to the last leaf we inserted
-    const lastLeafIndex = (await this.db.getTreeInfo(treeId).then(t => t.size)) - 1n;
-    const fullSiblingPath = await this.db.getSiblingPath(treeId, lastLeafIndex);
+    const nextAvailableLeafIndex = await this.db.getTreeInfo(treeId).then(t => t.size);
+    const fullSiblingPath = await this.db.getSiblingPath(treeId, nextAvailableLeafIndex);
 
     // Drop the first subtreeHeight items since we only care about the path to the subtree root
     return fullSiblingPath.data.slice(subtreeHeight).map(b => Fr.fromBuffer(b));
@@ -682,7 +681,9 @@ export class SoloBlockBuilder implements BlockBuilder {
    * @param leaves - Values to insert into the tree
    * @returns The witness data for the leaves to be updated when inserting the new ones.
    */
-  public async performBaseRollupBatchInsertionProofs(leaves: Buffer[]): Promise<LowNullifierWitnessData[] | undefined> {
+  public async performBaseRollupBatchInsertionProofs(
+    leaves: Buffer[],
+  ): Promise<[LowNullifierWitnessData[], Fr[]] | [undefined, Fr[]]> {
     /* eslint-enable */
 
     // Keep track of touched low nullifiers
@@ -752,7 +753,10 @@ export class SoloBlockBuilder implements BlockBuilder {
         // get the low nullifier
         const lowNullifier = await this.db.getLeafData(MerkleTreeId.NULLIFIER_TREE, indexOfPrevious.index);
         if (lowNullifier === undefined) {
-          return undefined;
+          return [
+            undefined,
+            await this.getSubtreeSiblingPath(MerkleTreeId.NULLIFIER_TREE, BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT),
+          ];
         }
 
         const lowNullifierPreimage = new NullifierLeafPreimage(
@@ -786,6 +790,11 @@ export class SoloBlockBuilder implements BlockBuilder {
       }
     }
 
+    const newNullifiersSubtreeSiblingPath = await this.getSubtreeSiblingPath(
+      MerkleTreeId.NULLIFIER_TREE,
+      BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+    );
+
     // Perform batch insertion of new pending values
     for (let i = 0; i < pendingInsertionSubtree.length; i++) {
       const asLeafData: LeafData = {
@@ -797,7 +806,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       await this.db.updateLeaf(MerkleTreeId.NULLIFIER_TREE, asLeafData, startInsertionIndex + BigInt(i));
     }
 
-    return lowNullifierWitnesses;
+    return [lowNullifierWitnesses, newNullifiersSubtreeSiblingPath];
   }
 
   protected async processPublicStateTransitions(tx: ProcessedTx) {
@@ -834,6 +843,16 @@ export class SoloBlockBuilder implements BlockBuilder {
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
     const startPublicDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
 
+    // Get the subtree sibling paths for the circuit
+    const newCommitmentsSubtreeSiblingPath = await this.getSubtreeSiblingPath(
+      MerkleTreeId.PRIVATE_DATA_TREE,
+      BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
+    );
+    const newContractsSubtreeSiblingPath = await this.getSubtreeSiblingPath(
+      MerkleTreeId.CONTRACT_TREE,
+      BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
+    );
+
     // Update the contract and private data trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
     const newContracts = flatMap([left, right], tx =>
@@ -863,7 +882,9 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Update the nullifier tree, capturing the low nullifier info for each individual operation
     const newNullifiers = [...left.data.end.newNullifiers, ...right.data.end.newNullifiers];
 
-    const nullifierWitnesses = await this.performBaseRollupBatchInsertionProofs(newNullifiers.map(fr => fr.toBuffer()));
+    const [nullifierWitnesses, newNullifiersSubtreeSiblingPath] = await this.performBaseRollupBatchInsertionProofs(
+      newNullifiers.map(fr => fr.toBuffer()),
+    );
     if (nullifierWitnesses === undefined) {
       throw new Error(`Could not craft nullifier batch insertion proofs`);
     }
@@ -871,20 +892,6 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Extract witness objects from returned data
     const lowNullifierMembershipWitnesses = nullifierWitnesses.map(w =>
       MembershipWitness.fromBufferArray(w.index, w.siblingPath.data),
-    );
-
-    // Get the subtree sibling paths for the circuit
-    const newCommitmentsSubtreeSiblingPath = await this.getSubtreeSiblingPath(
-      MerkleTreeId.PRIVATE_DATA_TREE,
-      BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
-    );
-    const newContractsSubtreeSiblingPath = await this.getSubtreeSiblingPath(
-      MerkleTreeId.CONTRACT_TREE,
-      BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
-    );
-    const newNullifiersSubtreeSiblingPath = await this.getSubtreeSiblingPath(
-      MerkleTreeId.NULLIFIER_TREE,
-      BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
     );
 
     return BaseRollupInputs.from({

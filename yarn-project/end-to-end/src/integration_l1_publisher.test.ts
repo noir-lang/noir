@@ -54,8 +54,7 @@ const logger = createDebugLogger('aztec:integration_l1_publisher');
 
 const config = getConfigEnvVars();
 
-// @todo (Issue https://github.com/AztecProtocol/aztec-packages/issues/472) Figure out why l1 -> l2 messages are breaking >1 consecutive blocks for mixed blocks.
-const numberOfConsecutiveBlocks = 1;
+const numberOfConsecutiveBlocks = 2;
 
 describe('L1Publisher integration', () => {
   let publicClient: PublicClient<HttpTransport, Chain>;
