@@ -71,7 +71,7 @@ mod tests {
             let test_name =
                 test_dir.file_name().into_string().expect("Directory can't be converted to string");
             let test_program_dir = &test_dir.path();
-            if test_name != "keccak256" {
+            if test_name != "pedersen_check" {
                 continue;
             }
             if config_data["exclude"].contains(&test_name) {
