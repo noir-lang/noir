@@ -5,7 +5,7 @@ import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   CircuitsWasm,
   ConstantBaseRollupData,
-  L1_TO_L2_MESSAGES_SUBTREE_INSERTION_HEIGHT,
+  L1_TO_L2_MESSAGES_SUBTREE_HEIGHT,
   MembershipWitness,
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
@@ -425,7 +425,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     );
     const newL1ToL2MessageTreeRootSiblingPath = await this.getSubtreeSiblingPath(
       MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
-      L1_TO_L2_MESSAGES_SUBTREE_INSERTION_HEIGHT,
+      L1_TO_L2_MESSAGES_SUBTREE_HEIGHT,
     );
 
     // Get tree snapshots

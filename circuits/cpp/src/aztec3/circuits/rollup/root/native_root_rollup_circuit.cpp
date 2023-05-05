@@ -124,7 +124,7 @@ RootRollupPublicInputs root_rollup_circuit(DummyComposer& composer, RootRollupIn
                                                     rootRollupInputs.new_l1_to_l2_message_tree_root_sibling_path,
                                                     empty_l1_to_l2_subtree_root,
                                                     l1_to_l2_subtree_root,
-                                                    L1_TO_L2_MSG_SUBTREE_INCLUSION_CHECK_DEPTH,
+                                                    L1_TO_L2_MSG_SUBTREE_DEPTH,
                                                     "l1 to l2 message tree insertion");
 
     // Update the historic l1 to l2 data tree

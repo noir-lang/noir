@@ -4,7 +4,7 @@ import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
-  L1_TO_L2_MESSAGES_SUBTREE_INSERTION_HEIGHT,
+  L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
 } from '../constants.js';
@@ -27,7 +27,7 @@ export class RootRollupInputs {
   ) {
     assertLength(this, 'newHistoricPrivateDataTreeRootSiblingPath', PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     assertLength(this, 'newHistoricContractDataTreeRootSiblingPath', CONTRACT_TREE_ROOTS_TREE_HEIGHT);
-    assertLength(this, 'newL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MESSAGES_SUBTREE_INSERTION_HEIGHT);
+    assertLength(this, 'newL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH);
     assertLength(this, 'newHistoricL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT);
     assertLength(this, 'newL1ToL2Messages', NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
   }
