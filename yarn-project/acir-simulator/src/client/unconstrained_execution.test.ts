@@ -42,9 +42,9 @@ describe('Unconstrained Execution test suite', () => {
     let ownerPk: Buffer;
     let owner: NoirPoint;
 
-    function buildNote(amount: bigint, owner: NoirPoint) {
+    const buildNote = (amount: bigint, owner: NoirPoint) => {
       return [new Fr(1n), new Fr(currentNonce++), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(amount)];
-    }
+    };
 
     beforeAll(() => {
       ownerPk = Buffer.from('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33', 'hex');

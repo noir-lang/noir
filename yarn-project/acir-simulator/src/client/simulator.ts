@@ -16,9 +16,21 @@ export const NULLIFIER_PEDERSEN_CONSTANT = new Fr(5n);
 
 const OUTER_NULLIFIER_GENERATOR_INDEX = 7;
 
+/**
+ * The ACIR simulator.
+ */
 export class AcirSimulator {
   constructor(private db: DBOracle) {}
 
+  /**
+   * Runs a private function.
+   * @param request - The transaction request.
+   * @param entryPointABI - The ABI of the entry point function.
+   * @param contractAddress - The address of the contract.
+   * @param portalContractAddress - The address of the portal contract.
+   * @param historicRoots - The historic roots.
+   * @returns The result of the execution.
+   */
   public run(
     request: TxRequest,
     entryPointABI: FunctionAbi,
@@ -51,6 +63,15 @@ export class AcirSimulator {
     return execution.run();
   }
 
+  /**
+   * Runs an unconstrained function.
+   * @param request - The transaction request.
+   * @param entryPointABI - The ABI of the entry point function.
+   * @param contractAddress - The address of the contract.
+   * @param portalContractAddress - The address of the portal contract.
+   * @param historicRoots - The historic roots.
+   * @returns The return values of the function.
+   */
   public runUnconstrained(
     request: TxRequest,
     entryPointABI: FunctionAbi,
@@ -83,17 +104,38 @@ export class AcirSimulator {
   }
 
   // TODO Should be run as unconstrained function
+  /**
+   * Computes the hash of a note.
+   * @param notePreimage - The note preimage.
+   * @param bbWasm - The WASM instance.
+   * @returns The note hash.
+   */
   public computeNoteHash(notePreimage: Fr[], bbWasm: BarretenbergWasm) {
     return pedersenCompressInputs(bbWasm, [NOTE_PEDERSEN_CONSTANT.toBuffer(), ...notePreimage.map(x => x.toBuffer())]);
   }
 
   // TODO Should be run as unconstrained function
+  /**
+   * Computes the nullifier of a note.
+   * @param notePreimage - The note preimage.
+   * @param privateKey - The private key of the owner.
+   * @param bbWasm - The WASM instance.
+   * @returns The nullifier.
+   */
   public computeNullifier(notePreimage: Fr[], privateKey: Buffer, bbWasm: BarretenbergWasm) {
     const noteHash = this.computeNoteHash(notePreimage, bbWasm);
     return pedersenCompressInputs(bbWasm, [NULLIFIER_PEDERSEN_CONSTANT.toBuffer(), noteHash, privateKey]);
   }
 
   // TODO Should be run as unconstrained function
+  /**
+   * Computes a nullifier siloed to a contract.
+   * @param contractAddress - The address of the contract.
+   * @param notePreimage - The note preimage.
+   * @param privateKey - The private key of the owner.
+   * @param bbWasm - The WASM instance.
+   * @returns The siloed nullifier.
+   */
   public computeSiloedNullifier(
     contractAddress: AztecAddress,
     notePreimage: Fr[],

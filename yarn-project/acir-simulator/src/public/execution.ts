@@ -8,12 +8,25 @@ import { Fr } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
+/**
+ * The public function execution result.
+ */
 export interface PublicExecutionResult {
+  /** The return values of the function. */
   returnValues: Fr[];
+  /** The state reads performed by the function. */
   stateReads: StateRead[];
+  /** The state transitions performed by the function. */
   stateTransitions: StateTransition[];
 }
 
+/**
+ * Generates the initial witness for a public function.
+ * @param args - The arguments to the function.
+ * @param callContext - The call context of the function.
+ * @param witnessStartIndex - The index where to start inserting the parameters.
+ * @returns The initial witness.
+ */
 function getInitialWitness(args: Fr[], callContext: CallContext, witnessStartIndex = 1) {
   return toACVMWitness(witnessStartIndex, [
     callContext.isContractDeployment,
@@ -26,18 +39,35 @@ function getInitialWitness(args: Fr[], callContext: CallContext, witnessStartInd
   ]);
 }
 
+/**
+ * The public function execution class.
+ */
 export class PublicExecution {
   constructor(
+    /** The public database. */
     public readonly db: PublicDB,
+    /** The ACIR bytecode of the public function. */
     public readonly publicFunctionBytecode: Buffer,
+    /** The address of the contract to execute. */
     public readonly contractAddress: AztecAddress,
+    /** The function data of the function to execute. */
     public readonly functionData: FunctionData,
+    /** The arguments of the function to execute. */
     public readonly args: Fr[],
+    /** The call context of the execution. */
     public readonly callContext: CallContext,
 
     private log = createDebugLogger('aztec:simulator:public-execution'),
   ) {}
 
+  /**
+   * Creates a public function execution from a transaction request.
+   * @param db - The public database.
+   * @param request - The transaction request.
+   * @param bytecode - The bytecode of the public function.
+   * @param portalContractAddress - The address of the portal contract.
+   * @returns The public function execution.
+   */
   static fromTransactionRequest(db: PublicDB, request: TxRequest, bytecode: Buffer, portalContractAddress: EthAddress) {
     const contractAddress = request.to;
     const callContext: CallContext = new CallContext(
@@ -51,6 +81,10 @@ export class PublicExecution {
     return new this(db, bytecode, contractAddress, request.functionData, request.args, callContext);
   }
 
+  /**
+   * Executes the public function.
+   * @returns The execution result.
+   */
   public async run(): Promise<PublicExecutionResult> {
     const selectorHex = this.functionData.functionSelector.toString('hex');
     this.log(`Executing public external function ${this.contractAddress.toShortString()}:${selectorHex}`);

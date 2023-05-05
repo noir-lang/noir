@@ -1,10 +1,18 @@
 import { Fr } from '@aztec/foundation/fields';
 import { ABIType, FunctionAbi } from '@aztec/noir-contracts';
 
-// Simple decoder. It's missing support for integer and string
+/**
+ * Decodes return values from a function call.
+ * Missing support for integer and string.
+ */
 class ReturnValuesDecoder {
   constructor(private abi: FunctionAbi, private flattened: Fr[]) {}
 
+  /**
+   * Decodes a single return value from field to the given type.
+   * @param abiType - The type of the return value.
+   * @returns The decoded return value.
+   */
   private decodeReturn(abiType: ABIType): any {
     switch (abiType.kind) {
       case 'field':
@@ -30,6 +38,10 @@ class ReturnValuesDecoder {
     }
   }
 
+  /**
+   * Gets the next field in the flattened return values.
+   * @returns The next field in the flattened return values.
+   */
   private getNextField(): Fr {
     const field = this.flattened.shift();
     if (!field) {
@@ -38,6 +50,10 @@ class ReturnValuesDecoder {
     return field;
   }
 
+  /**
+   * Decodes all the return values for the given function ABI.
+   * @returns The decoded return values.
+   */
   public decode() {
     const returnValues = [];
     for (let i = 0; i < this.abi.returnTypes.length; i += 1) {
@@ -47,6 +63,12 @@ class ReturnValuesDecoder {
   }
 }
 
+/**
+ * Decodes return values from a function call.
+ * @param abi - The ABI entry of the function.
+ * @param returnValues - The decoded return values.
+ * @returns
+ */
 export function decodeReturnValues(abi: FunctionAbi, returnValues: Fr[]) {
   return new ReturnValuesDecoder(abi, returnValues.slice()).decode();
 }

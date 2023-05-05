@@ -3,12 +3,21 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { solve_intermediate_witness as solveIntermediateWitness } from '@noir-lang/aztec_backend_wasm';
 
+/**
+ * The format for fields on the ACVM.
+ */
 export type ACVMField = `0x${string}`;
+/**
+ * The format for addresses on the ACVM.
+ */
 export type ACVMWitness = Map<number, ACVMField>;
 
 export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES)}`;
 export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES - 1)}01`;
 
+/**
+ * The callback interface for the ACIR.
+ */
 export interface ACIRCallback {
   getSecretKey(params: ACVMField[]): Promise<[ACVMField]>;
   getNotes2(params: ACVMField[]): Promise<ACVMField[]>;
@@ -21,10 +30,19 @@ export interface ACIRCallback {
   viewNotesPage(params: ACVMField[]): Promise<ACVMField[]>;
 }
 
+/**
+ * The result of executing an ACIR.
+ */
 export interface ACIRExecutionResult {
+  /**
+   * The partial witness of the execution.
+   */
   partialWitness: ACVMWitness;
 }
 
+/**
+ * The function call that executes an ACIR.
+ */
 export type execute = (acir: Buffer, initialWitness: ACVMWitness, oracle: ACIRCallback) => Promise<ACIRExecutionResult>;
 
 export const acvm: execute = async (acir, initialWitness, callback) => {
@@ -40,6 +58,11 @@ export const acvm: execute = async (acir, initialWitness, callback) => {
   return Promise.resolve({ partialWitness });
 };
 
+/**
+ * Adapts the buffer to the field size.
+ * @param originalBuf - The buffer to adapt.
+ * @returns The adapted buffer.
+ */
 function adaptBufferSize(originalBuf: Buffer) {
   const buffer = Buffer.alloc(Fr.SIZE_IN_BYTES);
   if (originalBuf.length > buffer.length) {
@@ -49,6 +72,11 @@ function adaptBufferSize(originalBuf: Buffer) {
   return buffer;
 }
 
+/**
+ * Converts a value to an ACVM field.
+ * @param value - The value to convert.
+ * @returns The ACVM field.
+ */
 export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number | bigint): ACVMField {
   if (typeof value === 'boolean') {
     return value ? ONE_ACVM_FIELD : ZERO_ACVM_FIELD;
@@ -70,12 +98,21 @@ export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boo
   return `0x${adaptBufferSize(buffer).toString('hex')}`;
 }
 
+/**
+ * Converts an ACVM field to a Fr.
+ * @param field - The ACVM field to convert.
+ * @returns The Fr.
+ */
 export function fromACVMField(field: `0x${string}`): Fr {
   const buffer = Buffer.from(field.slice(2), 'hex');
   return Fr.fromBuffer(buffer);
 }
 
-// TODO this should use an unconstrained fn in the future
+// TODO this should use an unconstrained fn in the future.
+/**
+ * Creates a dummy note.
+ * @returns The dummy note.
+ */
 export function createDummyNote() {
   return [Fr.ZERO, Fr.random(), Fr.ZERO, Fr.ZERO, Fr.random(), Fr.ZERO];
 }

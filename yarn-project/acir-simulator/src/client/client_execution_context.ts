@@ -4,9 +4,27 @@ import { DBOracle } from './db_oracle.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
+/**
+ * The execution context for a client tx simulation.
+ */
 export class ClientTxExecutionContext {
-  constructor(public db: DBOracle, public request: TxRequest, public historicRoots: PrivateHistoricTreeRoots) {}
+  constructor(
+    /**  The database oracle. */
+    public db: DBOracle,
+    /** The tx request. */
+    public request: TxRequest,
+    /** The old roots. */
+    public historicRoots: PrivateHistoricTreeRoots,
+  ) {}
 
+  /**
+   * Gets the notes for a contract address and storage slot.
+   * Returns note load oracle inputs, which includes the paths and the roots.
+   * @param contractAddress - The contract address.
+   * @param storageSlot - The storage slot.
+   * @param limit - The amount of notes to get.
+   * @returns The ACVM fields for the counts and the requested note load oracle inputs.
+   */
   public async getNotes(contractAddress: AztecAddress, storageSlot: ACVMField, limit: number) {
     const { count, notes } = await this.fetchNotes(contractAddress, storageSlot, limit);
     return [
@@ -15,12 +33,29 @@ export class ClientTxExecutionContext {
     ];
   }
 
+  /**
+   * Views the notes for a contract address and storage slot.
+   * Doesn't include the sibling paths and the root.
+   * @param contractAddress - The contract address.
+   * @param storageSlot - The storage slot.
+   * @param limit - The amount of notes to get.
+   * @param offset - The offset to start from (for pagination).
+   * @returns The ACVM fields for the count and the requested notes.
+   */
   public async viewNotes(contractAddress: AztecAddress, storageSlot: ACVMField, limit: number, offset = 0) {
     const { count, notes } = await this.fetchNotes(contractAddress, storageSlot, limit, offset);
 
     return [toACVMField(count), ...notes.flatMap(noteGetData => noteGetData.preimage.map(f => toACVMField(f)))];
   }
 
+  /**
+   * Fetches the notes for a contract address and storage slot from the db.
+   * @param contractAddress - The contract address.
+   * @param storageSlot - The storage slot.
+   * @param limit - The amount of notes to get.
+   * @param offset - The offset to start from (for pagination).
+   * @returns The count and the requested notes, padded with dummy notes.
+   */
   private async fetchNotes(contractAddress: AztecAddress, storageSlot: ACVMField, limit: number, offset = 0) {
     const { count, notes } = await this.db.getNotes(contractAddress, fromACVMField(storageSlot), limit, offset);
 

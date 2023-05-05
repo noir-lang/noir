@@ -18,34 +18,65 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { sizeOfType } from '../index.js';
 
+/**
+ * The contents of a new note.
+ */
 export interface NewNoteData {
+  /** The preimage of the note. */
   preimage: Fr[];
+  /** The storage slot of the note. */
   storageSlot: Fr;
-  owner: { x: Fr; y: Fr };
+  /** The note owner. */
+  owner: {
+    /** The x coordinate. */
+    x: Fr;
+    /** The y coordinate. */
+    y: Fr;
+  };
 }
 
+/**
+ * The contents of a nullified commitment.
+ */
 export interface NewNullifierData {
+  /** The preimage of the nullified commitment. */
   preimage: Fr[];
+  /** The storage slot of the nullified commitment. */
   storageSlot: Fr;
+  /** The nullifier. */
   nullifier: Fr;
 }
 
+/**
+ * The preimages of the executed function.
+ */
 export interface ExecutionPreimages {
+  /** The preimages of the new notes. */
   newNotes: NewNoteData[];
+  /** The preimages of the nullified commitments. */
   nullifiedNotes: NewNullifierData[];
 }
 
+/**
+ * The result of executing a private function.
+ */
 export interface ExecutionResult {
   // Needed for prover
+  /** The ACIR bytecode. */
   acir: Buffer;
+  /** The verification key. */
   vk: Buffer;
+  /** The partial witness. */
   partialWitness: Map<number, ACVMField>;
   // Needed for the verifier (kernel)
+  /** The call stack item. */
   callStackItem: PrivateCallStackItem;
   // Needed for the user
+  /** The preimages of the executed function. */
   preimages: ExecutionPreimages;
+  /** The decoded return values of the executed function. */
   returnValues: any[];
-  // Nested executions
+  /** The nested executions. */
   nestedExecutions: this[];
 }
 
@@ -53,6 +84,9 @@ const notAvailable = () => {
   return Promise.reject(new Error(`Not available for private function execution`));
 };
 
+/**
+ * The private function execution class.
+ */
 export class PrivateFunctionExecution {
   constructor(
     private context: ClientTxExecutionContext,
@@ -65,6 +99,10 @@ export class PrivateFunctionExecution {
     private log = createDebugLogger('aztec:simulator:secret_execution'),
   ) {}
 
+  /**
+   * Executes the function.
+   * @returns The execution result.
+   */
   public async run(): Promise<ExecutionResult> {
     this.log(
       `Executing external function ${this.contractAddress.toShortString()}:${this.functionData.functionSelector.toString(
@@ -143,6 +181,10 @@ export class PrivateFunctionExecution {
 
   // We still need this function until we can get user-defined ordering of structs for fn arguments
   // TODO When that is sorted out on noir side, we can use instead the utilities in serialize.ts
+  /**
+   * Writes the function inputs to the initial witness.
+   * @returns The initial witness.
+   */
   private writeInputs() {
     const argsSize = this.abi.parameters.reduce((acc, param) => acc + sizeOfType(param.type), 0);
     const fields = [
@@ -167,6 +209,14 @@ export class PrivateFunctionExecution {
     return toACVMWitness(1, fields);
   }
 
+  /**
+   * Calls a private function as a nested execution.
+   * @param targetContractAddress - The address of the contract to call.
+   * @param targetFunctionSelector - The function selector of the function to call.
+   * @param targetArgs - The arguments to pass to the function.
+   * @param callerContext - The call context of the caller.
+   * @returns The execution result.
+   */
   private async callPrivateFunction(
     targetContractAddress: AztecAddress,
     targetFunctionSelector: Buffer,
@@ -196,6 +246,15 @@ export class PrivateFunctionExecution {
     return nestedExecution.run();
   }
 
+  /**
+   * Derives the call context for a nested execution.
+   * @param parentContext - The parent call context.
+   * @param targetContractAddress - The address of the contract being called.
+   * @param portalContractAddress - The address of the portal contract.
+   * @param isDelegateCall - Whether the call is a delegate call.
+   * @param isStaticCall - Whether the call is a static call.
+   * @returns The derived call context.
+   */
   private deriveCallContext(
     parentContext: CallContext,
     targetContractAddress: AztecAddress,

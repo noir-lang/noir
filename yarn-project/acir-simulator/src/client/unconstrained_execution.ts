@@ -13,6 +13,9 @@ const notAvailable = () => {
   return Promise.reject(new Error(`Not available for unconstrained function execution`));
 };
 
+/**
+ * The unconstrained function execution class.
+ */
 export class UnconstrainedFunctionExecution {
   constructor(
     private context: ClientTxExecutionContext,
@@ -25,6 +28,10 @@ export class UnconstrainedFunctionExecution {
     private log = createDebugLogger('aztec:simulator:unconstrained_execution'),
   ) {}
 
+  /**
+   * Executes the unconstrained function.
+   * @returns The return values of the executed function.
+   */
   public async run(): Promise<any[]> {
     this.log(
       `Executing unconstrained function ${this.contractAddress.toShortString()}:${this.functionData.functionSelector.toString(

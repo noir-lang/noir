@@ -3,12 +3,20 @@ import { Fr } from '@aztec/foundation/fields';
 
 import { ABIType, FunctionAbi } from '@aztec/noir-contracts';
 
-// Simple encoder. It's missing support for integer and string
+/**
+ * Encodes arguments for a function call.
+ * Missing support for integer and string.
+ */
 class ArgumentEncoder {
   private flattened: Fr[] = [];
 
   constructor(private abi: FunctionAbi, private args: any[]) {}
 
+  /**
+   * Encodes a single argument from the given type to field.
+   * @param abiType - The abi type of the argument.
+   * @param arg - The value to encode.
+   */
   private encodeArgument(abiType: ABIType, arg: any) {
     switch (abiType.kind) {
       case 'field':
@@ -32,6 +40,10 @@ class ArgumentEncoder {
     }
   }
 
+  /**
+   * Encodes all the arguments for the given function ABI.
+   * @returns The encoded arguments.
+   */
   public encode() {
     for (let i = 0; i < this.abi.parameters.length; i += 1) {
       const parameterAbi = this.abi.parameters[i];
@@ -41,6 +53,13 @@ class ArgumentEncoder {
   }
 }
 
+/**
+ * Encodes all the arguments for a function call.
+ * @param abi - The function ABI entry.
+ * @param args - The arguments to encode.
+ * @param pad - Whether to pad the arguments to the MAX_ARGS_LENGTH.
+ * @returns The encoded arguments.
+ */
 export function encodeArguments(abi: FunctionAbi, args: any[], pad = true) {
   const flatArgs = new ArgumentEncoder(abi, args).encode();
   if (!pad) return flatArgs;
