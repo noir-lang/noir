@@ -38,7 +38,7 @@ describe('e2e_deploy_contract', () => {
   });
 
   /**
-   * Milestone 1.1
+   * Milestone 1.1.
    * https://hackmd.io/ouVCnacHQRq2o1oRc5ksNA#Interfaces-and-Responsibilities
    */
   it('should deploy a contract', async () => {
@@ -66,7 +66,7 @@ describe('e2e_deploy_contract', () => {
   }, 30_000);
 
   /**
-   * Verify that we can produce multiple rollups
+   * Verify that we can produce multiple rollups.
    */
   it('should deploy one contract after another in consecutive rollups', async () => {
     const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
@@ -82,7 +82,7 @@ describe('e2e_deploy_contract', () => {
   }, 30_000);
 
   /**
-   * Milestone 1.2
+   * Milestone 1.2.
    * https://hackmd.io/-a5DjEfHTLaMBR49qy6QkA
    */
   it('should not deploy a contract with the same salt twice', async () => {

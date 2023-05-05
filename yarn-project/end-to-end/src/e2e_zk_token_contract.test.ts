@@ -69,7 +69,7 @@ describe('e2e_zk_token_contract', () => {
   };
 
   /**
-   * Milestone 1.3
+   * Milestone 1.3.
    * https://hackmd.io/AG5rb9DyTRu3y7mBptWauA
    */
   it('1.3 should deploy zk token contract with initial token minted to the account', async () => {
@@ -81,7 +81,7 @@ describe('e2e_zk_token_contract', () => {
   }, 30_000);
 
   /**
-   * Milestone 1.4
+   * Milestone 1.4.
    */
   it('1.4 should call mint and increase balance', async () => {
     const mintAmount = 65n;
@@ -107,7 +107,7 @@ describe('e2e_zk_token_contract', () => {
   }, 60_000);
 
   /**
-   * Milestone 1.5
+   * Milestone 1.5.
    */
   it('1.5 should call transfer and increase balance of another account', async () => {
     const initialBalance = 987n;

@@ -23,6 +23,14 @@ import {
 import { HDAccount, PrivateKeyAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
+/**
+ * Deploys the aztec L1 contracts; Rollup, Unverified Data Emitter & (optionally) Decoder Helper.
+ * @param rpcUrl - URL of the ETH RPC to use for deployment.
+ * @param account - Private Key or HD Account that will deploy the contracts.
+ * @param logger - A logger object.
+ * @param deployDecoderHelper - Boolean, whether to deploy the decoder helper or not.
+ * @returns A list of ETH addresses of the deployed contracts.
+ */
 export const deployL1Contracts = async (
   rpcUrl: string,
   account: HDAccount | PrivateKeyAccount,
@@ -65,6 +73,14 @@ export const deployL1Contracts = async (
   };
 };
 
+/**
+ * Helper function to deploy ETH contracts.
+ * @param walletClient - A viem WalletClient.
+ * @param publicClient - A viem PublicClient.
+ * @param abi - The ETH contract's ABI (as abitype's Abi).
+ * @param bytecode  - The ETH contract's bytecode.
+ * @returns The ETH address the contract was deployed to.
+ */
 async function deployL1Contract(
   walletClient: WalletClient<HttpTransport, Chain, Account>,
   publicClient: PublicClient<HttpTransport, Chain>,

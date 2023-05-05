@@ -56,7 +56,7 @@ describe('e2e_nested_contract', () => {
   };
 
   /**
-   * Milestone 3
+   * Milestone 3.
    */
   it.only('should mine transactions that perform nested calls', async () => {
     const parentContract = await deployContract(ParentAbi);
