@@ -63,8 +63,6 @@ using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::rollup::test_utils::utils::base_rollup_inputs_from_kernels;
 using aztec3::circuits::rollup::test_utils::utils::get_empty_kernel;
 using aztec3::circuits::rollup::test_utils::utils::get_initial_nullifier_tree;
-using aztec3::circuits::rollup::test_utils::utils::set_kernel_commitments;
-using aztec3::circuits::rollup::test_utils::utils::set_kernel_nullifiers;
 // using aztec3::circuits::mock::mock_kernel_inputs;
 
 using aztec3::circuits::abis::AppendOnlyTreeSnapshot;
@@ -287,7 +285,7 @@ TEST_F(base_rollup_tests, native_new_commitments_tree)
         for (uint8_t j = 0; j < KERNEL_NEW_COMMITMENTS_LENGTH; j++) {
             kernel_commitments[j] = new_commitments[i * KERNEL_NEW_COMMITMENTS_LENGTH + j];
         }
-        set_kernel_commitments(kernel_data[i], kernel_commitments);
+        kernel_data[i].public_inputs.end.new_commitments = kernel_commitments;
     }
 
     // get sibling path
@@ -389,7 +387,7 @@ void nullifier_insertion_test(std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> n
         for (uint8_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
             kernel_nullifiers[j] = new_nullifiers[i * KERNEL_NEW_NULLIFIERS_LENGTH + j];
         }
-        set_kernel_nullifiers(kernel_data[i], kernel_nullifiers);
+        kernel_data[i].public_inputs.end.new_nullifiers = kernel_nullifiers;
     }
     BaseRollupInputs const inputs = base_rollup_inputs_from_kernels(kernel_data);
 

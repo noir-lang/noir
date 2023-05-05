@@ -9,6 +9,11 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   RootRollupPublicInputs,
   UInt8Vector,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  range,
+  KERNEL_NEW_NULLIFIERS_LENGTH,
+  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
+  STATE_TRANSITIONS_LENGTH,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
@@ -174,6 +179,7 @@ describe('sequencer/solo_block_builder', () => {
     const newPublicDataWrites = flatMap(txs, tx =>
       tx.data.end.stateTransitions.map(t => new PublicDataWrite(t.leafIndex, t.newValue)),
     );
+    const newL2ToL1Msgs = flatMap(txs, tx => tx.data.end.newL2ToL1Msgs);
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
@@ -200,6 +206,7 @@ describe('sequencer/solo_block_builder', () => {
       newContractData,
       newPublicDataWrites,
       newL1ToL2Messages: mockL1ToL2Messages,
+      newL2ToL1Msgs,
     });
 
     const callDataHash = l2Block.getCalldataHash();
@@ -276,6 +283,24 @@ describe('sequencer/solo_block_builder', () => {
       return await makeProcessedTx(publicTx, kernelOutput, makeProof());
     };
 
+    const makeBloatedProcessedTx = async (seed = 0x1) => {
+      const publicTx = makePublicTx(seed);
+      const kernelOutput = KernelCircuitPublicInputs.empty();
+      kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
+      kernelOutput.end.stateTransitions = range(STATE_TRANSITIONS_LENGTH, seed + 0x500).map(
+        i => new PublicDataTransition(fr(i), fr(0), fr(i + 10)),
+      );
+
+      const tx = await makeProcessedTx(publicTx, kernelOutput, makeProof());
+
+      tx.data.end.newCommitments = range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr);
+      tx.data.end.newNullifiers = range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr);
+      tx.data.end.newL2ToL1Msgs = range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x300).map(fr);
+      tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
+
+      return tx;
+    };
+
     it.each([
       [0, 4],
       [1, 4],
@@ -308,6 +333,32 @@ describe('sequencer/solo_block_builder', () => {
       },
       10000,
     );
+
+    it('builds an empty L2 block', async () => {
+      const txs = await Promise.all([
+        makeEmptyProcessedTx(),
+        makeEmptyProcessedTx(),
+        makeEmptyProcessedTx(),
+        makeEmptyProcessedTx(),
+      ]);
+
+      const [l2Block] = await builder.buildL2Block(1, txs, mockL1ToL2Messages);
+      expect(l2Block.number).toEqual(1);
+    }, 10_000);
+
+    it('builds a mixed L2 block', async () => {
+      const txs = await Promise.all([
+        makeBloatedProcessedTx(32),
+        makeBloatedProcessedTx(64),
+        makeBloatedProcessedTx(96),
+        makeBloatedProcessedTx(128),
+      ]);
+
+      const l1ToL2Messages = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 1 + 0x400).map(fr);
+
+      const [l2Block] = await builder.buildL2Block(1, txs, l1ToL2Messages);
+      expect(l2Block.number).toEqual(1);
+    }, 20_000);
 
     it('builds an L2 block with private and public txs', async () => {
       const txs = await Promise.all([

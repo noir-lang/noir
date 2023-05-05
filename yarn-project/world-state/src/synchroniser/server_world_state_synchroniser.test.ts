@@ -64,6 +64,7 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
     newContractData: [getMockContractData()],
     newPublicDataWrites: [PublicDataWrite.random()],
     newL1ToL2Messages: getMockL1ToL2MessagesData(),
+    newL2ToL1Msgs: [Fr.random()],
   });
   return block;
 };

@@ -22,6 +22,10 @@ export class L2Tx {
      */
     public newPublicDataWrites: PublicDataWrite[],
     /**
+     * New L2 to L1 messages created by the transaction.
+     */
+    public newL2ToL1Msgs: Fr[],
+    /**
      * New contracts leafs created by the transaction to be inserted into the contract tree.
      */
     public newContracts: Fr[],

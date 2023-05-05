@@ -5,6 +5,7 @@ import {
   KERNEL_NEW_NULLIFIERS_LENGTH,
   STATE_TRANSITIONS_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
@@ -102,6 +103,10 @@ export class L2Block {
      */
     public newPublicDataWrites: PublicDataWrite[],
     /**
+     * The L2 to L1 messages to be inserted into the messagebox on L1.
+     */
+    public newL2ToL1Msgs: Fr[],
+    /**
      * The contracts leafs to be inserted into the contract tree.
      */
     public newContracts: Fr[],
@@ -128,6 +133,7 @@ export class L2Block {
     const newContractData = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, ContractData.random);
     const newPublicDataWrites = times(STATE_TRANSITIONS_LENGTH * txsPerBlock, PublicDataWrite.random);
     const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
+    const newL2ToL1Msgs = times(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, Fr.random);
 
     return L2Block.fromFields({
       number: l2BlockNum,
@@ -153,6 +159,7 @@ export class L2Block {
       newContractData,
       newPublicDataWrites,
       newL1ToL2Messages,
+      newL2ToL1Msgs,
     });
   }
 
@@ -243,6 +250,10 @@ export class L2Block {
      */
     newPublicDataWrites: PublicDataWrite[];
     /**
+     * The L2 to L1 messages to be inserted into the messagebox on L1.
+     */
+    newL2ToL1Msgs: Fr[];
+    /**
      * The contracts leafs to be inserted into the contract tree.
      */
     newContracts: Fr[];
@@ -276,6 +287,7 @@ export class L2Block {
       fields.newCommitments,
       fields.newNullifiers,
       fields.newPublicDataWrites,
+      fields.newL2ToL1Msgs,
       fields.newContracts,
       fields.newContractData,
       fields.newL1ToL2Messages,
@@ -311,6 +323,8 @@ export class L2Block {
       this.newNullifiers,
       this.newPublicDataWrites.length,
       this.newPublicDataWrites,
+      this.newL2ToL1Msgs.length,
+      this.newL2ToL1Msgs,
       this.newContracts.length,
       this.newContracts,
       this.newContractData,
@@ -354,6 +368,7 @@ export class L2Block {
     const newCommitments = reader.readVector(Fr);
     const newNullifiers = reader.readVector(Fr);
     const newPublicDataWrites = reader.readVector(PublicDataWrite);
+    const newL2ToL1Msgs = reader.readVector(Fr);
     const newContracts = reader.readVector(Fr);
     const newContractData = reader.readArray(newContracts.length, ContractData);
     // TODO(sean): could an optimisation of this be that it is encoded such that zeros are assumed
@@ -380,6 +395,7 @@ export class L2Block {
       newCommitments,
       newNullifiers,
       newPublicDataWrites,
+      newL2ToL1Msgs,
       newContracts,
       newContractData,
       newL1ToL2Messages,
@@ -493,6 +509,7 @@ export class L2Block {
       const commitmentPerBase = KERNEL_NEW_COMMITMENTS_LENGTH * 2;
       const nullifierPerBase = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
       const publicDataWritesPerBase = STATE_TRANSITIONS_LENGTH * 2; // @note why is this constant named differently?
+      const l2ToL1MsgsPerBase = KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * 2;
       const commitmentBuffer = Buffer.concat(
         this.newCommitments.slice(i * commitmentPerBase, (i + 1) * commitmentPerBase).map(x => x.toBuffer()),
       );
@@ -504,11 +521,15 @@ export class L2Block {
           .slice(i * publicDataWritesPerBase, (i + 1) * publicDataWritesPerBase)
           .map(x => x.toBuffer()),
       );
+      const newL2ToL1MsgsBuffer = Buffer.concat(
+        this.newL2ToL1Msgs.slice(i * l2ToL1MsgsPerBase, (i + 1) * l2ToL1MsgsPerBase).map(x => x.toBuffer()),
+      );
 
       const inputValue = Buffer.concat([
         commitmentBuffer,
         nullifierBuffer,
         dataWritesBuffer,
+        newL2ToL1MsgsBuffer,
         this.newContracts[i * 2].toBuffer(),
         this.newContracts[i * 2 + 1].toBuffer(),
         this.newContractData[i * 2].contractAddress.toBuffer(),
@@ -555,6 +576,10 @@ export class L2Block {
       STATE_TRANSITIONS_LENGTH * txIndex,
       STATE_TRANSITIONS_LENGTH * (txIndex + 1),
     );
+    const newL2ToL1Msgs = this.newL2ToL1Msgs.slice(
+      KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * txIndex,
+      KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * (txIndex + 1),
+    );
     const newContracts = this.newContracts.slice(
       KERNEL_NEW_CONTRACTS_LENGTH * txIndex,
       KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
@@ -564,7 +589,7 @@ export class L2Block {
       KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
     );
 
-    return new L2Tx(newCommitments, newNullifiers, newPublicDataWrites, newContracts, newContractData);
+    return new L2Tx(newCommitments, newNullifiers, newPublicDataWrites, newL2ToL1Msgs, newContracts, newContractData);
   }
 
   /**
@@ -624,6 +649,7 @@ export class L2Block {
       `newCommitments: ${inspectFrArray(this.newCommitments)}`,
       `newNullifiers: ${inspectFrArray(this.newNullifiers)}`,
       `newPublicDataWrite: ${inspectPublicDataWriteArray(this.newPublicDataWrites)}`,
+      `newL2ToL1Msgs: ${inspectFrArray(this.newL2ToL1Msgs)}`,
       `newContracts: ${inspectFrArray(this.newContracts)}`,
       `newContractData: ${inspectContractDataArray(this.newContractData)}`,
       `newPublicDataWrite: ${inspectPublicDataWriteArray(this.newPublicDataWrites)}`,

@@ -11,6 +11,7 @@
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/rollup/base/init.hpp"
 #include "aztec3/circuits/rollup/base/native_base_rollup_circuit.hpp"
+#include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/dummy_composer.hpp"
@@ -58,7 +59,6 @@ using aztec3::circuits::rollup::test_utils::utils::compare_field_hash_to_expecte
 using aztec3::circuits::rollup::test_utils::utils::get_empty_kernel;
 using aztec3::circuits::rollup::test_utils::utils::get_empty_l1_to_l2_messages;
 using aztec3::circuits::rollup::test_utils::utils::get_root_rollup_inputs;
-using aztec3::circuits::rollup::test_utils::utils::set_kernel_commitments;
 // using aztec3::circuits::mock::mock_kernel_inputs;
 
 using aztec3::circuits::abis::AppendOnlyTreeSnapshot;
@@ -146,14 +146,13 @@ TEST_F(root_rollup_tests, native_check_block_hashes_empty_blocks)
     std::vector<uint8_t> const zero_bytes_vec = test_utils::utils::get_empty_calldata_leaf();
     auto call_data_hash_inner = sha256::sha256(zero_bytes_vec);
 
+    // Compute a new calldata hash based on TWO of the above rollups
     std::array<uint8_t, 64> hash_input;
     for (uint8_t i = 0; i < 32; ++i) {
         hash_input[i] = call_data_hash_inner[i];
         hash_input[32 + i] = call_data_hash_inner[i];
     }
-
     std::vector<uint8_t> const calldata_hash_input_bytes_vec(hash_input.begin(), hash_input.end());
-
     auto calldata_hash = sha256::sha256(calldata_hash_input_bytes_vec);
 
     // get messages
@@ -178,11 +177,6 @@ TEST_F(root_rollup_tests, native_check_block_hashes_empty_blocks)
     ASSERT_TRUE(compare_field_hash_to_expected(outputs.l1_to_l2_messages_hash, messages_hash));
 
     EXPECT_FALSE(composer.failed());
-
-    // Expected hash of public inputs for an empty L2 block. Also used in the contract tests.
-    // Computed using l2-block-publisher.test.ts
-    fr const expected_hash = uint256_t("23f698e487c4e1b7383889f8864bc19591773d136c364c01d980bd13d0786ba1");
-    ASSERT_EQ(outputs.hash(), expected_hash);
 
     run_cbind(inputs, outputs, true);
 }
@@ -216,10 +210,18 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
             new_commitments[commitment_k] = val;
             data_tree.update_element(kernel_j * KERNEL_NEW_COMMITMENTS_LENGTH + commitment_k, val);
         }
-        set_kernel_commitments(kernels[kernel_j], new_commitments);
+        kernels[kernel_j].public_inputs.end.new_commitments = new_commitments;
+
+        std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_messages;
+        for (uint8_t i = 0; i < KERNEL_NEW_L2_TO_L1_MSGS_LENGTH; i++) {
+            auto val = fr(kernel_j * KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + i + 1);
+            new_l2_to_l1_messages[i] = val;
+        }
+        kernels[kernel_j].public_inputs.end.new_l2_to_l1_msgs = new_l2_to_l1_messages;
     }
 
-    // TODO: Add nullifiers
+    // @todo @LHerskind: Add nullifiers
+    // @todo @LHerskind: Add public data writes
 
     // Contract tree
     NewContractData<NT> new_contract = {
@@ -302,7 +304,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
                                                                       .next_available_leaf_index = 4 };
     ASSERT_EQ(outputs.end_contract_tree_snapshot, expected_contract_tree_snapshot);
 
-    // TODO: Check nullifier trees
+    // @todo @LHerskind: Check nullifier trees
 
     // Check historic data trees
     ASSERT_EQ(outputs.start_tree_of_historic_private_data_tree_roots_snapshot, start_historic_data_tree_snapshot);
@@ -320,6 +322,12 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     // Check l1 to l2 messages trees
     ASSERT_EQ(outputs.start_l1_to_l2_messages_tree_snapshot, start_l1_to_l2_messages_tree_snapshot);
     ASSERT_EQ(outputs.end_l1_to_l2_messages_tree_snapshot, end_l1_to_l2_messages_tree_snapshot);
+
+    // Compute the expected calldata hash for the root rollup (including the l2 -> l1 messages)
+    auto left = components::compute_kernels_calldata_hash({ kernels[0], kernels[1] });
+    auto right = components::compute_kernels_calldata_hash({ kernels[2], kernels[3] });
+    auto root = components::compute_calldata_hash({ left[0], left[1], right[0], right[1] });
+    ASSERT_EQ(outputs.calldata_hash, root);
 
     EXPECT_FALSE(composer.failed());
 

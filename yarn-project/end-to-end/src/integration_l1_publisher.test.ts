@@ -3,11 +3,12 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import {
   KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   KernelCircuitPublicInputs,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-  PublicDataRead,
   PublicDataTransition,
+  STATE_TRANSITIONS_LENGTH,
   range,
 } from '@aztec/circuits.js';
 import { fr, makeNewContractData, makeProof } from '@aztec/circuits.js/factories';
@@ -26,7 +27,7 @@ import {
   makePublicTx,
 } from '@aztec/sequencer-client';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
-import { beforeAll, describe, expect, it } from '@jest/globals';
+import { beforeEach, describe, expect, it } from '@jest/globals';
 import { default as levelup } from 'levelup';
 import {
   Address,
@@ -53,6 +54,9 @@ const logger = createDebugLogger('aztec:integration_l1_publisher');
 
 const config = getConfigEnvVars();
 
+// @todo (Issue https://github.com/AztecProtocol/aztec-packages/issues/472) Figure out why l1 -> l2 messages are breaking >1 consecutive blocks for mixed blocks.
+const numberOfConsecutiveBlocks = 1;
+
 describe('L1Publisher integration', () => {
   let publicClient: PublicClient<HttpTransport, Chain>;
 
@@ -69,7 +73,7 @@ describe('L1Publisher integration', () => {
   let builder: SoloBlockBuilder;
   let builderDb: MerkleTreeOperations;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     const deployerAccount = privateKeyToAccount(deployerPK);
     const {
       rollupAddress: rollupAddress_,
@@ -122,46 +126,49 @@ describe('L1Publisher integration', () => {
     return makeEmptyProcessedTxFromHistoricTreeRoots(historicTreeRoots);
   };
 
-  const makeContractDeployProcessedTx = async (seed = 0x1) => {
-    const tx = await makeEmptyProcessedTx();
-    tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
-    return tx;
-  };
-
-  const makePrivateProcessedTx = async (seed = 0x1) => {
-    const tx = await makeEmptyProcessedTx();
-    tx.data.end.newCommitments = range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr);
-    tx.data.end.newNullifiers = range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr);
-    return tx;
-  };
-
-  const makePublicCallProcessedTx = async (seed = 0x1) => {
+  const makeBloatedProcessedTx = async (seed = 0x1) => {
     const publicTx = makePublicTx(seed);
     const kernelOutput = KernelCircuitPublicInputs.empty();
-    kernelOutput.end.stateReads[0] = new PublicDataRead(fr(1), fr(0));
-    kernelOutput.end.stateTransitions[0] = new PublicDataTransition(fr(2), fr(0), fr(12));
     kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
-    return await makeProcessedTx(publicTx, kernelOutput, makeProof());
+    kernelOutput.end.stateTransitions = range(STATE_TRANSITIONS_LENGTH, seed + 0x500).map(
+      i => new PublicDataTransition(fr(i), fr(0), fr(i + 10)),
+    );
+
+    const tx = await makeProcessedTx(publicTx, kernelOutput, makeProof());
+
+    tx.data.end.newCommitments = range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr);
+    tx.data.end.newNullifiers = range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr);
+    tx.data.end.newL2ToL1Msgs = range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x300).map(fr);
+    tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
+
+    return tx;
   };
 
-  it('Build 2 blocks of 4 txs building on each other', async () => {
+  it(`Build ${numberOfConsecutiveBlocks} blocks of 4 bloated txs building on each other`, async () => {
     const stateInRollup_ = await rollup.read.rollupStateHash();
     expect(hexStringToBuffer(stateInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
 
-    for (let i = 0; i < 2; i++) {
-      // @todo Should have advanced txs as well instead of these simple transactions.
-      // @todo Should have messages l1 -> l2
+    const blockNumber = await publicClient.getBlockNumber();
 
-      const txsLeft = [await makePrivateProcessedTx(i + 1), await makePublicCallProcessedTx(i + 1)];
-      const txsRight = [await makeContractDeployProcessedTx(i + 1), await makeEmptyProcessedTx()];
-      const l1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
-
-      // Actually build a block!
-      const txs = [...txsLeft, ...txsRight];
+    for (let i = 0; i < numberOfConsecutiveBlocks; i++) {
+      const l1ToL2Messages = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 128 * i + 1 + 0x400).map(fr);
+      const txs = [
+        await makeBloatedProcessedTx(128 * i + 32),
+        await makeBloatedProcessedTx(128 * i + 64),
+        await makeBloatedProcessedTx(128 * i + 96),
+        await makeBloatedProcessedTx(128 * i + 128),
+      ];
       const [block] = await builder.buildL2Block(1 + i, txs, l1ToL2Messages);
 
-      // Now we can use the block we built!
-      const blockNumber = await publicClient.getBlockNumber();
+      /*// Useful for sol tests block generation
+      const encoded = block.encode();
+      console.log(`Size (${encoded.length}): ${encoded.toString('hex')}`);
+      console.log(`calldata hash: 0x${block.getCalldataHash().toString('hex')}`);
+      console.log(`l1 to l2 message hash: 0x${block.getL1ToL2MessagesHash().toString('hex')}`);
+      console.log(`start state hash: 0x${block.getStartStateHash().toString('hex')}`);
+      console.log(`end state hash: 0x${block.getEndStateHash().toString('hex')}`);
+      console.log(`public data hash: 0x${block.getPublicInputsHash().toBuffer().toString('hex')}`);*/
+
       await publisher.processL2Block(block);
 
       const logs = await publicClient.getLogs({
@@ -172,11 +179,11 @@ describe('L1Publisher integration', () => {
         }),
         fromBlock: blockNumber + 1n,
       });
-      expect(logs).toHaveLength(1);
-      expect(logs[0].args.blockNum).toEqual(BigInt(i + 1));
+      expect(logs).toHaveLength(i + 1);
+      expect(logs[i].args.blockNum).toEqual(BigInt(i + 1));
 
       const ethTx = await publicClient.getTransaction({
-        hash: logs[0].transactionHash!,
+        hash: logs[i].transactionHash!,
       });
 
       const expectedData = encodeFunctionData({
@@ -191,7 +198,6 @@ describe('L1Publisher integration', () => {
       const decodedRes = await decoderHelper.read.decode(decoderArgs);
       const stateInRollup = await rollup.read.rollupStateHash();
 
-      // @note There seems to be something wrong here. The Bytes32 returned are actually strings :(
       expect(block.number).toEqual(Number(decodedRes[0]));
       expect(block.getStartStateHash()).toEqual(hexStringToBuffer(decodedRes[1].toString()));
       expect(block.getEndStateHash()).toEqual(hexStringToBuffer(decodedRes[2].toString()));
@@ -199,9 +205,61 @@ describe('L1Publisher integration', () => {
       expect(block.getPublicInputsHash().toBuffer()).toEqual(hexStringToBuffer(decodedRes[3].toString()));
       expect(block.getCalldataHash()).toEqual(hexStringToBuffer(decodedHashes[0].toString()));
       expect(block.getL1ToL2MessagesHash()).toEqual(hexStringToBuffer(decodedHashes[1].toString()));
+    }
+  }, 60_000);
 
-      // @todo Broken if making two blocks in a row...
-      return;
+  it(`Build ${numberOfConsecutiveBlocks} blocks of 4 empty txs building on each other`, async () => {
+    const stateInRollup_ = await rollup.read.rollupStateHash();
+    expect(hexStringToBuffer(stateInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
+
+    const blockNumber = await publicClient.getBlockNumber();
+
+    for (let i = 0; i < numberOfConsecutiveBlocks; i++) {
+      const l1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
+      const txs = [
+        await makeEmptyProcessedTx(),
+        await makeEmptyProcessedTx(),
+        await makeEmptyProcessedTx(),
+        await makeEmptyProcessedTx(),
+      ];
+      const [block] = await builder.buildL2Block(1 + i, txs, l1ToL2Messages);
+
+      await publisher.processL2Block(block);
+
+      const logs = await publicClient.getLogs({
+        address: rollupAddress,
+        event: getAbiItem({
+          abi: RollupAbi,
+          name: 'L2BlockProcessed',
+        }),
+        fromBlock: blockNumber + 1n,
+      });
+      expect(logs).toHaveLength(i + 1);
+      expect(logs[i].args.blockNum).toEqual(BigInt(i + 1));
+
+      const ethTx = await publicClient.getTransaction({
+        hash: logs[i].transactionHash!,
+      });
+
+      const expectedData = encodeFunctionData({
+        abi: RollupAbi,
+        functionName: 'process',
+        args: [`0x${l2Proof.toString('hex')}`, `0x${block.encode().toString('hex')}`],
+      });
+      expect(ethTx.input).toEqual(expectedData);
+
+      const decoderArgs = [`0x${block.encode().toString('hex')}`] as const;
+      const decodedHashes = await decoderHelper.read.computeDiffRootAndMessagesHash(decoderArgs);
+      const decodedRes = await decoderHelper.read.decode(decoderArgs);
+      const stateInRollup = await rollup.read.rollupStateHash();
+
+      expect(block.number).toEqual(Number(decodedRes[0]));
+      expect(block.getStartStateHash()).toEqual(hexStringToBuffer(decodedRes[1].toString()));
+      expect(block.getEndStateHash()).toEqual(hexStringToBuffer(decodedRes[2].toString()));
+      expect(block.getEndStateHash()).toEqual(hexStringToBuffer(stateInRollup.toString()));
+      expect(block.getPublicInputsHash().toBuffer()).toEqual(hexStringToBuffer(decodedRes[3].toString()));
+      expect(block.getCalldataHash()).toEqual(hexStringToBuffer(decodedHashes[0].toString()));
+      expect(block.getL1ToL2MessagesHash()).toEqual(hexStringToBuffer(decodedHashes[1].toString()));
     }
   }, 60_000);
 });

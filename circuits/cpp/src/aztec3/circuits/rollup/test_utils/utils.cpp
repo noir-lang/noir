@@ -53,9 +53,10 @@ namespace aztec3::circuits::rollup::test_utils::utils {
 
 std::vector<uint8_t> get_empty_calldata_leaf()
 {
-    auto const number_of_inputs = (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH +
-                                   STATE_TRANSITIONS_LENGTH * 2 + KERNEL_NEW_CONTRACTS_LENGTH * 3) *
-                                  2;
+    auto const number_of_inputs =
+        (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + STATE_TRANSITIONS_LENGTH * 2 +
+         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3) *
+        2;
     auto const size = number_of_inputs * 32;
     std::vector<uint8_t> input_data(size, 0);
     return input_data;
@@ -70,20 +71,6 @@ std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> get_empty_l1_to_l2_messages(
 {
     std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> l1_to_l2_messages = { 0 };
     return l1_to_l2_messages;
-}
-
-void set_kernel_nullifiers(KernelData& kernel_data, std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers)
-{
-    for (size_t i = 0; i < KERNEL_NEW_NULLIFIERS_LENGTH; i++) {
-        kernel_data.public_inputs.end.new_nullifiers[i] = new_nullifiers[i];
-    }
-}
-
-void set_kernel_commitments(KernelData& kernel_data, std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments)
-{
-    for (size_t i = 0; i < KERNEL_NEW_COMMITMENTS_LENGTH; i++) {
-        kernel_data.public_inputs.end.new_commitments[i] = new_commitments[i];
-    }
 }
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
