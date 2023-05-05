@@ -27,7 +27,6 @@
     { "path": "circuits.js/tsconfig.json" },
     { "path": "end-to-end/tsconfig.json" },
     { "path": "foundation/tsconfig.json" },
-    { "path": "kernel-prover/tsconfig.json" },
     { "path": "key-store/tsconfig.json" },
     { "path": "l1-artifacts/tsconfig.json" },
     { "path": "merkle-tree/tsconfig.json" },

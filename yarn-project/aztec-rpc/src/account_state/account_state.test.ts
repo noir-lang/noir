@@ -2,15 +2,14 @@ import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
-import { L2Block, L2BlockContext } from '@aztec/types';
-import { UnverifiedData } from '@aztec/types';
+import { Point } from '@aztec/foundation/fields';
+import { ConstantKeyPair, KeyPair } from '@aztec/key-store';
+import { L2Block, L2BlockContext, UnverifiedData } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 import { TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
 import { Database, MemoryDB } from '../database/index.js';
-import { ConstantKeyPair, KeyPair } from '../key_store/index.js';
 import { AccountState } from './account_state.js';
-import { Point } from '@aztec/foundation/fields';
 
 describe('Account State', () => {
   let grumpkin: Grumpkin;

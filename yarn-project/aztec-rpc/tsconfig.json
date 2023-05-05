@@ -22,7 +22,7 @@
       "path": "../foundation"
     },
     {
-      "path": "../kernel-prover"
+      "path": "../key-store"
     },
     {
       "path": "../noir-contracts"

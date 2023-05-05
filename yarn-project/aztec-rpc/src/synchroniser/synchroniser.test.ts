@@ -1,12 +1,11 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
+import { Fr } from '@aztec/circuits.js';
+import { ConstantKeyPair } from '@aztec/key-store';
+import { L2Block, MerkleTreeId, UnverifiedData } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
-import { ConstantKeyPair } from '../key_store/index.js';
 import { Synchroniser } from './synchroniser.js';
-import { L2Block, UnverifiedData } from '@aztec/types';
-import { MerkleTreeId } from '@aztec/types';
-import { Fr } from '@aztec/circuits.js';
 
 describe('Synchroniser', () => {
   let grumpkin: Grumpkin;

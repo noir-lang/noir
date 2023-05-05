@@ -25,7 +25,6 @@
     "docs",
     "end-to-end",
     "foundation",
-    "kernel-prover",
     "key-store",
     "merkle-tree",
     "noir-contracts",

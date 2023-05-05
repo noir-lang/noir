@@ -7,7 +7,6 @@
     "aztec-cli",
     "aztec-rpc",
     "aztec.js",
-    "kernel-prover",
     "key-store",
     "noir-contracts",
     "p2p",

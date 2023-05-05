@@ -2,15 +2,34 @@ import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { NotePreimage } from '../aztec_rpc_server/tx_aux_data/index.js';
 import { Point } from '@aztec/foundation/fields';
 
+/**
+ * Represents the data access object for auxiliary transaction data.
+ * Contains properties from the decrypted note, computed properties, and information about
+ * the public key used for encryption, as well as the location of the data in the tree.
+ */
 export interface TxAuxDataDao {
-  // Properties from the encrypted note
+  /**
+   * The contract address this note is created in.
+   */
   contractAddress: AztecAddress;
+  /**
+   * The specific storage location of the note on the contract.
+   */
   storageSlot: Fr;
+  /**
+   * The preimage of the note, containing essential information about the note.
+   */
   notePreimage: NotePreimage;
-  // Computed properties
+  /**
+   * The nullifier of the note.
+   */
   nullifier: Fr;
-  // The location in the tree
+  /**
+   * The location in the tree.
+   */
   index: bigint;
-  // The public key that was used to encrypt the data
+  /**
+   * The public key that was used to encrypt the data.
+   */
   account: Point;
 }

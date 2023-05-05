@@ -20,19 +20,57 @@ import { ProvingDataOracle } from './proving_data_oracle.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
+/**
+ * Represents an output note data object.
+ * Contains the contract address, new note data and commitment for the note,
+ * resulting from the execution of a transaction in the Aztec network.
+ */
 export interface OutputNoteData {
+  /**
+   * The address of the contract the note was created in.
+   */
   contractAddress: AztecAddress;
+  /**
+   * The encrypted note data for an output note.
+   */
   data: NewNoteData;
+  /**
+   * The unique value representing the note.
+   */
   commitment: Fr;
 }
 
+/**
+ * Represents the output data of the Kernel Prover.
+ * Provides information about the newly created notes, along with the public inputs and proof.
+ */
 export interface KernelProverOutput extends ProofOutput {
+  /**
+   * An array of output notes containing the contract address, note data, and commitment for each new note.
+   */
   outputNotes: OutputNoteData[];
 }
 
+/**
+ * The KernelProver class is responsible for generating kernel proofs.
+ * It takes a transaction request, its signature, and the simulation result as inputs, and outputs a proof
+ * along with output notes. The class interacts with a ProvingDataOracle to fetch membership witnesses and
+ * constructs private call data based on the execution results.
+ */
 export class KernelProver {
   constructor(private oracle: ProvingDataOracle, private proofCreator: ProofCreator = new KernelProofCreator()) {}
 
+  /**
+   * Generate a proof for a given transaction request, transaction signature, and execution result.
+   * The function iterates through the nested executions in the execution result, creates private call data,
+   * and generates a proof using the provided ProofCreator instance. It also maintains an index of new notes
+   * created during the execution and returns them as a part of the KernelProverOutput.
+   *
+   * @param txRequest - The transaction request object.
+   * @param txSignature - The ECDSA signature of the transaction.
+   * @param executionResult - The execution result object containing nested executions and preimages.
+   * @returns A Promise that resolves to a KernelProverOutput object containing proof, public inputs, and output notes.
+   */
   async prove(
     txRequest: TxRequest,
     txSignature: EcdsaSignature,
@@ -131,6 +169,15 @@ export class KernelProver {
     );
   }
 
+  /**
+   * Retrieves the new output notes for a given execution result.
+   * The function maps over the new note preimages and associates them with their corresponding
+   * commitments in the public inputs of the execution result. It also includes the contract address
+   * from the call context of the public inputs.
+   *
+   * @param executionResult - The execution result object containing note preimages and public inputs.
+   * @returns An array of OutputNoteData objects, each representing an output note with its associated data.
+   */
   private async getNewNotes(executionResult: ExecutionResult): Promise<OutputNoteData[]> {
     const {
       callStackItem: { publicInputs },

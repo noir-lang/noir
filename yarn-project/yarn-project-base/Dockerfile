@@ -26,7 +26,6 @@ COPY aztec.js/package.json aztec.js/package.json
 COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
 COPY foundation/package.json foundation/package.json
-COPY kernel-prover/package.json kernel-prover/package.json
 COPY key-store/package.json key-store/package.json
 COPY merkle-tree/package.json merkle-tree/package.json
 COPY merkle-tree/package.local.json merkle-tree/package.local.json
@@ -81,7 +80,6 @@ COPY aztec-node/tsconfig.json aztec-node/tsconfig.json
 COPY aztec.js/tsconfig.json aztec.js/tsconfig.json
 COPY end-to-end/tsconfig.json end-to-end/tsconfig.json
 COPY foundation/tsconfig.json foundation/tsconfig.json
-COPY kernel-prover/tsconfig.json kernel-prover/tsconfig.json
 COPY key-store/tsconfig.json key-store/tsconfig.json
 COPY merkle-tree/tsconfig.json merkle-tree/tsconfig.json
 COPY noir-contracts/tsconfig.json noir-contracts/tsconfig.json
