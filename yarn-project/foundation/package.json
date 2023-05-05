@@ -10,6 +10,7 @@
     "./prettier": "./.prettierrc.json",
     "./async-map": "./dest/async-map/index.js",
     "./aztec-address": "./dest/aztec-address/index.js",
+    "./collection": "./dest/collection/index.js",
     "./crypto": "./dest/crypto/index.js",
     "./error": "./dest/error/index.js",
     "./eth-address": "./dest/eth-address/index.js",

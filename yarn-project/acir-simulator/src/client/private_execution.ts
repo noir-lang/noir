@@ -157,6 +157,7 @@ export class PrivateFunctionExecution {
       viewNotesPage: notAvailable,
       storageRead: notAvailable,
       storageWrite: notAvailable,
+      callPublicFunction: notAvailable,
     });
 
     const publicInputs = extractPublicInputs(partialWitness, acir);

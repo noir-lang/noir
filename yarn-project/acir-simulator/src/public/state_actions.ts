@@ -1,7 +1,7 @@
-import { Fr } from '@aztec/foundation/fields';
-import { PublicDB } from './db.js';
 import { StateRead, StateTransition } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
+import { PublicStateDB } from './db.js';
 
 /**
  * Implements state read/write operations on a contract public storage, collecting
@@ -18,7 +18,7 @@ export class StateActionsCollector {
     { /** The old value. */ oldValue: Fr; /** The updated value. */ newValue: Fr }
   > = new Map();
 
-  constructor(private db: PublicDB, private address: AztecAddress) {}
+  constructor(private db: PublicStateDB, private address: AztecAddress) {}
 
   /**
    * Returns the current value of a slot according to the latest transition for it,

@@ -41,13 +41,11 @@ export interface RollupSimulator {
  */
 export interface PublicCircuitSimulator {
   /**
-   * Simulates the public circuit given a public tx and bytecode to execute.
+   * Simulates the public circuit given a public tx.
    * @param tx - Transaction request to execute.
-   * @param functionBytecode - Corresponding bytecode to run.
-   * @param portalAddress - Portal contract address for the contract being run.
    * @returns The public inputs as outputs of the simulation.
    */
-  publicCircuit(tx: TxRequest, functionBytecode: Buffer, portalAddress: EthAddress): Promise<PublicCircuitPublicInputs>;
+  publicCircuit(tx: TxRequest): Promise<PublicCircuitPublicInputs>;
 }
 
 /**

@@ -43,7 +43,7 @@ export class SequencerClient {
 
     const publicProcessor = new PublicProcessor(
       merkleTreeDb,
-      new FakePublicCircuitSimulator(merkleTreeDb),
+      new FakePublicCircuitSimulator(merkleTreeDb, contractDataSource),
       new WasmPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
       contractDataSource,

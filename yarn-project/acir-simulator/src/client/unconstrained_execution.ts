@@ -58,6 +58,7 @@ export class UnconstrainedFunctionExecution {
       notifyCreatedNote: notAvailable,
       notifyNullifiedNote: notAvailable,
       callPrivateFunction: notAvailable,
+      callPublicFunction: notAvailable,
       storageRead: notAvailable,
       storageWrite: notAvailable,
     });

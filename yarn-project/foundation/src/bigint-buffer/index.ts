@@ -51,3 +51,15 @@ export function toBufferBE(num: bigint, width: number): Buffer {
   if (buffer.length > width) throw new Error(`Number ${num.toString(16)} does not fit in ${width}`);
   return buffer;
 }
+
+/**
+ * Converts a BigInt to its hex representation.
+ * @param num - The BigInt to convert.
+ * @returns An even-length 0x-prefixed string.
+ */
+export function toHex(num: bigint): `0x${string}` {
+  const str = num.toString(16);
+  const targetLen = str.length % 2 === 0 ? str.length : str.length + 1;
+  const paddedStr = str.padStart(targetLen, '0');
+  return `0x${paddedStr}`;
+}
