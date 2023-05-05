@@ -149,7 +149,6 @@ impl ArrayHeap {
             if is_opcode_supported(&AcirOpcode::RAM(dummy)) {
                 self.add_ram_opcode(evaluator, array_id, array_len);
             } else {
-                self.add_block_opcode(evaluator, array_id, array_len);
                 self.generate_permutation_constraints(evaluator, array_id, array_len);
             }
         } else {
@@ -220,6 +219,7 @@ impl ArrayHeap {
         if len == 0 {
             return;
         }
+        self.add_block_opcode(evaluator, array_id, array_len);
         let len_bits = AcirMem::bits(len);
         // permutations
         let mut in_counter = Vec::new();
