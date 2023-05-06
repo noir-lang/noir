@@ -54,26 +54,15 @@ impl Context {
             let ins = &entry_func.dfg[*ins_id];
             match ins {
                 Instruction::Binary(binary) => self.convert_ssa_binary(binary, dfg),
-                Instruction::Cast(_, _) => todo!(),
-                Instruction::Not(_) => todo!(),
-                Instruction::Truncate { value, bit_size, max_bit_size } => todo!(),
-                Instruction::Constrain(_) => todo!(),
-                Instruction::Call { func, arguments } => {
-                    todo!()
-                }
-                Instruction::Allocate { size } => todo!(),
-                Instruction::Load { address } => todo!(),
-                Instruction::Store { address, value } => {
-                    todo!()
-                }
+                _ => todo!(),
             }
         }
         todo!()
     }
 
     fn convert_ssa_binary(&self, binary: &Binary, dfg: &DataFlowGraph) {
-        let lhs = self.convert_ssa_value(&binary.lhs, &dfg);
-        let rhs = self.convert_ssa_value(&binary.rhs, &dfg);
+        let _lhs = self.convert_ssa_value(&binary.lhs, dfg);
+        let _rhs = self.convert_ssa_value(&binary.rhs, dfg);
         match binary.operator {
             BinaryOp::Add => {}
             BinaryOp::Sub => todo!(),
@@ -92,12 +81,11 @@ impl Context {
 
     fn convert_ssa_value(&self, value_id: &Id<Value>, dfg: &DataFlowGraph) -> Expression {
         match dfg[*value_id] {
-            Value::Instruction { instruction, position, typ } => todo!(),
-            Value::Param { block, position, typ } => todo!(),
-            Value::NumericConstant { constant, typ } => todo!(),
+            Value::Instruction { .. } => todo!(),
+            Value::Param { .. } => todo!(),
+            Value::NumericConstant { .. } => todo!(),
             Value::Function(_) => todo!(),
             Value::Intrinsic(_) => todo!(),
-        };
-        todo!()
+        }
     }
 }
