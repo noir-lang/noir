@@ -12,8 +12,8 @@ use crate::{
 // Generate gates which ensure that out_expr is a permutation of in_expr
 // Returns the control bits of the sorting network used to generate the constrains
 pub(crate) fn evaluate_permutation(
-    in_expr: &Vec<Expression>,
-    out_expr: &Vec<Expression>,
+    in_expr: &[Expression],
+    out_expr: &[Expression],
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     let bits = Vec::new();
@@ -27,9 +27,9 @@ pub(crate) fn evaluate_permutation(
 
 // Same as evaluate_permutation() but uses the provided witness as network control bits
 pub(crate) fn evaluate_permutation_with_witness(
-    in_expr: &Vec<Expression>,
-    out_expr: &Vec<Expression>,
-    bits: &Vec<Witness>,
+    in_expr: &[Expression],
+    out_expr: &[Expression],
+    bits: &[Witness],
     evaluator: &mut Evaluator,
 ) {
     let (w, b) = permutation_layer(in_expr, bits, false, evaluator);
@@ -47,14 +47,14 @@ pub(crate) fn evaluate_permutation_with_witness(
 // in both cases it returns the witness of the network configuration
 // if generate_witness is true, bits is ignored
 fn permutation_layer(
-    in_expr: &Vec<Expression>,
+    in_expr: &[Expression],
     bits: &[Witness],
     generate_witness: bool,
     evaluator: &mut Evaluator,
 ) -> (Vec<Witness>, Vec<Expression>) {
     let n = in_expr.len();
     if n == 1 {
-        return (Vec::new(), in_expr.clone());
+        return (Vec::new(), in_expr.to_vec());
     }
     let n1 = n / 2;
 
