@@ -88,7 +88,7 @@ export class AztecNode {
   }
 
   /**
-   * Method to fetch the current block height
+   * Method to fetch the current block height.
    * @returns The block height as a number.
    */
   public async getBlockHeight(): Promise<number> {
@@ -146,39 +146,53 @@ export class AztecNode {
 
   /**
    * Method to retrieve pending txs.
-   * @returns - The pending txs.
+   * @returns The pending txs.
    */
   public async getPendingTxs() {
     return await this.p2pClient!.getTxs();
   }
 
   /**
-   * Method to retrieve a single pending tx
+   * Method to retrieve a single pending tx.
    * @param txHash - The transaction hash to return.
-   * @returns - The pending tx if it exists
+   * @returns The pending tx if it exists.
    */
   public async getPendingTxByHash(txHash: TxHash) {
     return await this.p2pClient!.getTxByhash(txHash);
   }
 
+  /**
+   * Returns the index of a contract in the committed contracts tree.
+   * @param leafValue - A contract leaf generated with computeContractLeaf.
+   * @returns The index of the contract in the tree or undefined if not found.
+   */
   public findContractIndex(leafValue: Buffer): Promise<bigint | undefined> {
     return this.merkleTreeDB.findLeafIndex(MerkleTreeId.CONTRACT_TREE, leafValue, false);
   }
 
+  /**
+   * Returns the sibling path for a leaf in the committed contracts tree.
+   * @param leafIndex - Index of the leaf in the tree.
+   * @returns The sibling path.
+   */
   public getContractPath(leafIndex: bigint): Promise<SiblingPath> {
     return this.merkleTreeDB.getSiblingPath(MerkleTreeId.CONTRACT_TREE, leafIndex, false);
   }
 
+  /**
+   * Returns the sibling path for a leaf in the committed private data tree.
+   * @param leafIndex - Index of the leaf in the tree.
+   * @returns The sibling path.
+   */
   public getDataTreePath(leafIndex: bigint): Promise<SiblingPath> {
     return this.merkleTreeDB.getSiblingPath(MerkleTreeId.PRIVATE_DATA_TREE, leafIndex, false);
   }
 
   /**
-   * Gets the storage value at the given contract slot.
-   * @param contract - Address of the contract to query
-   * @param slot - Slot to query
+   * Gets the storage value at the given contract slot. Our version of eth_getStorageAt.
+   * @param contract - Address of the contract to query.
+   * @param slot - Slot to query.
    * @returns Storage value at the given contract slot (or undefined if not found).
-   * Note: Aztec's version of `eth_getStorageAt`
    */
   public async getStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
     const leafIndex = computePublicDataTreeLeafIndex(contract, new Fr(slot), await PrimitivesWasm.get());
@@ -187,7 +201,7 @@ export class AztecNode {
 
   /**
    * Returns the current committed roots for the data trees.
-   * @returns the current committed roots for the data trees.
+   * @returns The current committed roots for the data trees.
    */
   public async getTreeRoots(): Promise<Record<MerkleTreeId, Fr>> {
     const getTreeRoot = async (id: MerkleTreeId) =>

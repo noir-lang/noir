@@ -6,6 +6,10 @@ import { SequencerClientConfig, getConfigEnvVars as getSequencerVars } from '@az
  */
 export type AztecNodeConfig = ArchiverConfig & SequencerClientConfig;
 
+/**
+ * Returns the config of the aztec node from environment variables with reasonable defaults.
+ * @returns A valid aztec node config.
+ */
 export function getConfigEnvVars(): AztecNodeConfig {
   const allEnvVars: AztecNodeConfig = {
     ...getSequencerVars(),
