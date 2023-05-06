@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 
 mod errors;
 pub use self::errors::InvalidPackageError;
@@ -8,6 +8,8 @@ pub use self::errors::InvalidPackageError;
 pub struct PackageManifest {
     pub package: PackageMetadata,
     pub dependencies: BTreeMap<String, Dependency>,
+    #[serde(rename(deserialize = "codegen-verifier"))]
+    pub codegen_verifier: Option<CodegenVerifierMetadata>,
 }
 
 impl PackageManifest {
@@ -39,6 +41,15 @@ pub struct PackageMetadata {
     license: Option<String>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Clone)]
+pub struct CodegenVerifierMetadata {
+    /// Path to the directory in which to save the generated verifier.
+    ///
+    /// This path is assumed to be relative to the package root.
+    pub out: PathBuf,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 /// Enum representing the different types of ways to
@@ -60,6 +71,9 @@ fn parse_standard_toml() {
         rand = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         cool = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         hello = {path = "./noir_driver"}
+
+        [codegen-verifier]
+        out = "../hardhat_project/contracts/verifier"
     "#;
 
     assert!(PackageManifest::from_toml_str(src).is_ok());
