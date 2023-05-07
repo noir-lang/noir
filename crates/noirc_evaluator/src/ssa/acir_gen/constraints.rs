@@ -405,9 +405,10 @@ pub(crate) fn to_radix_base(
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     // ensure there is no overflow
-    let mut max = BigUint::from(radix);
-    max = max.pow(limb_size) - BigUint::one();
-    assert!(max < FieldElement::modulus());
+    let mut min = BigUint::from(radix);
+    min = min.pow(limb_size - 1);
+    // minimum value that can be represented with limb_size limbs should be less than the modulus
+    assert!(min < FieldElement::modulus());
 
     let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
 
