@@ -1531,9 +1531,6 @@ mod test {
             result
         });
 
-        assert_eq!(
-            vecmap(&results, |t| t.0.clone()),
-            vecmap(&results, |t| t.1.clone()),
-        );
+        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
     }
 }
