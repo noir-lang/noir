@@ -1,11 +1,8 @@
-import { createDebugLogger, DebugLogger } from '@aztec/foundation/log';
-
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { BufferReader } from '@aztec/foundation/serialize';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/types';
-import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
 import {
   ContractData,
   ContractPublicData,
@@ -16,21 +13,10 @@ import {
   UnverifiedData,
   UnverifiedDataSource,
 } from '@aztec/types';
-import {
-  Chain,
-  Hex,
-  HttpTransport,
-  Log,
-  PublicClient,
-  createPublicClient,
-  decodeFunctionData,
-  getAbiItem,
-  getAddress,
-  hexToBytes,
-  http,
-} from 'viem';
+import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 import { ArchiverConfig } from './config.js';
+import { retrieveBlocks, retrieveNewContractData, retrieveUnverifiedData } from './data_retrieval.js';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.
@@ -65,16 +51,6 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   private nextL2BlockFromBlock = 0n;
 
   /**
-   * Next L1 block number to fetch `UnverifiedData` logs from (i.e. `fromBlock` in eth_getLogs).
-   */
-  private nextUnverifiedDataFromBlock = 0n;
-
-  /**
-   * Next L1 block number to fetch `ContractPublicData` logs from (i.e. `fromBlock` in eth_getLogs).
-   */
-  private nextContractDataFromBlock = 0n;
-
-  /**
    * Creates a new instance of the Archiver.
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
@@ -87,7 +63,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     private readonly rollupAddress: EthAddress,
     private readonly unverifiedDataEmitterAddress: EthAddress,
     private readonly pollingIntervalMs = 10_000,
-    private readonly log = createDebugLogger('aztec:archiver'),
+    private readonly log: DebugLogger = createDebugLogger('aztec:archiver'),
   ) {}
 
   /**
@@ -137,232 +113,58 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     const currentBlockNumber = await this.publicClient.getBlockNumber();
 
     // The sequencer publishes unverified data first
-    // By synching blocks first it ensure that if we have received a block then
-    // the corresponding unverified data will also have been made available
-    // TODO: Possibly not the correct long term solution but is ok for now
-    await this.syncBlocks(blockUntilSynced, currentBlockNumber);
-    await this.syncUnverifiedData(blockUntilSynced, currentBlockNumber);
-    await this.syncNewContractData(blockUntilSynced, currentBlockNumber);
-  }
+    // Read all data from chain and then write to our stores at the end
 
-  /**
-   * Fetches and processes new blocks.
-   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
-   * @param currentBlockNumber - Latest available block number in the ETH node.
-   */
-  private async syncBlocks(blockUntilSynced: boolean, currentBlockNumber: bigint) {
-    do {
-      if (this.nextL2BlockFromBlock > currentBlockNumber) {
-        break;
-      }
+    const nextExpectedRollupId = BigInt(this.l2Blocks.length + INITIAL_L2_BLOCK_NUM);
+    this.log(
+      `Retrieving chain state from eth block: ${this.nextL2BlockFromBlock}, next expected rollup id: ${nextExpectedRollupId}`,
+    );
+    const retrievedBlocks = await retrieveBlocks(
+      this.publicClient,
+      this.rollupAddress,
+      blockUntilSynced,
+      currentBlockNumber,
+      this.nextL2BlockFromBlock,
+      nextExpectedRollupId,
+    );
+    const retrievedUnverifiedData = await retrieveUnverifiedData(
+      this.publicClient,
+      this.unverifiedDataEmitterAddress,
+      blockUntilSynced,
+      currentBlockNumber,
+      this.nextL2BlockFromBlock,
+      nextExpectedRollupId,
+    );
+    const retrievedContracts = await retrieveNewContractData(
+      this.publicClient,
+      this.unverifiedDataEmitterAddress,
+      blockUntilSynced,
+      currentBlockNumber,
+      this.nextL2BlockFromBlock,
+    );
 
-      this.log(`Synching L2BlockProcessed logs from block ${this.nextL2BlockFromBlock}`);
-      const l2BlockProcessedLogs = await this.getL2BlockProcessedLogs(this.nextL2BlockFromBlock);
-
-      if (l2BlockProcessedLogs.length === 0) {
-        break;
-      }
-
-      await this.processBlockLogs(l2BlockProcessedLogs);
-
-      // Setting `nextL2BlockFromBlock` to the block number of the last log + 1 because last log's block is the only
-      // block we can be sure was synced to by the ETH node.
-      this.nextL2BlockFromBlock = l2BlockProcessedLogs[l2BlockProcessedLogs.length - 1].blockNumber! + 1n;
-    } while (blockUntilSynced && this.nextL2BlockFromBlock <= currentBlockNumber);
-  }
-
-  /**
-   * Fetches and processes new unverified data.
-   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
-   * @param currentBlockNumber - Latest available block number in the ETH node.
-   */
-  private async syncUnverifiedData(blockUntilSynced: boolean, currentBlockNumber: bigint) {
-    do {
-      if (this.nextUnverifiedDataFromBlock > currentBlockNumber) {
-        break;
-      }
-
-      this.log(`Synching UnverifiedData logs from block ${this.nextUnverifiedDataFromBlock}`);
-      const unverifiedDataLogs = await this.getUnverifiedDataLogs(this.nextUnverifiedDataFromBlock);
-
-      if (unverifiedDataLogs.length === 0) {
-        break;
-      }
-
-      this.processUnverifiedDataLogs(unverifiedDataLogs);
-
-      this.nextUnverifiedDataFromBlock = unverifiedDataLogs[unverifiedDataLogs.length - 1].blockNumber + 1n;
-    } while (blockUntilSynced && this.nextUnverifiedDataFromBlock <= currentBlockNumber);
-  }
-
-  /**
-   * Fetches and processes new contract data.
-   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
-   * @param currentBlockNumber - Latest available block number in the ETH node.
-   */
-  private async syncNewContractData(blockUntilSynced: boolean, currentBlockNumber: bigint) {
-    do {
-      if (this.nextContractDataFromBlock > currentBlockNumber) {
-        break;
-      }
-
-      this.log(`Syncing ContractData logs from block ${this.nextContractDataFromBlock}`);
-      const contractDataLogs = await this.getContractDeploymentLogs(this.nextContractDataFromBlock);
-      this.processContractDeploymentLogs(contractDataLogs);
-
-      this.nextContractDataFromBlock =
-        (contractDataLogs.findLast(cd => !!cd)?.blockNumber || this.nextContractDataFromBlock) + 1n;
-    } while (blockUntilSynced && this.nextContractDataFromBlock <= currentBlockNumber);
-  }
-
-  /**
-   * Gets relevant `L2BlockProcessed` logs from chain.
-   * @param fromBlock - First block to get logs from (inclusive).
-   * @returns An array of `L2BlockProcessed` logs.
-   */
-  private async getL2BlockProcessedLogs(fromBlock: bigint) {
-    // Note: For some reason the return type of `getLogs` would not get correctly derived if I didn't set the abiItem
-    //       as a standalone constant.
-    const abiItem = getAbiItem({
-      abi: RollupAbi,
-      name: 'L2BlockProcessed',
-    });
-    return await this.publicClient.getLogs({
-      address: getAddress(this.rollupAddress.toString()),
-      event: abiItem,
-      fromBlock,
-    });
-  }
-
-  /**
-   * Gets relevant `UnverifiedData` logs from chain.
-   * @param fromBlock - First block to get logs from (inclusive).
-   * @returns An array of `UnverifiedData` logs.
-   */
-  private async getUnverifiedDataLogs(fromBlock: bigint): Promise<any[]> {
-    // Note: For some reason the return type of `getLogs` would not get correctly derived if I didn't set the abiItem
-    //       as a standalone constant.
-    const abiItem = getAbiItem({
-      abi: UnverifiedDataEmitterAbi,
-      name: 'UnverifiedData',
-    });
-    return await this.publicClient.getLogs({
-      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
-      event: abiItem,
-      fromBlock,
-    });
-  }
-
-  /**
-   * Gets relevant `ContractDeployment` logs from chain.
-   * @param fromBlock - First block to get logs from (inclusive).
-   * @returns An array of `ContractDeployment` logs.
-   */
-  private async getContractDeploymentLogs(fromBlock: bigint): Promise<any[]> {
-    const abiItem = getAbiItem({
-      abi: UnverifiedDataEmitterAbi,
-      name: 'ContractDeployment',
-    });
-    return await this.publicClient.getLogs({
-      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
-      event: abiItem,
-      fromBlock,
-    });
-  }
-
-  /**
-   * Processes newly received L2BlockProcessed logs.
-   * @param logs - L2BlockProcessed logs.
-   */
-  private async processBlockLogs(logs: Log<bigint, number, undefined, typeof RollupAbi, 'L2BlockProcessed'>[]) {
-    for (const log of logs) {
-      const blockNum = log.args.blockNum;
-      if (blockNum !== BigInt(this.l2Blocks.length + INITIAL_L2_BLOCK_NUM)) {
-        throw new Error(
-          'Block number mismatch. Expected: ' +
-            (this.l2Blocks.length + INITIAL_L2_BLOCK_NUM) +
-            ' but got: ' +
-            blockNum +
-            '.',
-        );
-      }
-      // TODO: Fetch blocks from calldata in parallel
-      const newBlock = await this.getBlockFromCallData(log.transactionHash!, log.args.blockNum);
-      this.l2Blocks.push(newBlock);
-      this.log(`Processed block ${newBlock.number}.`);
+    if (retrievedBlocks.retrievedData.length === 0) {
+      return;
     }
-  }
 
-  /**
-   * Processes newly received UnverifiedData logs.
-   * @param logs - UnverifiedData logs.
-   */
-  private processUnverifiedDataLogs(
-    logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>[],
-  ) {
-    for (const log of logs) {
-      const l2BlockNum = log.args.l2BlockNum;
-      if (l2BlockNum !== BigInt(this.unverifiedData.length + INITIAL_L2_BLOCK_NUM)) {
-        throw new Error(
-          'Block number mismatch. Expected: ' +
-            (this.unverifiedData.length + INITIAL_L2_BLOCK_NUM) +
-            ' but got: ' +
-            l2BlockNum +
-            '.',
-        );
+    this.log(`Retrieved ${retrievedBlocks.retrievedData.length} block(s) from chain`);
+
+    // store retrieved rollup blocks
+    this.l2Blocks.push(...retrievedBlocks.retrievedData);
+    // store unverified chunks for which we have retrieved rollups
+    this.unverifiedData.push(...retrievedUnverifiedData.retrievedData.slice(0, retrievedBlocks.retrievedData.length));
+
+    // store contracts for which we have retrieved rollups
+    const lastKnownRollupId = BigInt(this.l2Blocks.length + INITIAL_L2_BLOCK_NUM - 1);
+    retrievedContracts.retrievedData.forEach((contracts, index) => {
+      if (index <= lastKnownRollupId) {
+        this.log(`Retrieved contract public data for rollup id: ${index}`);
+        this.contractPublicData[index] = contracts;
       }
-      const unverifiedDataBuf = Buffer.from(hexToBytes(log.args.data));
-      const unverifiedData = UnverifiedData.fromBuffer(unverifiedDataBuf);
-      this.unverifiedData.push(unverifiedData);
-    }
-    this.log('Processed unverifiedData corresponding to ' + logs.length + ' blocks.');
-  }
-
-  /**
-   * Processes newly received UnverifiedData logs.
-   * @param logs - ContractDeployment logs.
-   */
-  private processContractDeploymentLogs(
-    logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployment'>[],
-  ) {
-    for (const log of logs) {
-      const l2BlockNum = log.args.l2BlockNum;
-      const publicFnsReader = BufferReader.asReader(Buffer.from(log.args.acir.slice(2), 'hex'));
-      const contractData = new ContractPublicData(
-        new ContractData(AztecAddress.fromString(log.args.aztecAddress), EthAddress.fromString(log.args.portalAddress)),
-        publicFnsReader.readVector(EncodedContractFunction),
-      );
-      if (this.contractPublicData[Number(l2BlockNum)]) {
-        this.contractPublicData[Number(l2BlockNum)]?.push(contractData);
-      } else {
-        this.contractPublicData[Number(l2BlockNum)] = [contractData];
-      }
-    }
-    this.log('Processed contractData corresponding to ' + logs.length + ' blocks.');
-  }
-
-  /**
-   * Builds an L2 block out of calldata from the tx that published it.
-   * Assumes that the block was published from an EOA.
-   * TODO: Add retries and error management.
-   * @param txHash - Hash of the tx that published it.
-   * @param l2BlockNum - L2 block number.
-   * @returns An L2 block deserialized from the calldata.
-   */
-  private async getBlockFromCallData(txHash: `0x${string}`, l2BlockNum: bigint): Promise<L2Block> {
-    const { input: data } = await this.publicClient.getTransaction({ hash: txHash });
-    // TODO: File a bug in viem who complains if we dont remove the ctor from the abi here
-    const { functionName, args } = decodeFunctionData({
-      abi: RollupAbi.filter(item => item.type.toString() !== 'constructor'),
-      data,
     });
-    if (functionName !== 'process') throw new Error(`Unexpected method called ${functionName}`);
-    const [, l2BlockHex] = args! as [Hex, Hex];
-    const block = L2Block.decode(Buffer.from(hexToBytes(l2BlockHex)));
-    if (BigInt(block.number) !== l2BlockNum) {
-      throw new Error(`Block number mismatch: expected ${l2BlockNum} but got ${block.number}`);
-    }
-    return block;
+
+    // set the eth block for the next search
+    this.nextL2BlockFromBlock = retrievedBlocks.nextEthBlockNumber;
   }
 
   /**
