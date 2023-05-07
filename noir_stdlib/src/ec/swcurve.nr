@@ -344,11 +344,20 @@ mod curvegroup {
 
         // Scalar multiplication (p + ... + p n times)
         fn mul(self, n: Field, p: Point) -> Point {
-            let n_as_bits = crate::ec::to_bits(n); // N_BITS-bit representation
+            let N_BITS = crate::field::modulus_num_bits();
 
-            self.bit_mul(n_as_bits, p)
+            let mut out = Point::zero();
+            let n_as_bits = n.to_le_bits(N_BITS as u32); // N_BITS-bit representation
+
+            for i in 0..N_BITS {
+                out = self.add(
+                    self.add(out, out),
+                    if(n_as_bits[N_BITS - i - 1] == 0) {Point::zero()} else {p});
+            }
+
+            out
         }
-        
+
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();

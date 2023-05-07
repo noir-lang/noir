@@ -17,15 +17,15 @@ fn eddsa_poseidon_verify(
     let bjj = baby_jubjub();
 
     let pub_key = TEPoint::new(pub_key_x, pub_key_y);
-    constrain bjj.curve.contains(pub_key);
+    assert(bjj.curve.contains(pub_key));
 
     let signature_r8 = TEPoint::new(signature_r8_x, signature_r8_y);
-    constrain bjj.curve.contains(signature_r8);
+    assert(bjj.curve.contains(signature_r8));
 
     // Ensure S < Subgroup Order
-    constrain field::lt_bytes32(signature_s, bjj.suborder);
+    assert(field::lt_bytes32(signature_s, bjj.suborder));
 
-    // Calculate the h = H(R,A, msg)
+    // Calculate the h = H(R, A, msg)
     let perm: [Field; 6] = poseidon::bn254::perm::x5_6([
         0,
         signature_r8_x,
@@ -44,7 +44,7 @@ fn eddsa_poseidon_verify(
     let pub_key_mul_8 = bjj.curve.add(pub_key_mul_4, pub_key_mul_4);
 
     // We check that A8 is not zero.
-    constrain !pub_key_mul_8.is_zero();
+    assert(!pub_key_mul_8.is_zero());
 
     // Compute the right side: R8 + h * A8
     let right = bjj.curve.add(signature_r8, bjj.curve.mul(hash, pub_key_mul_8));

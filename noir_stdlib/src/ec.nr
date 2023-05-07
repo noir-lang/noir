@@ -150,20 +150,6 @@ global C5 = 19103219067921713944291392827692070036145651957329286315305642004821
 //    out
 //}
 
-// Converts Field element to little-endian bit array of length N_BITS
-// TODO: Fix built-in to_le_bits(., N_BITS), which yields a 128-periodic bit array
-fn to_bits(x: Field) -> [u1; N_BITS] {
-    let mut x = x;
-    let mut out = [0; N_BITS];
-    for i in 0..N_BITS {
-        if x != 0 {
-                out[i] = x as u1;
-                x = (x - out[i] as Field)/2;
-            }
-    }
-    out
-}
-
 // TODO: Make this built-in.
 fn safe_inverse(x: Field) -> Field {
     if x == 0 {
@@ -184,7 +170,7 @@ fn is_square(x: Field) -> bool {
 // Adapted from std::field::pow_32.
 fn pow(x: Field, y: Field) -> Field { // As in tests with minor modifications
     let mut r = 1 as Field;
-    let b = to_bits(y);
+    let b = y.to_le_bits(N_BITS as u32);
         
     for i in 0..N_BITS {
         r *= r;
