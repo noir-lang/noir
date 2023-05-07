@@ -25,6 +25,12 @@ pub enum Statement {
     Assign(AssignStatement),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
+    Return {
+        expr: Option<Expression>,
+        // Initially `false`, but after semicolon validation it says whether
+        // the semicolon was present.
+        semi: bool,
+    },
     // This statement is the result of a recovered parse error.
     // To avoid issuing multiple errors in later steps, it should
     // be skipped in any future analysis if possible.
@@ -63,6 +69,18 @@ impl Statement {
                     emit_error(ParserError::with_reason(reason, span));
                 }
                 self
+            }
+
+            Statement::Return { expr, semi: false } => {
+                if !last_statement_in_block && semi.is_none() {
+                    let reason = "Expected a ; separating these two statements".to_string();
+                    emit_error(ParserError::with_reason(reason, span));
+                }
+                Statement::Return { expr, semi: semi.is_some() }
+            }
+
+            Statement::Return { expr: _, semi: true } => {
+                unreachable!()
             }
 
             Statement::Expression(expr) => {
@@ -394,6 +412,10 @@ impl Display for Statement {
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{semi};"),
+            Statement::Return { expr: Some(expr), semi: true } => write!(f, "return {expr};"),
+            Statement::Return { expr: None, semi: true } => write!(f, "return;"),
+            Statement::Return { expr: Some(expr), semi: false } => write!(f, "return {expr}"),
+            Statement::Return { expr: None, semi: false } => write!(f, "return"),
             Statement::Error => write!(f, "Error"),
         }
     }

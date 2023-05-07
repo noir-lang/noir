@@ -663,9 +663,9 @@ where
     P: ExprParser + 'a,
 {
     ignore_then_commit(keyword(Keyword::Return), expr_parser.or_not())
-        .validate(|_, span, emit| {
+        .validate(|expr, span, emit| {
             emit(ParserError::with_reason("Early 'return' is unsupported".to_owned(), span));
-            Statement::error(span)
+            Statement::Return { expr, semi: false }
         })
         .labelled("return expression")
 }
@@ -1501,15 +1501,15 @@ mod test {
     #[test]
     fn return_validation() {
         let cases = vec![
-            ("{ return 42; }", 1, "{\n    Error\n}"),
-            ("{ return 1; return 2; }", 2, "{\n    Error\n    Error\n}"),
+            ("{ return 42; }", 1, "{\n    return 42;\n}"),
+            ("{ return 1; return 2; }", 2, "{\n    return 1;\n    return 2;\n}"),
             (
                 "{ return 123; let foo = 4 + 3; }",
                 1,
-                "{\n    Error\n    let foo: unspecified = (4 + 3)\n}",
+                "{\n    return 123;\n    let foo: unspecified = (4 + 3)\n}",
             ),
-            ("{ return 1 + 2; }", 1, "{\n    Error\n}"),
-            ("{ return; }", 1, "{\n    Error\n}"),
+            ("{ return 1 + 2 }", 1, "{\n    return (1 + 2)\n}"),
+            ("{ return; }", 1, "{\n    return;\n}"),
         ];
 
         let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");

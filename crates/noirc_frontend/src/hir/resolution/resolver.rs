@@ -803,7 +803,7 @@ impl<'a> Resolver<'a> {
                 let stmt = HirAssignStatement { lvalue: identifier, expression };
                 HirStatement::Assign(stmt)
             }
-            Statement::Error => HirStatement::Error,
+            Statement::Error | Statement::Return { .. } => HirStatement::Error,
         }
     }
 
