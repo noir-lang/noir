@@ -8,6 +8,7 @@ import {
   Tx,
   UnverifiedData,
   isPrivateTx,
+  L2Block,
 } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import times from 'lodash.times';
@@ -151,49 +152,66 @@ export class Sequencer {
       const block = await this.buildBlock(processedTxs, l1ToL2Messages);
       this.log(`Assembled block ${block.number}`);
 
-      // Publishes new block to the network and awaits the tx to be mined
-      this.state = SequencerState.PUBLISHING_BLOCK;
-      const publishedL2Block = await this.publisher.processL2Block(block);
-      if (publishedL2Block) {
-        this.log(`Successfully published block ${block.number}`);
-        this.lastBlockNumber++;
-      } else {
-        this.log(`Failed to publish block`);
-      }
+      await this.publishUnverifiedData(validTxs, block);
 
-      // Publishes new unverified data & contract data for private txs to the network and awaits the tx to be mined
-      this.state = SequencerState.PUBLISHING_UNVERIFIED_DATA;
-      const unverifiedData = UnverifiedData.join(validTxs.filter(isPrivateTx).map(tx => tx.unverifiedData));
-      const newContractData = validTxs
-        .filter(isPrivateTx)
-        .map(tx => {
-          // Currently can only have 1 new contract per tx
-          const newContract = tx.data?.end.newContracts[0];
-          if (newContract && tx.newContractPublicFunctions?.length) {
-            return new ContractPublicData(
-              new ContractData(newContract.contractAddress, newContract.portalContractAddress),
-              tx.newContractPublicFunctions,
-            );
-          }
-        })
-        .filter((cd): cd is Exclude<typeof cd, undefined> => cd !== undefined);
-
-      const publishedUnverifiedData = await this.publisher.processUnverifiedData(block.number, unverifiedData);
-      if (publishedUnverifiedData) {
-        this.log(`Successfully published unverifiedData for block ${block.number}`);
-      } else {
-        this.log(`Failed to publish unverifiedData for block ${block.number}`);
-      }
-
-      const publishedContractData = await this.publisher.processNewContractData(block.number, newContractData);
-      if (publishedContractData) {
-        this.log(`Successfully published new contract data for block ${block.number}`);
-      } else if (!publishedContractData && newContractData.length) {
-        this.log(`Failed to publish new contract data for block ${block.number}`);
-      }
+      await this.publishL2Block(block);
     } catch (err) {
       this.log(err, 'error');
       // TODO: Rollback changes to DB
+    }
+  }
+
+  /**
+   * Creates the unverified data from the txs and l2Block and publishes it on chain.
+   * @param validTxs - The set of real transactions being published as part of the block.
+   * @param block - The L2Block to be published.
+   */
+  protected async publishUnverifiedData(validTxs: Tx[], block: L2Block) {
+    // Publishes new unverified data & contract data for private txs to the network and awaits the tx to be mined
+    this.state = SequencerState.PUBLISHING_UNVERIFIED_DATA;
+    const unverifiedData = UnverifiedData.join(validTxs.filter(isPrivateTx).map(tx => tx.unverifiedData));
+    const newContractData = validTxs
+      .filter(isPrivateTx)
+      .map(tx => {
+        // Currently can only have 1 new contract per tx
+        const newContract = tx.data?.end.newContracts[0];
+        if (newContract && tx.newContractPublicFunctions?.length) {
+          return new ContractPublicData(
+            new ContractData(newContract.contractAddress, newContract.portalContractAddress),
+            tx.newContractPublicFunctions,
+          );
+        }
+      })
+      .filter((cd): cd is Exclude<typeof cd, undefined> => cd !== undefined);
+
+    const publishedUnverifiedData = await this.publisher.processUnverifiedData(block.number, unverifiedData);
+    if (publishedUnverifiedData) {
+      this.log(`Successfully published unverifiedData for block ${block.number}`);
+    } else {
+      this.log(`Failed to publish unverifiedData for block ${block.number}`);
+    }
+
+    const publishedContractData = await this.publisher.processNewContractData(block.number, newContractData);
+    if (publishedContractData) {
+      this.log(`Successfully published new contract data for block ${block.number}`);
+    } else if (!publishedContractData && newContractData.length) {
+      this.log(`Failed to publish new contract data for block ${block.number}`);
+    }
+  }
+
+  /**
+   * Publishes the L2Block to the rollup contract.
+   * @param block - The L2Block to be published.
+   */
+  protected async publishL2Block(block: L2Block) {
+    // Publishes new block to the network and awaits the tx to be mined
+    this.state = SequencerState.PUBLISHING_BLOCK;
+    const publishedL2Block = await this.publisher.processL2Block(block);
+    if (publishedL2Block) {
+      this.log(`Successfully published block ${block.number}`);
+      this.lastBlockNumber++;
+    } else {
+      this.log(`Failed to publish block`);
     }
   }
 
@@ -314,17 +332,17 @@ export enum SequencerState {
    */
   WAITING_FOR_TXS,
   /**
-   * Creating a new L2 block. Includes processing public function calls and running rollup circuits. Will move to PUBLISHING_BLOCK.
+   * Creating a new L2 block. Includes processing public function calls and running rollup circuits. Will move to PUBLISHING_UNVERIFIED_DATA.
    */
   CREATING_BLOCK,
   /**
-   * Sending the tx to L1 with the L2 block data and awaiting it to be mined. Will move to PUBLISHING_UNVERIFIED_DATA.
-   */
-  PUBLISHING_BLOCK,
-  /**
-   * Sending the tx to L1 with unverified data and awaiting it to be mined. Will move back to IDLE once finished.
+   * Sending the tx to L1 with unverified data and awaiting it to be mined. Will move back to PUBLISHING_BLOCK once finished.
    */
   PUBLISHING_UNVERIFIED_DATA,
+  /**
+   * Sending the tx to L1 with the L2 block data and awaiting it to be mined. Will move to IDLE.
+   */
+  PUBLISHING_BLOCK,
   /**
    * Sequencer is stopped and not processing any txs from the pool.
    */

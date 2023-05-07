@@ -136,6 +136,10 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   private async sync(blockUntilSynced: boolean) {
     const currentBlockNumber = await this.publicClient.getBlockNumber();
 
+    // The sequencer publishes unverified data first
+    // By synching blocks first it ensure that if we have received a block then
+    // the corresponding unverified data will also have been made available
+    // TODO: Possibly not the correct long term solution but is ok for now
     await this.syncBlocks(blockUntilSynced, currentBlockNumber);
     await this.syncUnverifiedData(blockUntilSynced, currentBlockNumber);
     await this.syncNewContractData(blockUntilSynced, currentBlockNumber);

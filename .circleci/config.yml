@@ -497,4 +497,5 @@ workflows:
       - e2e-zk-token-contract: *e2e_test
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
+      - e2e-public-token-contract: *e2e_test
       - integration-l1-publisher: *e2e_test

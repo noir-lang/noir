@@ -7,7 +7,6 @@ import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { retry } from '@aztec/foundation/retry';
 
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { deployL1Contracts } from './deploy_l1_contracts.js';
@@ -52,13 +51,14 @@ describe('e2e_public_token_contract', () => {
     const xCoordinate = Fr.fromBuffer(ownerPublicKey.buffer.subarray(0, 32));
     const bbWasm = await BarretenbergWasm.get();
     const balancesStorageSlot = new Fr(1n); // this value is manually set in the Noir contract
+    const mappingStorageSlot = new Fr(4n);
 
     // Based on `at` function in
     // aztec3-packages/yarn-project/noir-contracts/src/contracts/noir-aztec3/src/state_vars/storage_map.nr
     const storageSlot = Fr.fromBuffer(
       pedersenCompressInputs(
         bbWasm,
-        [new Fr(4n), balancesStorageSlot, xCoordinate].map(f => f.toBuffer()),
+        [mappingStorageSlot, balancesStorageSlot, xCoordinate].map(f => f.toBuffer()),
       ),
     );
 
