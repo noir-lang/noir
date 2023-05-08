@@ -153,7 +153,7 @@ impl<'interner> TypeChecker<'interner> {
                     (Type::Error, None)
                 };
 
-                let (typ, field_index) = match result {
+                let (typ, field_index) = match result.follow_bindings() {
                     Type::Struct(def, args) => {
                         match def.borrow().get_field(&field_name.0.contents, &args) {
                             Some((field, index)) => (field, Some(index)),
