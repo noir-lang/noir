@@ -1,18 +1,33 @@
 use std::collections::BTreeSet;
 
 use crate::lexer::token::Token;
-use crate::BinaryOp;
+use crate::Expression;
+use thiserror::Error;
 
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ParserErrorReason {
+    #[error("Arrays must have at least one element")]
+    ZeroSizedArray,
+    #[error("Unexpected '{0}', expected a field name")]
+    ExpectedFieldName(Token),
+    #[error("Expected a ; separating these two statements")]
+    MissingSeparatingSemi,
+    #[error("constrain keyword is deprecated")]
+    ConstrainDeprecated,
+    #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
+    InvalidArrayLengthExpression(Expression),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserError {
     expected_tokens: BTreeSet<Token>,
     expected_labels: BTreeSet<String>,
     found: Token,
-    reason: Option<String>,
+    reason: Option<ParserErrorReason>,
     span: Span,
 }
 
@@ -39,19 +54,9 @@ impl ParserError {
         error
     }
 
-    pub fn with_reason(reason: String, span: Span) -> ParserError {
+    pub fn with_reason(reason: ParserErrorReason, span: Span) -> ParserError {
         let mut error = ParserError::empty(Token::EOF, span);
         error.reason = Some(reason);
-        error
-    }
-
-    pub fn invalid_constrain_operator(operator: BinaryOp) -> ParserError {
-        let message = format!(
-            "Cannot use the {} operator in a constraint statement.",
-            operator.contents.as_string()
-        );
-        let mut error = ParserError::empty(operator.contents.as_token(), operator.span());
-        error.reason = Some(message);
         error
     }
 }
@@ -84,7 +89,19 @@ impl std::fmt::Display for ParserError {
 impl From<ParserError> for Diagnostic {
     fn from(error: ParserError) -> Diagnostic {
         match &error.reason {
-            Some(reason) => Diagnostic::simple_error(reason.clone(), String::new(), error.span),
+            Some(reason) => {
+                match reason {
+                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
+                        "Use of deprecated keyword 'constrain'".into(),
+                        "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
+                        error.span,
+                    ),
+                    other => {
+
+                        Diagnostic::simple_error(format!("{other}"), String::new(), error.span)
+                    }
+                }
+            }
             None => {
                 let primary = error.to_string();
                 Diagnostic::simple_error(primary, String::new(), error.span)

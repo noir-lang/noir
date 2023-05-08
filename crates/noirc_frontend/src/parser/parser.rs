@@ -26,7 +26,7 @@
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
-    ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
+    ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule, TopLevelStatement,
 };
 use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
@@ -448,6 +448,10 @@ where
 {
     ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+        .validate(|expr, span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
+            expr
+        })
 }
 
 fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -877,10 +881,7 @@ where
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .validate(|elements, span, emit| {
             if elements.is_empty() {
-                emit(ParserError::with_reason(
-                    "Arrays must have at least one element".to_owned(),
-                    span,
-                ));
+                emit(ParserError::with_reason(ParserErrorReason::ZeroSizedArray, span));
             }
             ExpressionKind::array(elements)
         })
@@ -966,8 +967,7 @@ fn field_name() -> impl NoirParser<Ident> {
     ident().or(token_kind(TokenKind::Literal).validate(|token, span, emit| match token {
         Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
         other => {
-            let reason = format!("Unexpected '{other}', expected a field name");
-            emit(ParserError::with_reason(reason, span));
+            emit(ParserError::with_reason(ParserErrorReason::ExpectedFieldName(other), span));
             Ident::error(span)
         }
     }))
@@ -1196,10 +1196,12 @@ mod test {
         );
     }
 
-    /// This is the standard way to declare a constrain statement
+    /// Deprecated constrain usage test
     #[test]
     fn parse_constrain() {
-        parse_with(constrain(expression()), "constrain x == y").unwrap();
+        let errors = parse_with(constrain(expression()), "constrain x == y").unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
 
         // Currently we disallow constrain statements where the outer infix operator
         // produces a value. This would require an implicit `==` which
@@ -1217,7 +1219,9 @@ mod test {
 
         for operator in disallowed_operators {
             let src = format!("constrain x {} y;", operator.as_string());
-            parse_with(constrain(expression()), &src).unwrap_err();
+            let errors = parse_with(constrain(expression()), &src).unwrap_err();
+            assert_eq!(errors.len(), 2);
+            assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
         }
 
         // These are general cases which should always work.
@@ -1226,7 +1230,7 @@ mod test {
         // The first (inner) `==` is a predicate which returns 0/1
         // The outer layer is an infix `==` which is
         // associated with the Constrain statement
-        parse_all(
+        let errors = parse_all_failing(
             constrain(expression()),
             vec![
                 "constrain ((x + y) == k) + z == y",
@@ -1236,8 +1240,11 @@ mod test {
                 "constrain x + x ^ x == y | m",
             ],
         );
+        assert_eq!(errors.len(), 5);
+        assert!(errors.iter().all(|err| { format!("{}", err).contains("deprecated") }));
     }
 
+    /// This is the standard way to declare an assert statement
     #[test]
     fn parse_assert() {
         parse_with(assertion(expression()), "assert(x == y)").unwrap();
@@ -1533,9 +1540,9 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 1, "constrain Error"),
+            ("constrain", 2, "constrain Error"),
             ("assert", 1, "constrain Error"),
-            ("constrain x ==", 1, "constrain (plain::x == Error)"),
+            ("constrain x ==", 2, "constrain (plain::x == Error)"),
             ("assert(x ==)", 1, "constrain (plain::x == Error)"),
         ];
 
