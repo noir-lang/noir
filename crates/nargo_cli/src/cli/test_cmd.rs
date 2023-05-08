@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, io::Write, path::Path};
 
-use acvm::ProofSystemCompiler;
+use acvm::Backend;
 use clap::Args;
 use nargo::ops::execute_circuit;
 use noirc_driver::{CompileOptions, Driver};
@@ -21,19 +21,22 @@ pub(crate) struct TestCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<ConcreteBackend: Backend>(
+    backend: &ConcreteBackend,
+    args: TestCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<ConcreteBackend>> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    run_tests(&config.program_dir, &test_name, &args.compile_options)
+    run_tests(backend, &config.program_dir, &test_name, &args.compile_options)
 }
 
-fn run_tests(
+fn run_tests<ConcreteBackend: Backend>(
+    backend: &ConcreteBackend,
     program_dir: &Path,
     test_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+) -> Result<(), CliError<ConcreteBackend>> {
     let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
@@ -50,7 +53,7 @@ fn run_tests(
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(test_name, test_function, &driver, compile_options) {
+        match run_test(backend, test_name, test_function, &driver, compile_options) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -73,21 +76,20 @@ fn run_tests(
     Ok(())
 }
 
-fn run_test(
+fn run_test<ConcreteBackend: Backend>(
+    backend: &ConcreteBackend,
     test_name: &str,
     main: FuncId,
     driver: &Driver,
     config: &CompileOptions,
-) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+) -> Result<(), CliError<ConcreteBackend>> {
     let program = driver
         .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match execute_circuit(&backend, program.circuit, BTreeMap::new()) {
+    match execute_circuit(backend, program.circuit, BTreeMap::new()) {
         Ok(_) => Ok(()),
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);

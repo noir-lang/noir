@@ -5,6 +5,7 @@ use crate::{
 
 use super::fs::{create_named_dir, write_to_file};
 use super::{NargoConfig, CARGO_PKG_VERSION};
+use acvm::Backend;
 use clap::Args;
 use const_format::formatcp;
 use std::path::{Path, PathBuf};
@@ -33,13 +34,18 @@ const EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
 #[test]
 fn test_main() {
     main(1, 2);
-    
+
     // Uncomment to make test fail
     // main(1, 1);
 }
 "#;
 
-pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<ConcreteBackend: Backend>(
+    // Backend is currently unused, but we might want to use it to inform the "new" template in the future
+    _backend: &ConcreteBackend,
+    args: NewCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<ConcreteBackend>> {
     let package_dir = config.program_dir.join(args.package_name);
 
     if package_dir.exists() {

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::ops::{preprocess_program, prove_execution, verify_proof};
@@ -38,7 +39,11 @@ pub(crate) struct ProveCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<ConcreteBackend: Backend>(
+    backend: &ConcreteBackend,
+    args: ProveCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<ConcreteBackend>> {
     let proof_dir = config.program_dir.join(PROOFS_DIR);
 
     let circuit_build_path = args
@@ -46,6 +51,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
     prove_with_path(
+        backend,
         args.proof_name,
         config.program_dir,
         proof_dir,
@@ -57,22 +63,21 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
     Ok(())
 }
 
-pub(crate) fn prove_with_path<P: AsRef<Path>>(
+pub(crate) fn prove_with_path<ConcreteBackend: Backend, P: AsRef<Path>>(
+    backend: &ConcreteBackend,
     proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
     check_proof: bool,
     compile_options: &CompileOptions,
-) -> Result<Option<PathBuf>, CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+) -> Result<Option<PathBuf>, CliError<ConcreteBackend>> {
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
-            let compiled_program =
-                compile_circuit(&backend, program_dir.as_ref(), compile_options)?;
-            preprocess_program(&backend, compiled_program)?
+            let compiled_program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+            preprocess_program(backend, compiled_program)
+                .map_err(CliError::ProofSystemCompilerError)?
         }
     };
 
@@ -83,7 +88,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     let (inputs_map, _) =
         read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(&backend, bytecode.clone(), &abi, &inputs_map)?;
+    let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = abi.public_abi();
@@ -97,12 +102,14 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         Format::Toml,
     )?;
 
-    let proof = prove_execution(&backend, &bytecode, solved_witness, &proving_key)?;
+    let proof = prove_execution(backend, &bytecode, solved_witness, &proving_key)
+        .map_err(CliError::ProofSystemCompilerError)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
         let valid_proof =
-            verify_proof(&backend, &bytecode, &proof, public_inputs, &verification_key)?;
+            verify_proof(backend, &bytecode, &proof, public_inputs, &verification_key)
+                .map_err(CliError::ProofSystemCompilerError)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

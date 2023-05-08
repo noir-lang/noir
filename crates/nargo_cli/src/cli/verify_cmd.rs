@@ -6,6 +6,7 @@ use crate::{
     errors::CliError,
 };
 
+use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::ops::preprocess_program;
@@ -26,7 +27,11 @@ pub(crate) struct VerifyCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<ConcreteBackend: Backend>(
+    backend: &ConcreteBackend,
+    args: VerifyCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<ConcreteBackend>> {
     let proof_path =
         config.program_dir.join(PROOFS_DIR).join(&args.proof).with_extension(PROOF_EXT);
 
@@ -35,6 +40,7 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
     verify_with_path(
+        backend,
         &config.program_dir,
         proof_path,
         circuit_build_path.as_ref(),
@@ -42,20 +48,20 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
     )
 }
 
-fn verify_with_path<P: AsRef<Path>>(
+fn verify_with_path<ConcreteBackend: Backend, P: AsRef<Path>>(
+    backend: &ConcreteBackend,
     program_dir: P,
     proof_path: PathBuf,
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
-) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+) -> Result<(), CliError<ConcreteBackend>> {
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
             let compiled_program =
-                compile_circuit(&backend, program_dir.as_ref(), &compile_options)?;
-            preprocess_program(&backend, compiled_program)?
+                compile_circuit(backend, program_dir.as_ref(), &compile_options)?;
+            preprocess_program(backend, compiled_program)
+                .map_err(CliError::ProofSystemCompilerError)?
         }
     };
 
@@ -70,7 +76,8 @@ fn verify_with_path<P: AsRef<Path>>(
     let proof = load_hex_data(&proof_path)?;
 
     let valid_proof =
-        nargo::ops::verify_proof(&backend, &bytecode, &proof, public_inputs, &verification_key)?;
+        nargo::ops::verify_proof(backend, &bytecode, &proof, public_inputs, &verification_key)
+            .map_err(CliError::ProofSystemCompilerError)?;
 
     if valid_proof {
         Ok(())
