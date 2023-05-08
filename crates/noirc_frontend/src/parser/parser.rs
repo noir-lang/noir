@@ -517,9 +517,22 @@ where
     )
 }
 
+/// Parse an assignment operator `=` optionally prefixed by a binary operator for a combined
+/// assign statement shorthand. Notably, this must handle a few corner cases with how `>>` is
+/// lexed as two separate greater-than operators rather than a single right-shift.
 fn assign_operator() -> impl NoirParser<Token> {
     let shorthand_operators = Token::assign_shorthand_operators();
-    let shorthand_syntax = one_of(shorthand_operators).then_ignore(just(Token::Assign));
+    // We need to explicitly check for right_shift here since it is actually
+    // two separate greater-than operators.
+    let shorthand_operators = right_shift_operator().or(one_of(shorthand_operators));
+    let shorthand_syntax = shorthand_operators.then_ignore(just(Token::Assign));
+
+    // Since >> is lexed as two separte greater-thans, >>= is lexed as > >=, so
+    // we need to account for that case here as well.
+    let right_shift_fix =
+        just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
+
+    let shorthand_syntax = shorthand_syntax.or(right_shift_fix);
     just(Token::Assign).or(shorthand_syntax)
 }
 
@@ -726,14 +739,23 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
     Expression { span, kind: ExpressionKind::Infix(infix) }
 }
 
+// Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
+// to parse nested generic types. For normal expressions however, it means we have to manually
+// parse two greater-than tokens as a single right-shift here.
+fn right_shift_operator() -> impl NoirParser<Token> {
+    just(Token::Greater).then(just(Token::Greater)).map(|_| Token::ShiftRight)
+}
+
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
-    filter_map(move |span, token: Token| {
-        if Precedence::token_precedence(&token) == Some(precedence) {
-            Ok(token.try_into_binary_op(span).unwrap())
-        } else {
-            Err(ParserError::expected_label("binary operator".to_string(), token, span))
-        }
-    })
+    right_shift_operator()
+        .or(any()) // Parse any single token, we're validating it as an operator next
+        .try_map(move |token, span| {
+            if Precedence::token_precedence(&token) == Some(precedence) {
+                Ok(token.try_into_binary_op(span).unwrap())
+            } else {
+                Err(ParserError::expected_label("binary operator".to_string(), token, span))
+            }
+        })
 }
 
 fn term<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a

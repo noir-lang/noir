@@ -162,9 +162,8 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is('=') {
                     self.next_char();
                     Ok(Token::GreaterEqual.into_span(start, start + 1))
-                } else if self.peek_char_is('>') {
-                    self.next_char();
-                    Ok(Token::ShiftRight.into_span(start, start + 1))
+                    // Note: There is deliberately now case for RightShift. We always lex >> as
+                    // two separate Greater tokens to help the parser parse nested generic types.
                 } else {
                     Ok(prev_token.into_single_span(start))
                 }
