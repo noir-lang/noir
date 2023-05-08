@@ -34,6 +34,10 @@ pub(crate) struct ProveCommand {
     #[arg(short, long)]
     verify: bool,
 
+    /// Whether to generate this proof using the recursive prover
+    #[arg(short, long)]
+    recursive: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }

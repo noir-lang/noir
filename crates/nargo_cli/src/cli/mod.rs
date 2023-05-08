@@ -20,6 +20,7 @@ mod print_acir_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
+mod recursion_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -58,6 +59,7 @@ enum NargoCommand {
     Test(test_cmd::TestCommand),
     Gates(gates_cmd::GatesCommand),
     PrintAcir(print_acir_cmd::PrintAcirCommand),
+    Recursion(recursion_cmd::RecursionCommand),
 }
 
 pub fn start_cli() -> eyre::Result<()> {
@@ -79,6 +81,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Gates(args) => gates_cmd::run(args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, config),
         NargoCommand::PrintAcir(args) => print_acir_cmd::run(args, config),
+        NargoCommand::Recursion(args) => recursion_cmd::run(args, config),
     }?;
 
     Ok(())
