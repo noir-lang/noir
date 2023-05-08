@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-large
+          - os: ubuntu-latest
             target: x86_64-linux
           - os: macos-latest
             target: x86_64-darwin
