@@ -527,7 +527,7 @@ fn assign_operator() -> impl NoirParser<Token> {
     let shorthand_operators = right_shift_operator().or(one_of(shorthand_operators));
     let shorthand_syntax = shorthand_operators.then_ignore(just(Token::Assign));
 
-    // Since >> is lexed as two separte greater-thans, >>= is lexed as > >=, so
+    // Since >> is lexed as two separate greater-thans, >>= is lexed as > >=, so
     // we need to account for that case here as well.
     let right_shift_fix =
         just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
