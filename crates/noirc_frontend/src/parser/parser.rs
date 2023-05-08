@@ -534,7 +534,7 @@ where
 {
     let l_ident = ident().map(LValue::Ident);
 
-    let l_member_rhs = just(Token::Dot).ignore_then(ident()).map(LValueRhs::MemberAccess);
+    let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
 
     let l_index = expr_parser
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))

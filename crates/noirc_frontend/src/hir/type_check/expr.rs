@@ -455,18 +455,47 @@ impl<'interner> TypeChecker<'interner> {
 
     fn check_member_access(&mut self, access: expr::HirMemberAccess, expr_id: ExprId) -> Type {
         let lhs_type = self.check_expression(&access.lhs).follow_bindings();
+        let span = self.interner.expr_span(&expr_id);
+
+        match self.check_field_access(&lhs_type, &access.rhs.0.contents, span) {
+            Some((element_type, index)) => {
+                self.interner.set_field_index(expr_id, index);
+                element_type
+            }
+            None => Type::Error,
+        }
+    }
+
+    /// This will verify that an expression in the form `lhs.rhs_name` has the given field and will push
+    /// a type error if it does not. If there is no error, the type of the struct/tuple field is returned
+    /// along with the index of the field in question.
+    ///
+    /// This function is abstracted from check_member_access so that it can be shared between
+    /// there and the HirLValue::MemberAccess case of check_lvalue.
+    pub(super) fn check_field_access(
+        &mut self,
+        lhs_type: &Type,
+        field_name: &str,
+        span: Span,
+    ) -> Option<(Type, usize)> {
+        let lhs_type = lhs_type.follow_bindings();
 
         if let Type::Struct(s, args) = &lhs_type {
             let s = s.borrow();
-            if let Some((field, index)) = s.get_field(&access.rhs.0.contents, args) {
-                self.interner.set_field_index(expr_id, index);
-                return field;
+            if let Some((field, index)) = s.get_field(field_name, args) {
+                return Some((field, index));
             }
         } else if let Type::Tuple(elements) = &lhs_type {
-            if let Ok(index) = access.rhs.0.contents.parse::<usize>() {
-                if index < elements.len() {
-                    self.interner.set_field_index(expr_id, index);
-                    return elements[index].clone();
+            if let Ok(index) = field_name.parse::<usize>() {
+                let length = elements.len();
+                if index < length {
+                    return Some((elements[index].clone(), index));
+                } else {
+                    self.errors.push(TypeCheckError::Unstructured {
+                        msg: format!("Index {index} is out of bounds for this tuple {lhs_type} of length {length}"),
+                        span,
+                    });
+                    return None;
                 }
             }
         }
@@ -474,17 +503,15 @@ impl<'interner> TypeChecker<'interner> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.errors.push(TypeCheckError::TypeAnnotationsNeeded {
-                span: self.interner.expr_span(&access.lhs),
-            });
+            self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
         } else if lhs_type != Type::Error {
             self.errors.push(TypeCheckError::Unstructured {
-                msg: format!("Type {lhs_type} has no member named {}", access.rhs),
-                span: self.interner.expr_span(&access.lhs),
+                msg: format!("Type {lhs_type} has no member named {}", field_name),
+                span,
             });
         }
 
-        Type::Error
+        None
     }
 
     fn comparator_operand_type_rules(
