@@ -505,10 +505,8 @@ impl<'interner> TypeChecker<'interner> {
         if let Type::TypeVariable(..) = &lhs_type {
             self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
         } else if lhs_type != Type::Error {
-            self.errors.push(TypeCheckError::Unstructured {
-                msg: format!("Type {lhs_type} has no member named {}", field_name),
-                span,
-            });
+            let msg = format!("Type {lhs_type} has no member named {field_name}");
+            self.errors.push(TypeCheckError::Unstructured { msg, span });
         }
 
         None
