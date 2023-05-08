@@ -31,6 +31,10 @@ pub fn generate_ssa(program: Program) -> Ssa {
     let mut function_context = FunctionContext::new(main.name.clone(), &main.parameters, &context);
     function_context.codegen_function_body(&main.body);
 
+    // Main has now been compiled and any other functions referenced within have been added to the
+    // function queue as they were found in codegen_ident. This queueing will happen each time a
+    // previously-unseen function is found so we need now only continue popping from this queue
+    // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function.name.clone(), &function.parameters);
