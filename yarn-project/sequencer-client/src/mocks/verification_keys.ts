@@ -5,13 +5,9 @@ import { VerificationKey } from '@aztec/circuits.js';
  */
 export interface VerificationKeys {
   /**
-   * Verification key for the default public kernel circuit.
-   */
-  publicKernelCircuit: VerificationKey;
-  /**
    * Verification key for the default private kernel circuit.
    */
-  privateKernelCircuit: VerificationKey;
+  kernelCircuit: VerificationKey;
   /**
    * Verification key for the default base rollup circuit.
    */
@@ -28,9 +24,8 @@ export interface VerificationKeys {
  */
 export function getVerificationKeys(): VerificationKeys {
   return {
-    privateKernelCircuit: VerificationKey.makeFake(),
+    kernelCircuit: VerificationKey.makeFake(),
     baseRollupCircuit: VerificationKey.makeFake(),
     mergeRollupCircuit: VerificationKey.makeFake(),
-    publicKernelCircuit: VerificationKey.makeFake(),
   };
 }

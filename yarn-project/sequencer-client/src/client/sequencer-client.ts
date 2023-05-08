@@ -7,9 +7,9 @@ import { SequencerClientConfig } from '../config.js';
 import { getL1Publisher, getVerificationKeys, Sequencer } from '../index.js';
 import { EmptyPublicProver, EmptyRollupProver } from '../prover/empty.js';
 import { PublicProcessor } from '../sequencer/public_processor.js';
+import { FakePublicCircuitSimulator } from '../simulator/fake_public.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
-import { getPublicExecutor } from '../simulator/public_executor.js';
 
 /**
  * Encapsulates the full sequencer and publisher.
@@ -43,7 +43,7 @@ export class SequencerClient {
 
     const publicProcessor = new PublicProcessor(
       merkleTreeDb,
-      getPublicExecutor(merkleTreeDb, contractDataSource),
+      new FakePublicCircuitSimulator(merkleTreeDb, contractDataSource),
       new WasmPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
       contractDataSource,

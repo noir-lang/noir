@@ -9,15 +9,3 @@ export function padArrayEnd<T>(arr: T[], elem: T, length: number): T[] {
   if (arr.length > length) throw new Error(`Array size exceeds target length`);
   return [...arr, ...Array(length - arr.length).fill(elem)];
 }
-
-/**
- * Pads an array to the target length by prepending elements at the beginning. Throws if target length exceeds the input array length. Does not modify the input array.
- * @param arr - Array with elements to pad.
- * @param elem - Element to use for padding.
- * @param length - Target length.
- * @returns A new padded array.
- */
-export function padArrayStart<T>(arr: T[], elem: T, length: number): T[] {
-  if (arr.length > length) throw new Error(`Array size exceeds target length`);
-  return [...Array(length - arr.length).fill(elem), ...arr];
-}

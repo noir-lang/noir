@@ -37,10 +37,6 @@ export class StateRead {
   static empty() {
     return new StateRead(Fr.ZERO, Fr.ZERO);
   }
-
-  toFriendlyJSON() {
-    return `Slot=${this.storageSlot.toFriendlyJSON()}: ${this.value.toFriendlyJSON()}`;
-  }
 }
 
 /**
@@ -64,10 +60,6 @@ export class StateTransition {
 
   static empty() {
     return new StateTransition(Fr.ZERO, Fr.ZERO, Fr.ZERO);
-  }
-
-  toFriendlyJSON() {
-    return `Slot=${this.storageSlot.toFriendlyJSON()}: ${this.oldValue.toFriendlyJSON()} => ${this.newValue.toFriendlyJSON()}`;
   }
 }
 

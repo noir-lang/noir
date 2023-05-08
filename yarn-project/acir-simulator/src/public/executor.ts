@@ -80,7 +80,6 @@ export class PublicExecutor {
     const [stateReads, stateTransitions] = stateActions.collect();
 
     return {
-      execution,
       stateReads,
       stateTransitions,
       returnValues,
