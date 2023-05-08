@@ -483,7 +483,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       tx.proof,
 
       // VK for the kernel circuit
-      this.vks.kernelCircuit,
+      this.vks.privateKernelCircuit,
 
       // MembershipWitness for a VK tree to be implemented in the future
       FUTURE_NUM,

@@ -4,6 +4,8 @@ import { AztecAddress, CallContext, Fr, FunctionData, StateRead, StateTransition
  * The public function execution result.
  */
 export interface PublicExecutionResult {
+  /** The execution that triggered this result. */
+  execution: PublicExecution;
   /** The return values of the function. */
   returnValues: Fr[];
   /** The state reads performed by the function. */
