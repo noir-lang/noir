@@ -23,7 +23,7 @@ Fundamental restrictions for Aztec:
 - _Private_ function calls are fully "prepared" and proven by the user, which provides the kernel proof along with commitments and nullifiers to the sequencer.
 - _Public_ functions altering public state (updatable storage) must be executed at the current "head" of the chain, which only the sequencer can ensure, so these must be executed separately to the _private_ functions.
 - _Private_ and _public_ functions within Aztec are therefore ordered such that first _private_ functions are executed, and then _public_. For a more detailed description of why, see above.
-- There is an **explicit 1:1 link** from a L2 contract to an L1 contract, and only the messages between a pair is allowed. See Portal for more information.
+- There is an **explicit 1:1 link** from a L2 contract to an L1 contract, and only the messages between a pair is allowed. See [Portal](#portal) for more information.
 - Messages are consumables, and can only be consumed by the recipient. See [Message Boxes](#message-boxes) for more information.
 
 With the aforementioned restrictions taken into account, cross-chain messages can be operated in a similar manner to when _public_ functions must transmit information to _private_ functions. In such a scenario, a "message" is created and conveyed to the recipient for future use. It is worth noting that any call made between different domains (_private, public, cross-chain_) is unilateral in nature. In other words, the caller is unaware of the outcome of the initiated call until told when some later rollup is executed (if at all). This can be regarded as message passing, providing us with a consistent mental model across all domains, which is convenient.
