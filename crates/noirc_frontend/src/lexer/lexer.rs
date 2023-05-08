@@ -386,7 +386,8 @@ fn test_single_double_char() {
         Token::Assign,
         Token::Equal,
         Token::ShiftLeft,
-        Token::ShiftRight,
+        Token::Greater,
+        Token::Greater,
         Token::EOF,
     ];
 
