@@ -74,6 +74,7 @@ pub trait InitialWitnessParser {
 
 /// The different formats that are supported when parsing
 /// the initial witness values
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum Format {
     Json,
     Toml,
@@ -107,6 +108,70 @@ impl Format {
         match self {
             Format::Json => json::serialize_to_json(w_map),
             Format::Toml => toml::serialize_to_toml(w_map),
+        }
+    }
+}
+
+#[cfg(test)]
+mod serialization_tests {
+    use std::collections::BTreeMap;
+
+    use acvm::FieldElement;
+    use strum::IntoEnumIterator;
+
+    use crate::{
+        input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, Sign, MAIN_RETURN_NAME,
+    };
+
+    use super::Format;
+
+    #[test]
+    fn serialization_round_trip() {
+        let abi = Abi {
+            parameters: vec![
+                AbiParameter {
+                    name: "foo".into(),
+                    typ: AbiType::Field,
+                    visibility: AbiVisibility::Private,
+                },
+                AbiParameter {
+                    name: "barstruct".into(),
+                    typ: AbiType::Struct {
+                        fields: BTreeMap::from([
+                            ("field1".into(), AbiType::Integer { sign: Sign::Unsigned, width: 8 }),
+                            (
+                                "field2".into(),
+                                AbiType::Array { length: 2, typ: Box::new(AbiType::Boolean) },
+                            ),
+                        ]),
+                    },
+                    visibility: AbiVisibility::Private,
+                },
+            ],
+            return_type: Some(AbiType::String { length: 5 }),
+            // These two fields are unused when serialising/deserialising to file.
+            param_witnesses: BTreeMap::new(),
+            return_witnesses: Vec::new(),
+        };
+
+        let input_map: BTreeMap<String, InputValue> = BTreeMap::from([
+            ("foo".into(), InputValue::Field(FieldElement::one())),
+            (
+                "barstruct".into(),
+                InputValue::Struct(BTreeMap::from([
+                    ("field1".into(), InputValue::Field(255u128.into())),
+                    ("field2".into(), InputValue::Vec(vec![true.into(), false.into()])),
+                ])),
+            ),
+            (MAIN_RETURN_NAME.into(), InputValue::String("hello".to_owned())),
+        ]);
+
+        for format in Format::iter() {
+            let serialized_inputs = format.serialize(&input_map).unwrap();
+
+            let reconstructed_input_map = format.parse(&serialized_inputs, &abi).unwrap();
+
+            assert_eq!(input_map, reconstructed_input_map);
         }
     }
 }
