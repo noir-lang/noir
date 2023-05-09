@@ -148,6 +148,9 @@ pub enum Signedness {
 }
 
 impl UnresolvedTypeExpression {
+    // This large error size is justified because it improves parsing speeds by around 40% in
+    // release mode. See `ParserError` definition for further explanation.
+    #[allow(clippy::result_large_err)]
     pub fn from_expr(
         expr: Expression,
         span: Span,

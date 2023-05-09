@@ -1,6 +1,6 @@
 use crate::lexer::token::Token;
 use crate::BinaryOp;
-use late_alloc_set::LateAllocSet;
+use small_ord_set::SmallOrdSet;
 
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -8,12 +8,19 @@ use noirc_errors::Span;
 
 use super::labels::ParserLabel;
 
-mod late_alloc_set;
-
+/// Represents a parsing error, or a parsing error in the making.
+///
+/// `ParserError` is used extensively by the parser, as it not only used to report badly formed
+/// token streams, but also as a general intermediate that accumulates information as various
+/// parsing rules are tried. This struct is constructed and destructed with a very high frequency
+/// and as such, the time taken to do so significantly impacts parsing performance. For this
+/// reason we use `SmallOrdSet` to avoid heap allocations for as long as possible - this greatly
+/// inflates the size of the error, but this is justified by a resulting increase in parsing
+/// speeds of approximately 40% in release mode.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserError {
-    expected_tokens: LateAllocSet<Token>,
-    expected_labels: LateAllocSet<ParserLabel>,
+    expected_tokens: SmallOrdSet<[Token; 3]>,
+    expected_labels: SmallOrdSet<[ParserLabel; 3]>,
     found: Token,
     reason: Option<String>,
     span: Span,
@@ -22,8 +29,8 @@ pub struct ParserError {
 impl ParserError {
     pub fn empty(found: Token, span: Span) -> ParserError {
         ParserError {
-            expected_tokens: LateAllocSet::new(),
-            expected_labels: LateAllocSet::new(),
+            expected_tokens: SmallOrdSet::new(),
+            expected_labels: SmallOrdSet::new(),
             found,
             reason: None,
             span,
@@ -55,8 +62,8 @@ impl ParserError {
 
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut expected = vecmap(self.expected_tokens.as_vec(), ToString::to_string);
-        expected.append(&mut vecmap(self.expected_labels.as_vec(), |ref_str| format!("{ref_str}")));
+        let mut expected = vecmap(self.expected_tokens.iter(), ToString::to_string);
+        expected.append(&mut vecmap(self.expected_labels.iter(), |label| format!("{label}")));
 
         if expected.is_empty() {
             write!(f, "Unexpected {} in input", self.found)
@@ -100,7 +107,7 @@ impl chumsky::Error<Token> for ParserError {
     {
         ParserError {
             expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
-            expected_labels: LateAllocSet::new(),
+            expected_labels: SmallOrdSet::new(),
             found: found.unwrap_or(Token::EOF),
             reason: None,
             span,
@@ -119,9 +126,9 @@ impl chumsky::Error<Token> for ParserError {
     // that reason and discard the other if present.
     // The spans of both errors must match, otherwise the error
     // messages and error spans may not line up.
-    fn merge(mut self, other: Self) -> Self {
-        self.expected_tokens.append(other.expected_tokens);
-        self.expected_labels.append(other.expected_labels);
+    fn merge(mut self, mut other: Self) -> Self {
+        self.expected_tokens.append(&mut other.expected_tokens);
+        self.expected_labels.append(&mut other.expected_labels);
 
         if self.reason.is_none() {
             self.reason = other.reason;
