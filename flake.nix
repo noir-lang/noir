@@ -202,7 +202,7 @@
         src = ./crates/wasm;
 
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
-
+        
         buildPhase = ''
           BASH_XTRACEFD=19
           set -x
@@ -220,7 +220,7 @@
           set +x
           exec 19>&-
         '';
-        
+
         installPhase = ''
           mkdir -p $out/pkg
           cp -r pkg/* $out/pkg/

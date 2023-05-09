@@ -29,10 +29,8 @@ jobs:
           if [ -d result ]; then
             echo "Build successful."
           else
-            echo "Build failed. Trying to locate build.log:"
-            find . -name build.log
-            echo "Printing the build.log (if found):"
-            find . -name build.log -exec cat {} \; || true
+            echo "Build failed. Printing build.log:"
+            cat crates/wasm/build.log || true
           fi
 
       # - name: Build wasm package
