@@ -211,7 +211,12 @@
           pwd >&2
           echo "Contents of the source directory:" >&2
           ls -la >&2
-          ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
+                
+          if ! ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log; then
+            echo "Build failed. Copying build.log before exiting." >&2
+            cp build.log $out/
+            exit 1
+          fi
         '';
 
         installPhase = ''

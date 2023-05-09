@@ -50,8 +50,9 @@ jobs:
           echo "Build result:"
           ls -la result/pkg
 
-      - name: Print build log
-        run: cat result/build.log
+      - name: Print build log if build failed
+        if: ${{ failure() }}
+        run: cat $(nix-build --no-link -A packages.wasm.default)./build.log || true
 
       - name: Copy wasm build result
         working-directory: ./crates/wasm
