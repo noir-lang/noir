@@ -199,7 +199,7 @@
         pname = "noir_wasm";
         version = "1.0.0";
 
-        src = ./.;
+        src = ./crates/wasm;
 
         nativeBuildInputs = [ pkgs.wasm-pack ];
 
