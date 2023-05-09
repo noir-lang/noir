@@ -321,7 +321,9 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
             InsertInstructionResult::Results(results) => results[0],
-            InsertInstructionResult::InstructionRemoved => panic!("Instruction was removed, no results"),
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("Instruction was removed, no results")
+            }
         }
     }
 
@@ -331,8 +333,12 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     pub(crate) fn results(&self) -> &'dfg [ValueId] {
         match self {
             InsertInstructionResult::Results(results) => results,
-            InsertInstructionResult::SimplifiedTo(_) => panic!("InsertInstructionResult::results called on a simplified instruction"),
-            InsertInstructionResult::InstructionRemoved => panic!("InsertInstructionResult::results called on a removed instruction"),
+            InsertInstructionResult::SimplifiedTo(_) => {
+                panic!("InsertInstructionResult::results called on a simplified instruction")
+            }
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("InsertInstructionResult::results called on a removed instruction")
+            }
         }
     }
 

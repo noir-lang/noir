@@ -1,7 +1,13 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 
-use super::{basic_block::BasicBlockId, map::Id, types::Type, value::{ValueId, Value}, dfg::DataFlowGraph};
+use super::{
+    basic_block::BasicBlockId,
+    dfg::DataFlowGraph,
+    map::Id,
+    types::Type,
+    value::{Value, ValueId},
+};
 
 /// Reference to an instruction
 ///
@@ -164,17 +170,17 @@ impl Instruction {
                     Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
                         let value = dfg[*constant].value().is_zero() as u128;
                         Some(dfg.make_constant(value.into(), Type::bool()))
-                    },
+                    }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
                         match &dfg[*instruction] {
                             Instruction::Not(value) => Some(*value),
                             _ => None,
                         }
-                    },
+                    }
                     _ => None,
                 }
-            },
+            }
             Instruction::Constrain(value) => {
                 if let Some(constant) = dfg.get_numeric_constant(*value) {
                     if constant.is_one() {
@@ -183,7 +189,7 @@ impl Instruction {
                     }
                 }
                 None
-            },
+            }
             Instruction::Truncate { .. } => None,
             Instruction::Call { .. } => None,
             Instruction::Allocate { .. } => None,
@@ -283,12 +289,12 @@ impl Binary {
                 if rhs_is_zero {
                     return Some(self.lhs);
                 }
-            },
+            }
             BinaryOp::Sub => {
                 if rhs_is_zero {
                     return Some(self.lhs);
                 }
-            },
+            }
             BinaryOp::Mul => {
                 if lhs_is_one {
                     return Some(self.rhs);
@@ -296,32 +302,32 @@ impl Binary {
                 if rhs_is_one {
                     return Some(self.lhs);
                 }
-            },
+            }
             BinaryOp::Div => {
                 if rhs_is_one {
                     return Some(self.lhs);
                 }
-            },
+            }
             BinaryOp::Mod => {
                 if rhs_is_one {
                     return Some(self.lhs);
                 }
-            },
+            }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
                     return Some(dfg.make_constant(FieldElement::one(), Type::bool()));
                 }
-            },
+            }
             BinaryOp::Lt => {
                 if self.lhs == self.rhs {
                     return Some(dfg.make_constant(FieldElement::zero(), Type::bool()));
                 }
-            },
+            }
             BinaryOp::And => {
                 if lhs_is_zero || rhs_is_zero {
                     return Some(dfg.make_constant(FieldElement::zero(), operand_type));
                 }
-            },
+            }
             BinaryOp::Or => {
                 if lhs_is_zero {
                     return Some(self.rhs);
@@ -329,23 +335,29 @@ impl Binary {
                 if rhs_is_zero {
                     return Some(self.lhs);
                 }
-            },
+            }
             BinaryOp::Xor => (),
             BinaryOp::Shl => {
                 if rhs_is_zero {
                     return Some(self.lhs);
                 }
-            },
+            }
             BinaryOp::Shr => {
                 if rhs_is_zero {
                     return Some(self.lhs);
                 }
-            },
+            }
         }
         None
     }
 
-    fn eval_constants(&self, dfg: &mut DataFlowGraph, lhs: FieldElement, rhs: FieldElement, operand_type: Type) -> Option<Id<Value>> {
+    fn eval_constants(
+        &self,
+        dfg: &mut DataFlowGraph,
+        lhs: FieldElement,
+        rhs: FieldElement,
+        operand_type: Type,
+    ) -> Option<Id<Value>> {
         let value = match self.operator {
             BinaryOp::Add => lhs + rhs,
             BinaryOp::Sub => lhs - rhs,
@@ -368,7 +380,11 @@ impl Binary {
 
     /// Try to evaluate the given operands as u128s for operators that are only valid on u128s,
     /// like the bitwise operators and modulus.
-    fn eval_constant_u128_operations(&self, lhs: FieldElement, rhs: FieldElement) -> Option<FieldElement> {
+    fn eval_constant_u128_operations(
+        &self,
+        lhs: FieldElement,
+        rhs: FieldElement,
+    ) -> Option<FieldElement> {
         let lhs = lhs.try_into_u128()?;
         let rhs = rhs.try_into_u128()?;
         match self.operator {
@@ -391,8 +407,9 @@ impl Binary {
             | BinaryOp::Mul
             | BinaryOp::Div
             | BinaryOp::Eq
-            | BinaryOp::Lt) => panic!("eval_constant_u128_operations invalid for {op:?} use eval_constants instead"),
-
+            | BinaryOp::Lt) => panic!(
+                "eval_constant_u128_operations invalid for {op:?} use eval_constants instead"
+            ),
         }
     }
 }

@@ -11,7 +11,8 @@ use crate::ssa_refactor::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
-        instruction::{InstructionId, Intrinsic}, dfg::InsertInstructionResult,
+        dfg::InsertInstructionResult,
+        instruction::{InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
 };

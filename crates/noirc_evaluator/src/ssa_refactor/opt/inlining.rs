@@ -9,9 +9,10 @@ use iter_extended::vecmap;
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId}, dfg::InsertInstructionResult,
+        value::{Value, ValueId},
     },
     ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
@@ -336,12 +337,12 @@ impl<'function> PerFunctionContext<'function> {
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
                 values.insert(old_results[0], new_result);
-            },
+            }
             InsertInstructionResult::Results(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
                     values.insert(*old_result, *new_result);
                 }
-            },
+            }
             InsertInstructionResult::InstructionRemoved => (),
         }
     }
