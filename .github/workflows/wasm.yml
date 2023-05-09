@@ -24,8 +24,6 @@ jobs:
       - name: Build noir_wasm with Nix flakes
         run: |
           nix build .#wasm || true
-          echo "Build result:"
-          ls -la result/pkg
 
       - name: Print build.log if build failed
         run: |
