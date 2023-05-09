@@ -38,6 +38,9 @@ jobs:
       #   working-directory: ./crates/wasm
       # run: ./build-wasm
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
       - name: Make build-wasm script executable
         run: chmod +x ./crates/wasm/build-wasm
 
@@ -56,9 +59,6 @@ jobs:
         with:
           repository: noir-lang/noir-wasm-testing
           path: noir-wasm-testing
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
