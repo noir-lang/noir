@@ -95,19 +95,7 @@ pub fn compile(args: JsValue) -> JsValue {
             .compile_contracts(&options.compile_options)
             .unwrap_or_else(|_| panic!("Contract compilation failed"));
 
-        // Flatten each contract into a list of its functions, each being assigned a unique name.
-        let collected_compiled_programs: Vec<_> = compiled_contracts
-            .into_iter()
-            .flat_map(|contract| {
-                let contract_id = format!("{}-{}", options.circuit_name, &contract.name);
-                contract.functions.into_iter().map(move |contract_function| {
-                    let program_name = format!("{}-{}", contract_id, contract_function.name);
-                    (program_name, contract_function.bytecode)
-                })
-            })
-            .collect();
-
-        <JsValue as JsValueSerdeExt>::from_serde(&collected_compiled_programs).unwrap()
+        <JsValue as JsValueSerdeExt>::from_serde(&compiled_contracts).unwrap()
     } else {
         let main =
             driver.main_function().unwrap_or_else(|_| panic!("Could not find main function!"));
