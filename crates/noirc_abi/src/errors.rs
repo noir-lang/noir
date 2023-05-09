@@ -30,6 +30,12 @@ impl From<toml::de::Error> for InputParserError {
     }
 }
 
+impl From<serde_json::Error> for InputParserError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::ParseTomlMap(err.to_string())
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum AbiError {
     #[error("{0}")]

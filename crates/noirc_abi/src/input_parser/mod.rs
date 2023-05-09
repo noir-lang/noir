@@ -1,3 +1,4 @@
+mod json;
 mod toml;
 
 use std::{collections::BTreeMap, path::Path};
@@ -74,12 +75,14 @@ pub trait InitialWitnessParser {
 /// The different formats that are supported when parsing
 /// the initial witness values
 pub enum Format {
+    Json,
     Toml,
 }
 
 impl Format {
     pub fn ext(&self) -> &'static str {
         match self {
+            Format::Json => "json",
             Format::Toml => "toml",
         }
     }
@@ -92,6 +95,7 @@ impl Format {
         abi: &Abi,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
+            Format::Json => json::parse_json(input_string, abi),
             Format::Toml => toml::parse_toml(input_string, abi),
         }
     }
@@ -101,6 +105,7 @@ impl Format {
         w_map: &BTreeMap<String, InputValue>,
     ) -> Result<String, InputParserError> {
         match self {
+            Format::Json => json::serialize_to_json(w_map),
             Format::Toml => toml::serialize_to_toml(w_map),
         }
     }
