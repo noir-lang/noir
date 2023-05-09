@@ -204,6 +204,7 @@
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
 
         buildPhase = ''
+          set -x
           echo "Contents of the build-wasm script:"
           cat ./build-wasm
           echo "Current working directory:"
