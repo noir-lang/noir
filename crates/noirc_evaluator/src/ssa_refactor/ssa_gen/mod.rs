@@ -31,6 +31,10 @@ pub fn generate_ssa(program: Program) -> Ssa {
     let mut function_context = FunctionContext::new(main.name.clone(), &main.parameters, &context);
     function_context.codegen_function_body(&main.body);
 
+    // Main has now been compiled and any other functions referenced within have been added to the
+    // function queue as they were found in codegen_ident. This queueing will happen each time a
+    // previously-unseen function is found so we need now only continue popping from this queue
+    // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function.name.clone(), &function.parameters);
@@ -116,6 +120,15 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Codegen an array by allocating enough space for each element and inserting separate
+    /// store instructions until each element is stored. The store instructions will be separated
+    /// by add instructions to calculate the new offset address to store to next.
+    ///
+    /// In the case of arrays of structs, the structs are flattened such that each field will be
+    /// stored next to the other fields in memory. So an array such as [(1, 2), (3, 4)] is
+    /// stored the same as the array [1, 2, 3, 4].
+    ///
+    /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, element_type: Tree<Type>) -> Values {
         let size = element_type.size_of_type() * elements.len();
         let array = self.builder.insert_allocate(size.try_into().unwrap_or_else(|_| {
@@ -206,6 +219,23 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_cast(lhs, typ).into()
     }
 
+    /// Codegens a for loop, creating three new blocks in the process.
+    /// The return value of a for loop is always a unit literal.
+    ///
+    /// For example, the loop `for i in start .. end { body }` is codegen'd as:
+    ///
+    ///   v0 = ... codegen start ...
+    ///   v1 = ... codegen end ...
+    ///   br loop_entry(v0)
+    /// loop_entry(i: Field):
+    ///   v2 = lt i v1
+    ///   brif v2, then: loop_body, else: loop_end
+    /// loop_body():
+    ///   v3 = ... codegen body ...
+    ///   v4 = add 1, i
+    ///   br loop_entry(v4)
+    /// loop_end():
+    ///   ... This is the current insert point after codegen_for finishes ...
     fn codegen_for(&mut self, for_expr: &ast::For) -> Values {
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
@@ -236,6 +266,30 @@ impl<'a> FunctionContext<'a> {
         self.unit_value()
     }
 
+    /// Codegens an if expression, handling the case of what to do if there is no 'else'.
+    ///
+    /// For example, the expression `if cond { a } else { b }` is codegen'd as:
+    ///
+    ///   v0 = ... codegen cond ...
+    ///   brif v0, then: then_block, else: else_block
+    /// then_block():
+    ///   v1 = ... codegen a ...
+    ///   br end_if(v1)
+    /// else_block():
+    ///   v2 = ... codegen b ...
+    ///   br end_if(v2)
+    /// end_if(v3: ?):  // Type of v3 matches the type of a and b
+    ///   ... This is the current insert point after codegen_if finishes ...
+    ///
+    /// As another example, the expression `if cond { a }` is codegen'd as:
+    ///
+    ///   v0 = ... codegen cond ...
+    ///   brif v0, then: then_block, else: end_block
+    /// then_block:
+    ///   v1 = ... codegen a ...
+    ///   br end_if()
+    /// end_if:  // No block parameter is needed. Without an else, the unit value is always returned.
+    ///   ... This is the current insert point after codegen_if finishes ...
     fn codegen_if(&mut self, if_expr: &ast::If) -> Values {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition);
 
@@ -287,6 +341,8 @@ impl<'a> FunctionContext<'a> {
         Self::get_field(tuple, field_index)
     }
 
+    /// Generate SSA for a function call. Note that calls to built-in functions
+    /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
         let function = self.codegen_non_tuple_expression(&call.func);
 
@@ -299,6 +355,10 @@ impl<'a> FunctionContext<'a> {
         self.insert_call(function, arguments, &call.return_type)
     }
 
+    /// Generate SSA for the given variable.
+    /// If the variable is immutable, no special handling is necessary and we can return the given
+    /// ValueId directly. If it is mutable, we'll need to allocate space for the value and store
+    /// the initial value before returning the allocate instruction.
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Values {
         let mut values = self.codegen_expression(&let_expr.expression);
 

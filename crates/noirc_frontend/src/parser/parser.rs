@@ -26,7 +26,8 @@
 use super::{
     foldl_with_span, labels::ParserLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
-    ForRange, NoirParser, ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
+    ForRange, NoirParser, ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule,
+    TopLevelStatement,
 };
 use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
@@ -452,6 +453,10 @@ where
 {
     ignore_then_commit(keyword(Keyword::Constrain).labelled(ParserLabel::Statement), expr_parser)
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+        .validate(|expr, span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
+            expr
+        })
 }
 
 fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -518,9 +523,22 @@ where
     )
 }
 
+/// Parse an assignment operator `=` optionally prefixed by a binary operator for a combined
+/// assign statement shorthand. Notably, this must handle a few corner cases with how `>>` is
+/// lexed as two separate greater-than operators rather than a single right-shift.
 fn assign_operator() -> impl NoirParser<Token> {
     let shorthand_operators = Token::assign_shorthand_operators();
-    let shorthand_syntax = one_of(shorthand_operators).then_ignore(just(Token::Assign));
+    // We need to explicitly check for right_shift here since it is actually
+    // two separate greater-than operators.
+    let shorthand_operators = right_shift_operator().or(one_of(shorthand_operators));
+    let shorthand_syntax = shorthand_operators.then_ignore(just(Token::Assign));
+
+    // Since >> is lexed as two separate greater-thans, >>= is lexed as > >=, so
+    // we need to account for that case here as well.
+    let right_shift_fix =
+        just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
+
+    let shorthand_syntax = shorthand_syntax.or(right_shift_fix);
     just(Token::Assign).or(shorthand_syntax)
 }
 
@@ -535,7 +553,7 @@ where
 {
     let l_ident = ident().map(LValue::Ident);
 
-    let l_member_rhs = just(Token::Dot).ignore_then(ident()).map(LValueRhs::MemberAccess);
+    let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
 
     let l_index = expr_parser
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
@@ -727,14 +745,23 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
     Expression { span, kind: ExpressionKind::Infix(infix) }
 }
 
+// Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
+// to parse nested generic types. For normal expressions however, it means we have to manually
+// parse two greater-than tokens as a single right-shift here.
+fn right_shift_operator() -> impl NoirParser<Token> {
+    just(Token::Greater).then(just(Token::Greater)).map(|_| Token::ShiftRight)
+}
+
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
-    filter_map(move |span, token: Token| {
-        if Precedence::token_precedence(&token) == Some(precedence) {
-            Ok(token.try_into_binary_op(span).unwrap())
-        } else {
-            Err(ParserError::expected_label(ParserLabel::BinaryOperator, token, span))
-        }
-    })
+    right_shift_operator()
+        .or(any()) // Parse any single token, we're validating it as an operator next
+        .try_map(move |token, span| {
+            if Precedence::token_precedence(&token) == Some(precedence) {
+                Ok(token.try_into_binary_op(span).unwrap())
+            } else {
+                Err(ParserError::expected_label(ParserLabel::BinaryOperator, token, span))
+            }
+        })
 }
 
 fn term<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
@@ -884,10 +911,7 @@ where
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .validate(|elements, span, emit| {
             if elements.is_empty() {
-                emit(ParserError::with_reason(
-                    "Arrays must have at least one element".to_owned(),
-                    span,
-                ));
+                emit(ParserError::with_reason(ParserErrorReason::ZeroSizedArray, span));
             }
             ExpressionKind::array(elements)
         })
@@ -973,8 +997,7 @@ fn field_name() -> impl NoirParser<Ident> {
     ident().or(token_kind(TokenKind::Literal).validate(|token, span, emit| match token {
         Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
         other => {
-            let reason = format!("Unexpected '{other}', expected a field name");
-            emit(ParserError::with_reason(reason, span));
+            emit(ParserError::with_reason(ParserErrorReason::ExpectedFieldName(other), span));
             Ident::error(span)
         }
     }))
@@ -1203,10 +1226,12 @@ mod test {
         );
     }
 
-    /// This is the standard way to declare a constrain statement
+    /// Deprecated constrain usage test
     #[test]
     fn parse_constrain() {
-        parse_with(constrain(expression()), "constrain x == y").unwrap();
+        let errors = parse_with(constrain(expression()), "constrain x == y").unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
 
         // Currently we disallow constrain statements where the outer infix operator
         // produces a value. This would require an implicit `==` which
@@ -1224,7 +1249,9 @@ mod test {
 
         for operator in disallowed_operators {
             let src = format!("constrain x {} y;", operator.as_string());
-            parse_with(constrain(expression()), &src).unwrap_err();
+            let errors = parse_with(constrain(expression()), &src).unwrap_err();
+            assert_eq!(errors.len(), 2);
+            assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
         }
 
         // These are general cases which should always work.
@@ -1233,7 +1260,7 @@ mod test {
         // The first (inner) `==` is a predicate which returns 0/1
         // The outer layer is an infix `==` which is
         // associated with the Constrain statement
-        parse_all(
+        let errors = parse_all_failing(
             constrain(expression()),
             vec![
                 "constrain ((x + y) == k) + z == y",
@@ -1243,8 +1270,11 @@ mod test {
                 "constrain x + x ^ x == y | m",
             ],
         );
+        assert_eq!(errors.len(), 5);
+        assert!(errors.iter().all(|err| { format!("{}", err).contains("deprecated") }));
     }
 
+    /// This is the standard way to declare an assert statement
     #[test]
     fn parse_assert() {
         parse_with(assertion(expression()), "assert(x == y)").unwrap();
@@ -1540,9 +1570,9 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 1, "constrain Error"),
+            ("constrain", 2, "constrain Error"),
             ("assert", 1, "constrain Error"),
-            ("constrain x ==", 1, "constrain (plain::x == Error)"),
+            ("constrain x ==", 2, "constrain (plain::x == Error)"),
             ("assert(x ==)", 1, "constrain (plain::x == Error)"),
         ];
 
