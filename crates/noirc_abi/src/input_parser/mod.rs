@@ -105,3 +105,25 @@ impl Format {
         }
     }
 }
+
+fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
+    if value.starts_with("0x") {
+        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
+    } else {
+        value
+            .parse::<i128>()
+            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
+            .map(FieldElement::from)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::parse_str_to_field;
+
+    #[test]
+    fn parse_empty_str_fails() {
+        // Check that this fails appropriately rather than being treated as 0, etc.
+        assert!(parse_str_to_field("").is_err());
+    }
+}
