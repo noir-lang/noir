@@ -45,7 +45,7 @@ jobs:
         run: chmod +x ./crates/wasm/build-wasm
 
       - name: Build wasm package
-          run: nix build .#packages.wasm --keep-failed || true
+          run: nix build .#packages.wasm --keep-failed
 
       - name: Copy wasm build result
         working-directory: ./crates/wasm
