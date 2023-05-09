@@ -212,11 +212,7 @@
           echo "Contents of the source directory:" >&2
           ls -la >&2
 
-          ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log || {
-            echo "Build failed, printing build.log:";
-            cat build.log;
-            exit 1;
-          }
+          ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee $out/build.log
         '';
 
         installPhase = ''

@@ -30,7 +30,7 @@ jobs:
             echo "Build successful."
           else
             echo "Build failed. Printing build.log:"
-            cat ./result/build.log || true
+            cat ./result-dev-shell/build.log || true
           fi
 
       # - name: Build wasm package
