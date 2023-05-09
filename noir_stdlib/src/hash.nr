@@ -12,6 +12,9 @@ fn pedersen<N>(_input : [Field; N]) -> [Field; 2] {}
 #[foreign(hash_to_field_128_security)]
 fn hash_to_field<N>(_input : [Field; N]) -> Field {}
 
+#[foreign(keccak256)]
+fn keccak256<N>(_input : [u8; N]) -> [u8; 32] {}
+
 // mimc-p/p implementation
 // constants are (publicly generated) random numbers, for instance using keccak as a ROM.
 // You must use constants generated for the native field
