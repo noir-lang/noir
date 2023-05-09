@@ -19,14 +19,14 @@ pkgs.mkShell.override { stdenv = llvm11stdenv;} {
   
   nativeBuildInputs = with pkgs; [
     binaryen
-    jq
-    git
   ];
 
   buildInputs = with pkgs; [
     pkg-config
     rustbin
     wasm-pack
+    git
+    jq
   ];
 
 }
