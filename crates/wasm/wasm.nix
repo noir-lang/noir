@@ -4,7 +4,6 @@ let
   rustOverlay = builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz";
   llvm11stdenv = pkgs.llvmPackages_10.stdenv;
 
-  # NixOS 22.05
   pinnedPkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/0938d73bb143f4ae037143572f11f4338c7b2d1c.tar.gz"; 
 
   pkgs = import pinnedPkgs {
@@ -17,11 +16,11 @@ let
   };
 in
 pkgs.mkShell.override { stdenv = llvm11stdenv;} {
-
+  
   nativeBuildInputs = with pkgs; [
     binaryen
     jq
-    coreutils
+    git
   ];
 
   buildInputs = with pkgs; [
@@ -29,9 +28,5 @@ pkgs.mkShell.override { stdenv = llvm11stdenv;} {
     rustbin
     wasm-pack
   ];
-
-  shellHook = ''
-    export JQ_PATH="${pkgs.jq}/bin/jq"
-  '';
 
 }
