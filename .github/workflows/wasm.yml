@@ -31,8 +31,8 @@ jobs:
       #   working-directory: ./crates/wasm
       #   run: nix-build wasm.nix
 
-      # - name: Install wasm-pack
-      #   run: cargo install wasm-pack
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
 
       # - name: Build wasm
       #   working-directory: ./crates/wasm
