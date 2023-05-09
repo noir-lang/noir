@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
 /**
  * @title UnverifiedDataEmitter
- * @author LHerskind
+ * @author Aztec Labs
  * @notice Used to log data on chain which are not required to advance the state but are needed for other purposes
  */
 contract UnverifiedDataEmitter {

@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
 /**
  * @title Decoder
- * @author LHerskind
+ * @author Aztec Labs
  * @notice Decoding a L2 block, concerned with readability and velocity of development
  * not giving a damn about gas costs.
  * @dev there is currently no padding of the elements, so we are for now assuming nice trees as inputs.
