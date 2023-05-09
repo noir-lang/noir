@@ -17,21 +17,21 @@ pub(crate) struct CheckCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: CheckCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     check_from_path(backend, config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 
-fn check_from_path<ConcreteBackend: Backend, P: AsRef<Path>>(
-    backend: &ConcreteBackend,
+fn check_from_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
     p: P,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
@@ -154,7 +154,7 @@ d2 = ["", "", ""]
         let pass_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
-        let backend = crate::backends::ConcreteBackend::default();
+        let backend = crate::backends::B::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
@@ -173,7 +173,7 @@ d2 = ["", "", ""]
         let fail_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
-        let backend = crate::backends::ConcreteBackend::default();
+        let backend = crate::backends::B::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
@@ -191,7 +191,7 @@ d2 = ["", "", ""]
         let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let backend = crate::backends::ConcreteBackend::default();
+        let backend = crate::backends::B::default();
         let config = CompileOptions { allow_warnings: true, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();

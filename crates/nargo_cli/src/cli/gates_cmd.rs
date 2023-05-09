@@ -15,19 +15,19 @@ pub(crate) struct GatesCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: GatesCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     count_gates_with_path(backend, config.program_dir, &args.compile_options)
 }
 
-fn count_gates_with_path<ConcreteBackend: Backend, P: AsRef<Path>>(
-    backend: &ConcreteBackend,
+fn count_gates_with_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
     program_dir: P,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let compiled_program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
     let num_opcodes = compiled_program.circuit.opcodes.len();
 

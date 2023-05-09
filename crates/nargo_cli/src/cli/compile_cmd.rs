@@ -26,11 +26,11 @@ pub(crate) struct CompileCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: CompileCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
@@ -61,18 +61,18 @@ pub(crate) fn run<ConcreteBackend: Backend>(
     Ok(())
 }
 
-fn setup_driver<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+fn setup_driver<B: Backend>(
+    backend: &B,
     program_dir: &Path,
 ) -> Result<Driver, DependencyResolutionError> {
     Resolver::resolve_root_manifest(program_dir, backend.np_language())
 }
 
-pub(crate) fn compile_circuit<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn compile_circuit<B: Backend>(
+    backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<CompiledProgram, CliError<ConcreteBackend>> {
+) -> Result<CompiledProgram, CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
     driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
 }

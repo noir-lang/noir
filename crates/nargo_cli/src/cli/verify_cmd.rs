@@ -27,11 +27,11 @@ pub(crate) struct VerifyCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: VerifyCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let proof_path =
         config.program_dir.join(PROOFS_DIR).join(&args.proof).with_extension(PROOF_EXT);
 
@@ -48,13 +48,13 @@ pub(crate) fn run<ConcreteBackend: Backend>(
     )
 }
 
-fn verify_with_path<ConcreteBackend: Backend, P: AsRef<Path>>(
-    backend: &ConcreteBackend,
+fn verify_with_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
     program_dir: P,
     proof_path: PathBuf,
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {

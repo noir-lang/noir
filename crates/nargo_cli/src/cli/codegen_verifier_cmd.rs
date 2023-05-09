@@ -19,11 +19,11 @@ pub(crate) struct CodegenVerifierCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: CodegenVerifierCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     // TODO(#1201): Should this be a utility function?
     let circuit_build_path = args
         .circuit_name

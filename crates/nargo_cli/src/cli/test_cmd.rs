@@ -21,22 +21,22 @@ pub(crate) struct TestCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: TestCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
     run_tests(backend, &config.program_dir, &test_name, &args.compile_options)
 }
 
-fn run_tests<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+fn run_tests<B: Backend>(
+    backend: &B,
     program_dir: &Path,
     test_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
@@ -76,13 +76,13 @@ fn run_tests<ConcreteBackend: Backend>(
     Ok(())
 }
 
-fn run_test<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+fn run_test<B: Backend>(
+    backend: &B,
     test_name: &str,
     main: FuncId,
     driver: &Driver,
     config: &CompileOptions,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let program = driver
         .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;

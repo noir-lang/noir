@@ -1,8 +1,8 @@
 use acvm::SmartContract;
 
-pub fn codegen_verifier<Backend: SmartContract>(
-    backend: &Backend,
+pub fn codegen_verifier<B: SmartContract>(
+    backend: B,
     verification_key: &[u8],
-) -> Result<String, Backend::Error> {
+) -> Result<String, B::Error> {
     backend.eth_contract_from_vk(verification_key)
 }

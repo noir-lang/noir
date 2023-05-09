@@ -39,11 +39,11 @@ pub(crate) struct ProveCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: ProveCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let proof_dir = config.program_dir.join(PROOFS_DIR);
 
     let circuit_build_path = args
@@ -63,15 +63,15 @@ pub(crate) fn run<ConcreteBackend: Backend>(
     Ok(())
 }
 
-pub(crate) fn prove_with_path<ConcreteBackend: Backend, P: AsRef<Path>>(
-    backend: &ConcreteBackend,
+pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
     proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
     check_proof: bool,
     compile_options: &CompileOptions,
-) -> Result<Option<PathBuf>, CliError<ConcreteBackend>> {
+) -> Result<Option<PathBuf>, CliError<B>> {
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {

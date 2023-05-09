@@ -9,10 +9,10 @@ use crate::artifacts::{
 // TODO: pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
-pub fn preprocess_program<Backend: ProofSystemCompiler>(
-    backend: &Backend,
+pub fn preprocess_program<B: ProofSystemCompiler>(
+    backend: &B,
     compiled_program: CompiledProgram,
-) -> Result<PreprocessedProgram, Backend::Error> {
+) -> Result<PreprocessedProgram, B::Error> {
     // TODO: currently `compiled_program`'s bytecode is already optimized for the backend.
     // In future we'll need to apply those optimizations here.
     let optimized_bytecode = compiled_program.circuit;
@@ -27,10 +27,10 @@ pub fn preprocess_program<Backend: ProofSystemCompiler>(
     })
 }
 
-pub fn preprocess_contract<Backend: ProofSystemCompiler>(
-    backend: &Backend,
+pub fn preprocess_contract<B: ProofSystemCompiler>(
+    backend: &B,
     compiled_contract: CompiledContract,
-) -> Result<PreprocessedContract, Backend::Error> {
+) -> Result<PreprocessedContract, B::Error> {
     let mut preprocessed_contract_functions = vec![];
     for func in compiled_contract.functions.into_iter() {
         // TODO: currently `func`'s bytecode is already optimized for the backend.

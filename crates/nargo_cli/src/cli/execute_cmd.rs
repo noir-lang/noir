@@ -25,11 +25,11 @@ pub(crate) struct ExecuteCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn run<B: Backend>(
+    backend: &B,
     args: ExecuteCommand,
     config: NargoConfig,
-) -> Result<(), CliError<ConcreteBackend>> {
+) -> Result<(), CliError<B>> {
     let (return_value, solved_witness) =
         execute_with_path(backend, &config.program_dir, &args.compile_options)?;
 
@@ -47,11 +47,11 @@ pub(crate) fn run<ConcreteBackend: Backend>(
     Ok(())
 }
 
-fn execute_with_path<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+fn execute_with_path<B: Backend>(
+    backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<(Option<InputValue>, WitnessMap), CliError<ConcreteBackend>> {
+) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
     let CompiledProgram { abi, circuit } = compile_circuit(backend, program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
@@ -66,12 +66,12 @@ fn execute_with_path<ConcreteBackend: Backend>(
     Ok((return_value, solved_witness))
 }
 
-pub(crate) fn execute_program<ConcreteBackend: Backend>(
-    backend: &ConcreteBackend,
+pub(crate) fn execute_program<B: Backend>(
+    backend: &B,
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
-) -> Result<WitnessMap, CliError<ConcreteBackend>> {
+) -> Result<WitnessMap, CliError<B>> {
     let initial_witness = abi.encode(inputs_map, None)?;
 
     let solved_witness = nargo::ops::execute_circuit(backend, circuit, initial_witness)?;
