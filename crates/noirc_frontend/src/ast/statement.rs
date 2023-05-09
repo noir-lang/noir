@@ -25,12 +25,6 @@ pub enum Statement {
     Assign(AssignStatement),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
-    Return {
-        expr: Option<Expression>,
-        // Initially `false`, but after semicolon validation it says whether
-        // the semicolon was present.
-        semi: bool,
-    },
     // This statement is the result of a recovered parse error.
     // To avoid issuing multiple errors in later steps, it should
     // be skipped in any future analysis if possible.
@@ -57,6 +51,8 @@ impl Statement {
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Statement {
+        let missing_semicolon =
+            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
         match self {
             Statement::Let(_)
             | Statement::Constrain(_)
@@ -65,24 +61,9 @@ impl Statement {
             | Statement::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
-                    emit_error(ParserError::with_reason(
-                        ParserErrorReason::MissingSeparatingSemi,
-                        span,
-                    ));
+                    emit_error(missing_semicolon);
                 }
                 self
-            }
-
-            Statement::Return { expr, semi: false } => {
-                if !last_statement_in_block && semi.is_none() {
-                    let reason = "Expected a ; separating these two statements".to_string();
-                    emit_error(ParserError::with_reason(reason, span));
-                }
-                Statement::Return { expr, semi: semi.is_some() }
-            }
-
-            Statement::Return { expr: _, semi: true } => {
-                unreachable!()
             }
 
             Statement::Expression(expr) => {
@@ -103,10 +84,7 @@ impl Statement {
                     // for unneeded expressions like { 1 + 2; 3 }
                     (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
-                        emit_error(ParserError::with_reason(
-                            ParserErrorReason::MissingSeparatingSemi,
-                            span,
-                        ));
+                        emit_error(missing_semicolon);
                         Statement::Expression(expr)
                     }
 
@@ -416,10 +394,6 @@ impl Display for Statement {
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{semi};"),
-            Statement::Return { expr: Some(expr), semi: true } => write!(f, "return {expr};"),
-            Statement::Return { expr: None, semi: true } => write!(f, "return;"),
-            Statement::Return { expr: Some(expr), semi: false } => write!(f, "return {expr}"),
-            Statement::Return { expr: None, semi: false } => write!(f, "return"),
             Statement::Error => write!(f, "Error"),
         }
     }
