@@ -2,7 +2,7 @@ use acvm::{Backend, ProofSystemCompiler, SmartContract};
 use hex::FromHexError;
 use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
-use std::{fmt::Debug, path::PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 
 use crate::resolver::DependencyResolutionError;
