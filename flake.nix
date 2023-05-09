@@ -206,7 +206,7 @@
         buildPhase = ''
           BASH_XTRACEFD=19
           set -x
-          exec 19>build.log
+          exec 19>${src}/build.log
 
           echo "Contents of the build-wasm script:" >&2
           cat ./build-wasm >&2
@@ -219,6 +219,12 @@
 
           set +x
           exec 19>&-
+        '';
+        
+        installPhase = ''
+          mkdir -p $out/pkg
+          cp -r pkg/* $out/pkg/
+          cp build.log $out/
         '';
       };
     });
