@@ -15,15 +15,14 @@ let
     targets = [ "wasm32-unknown-unknown" ];
   };
 in
-(pkgs.mkShell.override { stdenv = llvm11stdenv;}).overrideAttrs(oldAttrs: {
-
-  buildInputs = with pkgs; [
-    binaryen
+pkgs.mkShell.overrideAttrs (oldAttrs: {
+  buildInputs = with pkgs; oldAttrs.buildInputs ++ [
     pkg-config
     rustbin
     wasm-pack
+    binaryen
     git
     jq
   ];
-
+  stdenv = llvm11stdenv;
 })
