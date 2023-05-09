@@ -204,6 +204,10 @@
         nativeBuildInputs = [ pkgs.wasm-pack ];
 
         buildPhase = ''
+          echo "Current working directory:"
+          pwd
+          echo "Contents of the source directory:"
+          ls -la
           wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
           wasm-pack build --scope noir-lang --target web --out-dir pkg/web
         '';
