@@ -208,7 +208,7 @@
           pwd
           echo "Contents of the source directory:"
           ls -la
-          ./build-wasm
+          ${pkgs.bash}/bin/bash ./build-wasm
         '';
 
         installPhase = ''
