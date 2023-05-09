@@ -51,8 +51,10 @@ jobs:
           ls -la result/pkg
 
       - name: Print build log if build failed
-        if: ${{ failure() }}
-        run: cat $(nix-build --no-link -A packages.default.wasm)./build.log || true
+          if: ${{ failure() }}
+          run: |
+            system=$(nix eval --raw nixpkgs#localSystem.system)
+            cat $(nix-build --no-link -A packages.$system.wasm)./build.log || true
 
       - name: Copy wasm build result
         working-directory: ./crates/wasm
