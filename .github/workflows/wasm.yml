@@ -47,9 +47,6 @@ jobs:
       - name: Build wasm package
           run: nix build .#packages.wasm --keep-failed || true
 
-      - name: Print build log if build failed
-          run: cat ./result-build/log/builder.log || true
-
       - name: Copy wasm build result
         working-directory: ./crates/wasm
         run: cp -r ./result ./pkg
