@@ -32,10 +32,13 @@ pub enum ParserErrorReason {
 /// reason we use `SmallOrdSet` to avoid heap allocations for as long as possible - this greatly
 /// inflates the size of the error, but this is justified by a resulting increase in parsing
 /// speeds of approximately 40% in release mode.
+///
+/// Both `expected_tokens` and `expected_labels` use `SmallOrdSet` sized 1. In the of labels this
+/// is optimal. In the of tokens we stop here due to fast diminishing returns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserError {
-    expected_tokens: SmallOrdSet<[Token; 3]>,
-    expected_labels: SmallOrdSet<[ParsingRuleLabel; 3]>,
+    expected_tokens: SmallOrdSet<[Token; 1]>,
+    expected_labels: SmallOrdSet<[ParsingRuleLabel; 1]>,
     found: Token,
     reason: Option<ParserErrorReason>,
     span: Span,
