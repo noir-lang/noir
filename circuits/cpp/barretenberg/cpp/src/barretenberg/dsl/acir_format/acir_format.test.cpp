@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include "barretenberg/common/streams.hpp"
+#include "ecdsa_secp256k1.hpp"
 
 TEST(acir_format, test_logic_gate_from_noir_circuit)
 {

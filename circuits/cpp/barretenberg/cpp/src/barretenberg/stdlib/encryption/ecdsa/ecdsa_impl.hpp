@@ -6,6 +6,19 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace ecdsa {
 
+/**
+ * @brief Verify ECDSA signature. Produces unsatisfiable constraints if signature fails
+ *
+ * @tparam Composer
+ * @tparam Curve
+ * @tparam Fq
+ * @tparam Fr
+ * @tparam G1
+ * @param message
+ * @param public_key
+ * @param sig
+ * @return bool_t<Composer>
+ */
 template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
 bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
                                   const G1& public_key,
@@ -40,6 +53,7 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
      * [2] EIP-155: https://eips.ethereum.org/EIPS/eip-155
      *
      */
+    // Note: This check is also present in the _noassert variation of this method.
     field_t<Composer>(sig.v).assert_is_in_set({ field_t<Composer>(27), field_t<Composer>(28) },
                                               "signature is non-standard");
 
@@ -92,8 +106,84 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
     result_mod_r.binary_basis_limbs[2].element.assert_equal(r.binary_basis_limbs[2].element);
     result_mod_r.binary_basis_limbs[3].element.assert_equal(r.binary_basis_limbs[3].element);
     result_mod_r.prime_basis_limb.assert_equal(r.prime_basis_limb);
-
     return bool_t<Composer>(ctx, true);
+}
+
+/**
+ * @brief Verify ECDSA signature. Returns 0 if signature fails (i.e. does not produce unsatisfiable constraints)
+ *
+ * @tparam Composer
+ * @tparam Curve
+ * @tparam Fq
+ * @tparam Fr
+ * @tparam G1
+ * @param message
+ * @param public_key
+ * @param sig
+ * @return bool_t<Composer>
+ */
+template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
+bool_t<Composer> verify_signature_noassert(const stdlib::byte_array<Composer>& message,
+                                           const G1& public_key,
+                                           const signature<Composer>& sig)
+{
+    Composer* ctx = message.get_context() ? message.get_context() : public_key.x.context;
+
+    stdlib::byte_array<Composer> hashed_message =
+        static_cast<stdlib::byte_array<Composer>>(stdlib::sha256<Composer>(message));
+
+    Fr z(hashed_message);
+    z.assert_is_in_field();
+
+    Fr r(sig.r);
+    // force r to be < secp256k1 group modulus, so we can compare with `result_mod_r` below
+    r.assert_is_in_field();
+
+    Fr s(sig.s);
+
+    // r and s should not be zero
+    r.assert_is_not_equal(Fr::zero());
+    s.assert_is_not_equal(Fr::zero());
+
+    Fr u1 = z / s;
+    Fr u2 = r / s;
+
+    G1 result;
+    if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        ASSERT(Curve::type == proof_system::CurveType::SECP256K1);
+        public_key.validate_on_curve();
+        result = G1::secp256k1_ecdsa_mul(public_key, u1, u2);
+    } else {
+        result = G1::batch_mul({ G1::one(ctx), public_key }, { u1, u2 });
+    }
+    result.x.self_reduce();
+
+    // transfer Fq value x to an Fr element and reduce mod r
+    Fr result_mod_r(ctx, 0);
+    result_mod_r.binary_basis_limbs[0].element = result.x.binary_basis_limbs[0].element;
+    result_mod_r.binary_basis_limbs[1].element = result.x.binary_basis_limbs[1].element;
+    result_mod_r.binary_basis_limbs[2].element = result.x.binary_basis_limbs[2].element;
+    result_mod_r.binary_basis_limbs[3].element = result.x.binary_basis_limbs[3].element;
+    result_mod_r.binary_basis_limbs[0].maximum_value = result.x.binary_basis_limbs[0].maximum_value;
+    result_mod_r.binary_basis_limbs[1].maximum_value = result.x.binary_basis_limbs[1].maximum_value;
+    result_mod_r.binary_basis_limbs[2].maximum_value = result.x.binary_basis_limbs[2].maximum_value;
+    result_mod_r.binary_basis_limbs[3].maximum_value = result.x.binary_basis_limbs[3].maximum_value;
+
+    result_mod_r.prime_basis_limb = result.x.prime_basis_limb;
+
+    result_mod_r.assert_is_in_field();
+
+    bool_t<Composer> output(ctx, true);
+    output &= result_mod_r.binary_basis_limbs[0].element == (r.binary_basis_limbs[0].element);
+    output &= result_mod_r.binary_basis_limbs[1].element == (r.binary_basis_limbs[1].element);
+    output &= result_mod_r.binary_basis_limbs[2].element == (r.binary_basis_limbs[2].element);
+    output &= result_mod_r.binary_basis_limbs[3].element == (r.binary_basis_limbs[3].element);
+    output &= result_mod_r.prime_basis_limb == (r.prime_basis_limb);
+
+    field_t<Composer>(sig.v).assert_is_in_set({ field_t<Composer>(27), field_t<Composer>(28) },
+                                              "signature is non-standard");
+
+    return output;
 }
 
 } // namespace ecdsa

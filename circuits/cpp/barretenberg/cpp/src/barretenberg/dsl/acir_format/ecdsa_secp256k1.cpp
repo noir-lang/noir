@@ -38,6 +38,8 @@ crypto::ecdsa::signature ecdsa_convert_signature(Composer& composer, std::vector
         signature_cr.s[i - 32] = fr_bytes.back();
     }
 
+    signature_cr.v = 27;
+
     return signature_cr;
 }
 
@@ -104,17 +106,24 @@ void create_ecdsa_verify_constraints(Composer& composer, const EcdsaSecp256k1Con
 
     pub_key_x_fq.assert_is_in_field();
     pub_key_y_fq.assert_is_in_field();
-
     secp256k1_ct::g1_bigfr_ct public_key = secp256k1_ct::g1_bigfr_ct(pub_key_x_fq, pub_key_y_fq);
+    for (size_t i = 0; i < 32; ++i) {
+        sig.r[i].assert_equal(field_ct::from_witness_index(&composer, input.signature[i]));
+        sig.s[i].assert_equal(field_ct::from_witness_index(&composer, input.signature[i + 32]));
+        pub_key_x_byte_arr[i].assert_equal(field_ct::from_witness_index(&composer, input.pub_x_indices[i]));
+        pub_key_y_byte_arr[i].assert_equal(field_ct::from_witness_index(&composer, input.pub_y_indices[i]));
+    }
+    for (size_t i = 0; i < input.message.size(); ++i) {
+        message[i].assert_equal(field_ct::from_witness_index(&composer, input.message[i]));
+    }
 
-    bool_ct signature_result = stdlib::ecdsa::verify_signature<Composer,
-                                                               secp256k1_ct,
-                                                               secp256k1_ct::fq_ct,
-                                                               secp256k1_ct::bigfr_ct,
-                                                               secp256k1_ct::g1_bigfr_ct>(message, public_key, sig);
-
+    bool_ct signature_result =
+        stdlib::ecdsa::verify_signature_noassert<Composer,
+                                                 secp256k1_ct,
+                                                 secp256k1_ct::fq_ct,
+                                                 secp256k1_ct::bigfr_ct,
+                                                 secp256k1_ct::g1_bigfr_ct>(message, public_key, sig);
     bool_ct signature_result_normalized = signature_result.normalize();
-
     composer.assert_equal(signature_result_normalized.witness_index, input.result);
 }
 
