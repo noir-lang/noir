@@ -158,6 +158,8 @@ impl Instruction {
         }
     }
 
+    /// Try to simplify this instruction. If the instruction can be simplified to a known value,
+    /// that value is returned. Otherwise None is returned.
     pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> Option<ValueId> {
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
@@ -266,6 +268,7 @@ impl Binary {
         }
     }
 
+    /// Try to simplify this binary instruction, returning the new value if possible.
     fn simplify(&self, dfg: &mut DataFlowGraph) -> Option<ValueId> {
         let lhs = dfg.get_numeric_constant(self.lhs);
         let rhs = dfg.get_numeric_constant(self.rhs);
@@ -351,6 +354,8 @@ impl Binary {
         None
     }
 
+    /// Evaluate the two constants with the operation specified by self.operator.
+    /// Pushes the resulting value to the given DataFlowGraph's constants and returns it.
     fn eval_constants(
         &self,
         dfg: &mut DataFlowGraph,
