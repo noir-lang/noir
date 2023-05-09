@@ -38,8 +38,8 @@ jobs:
       #   working-directory: ./crates/wasm
       # run: ./build-wasm
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
+      # - name: Install jq
+      #   run: sudo apt-get install -y jq
 
       - name: Make build-wasm script executable
         run: chmod +x ./crates/wasm/build-wasm
@@ -49,6 +49,9 @@ jobs:
           nix build .#wasm
           echo "Build result:"
           ls -la result/pkg
+
+      - name: Print build log
+        run: cat result/build.log
 
       - name: Copy wasm build result
         working-directory: ./crates/wasm
