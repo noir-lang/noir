@@ -468,13 +468,12 @@ fn early_return<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Return), expr_parser)
-        .labelled("statement")
-        .map(|_| Statement::Error)
-        .validate(|expr, span, emit| {
+    ignore_then_commit(keyword(Keyword::Return), expr_parser).labelled("statement").validate(
+        |_, span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::EarlyReturnUnsupported, span));
-            expr
-        })
+            Statement::Error
+        },
+    )
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
