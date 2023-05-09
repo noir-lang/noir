@@ -24,15 +24,6 @@ jobs:
       - name: Build wasm package
         run: nix build .#packages.wasm || true
 
-      - name: Print build.log if build failed
-        run: |
-          if [ -d result ]; then
-            echo "Build successful."
-          else
-            echo "Build failed. Printing build.log:"
-            cat crates/wasm/build.log || true
-          fi
-
       # - name: Build wasm package
       #     run: nix build .#packages.wasm --keep-failed
 

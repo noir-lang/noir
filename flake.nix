@@ -202,7 +202,7 @@
         src = ./crates/wasm;
 
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
-        
+
         buildPhase = ''
           BASH_XTRACEFD=19
           set -x
@@ -215,7 +215,7 @@
           echo "Contents of the source directory:" >&2
           ls -la >&2
 
-          ${pkgs.bash}/bin/bash ./build-wasm
+          ${pkgs.bash}/bin/bash ./build-wasm || (cat ${src}/build.log && exit 1)
 
           set +x
           exec 19>&-
