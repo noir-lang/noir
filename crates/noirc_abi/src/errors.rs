@@ -12,7 +12,7 @@ pub enum InputParserError {
     ParseHexStr(String),
     #[error("duplicate variable name {0}")]
     DuplicateVariableName(String),
-    #[error("cannot parse found value into {0:?}")]
+    #[error("cannot parse value into {0:?}")]
     AbiTypeMismatch(AbiType),
     #[error("Expected argument `{0}`, but none was found")]
     MissingArgument(String),
