@@ -15,9 +15,9 @@ fn permute<M,N,O>(
     let rf = 8;
     let rp = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68][state.len() - 2];
 
-    constrain t == state.len();
-    constrain rf == config_rf as Field;
-    constrain rp == config_rp as Field;
+    assert(t == state.len());
+    assert(rf == config_rf as Field);
+    assert(rp == config_rp as Field);
     
     let mut count = 0;
 
@@ -73,7 +73,7 @@ fn absorb<M,N,O,P>(
     msg: [Field; P] // Arbitrary length message
 ) -> [Field; O] {
 
-    constrain pos_conf.t == rate + capacity;
+    assert(pos_conf.t == rate + capacity);
     
     let mut i = 0;
 

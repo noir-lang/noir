@@ -12,8 +12,8 @@ use crate::{
 // Generate gates which ensure that out_expr is a permutation of in_expr
 // Returns the control bits of the sorting network used to generate the constrains
 pub(crate) fn evaluate_permutation(
-    in_expr: &Vec<Expression>,
-    out_expr: &Vec<Expression>,
+    in_expr: &[Expression],
+    out_expr: &[Expression],
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     let bits = Vec::new();
@@ -27,9 +27,9 @@ pub(crate) fn evaluate_permutation(
 
 // Same as evaluate_permutation() but uses the provided witness as network control bits
 pub(crate) fn evaluate_permutation_with_witness(
-    in_expr: &Vec<Expression>,
-    out_expr: &Vec<Expression>,
-    bits: &Vec<Witness>,
+    in_expr: &[Expression],
+    out_expr: &[Expression],
+    bits: &[Witness],
     evaluator: &mut Evaluator,
 ) {
     let (w, b) = permutation_layer(in_expr, bits, false, evaluator);
@@ -47,14 +47,14 @@ pub(crate) fn evaluate_permutation_with_witness(
 // in both cases it returns the witness of the network configuration
 // if generate_witness is true, bits is ignored
 fn permutation_layer(
-    in_expr: &Vec<Expression>,
+    in_expr: &[Expression],
     bits: &[Witness],
     generate_witness: bool,
     evaluator: &mut Evaluator,
 ) -> (Vec<Witness>, Vec<Expression>) {
     let n = in_expr.len();
     if n == 1 {
-        return (Vec::new(), in_expr.clone());
+        return (Vec::new(), in_expr.to_vec());
     }
     let n1 = n / 2;
 
@@ -119,6 +119,7 @@ mod test {
         acir::{circuit::opcodes::BlackBoxFuncCall, native_types::Witness},
         pwg::block::Blocks,
         FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator,
+        PartialWitnessGeneratorStatus,
     };
 
     use crate::{
@@ -180,10 +181,10 @@ mod test {
             // compute the network output by solving the constraints
             let backend = MockBackend {};
             let mut blocks = Blocks::default();
-            let (unresolved_opcodes, oracles) = backend
+            let solver_status = backend
                 .solve(&mut solved_witness, &mut blocks, eval.opcodes.clone())
                 .expect("Could not solve permutation constraints");
-            assert!(unresolved_opcodes.is_empty() && oracles.is_empty(), "Incomplete solution");
+            assert_eq!(solver_status, PartialWitnessGeneratorStatus::Solved, "Incomplete solution");
             let mut b_val = Vec::new();
             for i in 0..output.len() {
                 b_val.push(solved_witness[&b_wit[i]]);

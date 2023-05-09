@@ -16,14 +16,14 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
      let test_struct = Dummy { x: d, y: c };
 
      for i in 0..foo::MAGIC_NUMBER {
-          constrain c[i] == foo::MAGIC_NUMBER;
-          constrain test_struct.y[i] == foo::MAGIC_NUMBER;
+          assert(c[i] == foo::MAGIC_NUMBER);
+          assert(test_struct.y[i] == foo::MAGIC_NUMBER);
      }
 
-     constrain N != M;
+     assert(N != M);
      
      let expected: u32 = 42;
-     constrain foo::TYPE_INFERRED == expected;
+     assert(foo::TYPE_INFERRED == expected);
 
      let mut y = 5;
      let mut x = M;
@@ -33,30 +33,30 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
           
           y = i;
      }
-     constrain y == 24;
-     constrain x == 10;
+     assert(y == 24);
+     assert(x == 10);
 
      let q = multiplyByM(3);
-     constrain q == 96;
+     assert(q == 96);
 
      arrays_neq(a, b);
 
      let t: [Field; T_LEN] = [N, M];
-     constrain t[1] == 32;
+     assert(t[1] == 32);
 
-     constrain 15 == mysubmodule::my_helper();
+     assert(15 == mysubmodule::my_helper());
      
      let add_submodules_N = mysubmodule::N + foo::bar::N;
-     constrain 15 == add_submodules_N;
+     assert(15 == add_submodules_N);
      let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
-     constrain 15 == add_from_bar_N;
+     assert(15 == add_from_bar_N);
 
      // Example showing an array filled with (mysubmodule::N + 2) 0's
      let sugared = [0; mysubmodule::N + 2];
-     constrain sugared[mysubmodule::N + 1] == 0;
+     assert(sugared[mysubmodule::N + 1] == 0);
 
      let arr: [Field; mysubmodule::N] = [N; 10];
-     constrain (arr[0] == 5) & (arr[9] == 5);
+     assert((arr[0] == 5) & (arr[9] == 5));
 
      foo::from_foo(d);
      baz::from_baz(c);
@@ -67,7 +67,7 @@ fn multiplyByM(x: Field) -> Field {
 }
 
 fn arrays_neq(a: [Field; M], b: [Field; M]) {
-     constrain a != b;
+     assert(a != b);
 }
 
 mod mysubmodule {
@@ -77,7 +77,7 @@ mod mysubmodule {
     global L: Field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
-        constrain x | y == 1;
+        assert(x | y == 1);
     }
 
     fn my_helper() -> comptime Field {

@@ -16,7 +16,11 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{parser::ParserError, token::IntType, BinaryTypeOperator, CompTime};
+use crate::{
+    parser::{ParserError, ParserErrorReason},
+    token::IntType,
+    BinaryTypeOperator, CompTime,
+};
 use iter_extended::vecmap;
 
 /// The parser parses types as 'UnresolvedType's which
@@ -148,13 +152,16 @@ pub enum Signedness {
 }
 
 impl UnresolvedTypeExpression {
+    // This large error size is justified because it improves parsing speeds by around 40% in
+    // release mode. See `ParserError` definition for further explanation.
+    #[allow(clippy::result_large_err)]
     pub fn from_expr(
         expr: Expression,
         span: Span,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
-        Self::from_expr_helper(expr).map_err(|err| {
+        Self::from_expr_helper(expr).map_err(|err_expr| {
             ParserError::with_reason(
-                format!("Expression is invalid in an array-length type: '{err}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context."),
+                ParserErrorReason::InvalidArrayLengthExpression(err_expr),
                 span,
             )
         })

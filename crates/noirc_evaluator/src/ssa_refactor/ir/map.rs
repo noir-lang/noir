@@ -45,6 +45,18 @@ impl<T> std::hash::Hash for Id<T> {
     }
 }
 
+impl<T> PartialOrd for Id<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.index.partial_cmp(&other.index)
+    }
+}
+
+impl<T> Ord for Id<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.index.cmp(&other.index)
+    }
+}
+
 impl<T> Eq for Id<T> {}
 
 impl<T> PartialEq for Id<T> {
@@ -69,9 +81,21 @@ impl<T> std::fmt::Debug for Id<T> {
     }
 }
 
-impl<T> std::fmt::Display for Id<T> {
+impl std::fmt::Display for Id<super::basic_block::BasicBlock> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "${}", self.index)
+        write!(f, "b{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<super::value::Value> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<super::function::Function> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "f{}", self.index)
     }
 }
 
@@ -105,6 +129,14 @@ impl<T> DenseMap<T> {
         let id = Id::new(self.storage.len());
         self.storage.push(f(id));
         id
+    }
+
+    /// Gets an iterator to a reference to each element in the dense map paired with its id.
+    ///
+    /// The id-element pairs are ordered by the numeric values of the ids.
+    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
+        let ids_iter = (0..self.storage.len()).map(|idx| Id::new(idx));
+        ids_iter.zip(self.storage.iter())
     }
 }
 
@@ -240,20 +272,6 @@ impl<T> std::ops::Index<Id<T>> for TwoWayMap<T> {
     }
 }
 
-/// A SecondaryMap is for storing secondary data for a given key. Since this
-/// map is for secondary data, it will not return fresh Ids for data, instead
-/// it expects users to provide these ids in order to associate existing ids with
-/// additional data.
-///
-/// Unlike SecondaryMap in cranelift, this version is sparse and thus
-/// does not require inserting default elements for each key in between
-/// the desired key and the previous length of the map.
-///
-/// There is no expectation that there is always secondary data for all relevant
-/// Ids of a given type, so unlike the other Map types, it is possible for
-/// a call to .get(id) to return None.
-pub(crate) type SecondaryMap<K, V> = HashMap<Id<K>, V>;
-
 /// A simple counter to create fresh Ids without any storage.
 /// Useful for assigning ids before the storage is created or assigning ids
 /// for types that have no single owner.
@@ -266,6 +284,12 @@ pub(crate) struct AtomicCounter<T> {
 }
 
 impl<T> AtomicCounter<T> {
+    /// Create a new counter starting after the given Id.
+    /// Use AtomicCounter::default() to start at zero.
+    pub(crate) fn starting_after(id: Id<T>) -> Self {
+        Self { next: AtomicUsize::new(id.index + 1), _marker: Default::default() }
+    }
+
     /// Return the next fresh id
     pub(crate) fn next(&self) -> Id<T> {
         Id::new(self.next.fetch_add(1, Ordering::Relaxed))

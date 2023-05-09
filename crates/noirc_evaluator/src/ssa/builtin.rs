@@ -73,19 +73,17 @@ impl Opcode {
                 match op {
                     // Pointers do not overflow
                     BlackBoxFunc::SHA256
+                    | BlackBoxFunc::Keccak256
                     | BlackBoxFunc::Blake2s
                     | BlackBoxFunc::Pedersen
                     | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
                     // Verify returns zero or one
-                    BlackBoxFunc::SchnorrVerify
-                    | BlackBoxFunc::EcdsaSecp256k1
-                    | BlackBoxFunc::MerkleMembership => BigUint::one(),
-                    BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
+                    BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
+                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
+                        ObjectType::native_field().max_size()
+                    }
                     BlackBoxFunc::AES => {
                         todo!("ICE: AES is unimplemented")
-                    }
-                    BlackBoxFunc::Keccak256 => {
-                        todo!("ICE: Keccak256 is unimplemented")
                     }
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
@@ -105,17 +103,16 @@ impl Opcode {
             Opcode::LowLevel(op) => {
                 match op {
                     BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
-                    BlackBoxFunc::Keccak256 => {
-                        todo!("ICE: Keccak256 is unimplemented")
-                    }
-                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
+                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Keccak256 => {
                         (32, ObjectType::unsigned_integer(8))
                     }
-                    BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
+                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
+                        (1, ObjectType::native_field())
+                    }
                     // See issue #775 on changing this to return a boolean
-                    BlackBoxFunc::MerkleMembership
-                    | BlackBoxFunc::SchnorrVerify
-                    | BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::native_field()),
+                    BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => {
+                        (1, ObjectType::native_field())
+                    }
                     BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {

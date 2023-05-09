@@ -331,6 +331,7 @@ pub struct FunctionDefinition {
     pub span: Span,
     pub return_type: UnresolvedType,
     pub return_visibility: noirc_abi::AbiVisibility,
+    pub return_distinctness: noirc_abi::AbiDistinctness,
 }
 
 /// Describes the types of smart contract functions that are allowed.

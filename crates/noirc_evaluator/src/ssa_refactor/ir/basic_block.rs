@@ -18,12 +18,6 @@ pub(crate) struct BasicBlock {
     /// Instructions in the basic block.
     instructions: Vec<InstructionId>,
 
-    /// A basic block is considered sealed
-    /// if no further predecessors will be added to it.
-    /// Since only filled blocks can have successors,
-    /// predecessors are always filled.
-    is_sealed: bool,
-
     /// The terminating instruction for the basic block.
     ///
     /// This will be a control flow instruction. This is only
@@ -35,14 +29,20 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    pub(crate) fn new(parameters: Vec<ValueId>) -> Self {
-        Self { parameters, instructions: Vec::new(), is_sealed: false, terminator: None }
+    /// Create a new BasicBlock with the given instructions.
+    /// Parameters can also be added later via BasicBlock::add_parameter
+    pub(crate) fn new(instructions: Vec<InstructionId>) -> Self {
+        Self { parameters: Vec::new(), instructions, terminator: None }
     }
 
+    /// Returns the parameters of this block
     pub(crate) fn parameters(&self) -> &[ValueId] {
         &self.parameters
     }
 
+    /// Adds a parameter to this BasicBlock.
+    /// Expects that the ValueId given should refer to a Value::Param
+    /// instance with its position equal to self.parameters.len().
     pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
         self.parameters.push(parameter);
     }
@@ -52,14 +52,28 @@ impl BasicBlock {
         self.instructions.push(instruction);
     }
 
+    /// Retrieve a reference to all instructions in this block.
     pub(crate) fn instructions(&self) -> &[InstructionId] {
         &self.instructions
     }
 
+    /// Retrieve a mutable reference to all instructions in this block.
+    pub(crate) fn instructions_mut(&mut self) -> &mut Vec<InstructionId> {
+        &mut self.instructions
+    }
+
+    /// Sets the terminator instruction of this block.
+    ///
+    /// A properly-constructed block will always terminate with a TerminatorInstruction -
+    /// which either jumps to another block or returns from the current function. A block
+    /// will only have no terminator if it is still under construction.
     pub(crate) fn set_terminator(&mut self, terminator: TerminatorInstruction) {
         self.terminator = Some(terminator);
     }
 
+    /// Returns the terminator of this block.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
     pub(crate) fn terminator(&self) -> Option<&TerminatorInstruction> {
         self.terminator.as_ref()
     }
@@ -67,7 +81,9 @@ impl BasicBlock {
     /// Iterate over all the successors of the currently block, as determined by
     /// the blocks jumped to in the terminator instruction. If there is no terminator
     /// instruction yet, this will iterate 0 times.
-    pub(crate) fn successors(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
+    pub(crate) fn successors(
+        &self,
+    ) -> impl ExactSizeIterator<Item = BasicBlockId> + DoubleEndedIterator {
         match &self.terminator {
             Some(TerminatorInstruction::Jmp { destination, .. }) => vec![*destination].into_iter(),
             Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
@@ -76,5 +92,16 @@ impl BasicBlock {
             Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
             None => vec![].into_iter(),
         }
+    }
+
+    /// Removes the given instruction from this block if present or panics otherwise.
+    pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
+        // Iterate in reverse here as an optimization since remove_instruction is most
+        // often called to remove instructions at the end of a block.
+        let index =
+            self.instructions.iter().rev().position(|id| *id == instruction).unwrap_or_else(|| {
+                panic!("remove_instruction: No such instruction {instruction:?} in block")
+            });
+        self.instructions.remove(index);
     }
 }

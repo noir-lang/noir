@@ -1,28 +1,27 @@
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
-use super::instruction::Instruction;
-use super::map::{Id, SecondaryMap};
+use super::map::Id;
 use super::types::Type;
-
-use noirc_errors::Location;
+use super::value::ValueId;
 
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
 ///
-/// Like Crane-lift all functions outside of the current function is seen as external.
-/// To reference external functions, one must first import the function signature
-/// into the current function's context.
+/// All functions outside of the current function are seen as external.
+/// To reference external functions its FunctionId can be used but this
+/// cannot be checked for correctness until inlining is performed.
 #[derive(Debug)]
 pub(crate) struct Function {
-    /// Maps instructions to source locations
-    source_locations: SecondaryMap<Instruction, Location>,
-
     /// The first basic block in the function
-    pub(super) entry_block: BasicBlockId,
+    entry_block: BasicBlockId,
 
     /// Name of the function for debugging only
-    pub(super) name: String,
+    name: String,
 
+    id: FunctionId,
+
+    /// The DataFlowGraph holds the majority of data pertaining to the function
+    /// including its blocks, instructions, and values.
     pub(crate) dfg: DataFlowGraph,
 }
 
@@ -30,18 +29,44 @@ impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
     /// Note that any parameters to the function must be manually added later.
-    pub(crate) fn new(name: String) -> Self {
+    pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
-        let entry_block = dfg.new_block();
-        Self { name, source_locations: SecondaryMap::new(), entry_block, dfg }
+        let entry_block = dfg.make_block();
+        Self { name, id, entry_block, dfg }
     }
 
+    /// The name of the function.
+    /// Used exclusively for debugging purposes.
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The id of the function.
+    pub(crate) fn id(&self) -> FunctionId {
+        self.id
+    }
+
+    /// Retrieves the entry block of a function.
+    ///
+    /// A function's entry block contains the instructions
+    /// to be executed first when the function is called.
+    /// The function's parameters are also stored as the
+    /// entry block's parameters.
     pub(crate) fn entry_block(&self) -> BasicBlockId {
         self.entry_block
+    }
+
+    /// Returns the parameters of this function.
+    /// The parameters will always match that of this function's entry block.
+    pub(crate) fn parameters(&self) -> &[ValueId] {
+        self.dfg.block_parameters(self.entry_block)
     }
 }
 
 /// FunctionId is a reference for a function
+///
+/// This Id is how each function refers to other functions
+/// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
 
 #[derive(Debug, Default, Clone)]

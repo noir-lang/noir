@@ -1,6 +1,5 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use noirc_abi::InputMap;
 use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
@@ -86,7 +85,12 @@ pub fn start_cli() -> eyre::Result<()> {
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, program_dir: &Path, show_ssa: bool) -> bool {
-    let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
+    let compile_options = CompileOptions {
+        show_ssa,
+        allow_warnings: false,
+        show_output: false,
+        experimental_ssa: false,
+    };
     let proof_dir = program_dir.join(PROOFS_DIR);
 
     match prove_cmd::prove_with_path(
