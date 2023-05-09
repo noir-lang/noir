@@ -42,6 +42,8 @@ template <typename NCT> struct BaseRollupInputs {
         historic_private_data_tree_root_membership_witnesses;
     std::array<MembershipWitness<NCT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>, 2>
         historic_contract_tree_root_membership_witnesses;
+    std::array<MembershipWitness<NCT, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>, 2>
+        historic_l1_to_l2_msg_tree_root_membership_witnesses;
 
     ConstantRollupData<NCT> constants;
 
@@ -66,6 +68,7 @@ template <typename NCT> void read(uint8_t const*& it, BaseRollupInputs<NCT>& obj
     read(it, obj.new_state_reads_sibling_paths);
     read(it, obj.historic_private_data_tree_root_membership_witnesses);
     read(it, obj.historic_contract_tree_root_membership_witnesses);
+    read(it, obj.historic_l1_to_l2_msg_tree_root_membership_witnesses);
     read(it, obj.constants);
 };
 
@@ -87,6 +90,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, BaseRollupInputs<N
     write(buf, obj.new_state_reads_sibling_paths);
     write(buf, obj.historic_private_data_tree_root_membership_witnesses);
     write(buf, obj.historic_contract_tree_root_membership_witnesses);
+    write(buf, obj.historic_l1_to_l2_msg_tree_root_membership_witnesses);
     write(buf, obj.constants);
 };
 
@@ -120,6 +124,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupInp
               << obj.historic_private_data_tree_root_membership_witnesses << "\n"
               << "historic_contract_tree_root_membership_witnesses:\n"
               << obj.historic_contract_tree_root_membership_witnesses << "\n"
+              << "historic_l1_to_l2_msg_tree_root_membership_witnesses:\n"
+              << obj.historic_l1_to_l2_msg_tree_root_membership_witnesses << "\n"
               << "constants:\n"
               << obj.constants << "\n";
 }

@@ -6,6 +6,7 @@ import {
   CircuitsWasm,
   ConstantBaseRollupData,
   KERNEL_NEW_NULLIFIERS_LENGTH,
+  L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MESSAGES_SUBTREE_HEIGHT,
   MembershipWitness,
   MergeRollupInputs,
@@ -208,7 +209,12 @@ export class SoloBlockBuilder implements BlockBuilder {
 
   protected validateTxs(txs: ProcessedTx[]) {
     for (const tx of txs) {
-      for (const historicTreeRoot of ['privateDataTreeRoot', 'contractTreeRoot', 'nullifierTreeRoot'] as const) {
+      for (const historicTreeRoot of [
+        'privateDataTreeRoot',
+        'contractTreeRoot',
+        'nullifierTreeRoot',
+        'l1ToL2MessagesTreeRoot',
+      ] as const) {
         if (tx.data.constants.historicTreeRoots.privateHistoricTreeRoots[historicTreeRoot].isZero()) {
           throw new Error(`Empty ${historicTreeRoot} for tx: ${toFriendlyJSON(tx)}`);
         }
@@ -529,6 +535,14 @@ export class SoloBlockBuilder implements BlockBuilder {
     );
   }
 
+  protected getL1ToL2MessageMembershipWitnessFor(tx: ProcessedTx) {
+    return this.getMembershipWitnessFor(
+      tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.l1ToL2MessagesTreeRoot,
+      MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
+      L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
+    );
+  }
+
   protected async getConstantBaseRollupData(): Promise<ConstantBaseRollupData> {
     return ConstantBaseRollupData.from({
       baseRollupVkHash: DELETE_FR,
@@ -539,7 +553,9 @@ export class SoloBlockBuilder implements BlockBuilder {
       startTreeOfHistoricPrivateDataTreeRootsSnapshot: await this.getTreeSnapshot(
         MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
       ),
-      treeOfHistoricL1ToL2MsgTreeRootsSnapshot: await this.getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE),
+      startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot: await this.getTreeSnapshot(
+        MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
+      ),
     });
   }
 
@@ -548,7 +564,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     if (nullifier.value === 0n) {
       return {
         index: 0,
-        leafPreimage: new NullifierLeafPreimage(new Fr(0n), new Fr(0n), 0),
+        leafPreimage: NullifierLeafPreimage.empty(),
         witness: this.makeEmptyMembershipWitness(NULLIFIER_TREE_HEIGHT),
       };
     }
@@ -928,6 +944,10 @@ export class SoloBlockBuilder implements BlockBuilder {
       historicPrivateDataTreeRootMembershipWitnesses: [
         await this.getDataMembershipWitnessFor(left),
         await this.getDataMembershipWitnessFor(right),
+      ],
+      historicL1ToL2MsgTreeRootMembershipWitnesses: [
+        await this.getL1ToL2MessageMembershipWitnessFor(left),
+        await this.getL1ToL2MessageMembershipWitnessFor(right),
       ],
     });
   }

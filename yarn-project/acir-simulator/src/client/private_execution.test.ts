@@ -40,8 +40,8 @@ describe('Private Execution test suite', () => {
   });
 
   describe('empty constructor', () => {
-    const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
-    const contractDeploymentData = new ContractDeploymentData(Fr.random(), Fr.random(), Fr.random(), EthAddress.ZERO);
+    const historicRoots = PrivateHistoricTreeRoots.empty();
+    const contractDeploymentData = ContractDeploymentData.empty();
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 
     it('should run the empty constructor', async () => {
@@ -49,10 +49,10 @@ describe('Private Execution test suite', () => {
         AztecAddress.random(),
         AztecAddress.ZERO,
         new FunctionData(Buffer.alloc(4), true, true),
-        new Array(ARGS_LENGTH).fill(new Fr(0n)),
+        new Array(ARGS_LENGTH).fill(Fr.ZERO),
         Fr.random(),
         txContext,
-        new Fr(0n),
+        Fr.ZERO,
       );
       const result = await acirSimulator.run(
         txRequest,
@@ -62,16 +62,14 @@ describe('Private Execution test suite', () => {
         historicRoots,
       );
 
-      expect(result.callStackItem.publicInputs.newCommitments).toEqual(
-        new Array(NEW_COMMITMENTS_LENGTH).fill(new Fr(0n)),
-      );
+      expect(result.callStackItem.publicInputs.newCommitments).toEqual(new Array(NEW_COMMITMENTS_LENGTH).fill(Fr.ZERO));
     });
   });
 
   describe('zk token contract', () => {
     let currentNonce = 0n;
 
-    const contractDeploymentData = new ContractDeploymentData(Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO);
+    const contractDeploymentData = ContractDeploymentData.empty();
     const txContext = new TxContext(false, false, false, contractDeploymentData);
 
     let ownerPk: Buffer;
@@ -93,7 +91,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('should a constructor with arguments that creates notes', async () => {
-      const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
+      const historicRoots = PrivateHistoricTreeRoots.empty();
       const contractAddress = AztecAddress.random();
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'constructor')!;
 
@@ -104,7 +102,7 @@ describe('Private Execution test suite', () => {
         encodeArguments(abi, [140, owner]),
         Fr.random(),
         txContext,
-        new Fr(0n),
+        Fr.ZERO,
       );
       const result = await acirSimulator.run(txRequest, abi, contractAddress, EthAddress.ZERO, historicRoots);
 
@@ -120,7 +118,7 @@ describe('Private Execution test suite', () => {
     }, 30_000);
 
     it('should run the mint function', async () => {
-      const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
+      const historicRoots = PrivateHistoricTreeRoots.empty();
       const contractAddress = AztecAddress.random();
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'mint')!;
 
@@ -131,7 +129,7 @@ describe('Private Execution test suite', () => {
         encodeArguments(abi, [140, owner]),
         Fr.random(),
         txContext,
-        new Fr(0n),
+        Fr.ZERO,
       );
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.ZERO, EthAddress.ZERO, historicRoots);
 
@@ -161,9 +159,10 @@ describe('Private Execution test suite', () => {
 
       const historicRoots = new PrivateHistoricTreeRoots(
         Fr.fromBuffer(tree.getRoot(false)),
-        new Fr(0n),
-        new Fr(0n),
-        new Fr(0n),
+        Fr.ZERO,
+        Fr.ZERO,
+        Fr.ZERO,
+        Fr.ZERO,
       );
 
       oracle.getNotes.mockImplementation(async () => {
@@ -188,7 +187,7 @@ describe('Private Execution test suite', () => {
         encodeArguments(abi, [amountToTransfer, owner, recipient]),
         Fr.random(),
         txContext,
-        new Fr(0n),
+        Fr.ZERO,
       );
 
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.random(), EthAddress.ZERO, historicRoots);
@@ -235,9 +234,10 @@ describe('Private Execution test suite', () => {
 
       const historicRoots = new PrivateHistoricTreeRoots(
         Fr.fromBuffer(tree.getRoot(false)),
-        new Fr(0n),
-        new Fr(0n),
-        new Fr(0n),
+        Fr.ZERO,
+        Fr.ZERO,
+        Fr.ZERO,
+        Fr.ZERO,
       );
 
       oracle.getNotes.mockImplementation(async () => {
@@ -262,7 +262,7 @@ describe('Private Execution test suite', () => {
         encodeArguments(abi, [amountToTransfer, owner, recipient]),
         Fr.random(),
         txContext,
-        new Fr(0n),
+        Fr.ZERO,
       );
 
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.random(), EthAddress.ZERO, historicRoots);
@@ -280,7 +280,7 @@ describe('Private Execution test suite', () => {
   });
 
   describe('nested calls', () => {
-    const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
+    const historicRoots = PrivateHistoricTreeRoots.empty();
     const contractDeploymentData = new ContractDeploymentData(Fr.random(), Fr.random(), Fr.random(), EthAddress.ZERO);
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 
@@ -294,7 +294,7 @@ describe('Private Execution test suite', () => {
         encodeArguments(abi, [100n]),
         Fr.random(),
         txContext,
-        new Fr(0n),
+        Fr.ZERO,
       );
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.ZERO, EthAddress.ZERO, historicRoots);
 
@@ -317,7 +317,7 @@ describe('Private Execution test suite', () => {
         encodeArguments(parentAbi, [Fr.fromBuffer(childAddress.toBuffer()).value, Fr.fromBuffer(childSelector).value]),
         Fr.random(),
         txContext,
-        new Fr(0n),
+        Fr.ZERO,
       );
       const result = await acirSimulator.run(
         txRequest,

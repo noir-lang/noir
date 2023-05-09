@@ -45,7 +45,8 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
                                                  MerkleTree& private_data_tree,
                                                  MerkleTree& contract_tree,
-                                                 SparseTree& public_data_tree);
+                                                 SparseTree& public_data_tree,
+                                                 MerkleTree& l1_to_l2_msg_tree);
 
 template <size_t N>
 std::array<fr, N> get_sibling_path(MerkleTree& tree, size_t leafIndex, size_t const& subtree_depth_to_skip)

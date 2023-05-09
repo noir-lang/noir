@@ -188,6 +188,9 @@ export class PrivateFunctionExecution {
    */
   private writeInputs() {
     const argsSize = this.abi.parameters.reduce((acc, param) => acc + sizeOfType(param.type), 0);
+
+    // NOTE: PSA to anyone updating this code: within the structs, the members must be in alphabetical order, this
+    // is a current quirk in noir struct encoding, feel free to remove this note when this changes
     const fields = [
       this.callContext.isContractDeployment,
       this.callContext.isDelegateCall,
@@ -202,8 +205,10 @@ export class PrivateFunctionExecution {
       this.context.request.txContext.contractDeploymentData.portalContractAddress,
 
       this.context.historicRoots.contractTreeRoot,
+      this.context.historicRoots.l1ToL2MessagesTreeRoot,
       this.context.historicRoots.nullifierTreeRoot,
       this.context.historicRoots.privateDataTreeRoot,
+
       ...this.args.slice(0, argsSize),
     ];
 

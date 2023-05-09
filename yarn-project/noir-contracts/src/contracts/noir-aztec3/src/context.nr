@@ -46,6 +46,7 @@ impl PrivateFunctionContext {
             historic_private_data_tree_root: inputs.old_private_data_tree_root,
             historic_private_nullifier_tree_root: inputs.old_nullifier_tree_root,
             historic_contract_tree_root: inputs.old_contract_tree_root,
+            historic_l1_to_l2_messages_tree_root: inputs.old_l1_to_l2_messages_tree_root,
             contract_deployment_data: inputs.contract_deployment_data,
         };
         priv_circuit_pub_inputs.serialize()

@@ -9,6 +9,7 @@ export class PrivateHistoricTreeRoots {
     public privateDataTreeRoot: Fr,
     public nullifierTreeRoot: Fr,
     public contractTreeRoot: Fr,
+    public l1ToL2MessagesTreeRoot: Fr,
     public privateKernelVkTreeRoot: Fr, // future enhancement
   ) {}
 
@@ -21,6 +22,7 @@ export class PrivateHistoricTreeRoots {
       fields.privateDataTreeRoot,
       fields.nullifierTreeRoot,
       fields.contractTreeRoot,
+      fields.l1ToL2MessagesTreeRoot,
       fields.privateKernelVkTreeRoot,
     ] as const;
   }
@@ -34,6 +36,7 @@ export class PrivateHistoricTreeRoots {
       this.privateDataTreeRoot.isZero() &&
       this.nullifierTreeRoot.isZero() &&
       this.contractTreeRoot.isZero() &&
+      this.l1ToL2MessagesTreeRoot.isZero() &&
       this.privateKernelVkTreeRoot.isZero()
     );
   }
@@ -44,11 +47,17 @@ export class PrivateHistoricTreeRoots {
    */
   static fromBuffer(buffer: Buffer | BufferReader): PrivateHistoricTreeRoots {
     const reader = BufferReader.asReader(buffer);
-    return new PrivateHistoricTreeRoots(reader.readFr(), reader.readFr(), reader.readFr(), reader.readFr());
+    return new PrivateHistoricTreeRoots(
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+    );
   }
 
   static empty() {
-    return new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
+    return new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
   }
 }
 

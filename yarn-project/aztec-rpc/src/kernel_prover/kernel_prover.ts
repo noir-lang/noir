@@ -81,6 +81,7 @@ export class KernelProver {
     const newNotes: { [commitmentStr: string]: OutputNoteData } = {};
     let firstIteration = true;
     let previousVerificationKey = VerificationKey.makeFake();
+
     let output: ProofOutput = {
       publicInputs: KernelCircuitPublicInputs.empty(),
       proof: makeEmptyProof(),

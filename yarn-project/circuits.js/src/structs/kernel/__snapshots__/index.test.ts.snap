@@ -260,7 +260,8 @@ constants:
 historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
-private_kernel_vk_tree_root: 0x104
+l1_to_l2_messages_tree_root: 0x104
+private_kernel_vk_tree_root: 0x105
 
 
 tx_context: is_fee_payment_tx: 0
@@ -433,7 +434,8 @@ constants:
 historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x1101
 nullifier_tree_root: 0x1102
 contract_tree_root: 0x1103
-private_kernel_vk_tree_root: 0x1104
+l1_to_l2_messages_tree_root: 0x1104
+private_kernel_vk_tree_root: 0x1105
 
 
 tx_context: is_fee_payment_tx: 0
@@ -486,11 +488,8 @@ public_call_stack: [ 0x2711 0x2712 0x2713 0x2714 ]
 new_l2_to_l1_msgs: [ 0x2811 0x2812 ]
 historic_private_data_tree_root: 0x3011
 historic_nullifier_tree_root: 0x3111
-contract_deployment_data: constructor_vk_hash: 0x1
-function_tree_root: 0x2
-contract_address_salt: 0x3
-portal_contract_address: 0x4
-
+historic_contract_tree_root: 0x2911
+historic_l1_to_l2_messages_tree_root: 0x3211
 contract_deployment_data: constructor_vk_hash: 0x1
 function_tree_root: 0x2
 contract_address_salt: 0x3
@@ -521,11 +520,8 @@ public_call_stack: [ 0x2721 0x2722 0x2723 0x2724 ]
 new_l2_to_l1_msgs: [ 0x2821 0x2822 ]
 historic_private_data_tree_root: 0x3021
 historic_nullifier_tree_root: 0x3121
-contract_deployment_data: constructor_vk_hash: 0x1
-function_tree_root: 0x2
-contract_address_salt: 0x3
-portal_contract_address: 0x4
-
+historic_contract_tree_root: 0x2921
+historic_l1_to_l2_messages_tree_root: 0x3221
 contract_deployment_data: constructor_vk_hash: 0x1
 function_tree_root: 0x2
 contract_address_salt: 0x3
@@ -554,11 +550,8 @@ public_call_stack: [ 0x2722 0x2723 0x2724 0x2725 ]
 new_l2_to_l1_msgs: [ 0x2822 0x2823 ]
 historic_private_data_tree_root: 0x3022
 historic_nullifier_tree_root: 0x3122
-contract_deployment_data: constructor_vk_hash: 0x1
-function_tree_root: 0x2
-contract_address_salt: 0x3
-portal_contract_address: 0x4
-
+historic_contract_tree_root: 0x2922
+historic_l1_to_l2_messages_tree_root: 0x3222
 contract_deployment_data: constructor_vk_hash: 0x1
 function_tree_root: 0x2
 contract_address_salt: 0x3
@@ -587,11 +580,8 @@ public_call_stack: [ 0x2723 0x2724 0x2725 0x2726 ]
 new_l2_to_l1_msgs: [ 0x2823 0x2824 ]
 historic_private_data_tree_root: 0x3023
 historic_nullifier_tree_root: 0x3123
-contract_deployment_data: constructor_vk_hash: 0x1
-function_tree_root: 0x2
-contract_address_salt: 0x3
-portal_contract_address: 0x4
-
+historic_contract_tree_root: 0x2923
+historic_l1_to_l2_messages_tree_root: 0x3223
 contract_deployment_data: constructor_vk_hash: 0x1
 function_tree_root: 0x2
 contract_address_salt: 0x3
@@ -620,11 +610,8 @@ public_call_stack: [ 0x2724 0x2725 0x2726 0x2727 ]
 new_l2_to_l1_msgs: [ 0x2824 0x2825 ]
 historic_private_data_tree_root: 0x3024
 historic_nullifier_tree_root: 0x3124
-contract_deployment_data: constructor_vk_hash: 0x1
-function_tree_root: 0x2
-contract_address_salt: 0x3
-portal_contract_address: 0x4
-
+historic_contract_tree_root: 0x2924
+historic_l1_to_l2_messages_tree_root: 0x3224
 contract_deployment_data: constructor_vk_hash: 0x1
 function_tree_root: 0x2
 contract_address_salt: 0x3
@@ -776,7 +763,8 @@ constants:
 historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
-private_kernel_vk_tree_root: 0x104
+l1_to_l2_messages_tree_root: 0x104
+private_kernel_vk_tree_root: 0x105
 
 
 tx_context: is_fee_payment_tx: 0
@@ -912,7 +900,8 @@ constants:
 historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
-private_kernel_vk_tree_root: 0x104
+l1_to_l2_messages_tree_root: 0x104
+private_kernel_vk_tree_root: 0x105
 
 
 tx_context: is_fee_payment_tx: 0

@@ -131,6 +131,7 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
   const privateDataTreeRoot = witnessReader.readField();
   const nullifierTreeRoot = witnessReader.readField();
   const contractTreeRoot = witnessReader.readField();
+  const l1Tol2TreeRoot = witnessReader.readField();
 
   const contractDeploymentData = new ContractDeploymentData(
     witnessReader.readField(),
@@ -152,6 +153,7 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
     privateDataTreeRoot,
     nullifierTreeRoot,
     contractTreeRoot,
+    l1Tol2TreeRoot,
     contractDeploymentData,
   );
 }

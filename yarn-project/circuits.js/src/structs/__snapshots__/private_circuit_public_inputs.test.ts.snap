@@ -18,11 +18,8 @@ public_call_stack: [ 0x700 0x701 0x702 0x703 ]
 new_l2_to_l1_msgs: [ 0x800 0x801 ]
 historic_private_data_tree_root: 0x1000
 historic_nullifier_tree_root: 0x1100
-contract_deployment_data: constructor_vk_hash: 0x1
-function_tree_root: 0x2
-contract_address_salt: 0x3
-portal_contract_address: 0x4
-
+historic_contract_tree_root: 0x900
+historic_l1_to_l2_messages_tree_root: 0x1200
 contract_deployment_data: constructor_vk_hash: 0x1
 function_tree_root: 0x2
 contract_address_salt: 0x3

@@ -107,6 +107,9 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
             private_call_data.call_stack_item.public_inputs.historic_nullifier_tree_root;
         previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_contract_tree_root;
+        previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
+            .l1_to_l2_messages_tree_root =
+            private_call_data.call_stack_item.public_inputs.historic_l1_to_l2_messages_tree_root;
         // previous_kernel.public_inputs.constants.historic_tree_roots.private_kernel_vk_tree_root =
         previous_kernel.public_inputs.constants.tx_context = signed_tx_request.tx_request.tx_context;
         previous_kernel.public_inputs.is_private = true;
@@ -161,6 +164,9 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
             private_call_data.call_stack_item.public_inputs.historic_private_data_tree_root;
         previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_contract_tree_root;
+        previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
+            .l1_to_l2_messages_tree_root =
+            private_call_data.call_stack_item.public_inputs.historic_l1_to_l2_messages_tree_root;
         previous_kernel.public_inputs.constants.tx_context = signed_tx_request.tx_request.tx_context;
         previous_kernel.public_inputs.is_private = true;
     } else {

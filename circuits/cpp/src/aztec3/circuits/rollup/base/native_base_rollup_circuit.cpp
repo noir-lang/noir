@@ -176,6 +176,27 @@ void perform_historical_contract_data_tree_membership_checks(DummyComposer& comp
     }
 }
 
+void perform_historical_l1_to_l2_message_tree_membership_checks(DummyComposer& composer,
+                                                                BaseRollupInputs const& baseRollupInputs)
+{
+    auto historic_root = baseRollupInputs.constants.start_tree_of_historic_l1_to_l2_msg_tree_roots_snapshot.root;
+
+    for (size_t i = 0; i < 2; i++) {
+        NT::fr const leaf =
+            baseRollupInputs.kernel_data[i]
+                .public_inputs.constants.historic_tree_roots.private_historic_tree_roots.l1_to_l2_messages_tree_root;
+        abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
+            baseRollupInputs.historic_l1_to_l2_msg_tree_root_membership_witnesses[i];
+
+        check_membership<NT>(composer,
+                             leaf,
+                             historic_root_witness.leaf_index,
+                             historic_root_witness.sibling_path,
+                             historic_root,
+                             format("historic l1 to l2 data tree roots ", i));
+    }
+}
+
 NT::fr create_nullifier_subtree(std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> const& nullifier_leaves)
 {
     // Build a merkle tree of the nullifiers
@@ -238,7 +259,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
             // Newly created nullifier
             auto nullifier = new_nullifiers[j];
 
-            // TODO: reason about this more strongly, can this cause issues?
+            // TODO(maddiaa): reason about this more strongly, can this cause issues?
             if (nullifier != 0) {
                 // Create the nullifier leaf of the new nullifier to be inserted
                 NullifierLeaf new_nullifier_leaf = {
@@ -250,7 +271,6 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                 // Assuming populated premier subtree
                 if (low_nullifier_preimage.leaf_value == 0 && low_nullifier_preimage.next_value == 0) {
                     // check previous nullifier leaves
-                    // TODO: this is a hack, and insecure, we need to fix this
                     bool matched = false;
 
                     for (size_t k = 0; k < nullifier_index && !matched; k++) {
@@ -505,6 +525,7 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     // Perform membership checks that the notes provided exist within the historic trees data
     perform_historical_private_data_tree_membership_checks(composer, baseRollupInputs);
     perform_historical_contract_data_tree_membership_checks(composer, baseRollupInputs);
+    perform_historical_l1_to_l2_message_tree_membership_checks(composer, baseRollupInputs);
 
     AggregationObject const aggregation_object = aggregate_proofs(baseRollupInputs);
 

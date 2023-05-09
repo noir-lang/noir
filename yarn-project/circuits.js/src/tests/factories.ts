@@ -85,7 +85,7 @@ export function makeTxContext(seed: number): TxContext {
 }
 
 export function makePrivateHistoricTreeRoots(seed: number): PrivateHistoricTreeRoots {
-  return new PrivateHistoricTreeRoots(fr(seed), fr(seed + 1), fr(seed + 2), fr(seed + 3));
+  return new PrivateHistoricTreeRoots(fr(seed), fr(seed + 1), fr(seed + 2), fr(seed + 3), fr(seed + 4));
 }
 
 export function makeCombinedHistoricTreeRoots(seed: number): CombinedHistoricTreeRoots {
@@ -394,6 +394,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     historicContractTreeRoot: fr(seed + 0x900), // TODO not in spec
     historicPrivateDataTreeRoot: fr(seed + 0x1000),
     historicPrivateNullifierTreeRoot: fr(seed + 0x1100), // TODO not in spec
+    historicL1ToL2MessagesTreeRoot: fr(seed + 0x1200),
     contractDeploymentData: makeContractDeploymentData(),
   });
 }
@@ -406,7 +407,7 @@ export function makeConstantBaseRollupData(seed = 1): ConstantBaseRollupData {
   return ConstantBaseRollupData.from({
     startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed),
     startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x100),
-    treeOfHistoricL1ToL2MsgTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x200),
+    startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x200),
     privateKernelVkTreeRoot: fr(seed + 0x301),
     publicKernelVkTreeRoot: fr(seed + 0x302),
     baseRollupVkHash: fr(seed + 0x303),
@@ -556,6 +557,11 @@ export function makeBaseRollupInputs(seed = 0) {
       makeMembershipWitness(CONTRACT_TREE_ROOTS_TREE_HEIGHT, seed + 0x8000),
       makeMembershipWitness(CONTRACT_TREE_ROOTS_TREE_HEIGHT, seed + 0x9000),
     ];
+  const historicL1ToL2MsgTreeRootMembershipWitnesses: BaseRollupInputs['historicL1ToL2MsgTreeRootMembershipWitnesses'] =
+    [
+      makeMembershipWitness(L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT, seed + 0xa000),
+      makeMembershipWitness(L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT, seed + 0xb000),
+    ];
 
   const constants = makeConstantBaseRollupData(0x100);
 
@@ -574,6 +580,7 @@ export function makeBaseRollupInputs(seed = 0) {
     newStateReadsSiblingPaths,
     historicPrivateDataTreeRootMembershipWitnesses,
     historicContractsTreeRootMembershipWitnesses,
+    historicL1ToL2MsgTreeRootMembershipWitnesses,
     constants,
   });
 }

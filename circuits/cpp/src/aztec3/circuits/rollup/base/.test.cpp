@@ -47,11 +47,6 @@
 #include <tuple>
 #include <vector>
 
-// Nullifier tree building lib
-// #include "./nullifier_tree_testing_harness.hpp"
-// #include <aztec3/constants.hpp>
-// #include <barretenberg/crypto/pedersen/pedersen.hpp>
-// #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 
 namespace {
 
@@ -90,13 +85,13 @@ class base_rollup_tests : public ::testing::Test {
                           bool assert_no_circuit_failure = true)
     {
         info("Retesting via cbinds....");
-        // TODO might be able to get rid of proving key buffer
+        // TODO(banks12) might be able to get rid of proving key buffer
         uint8_t const* pk_buf = nullptr;
         size_t const pk_size = base_rollup__init_proving_key(&pk_buf);
         (void)pk_size;
         // info("Proving key size: ", pk_size);
 
-        // TODO might be able to get rid of verification key buffer
+        // TODO(banks12) might be able to get rid of verification key buffer
         uint8_t const* vk_buf = nullptr;
         size_t const vk_size = base_rollup__init_verification_key(pk_buf, &vk_buf);
         (void)vk_size;
@@ -682,7 +677,7 @@ TEST_F(base_rollup_tests, native_constants_dont_change)
 
 TEST_F(base_rollup_tests, native_aggregate)
 {
-    // TODO: Fix this when aggregation works
+    // TODO(rahul): Fix this when aggregation works
     DummyComposer composer = DummyComposer();
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     BaseOrMergeRollupPublicInputs const outputs =
@@ -717,6 +712,7 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
     stdlib::merkle_tree::MemoryStore public_data_tree_store;
     native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree l1_to_l2_messages_tree(L1_TO_L2_MSG_TREE_HEIGHT);
 
     auto data_read = abis::PublicDataRead<NT>{
         .leaf_index = fr(1),
@@ -726,7 +722,7 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
     kernel_data[0].public_inputs.end.state_reads[0] = data_read;
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree);
+        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
@@ -745,6 +741,7 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
     stdlib::merkle_tree::MemoryStore public_data_tree_store;
     native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree l1_to_l2_messages_tree(L1_TO_L2_MSG_TREE_HEIGHT);
 
     auto data_write = abis::PublicDataTransition<NT>{
         .leaf_index = fr(1),
@@ -756,7 +753,7 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     kernel_data[0].public_inputs.end.state_transitions[0] = data_write;
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree);
+        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
@@ -775,6 +772,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
     stdlib::merkle_tree::MemoryStore public_data_tree_store;
     native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree l1_to_l2_messages_tree(L1_TO_L2_MSG_TREE_HEIGHT);
 
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 
@@ -791,7 +789,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     kernel_data[1].public_inputs.end.state_transitions[1] = make_public_write(fr(4), fr(204), fr(304));
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree);
+        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
@@ -810,6 +808,7 @@ TEST_F(base_rollup_tests, native_invalid_public_state_read)
     native_base_rollup::MerkleTree contract_tree(CONTRACT_TREE_HEIGHT);
     stdlib::merkle_tree::MemoryStore public_data_tree_store;
     native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+    native_base_rollup::MerkleTree l1_to_l2_messages_tree(L1_TO_L2_MSG_TREE_HEIGHT);
 
     auto data_read = abis::PublicDataRead<NT>{
         .leaf_index = fr(1),
@@ -819,7 +818,7 @@ TEST_F(base_rollup_tests, native_invalid_public_state_read)
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
     kernel_data[0].public_inputs.end.state_reads[0] = data_read;
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree);
+        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
     // We change the initial tree root so the read value does not match
     public_data_tree.update_element(1, fr(43));

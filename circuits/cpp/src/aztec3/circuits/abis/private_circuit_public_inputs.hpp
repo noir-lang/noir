@@ -42,6 +42,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     fr historic_private_data_tree_root = 0;
     fr historic_nullifier_tree_root = 0;
     fr historic_contract_tree_root = 0;
+    fr historic_l1_to_l2_messages_tree_root = 0;
 
     ContractDeploymentData<NCT> contract_deployment_data{};
 
@@ -54,6 +55,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
                historic_private_data_tree_root == other.historic_private_data_tree_root &&
                historic_nullifier_tree_root == other.historic_nullifier_tree_root &&
                historic_contract_tree_root == other.historic_contract_tree_root &&
+               historic_l1_to_l2_messages_tree_root == other.historic_l1_to_l2_messages_tree_root &&
                contract_deployment_data == other.contract_deployment_data;
     };
 
@@ -84,6 +86,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
             to_ct(historic_private_data_tree_root),
             to_ct(historic_nullifier_tree_root),
             to_ct(historic_contract_tree_root),
+            to_ct(historic_l1_to_l2_messages_tree_root),
 
             to_circuit_type(contract_deployment_data),
         };
@@ -115,6 +118,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
             to_nt(historic_private_data_tree_root),
             to_nt(historic_nullifier_tree_root),
             to_nt(historic_contract_tree_root),
+            to_nt(historic_l1_to_l2_messages_tree_root),
 
             to_native_type(contract_deployment_data),
         };
@@ -145,6 +149,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         inputs.push_back(historic_private_data_tree_root);
         inputs.push_back(historic_nullifier_tree_root);
         inputs.push_back(historic_contract_tree_root);
+        inputs.push_back(historic_l1_to_l2_messages_tree_root);
 
         inputs.push_back(contract_deployment_data.hash());
 
@@ -175,6 +180,7 @@ template <typename NCT> void read(uint8_t const*& it, PrivateCircuitPublicInputs
     read(it, pis.historic_private_data_tree_root);
     read(it, pis.historic_nullifier_tree_root);
     read(it, pis.historic_contract_tree_root);
+    read(it, pis.historic_l1_to_l2_messages_tree_root);
     read(it, pis.contract_deployment_data);
 };
 
@@ -197,6 +203,7 @@ void write(std::vector<uint8_t>& buf, PrivateCircuitPublicInputs<NCT> const& pri
     write(buf, pis.historic_private_data_tree_root);
     write(buf, pis.historic_nullifier_tree_root);
     write(buf, pis.historic_contract_tree_root);
+    write(buf, pis.historic_l1_to_l2_messages_tree_root);
 
     write(buf, pis.contract_deployment_data);
 };
@@ -217,7 +224,8 @@ std::ostream& operator<<(std::ostream& os, PrivateCircuitPublicInputs<NCT> const
               << "new_l2_to_l1_msgs: " << pis.new_l2_to_l1_msgs << "\n"
               << "historic_private_data_tree_root: " << pis.historic_private_data_tree_root << "\n"
               << "historic_nullifier_tree_root: " << pis.historic_nullifier_tree_root << "\n"
-              << "contract_deployment_data: " << pis.contract_deployment_data << "\n"
+              << "historic_contract_tree_root: " << pis.historic_contract_tree_root << "\n"
+              << "historic_l1_to_l2_messages_tree_root: " << pis.historic_l1_to_l2_messages_tree_root << "\n"
               << "contract_deployment_data: " << pis.contract_deployment_data << "\n";
 }
 
@@ -247,6 +255,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     opt_fr historic_private_data_tree_root;
     opt_fr historic_nullifier_tree_root;
     opt_fr historic_contract_tree_root;
+    opt_fr historic_l1_to_l2_messages_tree_root;
 
     std::optional<ContractDeploymentData<NCT>> contract_deployment_data;
 
@@ -269,6 +278,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
                                             opt_fr const& historic_private_data_tree_root,
                                             opt_fr const& historic_nullifier_tree_root,
                                             opt_fr const& historic_contract_tree_root,
+                                            opt_fr const& historic_l1_to_l2_messages_tree_root,
 
                                             std::optional<ContractDeploymentData<NCT>> const& contract_deployment_data)
         : call_context(call_context)
@@ -283,6 +293,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         , historic_private_data_tree_root(historic_private_data_tree_root)
         , historic_nullifier_tree_root(historic_nullifier_tree_root)
         , historic_contract_tree_root(historic_contract_tree_root)
+        , historic_l1_to_l2_messages_tree_root(historic_l1_to_l2_messages_tree_root)
         , contract_deployment_data(contract_deployment_data){};
 
     bool operator==(OptionalPrivateCircuitPublicInputs<NCT> const&) const = default;
@@ -308,6 +319,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         new_inputs.historic_private_data_tree_root = std::nullopt;
         new_inputs.historic_nullifier_tree_root = std::nullopt;
         new_inputs.historic_contract_tree_root = std::nullopt;
+        new_inputs.historic_l1_to_l2_messages_tree_root = std::nullopt;
 
         new_inputs.contract_deployment_data = std::nullopt;
 
@@ -355,6 +367,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         make_unused_element_zero(composer, historic_private_data_tree_root);
         make_unused_element_zero(composer, historic_nullifier_tree_root);
         make_unused_element_zero(composer, historic_contract_tree_root);
+        make_unused_element_zero(composer, historic_l1_to_l2_messages_tree_root);
 
         make_unused_element_zero(composer, contract_deployment_data);
 
@@ -386,6 +399,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         (*historic_private_data_tree_root).set_public();
         (*historic_nullifier_tree_root).set_public();
         (*historic_contract_tree_root).set_public();
+        (*historic_l1_to_l2_messages_tree_root).set_public();
 
         (*contract_deployment_data).set_public();
     }
@@ -419,6 +433,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             to_ct(historic_private_data_tree_root),
             to_ct(historic_nullifier_tree_root),
             to_ct(historic_contract_tree_root),
+            to_ct(historic_l1_to_l2_messages_tree_root),
 
             to_circuit_type(contract_deployment_data),
         };
@@ -453,6 +468,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             to_nt(historic_private_data_tree_root),
             to_nt(historic_nullifier_tree_root),
             to_nt(historic_contract_tree_root),
+            to_nt(historic_l1_to_l2_messages_tree_root),
 
             to_native_type(contract_deployment_data),
         };
@@ -488,6 +504,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         inputs.push_back(*historic_private_data_tree_root);
         inputs.push_back(*historic_nullifier_tree_root);
         inputs.push_back(*historic_contract_tree_root);
+        inputs.push_back(*historic_l1_to_l2_messages_tree_root);
 
         inputs.push_back((*contract_deployment_data).hash());
 
@@ -517,6 +534,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             .historic_private_data_tree_root = historic_private_data_tree_root.value(),
             .historic_nullifier_tree_root = historic_nullifier_tree_root.value(),
             .historic_contract_tree_root = historic_contract_tree_root.value(),
+            .historic_l1_to_l2_messages_tree_root = historic_l1_to_l2_messages_tree_root.value(),
 
             .contract_deployment_data = contract_deployment_data.value(),
         };
@@ -608,6 +626,7 @@ void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_c
     read(it, pis.historic_private_data_tree_root);
     read(it, pis.historic_nullifier_tree_root);
     read(it, pis.historic_contract_tree_root);
+    read(it, pis.historic_l1_to_l2_messages_tree_root);
     read(it, pis.contract_deployment_data);
 };
 
@@ -630,6 +649,7 @@ void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> co
     write(buf, pis.historic_private_data_tree_root);
     write(buf, pis.historic_nullifier_tree_root);
     write(buf, pis.historic_contract_tree_root);
+    write(buf, pis.historic_l1_to_l2_messages_tree_root);
     write(buf, pis.contract_deployment_data);
 };
 
@@ -649,7 +669,8 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
               << "new_l2_to_l1_msgs: " << pis.new_l2_to_l1_msgs << "\n"
               << "historic_private_data_tree_root: " << pis.historic_private_data_tree_root << "\n"
               << "historic_nullifier_tree_root: " << pis.historic_nullifier_tree_root << "\n"
-              << "historic_nullifier_tree_root: " << pis.historic_nullifier_tree_root << "\n"
+              << "historic_contract_tree_root: " << pis.historic_contract_tree_root << "\n"
+              << "historic_l1_to_l2_messages_tree_root: " << pis.historic_l1_to_l2_messages_tree_root << "\n"
               << "contract_deployment_data: " << pis.contract_deployment_data << "\n";
 }
 

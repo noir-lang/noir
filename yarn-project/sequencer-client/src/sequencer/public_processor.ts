@@ -92,6 +92,7 @@ export class PublicProcessor {
     const contractTreeInfo = await this.db.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
     const privateDataTreeInfo = await this.db.getTreeInfo(MerkleTreeId.PRIVATE_DATA_TREE);
     const nullifierTreeInfo = await this.db.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
+    const l1ToL2MessagesTreeInfo = await this.db.getTreeInfo(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
 
     publicKernelOutput.constants.historicTreeRoots.privateHistoricTreeRoots.nullifierTreeRoot = Fr.fromBuffer(
       nullifierTreeInfo.root,
@@ -101,6 +102,9 @@ export class PublicProcessor {
     );
     publicKernelOutput.constants.historicTreeRoots.privateHistoricTreeRoots.privateDataTreeRoot = Fr.fromBuffer(
       privateDataTreeInfo.root,
+    );
+    publicKernelOutput.constants.historicTreeRoots.privateHistoricTreeRoots.l1ToL2MessagesTreeRoot = Fr.fromBuffer(
+      l1ToL2MessagesTreeInfo.root,
     );
 
     return [publicKernelOutput, publicKernelProof];

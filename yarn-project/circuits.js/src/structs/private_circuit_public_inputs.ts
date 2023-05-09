@@ -33,6 +33,7 @@ export class PrivateCircuitPublicInputs {
     public historicPrivateDataTreeRoot: Fr,
     public historicPrivateNullifierTreeRoot: Fr,
     public historicContractTreeRoot: Fr,
+    public historicL1ToL2MessagesTreeRoot: Fr,
     public contractDeploymentData: ContractDeploymentData,
   ) {
     assertLength(this, 'args', ARGS_LENGTH);
@@ -71,6 +72,7 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       Fr.ZERO,
       Fr.ZERO,
+      Fr.ZERO,
       ContractDeploymentData.empty(),
     );
   }
@@ -94,6 +96,7 @@ export class PrivateCircuitPublicInputs {
       fields.historicPrivateDataTreeRoot,
       fields.historicPrivateNullifierTreeRoot,
       fields.historicContractTreeRoot,
+      fields.historicL1ToL2MessagesTreeRoot,
       fields.contractDeploymentData,
     ] as const;
   }
