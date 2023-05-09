@@ -208,8 +208,7 @@
           pwd
           echo "Contents of the source directory:"
           ls -la
-          wasm-pack build --scope noir-lang --target nodejs --out-dir $PWD/pkg/nodejs
-          wasm-pack build --scope noir-lang --target web --out-dir $PWD/pkg/web
+          ./build-wasm
         '';
 
         installPhase = ''

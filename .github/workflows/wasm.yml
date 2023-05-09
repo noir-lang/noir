@@ -38,9 +38,11 @@ jobs:
       #   working-directory: ./crates/wasm
       # run: ./build-wasm
 
+      - name: Make build-wasm script executable
+        run: chmod +x ./crates/wasm/build-wasm
+
       - name: Build noir_wasm with Nix flakes
         run: |
-          chmod +x ./crates/wasm/build-wasm
           nix build .#wasm
           echo "Build result:"
           ls -la result/pkg
