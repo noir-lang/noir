@@ -44,11 +44,11 @@ jobs:
       - name: Make build-wasm script executable
         run: chmod +x ./crates/wasm/build-wasm
 
-      - name: Build noir_wasm with Nix flakes
-        run: |
-          nix build .#wasm
-          echo "Build result:"
-          ls -la result/pkg
+      - name: Build wasm package
+          run: nix build .#packages.wasm --keep-failed || true
+
+      - name: Print build log if build failed
+          run: cat ./result-build/log/builder.log || true
 
       - name: Copy wasm build result
         working-directory: ./crates/wasm
