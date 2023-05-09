@@ -135,7 +135,7 @@ mod serialization_tests {
                     visibility: AbiVisibility::Private,
                 },
                 AbiParameter {
-                    name: "barstruct".into(),
+                    name: "bar".into(),
                     typ: AbiType::Struct {
                         fields: BTreeMap::from([
                             ("field1".into(), AbiType::Integer { sign: Sign::Unsigned, width: 8 }),
@@ -149,7 +149,7 @@ mod serialization_tests {
                 },
             ],
             return_type: Some(AbiType::String { length: 5 }),
-            // These two fields are unused when serialising/deserialising to file.
+            // These two fields are unused when serializing/deserializing to file.
             param_witnesses: BTreeMap::new(),
             return_witnesses: Vec::new(),
         };
@@ -157,7 +157,7 @@ mod serialization_tests {
         let input_map: BTreeMap<String, InputValue> = BTreeMap::from([
             ("foo".into(), InputValue::Field(FieldElement::one())),
             (
-                "barstruct".into(),
+                "bar".into(),
                 InputValue::Struct(BTreeMap::from([
                     ("field1".into(), InputValue::Field(255u128.into())),
                     ("field2".into(), InputValue::Vec(vec![true.into(), false.into()])),
