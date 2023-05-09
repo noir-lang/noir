@@ -24,6 +24,7 @@ use acvm::FieldElement;
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
 pub use errors::ParserError;
+pub use errors::ParserErrorReason;
 use noirc_errors::Span;
 pub use parser::parse_program;
 
@@ -176,7 +177,7 @@ where
         .try_map(move |peek, span| {
             if too_far.get_iter().any(|t| t == peek) {
                 // This error will never be shown to the user
-                Err(ParserError::with_reason(String::new(), span))
+                Err(ParserError::empty(Token::EOF, span))
             } else {
                 Ok(Recoverable::error(span))
             }
