@@ -12,18 +12,13 @@ pub(crate) fn parse_toml(
     // Parse input.toml into a BTreeMap.
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)?;
 
-    // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
-    // When parsing the toml map we recursively go through each field to enable struct inputs.
-    // To match this map with the correct abi type we reorganize our abi by parameter name in a BTreeMap, while the struct fields
-    // in the abi are already stored in a BTreeMap.
-    let abi_map = abi.to_btree_map();
-
     // Convert arguments to field elements.
-    let mut parsed_inputs = try_btree_map(abi_map, |(arg_name, abi_type)| {
+    let mut parsed_inputs = try_btree_map(abi.to_btree_map(), |(arg_name, abi_type)| {
         // Check that toml contains a value for each argument in the ABI.
         let value = data
             .get(&arg_name)
             .ok_or_else(|| InputParserError::MissingArgument(arg_name.clone()))?;
+
         InputValue::try_from_toml(value.clone(), &abi_type, &arg_name)
             .map(|input_value| (arg_name, input_value))
     })?;
