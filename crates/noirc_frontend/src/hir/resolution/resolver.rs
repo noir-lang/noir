@@ -859,7 +859,7 @@ impl<'a> Resolver<'a> {
                     let span = length.span;
                     let length = UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(
                         |error| {
-                            self.errors.push(ResolverError::ParserError(error));
+                            self.errors.push(ResolverError::ParserError(Box::new(error)));
                             UnresolvedTypeExpression::Constant(0, span)
                         },
                     );

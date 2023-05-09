@@ -24,9 +24,10 @@
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
 use super::{
-    foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
-    then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
-    ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule, TopLevelStatement,
+    foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
+    parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
+    ForRange, NoirParser, ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule,
+    TopLevelStatement,
 };
 use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
@@ -113,7 +114,7 @@ fn top_level_statement(
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = ignore_then_commit(
-        keyword(Keyword::Global).labelled("global"),
+        keyword(Keyword::Global).labelled(ParsingRuleLabel::Global),
         ident().map(Pattern::Identifier),
     );
     let p = then_commit(p, global_type_annotation());
@@ -273,7 +274,10 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
         .recover_via(parameter_name_recovery())
         .then(typ.or_not().map(|typ| typ.unwrap_or(UnresolvedType::Unspecified)));
 
-    parameter.separated_by(just(Token::Comma)).allow_trailing().labelled("parameter")
+    parameter
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .labelled(ParsingRuleLabel::Parameter)
 }
 
 fn function_parameters<'a>(
@@ -292,7 +296,10 @@ fn function_parameters<'a>(
 
     let parameter = full_parameter.or(self_parameter);
 
-    parameter.separated_by(just(Token::Comma)).allow_trailing().labelled("parameter")
+    parameter
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .labelled(ParsingRuleLabel::Parameter)
 }
 
 /// This parser always parses no input and fails
@@ -308,7 +315,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)>
             let self_type = UnresolvedType::Named(path, vec![]);
             Ok((Pattern::Identifier(ident), self_type, AbiVisibility::Private))
         }
-        _ => Err(ParserError::expected_label("parameter".to_owned(), found, span)),
+        _ => Err(ParserError::expected_label(ParsingRuleLabel::Parameter, found, span)),
     })
 }
 
@@ -406,7 +413,11 @@ fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
         if found.kind() == token_kind {
             Ok(found)
         } else {
-            Err(ParserError::expected_label(token_kind.to_string(), found, span))
+            Err(ParserError::expected_label(
+                ParsingRuleLabel::TokenKind(token_kind.clone()),
+                found,
+                span,
+            ))
         }
     })
 }
@@ -446,12 +457,15 @@ fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
-        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
-        .validate(|expr, span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
-            expr
-        })
+    ignore_then_commit(
+        keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
+        expr_parser,
+    )
+    .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+    .validate(|expr, span, emit| {
+        emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
+        expr
+    })
 }
 
 fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -459,7 +473,7 @@ where
     P: ExprParser + 'a,
 {
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
-        .labelled("statement")
+        .labelled(ParsingRuleLabel::Statement)
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
@@ -467,7 +481,8 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), pattern());
+    let p =
+        ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
@@ -501,14 +516,15 @@ fn pattern() -> impl NoirParser<Pattern> {
 
         choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
     })
-    .labelled("pattern")
+    .labelled(ParsingRuleLabel::Pattern)
 }
 
 fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let fallible = lvalue(expr_parser.clone()).then(assign_operator()).labelled("statement");
+    let fallible =
+        lvalue(expr_parser.clone()).then(assign_operator()).labelled(ParsingRuleLabel::Statement);
 
     then_commit(fallible, expr_parser).map_with_span(
         |((identifier, operator), expression), span| {
@@ -623,7 +639,7 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
-                Err(ParserError::expected_label("integer type".to_string(), unexpected, span))
+                Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
         .map(UnresolvedType::from_int_token)
@@ -669,7 +685,7 @@ fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
 
 fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
     recursive(|expr| expression_with_precedence(Precedence::lowest_type_precedence(), expr, true))
-        .labelled("type expression")
+        .labelled(ParsingRuleLabel::TypeExpression)
         .try_map(UnresolvedTypeExpression::from_expr)
 }
 
@@ -695,7 +711,7 @@ where
 
 fn expression() -> impl ExprParser {
     recursive(|expr| expression_with_precedence(Precedence::Lowest, expr, false))
-        .labelled("expression")
+        .labelled(ParsingRuleLabel::Expression)
 }
 
 // An expression is a single term followed by 0 or more (OP subexpression)*
@@ -712,9 +728,9 @@ where
 {
     if precedence == Precedence::Highest {
         if is_type_expression {
-            type_expression_term(expr_parser).boxed().labelled("term")
+            type_expression_term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
         } else {
-            term(expr_parser).boxed().labelled("term")
+            term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
         }
     } else {
         let next_precedence =
@@ -728,7 +744,7 @@ where
             .then(then_commit(operator_with_precedence(precedence), next_expr).repeated())
             .foldl(create_infix_expression)
             .boxed()
-            .labelled("expression")
+            .labelled(ParsingRuleLabel::Expression)
     }
 }
 
@@ -753,7 +769,7 @@ fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<B
             if Precedence::token_precedence(&token) == Some(precedence) {
                 Ok(token.try_into_binary_op(span).unwrap())
             } else {
-                Err(ParserError::expected_label("binary operator".to_string(), token, span))
+                Err(ParserError::expected_label(ParsingRuleLabel::BinaryOperator, token, span))
             }
         })
 }
@@ -804,15 +820,17 @@ where
         .map(UnaryRhs::ArrayIndex);
 
     // `as Type` in `atom as Type`
-    let cast_rhs =
-        keyword(Keyword::As).ignore_then(parse_type()).map(UnaryRhs::Cast).labelled("cast");
+    let cast_rhs = keyword(Keyword::As)
+        .ignore_then(parse_type())
+        .map(UnaryRhs::Cast)
+        .labelled(ParsingRuleLabel::Cast);
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
         .ignore_then(field_name())
         .then(parenthesized(expression_list(expr_parser.clone())).or_not())
         .map(UnaryRhs::MemberAccess)
-        .labelled("field access");
+        .labelled(ParsingRuleLabel::FieldAccess);
 
     let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs));
 
@@ -961,7 +979,7 @@ where
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()))
     .or(tuple(expr_parser))
-    .labelled("atom")
+    .labelled(ParsingRuleLabel::Atom)
 }
 
 /// Atoms within type expressions are limited to only variables, literals, and parenthesized
@@ -974,7 +992,7 @@ where
         .or(literal())
         .map_with_span(Expression::new)
         .or(parenthesized(expr_parser))
-        .labelled("atom")
+        .labelled(ParsingRuleLabel::Atom)
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>

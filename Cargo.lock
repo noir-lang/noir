@@ -1981,6 +1981,7 @@ dependencies = [
  "noirc_errors",
  "rustc-hash",
  "serde",
+ "small-ord-set",
  "smol_str",
  "strum",
  "strum_macros",
@@ -2896,6 +2897,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6528351c9bc8ab22353f9d776db39a20288e8d6c37ef8cfe3317cf875eecfc2d"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "small-ord-set"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf7035a2b2268a5be8c1395738565b06beda836097e12021cdefc06b127a0e7e"
+dependencies = [
+ "smallvec",
 ]
 
 [[package]]
