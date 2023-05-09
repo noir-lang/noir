@@ -204,7 +204,10 @@
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
 
         buildPhase = ''
+          BASH_XTRACEFD=19
           set -x
+          exec 19>build.log
+
           echo "Contents of the build-wasm script:" >&2
           cat ./build-wasm >&2
           echo "Current working directory:" >&2
@@ -212,13 +215,10 @@
           echo "Contents of the source directory:" >&2
           ls -la >&2
 
-          ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
-        '';
+          ${pkgs.bash}/bin/bash ./build-wasm
 
-        installPhase = ''
-          mkdir -p $out/pkg
-          cp -r pkg/* $out/pkg/
-          cp build.log $out/
+          set +x
+          exec 19>&-
         '';
       };
     });
