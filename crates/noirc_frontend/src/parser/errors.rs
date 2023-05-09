@@ -7,7 +7,7 @@ use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 
-use super::labels::ParserLabel;
+use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
@@ -35,7 +35,7 @@ pub enum ParserErrorReason {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserError {
     expected_tokens: SmallOrdSet<[Token; 3]>,
-    expected_labels: SmallOrdSet<[ParserLabel; 3]>,
+    expected_labels: SmallOrdSet<[ParsingRuleLabel; 3]>,
     found: Token,
     reason: Option<ParserErrorReason>,
     span: Span,
@@ -52,7 +52,7 @@ impl ParserError {
         }
     }
 
-    pub fn expected_label(label: ParserLabel, found: Token, span: Span) -> ParserError {
+    pub fn expected_label(label: ParsingRuleLabel, found: Token, span: Span) -> ParserError {
         let mut error = ParserError::empty(found, span);
         error.expected_labels.insert(label);
         error
@@ -116,7 +116,7 @@ impl From<ParserError> for Diagnostic {
 
 impl chumsky::Error<Token> for ParserError {
     type Span = Span;
-    type Label = ParserLabel;
+    type Label = ParsingRuleLabel;
 
     fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
     where
