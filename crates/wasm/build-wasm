@@ -5,8 +5,14 @@ if [ -d ./pkg/ ]; then
     rm -rf ./pkg/
 fi
 
-echo "Which wasm-pack"
+echo "Checking if wasm-pack is ready"
 command -v wasm-pack
+
+mkdir -p pkg/nodejs
+chmod 755 pkg/nodejs
+
+mkdir -p pkg/web
+chmod 755 pkg/web
 
 # Build the new wasm package
 wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs --verbose
@@ -22,6 +28,9 @@ ls -la pkg
 
 echo "Current directory contents:"
 ls -la
+
+echo "Current working directory:"
+pwd
 
 COMMIT_SHORT=$(git rev-parse --short HEAD)
 VERSION_APPENDIX=""
