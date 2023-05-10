@@ -21,9 +21,10 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and output the log
+      - name: Copy hello_world.txt to workspace
         run: |
-          nix build .#wasm || true
+          cp $(nix-build --no-link -A wasm)./hello_world.txt $GITHUB_WORKSPACE
+        shell: bash
 
       - name: Output hello_world.txt
         run: |
