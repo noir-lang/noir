@@ -204,17 +204,7 @@ fn resolve_variable(
     let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
     match node_object {
         node::NodeObject::Variable(v) => {
-            let node_obj_type = node_object.get_type();
-            match node_obj_type {
-                // If the `Variable` represents a Pointer
-                // Then we know that it is an `Array`
-                node::ObjectType::ArrayPointer(_) => None,
-                // If it is not a pointer, we attempt to fetch the witness associated with it
-                _ => {
-                    let witness = v.witness?;
-                    Some(FunctionInput { witness, num_bits: v.size_in_bits() })
-                }
-            }
+            Some(FunctionInput { witness: v.witness?, num_bits: v.size_in_bits() })
         }
         _ => {
             // Upon the case that the `NodeObject` is not a `Variable`,
@@ -244,7 +234,6 @@ fn resolve_array(
         }
         _ => todo!("generate a witness"),
     };
-
     let mut inputs = Vec::new();
 
     let array = &cfg.mem[array_id];
