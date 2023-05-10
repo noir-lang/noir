@@ -203,7 +203,7 @@
 
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
 
-        buildPhase = ''
+       buildPhase = ''
           BASH_XTRACEFD=19
           set -x
           exec 19>${src}/build.log
@@ -216,6 +216,12 @@
           ls -la >&2
 
           ${pkgs.bash}/bin/bash ./build-wasm || (cat ${src}/build.log && exit 1)
+
+          # Check if build.log is present and not empty
+          if [ ! -s ${src}/build.log ]; then
+            echo "Error: build.log not found or empty" >&2
+            exit 1
+          fi
 
           set +x
           exec 19>&-

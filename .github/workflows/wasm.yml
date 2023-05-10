@@ -24,6 +24,10 @@ jobs:
       - name: Build noir_wasm with Nix flakes
         run: |
           nix build .#wasm || true
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+          max-log-lines = 100
 
       - name: Print build.log if build failed
         run: |
