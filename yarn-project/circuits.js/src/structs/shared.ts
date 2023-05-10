@@ -10,6 +10,10 @@ export class Vector<T extends Bufferable> {
   toBuffer() {
     return serializeToBuffer(this.items.length, this.items);
   }
+
+  toFriendlyJSON() {
+    return this.items;
+  }
 }
 
 export class UInt8Vector {
@@ -50,6 +54,10 @@ export class AffineElement {
   static fromBuffer(buffer: Buffer | BufferReader): AffineElement {
     const reader = BufferReader.asReader(buffer);
     return new AffineElement(reader.readFq(), reader.readFq());
+  }
+
+  toFriendlyJSON() {
+    return `(${this.x.toString()}, ${this.y.toString()})`;
   }
 }
 

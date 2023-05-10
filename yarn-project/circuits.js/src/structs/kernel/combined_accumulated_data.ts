@@ -132,6 +132,10 @@ export class PublicDataRead {
   static empty() {
     return new PublicDataRead(Fr.ZERO, Fr.ZERO);
   }
+
+  toFriendlyJSON() {
+    return `Leaf=${this.leafIndex.toFriendlyJSON()}: ${this.value.toFriendlyJSON()}`;
+  }
 }
 
 /**
@@ -155,6 +159,10 @@ export class PublicDataUpdateRequest {
 
   static empty() {
     return new PublicDataUpdateRequest(Fr.ZERO, Fr.ZERO, Fr.ZERO);
+  }
+
+  toFriendlyJSON() {
+    return `Leaf=${this.leafIndex.toFriendlyJSON()}: ${this.oldValue.toFriendlyJSON()} => ${this.newValue.toFriendlyJSON()}`;
   }
 }
 

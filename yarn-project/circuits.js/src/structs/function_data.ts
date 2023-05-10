@@ -1,14 +1,18 @@
 import { BufferReader } from '@aztec/foundation/serialize';
 import { serializeToBuffer } from '../utils/serialize.js';
 
+const FUNCTION_SELECTOR_LENGTH = 4;
+
 /**
  * Function description for circuit.
  * @see abis/function_data.hpp
  */
 export class FunctionData {
-  constructor(public functionSelector: Buffer, public isPrivate = true, public isConstructor = true) {
-    if (functionSelector.byteLength !== 4) {
-      throw new Error(`Function selector must be 4 bytes long, got ${functionSelector.byteLength} bytes.`);
+  constructor(public functionSelector: Buffer, public isPrivate = true, public isConstructor = false) {
+    if (functionSelector.byteLength !== FUNCTION_SELECTOR_LENGTH) {
+      throw new Error(
+        `Function selector must be ${FUNCTION_SELECTOR_LENGTH} bytes long, got ${functionSelector.byteLength} bytes.`,
+      );
     }
   }
   /**
@@ -19,15 +23,24 @@ export class FunctionData {
     return serializeToBuffer(this.functionSelector, this.isPrivate, this.isConstructor);
   }
 
-  public static empty() {
-    return new FunctionData(Buffer.alloc(4, 0));
+  /**
+   * Returns whether this instance is empty.
+   * @returns True if the function selector is zero.
+   */
+  isEmpty() {
+    return this.functionSelector.equals(Buffer.alloc(FUNCTION_SELECTOR_LENGTH, 0));
   }
+
+  public static empty(args?: { isPrivate?: boolean; isConstructor?: boolean }) {
+    return new FunctionData(Buffer.alloc(FUNCTION_SELECTOR_LENGTH, 0), args?.isPrivate, args?.isConstructor);
+  }
+
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
    */
   static fromBuffer(buffer: Buffer | BufferReader): FunctionData {
     const reader = BufferReader.asReader(buffer);
-    return new FunctionData(reader.readBytes(4), reader.readBoolean(), reader.readBoolean());
+    return new FunctionData(reader.readBytes(FUNCTION_SELECTOR_LENGTH), reader.readBoolean(), reader.readBoolean());
   }
 }

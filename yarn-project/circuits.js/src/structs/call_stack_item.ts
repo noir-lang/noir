@@ -20,7 +20,11 @@ export class PrivateCallStackItem {
   }
 
   public static empty() {
-    return new PrivateCallStackItem(AztecAddress.ZERO, FunctionData.empty(), PrivateCircuitPublicInputs.empty());
+    return new PrivateCallStackItem(
+      AztecAddress.ZERO,
+      FunctionData.empty({ isPrivate: true }),
+      PrivateCircuitPublicInputs.empty(),
+    );
   }
 }
 
@@ -40,6 +44,14 @@ export class PublicCallStackItem {
   }
 
   public static empty() {
-    return new PublicCallStackItem(AztecAddress.ZERO, FunctionData.empty(), PublicCircuitPublicInputs.empty());
+    return new PublicCallStackItem(
+      AztecAddress.ZERO,
+      FunctionData.empty({ isPrivate: false }),
+      PublicCircuitPublicInputs.empty(),
+    );
+  }
+
+  isEmpty() {
+    return this.contractAddress.isZero() && this.functionData.isEmpty() && this.publicInputs.isEmpty();
   }
 }

@@ -58,7 +58,7 @@ describe('e2e_nested_contract', () => {
   /**
    * Milestone 3.
    */
-  it.only('should mine transactions that perform nested calls', async () => {
+  it('should mine transactions that perform nested calls', async () => {
     const parentContract = await deployContract(ParentAbi);
     const childContract = await deployContract(ChildAbi);
 
@@ -66,6 +66,26 @@ describe('e2e_nested_contract', () => {
 
     const tx = parentContract.methods
       .entryPoint(addressToField(childContract.address), Fr.fromBuffer(childContract.methods.value.selector).value)
+      .send({ from: accounts[0] });
+
+    await tx.isMined(0, 0.1);
+    const receipt = await tx.getReceipt();
+
+    expect(receipt.status).toBe(TxStatus.MINED);
+  }, 100_000);
+
+  it('should mine transactions that perform public nested calls', async () => {
+    const parentContract = await deployContract(ParentAbi);
+    const childContract = await deployContract(ChildAbi);
+
+    logger('Parent & Child contracts deployed');
+
+    const tx = parentContract.methods
+      .pubEntryPoint(
+        addressToField(childContract.address),
+        Fr.fromBuffer(childContract.methods.pubValue.selector).value,
+        42n,
+      )
       .send({ from: accounts[0] });
 
     await tx.isMined(0, 0.1);

@@ -29,7 +29,7 @@ contract Parent {
         context.finish(inputs)
     }
 
-    open fn pubEntryPoint(_call_context: CallContext, targetContract: Field, targetSelector: Field, initValue: Field) -> pub Field {
+    open fn pubEntryPoint(_call_context: CallContext, targetContract: Field, targetSelector: Field, initValue: Field, _padding: [Field; dep::aztec3::abi::MAX_ARGS - 3]) -> pub Field {
         // The call_public_function util always receives and returns MAX_ARGS and MAX_RETURN_VALUES. The caller
         // needs to pad the arguments and extract the return values it needs. The callee needs to always accept
         // MAX_ARGS, since the oracle doesn't have the info to know how many args to pass. However, the callee

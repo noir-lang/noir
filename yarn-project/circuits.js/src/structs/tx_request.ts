@@ -1,10 +1,11 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { FieldsOf } from '../utils/jsUtils.js';
+import { FieldsOf, assertLength } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { FunctionData } from './function_data.js';
 import { EcdsaSignature } from './shared.js';
 import { TxContext } from './tx_context.js';
 import { Fr } from '@aztec/foundation/fields';
+import { ARGS_LENGTH } from './constants.js';
 
 /**
  * Signed transaction request.
@@ -35,7 +36,9 @@ export class TxRequest {
     public nonce: Fr,
     public txContext: TxContext,
     public chainId: Fr,
-  ) {}
+  ) {
+    assertLength(this, 'args', ARGS_LENGTH);
+  }
 
   static getFields(fields: FieldsOf<TxRequest>) {
     return [

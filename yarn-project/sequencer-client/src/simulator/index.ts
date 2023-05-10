@@ -2,13 +2,11 @@ import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
   MergeRollupInputs,
-  PublicCircuitPublicInputs,
-  PublicKernelInputsNoPreviousKernel,
   PublicKernelInputs,
+  PublicKernelInputsNoPreviousKernel,
   PublicKernelPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
-  TxRequest,
 } from '@aztec/circuits.js';
 
 /**
@@ -33,18 +31,6 @@ export interface RollupSimulator {
    * @returns The public inputs as outputs of the simulation.
    */
   rootRollupCircuit(input: RootRollupInputs): Promise<RootRollupPublicInputs>;
-}
-
-/**
- * Circuit simulator for the public circuit.
- */
-export interface PublicCircuitSimulator {
-  /**
-   * Simulates the public circuit given a public tx.
-   * @param tx - Transaction request to execute.
-   * @returns The public inputs as outputs of the simulation.
-   */
-  publicCircuit(tx: TxRequest): Promise<PublicCircuitPublicInputs>;
 }
 
 /**

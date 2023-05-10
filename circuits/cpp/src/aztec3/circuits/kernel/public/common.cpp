@@ -37,6 +37,13 @@ void validate_this_public_call_hash(DummyComposer& composer,
                                     PublicKernelInputs<NT> const& public_kernel_inputs,
                                     KernelCircuitPublicInputs<NT>& public_inputs)
 {
+    // If public call stack is empty, we bail so array_pop doesn't throw_or_abort
+    if (array_length(public_inputs.end.public_call_stack) == 0) {
+        composer.do_assert(
+            false, "Public call stack can't be empty", CircuitErrorCode::PUBLIC_KERNEL__EMPTY_PUBLIC_CALL_STACK);
+        return;
+    }
+
     // Pops the current function execution from the stack and validates it against the call stack item
 
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,

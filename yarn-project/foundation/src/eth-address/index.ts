@@ -216,4 +216,12 @@ export class EthAddress {
     const reader = BufferReader.asReader(buffer);
     return new EthAddress(reader.readBuffer());
   }
+
+  /**
+   * Friendly representation for debugging purposes.
+   * @returns A hex string representing the address.
+   */
+  toFriendlyJSON() {
+    return this.toString();
+  }
 }

@@ -21,6 +21,10 @@ export class CallContext {
     return new CallContext(AztecAddress.ZERO, AztecAddress.ZERO, EthAddress.ZERO, false, false, false);
   }
 
+  isEmpty() {
+    return this.msgSender.isZero() && this.storageContractAddress.isZero() && this.portalContractAddress.isZero();
+  }
+
   static from(fields: FieldsOf<CallContext>): CallContext {
     return new CallContext(...CallContext.getFields(fields));
   }

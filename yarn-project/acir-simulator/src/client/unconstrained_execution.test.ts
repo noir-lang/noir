@@ -78,7 +78,7 @@ describe('Unconstrained Execution test suite', () => {
         AztecAddress.random(),
         contractAddress,
         new FunctionData(Buffer.alloc(4), true, true),
-        encodeArguments(abi, [owner], false),
+        encodeArguments(abi, [owner]),
         Fr.random(),
         txContext,
         Fr.ZERO,

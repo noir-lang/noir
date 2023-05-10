@@ -1,4 +1,5 @@
 .yarn
 node_modules/
 dest/
+noir-contracts/**/*.json
 *.md

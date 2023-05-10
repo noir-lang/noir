@@ -92,6 +92,7 @@ contract ZkToken {
     /// ABI getBalance type "unconstrained"
     fn getBalance(
         owner: Point,
+        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 2]
     ) -> pub Field {
         let owner_balance = balances.at(owner.x);
         

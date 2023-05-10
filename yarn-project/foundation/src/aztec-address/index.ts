@@ -123,4 +123,13 @@ export class AztecAddress {
   isZero() {
     return this.equals(AztecAddress.ZERO);
   }
+
+  /**
+   * Friendly representation for debugging purposes.
+   *
+   * @returns A hex string representing the address.
+   */
+  toFriendlyJSON() {
+    return this.toString();
+  }
 }

@@ -217,7 +217,7 @@ export class AztecRPCServer implements AztecRPCClient {
       throw new Error('Unknown function.');
     }
 
-    const flatArgs = encodeArguments(functionDao, args, functionDao.functionType === FunctionType.SECRET);
+    const flatArgs = encodeArguments(functionDao, args);
 
     const functionData = new FunctionData(
       functionDao.selector,

@@ -80,6 +80,7 @@ export class PublicExecutor {
     const [contractStorageReads, contractStorageUpdateRequests] = storageActions.collect();
 
     return {
+      execution,
       contractStorageReads,
       contractStorageUpdateRequests,
       returnValues,
