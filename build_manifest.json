@@ -54,6 +54,7 @@
     "rebuildPatterns": [
       "^circuits/",
       "^l1-contracts/",
+      "^yarn-project/l1-artifacts/",
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
@@ -172,12 +173,8 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/noir-compiler",
     "dockerfile": "noir-compiler/Dockerfile",
-    "rebuildPatterns": [
-      "^yarn-project/noir-compiler/"
-    ],
-    "dependencies": [
-      "foundation"
-    ]
+    "rebuildPatterns": ["^yarn-project/noir-compiler/"],
+    "dependencies": ["foundation"]
   },
   "p2p": {
     "buildDir": "yarn-project",
