@@ -222,9 +222,10 @@
         '';
       
         installPhase = ''
-          mkdir -p $out/pkg
-          cp -r pkg/* $out/pkg/
-          cp build.log $out/
+          mkdir -p $out
+          cp hello_world.txt $out/    
+          # cp -r pkg/* $out/pkg/
+          # cp build.log $out/
         '';
       };
     });
