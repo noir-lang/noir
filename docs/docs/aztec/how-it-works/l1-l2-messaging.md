@@ -159,7 +159,7 @@ The design space for linking L1 and L2 contracts is still open, and we are looki
 ### One L2 contract linking to one L1
 One option is to have a 1:1 link between L1 and L2 contracts. This would mean that the L2 contract would only be able to receive messages from the specified L1 contract but also that the L1 should only be able to send messages to the specified L2 contract. This model is very restrictive, but makes access control easy to handle (but with no freedom). 
 
-It is possible to model many to many relationships through implementing "relays" and listing those. However, L2 contracts that want to use the relay would have to either use dynamic access control to ensure that messages are coming from the relayer and that they where indeed relayed from the correct L1 contract. Essentially back in a similar case to no links.
+It is possible to model many-to-many relationships through implementing "relays" and listing those. However, L2 contracts that want to use the relay would have to either use dynamic access control to ensure that messages are coming from the relayer and that they where indeed relayed from the correct L1 contract. Essentially back in a similar case to no links.
 
 To enforce the restriction, the circuit must ensure that neither of the contracts have been used in any other links. Something that in itself gives us a few problems on frontrunning, but could be mitigated with a handshake between the L1 and L2 contract.
 
