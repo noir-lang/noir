@@ -7,8 +7,12 @@ fi
 
 # Build the new wasm package
 wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
+echo "NodeJS build complete. Directory contents:"
+ls -la pkg/nodejs
 
 wasm-pack build --scope noir-lang --target web --out-dir pkg/web
+echo "Web build complete. Directory contents:"
+ls -la pkg/web
 
 COMMIT_SHORT=$(git rev-parse --short HEAD)
 VERSION_APPENDIX=""

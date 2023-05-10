@@ -199,20 +199,16 @@
         pname = "noir_wasm";
         version = "1.0.0";
 
-        src = ./crates/wasm;
+        src = ./crates/wasm; 
 
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
 
         buildPhase = ''
-          echo "hello world" > hello_world.txt
+          # echo "hello world" > hello_world.txt
           
           set -x
-          echo "Contents of the build-wasm script:" >&2
-          cat ./build-wasm >&2
-          echo "Current working directory:" >&2
-          pwd >&2
-          echo "Contents of the source directory:" >&2
-          ls -la >&2
+          # echo "Contents of the source directory:" >&2
+          # ls -la >&2
       
           ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
           BUILD_RESULT=$?
@@ -224,8 +220,8 @@
       
         installPhase = ''
           mkdir -p $out
-          cp hello_world.txt $out/    
           cp build.log $out/
+          # cp hello_world.txt $out/    
           # cp -r pkg/* $out/pkg/
         '';
       };
