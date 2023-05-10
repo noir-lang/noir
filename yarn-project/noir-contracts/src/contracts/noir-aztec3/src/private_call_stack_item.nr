@@ -106,6 +106,7 @@ impl PrivateCallStackItem {
     fn hash(self) -> Field {
         dep::std::hash::pedersen([
             // TODO hash_index
+            // FIXME - https://github.com/AztecProtocol/aztec-packages/issues/499
             self.contract_address,
             self.function_data.hash(),
             self.public_inputs.hash(),

@@ -66,6 +66,8 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
         .vk = mock_kernel_vk,
     };
 
+    // TODO(rahul) assertions don't work in wasm and it isn't worth updating barratenberg to handle our error code
+    // mechanism. Apparently we are getting rid of this function (dummy_previous_kernel()) soon anyway.
     assert(!mock_kernel_composer.failed());
 
     return previous_kernel;

@@ -97,7 +97,11 @@ async function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: Ci
     const isPrivate = f.functionType === FunctionType.SECRET;
     // All non-unconstrained functions have vks
     const vkHash = await hashVKStr(f.verificationKey!, wasm);
-    const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));
+    // TODO
+    // FIXME: https://github.com/AztecProtocol/aztec3-packages/issues/262
+    // const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));
+    const acirHash = Buffer.alloc(32, 0);
+
     const fnLeafPreimage = new FunctionLeafPreimage(
       selector,
       isPrivate,
@@ -259,7 +263,7 @@ export class ContractTree {
       this.contractMembershipWitness = new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
         CONTRACT_TREE_HEIGHT,
         index,
-        siblingPath.data.map(x => new Fr(x.readBigInt64BE())),
+        siblingPath.data.map(x => Fr.fromBuffer(x)),
       );
     }
     return this.contractMembershipWitness;
