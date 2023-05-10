@@ -46,7 +46,7 @@ impl Acir {
             //TODO we should rather follow the jumps
             current_block = block.left.map(|block_id| &ctx[block_id]);
         }
-        self.memory.acir_gen(evaluator, ctx);
+        self.memory.acir_gen(evaluator, ctx)?;
         Ok(())
     }
 
@@ -72,9 +72,11 @@ impl Acir {
             Operation::Constrain(value, ..) => {
                 constrain::evaluate(value, var_cache, evaluator, ctx)
             }
-            Operation::Not(value) => not::evaluate(value, ins.res_type, var_cache, evaluator, ctx),
+            Operation::Not(value) => {
+                Ok(not::evaluate(value, ins.res_type, var_cache, evaluator, ctx))
+            }
             Operation::Cast(value) => {
-                self.var_cache.get_or_compute_internal_var(*value, evaluator, ctx)
+                Ok(self.var_cache.get_or_compute_internal_var(*value, evaluator, ctx))
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 truncate::evaluate(value, *bit_size, *max_bit_size, var_cache, evaluator, ctx)
@@ -92,18 +94,18 @@ impl Acir {
                 intrinsics::evaluate(args, ins, opcode, self, ctx, evaluator)
             }
             Operation::Return(node_ids) => {
-                r#return::evaluate(node_ids, acir_mem, var_cache, evaluator, ctx)?
+                Ok(r#return::evaluate(node_ids, acir_mem, var_cache, evaluator, ctx)?)
             }
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
-                condition::evaluate(*condition, *lhs, *rhs, var_cache, evaluator, ctx)
+                Ok(condition::evaluate(*condition, *lhs, *rhs, var_cache, evaluator, ctx))
             }
-            Operation::Load { array_id, index, location } => Some(load::evaluate(
+            Operation::Load { array_id, index, location } => Ok(Some(load::evaluate(
                 *array_id, *index, acir_mem, var_cache, *location, evaluator, ctx,
-            )?),
+            )?)),
             Operation::Store { .. } => {
-                store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)?
+                store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)
             }
-            Operation::Nop => None,
+            Operation::Nop => Ok(None),
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
@@ -112,7 +114,7 @@ impl Acir {
             | i @ Operation::Result { .. } => {
                 unreachable!("Invalid instruction: {:?}", i);
             }
-        };
+        }?;
 
         // If the operation returned an `InternalVar`
         // then we add it to the `InternalVar` cache

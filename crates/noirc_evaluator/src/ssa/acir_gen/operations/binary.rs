@@ -1,4 +1,5 @@
 use crate::{
+    errors::RuntimeError,
     ssa::{
         acir_gen::{
             constraints, internal_var_cache::InternalVarCache, operations, Acir, InternalVar,
@@ -31,12 +32,12 @@ pub(crate) fn evaluate(
     acir_gen: &mut Acir,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
-) -> Option<InternalVar> {
+) -> Result<Option<InternalVar>, RuntimeError> {
     let r_size = ctx[binary.rhs].size_in_bits();
     let l_size = ctx[binary.lhs].size_in_bits();
     let max_size = u32::max(r_size, l_size);
     if binary.predicate == Some(ctx.zero()) {
-        return None;
+        return Ok(None);
     }
 
     let binary_output = match &binary.operator {
@@ -108,7 +109,7 @@ pub(crate) fn evaluate(
                     max_size,
                     predicate.expression(),
                     evaluator,
-                );
+                )?;
                 InternalVar::from(q_wit)
             }
             BinaryOp::Sdiv(_) => {
@@ -128,7 +129,7 @@ pub(crate) fn evaluate(
                     max_size,
                     predicate.expression(),
                     evaluator,
-                );
+                )?;
                 InternalVar::from(r_wit)
             }
             BinaryOp::Srem(_) => {
@@ -153,7 +154,7 @@ pub(crate) fn evaluate(
                     let x_witness = acir_gen.var_cache.get_or_compute_witness(r_c, evaluator).expect("unexpected constant expression"); 
                     let inverse = Expression::from(constraints::evaluate_inverse(
                         x_witness, &predicate, evaluator,
-                    ));
+                    )?);
                     InternalVar::from(constraints::mul_with_witness(
                         evaluator,
                         l_c.expression(),
@@ -165,13 +166,13 @@ pub(crate) fn evaluate(
                 let l_c = acir_gen.var_cache.get_or_compute_internal_var(binary.lhs, evaluator, ctx);
                 let r_c = acir_gen.var_cache.get_or_compute_internal_var(binary.rhs, evaluator, ctx);
                 InternalVar::from(
-                operations::cmp::evaluate_eq(acir_gen,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
+                operations::cmp::evaluate_eq(acir_gen,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator)?,
             )},
             BinaryOp::Ne => {
                 let l_c = acir_gen.var_cache.get_or_compute_internal_var(binary.lhs, evaluator, ctx);
                 let r_c = acir_gen.var_cache.get_or_compute_internal_var(binary.rhs, evaluator, ctx);
                 InternalVar::from(
-                operations::cmp::evaluate_neq(acir_gen,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
+                operations::cmp::evaluate_neq(acir_gen,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator)?,
             )},
             BinaryOp::Ult => {
                 let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
@@ -183,7 +184,7 @@ pub(crate) fn evaluate(
                     size,
                     false,
                     evaluator,
-                )
+                )?
                 .into()
             }
             BinaryOp::Ule => {
@@ -196,14 +197,14 @@ pub(crate) fn evaluate(
                     size,
                     false,
                     evaluator,
-                );
+                )?;
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Slt => {
                 let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let s = ctx[binary.lhs].get_type().bits();
-                constraints::evaluate_cmp(l_c.expression(), r_c.expression(), s, true, evaluator)
+                constraints::evaluate_cmp(l_c.expression(), r_c.expression(), s, true, evaluator)?
                     .into()
             }
             BinaryOp::Sle => {
@@ -216,7 +217,7 @@ pub(crate) fn evaluate(
                     s,
                     true,
                     evaluator,
-                );
+                )?;
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Lt | BinaryOp::Lte => {
@@ -241,5 +242,5 @@ pub(crate) fn evaluate(
             BinaryOp::Shl | BinaryOp::Shr(_) => todo!("ShiftLeft and ShiftRight operations with shifts which are only known at runtime are not yet implemented."),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         };
-    Some(binary_output)
+    Ok(Some(binary_output))
 }

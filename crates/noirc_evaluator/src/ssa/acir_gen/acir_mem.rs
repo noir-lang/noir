@@ -1,4 +1,5 @@
 use crate::{
+    errors::RuntimeError,
     ssa::{
         acir_gen::InternalVar,
         context::SsaContext,
@@ -121,17 +122,22 @@ impl ArrayHeap {
         inputs: Vec<Expression>,
         bits: &mut Vec<Witness>,
         evaluator: &mut Evaluator,
-    ) -> Vec<Expression> {
+    ) -> Result<Vec<Expression>, RuntimeError> {
         let outputs = vecmap(0..inputs.len(), |_| evaluator.add_witness_to_cs().into());
         if bits.is_empty() {
-            *bits = operations::sort::evaluate_permutation(&inputs, &outputs, evaluator);
+            *bits = operations::sort::evaluate_permutation(&inputs, &outputs, evaluator)?;
         } else {
             operations::sort::evaluate_permutation_with_witness(&inputs, &outputs, bits, evaluator);
         }
-        outputs
+        Ok(outputs)
     }
 
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
+    pub(crate) fn acir_gen(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+    ) -> Result<(), RuntimeError> {
         let (len, read_write) = match self.typ {
             ArrayType::Init(_, _) | ArrayType::WriteOnly => (0, true),
             ArrayType::ReadOnly(last) => (last.unwrap_or(self.trace.len()), false),
@@ -139,7 +145,7 @@ impl ArrayHeap {
         };
 
         if len == 0 {
-            return;
+            return Ok(());
         }
         evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
             id: AcirBlockId(array_id.as_u32()),
@@ -165,11 +171,11 @@ impl ArrayHeap {
             tuple_expressions.push(vec![item.index.clone(), counter_expr.clone()]);
         }
         let mut bit_counter = Vec::new();
-        let out_counter = Self::generate_outputs(in_counter, &mut bit_counter, evaluator);
-        let out_index = Self::generate_outputs(in_index, &mut bit_counter, evaluator);
-        let out_value = Self::generate_outputs(in_value, &mut bit_counter, evaluator);
+        let out_counter = Self::generate_outputs(in_counter, &mut bit_counter, evaluator)?;
+        let out_index = Self::generate_outputs(in_index, &mut bit_counter, evaluator)?;
+        let out_value = Self::generate_outputs(in_value, &mut bit_counter, evaluator)?;
         let out_op = if read_write {
-            Self::generate_outputs(in_op, &mut bit_counter, evaluator)
+            Self::generate_outputs(in_op, &mut bit_counter, evaluator)?
         } else {
             Vec::new()
         };
@@ -196,7 +202,7 @@ impl ArrayHeap {
                 len_bits,
                 false,
                 evaluator,
-            );
+            )?;
             let sub_cmp = subtract(&cmp, FieldElement::one(), &Expression::one());
             let secondary_order = subtract(
                 &mul_with_witness(evaluator, &index_sub, &sub_cmp),
@@ -220,6 +226,7 @@ impl ArrayHeap {
             };
             evaluator.opcodes.push(AcirOpcode::Arithmetic(load_on_same_adr));
         }
+        Ok(())
     }
 }
 
@@ -317,10 +324,15 @@ impl AcirMem {
         let item = MemOp { operation: op, value, index };
         self.array_heap_mut(*array_id).push(item);
     }
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, ctx: &SsaContext) {
+    pub(crate) fn acir_gen(
+        &self,
+        evaluator: &mut Evaluator,
+        ctx: &SsaContext,
+    ) -> Result<(), RuntimeError> {
         for mem in &self.virtual_memory {
             let array = &ctx.mem[*mem.0];
-            mem.1.acir_gen(evaluator, array.id, array.len);
+            mem.1.acir_gen(evaluator, array.id, array.len)?;
         }
+        Ok(())
     }
 }

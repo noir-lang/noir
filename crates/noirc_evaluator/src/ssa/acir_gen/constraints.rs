@@ -1,5 +1,5 @@
 use crate::{
-    errors::RuntimeErrorKind,
+    errors::{RuntimeError, RuntimeErrorKind},
     ssa::{acir_gen::expression_to_witness, builtin::Endian},
     Evaluator,
 };
@@ -250,7 +250,7 @@ pub(crate) fn range_constraint(
     if num_bits == 1 {
         // Add a bool gate
         let bool_constraint = boolean(witness);
-        evaluator.push_opcode(AcirOpcode::Arithmetic(bool_constraint));
+        evaluator.push_opcode(AcirOpcode::Arithmetic(bool_constraint))?;
     } else if num_bits == FieldElement::max_num_bits() {
         // Don't apply any constraints if the range is for the maximum number of bits
         let message = format!(
@@ -271,7 +271,7 @@ pub(crate) fn range_constraint(
             q: b_witness,
             r: r_witness,
             predicate: None,
-        })));
+        })))?;
 
         try_range_constraint(r_witness, num_bits - 1, evaluator);
         try_range_constraint(b_witness, 1, evaluator);
@@ -281,14 +281,14 @@ pub(crate) fn range_constraint(
         f = f.pow(&FieldElement::from((num_bits - 1) as i128));
         let res = add(&r_witness.into(), f, &b_witness.into());
         let my_constraint = add(&res, -FieldElement::one(), &witness.into());
-        evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint));
+        evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint))?;
     } else {
         let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
             name: acvm::acir::BlackBoxFunc::RANGE,
             inputs: vec![FunctionInput { witness, num_bits }],
             outputs: vec![],
         });
-        evaluator.push_opcode(gate);
+        evaluator.push_opcode(gate)?;
     }
 
     Ok(())
@@ -300,7 +300,7 @@ pub(crate) fn bound_check(
     b: &Expression,
     max_bits: u32,
     evaluator: &mut Evaluator,
-) -> Witness {
+) -> Result<Witness, RuntimeError> {
     assert!(max_bits + 1 < FieldElement::max_num_bits()); //n.b what we really need is 2^{max_bits+1}<p
     let mut sub = subtract(a, FieldElement::one(), b);
     let two = FieldElement::from(2_i128);
@@ -310,17 +310,17 @@ pub(crate) fn bound_check(
     let r_witness = evaluator.add_witness_to_cs();
     //2^s+a-b=q*2^s +r
     let expr = add(&r_witness.into(), two_s, &q_witness.into());
-    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(&sub, FieldElement::one(), &expr)));
+    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(&sub, FieldElement::one(), &expr)))?;
     evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
         a: sub,
         b: Expression::from_field(two_s),
         q: q_witness,
         r: r_witness,
         predicate: None,
-    })));
+    })))?;
     try_range_constraint(r_witness, max_bits, evaluator);
-    evaluator.push_opcode(AcirOpcode::Arithmetic(boolean(q_witness)));
-    q_witness
+    evaluator.push_opcode(AcirOpcode::Arithmetic(boolean(q_witness)))?;
+    Ok(q_witness)
 }
 
 // Generate constraints that are satisfied iff
@@ -339,7 +339,7 @@ pub(crate) fn bound_constraint_with_offset(
     offset: &Expression,
     bits: u32,
     evaluator: &mut Evaluator,
-) {
+) -> Result<(), RuntimeError> {
     assert!(
         bits < FieldElement::max_num_bits(),
         "range check with bit size of the prime field is not implemented yet"
@@ -358,21 +358,23 @@ pub(crate) fn bound_constraint_with_offset(
 
         if f < 3 {
             match f {
-                0 => { evaluator.push_opcode(AcirOpcode::Arithmetic(aof)); },
+                0 => {
+                    evaluator.push_opcode(AcirOpcode::Arithmetic(aof))?;
+                }
                 1 => {
                     let expr = boolean_expr(&aof, evaluator);
-                    evaluator.push_opcode(AcirOpcode::Arithmetic(expr));
+                    evaluator.push_opcode(AcirOpcode::Arithmetic(expr))?;
                 }
                 2 => {
                     let y = expression_to_witness(boolean_expr(&aof, evaluator), evaluator);
                     let two = FieldElement::from(2_i128);
                     let y_expr = y.into();
                     let eee = subtract(&mul_with_witness(evaluator, &aof, &y_expr), two, &y_expr);
-                    evaluator.push_opcode(AcirOpcode::Arithmetic(eee));
+                    evaluator.push_opcode(AcirOpcode::Arithmetic(eee))?;
                 }
                 _ => unreachable!(),
             }
-            return;
+            return Ok(());
         }
         let bit_size = bit_size_u128(f);
         if bit_size < 128 {
@@ -381,13 +383,14 @@ pub(crate) fn bound_constraint_with_offset(
             let aor = add(&aof, FieldElement::from(r), &Expression::one());
             let witness = expression_to_witness(aor, evaluator);
             try_range_constraint(witness, bit_size, evaluator);
-            return;
+            return Ok(());
         }
     }
 
     let sub_expression = subtract(b, FieldElement::one(), &aof); //b-(a+offset)
     let w = expression_to_witness(sub_expression, evaluator);
     try_range_constraint(w, bits, evaluator);
+    Ok(())
 }
 
 pub(crate) fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
@@ -403,27 +406,27 @@ pub(crate) fn to_radix_base(
     limb_size: u32,
     endianness: Endian,
     evaluator: &mut Evaluator,
-) -> Vec<Witness> {
+) -> Result<Vec<Witness>, RuntimeError> {
     // ensure there is no overflow
     let mut max = BigUint::from(radix);
     max = max.pow(limb_size) - BigUint::one();
     assert!(max < FieldElement::modulus());
 
-    let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
+    let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator)?;
 
     evaluator.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
         a: lhs.clone(),
         b: result.clone(),
         radix,
-    }));
+    }))?;
 
     if endianness == Endian::Big {
         result.reverse();
     }
 
-    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
+    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)))?;
 
-    result
+    Ok(result)
 }
 
 //Decomposition into b-base: \sum ai b^i, where 0<=ai<b
@@ -434,7 +437,7 @@ pub(crate) fn to_radix_little(
     radix: u32,
     num_limbs: u32,
     evaluator: &mut Evaluator,
-) -> (Vec<Witness>, Expression) {
+) -> Result<(Vec<Witness>, Expression), RuntimeError> {
     let mut digits = Expression::default();
     let mut radix_pow = FieldElement::one();
 
@@ -457,9 +460,9 @@ pub(crate) fn to_radix_little(
             &Expression::one(),
             bit_size,
             evaluator,
-        );
+        )?;
     }
-    (result, digits)
+    Ok((result, digits))
 }
 
 //Returns 1 if lhs < rhs
@@ -469,17 +472,17 @@ pub(crate) fn evaluate_cmp(
     bit_size: u32,
     signed: bool,
     evaluator: &mut Evaluator,
-) -> Expression {
+) -> Result<Expression, RuntimeError> {
     if signed {
         //TODO use range_constraints instead of bit decomposition, like in the unsigned case
         let mut sub_expr = subtract(lhs, FieldElement::one(), rhs);
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
-        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, Endian::Little, evaluator);
-        bits[(bit_size - 1) as usize].into()
+        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, Endian::Little, evaluator)?;
+        Ok(bits[(bit_size - 1) as usize].into())
     } else {
-        let is_greater = bound_check(lhs, rhs, bit_size, evaluator);
-        subtract(&Expression::one(), FieldElement::one(), &is_greater.into())
+        let is_greater = bound_check(lhs, rhs, bit_size, evaluator)?;
+        Ok(subtract(&Expression::one(), FieldElement::one(), &is_greater.into()))
     }
 }
 
@@ -489,7 +492,7 @@ pub(crate) fn evaluate_truncate(
     rhs: u32,
     max_bits: u32,
     evaluator: &mut Evaluator,
-) -> Expression {
+) -> Result<Expression, RuntimeError> {
     assert!(max_bits > rhs, "max_bits = {max_bits}, rhs = {rhs}");
     let exp_big = BigUint::from(2_u32).pow(rhs);
 
@@ -497,7 +500,7 @@ pub(crate) fn evaluate_truncate(
     if let Some(a_c) = lhs.to_const() {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         a_big %= exp_big;
-        return Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+        return Ok(Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be())));
     }
     let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
 
@@ -510,7 +513,7 @@ pub(crate) fn evaluate_truncate(
         q: c_witness,
         r: b_witness,
         predicate: None,
-    })));
+    })))?;
 
     try_range_constraint(b_witness, rhs, evaluator); //TODO propagate the error using ?
     try_range_constraint(c_witness, max_bits - rhs, evaluator);
@@ -522,9 +525,9 @@ pub(crate) fn evaluate_truncate(
     let c_arith = c_witness.into();
     let res = add(&b_arith, f, &c_arith); //b+2^Nc
     let my_constraint = add(&res, -FieldElement::one(), lhs);
-    evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint));
+    evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint))?;
 
-    Expression::from(b_witness)
+    Ok(Expression::from(b_witness))
 }
 
 pub(crate) fn evaluate_udiv(
@@ -533,7 +536,7 @@ pub(crate) fn evaluate_udiv(
     bit_size: u32,
     predicate: &Expression,
     evaluator: &mut Evaluator,
-) -> (Witness, Witness) {
+) -> Result<(Witness, Witness), RuntimeError> {
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
     let pa = mul_with_witness(evaluator, lhs, predicate);
@@ -543,12 +546,12 @@ pub(crate) fn evaluate_udiv(
         q: q_witness,
         r: r_witness,
         predicate: Some(predicate.clone()),
-    })));
+    })))?;
 
     //r<b
     let r_expr = Expression::from(r_witness);
     try_range_constraint(r_witness, bit_size, evaluator);
-    bound_constraint_with_offset(&r_expr, rhs, predicate, bit_size, evaluator);
+    bound_constraint_with_offset(&r_expr, rhs, predicate, bit_size, evaluator)?;
     //range check q<=a
     try_range_constraint(q_witness, bit_size, evaluator);
     // a-b*q-r = 0
@@ -557,8 +560,8 @@ pub(crate) fn evaluate_udiv(
     d = mul_with_witness(evaluator, &d, predicate);
     let div_euclidean = subtract(&pa, FieldElement::one(), &d);
 
-    evaluator.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
-    (q_witness, r_witness)
+    evaluator.push_opcode(AcirOpcode::Arithmetic(div_euclidean))?;
+    Ok((q_witness, r_witness))
 }
 
 /// Creates a new witness and constrains it to be the inverse of x
@@ -566,25 +569,32 @@ pub(crate) fn evaluate_inverse(
     x_witness: Witness,
     predicate: &Expression,
     evaluator: &mut Evaluator,
-) -> Witness {
+) -> Result<Witness, RuntimeError> {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
     evaluator.push_opcode(AcirOpcode::Directive(Directive::Invert {
         x: x_witness,
         result: inverse_witness,
-    }));
+    }))?;
 
     //x*inverse = 1
     let one = mul(&x_witness.into(), &inverse_witness.into());
     let lhs = mul_with_witness(evaluator, &one, predicate);
-    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(&lhs, FieldElement::one(), predicate)));
-    inverse_witness
+    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(
+        &lhs,
+        FieldElement::one(),
+        predicate,
+    )))?;
+    Ok(inverse_witness)
 }
 
 //Zero Equality gate: returns 1 if x is not null and 0 else
-pub(crate) fn evaluate_zero_equality(x_witness: Witness, evaluator: &mut Evaluator) -> Witness {
+pub(crate) fn evaluate_zero_equality(
+    x_witness: Witness,
+    evaluator: &mut Evaluator,
+) -> Result<Witness, RuntimeError> {
     let m = evaluator.add_witness_to_cs(); //'inverse' of x
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }));
+    evaluator.push_opcode(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }))?;
 
     //y=x*m         y is 1 if x is not null, and 0 else
     let y_witness = evaluator.add_witness_to_cs();
@@ -592,7 +602,7 @@ pub(crate) fn evaluate_zero_equality(x_witness: Witness, evaluator: &mut Evaluat
         mul_terms: vec![(FieldElement::one(), x_witness, m)],
         linear_combinations: vec![(-FieldElement::one(), y_witness)],
         q_c: FieldElement::zero(),
-    }));
+    }))?;
 
     //x=y*x
     let xy = mul(&x_witness.into(), &y_witness.into());
@@ -600,8 +610,8 @@ pub(crate) fn evaluate_zero_equality(x_witness: Witness, evaluator: &mut Evaluat
         &xy,
         FieldElement::one(),
         &x_witness.into(),
-    )));
-    y_witness
+    )))?;
+    Ok(y_witness)
 }
 
 // Given two lists, `A` and `B` of `Expression`s
@@ -615,7 +625,7 @@ pub(crate) fn arrays_eq_predicate(
     a_values: &[Expression],
     b_values: &[Expression],
     evaluator: &mut Evaluator,
-) -> Expression {
+) -> Result<Expression, RuntimeError> {
     let mut sum = Expression::default();
 
     for (a_iter, b_iter) in a_values.iter().zip(b_values) {
@@ -627,12 +637,12 @@ pub(crate) fn arrays_eq_predicate(
             &diff_expr,
             FieldElement::one(),
             &diff_witness.into(),
-        )));
+        )))?;
         //TODO: avoid creating witnesses for diff
-        sum =
-            add(&sum, FieldElement::one(), &evaluate_zero_equality(diff_witness, evaluator).into());
+        let comp = evaluate_zero_equality(diff_witness, evaluator)?;
+        sum = add(&sum, FieldElement::one(), &comp.into());
     }
-    sum
+    Ok(sum)
 }
 
 // TODO: An issue should be created for this

@@ -3,6 +3,7 @@ use acvm::{
 };
 
 use crate::{
+    errors::RuntimeError,
     ssa::{
         acir_gen::{constraints, internal_var_cache::InternalVarCache, InternalVar},
         context::SsaContext,
@@ -16,10 +17,10 @@ pub(crate) fn evaluate(
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
-) -> Option<InternalVar> {
+) -> Result<Option<InternalVar>, RuntimeError> {
     let value = var_cache.get_or_compute_internal_var_unwrap(*value, evaluator, ctx);
     let subtract =
         constraints::subtract(&Expression::one(), FieldElement::one(), value.expression());
-    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract));
-    Some(value)
+    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract))?;
+    Ok(Some(value))
 }

@@ -1,4 +1,5 @@
 use crate::{
+    errors::RuntimeError,
     ssa::{
         acir_gen::{acir_mem::AcirMem, constraints, Acir, InternalVar},
         context::SsaContext,
@@ -33,10 +34,10 @@ pub(super) fn evaluate_neq(
     r_c: Option<InternalVar>,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
-) -> Expression {
+) -> Result<Expression, RuntimeError> {
     // Check whether the `lhs` and `rhs` are trivially equal
     if lhs == rhs {
-        return Expression::zero();
+        return Ok(Expression::zero());
     }
 
     // Check whether the `lhs` and `rhs` are Arrays
@@ -60,7 +61,7 @@ pub(super) fn evaluate_neq(
             )
         }
 
-        let x = InternalVar::from(array_eq(&mut acir_gen.memory, array_a, array_b, evaluator));
+        let x = InternalVar::from(array_eq(&mut acir_gen.memory, array_a, array_b, evaluator)?);
         // TODO we need a witness because of the directive, but we should use an expression
         // TODO if we change the Invert directive to take an `Expression`, then we
         // TODO can get rid of this extra gate.
@@ -69,7 +70,7 @@ pub(super) fn evaluate_neq(
             .get_or_compute_witness(x, evaluator)
             .expect("unexpected constant expression");
 
-        return Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator));
+        return Ok(Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator)?));
     }
 
     // Arriving here means that `lhs` and `rhs` are not Arrays
@@ -85,9 +86,9 @@ pub(super) fn evaluate_neq(
     // it is zero at compile time.
     if let Some(x_const) = x.to_const() {
         if x_const.is_zero() {
-            Expression::zero()
+            Ok(Expression::zero())
         } else {
-            Expression::one()
+            Ok(Expression::one())
         }
     } else {
         //todo we need a witness because of the directive, but we should use an expression
@@ -95,7 +96,7 @@ pub(super) fn evaluate_neq(
             .var_cache
             .get_or_compute_witness(x, evaluator)
             .expect("unexpected constant expression");
-        Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator))
+        Ok(Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator)?))
     }
 }
 
@@ -107,9 +108,9 @@ pub(super) fn evaluate_eq(
     r_c: Option<InternalVar>,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
-) -> Expression {
-    let neq = evaluate_neq(acir_gen, lhs, rhs, l_c, r_c, ctx, evaluator);
-    constraints::subtract(&Expression::one(), FieldElement::one(), &neq)
+) -> Result<Expression, RuntimeError> {
+    let neq = evaluate_neq(acir_gen, lhs, rhs, l_c, r_c, ctx, evaluator)?;
+    Ok(constraints::subtract(&Expression::one(), FieldElement::one(), &neq))
 }
 
 // Given two `MemArray`s, generate constraints that check whether
@@ -122,7 +123,7 @@ fn array_eq(
     a: &MemArray,
     b: &MemArray,
     evaluator: &mut Evaluator,
-) -> Expression {
+) -> Result<Expression, RuntimeError> {
     // Fetch the elements in both `MemArrays`s, these are `InternalVar`s
     // We then convert these to `Expressions`
     let internal_var_to_expr = |internal_var: InternalVar| internal_var.expression().clone();

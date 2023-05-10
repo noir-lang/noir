@@ -5,6 +5,7 @@ use acvm::{
 };
 
 use crate::{
+    errors::RuntimeError,
     ssa::acir_gen::constraints::{add, mul_with_witness, subtract},
     Evaluator,
 };
@@ -15,14 +16,14 @@ pub(crate) fn evaluate_permutation(
     in_expr: &[Expression],
     out_expr: &[Expression],
     evaluator: &mut Evaluator,
-) -> Vec<Witness> {
+) -> Result<Vec<Witness>, RuntimeError> {
     let bits = Vec::new();
     let (w, b) = permutation_layer(in_expr, &bits, true, evaluator);
     // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
-        evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
+        evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)))?;
     }
-    w
+    Ok(w)
 }
 
 // Same as evaluate_permutation() but uses the provided witness as network control bits

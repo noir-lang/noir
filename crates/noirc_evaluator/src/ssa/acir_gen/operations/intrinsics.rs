@@ -1,4 +1,5 @@
 use crate::{
+    errors::RuntimeError,
     ssa::{
         acir_gen::{
             constraints::{bound_constraint_with_offset, to_radix_base},
@@ -36,7 +37,7 @@ pub(crate) fn evaluate(
     acir_gen: &mut Acir,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
-) -> Option<InternalVar> {
+) -> Result<Option<InternalVar>, RuntimeError> {
     use builtin::Opcode;
 
     let instruction_id = instruction.id;
@@ -49,7 +50,7 @@ pub(crate) fn evaluate(
             let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let l_c =
                 acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), 2, bit_size, endianness, evaluator);
+            outputs = to_radix_base(l_c.expression(), 2, bit_size, endianness, evaluator)?;
             if let ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             }
@@ -60,7 +61,7 @@ pub(crate) fn evaluate(
             let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
             let l_c =
                 acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), radix, limb_size, endianness, evaluator);
+            outputs = to_radix_base(l_c.expression(), radix, limb_size, endianness, evaluator)?;
             if let ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             }
@@ -115,16 +116,16 @@ pub(crate) fn evaluate(
                     &Expression::zero(),
                     num_bits,
                     evaluator,
-                );
+                )?;
             }
-            let bits = evaluate_permutation(&in_expr, &out_expr, evaluator);
+            let bits = evaluate_permutation(&in_expr, &out_expr, evaluator)?;
             let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
             evaluator.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
                 inputs,
                 tuple: 1,
                 bits,
                 sort_by: vec![0],
-            }));
+            }))?;
             if let node::ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             } else {
@@ -136,7 +137,7 @@ pub(crate) fn evaluate(
     // If more than witness is returned,
     // the result is inside the result type of `Instruction`
     // as a pointer to an array
-    (outputs.len() == 1).then(|| InternalVar::from(outputs[0]))
+    Ok((outputs.len() == 1).then(|| InternalVar::from(outputs[0])))
 }
 
 // Transform the arguments of intrinsic functions into witnesses
