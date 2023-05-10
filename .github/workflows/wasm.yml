@@ -31,6 +31,8 @@ jobs:
           if [ -n "$HELLO_WORLD_PATH" ]; then
             echo "Printing hello_world.txt:"
             cat $HELLO_WORLD_PATH
+          else
+            echo "Couldnt find hello_world.txt"
           fi
 
       # - name: Output build.log location
