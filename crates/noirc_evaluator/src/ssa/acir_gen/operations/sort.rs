@@ -111,88 +111,193 @@ fn permutation_layer(
     (conf, out_expr)
 }
 
-// #[cfg(test)]
-// mod test {
-//     use std::collections::BTreeMap;
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
 
-//     use acvm::{
-//         acir::{circuit::opcodes::BlackBoxFuncCall, native_types::Witness},
-//         pwg::block::Blocks,
-//         FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator,
-//         PartialWitnessGeneratorStatus,
-//     };
+    use acvm::{
+        acir::{circuit::opcodes::FunctionInput, native_types::Witness},
+        pwg::{block::Blocks, solve, OpcodeResolution, PartialWitnessGeneratorStatus},
+        FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
+    };
 
-//     use crate::{
-//         ssa::acir_gen::operations::sort::{evaluate_permutation, permutation_layer},
-//         Evaluator,
-//     };
-//     use rand::prelude::*;
+    use crate::{
+        ssa::acir_gen::operations::sort::{evaluate_permutation, permutation_layer},
+        Evaluator,
+    };
+    use rand::prelude::*;
 
-//     struct MockBackend {}
-//     impl PartialWitnessGenerator for MockBackend {
-//         fn solve_black_box_function_call(
-//             &self,
-//             _initial_witness: &mut BTreeMap<Witness, FieldElement>,
-//             _func_call: &BlackBoxFuncCall,
-//         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
-//             unreachable!();
-//         }
-//     }
+    struct MockBackend {}
+    impl PartialWitnessGenerator for MockBackend {
+        fn aes(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn and(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _lhs: &FunctionInput,
+            _rhs: &FunctionInput,
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn xor(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _lhs: &FunctionInput,
+            _rhs: &FunctionInput,
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn range(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _input: &FunctionInput,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn sha256(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn blake2s(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn compute_merkle_root(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _leaf: &FunctionInput,
+            _index: &FunctionInput,
+            _hash_path: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn schnorr_verify(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _public_key_x: &FunctionInput,
+            _public_key_y: &FunctionInput,
+            _signature: &[FunctionInput],
+            _message: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn pedersen(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn hash_to_field_128_security(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn ecdsa_secp256k1(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _public_key_x: &[FunctionInput],
+            _public_key_y: &[FunctionInput],
+            _signature: &[FunctionInput],
+            _message: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn fixed_base_scalar_mul(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _input: &FunctionInput,
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn keccak256(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+    }
 
-//     // Check that a random network constrains its output to be a permutation of any random input
-//     #[test]
-//     fn test_permutation() {
-//         let mut rng = rand::thread_rng();
-//         for n in 2..50 {
-//             let mut eval = Evaluator::default();
+    // Check that a random network constrains its output to be a permutation of any random input
+    #[test]
+    fn test_permutation() {
+        let mut rng = rand::thread_rng();
+        for n in 2..50 {
+            let mut eval = Evaluator::default();
 
-//             //we generate random inputs
-//             let mut input = Vec::new();
-//             let mut a_val = Vec::new();
-//             let mut b_wit = Vec::new();
-//             let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
-//             for i in 0..n {
-//                 let w = eval.add_witness_to_cs();
-//                 input.push(w.into());
-//                 a_val.push(FieldElement::from(rng.next_u32() as i128));
-//                 solved_witness.insert(w, a_val[i]);
-//             }
+            //we generate random inputs
+            let mut input = Vec::new();
+            let mut a_val = Vec::new();
+            let mut b_wit = Vec::new();
+            let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
+            for i in 0..n {
+                let w = eval.add_witness_to_cs();
+                input.push(w.into());
+                a_val.push(FieldElement::from(rng.next_u32() as i128));
+                solved_witness.insert(w, a_val[i]);
+            }
 
-//             let mut output = Vec::new();
-//             for _i in 0..n {
-//                 let w = eval.add_witness_to_cs();
-//                 b_wit.push(w);
-//                 output.push(w.into());
-//             }
-//             //generate constraints for the inputs
-//             let w = evaluate_permutation(&input, &output, &mut eval);
-//             //checks that it generate the same witness
-//             let (w1, _) = permutation_layer(&input, &w, false, &mut eval);
-//             assert_eq!(w, w1);
-//             //we generate random network
-//             let mut c = Vec::new();
-//             for _i in 0..w.len() {
-//                 c.push(rng.next_u32() % 2 != 0);
-//             }
-//             // initialize bits
-//             for i in 0..w.len() {
-//                 solved_witness.insert(w[i], FieldElement::from(c[i] as i128));
-//             }
-//             // compute the network output by solving the constraints
-//             let backend = MockBackend {};
-//             let mut blocks = Blocks::default();
-//             let solver_status = backend
-//                 .solve(&mut solved_witness, &mut blocks, eval.opcodes.clone())
-//                 .expect("Could not solve permutation constraints");
-//             assert_eq!(solver_status, PartialWitnessGeneratorStatus::Solved, "Incomplete solution");
-//             let mut b_val = Vec::new();
-//             for i in 0..output.len() {
-//                 b_val.push(solved_witness[&b_wit[i]]);
-//             }
-//             // ensure the outputs are a permutation of the inputs
-//             a_val.sort();
-//             b_val.sort();
-//             assert_eq!(a_val, b_val);
-//         }
-//     }
-// }
+            let mut output = Vec::new();
+            for _i in 0..n {
+                let w = eval.add_witness_to_cs();
+                b_wit.push(w);
+                output.push(w.into());
+            }
+            //generate constraints for the inputs
+            let w = evaluate_permutation(&input, &output, &mut eval);
+            //checks that it generate the same witness
+            let (w1, _) = permutation_layer(&input, &w, false, &mut eval);
+            assert_eq!(w, w1);
+            //we generate random network
+            let mut c = Vec::new();
+            for _i in 0..w.len() {
+                c.push(rng.next_u32() % 2 != 0);
+            }
+            // initialize bits
+            for i in 0..w.len() {
+                solved_witness.insert(w[i], FieldElement::from(c[i] as i128));
+            }
+            // compute the network output by solving the constraints
+            let backend = MockBackend {};
+            let mut blocks = Blocks::default();
+            let solver_status =
+                solve(&backend, &mut solved_witness, &mut blocks, eval.opcodes.clone())
+                    .expect("Could not solve permutation constraints");
+            assert_eq!(solver_status, PartialWitnessGeneratorStatus::Solved, "Incomplete solution");
+            let mut b_val = Vec::new();
+            for i in 0..output.len() {
+                b_val.push(solved_witness[&b_wit[i]]);
+            }
+            // ensure the outputs are a permutation of the inputs
+            a_val.sort();
+            b_val.sort();
+            assert_eq!(a_val, b_val);
+        }
+    }
+}
