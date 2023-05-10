@@ -107,11 +107,11 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
     // Consist of 2 kernels
     // 8 commitments (4 per kernel) -> 8 fields
     // 8 nullifiers (4 per kernel) -> 8 fields
-    // 8 public state transitions (4 per kernel) -> 16 fields
+    // 8 public data update requests (4 per kernel) -> 16 fields
     // 4 l2 -> l1 messages (2 per kernel) -> 4 fields
     // 2 contract deployments (1 per kernel) -> 6 fields
     auto const number_of_inputs =
-        (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + STATE_TRANSITIONS_LENGTH * 2 +
+        (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 +
          KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3) *
         2;
     std::array<NT::fr, number_of_inputs> calldata_hash_inputs;
@@ -119,7 +119,7 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
     for (size_t i = 0; i < 2; i++) {
         auto new_commitments = kernel_data[i].public_inputs.end.new_commitments;
         auto new_nullifiers = kernel_data[i].public_inputs.end.new_nullifiers;
-        auto state_transitions = kernel_data[i].public_inputs.end.state_transitions;
+        auto public_data_update_requests = kernel_data[i].public_inputs.end.public_data_update_requests;
         auto newL2ToL1msgs = kernel_data[i].public_inputs.end.new_l2_to_l1_msgs;
 
         size_t offset = 0;
@@ -134,12 +134,13 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         }
         offset += KERNEL_NEW_NULLIFIERS_LENGTH * 2;
 
-        for (size_t j = 0; j < STATE_TRANSITIONS_LENGTH; j++) {
-            calldata_hash_inputs[offset + i * STATE_TRANSITIONS_LENGTH * 2 + j * 2] = state_transitions[j].leaf_index;
-            calldata_hash_inputs[offset + i * STATE_TRANSITIONS_LENGTH * 2 + j * 2 + 1] =
-                state_transitions[j].new_value;
+        for (size_t j = 0; j < KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH; j++) {
+            calldata_hash_inputs[offset + i * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 + j * 2] =
+                public_data_update_requests[j].leaf_index;
+            calldata_hash_inputs[offset + i * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 + j * 2 + 1] =
+                public_data_update_requests[j].new_value;
         }
-        offset += STATE_TRANSITIONS_LENGTH * 2 * 2;
+        offset += KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 * 2;
 
         for (size_t j = 0; j < KERNEL_NEW_L2_TO_L1_MSGS_LENGTH; j++) {
             calldata_hash_inputs[offset + i * KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + j] = newL2ToL1msgs[j];

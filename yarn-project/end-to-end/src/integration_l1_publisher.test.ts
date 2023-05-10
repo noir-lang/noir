@@ -7,8 +7,8 @@ import {
   KERNEL_NEW_NULLIFIERS_LENGTH,
   KernelCircuitPublicInputs,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-  PublicDataTransition,
-  STATE_TRANSITIONS_LENGTH,
+  PublicDataUpdateRequest,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   range,
 } from '@aztec/circuits.js';
 import { fr, makeNewContractData, makeProof } from '@aztec/circuits.js/factories';
@@ -129,8 +129,8 @@ describe('L1Publisher integration', () => {
     const publicTx = makePublicTx(seed);
     const kernelOutput = KernelCircuitPublicInputs.empty();
     kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
-    kernelOutput.end.stateTransitions = range(STATE_TRANSITIONS_LENGTH, seed + 0x500).map(
-      i => new PublicDataTransition(fr(i), fr(0), fr(i + 10)),
+    kernelOutput.end.publicDataUpdateRequests = range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x500).map(
+      i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),
     );
 
     const tx = await makeProcessedTx(publicTx, kernelOutput, makeProof());

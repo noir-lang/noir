@@ -5,7 +5,7 @@ import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-l
 import { acvm, frToAztecAddress, frToSelector, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution, PublicExecutionResult } from './execution.js';
-import { StateActionsCollector } from './state_actions.js';
+import { ContractStorageActionsCollector } from './state_actions.js';
 
 // Copied from crate::abi at noir-contracts/src/contracts/noir-aztec3/src/abi.nr
 const NOIR_MAX_RETURN_VALUES = 4;
@@ -35,7 +35,7 @@ export class PublicExecutor {
     if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toShortString()}:${selectorHex}`);
 
     const initialWitness = getInitialWitness(execution.args, execution.callContext);
-    const stateActions = new StateActionsCollector(this.stateDb, execution.contractAddress);
+    const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);
     const nestedExecutions: PublicExecutionResult[] = [];
 
     const notAvailable = () => Promise.reject(`Built-in not available for public execution simulation`);
@@ -50,14 +50,14 @@ export class PublicExecutor {
       viewNotesPage: notAvailable,
       storageRead: async ([slot]) => {
         const storageSlot = fromACVMField(slot);
-        const value = await stateActions.read(storageSlot);
+        const value = await storageActions.read(storageSlot);
         this.log(`Oracle storage read: slot=${storageSlot.toShortString()} value=${value.toString()}`);
         return [toACVMField(value)];
       },
       storageWrite: async ([slot, value]) => {
         const storageSlot = fromACVMField(slot);
         const newValue = fromACVMField(value);
-        await stateActions.write(storageSlot, newValue);
+        await storageActions.write(storageSlot, newValue);
         this.log(`Oracle storage write: slot=${storageSlot.toShortString()} value=${value.toString()}`);
         return [toACVMField(newValue)];
       },
@@ -77,11 +77,11 @@ export class PublicExecutor {
     });
 
     const returnValues = selectPublicWitnessFlattened(acir, partialWitness).map(fromACVMField);
-    const [stateReads, stateTransitions] = stateActions.collect();
+    const [contractStorageReads, contractStorageUpdateRequests] = storageActions.collect();
 
     return {
-      stateReads,
-      stateTransitions,
+      contractStorageReads,
+      contractStorageUpdateRequests,
       returnValues,
       nestedExecutions,
     };

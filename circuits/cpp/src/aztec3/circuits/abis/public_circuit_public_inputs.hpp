@@ -1,8 +1,8 @@
 #pragma once
 
 #include "call_context.hpp"
-#include "state_read.hpp"
-#include "state_transition.hpp"
+#include "contract_storage_read.hpp"
+#include "contract_storage_update_request.hpp"
 #include "../../constants.hpp"
 
 #include <aztec3/utils/array.hpp>
@@ -30,8 +30,9 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
     std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = zero_array<fr, EMITTED_EVENTS_LENGTH>();
 
-    std::array<StateTransition<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions{};
-    std::array<StateRead<NCT>, STATE_READS_LENGTH> state_reads{};
+    std::array<ContractStorageUpdateRequest<NCT>, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH>
+        contract_storage_update_requests{};
+    std::array<ContractStorageRead<NCT>, KERNEL_PUBLIC_DATA_READS_LENGTH> contract_storage_reads{};
 
     std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = zero_array<fr, PUBLIC_CALL_STACK_LENGTH>();
     std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs = zero_array<fr, NEW_L2_TO_L1_MSGS_LENGTH>();
@@ -43,8 +44,9 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     boolean operator==(PublicCircuitPublicInputs<NCT> const& other) const
     {
         return call_context == other.call_context && args == other.args && return_values == other.return_values &&
-               emitted_events == other.emitted_events && state_transitions == other.state_transitions &&
-               state_reads == other.state_reads && public_call_stack == other.public_call_stack &&
+               emitted_events == other.emitted_events &&
+               contract_storage_update_requests == other.contract_storage_update_requests &&
+               contract_storage_reads == other.contract_storage_reads && public_call_stack == other.public_call_stack &&
                new_l2_to_l1_msgs == other.new_l2_to_l1_msgs &&
                historic_public_data_tree_root == other.historic_public_data_tree_root &&
                prover_address == other.prover_address;
@@ -67,8 +69,8 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
             .emitted_events = to_ct(emitted_events),
 
-            .state_transitions = map(state_transitions, to_circuit_type),
-            .state_reads = map(state_reads, to_circuit_type),
+            .contract_storage_update_requests = map(contract_storage_update_requests, to_circuit_type),
+            .contract_storage_reads = map(contract_storage_reads, to_circuit_type),
 
             .public_call_stack = to_ct(public_call_stack),
             .new_l2_to_l1_msgs = to_ct(new_l2_to_l1_msgs),
@@ -96,8 +98,8 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
         spread_arr_into_vec(emitted_events, inputs);
 
-        spread_arr_into_vec(map(state_transitions, to_hashes), inputs);
-        spread_arr_into_vec(map(state_reads, to_hashes), inputs);
+        spread_arr_into_vec(map(contract_storage_update_requests, to_hashes), inputs);
+        spread_arr_into_vec(map(contract_storage_reads, to_hashes), inputs);
 
         spread_arr_into_vec(public_call_stack, inputs);
         spread_arr_into_vec(new_l2_to_l1_msgs, inputs);
@@ -124,8 +126,8 @@ template <typename NCT> void read(uint8_t const*& it, PublicCircuitPublicInputs<
     read(it, pis.return_values);
     read(it, pis.emitted_events);
 
-    read(it, pis.state_transitions);
-    read(it, pis.state_reads);
+    read(it, pis.contract_storage_update_requests);
+    read(it, pis.contract_storage_reads);
 
     read(it, pis.public_call_stack);
     read(it, pis.new_l2_to_l1_msgs);
@@ -147,8 +149,8 @@ void write(std::vector<uint8_t>& buf, PublicCircuitPublicInputs<NCT> const& publ
     write(buf, pis.return_values);
     write(buf, pis.emitted_events);
 
-    write(buf, pis.state_transitions);
-    write(buf, pis.state_reads);
+    write(buf, pis.contract_storage_update_requests);
+    write(buf, pis.contract_storage_reads);
 
     write(buf, pis.public_call_stack);
     write(buf, pis.new_l2_to_l1_msgs);
@@ -168,8 +170,8 @@ std::ostream& operator<<(std::ostream& os, PublicCircuitPublicInputs<NCT> const&
               << "return_values: " << pis.return_values << "\n"
               << "emitted_events: " << pis.emitted_events << "\n"
 
-              << "state_transitions: " << pis.state_transitions << "\n"
-              << "state_reads: " << pis.state_reads << "\n"
+              << "contract_storage_update_requests: " << pis.contract_storage_update_requests << "\n"
+              << "contract_storage_reads: " << pis.contract_storage_reads << "\n"
 
               << "public_call_stack: " << pis.public_call_stack << "\n"
               << "new_l2_to_l1_msgs: " << pis.new_l2_to_l1_msgs << "\n"

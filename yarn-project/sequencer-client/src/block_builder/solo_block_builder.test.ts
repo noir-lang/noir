@@ -5,7 +5,7 @@ import {
   Fr,
   KernelCircuitPublicInputs,
   PublicDataRead,
-  PublicDataTransition,
+  PublicDataUpdateRequest,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   RootRollupPublicInputs,
   UInt8Vector,
@@ -13,7 +13,7 @@ import {
   range,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
-  STATE_TRANSITIONS_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
@@ -121,7 +121,7 @@ describe('sequencer/solo_block_builder', () => {
     ] as const) {
       await expectsDb.appendLeaves(tree, leaves);
     }
-    for (const write of txs.flatMap(tx => tx.data.end.stateTransitions)) {
+    for (const write of txs.flatMap(tx => tx.data.end.publicDataUpdateRequests)) {
       await expectsDb.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, write.newValue.toBuffer(), write.leafIndex.value);
     }
   };
@@ -193,7 +193,7 @@ describe('sequencer/solo_block_builder', () => {
       n => new ContractData(n.contractAddress, n.portalContractAddress),
     );
     const newPublicDataWrites = flatMap(txs, tx =>
-      tx.data.end.stateTransitions.map(t => new PublicDataWrite(t.leafIndex, t.newValue)),
+      tx.data.end.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafIndex, t.newValue)),
     );
     const newL2ToL1Msgs = flatMap(txs, tx => tx.data.end.newL2ToL1Msgs);
 
@@ -295,8 +295,8 @@ describe('sequencer/solo_block_builder', () => {
     const makePublicCallProcessedTx = async (seed = 0x1) => {
       const publicTx = makePublicTx(seed);
       const kernelOutput = KernelCircuitPublicInputs.empty();
-      kernelOutput.end.stateReads[0] = new PublicDataRead(fr(1), fr(0));
-      kernelOutput.end.stateTransitions[0] = new PublicDataTransition(fr(2), fr(0), fr(12));
+      kernelOutput.end.publicDataReads[0] = new PublicDataRead(fr(1), fr(0));
+      kernelOutput.end.publicDataUpdateRequests[0] = new PublicDataUpdateRequest(fr(2), fr(0), fr(12));
       kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
       return await makeProcessedTx(publicTx, kernelOutput, makeProof());
     };
@@ -305,8 +305,8 @@ describe('sequencer/solo_block_builder', () => {
       const publicTx = makePublicTx(seed);
       const kernelOutput = KernelCircuitPublicInputs.empty();
       kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
-      kernelOutput.end.stateTransitions = range(STATE_TRANSITIONS_LENGTH, seed + 0x500).map(
-        i => new PublicDataTransition(fr(i), fr(0), fr(i + 10)),
+      kernelOutput.end.publicDataUpdateRequests = range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x500).map(
+        i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),
       );
 
       const tx = await makeProcessedTx(publicTx, kernelOutput, makeProof());

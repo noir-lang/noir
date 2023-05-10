@@ -2,7 +2,7 @@
 #include "init.hpp"
 #include "nullifier_tree_testing_harness.hpp"
 
-#include "aztec3/circuits/abis/public_data_transition.hpp"
+#include "aztec3/circuits/abis/public_data_update_request.hpp"
 #include "aztec3/constants.hpp"
 
 #include "barretenberg/numeric/uint256/uint256.hpp"
@@ -105,9 +105,9 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer,
 
 MergeRollupInputs get_merge_rollup_inputs(utils::DummyComposer& composer, std::array<KernelData, 4> kernel_data);
 
-inline abis::PublicDataTransition<NT> make_public_write(fr leaf_index, fr old_value, fr new_value)
+inline abis::PublicDataUpdateRequest<NT> make_public_data_update_request(fr leaf_index, fr old_value, fr new_value)
 {
-    return abis::PublicDataTransition<NT>{
+    return abis::PublicDataUpdateRequest<NT>{
         .leaf_index = leaf_index,
         .old_value = old_value,
         .new_value = new_value,

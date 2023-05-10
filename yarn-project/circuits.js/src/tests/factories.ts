@@ -26,13 +26,13 @@ import {
   PublicCallData,
   PublicCircuitPublicInputs,
   PublicDataRead,
-  PublicDataTransition,
+  PublicDataUpdateRequest,
   PublicKernelInputs,
   PublicKernelInputsNoPreviousKernel,
   RootRollupInputs,
   RootRollupPublicInputs,
-  StateRead,
-  StateTransition,
+  ContractStorageRead,
+  ContractStorageUpdateRequest,
   WitnessedPublicCallData,
 } from '../index.js';
 import { AggregationObject } from '../structs/aggregation_object.js';
@@ -63,8 +63,8 @@ import {
   PUBLIC_DATA_TREE_HEIGHT,
   RETURN_VALUES_LENGTH,
   ROLLUP_VK_TREE_HEIGHT,
-  STATE_READS_LENGTH,
-  STATE_TRANSITIONS_LENGTH,
+  KERNEL_PUBLIC_DATA_READS_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   VK_TREE_HEIGHT,
   L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
 } from '../structs/constants.js';
@@ -102,12 +102,12 @@ export function makeSelector(seed: number) {
   return buffer;
 }
 
-export function makePublicDataTransition(seed = 1) {
-  return new PublicDataTransition(fr(seed), fr(seed + 1), fr(seed + 2));
+export function makePublicDataUpdateRequest(seed = 1) {
+  return new PublicDataUpdateRequest(fr(seed), fr(seed + 1), fr(seed + 2));
 }
 
-export function makeEmptyPublicDataTransition() {
-  return new PublicDataTransition(fr(0), fr(0), fr(0));
+export function makeEmptyPublicDataUpdateRequest() {
+  return new PublicDataUpdateRequest(fr(0), fr(0), fr(0));
 }
 
 export function makePublicDataRead(seed = 1) {
@@ -118,12 +118,12 @@ export function makeEmptyPublicDataRead() {
   return new PublicDataRead(fr(0), fr(0));
 }
 
-export function makeStateTransition(seed = 1) {
-  return new StateTransition(fr(seed), fr(seed + 1), fr(seed + 2));
+export function makeContractStorageUpdateRequest(seed = 1) {
+  return new ContractStorageUpdateRequest(fr(seed), fr(seed + 1), fr(seed + 2));
 }
 
-export function makeStateRead(seed = 1) {
-  return new StateRead(fr(seed), fr(seed + 1));
+export function makeContractStorageRead(seed = 1) {
+  return new ContractStorageRead(fr(seed), fr(seed + 1));
 }
 
 export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
@@ -138,8 +138,8 @@ export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
     range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x500).map(fr),
     range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
     range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(makeOptionallyRevealedData),
-    range(STATE_TRANSITIONS_LENGTH, seed + 0x800).map(makeEmptyPublicDataTransition),
-    range(STATE_READS_LENGTH, seed + 0x900).map(makeEmptyPublicDataRead),
+    range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x800).map(makeEmptyPublicDataUpdateRequest),
+    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x900).map(makeEmptyPublicDataRead),
   );
 }
 
@@ -155,8 +155,8 @@ export function makeAccumulatedData(seed = 1): CombinedAccumulatedData {
     range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x500).map(fr),
     range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
     range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(makeOptionallyRevealedData),
-    range(STATE_TRANSITIONS_LENGTH, seed + 0x800).map(makePublicDataTransition),
-    range(STATE_READS_LENGTH, seed + 0x900).map(makePublicDataRead),
+    range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x800).map(makePublicDataUpdateRequest),
+    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x900).map(makePublicDataRead),
   );
 }
 
@@ -201,8 +201,8 @@ export function makePublicCircuitPublicInputs(
     frArray(ARGS_LENGTH, seed + 0x100),
     frArray(RETURN_VALUES_LENGTH, seed + 0x200),
     frArray(EMITTED_EVENTS_LENGTH, seed + 0x300),
-    range(STATE_TRANSITIONS_LENGTH, seed + 0x400).map(makeStateTransition),
-    range(STATE_READS_LENGTH, seed + 0x500).map(makeStateRead),
+    range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x400).map(makeContractStorageUpdateRequest),
+    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x500).map(makeContractStorageRead),
     frArray(PUBLIC_CALL_STACK_LENGTH, seed + 0x600),
     frArray(NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x700),
     fr(seed + 0x800),
@@ -309,8 +309,10 @@ export async function makePublicCallData(seed = 1) {
 export async function makeWitnessedPublicCallData(seed = 1): Promise<WitnessedPublicCallData> {
   return new WitnessedPublicCallData(
     await makePublicCallData(seed),
-    range(STATE_TRANSITIONS_LENGTH, seed + 0x100).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
-    range(STATE_READS_LENGTH, seed + 0x200).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
+    range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x100).map(x =>
+      makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x),
+    ),
+    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x200).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
     fr(seed + 0x300),
   );
 }
@@ -538,11 +540,12 @@ export function makeBaseRollupInputs(seed = 0) {
     seed + 0x5000,
   ).map(x => fr(x));
 
-  const newStateTransitionsSiblingPaths = range(2 * STATE_TRANSITIONS_LENGTH, seed + 0x6000).map(x =>
-    makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x),
-  );
+  const newPublicDataUpdateRequestsSiblingPaths = range(
+    2 * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+    seed + 0x6000,
+  ).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x));
 
-  const newStateReadsSiblingPaths = range(2 * STATE_READS_LENGTH, seed + 0x6000).map(x =>
+  const newPublicDataReadsSiblingPaths = range(2 * KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x6000).map(x =>
     makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x),
   );
 
@@ -576,8 +579,8 @@ export function makeBaseRollupInputs(seed = 0) {
     newCommitmentsSubtreeSiblingPath,
     newNullifiersSubtreeSiblingPath,
     newContractsSubtreeSiblingPath,
-    newStateTransitionsSiblingPaths,
-    newStateReadsSiblingPaths,
+    newPublicDataUpdateRequestsSiblingPaths,
+    newPublicDataReadsSiblingPaths,
     historicPrivateDataTreeRootMembershipWitnesses,
     historicContractsTreeRootMembershipWitnesses,
     historicL1ToL2MsgTreeRootMembershipWitnesses,

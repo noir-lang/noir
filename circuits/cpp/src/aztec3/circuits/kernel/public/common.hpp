@@ -2,22 +2,22 @@
 
 #include "init.hpp"
 
+#include <aztec3/circuits/abis/contract_storage_read.hpp>
+#include <aztec3/circuits/abis/contract_storage_update_request.hpp>
 #include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/public_data_transition.hpp>
+#include <aztec3/circuits/abis/public_data_update_request.hpp>
 #include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
 #include <aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp>
-#include <aztec3/circuits/abis/state_read.hpp>
-#include <aztec3/circuits/abis/state_transition.hpp>
 #include <aztec3/circuits/hash.hpp>
 #include <aztec3/utils/array.hpp>
 #include <aztec3/utils/dummy_composer.hpp>
 
 using NT = aztec3::utils::types::NativeTypes;
+using aztec3::circuits::abis::ContractStorageRead;
+using aztec3::circuits::abis::ContractStorageUpdateRequest;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
-using aztec3::circuits::abis::PublicDataTransition;
-using aztec3::circuits::abis::StateRead;
-using aztec3::circuits::abis::StateTransition;
+using aztec3::circuits::abis::PublicDataUpdateRequest;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputsNoPreviousKernel;
 using DummyComposer = aztec3::utils::DummyComposer;
@@ -116,10 +116,12 @@ void common_validate_call_stack(DummyComposer& composer, KernelInput const& publ
                                   "; does not reconcile"),
                            CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_PORTAL_ADDRESS);
 
-        const auto num_state_transitions = array_length(preimage.public_inputs.state_transitions);
-        composer.do_assert(!is_static_call || num_state_transitions == 0,
-                           format("call_state_transitions[", i, "] should be empty"),
-                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_TRANSITIONS_PROHIBITED_FOR_STATIC_CALL);
+        const auto num_contract_storage_update_requests =
+            array_length(preimage.public_inputs.contract_storage_update_requests);
+        composer.do_assert(
+            !is_static_call || num_contract_storage_update_requests == 0,
+            format("contract_storage_update_requests[", i, "] should be empty"),
+            CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_CONTRACT_STORAGE_UPDATES_PROHIBITED_FOR_STATIC_CALL);
     }
 };
 
@@ -137,15 +139,17 @@ void common_validate_call_context(DummyComposer& composer, KernelInput const& pu
     const auto is_static_call = call_stack_item.public_inputs.call_context.is_static_call;
     const auto contract_address = call_stack_item.contract_address;
     const auto storage_contract_address = call_stack_item.public_inputs.call_context.storage_contract_address;
-    const auto state_transitions_length = array_length(call_stack_item.public_inputs.state_transitions);
+    const auto contract_storage_update_requests_length =
+        array_length(call_stack_item.public_inputs.contract_storage_update_requests);
 
     composer.do_assert(!is_delegate_call || contract_address != storage_contract_address,
                        std::string("call_context contract_address == storage_contract_address on delegate_call"),
                        CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
 
-    composer.do_assert(!is_static_call || state_transitions_length == 0,
-                       std::string("call_context state transitions found on static call"),
-                       CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_TRANSITIONS_PROHIBITED_FOR_STATIC_CALL);
+    composer.do_assert(
+        !is_static_call || contract_storage_update_requests_length == 0,
+        std::string("call_context contract storage update requests found on static call"),
+        CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_CONTRACT_STORAGE_UPDATE_REQUESTS_PROHIBITED_FOR_STATIC_CALL);
 };
 
 /**
@@ -194,56 +198,58 @@ void common_validate_inputs(DummyComposer& composer, KernelInput const& public_k
 }
 
 /**
- * @brief Proagates valid (i.e. non-empty) state transitions from this iteration to the circuit output
+ * @brief Proagates valid (i.e. non-empty) update requests from this iteration to the circuit output
  * @tparam The type of kernel input
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput> void propagate_valid_state_transitions(KernelInput const& public_kernel_inputs,
+template <typename KernelInput>
+void propagate_valid_public_data_update_requests(KernelInput const& public_kernel_inputs,
+                                                 KernelCircuitPublicInputs<NT>& circuit_outputs)
+{
+    const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
+    const auto& update_requests =
+        public_kernel_inputs.public_call.call_stack_item.public_inputs.contract_storage_update_requests;
+    for (size_t i = 0; i < KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH; ++i) {
+        const auto& update_request = update_requests[i];
+        if (update_request.is_empty()) {
+            continue;
+        }
+        const auto new_write = PublicDataUpdateRequest<NT>{
+            .leaf_index = compute_public_data_tree_index<NT>(contract_address, update_request.storage_slot),
+            .old_value = compute_public_data_tree_value<NT>(update_request.old_value),
+            .new_value = compute_public_data_tree_value<NT>(update_request.new_value),
+        };
+        array_push(circuit_outputs.end.public_data_update_requests, new_write);
+    }
+}
+
+/**
+ * @brief Proagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
+ * @tparam The type of kernel input
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ * @param circuit_outputs The circuit outputs to be populated
+ */
+template <typename KernelInput> void propagate_valid_public_data_reads(KernelInput const& public_kernel_inputs,
                                                                        KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
-    const auto& transitions = public_kernel_inputs.public_call.call_stack_item.public_inputs.state_transitions;
-    for (size_t i = 0; i < STATE_TRANSITIONS_LENGTH; ++i) {
-        const auto& state_transition = transitions[i];
-        if (state_transition.is_empty()) {
-            continue;
-        }
-        const auto new_write = PublicDataTransition<NT>{
-            .leaf_index = compute_public_data_tree_index<NT>(contract_address, state_transition.storage_slot),
-            .old_value = compute_public_data_tree_value<NT>(state_transition.old_value),
-            .new_value = compute_public_data_tree_value<NT>(state_transition.new_value),
-        };
-        array_push(circuit_outputs.end.state_transitions, new_write);
-    }
-}
-
-/**
- * @brief Proagates valid (i.e. non-empty) state reads from this iteration to the circuit output
- * @tparam The type of kernel input
- * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
- * @param circuit_outputs The circuit outputs to be populated
- */
-template <typename KernelInput> void propagate_valid_state_reads(KernelInput const& public_kernel_inputs,
-                                                                 KernelCircuitPublicInputs<NT>& circuit_outputs)
-{
-    const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
-    const auto& reads = public_kernel_inputs.public_call.call_stack_item.public_inputs.state_reads;
-    for (size_t i = 0; i < STATE_READS_LENGTH; ++i) {
-        const auto& state_read = reads[i];
-        if (state_read.is_empty()) {
+    const auto& reads = public_kernel_inputs.public_call.call_stack_item.public_inputs.contract_storage_reads;
+    for (size_t i = 0; i < KERNEL_PUBLIC_DATA_READS_LENGTH; ++i) {
+        const auto& contract_storage_read = reads[i];
+        if (contract_storage_read.is_empty()) {
             continue;
         }
         const auto new_read = PublicDataRead<NT>{
-            .leaf_index = compute_public_data_tree_index<NT>(contract_address, state_read.storage_slot),
-            .value = compute_public_data_tree_value<NT>(state_read.current_value),
+            .leaf_index = compute_public_data_tree_index<NT>(contract_address, contract_storage_read.storage_slot),
+            .value = compute_public_data_tree_value<NT>(contract_storage_read.current_value),
         };
-        array_push(circuit_outputs.end.state_reads, new_read);
+        array_push(circuit_outputs.end.public_data_reads, new_read);
     }
 }
 
 /**
- * @brief Proagates valid (i.e. non-empty) state reads from this iteration to the circuit output
+ * @brief Propagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
  * @tparam The type of kernel input
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
@@ -257,9 +263,9 @@ void update_public_end_values(KernelInput const& public_kernel_inputs, KernelCir
     const auto& stack = public_kernel_inputs.public_call.call_stack_item.public_inputs.public_call_stack;
     push_array_to_array(stack, circuit_outputs.end.public_call_stack);
 
-    propagate_valid_state_transitions(public_kernel_inputs, circuit_outputs);
+    propagate_valid_public_data_update_requests(public_kernel_inputs, circuit_outputs);
 
-    propagate_valid_state_reads(public_kernel_inputs, circuit_outputs);
+    propagate_valid_public_data_reads(public_kernel_inputs, circuit_outputs);
 }
 
 /**

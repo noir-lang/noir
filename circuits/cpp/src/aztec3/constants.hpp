@@ -11,9 +11,6 @@ constexpr size_t EMITTED_EVENTS_LENGTH = 4;
 constexpr size_t NEW_COMMITMENTS_LENGTH = 4;
 constexpr size_t NEW_NULLIFIERS_LENGTH = 4;
 
-constexpr size_t STATE_TRANSITIONS_LENGTH = 4;
-constexpr size_t STATE_READS_LENGTH = 4;
-
 constexpr size_t PRIVATE_CALL_STACK_LENGTH = 4;
 constexpr size_t PUBLIC_CALL_STACK_LENGTH = 4;
 constexpr size_t NEW_L2_TO_L1_MSGS_LENGTH = 2;
@@ -25,6 +22,8 @@ constexpr size_t KERNEL_PRIVATE_CALL_STACK_LENGTH = 8;
 constexpr size_t KERNEL_PUBLIC_CALL_STACK_LENGTH = 8;
 constexpr size_t KERNEL_NEW_L2_TO_L1_MSGS_LENGTH = 2;
 constexpr size_t KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH = 4;
+constexpr size_t KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH = 4;
+constexpr size_t KERNEL_PUBLIC_DATA_READS_LENGTH = 4;
 
 constexpr size_t VK_TREE_HEIGHT = 3;
 constexpr size_t FUNCTION_TREE_HEIGHT = 4;
@@ -66,8 +65,8 @@ enum GeneratorIndex {
     NULLIFIER,
     INITIALISATION_NULLIFIER,
     OUTER_NULLIFIER,
-    STATE_READ,
-    STATE_TRANSITION,
+    PUBLIC_DATA_READ,
+    PUBLIC_DATA_UPDATE_REQUEST,
     VK,
     FUNCTION_DATA,
     FUNCTION_LEAF,

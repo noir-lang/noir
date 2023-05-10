@@ -28,12 +28,12 @@ template <typename NCT> struct PublicDataRead {
         // Capture the composer:
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
-        PublicDataRead<CircuitTypes<Composer>> state_transition = {
+        PublicDataRead<CircuitTypes<Composer>> read = {
             to_ct(leaf_index),
             to_ct(value),
         };
 
-        return state_transition;
+        return read;
     };
 
     template <typename Composer> PublicDataRead<NativeTypes> to_native_type() const
@@ -42,12 +42,12 @@ template <typename NCT> struct PublicDataRead {
 
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
-        PublicDataRead<NativeTypes> state_transition = {
+        PublicDataRead<NativeTypes> read = {
             to_nt(leaf_index),
             to_nt(value),
         };
 
-        return state_transition;
+        return read;
     };
 
     fr hash() const
@@ -57,7 +57,7 @@ template <typename NCT> struct PublicDataRead {
             value,
         };
 
-        return NCT::compress(inputs, GeneratorIndex::STATE_READ);
+        return NCT::compress(inputs, GeneratorIndex::PUBLIC_DATA_READ);
     }
 
     void set_public()
@@ -71,26 +71,26 @@ template <typename NCT> struct PublicDataRead {
     boolean is_empty() const { return leaf_index == 0; }
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicDataRead<NCT>& state_transition)
+template <typename NCT> void read(uint8_t const*& it, PublicDataRead<NCT>& publicDataRead)
 {
     using serialize::read;
 
-    read(it, state_transition.leaf_index);
-    read(it, state_transition.value);
+    read(it, publicDataRead.leaf_index);
+    read(it, publicDataRead.value);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, PublicDataRead<NCT> const& state_transition)
+template <typename NCT> void write(std::vector<uint8_t>& buf, PublicDataRead<NCT> const& publicDataRead)
 {
     using serialize::write;
 
-    write(buf, state_transition.leaf_index);
-    write(buf, state_transition.value);
+    write(buf, publicDataRead.leaf_index);
+    write(buf, publicDataRead.value);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataRead<NCT> const& state_transition)
+template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataRead<NCT> const& publicDataRead)
 {
-    return os << "leaf_index: " << state_transition.leaf_index << "\n"
-              << "value: " << state_transition.value << "\n";
+    return os << "leaf_index: " << publicDataRead.leaf_index << "\n"
+              << "value: " << publicDataRead.value << "\n";
 }
 
 }  // namespace aztec3::circuits::abis

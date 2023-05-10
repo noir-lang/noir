@@ -1,19 +1,19 @@
-import { StateRead, StateTransition } from '@aztec/circuits.js';
+import { ContractStorageRead, ContractStorageUpdateRequest } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { PublicStateDB } from './db.js';
 
 /**
- * Implements state read/write operations on a contract public storage, collecting
- * all state read and transitions operations, and collapsing them into a single
- * read or transition per slot.
+ * Implements read/write operations on a contract public storage, collecting
+ * all read and update operations, and collapsing them into a single
+ * read or update per slot.
  */
-export class StateActionsCollector {
+export class ContractStorageActionsCollector {
   // Map from slot to first read value
-  private readonly stateReads: Map<bigint, { /** The value read. */ value: Fr }> = new Map();
+  private readonly contractStorageReads: Map<bigint, { /** The value read. */ value: Fr }> = new Map();
 
   // Map from slot to first read value and latest updated value
-  private readonly stateTransitions: Map<
+  private readonly contractStorageUpdateRequests: Map<
     bigint,
     { /** The old value. */ oldValue: Fr; /** The updated value. */ newValue: Fr }
   > = new Map();
@@ -21,68 +21,68 @@ export class StateActionsCollector {
   constructor(private db: PublicStateDB, private address: AztecAddress) {}
 
   /**
-   * Returns the current value of a slot according to the latest transition for it,
-   * falling back to the public db. Collects the operation in state reads,
-   * as long as there is no existing state transition.
+   * Returns the current value of a slot according to the latest update request for it,
+   * falling back to the public db. Collects the operation in storage reads,
+   * as long as there is no existing update request.
    * @param storageSlot - Slot to check.
-   * @returns The current value as affected by all state transitions so far.
+   * @returns The current value as affected by all update requests so far.
    */
   public async read(storageSlot: Fr): Promise<Fr> {
     const slot = storageSlot.value;
-    const transition = this.stateTransitions.get(slot);
-    if (transition) return transition.newValue;
-    const read = this.stateReads.get(slot);
+    const updateRequest = this.contractStorageUpdateRequests.get(slot);
+    if (updateRequest) return updateRequest.newValue;
+    const read = this.contractStorageReads.get(slot);
     if (read) return read.value;
     const value = await this.db.storageRead(this.address, storageSlot);
-    this.stateReads.set(slot, { value });
+    this.contractStorageReads.set(slot, { value });
     return value;
   }
 
   /**
-   * Sets a new value for a slot in the internal state transitions cache,
-   * clearing any previous state read or transition operation for the same slot.
+   * Sets a new value for a slot in the internal update requests cache,
+   * clearing any previous storage read or update operation for the same slot.
    * @param storageSlot - Slot to write to.
    * @param newValue - Balue to write to it.
    */
   public async write(storageSlot: Fr, newValue: Fr): Promise<void> {
     const slot = storageSlot.value;
-    const transition = this.stateTransitions.get(slot);
-    if (transition) {
-      this.stateTransitions.set(slot, { oldValue: transition.oldValue, newValue });
+    const updateRequest = this.contractStorageUpdateRequests.get(slot);
+    if (updateRequest) {
+      this.contractStorageUpdateRequests.set(slot, { oldValue: updateRequest.oldValue, newValue });
       return;
     }
 
-    const read = this.stateReads.get(slot);
+    const read = this.contractStorageReads.get(slot);
     if (read) {
-      this.stateReads.delete(slot);
-      this.stateTransitions.set(slot, { oldValue: read.value, newValue });
+      this.contractStorageReads.delete(slot);
+      this.contractStorageUpdateRequests.set(slot, { oldValue: read.value, newValue });
       return;
     }
 
     const oldValue = await this.db.storageRead(this.address, storageSlot);
-    this.stateTransitions.set(slot, { oldValue, newValue });
+    this.contractStorageUpdateRequests.set(slot, { oldValue, newValue });
     return;
   }
 
   /**
-   * Returns all state read and transitions performed.
-   * @returns All state read and transitions.
+   * Returns all storage reads and update requests performed.
+   * @returns All storage read and update requests.
    */
-  public collect(): [StateRead[], StateTransition[]] {
-    const reads = Array.from(this.stateReads.entries()).map(([slot, value]) =>
-      StateRead.from({
+  public collect(): [ContractStorageRead[], ContractStorageUpdateRequest[]] {
+    const reads = Array.from(this.contractStorageReads.entries()).map(([slot, value]) =>
+      ContractStorageRead.from({
         storageSlot: new Fr(slot),
         ...value,
       }),
     );
 
-    const transitions = Array.from(this.stateTransitions.entries()).map(([slot, values]) =>
-      StateTransition.from({
+    const updateRequests = Array.from(this.contractStorageUpdateRequests.entries()).map(([slot, values]) =>
+      ContractStorageUpdateRequest.from({
         storageSlot: new Fr(slot),
         ...values,
       }),
     );
 
-    return [reads, transitions];
+    return [reads, updateRequests];
   }
 }

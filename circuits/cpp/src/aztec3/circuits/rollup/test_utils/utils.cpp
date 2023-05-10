@@ -54,7 +54,7 @@ namespace aztec3::circuits::rollup::test_utils::utils {
 std::vector<uint8_t> get_empty_calldata_leaf()
 {
     auto const number_of_inputs =
-        (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + STATE_TRANSITIONS_LENGTH * 2 +
+        (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 +
          KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3) *
         2;
     auto const size = number_of_inputs * 32;
@@ -149,57 +149,59 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
 
 
     // Update public data tree to generate sibling paths: we first set the initial public data tree to the result of all
-    // state reads and old_values from state transitions. Note that, if the right tx reads or writes an index that was
-    // already processed by the left one, we don't want to reflect that as part of the initial state, so we skip those.
+    // public data reads and old_values from public data update requests. Note that, if the right tx reads or writes an
+    // index that was already processed by the left one, we don't want to reflect that as part of the initial state, so
+    // we skip those.
     std::set<uint256_t> visited_indices;
     for (size_t i = 0; i < 2; i++) {
-        for (auto state_read : kernel_data[i].public_inputs.end.state_reads) {
-            auto leaf_index = uint256_t(state_read.leaf_index);
-            if (state_read.is_empty() || visited_indices.contains(leaf_index)) {
+        for (auto public_data_read : kernel_data[i].public_inputs.end.public_data_reads) {
+            auto leaf_index = uint256_t(public_data_read.leaf_index);
+            if (public_data_read.is_empty() || visited_indices.contains(leaf_index)) {
                 continue;
             }
             visited_indices.insert(leaf_index);
-            public_data_tree.update_element(leaf_index, state_read.value);
+            public_data_tree.update_element(leaf_index, public_data_read.value);
         }
 
-        for (auto state_write : kernel_data[i].public_inputs.end.state_transitions) {
-            auto leaf_index = uint256_t(state_write.leaf_index);
-            if (state_write.is_empty() || visited_indices.contains(leaf_index)) {
+        for (auto public_data_update_request : kernel_data[i].public_inputs.end.public_data_update_requests) {
+            auto leaf_index = uint256_t(public_data_update_request.leaf_index);
+            if (public_data_update_request.is_empty() || visited_indices.contains(leaf_index)) {
                 continue;
             }
             visited_indices.insert(leaf_index);
-            public_data_tree.update_element(leaf_index, state_write.old_value);
+            public_data_tree.update_element(leaf_index, public_data_update_request.old_value);
         }
     }
 
     baseRollupInputs.start_public_data_tree_root = public_data_tree.root();
 
-    // Then we collect all sibling paths for the reads in the left tx, and then apply the state transitions while
+    // Then we collect all sibling paths for the reads in the left tx, and then apply the update requests while
     // collecting their paths. And then repeat for the right tx.
     for (size_t i = 0; i < 2; i++) {
-        for (size_t j = 0; j < STATE_READS_LENGTH; j++) {
-            auto state_read = kernel_data[i].public_inputs.end.state_reads[j];
-            if (state_read.is_empty()) {
+        for (size_t j = 0; j < KERNEL_PUBLIC_DATA_READS_LENGTH; j++) {
+            auto public_data_read = kernel_data[i].public_inputs.end.public_data_reads[j];
+            if (public_data_read.is_empty()) {
                 continue;
             }
-            auto leaf_index = uint256_t(state_read.leaf_index);
-            baseRollupInputs.new_state_reads_sibling_paths[i * STATE_READS_LENGTH + j] =
+            auto leaf_index = uint256_t(public_data_read.leaf_index);
+            baseRollupInputs.new_public_data_reads_sibling_paths[i * KERNEL_PUBLIC_DATA_READS_LENGTH + j] =
                 MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>{
-                    .leaf_index = state_read.leaf_index,
+                    .leaf_index = public_data_read.leaf_index,
                     .sibling_path = get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index),
                 };
         }
 
-        for (size_t j = 0; j < STATE_TRANSITIONS_LENGTH; j++) {
-            auto state_write = kernel_data[i].public_inputs.end.state_transitions[j];
-            if (state_write.is_empty()) {
+        for (size_t j = 0; j < KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH; j++) {
+            auto public_data_update_request = kernel_data[i].public_inputs.end.public_data_update_requests[j];
+            if (public_data_update_request.is_empty()) {
                 continue;
             }
-            auto leaf_index = uint256_t(state_write.leaf_index);
-            public_data_tree.update_element(leaf_index, state_write.new_value);
-            baseRollupInputs.new_state_transitions_sibling_paths[i * STATE_TRANSITIONS_LENGTH + j] =
+            auto leaf_index = uint256_t(public_data_update_request.leaf_index);
+            public_data_tree.update_element(leaf_index, public_data_update_request.new_value);
+            baseRollupInputs
+                .new_public_data_update_requests_sibling_paths[i * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH + j] =
                 MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>{
-                    .leaf_index = state_write.leaf_index,
+                    .leaf_index = public_data_update_request.leaf_index,
                     .sibling_path = get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index),
                 };
         }

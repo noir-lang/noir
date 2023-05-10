@@ -75,11 +75,11 @@ describe('ACIR public execution simulator', () => {
         expect(result.returnValues).toEqual([expectedBalance]);
 
         const storageSlot = computeSlotForMapping(new Fr(1n), recipient, bbWasm);
-        expect(result.stateTransitions).toEqual([
+        expect(result.contractStorageUpdateRequests).toEqual([
           { storageSlot, oldValue: previousBalance, newValue: expectedBalance },
         ]);
 
-        expect(result.stateReads).toEqual([]);
+        expect(result.contractStorageReads).toEqual([]);
       });
     });
 
@@ -143,15 +143,15 @@ describe('ACIR public execution simulator', () => {
 
         expect(result.returnValues).toEqual([expectedRecipientBalance]);
 
-        expect(result.stateTransitions).toEqual([
+        expect(result.contractStorageUpdateRequests).toEqual([
           { storageSlot: senderStorageSlot, oldValue: senderBalance, newValue: expectedSenderBalance },
           { storageSlot: recipientStorageSlot, oldValue: recipientBalance, newValue: expectedRecipientBalance },
         ]);
 
-        expect(result.stateReads).toEqual([]);
+        expect(result.contractStorageReads).toEqual([]);
       });
 
-      // State reads and writes are implemented as built-ins, which at the moment Noir does not
+      // Contract storage reads and update requests are implemented as built-ins, which at the moment Noir does not
       // now whether they have side-effects or not, so they get run even when their code path
       // is not picked by a conditional. Once that's fixed, we should re-enable this test.
       it.skip('should run the transfer function without enough sender balance', async () => {
@@ -163,12 +163,12 @@ describe('ACIR public execution simulator', () => {
 
         expect(result.returnValues).toEqual([recipientBalance]);
 
-        expect(result.stateReads).toEqual([
+        expect(result.contractStorageReads).toEqual([
           { storageSlot: recipientStorageSlot, value: recipientBalance },
           { storageSlot: senderStorageSlot, value: senderBalance },
         ]);
 
-        expect(result.stateTransitions).toEqual([]);
+        expect(result.contractStorageUpdateRequests).toEqual([]);
       });
     });
   });

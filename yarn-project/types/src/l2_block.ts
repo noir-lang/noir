@@ -3,7 +3,7 @@ import {
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
-  STATE_TRANSITIONS_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
 } from '@aztec/circuits.js';
@@ -131,7 +131,7 @@ export class L2Block {
     const newCommitments = times(KERNEL_NEW_COMMITMENTS_LENGTH * txsPerBlock, Fr.random);
     const newContracts = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, Fr.random);
     const newContractData = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, ContractData.random);
-    const newPublicDataWrites = times(STATE_TRANSITIONS_LENGTH * txsPerBlock, PublicDataWrite.random);
+    const newPublicDataWrites = times(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * txsPerBlock, PublicDataWrite.random);
     const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
     const newL2ToL1Msgs = times(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, Fr.random);
 
@@ -508,7 +508,7 @@ export class L2Block {
     for (let i = 0; i < leafCount; i++) {
       const commitmentPerBase = KERNEL_NEW_COMMITMENTS_LENGTH * 2;
       const nullifierPerBase = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
-      const publicDataWritesPerBase = STATE_TRANSITIONS_LENGTH * 2; // @note why is this constant named differently?
+      const publicDataWritesPerBase = KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2; // @note why is this constant named differently?
       const l2ToL1MsgsPerBase = KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * 2;
       const commitmentBuffer = Buffer.concat(
         this.newCommitments.slice(i * commitmentPerBase, (i + 1) * commitmentPerBase).map(x => x.toBuffer()),
@@ -573,8 +573,8 @@ export class L2Block {
       KERNEL_NEW_NULLIFIERS_LENGTH * (txIndex + 1),
     );
     const newPublicDataWrites = this.newPublicDataWrites.slice(
-      STATE_TRANSITIONS_LENGTH * txIndex,
-      STATE_TRANSITIONS_LENGTH * (txIndex + 1),
+      KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * txIndex,
+      KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * (txIndex + 1),
     );
     const newL2ToL1Msgs = this.newL2ToL1Msgs.slice(
       KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * txIndex,

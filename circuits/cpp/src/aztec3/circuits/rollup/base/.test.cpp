@@ -69,8 +69,8 @@ using aztec3::circuits::rollup::native_base_rollup::NT;
 
 using aztec3::circuits::abis::NewContractData;
 
+using aztec3::circuits::rollup::test_utils::utils::make_public_data_update_request;
 using aztec3::circuits::rollup::test_utils::utils::make_public_read;
-using aztec3::circuits::rollup::test_utils::utils::make_public_write;
 
 using DummyComposer = aztec3::utils::DummyComposer;
 }  // namespace
@@ -720,7 +720,7 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     };
 
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
-    kernel_data[0].public_inputs.end.state_reads[0] = data_read;
+    kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
         kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
@@ -743,14 +743,14 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     native_base_rollup::SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
     native_base_rollup::MerkleTree l1_to_l2_messages_tree(L1_TO_L2_MSG_TREE_HEIGHT);
 
-    auto data_write = abis::PublicDataTransition<NT>{
+    auto data_write = abis::PublicDataUpdateRequest<NT>{
         .leaf_index = fr(1),
         .old_value = fr(2),
         .new_value = fr(42),
     };
 
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
-    kernel_data[0].public_inputs.end.state_transitions[0] = data_write;
+    kernel_data[0].public_inputs.end.public_data_update_requests[0] = data_write;
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
         kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
@@ -777,16 +777,21 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 
     // We set up reads and writes such that the right tx will read or write to indices already modified by the left tx
-    kernel_data[0].public_inputs.end.state_reads[0] = make_public_read(fr(1), fr(101));
-    kernel_data[0].public_inputs.end.state_reads[1] = make_public_read(fr(2), fr(102));
-    kernel_data[0].public_inputs.end.state_transitions[0] = make_public_write(fr(3), fr(103), fr(203));
-    kernel_data[0].public_inputs.end.state_transitions[1] = make_public_write(fr(4), fr(104), fr(204));
-    kernel_data[0].public_inputs.end.state_transitions[2] = make_public_write(fr(5), fr(105), fr(205));
+    kernel_data[0].public_inputs.end.public_data_reads[0] = make_public_read(fr(1), fr(101));
+    kernel_data[0].public_inputs.end.public_data_reads[1] = make_public_read(fr(2), fr(102));
+    kernel_data[0].public_inputs.end.public_data_update_requests[0] =
+        make_public_data_update_request(fr(3), fr(103), fr(203));
+    kernel_data[0].public_inputs.end.public_data_update_requests[1] =
+        make_public_data_update_request(fr(4), fr(104), fr(204));
+    kernel_data[0].public_inputs.end.public_data_update_requests[2] =
+        make_public_data_update_request(fr(5), fr(105), fr(205));
 
-    kernel_data[1].public_inputs.end.state_reads[0] = make_public_read(fr(3), fr(203));
-    kernel_data[1].public_inputs.end.state_reads[1] = make_public_read(fr(11), fr(211));
-    kernel_data[1].public_inputs.end.state_transitions[0] = make_public_write(fr(12), fr(212), fr(312));
-    kernel_data[1].public_inputs.end.state_transitions[1] = make_public_write(fr(4), fr(204), fr(304));
+    kernel_data[1].public_inputs.end.public_data_reads[0] = make_public_read(fr(3), fr(203));
+    kernel_data[1].public_inputs.end.public_data_reads[1] = make_public_read(fr(11), fr(211));
+    kernel_data[1].public_inputs.end.public_data_update_requests[0] =
+        make_public_data_update_request(fr(12), fr(212), fr(312));
+    kernel_data[1].public_inputs.end.public_data_update_requests[1] =
+        make_public_data_update_request(fr(4), fr(204), fr(304));
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
         kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
@@ -816,7 +821,7 @@ TEST_F(base_rollup_tests, native_invalid_public_state_read)
     };
 
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
-    kernel_data[0].public_inputs.end.state_reads[0] = data_read;
+    kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
         kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 

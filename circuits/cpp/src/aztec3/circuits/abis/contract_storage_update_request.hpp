@@ -11,7 +11,7 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
-template <typename NCT> struct StateTransition {
+template <typename NCT> struct ContractStorageUpdateRequest {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
@@ -19,37 +19,38 @@ template <typename NCT> struct StateTransition {
     fr old_value = 0;
     fr new_value = 0;
 
-    bool operator==(StateTransition<NCT> const&) const = default;
+    bool operator==(ContractStorageUpdateRequest<NCT> const&) const = default;
 
-    template <typename Composer> StateTransition<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Composer>
+    ContractStorageUpdateRequest<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
-        StateTransition<CircuitTypes<Composer>> state_transition = {
+        ContractStorageUpdateRequest<CircuitTypes<Composer>> update_request = {
             to_ct(storage_slot),
             to_ct(old_value),
             to_ct(new_value),
         };
 
-        return state_transition;
+        return update_request;
     };
 
-    template <typename Composer> StateTransition<NativeTypes> to_native_type() const
+    template <typename Composer> ContractStorageUpdateRequest<NativeTypes> to_native_type() const
     {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
 
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
-        StateTransition<NativeTypes> state_transition = {
+        ContractStorageUpdateRequest<NativeTypes> update_request = {
             to_nt(storage_slot),
             to_nt(old_value),
             to_nt(new_value),
         };
 
-        return state_transition;
+        return update_request;
     };
 
     fr hash() const
@@ -60,7 +61,7 @@ template <typename NCT> struct StateTransition {
             new_value,
         };
 
-        return NCT::compress(inputs, GeneratorIndex::STATE_TRANSITION);
+        return NCT::compress(inputs, GeneratorIndex::PUBLIC_DATA_UPDATE_REQUEST);
     }
 
     void set_public()
@@ -75,29 +76,30 @@ template <typename NCT> struct StateTransition {
     boolean is_empty() const { return storage_slot == 0; }
 };
 
-template <typename NCT> void read(uint8_t const*& it, StateTransition<NCT>& state_transition)
+template <typename NCT> void read(uint8_t const*& it, ContractStorageUpdateRequest<NCT>& update_request)
 {
     using serialize::read;
 
-    read(it, state_transition.storage_slot);
-    read(it, state_transition.old_value);
-    read(it, state_transition.new_value);
+    read(it, update_request.storage_slot);
+    read(it, update_request.old_value);
+    read(it, update_request.new_value);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, StateTransition<NCT> const& state_transition)
+template <typename NCT> void write(std::vector<uint8_t>& buf, ContractStorageUpdateRequest<NCT> const& update_request)
 {
     using serialize::write;
 
-    write(buf, state_transition.storage_slot);
-    write(buf, state_transition.old_value);
-    write(buf, state_transition.new_value);
+    write(buf, update_request.storage_slot);
+    write(buf, update_request.old_value);
+    write(buf, update_request.new_value);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, StateTransition<NCT> const& state_transition)
+template <typename NCT>
+std::ostream& operator<<(std::ostream& os, ContractStorageUpdateRequest<NCT> const& update_request)
 {
-    return os << "storage_slot: " << state_transition.storage_slot << "\n"
-              << "old_value: " << state_transition.old_value << "\n"
-              << "new_value: " << state_transition.new_value << "\n";
+    return os << "storage_slot: " << update_request.storage_slot << "\n"
+              << "old_value: " << update_request.old_value << "\n"
+              << "new_value: " << update_request.new_value << "\n";
 }
 
 }  // namespace aztec3::circuits::abis

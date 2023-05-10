@@ -10,10 +10,10 @@ import {
   PUBLIC_CALL_STACK_LENGTH,
   PublicCircuitPublicInputs,
   RETURN_VALUES_LENGTH,
-  STATE_READS_LENGTH,
-  STATE_TRANSITIONS_LENGTH,
-  StateRead,
-  StateTransition,
+  KERNEL_PUBLIC_DATA_READS_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+  ContractStorageRead,
+  ContractStorageUpdateRequest,
   TxRequest,
 } from '@aztec/circuits.js';
 import { MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
@@ -63,7 +63,7 @@ export class FakePublicCircuitSimulator implements PublicCircuitSimulator {
     const executor = new PublicExecutor(this.stateDb, this.contractsDb);
     const execution = await executor.getPublicExecution(tx);
     const result = await executor.execute(execution);
-    const { stateReads, stateTransitions, returnValues } = result;
+    const { contractStorageReads: storageReads, contractStorageUpdateRequests: updateRequests, returnValues } = result;
 
     return PublicCircuitPublicInputs.from({
       args: padArray<Fr>(tx.args, Fr.ZERO, ARGS_LENGTH),
@@ -73,8 +73,16 @@ export class FakePublicCircuitSimulator implements PublicCircuitSimulator {
       proverAddress: AztecAddress.random(),
       publicCallStack: padArray([], Fr.ZERO, PUBLIC_CALL_STACK_LENGTH),
       returnValues: padArray<Fr>(returnValues, Fr.ZERO, RETURN_VALUES_LENGTH),
-      stateReads: padArray<StateRead>(stateReads, StateRead.empty(), STATE_READS_LENGTH),
-      stateTransitions: padArray<StateTransition>(stateTransitions, StateTransition.empty(), STATE_TRANSITIONS_LENGTH),
+      contractStorageRead: padArray<ContractStorageRead>(
+        storageReads,
+        ContractStorageRead.empty(),
+        KERNEL_PUBLIC_DATA_READS_LENGTH,
+      ),
+      contractStorageUpdateRequests: padArray<ContractStorageUpdateRequest>(
+        updateRequests,
+        ContractStorageUpdateRequest.empty(),
+        KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+      ),
       historicPublicDataTreeRoot,
     });
   }

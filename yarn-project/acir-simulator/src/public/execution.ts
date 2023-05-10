@@ -1,4 +1,12 @@
-import { AztecAddress, CallContext, Fr, FunctionData, StateRead, StateTransition, TxRequest } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CallContext,
+  Fr,
+  FunctionData,
+  ContractStorageRead,
+  ContractStorageUpdateRequest,
+  TxRequest,
+} from '@aztec/circuits.js';
 
 /**
  * The public function execution result.
@@ -6,10 +14,10 @@ import { AztecAddress, CallContext, Fr, FunctionData, StateRead, StateTransition
 export interface PublicExecutionResult {
   /** The return values of the function. */
   returnValues: Fr[];
-  /** The state reads performed by the function. */
-  stateReads: StateRead[];
-  /** The state transitions performed by the function. */
-  stateTransitions: StateTransition[];
+  /** The contract storage reads performed by the function. */
+  contractStorageReads: ContractStorageRead[];
+  /** The contract storage update requests performed by the function. */
+  contractStorageUpdateRequests: ContractStorageUpdateRequest[];
   /** The results of nested calls. */
   nestedExecutions: this[];
 }
