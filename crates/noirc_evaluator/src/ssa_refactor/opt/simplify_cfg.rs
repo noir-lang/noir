@@ -1,8 +1,9 @@
 use std::collections::{HashSet, HashMap};
 
 use acvm::FieldElement;
+use iter_extended::vecmap;
 
-use crate::ssa_refactor::{ssa_gen::Ssa, ir::{function::Function, cfg::ControlFlowGraph, basic_block::BasicBlockId, value::ValueId, instruction::TerminatorInstruction}};
+use crate::ssa_refactor::{ssa_gen::Ssa, ir::{function::Function, cfg::ControlFlowGraph, basic_block::BasicBlockId, value::ValueId, instruction::{TerminatorInstruction, InstructionId}}};
 
 
 impl Ssa {
@@ -48,11 +49,22 @@ impl<'f> Context<'f> {
             if let Some(TerminatorInstruction::JmpIf { condition, then_destination, else_destination }) = block.terminator() {
                 match self.get_constant(*condition) {
                     Some(constant) => {
+                        println!("jmpif destination known: {}", !constant.is_zero());
                         let next_block = if constant.is_zero() { *else_destination } else { *then_destination };
                         self.inline_instructions_from_block(current_block, next_block);
                         self.simplify_function_cfg(current_block);
                     },
-                    None => todo!(),
+                    None => {
+                        // We only allow dynamic branching if we're not going in a loop
+                        assert!(!self.visited_blocks.contains(then_destination), "Dynamic loops are unsupported - block {then_destination} was already visited");
+                        assert!(!self.visited_blocks.contains(else_destination), "Dynamic loops are unsupported - block {else_destination} was already visited");
+                        let else_destination = *else_destination;
+
+                        self.inline_instructions_from_block(current_block, *then_destination);
+                        self.inline_instructions_from_block(current_block, else_destination);
+                        self.simplify_function_cfg(current_block);
+                        self.simplify_function_cfg(current_block);
+                    },
                 }
 
             } else {
@@ -82,5 +94,30 @@ impl<'f> Context<'f> {
 
         let terminator = self.function.dfg[source_block].terminator().expect("Expected each block during the simplify_cfg optimization to have a terminator instruction").clone();
         self.function.dfg.set_block_terminator(dest_block, terminator);
+    }
+
+    fn push_instruction(&mut self, id: InstructionId) {
+        let instruction = self.function.dfg[id].map_values(|id| self.get_value(id));
+        let results = self.function.dfg.instruction_results(id);
+
+        let ctrl_typevars = instruction
+            .requires_ctrl_typevars()
+            .then(|| vecmap(results, |result| self.function.dfg.type_of_value(*result)));
+
+        // let new_results = self.function.dfg.insert_instruction_in_block(instruction, ctrl_typevars);
+        // Self::insert_new_instruction_results(&mut self.values, results, new_results);
+    }
+
+    /// Modify the values HashMap to remember the mapping between an instruction result's previous
+    /// ValueId (from the source_function) and its new ValueId in the destination function.
+    fn insert_new_instruction_results(
+        values: &mut HashMap<ValueId, ValueId>,
+        old_results: &[ValueId],
+        new_results: &[ValueId],
+    ) {
+        assert_eq!(old_results.len(), new_results.len());
+        for (old_result, new_result) in old_results.iter().zip(new_results) {
+            values.insert(*old_result, *new_result);
+        }
     }
 }
