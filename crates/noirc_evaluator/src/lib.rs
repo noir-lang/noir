@@ -161,14 +161,15 @@ impl Evaluator {
 
     pub fn push_opcode(&mut self, gate: AcirOpcode) -> Result<(), RuntimeErrorKind> {
         self.opcodes.push(gate);
-        if let simplify::SimplifyResult::UnsatisfiedConstrain(_g) =
-        self.simplifier.simplify(&mut self.opcodes)
-        {
-            //TODO add location
-            return Err(RuntimeErrorKind::UnstructuredError {
-                message: UNSASTISFIED_CONSTRAIN_ERR.to_string(),
-            });
-        }
+        // TODO uncomment to activate the simplification
+        // if let simplify::SimplifyResult::UnsatisfiedConstrain(_g) =
+        // self.simplifier.simplify(&mut self.opcodes)
+        // {
+        //     //TODO add location
+        //     return Err(RuntimeErrorKind::UnstructuredError {
+        //         message: UNSASTISFIED_CONSTRAIN_ERR.to_string(),
+        //     });
+        // }
         Ok(())
     }
 
@@ -188,6 +189,7 @@ impl Evaluator {
         ir_gen.ssa_gen_main()?;
 
         //Generates ACIR representation:
+        self.simplifier = CircuitSimplifier::new(self.num_witnesses_abi_len as u32);
         ir_gen.context.ir_to_acir(self, enable_logging, show_output)?;
         Ok(())
     }
