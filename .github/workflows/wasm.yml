@@ -23,7 +23,7 @@ jobs:
 
       - name: Copy hello_world.txt to workspace
         run: |
-          cp $(nix-build --no-link -A wasm)./hello_world.txt $GITHUB_WORKSPACE
+          cp $(nix-build --no-link -A packages.x86_64-linux.wasm)/hello_world.txt $GITHUB_WORKSPACE
         shell: bash
 
       - name: Output hello_world.txt
@@ -33,7 +33,7 @@ jobs:
             echo "Printing hello_world.txt:"
             cat $HELLO_WORLD_PATH
           else
-            echo "Couldnt find hello_world.txt"
+            echo "Couldn't find hello_world.txt"
           fi
 
       # - name: Output build.log location
