@@ -6,7 +6,7 @@ if [ -d ./pkg/ ]; then
 fi
 
 echo "Which wasm-pack"
-which wasm-pack
+command -v wasm-pack
 
 # Build the new wasm package
 wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs --verbose
