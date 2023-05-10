@@ -205,27 +205,28 @@
 
         buildPhase = ''
           echo "hello world" > hello_world.txt
-          # set -x
-          # echo "Contents of the build-wasm script:" >&2
-          # cat ./build-wasm >&2
-          # echo "Current working directory:" >&2
-          # pwd >&2
-          # echo "Contents of the source directory:" >&2
-          # ls -la >&2
+          
+          set -x
+          echo "Contents of the build-wasm script:" >&2
+          cat ./build-wasm >&2
+          echo "Current working directory:" >&2
+          pwd >&2
+          echo "Contents of the source directory:" >&2
+          ls -la >&2
       
-          # ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
-          # BUILD_RESULT=$?
-          # if [ $BUILD_RESULT -ne 0 ]; then
-          #   touch BUILD_FAILED
-          # fi
-          # exit $BUILD_RESULT
+          ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
+          BUILD_RESULT=$?
+          if [ $BUILD_RESULT -ne 0 ]; then
+            touch BUILD_FAILED
+          fi
+          exit $BUILD_RESULT
         '';
       
         installPhase = ''
           mkdir -p $out
           cp hello_world.txt $out/    
+          cp build.log $out/
           # cp -r pkg/* $out/pkg/
-          # cp build.log $out/
         '';
       };
     });
