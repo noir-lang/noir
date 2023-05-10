@@ -7,9 +7,8 @@ fi
 
 echo "wasm-pack version"
 wasm-pack -V
-
-echo "Checking if wasm-pack is ready"
-command -v wasm-pack
+echo "rustc version"
+rustc -V
 
 mkdir -p pkg/nodejs
 chmod 755 pkg/nodejs
