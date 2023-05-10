@@ -11,7 +11,7 @@ import Disclaimer from "../common/_disclaimer.mdx";
 In the following section, we will look at cross-chain communication, mixing L1 and L2 for composability and profits.
 # Objective
 
-The goal is to setup a minimal-complexity mechanism, that will allow a base-layer (L1) and the Aztec Network (L2) to communicate arbitrary messages such that:
+The goal is to set up a minimal-complexity mechanism, that will allow a base-layer (L1) and the Aztec Network (L2) to communicate arbitrary messages such that:
 
 - L2 functions can `call` L1 functions.
 - L1 functions can `call` L2 functions.
