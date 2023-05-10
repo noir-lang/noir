@@ -23,11 +23,10 @@ jobs:
 
       - name: Build noir_wasm with Nix flakes
         run: |
-          nix build .#wasm || true
-        extra_nix_config: |
-          experimental-features = nix-command flakes
-          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-          max-log-lines = 100
+          echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+          echo 'access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}' > nix-tokens.conf
+          echo 'max-log-lines = 100' | sudo tee -a /etc/nix/nix.conf
+          sudo env NIX_CONF_DIR=$(pwd) nix build .#wasm || true
 
       - name: Print build.log if build failed
         run: |
