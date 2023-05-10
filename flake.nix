@@ -199,7 +199,7 @@
         pname = "noir_wasm";
         version = "1.0.0";
 
-        src = ./crates/wasm; 
+        src = ./.; 
 
         nativeBuildInputs = with pkgs; [
           wasm-pack
@@ -211,7 +211,7 @@
         buildPhase = ''          
           set -x
       
-          ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
+          ${pkgs.bash}/bin/bash ./crates/wasm/build-wasm 2>&1 | tee build.log
           BUILD_RESULT=$?
           if [ $BUILD_RESULT -ne 0 ]; then
             touch BUILD_FAILED
