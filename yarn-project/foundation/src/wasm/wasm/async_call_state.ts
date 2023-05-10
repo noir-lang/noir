@@ -97,11 +97,9 @@ export class AsyncCallState {
     while (this.asyncPromise) {
       // Disable the instrumented "record stack unwinding" code path.
       this.callExport('asyncify_stop_unwind');
-      this.debug('stack unwound.');
       // Wait for the async work to complete.
       this.state.result = await this.asyncPromise;
       this.state.continuation = true;
-      this.debug('result set starting rewind.');
       // Enable "stack rewinding" code path.
       this.callExport('asyncify_start_rewind', this.asyncifyDataAddr);
       // Call function again to rebuild the stack, and continue where we left off.
