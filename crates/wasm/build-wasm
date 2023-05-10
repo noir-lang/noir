@@ -7,11 +7,11 @@ fi
 
 
 # Build the new wasm package
-wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
+wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs --verbose
 echo "NodeJS build complete. Directory contents:"
 ls -la pkg/nodejs
 
-wasm-pack build --scope noir-lang --target web --out-dir pkg/web
+wasm-pack build --scope noir-lang --target web --out-dir pkg/web --verbose
 echo "Web build complete. Directory contents:"
 ls -la pkg/web
 
