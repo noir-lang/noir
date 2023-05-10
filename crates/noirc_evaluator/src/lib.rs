@@ -13,7 +13,7 @@ pub mod ssa_refactor;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::{transformers::IsOpcodeSupported, optimizers::simplify::{CircuitSimplifier, self}},
+    compiler::{optimizers::simplify::CircuitSimplifier, transformers::IsOpcodeSupported},
     Language,
     //compiler::optimizers::simplify,
 };
@@ -24,7 +24,7 @@ use noirc_frontend::monomorphization::ast::*;
 use ssa::{node::ObjectType, ssa_gen::IrGenerator};
 use std::collections::{BTreeMap, BTreeSet};
 
-static UNSASTISFIED_CONSTRAIN_ERR: &str = "Cannot satisfy constraint";
+static _UNSASTISFIED_CONSTRAIN_ERR: &str = "Cannot satisfy constraint";
 
 //#[derive(Default)]
 pub struct Evaluator {
@@ -60,7 +60,6 @@ pub struct Evaluator {
 
     opcodes: Vec<AcirOpcode>,
     simplifier: CircuitSimplifier,
-
 }
 
 impl Default for Evaluator {
