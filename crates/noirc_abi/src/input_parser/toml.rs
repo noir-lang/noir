@@ -53,7 +53,8 @@ enum TomlTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
-    // Just a regular integer, that can fit in 128 bits
+    // Just a regular integer, that can fit in 64 bits
+    // Note that the toml spec specifies that all numbers are represented as `i64`s.
     Integer(u64),
     // Simple boolean flag
     Bool(bool),

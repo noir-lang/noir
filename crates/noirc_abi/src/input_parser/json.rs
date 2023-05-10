@@ -53,7 +53,11 @@ enum JsonTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
-    // Just a regular integer, that can fit in 128 bits
+    // Just a regular integer, that can fit in 64 bits.
+    //
+    // The JSON spec does not specify any limit on the size of integer number types,
+    // however we restrict the allowable size. Values which do not fit in a u64 should be passed
+    // as a string.
     Integer(u64),
     // Simple boolean flag
     Bool(bool),
@@ -149,4 +153,3 @@ impl InputValue {
         Ok(input_value)
     }
 }
-
