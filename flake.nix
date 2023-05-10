@@ -201,7 +201,12 @@
 
         src = ./crates/wasm; 
 
-        nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
+        nativeBuildInputs = with pkgs; [
+          wasm-pack
+          rustc
+          jq
+          git
+        ];
 
         buildPhase = ''          
           set -x
