@@ -5,6 +5,9 @@ if [ -d ./pkg/ ]; then
     rm -rf ./pkg/
 fi
 
+echo "wasm-pack version"
+wasm-pack -V
+
 echo "Checking if wasm-pack is ready"
 command -v wasm-pack
 
