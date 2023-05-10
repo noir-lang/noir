@@ -203,12 +203,8 @@
 
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
 
-        buildPhase = ''
-          # echo "hello world" > hello_world.txt
-          
+        buildPhase = ''          
           set -x
-          # echo "Contents of the source directory:" >&2
-          # ls -la >&2
       
           ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
           BUILD_RESULT=$?
@@ -221,7 +217,6 @@
         installPhase = ''
           mkdir -p $out
           cp build.log $out/
-          # cp hello_world.txt $out/    
           # cp -r pkg/* $out/pkg/
         '';
       };
