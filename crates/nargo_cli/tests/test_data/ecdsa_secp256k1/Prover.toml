@@ -72,7 +72,7 @@ message = [
     0x72,
     0x2e,
 ]
-_pub_key_x = [
+pub_key_x = [
     0xb3,
     0x35,
     0xfa,
@@ -106,7 +106,7 @@ _pub_key_x = [
     0x73,
     0xda,
 ]
-_pub_key_y = [
+pub_key_y = [
     0xd9,
     0xb5,
     0x64,
@@ -140,7 +140,7 @@ _pub_key_y = [
     0x85,
     0xd2,
 ]
-_signature = [
+signature = [
     0x99,
     0x7f,
     0x5b,
