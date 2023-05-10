@@ -50,7 +50,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.0.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=0aa72dec1367b4f546ba96a83894b8ae062240f4#0aa72dec1367b4f546ba96a83894b8ae062240f4"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=7d249806afec2c33471e74624e8f6ac11c39fb7c#7d249806afec2c33471e74624e8f6ac11c39fb7c"
 dependencies = [
  "acvm",
  "barretenberg-sys",
