@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::ssa_refactor::ir::instruction::SimplifyResult;
+
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
@@ -98,6 +100,37 @@ impl DataFlowGraph {
         let id = self.instructions.insert(instruction_data);
         self.make_instruction_results(id, ctrl_typevars);
         id
+    }
+
+    /// Inserts a new instruction at the end of the given block and returns its results
+    pub(crate) fn insert_instruction_and_results(
+        &mut self,
+        instruction: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InsertInstructionResult {
+        use InsertInstructionResult::*;
+        match instruction.simplify(self) {
+            SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
+            SimplifyResult::Remove => InstructionRemoved,
+            SimplifyResult::None => {
+                let id = self.make_instruction(instruction, ctrl_typevars);
+                self.insert_instruction_in_block(block, id);
+                InsertInstructionResult::Results(self.instruction_results(id))
+            }
+        }
+    }
+
+    /// Insert an instruction at the end of a given block.
+    /// If the block already has a terminator, the instruction is inserted before the terminator.
+    /// Unlike insert_instruction_and_results, this function will not create a new set of
+    /// instruction results for the given instruction.
+    pub(crate) fn insert_instruction_in_block(
+        &mut self,
+        block: BasicBlockId,
+        instruction: InstructionId,
+    ) {
+        self.blocks[block].insert_instruction(instruction);
     }
 
     /// Insert a value into the dfg's storage and return an id to reference it.
@@ -225,16 +258,6 @@ impl DataFlowGraph {
         parameter
     }
 
-    /// Insert an instruction at the end of a given block.
-    /// If the block already has a terminator, the instruction is inserted before the terminator.
-    pub(crate) fn insert_instruction_in_block(
-        &mut self,
-        block: BasicBlockId,
-        instruction: InstructionId,
-    ) {
-        self.blocks[block].insert_instruction(instruction);
-    }
-
     /// Returns the field element represented by this value if it is a numeric constant.
     /// Returns None if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
@@ -295,6 +318,53 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
     fn index_mut(&mut self, id: BasicBlockId) -> &mut BasicBlock {
         &mut self.blocks[id]
+    }
+}
+
+// The result of calling DataFlowGraph::insert_instruction can
+// be a list of results or a single ValueId if the instruction was simplified
+// to an existing value.
+#[derive(Debug)]
+pub(crate) enum InsertInstructionResult<'dfg> {
+    Results(&'dfg [ValueId]),
+    SimplifiedTo(ValueId),
+    InstructionRemoved,
+}
+
+impl<'dfg> InsertInstructionResult<'dfg> {
+    /// Retrieve the first (and expected to be the only) result.
+    pub(crate) fn first(&self) -> ValueId {
+        match self {
+            InsertInstructionResult::SimplifiedTo(value) => *value,
+            InsertInstructionResult::Results(results) => results[0],
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("Instruction was removed, no results")
+            }
+        }
+    }
+
+    /// Return all the results contained in the internal results array.
+    /// This is used for instructions returning multiple results that were
+    /// not simplified - like function calls.
+    pub(crate) fn results(&self) -> &'dfg [ValueId] {
+        match self {
+            InsertInstructionResult::Results(results) => results,
+            InsertInstructionResult::SimplifiedTo(_) => {
+                panic!("InsertInstructionResult::results called on a simplified instruction")
+            }
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("InsertInstructionResult::results called on a removed instruction")
+            }
+        }
+    }
+
+    /// Returns the amount of ValueIds contained
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            InsertInstructionResult::SimplifiedTo(_) => 1,
+            InsertInstructionResult::Results(results) => results.len(),
+            InsertInstructionResult::InstructionRemoved => 0,
+        }
     }
 }
 

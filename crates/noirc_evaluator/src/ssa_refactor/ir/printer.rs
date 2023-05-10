@@ -64,7 +64,7 @@ fn value(function: &Function, id: ValueId) -> String {
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
             let value = function.dfg[*constant].value();
-            format!("{typ} {value}")
+            format!("{typ} {value} ({id})")
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),

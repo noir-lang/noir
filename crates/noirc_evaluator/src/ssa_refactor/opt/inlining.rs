@@ -9,6 +9,7 @@ use iter_extended::vecmap;
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
@@ -144,6 +145,7 @@ impl InlineContext {
         context.blocks.insert(source_function.entry_block(), current_block);
 
         context.inline_blocks(ssa);
+
         let return_destination = context.return_destination;
         self.builder.block_parameters(return_destination)
     }
@@ -305,7 +307,9 @@ impl<'function> PerFunctionContext<'function> {
         arguments: &[ValueId],
     ) {
         let old_results = self.source_function.dfg.instruction_results(call_id);
-        let new_results = self.context.inline_function(ssa, function, arguments);
+        let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
+        let new_results = self.context.inline_function(ssa, function, &arguments);
+        let new_results = InsertInstructionResult::Results(new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
 
@@ -328,11 +332,20 @@ impl<'function> PerFunctionContext<'function> {
     fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],
-        new_results: &[ValueId],
+        new_results: InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            values.insert(*old_result, *new_result);
+
+        match new_results {
+            InsertInstructionResult::SimplifiedTo(new_result) => {
+                values.insert(old_results[0], new_result);
+            }
+            InsertInstructionResult::Results(new_results) => {
+                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    values.insert(*old_result, *new_result);
+                }
+            }
+            InsertInstructionResult::InstructionRemoved => (),
         }
     }
 
@@ -347,8 +360,8 @@ impl<'function> PerFunctionContext<'function> {
         match self.source_function.dfg[block_id].terminator() {
             Some(TerminatorInstruction::Jmp { destination, arguments }) => {
                 let destination = self.translate_block(*destination, block_queue);
-                let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
-                self.context.builder.terminate_with_jmp(destination, arguments);
+                let arguments2 = vecmap(arguments, |arg| self.translate_value(*arg));
+                self.context.builder.terminate_with_jmp(destination, arguments2);
             }
             Some(TerminatorInstruction::JmpIf {
                 condition,
