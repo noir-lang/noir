@@ -64,6 +64,7 @@
         # We include rust-src to ensure rust-analyzer works.
         # See https://discourse.nixos.org/t/rust-src-not-found-and-other-misadventures-of-developing-rust-on-nixos/11570/4
         extensions = [ "rust-src" ];
+        targets = [ "wasm32-unknown-unknown" ];
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -203,7 +204,7 @@
 
         nativeBuildInputs = with pkgs; [
           wasm-pack
-          rustc
+          rustToolchain
           jq
           git
         ];
