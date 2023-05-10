@@ -203,30 +203,24 @@
 
         nativeBuildInputs = [ pkgs.wasm-pack pkgs.git pkgs.jq ];
 
-       buildPhase = ''
-          BASH_XTRACEFD=19
-          set -x
-          exec 19>${src}/build.log
-
-          echo "Contents of the build-wasm script:" >&2
-          cat ./build-wasm >&2
-          echo "Current working directory:" >&2
-          pwd >&2
-          echo "Contents of the source directory:" >&2
-          ls -la >&2
-
-          ${pkgs.bash}/bin/bash ./build-wasm || (cat ${src}/build.log && exit 1)
-
-          # Check if build.log is present and not empty
-          if [ ! -s ${src}/build.log ]; then
-            echo "Error: build.log not found or empty" >&2
-            exit 1
-          fi
-
-          set +x
-          exec 19>&-
+        buildPhase = ''
+          echo "hello world" > hello_world.txt
+          # set -x
+          # echo "Contents of the build-wasm script:" >&2
+          # cat ./build-wasm >&2
+          # echo "Current working directory:" >&2
+          # pwd >&2
+          # echo "Contents of the source directory:" >&2
+          # ls -la >&2
+      
+          # ${pkgs.bash}/bin/bash ./build-wasm 2>&1 | tee build.log
+          # BUILD_RESULT=$?
+          # if [ $BUILD_RESULT -ne 0 ]; then
+          #   touch BUILD_FAILED
+          # fi
+          # exit $BUILD_RESULT
         '';
-
+      
         installPhase = ''
           mkdir -p $out/pkg
           cp -r pkg/* $out/pkg/

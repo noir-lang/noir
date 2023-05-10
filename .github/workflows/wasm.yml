@@ -25,25 +25,34 @@ jobs:
         run: |
           nix build .#wasm || true
 
-      - name: Output build.log location
+      - name: Output hello_world.txt
         run: |
-          BUILD_LOG_PATH=$(find . -name build.log)
-          if [ -n "$BUILD_LOG_PATH" ]; then
-            echo "Found build.log at $BUILD_LOG_PATH"
-          else
-            echo "build.log not found"
+          HELLO_WORLD_PATH=$(find . -name hello_world.txt)
+          if [ -n "$HELLO_WORLD_PATH" ]; then
+            echo "Printing hello_world.txt:"
+            cat $HELLO_WORLD_PATH
           fi
 
-      - name: Print build.log if build failed
-        run: |
-          if [ -d result ]; then
-            echo "Build successful."
-          else
-            echo "Build failed. Trying to locate build.log:"
-            find . -name build.log
-            echo "Printing the build.log (if found):"
-            find . -name build.log -exec cat {} \; || true
-          fi
+      # - name: Output build.log location
+      #   run: |
+      #     BUILD_LOG_PATH=$(find . -name build.log)
+      #     echo "path is $BUILD_LOG_PATH"
+      #     if [ -n "$BUILD_LOG_PATH" ]; then
+      #       echo "Found build.log at $BUILD_LOG_PATH"
+      #     else
+      #       echo "build.log not found"
+      #     fi
+
+      # - name: Print build.log if build failed
+      #   run: |
+      #     if [ -d result ]; then
+      #       echo "Build successful."
+      #     else
+      #       echo "Build failed. Trying to locate build.log:"
+      #       find . -name build.log
+      #       echo "Printing the build.log (if found):"
+      #       find . -name build.log -exec cat {} \; || true
+      #     fi
 
       # - name: Build wasm package
       #     run: nix build .#packages.wasm --keep-failed
