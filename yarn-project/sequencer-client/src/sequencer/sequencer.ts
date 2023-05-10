@@ -169,6 +169,7 @@ export class Sequencer {
   protected async publishUnverifiedData(validTxs: Tx[], block: L2Block) {
     // Publishes new unverified data & contract data for private txs to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_UNVERIFIED_DATA;
+    // Note: Public txs don't generate UnverifiedData and for this reason we can ignore them here.
     const unverifiedData = UnverifiedData.join(validTxs.filter(isPrivateTx).map(tx => tx.unverifiedData));
     const newContractData = validTxs
       .filter(isPrivateTx)
