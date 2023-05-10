@@ -17,11 +17,11 @@ mkdir -p pkg/web
 chmod 755 pkg/web
 
 # Build the new wasm package
-wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs --verbose --debug
+wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs --dev
 echo "NodeJS build complete. Directory contents:"
 ls -la pkg/nodejs
 
-wasm-pack build --scope noir-lang --target web --out-dir pkg/web --verbose --debug
+wasm-pack build --scope noir-lang --target web --out-dir pkg/web --dev
 echo "Web build complete. Directory contents:"
 ls -la pkg/web
 
