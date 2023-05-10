@@ -5,11 +5,35 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
+source = "git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876#045e18ae13f2228171ce9e37da6e3e9691da2876"
 dependencies = [
- "acir_field",
+ "acir_field 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "flate2",
  "rmp-serde",
+ "serde",
+]
+
+[[package]]
+name = "acir"
+version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
+dependencies = [
+ "acir_field 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
+ "flate2",
+ "rmp-serde",
+ "serde",
+]
+
+[[package]]
+name = "acir_field"
+version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876#045e18ae13f2228171ce9e37da6e3e9691da2876"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "cfg-if 1.0.0",
+ "hex",
+ "num-bigint",
  "serde",
 ]
 
@@ -29,10 +53,28 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876#045e18ae13f2228171ce9e37da6e3e9691da2876"
+dependencies = [
+ "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
+ "acvm_stdlib 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
+ "blake2",
+ "crc32fast",
+ "indexmap",
+ "k256",
+ "num-bigint",
+ "num-traits",
+ "sha2 0.10.6",
+ "sha3",
+ "thiserror",
+]
+
+[[package]]
+name = "acvm"
+version = "0.11.0"
 source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
 dependencies = [
- "acir",
- "acvm_stdlib",
+ "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
+ "acvm_stdlib 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
  "blake2",
  "crc32fast",
  "indexmap",
@@ -49,7 +91,7 @@ name = "acvm-backend-barretenberg"
 version = "0.1.2"
 source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=98d0148c71ef59549bca7082b0180c6cc20fb7e6#98d0148c71ef59549bca7082b0180c6cc20fb7e6"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
  "barretenberg-sys",
  "dirs 3.0.2",
  "futures-util",
@@ -66,9 +108,17 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876#045e18ae13f2228171ce9e37da6e3e9691da2876"
+dependencies = [
+ "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
+]
+
+[[package]]
+name = "acvm_stdlib"
+version = "0.11.0"
 source = "git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4#a83333b9e270dfcfd40a36271896840ec0201bc4"
 dependencies = [
- "acir",
+ "acir 0.11.0 (git+https://github.com/noir-lang/acvm?rev=a83333b9e270dfcfd40a36271896840ec0201bc4)",
 ]
 
 [[package]]
@@ -1835,7 +1885,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.5.1"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "iter-extended",
  "noirc_abi",
  "noirc_driver",
@@ -1849,7 +1899,7 @@ dependencies = [
 name = "nargo_cli"
 version = "0.5.1"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "acvm-backend-barretenberg",
  "assert_cmd",
  "assert_fs",
@@ -1880,7 +1930,7 @@ dependencies = [
 name = "noir_wasm"
 version = "0.5.1"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "build-data",
  "console_error_panic_hook",
  "gloo-utils",
@@ -1896,7 +1946,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.5.1"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "iter-extended",
  "serde",
  "serde_json",
@@ -1910,7 +1960,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.5.1"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "clap",
  "fm",
  "iter-extended",
@@ -1936,7 +1986,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.5.1"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "arena",
  "iter-extended",
  "noirc_abi",
@@ -1952,7 +2002,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.5.1"
 dependencies = [
- "acvm",
+ "acvm 0.11.0 (git+https://github.com/noir-lang/acvm?rev=045e18ae13f2228171ce9e37da6e3e9691da2876)",
  "arena",
  "chumsky",
  "fm",
