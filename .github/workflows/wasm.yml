@@ -25,6 +25,15 @@ jobs:
         run: |
           nix build .#wasm || true
 
+      - name: Output build.log location
+        run: |
+          BUILD_LOG_PATH=$(find . -name build.log)
+          if [ -n "$BUILD_LOG_PATH" ]; then
+            echo "Found build.log at $BUILD_LOG_PATH"
+          else
+            echo "build.log not found"
+          fi
+
       - name: Print build.log if build failed
         run: |
           if [ -d result ]; then
