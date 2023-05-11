@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
+use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use arena::{Arena, Index};
 use fm::FileId;
@@ -581,13 +583,14 @@ impl NodeInterner {
         self.language = language.clone();
     }
 
+    #[allow(deprecated)]
     pub fn foreign(&self, opcode: &str) -> bool {
-        let is_supported = acvm::default_is_bb_supported(self.language.clone());
-        let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
-            Some(black_box_func) => black_box_func,
+        let is_supported = acvm::default_is_opcode_supported(self.language.clone());
+        let black_box_func_call = match acvm::acir::BlackBoxFunc::lookup(opcode) {
+            Some(black_box_func) => BlackBoxFuncCall::dummy(black_box_func),
             None => return false,
         };
-        is_supported(black_box_func)
+        is_supported(&Opcode::BlackBoxFuncCall(black_box_func_call))
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
