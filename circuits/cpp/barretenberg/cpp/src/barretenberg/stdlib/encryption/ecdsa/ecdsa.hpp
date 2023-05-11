@@ -24,6 +24,10 @@ template <typename Composer, typename Curve, typename Fq, typename Fr, typename 
 bool_t<Composer> verify_signature_noassert(const stdlib::byte_array<Composer>& message,
                                            const G1& public_key,
                                            const signature<Composer>& sig);
+template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
+bool_t<Composer> verify_signature_prehashed_message_noassert(const stdlib::byte_array<Composer>& hashed_message,
+                                                             const G1& public_key,
+                                                             const signature<Composer>& sig);
 
 template <typename Composer>
 static signature<Composer> from_witness(Composer* ctx, const crypto::ecdsa::signature& input)

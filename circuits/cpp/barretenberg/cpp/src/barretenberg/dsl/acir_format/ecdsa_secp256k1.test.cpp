@@ -14,6 +14,12 @@ size_t generate_ecdsa_constraint(acir_format::EcdsaSecp256k1Constraint& ecdsa_co
 {
     std::string message_string = "Instructions unclear, ask again later.";
 
+    // hash the message since the dsl ecdsa gadget uses the prehashed message
+    // NOTE: If the hash being used outputs more than 32 bytes, then big-field will panic
+    std::vector<uint8_t> message_buffer;
+    std::copy(message_string.begin(), message_string.end(), std::back_inserter(message_buffer));
+    auto hashed_message = sha256::sha256(message_buffer);
+
     crypto::ecdsa::key_pair<curve::fr, curve::g1> account;
     account.private_key = curve::fr::random_element();
     account.public_key = curve::g1::one * account.private_key;
@@ -29,9 +35,9 @@ size_t generate_ecdsa_constraint(acir_format::EcdsaSecp256k1Constraint& ecdsa_co
     std::vector<uint32_t> pub_y_indices_in;
     std::vector<uint32_t> signature_in;
     size_t offset = 1;
-    for (size_t i = 0; i < message_string.size(); ++i) {
+    for (size_t i = 0; i < hashed_message.size(); ++i) {
         message_in.emplace_back(i + offset);
-        const auto byte = static_cast<uint8_t>(message_string[i]);
+        const auto byte = static_cast<uint8_t>(hashed_message[i]);
         witness_values.emplace_back(byte);
     }
     offset += message_in.size();
@@ -63,7 +69,7 @@ size_t generate_ecdsa_constraint(acir_format::EcdsaSecp256k1Constraint& ecdsa_co
     witness_values.emplace_back(1);
 
     ecdsa_constraint = acir_format::EcdsaSecp256k1Constraint{
-        .message = message_in,
+        .hashed_message = message_in,
         .pub_x_indices = pub_x_indices_in,
         .pub_y_indices = pub_y_indices_in,
         .result = result_in,
