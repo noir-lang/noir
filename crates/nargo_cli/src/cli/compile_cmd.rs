@@ -42,7 +42,7 @@ pub(crate) fn run<B: Backend>(
             .map_err(|_| CliError::CompilationError)?;
         let preprocessed_contracts = try_vecmap(compiled_contracts, |contract| {
             preprocess_contract(backend, contract).map_err(CliError::ProofSystemCompilerError)
-        });
+        })?;
         for contract in preprocessed_contracts {
             save_contract_to_file(
                 &contract,
