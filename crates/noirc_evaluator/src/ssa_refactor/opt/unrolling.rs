@@ -16,9 +16,9 @@ use crate::ssa_refactor::{
 };
 
 impl Ssa {
-    pub(crate) fn unroll(mut self) -> Ssa {
+    pub(crate) fn unroll_loops(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            Context::new(function).simplify_function_cfg();
+            Context::new(function).unroll_loops();
         }
         self
     }
@@ -31,93 +31,33 @@ struct Context<'f> {
 
     current_block: BasicBlockId,
 
-    /// This CFG is the original CFG before the pass modifies each block
+    /// The original ControlFlowGraph of this function before it was modified
+    /// by this loop unrolling pass.
     cfg: ControlFlowGraph,
+    inlined_loop_blocks: HashSet<BasicBlockId>,
 }
-
-enum Job {
-    MergeIf { 
-        block_with_brif: BasicBlockId, 
-        merge_point: BasicBlockId,
-
-        // The last block where the condition of the brif instruction can be assumed to be true.
-        // This block should always be a direct predecessor of merge_point
-        final_then_block: BasicBlockId,
-
-        // The last block where the condition of the brif instruction can be assumed to be false.
-        // This block should always be a direct predecessor of merge_point
-        final_else_block: BasicBlockId,
-    },
-    UnrollLoop {
-        pre_loop: BasicBlockId,
-        loop_start: BasicBlockId,
-        loop_body: BasicBlockId,
-        loop_end: BasicBlockId,
-    },
-    /// A transitive block is one that looks like B in A -> B -> {C, D, ..}.
-    /// That is, it is unconditionally branched to by exactly 1 predecessor.
-    /// We can merge these blocks and remove the unnecessary br to turn the
-    /// new cfg into AB -> {C, D, ..}
-    RemoveTransitiveBlock {
-        before: BasicBlockId,
-        transitive: BasicBlockId,
-        after: BasicBlockId,
-    }
-}
-
-// fn main f2 {
-//   b0(v0: u1):
-//     jmpif v0 then: b2, else: b3
-//   b2():
-//     jmp b4(Field 6 (v17))
-//   b4(v1: Field):
-//     v4 = eq v1, Field 6 (v3)
-//     constrain v4
-//     jmp b6(Field 0 (v8))
-//   b6(v7: Field):
-//     v9 = lt v7, Field 2 (v6)
-//     jmpif v9 then: b7, else: b8
-//   b7():
-//     v13 = call println(v7)
-//     v15 = add v7, Field 1 (v14)
-//     jmp b6(v15)
-//   b8():
-//     jmp b5(unit 0 (v10))
-//   b5(v11: unit):
-//     return unit 0 (v16)
-//   b3():
-//     jmp b4(Field 7 (v2))
-// }
-//
-//
-// b0 -> b2           v----|
-//          => b4 -> b6 -> b7
-//    -> b3
-//                      -> b8 -> b5
-//
-// MergeIf(b0, b2, b3, b4)
-// UnrollLoop(b4, b6, b7, b8)
-// RemoveTransitiveBlock(b8, b5)
 
 impl<'f> Context<'f> {
     fn new(function: &'f mut Function) -> Self {
         Self {
             visited_blocks: HashSet::new(),
             values: HashMap::new(),
-            cfg: ControlFlowGraph::with_function(function),
             current_block: function.entry_block(),
+            inlined_loop_blocks: HashSet::new(),
+            cfg: ControlFlowGraph::with_function(function),
             function,
         }
     }
 
-    fn simplify_function_cfg(&mut self) {
+    fn unroll_loops(&mut self) {
         let block = &self.function.dfg[self.current_block];
         self.visited_blocks.insert(self.current_block);
+        println!("Visited {}", self.current_block);
 
         match block.terminator() {
             // TODO Remove the clone
             Some(TerminatorInstruction::Jmp { destination, arguments }) => {
-                self.handle_jmp(*destination, &arguments.clone());
+                self.handle_jmp(*destination, &arguments.clone(), false);
             }
             Some(TerminatorInstruction::JmpIf {
                 condition,
@@ -131,13 +71,63 @@ impl<'f> Context<'f> {
         }
     }
 
+    ///
+    /// entry -> a \
+    ///            |-> c
+    ///       -> b /
+    ///
+    ///     V----|
+    /// entry -> a
+    ///       -> b
+    ///
+
     fn handle_jmp(
         &mut self,
         destination: BasicBlockId,
         arguments: &[ValueId],
+        conditional_jmp: bool,
     ) {
-        self.inline_instructions_from_block(&arguments, destination);
-        self.simplify_function_cfg();
+        let non_looping_predecessor_count = self.count_non_looping_predecessors(destination);
+
+        if !conditional_jmp && non_looping_predecessor_count <= 1 {
+            // Inline the block
+            println!("Directly inlining {destination}");
+            self.inline_instructions_from_block(&arguments, destination);
+        } else {
+            println!("Switching to {destination}");
+            self.current_block = destination;
+        }
+        self.unroll_loops();
+    }
+
+    fn count_non_looping_predecessors(&mut self, block: BasicBlockId) -> usize {
+        let predecessors = self.cfg.predecessors(block);
+
+        predecessors.filter(|pred| !self.reachable_from(*pred, *pred, &mut HashSet::new())).count()
+    }
+
+    fn reachable_from(
+        &self,
+        current_block: BasicBlockId,
+        target: BasicBlockId,
+        visited: &mut HashSet<BasicBlockId>,
+    ) -> bool {
+        if visited.contains(&current_block) {
+            return false;
+        }
+
+        visited.insert(current_block);
+
+        for successor in self.cfg.successors(current_block) {
+            if successor == target {
+                return true;
+            }
+            if self.reachable_from(successor, target, visited) {
+                return true;
+            }
+        }
+
+        false
     }
 
     fn handle_jmpif(
@@ -149,23 +139,27 @@ impl<'f> Context<'f> {
         match self.get_constant(condition) {
             Some(constant) => {
                 let next_block = if constant.is_zero() { else_block } else { then_block };
-                self.handle_jmp(next_block, &[]);
+                self.inlined_loop_blocks.insert(self.current_block);
+                println!("Constant jmpif to {next_block}");
+                self.handle_jmp(next_block, &[], false);
             }
             None => {
                 // We only allow dynamic branching if we're not going in a loop
-                assert!(
-                    !self.visited_blocks.contains(&then_block),
-                    "Dynamic loops are unsupported - block {then_block} was already visited"
-                );
-                assert!(
-                    !self.visited_blocks.contains(&else_block),
-                    "Dynamic loops are unsupported - block {else_block} was already visited"
-                );
+                let verify = |block| {
+                    let looped = self.visited_blocks.contains(block);
+                    assert!(!looped, "Dynamic loops are unsupported - {block} was already visited");
+                };
+
+                verify(&then_block);
+                verify(&else_block);
+
+                println!("Condition = {condition}");
+                println!("Non-constant jmpif to {then_block} or {else_block}");
 
                 self.current_block = then_block;
-                self.handle_jmp(then_block, &[]);
+                self.handle_jmp(then_block, &[], true);
                 self.current_block = else_block;
-                self.handle_jmp(else_block, &[]);
+                self.handle_jmp(else_block, &[], true);
             }
         }
     }

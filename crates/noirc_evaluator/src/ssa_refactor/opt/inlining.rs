@@ -121,7 +121,12 @@ impl InlineContext {
 
     /// Inlines a function into the current function and returns the translated return values
     /// of the inlined function.
-    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[ValueId]) -> Vec<ValueId> {
+    fn inline_function(
+        &mut self,
+        ssa: &Ssa,
+        id: FunctionId,
+        arguments: &[ValueId],
+    ) -> Vec<ValueId> {
         self.recursion_level += 1;
 
         if self.recursion_level > RECURSION_LIMIT {
@@ -269,7 +274,9 @@ impl<'function> PerFunctionContext<'function> {
 
             seen_blocks.insert(source_block_id);
             self.inline_block(ssa, source_block_id);
-            function_return = self.handle_terminator_instruction(source_block_id, &mut block_queue);
+
+            self.handle_terminator_instruction(source_block_id, &mut block_queue)
+                .map(|ret| function_return = Some(ret));
         }
 
         if let Some((block, values)) = function_return {
@@ -380,6 +387,7 @@ impl<'function> PerFunctionContext<'function> {
                 if self.inlining_main {
                     self.context.builder.terminate_with_return(return_values.clone());
                 }
+                let block_id = self.translate_block(block_id, block_queue);
                 Some((block_id, return_values))
             }
             None => unreachable!("Block has no terminator instruction"),
@@ -390,7 +398,7 @@ impl<'function> PerFunctionContext<'function> {
 #[cfg(test)]
 mod test {
     use crate::ssa_refactor::{
-        ir::{map::Id, types::Type, instruction::BinaryOp},
+        ir::{instruction::BinaryOp, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
     };
 

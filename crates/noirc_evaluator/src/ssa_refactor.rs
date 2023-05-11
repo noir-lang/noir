@@ -29,7 +29,7 @@ pub fn optimize_into_acir(program: Program) {
         .print("Initial SSA:")
         .inline_functions()
         .print("After Inlining:")
-        .unroll()
+        .unroll_loops()
         .print("After Simplifying the CFG:");
 }
 
