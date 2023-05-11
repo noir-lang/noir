@@ -120,7 +120,12 @@ impl InlineContext {
 
     /// Inlines a function into the current function and returns the translated return values
     /// of the inlined function.
-    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[ValueId]) -> Vec<ValueId> {
+    fn inline_function(
+        &mut self,
+        ssa: &Ssa,
+        id: FunctionId,
+        arguments: &[ValueId],
+    ) -> Vec<ValueId> {
         self.recursion_level += 1;
 
         if self.recursion_level > RECURSION_LIMIT {
@@ -260,7 +265,9 @@ impl<'function> PerFunctionContext<'function> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = vec![self.source_function.entry_block()];
 
-        let mut function_return = None;
+        // This Vec will contain each block with a Return instruction along with the
+        // returned values of that block.
+        let mut function_returns = vec![];
 
         while let Some(source_block_id) = block_queue.pop() {
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
@@ -268,14 +275,45 @@ impl<'function> PerFunctionContext<'function> {
 
             seen_blocks.insert(source_block_id);
             self.inline_block(ssa, source_block_id);
-            function_return = self.handle_terminator_instruction(source_block_id, &mut block_queue);
+
+            if let Some((block, values)) =
+                self.handle_terminator_instruction(source_block_id, &mut block_queue)
+            {
+                function_returns.push((block, values));
+            }
         }
 
-        if let Some((block, values)) = function_return {
-            self.context.builder.switch_to_block(block);
-            values
-        } else {
-            unreachable!("Inlined function had no return instruction")
+        self.handle_function_returns(function_returns)
+    }
+
+    /// Handle inlining a function's possibly multiple return instructions.
+    /// If there is only 1 return we can just continue inserting into that block.
+    /// If there are multiple, we'll need to create a join block to jump to with each value.
+    fn handle_function_returns(
+        &mut self,
+        mut returns: Vec<(BasicBlockId, Vec<ValueId>)>,
+    ) -> Vec<ValueId> {
+        // Clippy complains if this were written as an if statement
+        match returns.len() {
+            1 => {
+                let (return_block, return_values) = returns.remove(0);
+                self.context.builder.switch_to_block(return_block);
+                return_values
+            }
+            n if n > 1 => {
+                // If there is more than 1 return instruction we'll need to create a single block we
+                // can return to and continue inserting in afterwards.
+                let return_block = self.context.builder.insert_block();
+
+                for (block, return_values) in returns {
+                    self.context.builder.switch_to_block(block);
+                    self.context.builder.terminate_with_jmp(return_block, return_values);
+                }
+
+                self.context.builder.switch_to_block(return_block);
+                self.context.builder.block_parameters(return_block).to_vec()
+            }
+            _ => unreachable!("Inlined function had no return values"),
         }
     }
 
@@ -379,7 +417,7 @@ impl<'function> PerFunctionContext<'function> {
 #[cfg(test)]
 mod test {
     use crate::ssa_refactor::{
-        ir::{map::Id, types::Type, instruction::BinaryOp},
+        ir::{instruction::BinaryOp, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
     };
 
