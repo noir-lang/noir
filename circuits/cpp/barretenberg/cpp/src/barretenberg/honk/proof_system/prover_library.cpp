@@ -180,7 +180,6 @@ typename Flavor::Polynomial compute_permutation_grand_product(std::shared_ptr<ty
  */
 template <typename Flavor>
 typename Flavor::Polynomial compute_lookup_grand_product(std::shared_ptr<typename Flavor::ProvingKey>& key,
-                                                         typename Flavor::Polynomial& sorted_list_accumulator,
                                                          typename Flavor::FF eta,
                                                          typename Flavor::FF beta,
                                                          typename Flavor::FF gamma)
@@ -188,6 +187,8 @@ typename Flavor::Polynomial compute_lookup_grand_product(std::shared_ptr<typenam
 {
     using FF = typename Flavor::FF;
     using Polynomial = typename Flavor::Polynomial;
+
+    auto sorted_list_accumulator = key->sorted_accum;
 
     const FF eta_sqr = eta.sqr();
     const FF eta_cube = eta_sqr * eta;
@@ -327,33 +328,70 @@ typename Flavor::Polynomial compute_lookup_grand_product(std::shared_ptr<typenam
  * @return Polynomial
  */
 template <typename Flavor>
-typename Flavor::Polynomial compute_sorted_list_accumulator(
-    std::shared_ptr<typename Flavor::ProvingKey>& key,
-    std::vector<typename Flavor::Polynomial>& sorted_list_polynomials,
-    typename Flavor::FF eta)
+typename Flavor::Polynomial compute_sorted_list_accumulator(std::shared_ptr<typename Flavor::ProvingKey>& key,
+                                                            typename Flavor::FF eta)
 {
     using FF = typename Flavor::FF;
     using Polynomial = typename Flavor::Polynomial;
 
     const size_t circuit_size = key->circuit_size;
 
-    Polynomial sorted_list_accumulator(sorted_list_polynomials[0]);
-    std::span<const FF> s_2 = sorted_list_polynomials[1];
-    std::span<const FF> s_3 = sorted_list_polynomials[2];
-    std::span<const FF> s_4 = sorted_list_polynomials[3];
+    auto sorted_list_accumulator = Polynomial{ circuit_size };
+
+    auto sorted_polynomials = key->get_sorted_polynomials();
 
     // Construct s via Horner, i.e. s = s_1 + η(s_2 + η(s_3 + η*s_4))
     for (size_t i = 0; i < circuit_size; ++i) {
-        FF T0 = s_4[i];
+        FF T0 = sorted_polynomials[3][i];
         T0 *= eta;
-        T0 += s_3[i];
+        T0 += sorted_polynomials[2][i];
         T0 *= eta;
-        T0 += s_2[i];
+        T0 += sorted_polynomials[1][i];
         T0 *= eta;
-        sorted_list_accumulator[i] += T0;
+        T0 += sorted_polynomials[0][i];
+        sorted_list_accumulator[i] = T0;
     }
 
     return sorted_list_accumulator;
+}
+
+/**
+ * @brief Add plookup memory records to the fourth wire polynomial
+ *
+ * @details This operation must be performed after the first three wires have been committed to, hence the dependence on
+ * the `eta` challenge.
+ *
+ * @tparam Flavor
+ * @param eta challenge produced after commitment to first three wire polynomials
+ */
+template <typename Flavor>
+void add_plookup_memory_records_to_wire_4(std::shared_ptr<typename Flavor::ProvingKey>& key, typename Flavor::FF eta)
+{
+    // The plookup memory record values are computed at the indicated indices as
+    // w4 = w3 * eta^3 + w2 * eta^2 + w1 * eta + read_write_flag;
+    // (See plookup_auxiliary_widget.hpp for details)
+    auto wires = key->get_wires();
+
+    // Compute read record values
+    for (const auto& gate_idx : key->memory_read_records) {
+        wires[3][gate_idx] += wires[2][gate_idx];
+        wires[3][gate_idx] *= eta;
+        wires[3][gate_idx] += wires[1][gate_idx];
+        wires[3][gate_idx] *= eta;
+        wires[3][gate_idx] += wires[0][gate_idx];
+        wires[3][gate_idx] *= eta;
+    }
+
+    // Compute write record values
+    for (const auto& gate_idx : key->memory_write_records) {
+        wires[3][gate_idx] += wires[2][gate_idx];
+        wires[3][gate_idx] *= eta;
+        wires[3][gate_idx] += wires[1][gate_idx];
+        wires[3][gate_idx] *= eta;
+        wires[3][gate_idx] += wires[0][gate_idx];
+        wires[3][gate_idx] *= eta;
+        wires[3][gate_idx] += 1;
+    }
 }
 
 template honk::flavor::Standard::Polynomial compute_permutation_grand_product<honk::flavor::Standard>(
@@ -364,13 +402,14 @@ template honk::flavor::Ultra::Polynomial compute_permutation_grand_product<honk:
 
 template typename honk::flavor::Ultra::Polynomial compute_lookup_grand_product<honk::flavor::Ultra>(
     std::shared_ptr<typename honk::flavor::Ultra::ProvingKey>& key,
-    typename honk::flavor::Ultra::Polynomial& sorted_list_accumulator,
     typename honk::flavor::Ultra::FF eta,
     typename honk::flavor::Ultra::FF beta,
     typename honk::flavor::Ultra::FF gamma);
 
 template typename honk::flavor::Ultra::Polynomial compute_sorted_list_accumulator<honk::flavor::Ultra>(
-    std::shared_ptr<typename honk::flavor::Ultra::ProvingKey>& key,
-    std::vector<typename honk::flavor::Ultra::Polynomial>& sorted_list_polynomials,
-    typename honk::flavor::Ultra::FF eta);
+    std::shared_ptr<typename honk::flavor::Ultra::ProvingKey>& key, typename honk::flavor::Ultra::FF eta);
+
+template void add_plookup_memory_records_to_wire_4<honk::flavor::Ultra>(
+    std::shared_ptr<typename honk::flavor::Ultra::ProvingKey>& key, typename honk::flavor::Ultra::FF eta);
+
 } // namespace proof_system::honk::prover_library

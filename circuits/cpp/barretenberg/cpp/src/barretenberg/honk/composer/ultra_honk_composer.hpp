@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
+#include "barretenberg/honk/proof_system/ultra_verifier.hpp"
 #include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 #include "barretenberg/honk/composer/composer_helper/ultra_honk_composer_helper.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
@@ -51,7 +52,12 @@ class UltraHonkComposer {
     void finalize_circuit() { circuit_constructor.finalize_circuit(); };
 
     UltraProver create_prover() { return composer_helper.create_prover(circuit_constructor); };
-    // UltraVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); };
+    UltraVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); };
+
+    void add_gates_to_ensure_all_polys_are_non_zero()
+    {
+        circuit_constructor.add_gates_to_ensure_all_polys_are_non_zero();
+    }
 
     void create_add_gate(const add_triple& in) { circuit_constructor.create_add_gate(in); }
 
@@ -118,7 +124,10 @@ class UltraHonkComposer {
     // accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
     // accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
 
-    // uint32_t put_constant_variable(const barretenberg::fr& variable);
+    uint32_t put_constant_variable(const barretenberg::fr& variable)
+    {
+        return circuit_constructor.put_constant_variable(variable);
+    };
 
     // size_t get_num_constant_gates() const override { return 0; }
 

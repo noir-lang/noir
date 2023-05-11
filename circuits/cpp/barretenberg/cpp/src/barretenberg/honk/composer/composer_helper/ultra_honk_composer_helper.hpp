@@ -5,7 +5,7 @@
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
-// #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
+#include "barretenberg/honk/proof_system/ultra_verifier.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -61,12 +61,12 @@ class UltraHonkComposerHelper {
     void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
     std::shared_ptr<ProvingKey> compute_proving_key(const CircuitConstructor& circuit_constructor);
-    // std::shared_ptr<VerificationKey> compute_verification_key(const CircuitConstructor& circuit_constructor);
+    std::shared_ptr<VerificationKey> compute_verification_key(const CircuitConstructor& circuit_constructor);
 
     void compute_witness(CircuitConstructor& circuit_constructor);
 
     UltraProver create_prover(CircuitConstructor& circuit_constructor);
-    // UltraVerifier create_verifier(const CircuitConstructor& circuit_constructor);
+    UltraVerifier create_verifier(const CircuitConstructor& circuit_constructor);
 
     void add_table_column_selector_poly_to_proving_key(polynomial& small, const std::string& tag);
 };

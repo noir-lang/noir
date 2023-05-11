@@ -7,6 +7,8 @@
 
 namespace proof_system::honk::prover_library {
 
+// TODO(luke): may make sense to simply pass a RelationParameters to each of these
+
 template <typename Flavor>
 typename Flavor::Polynomial compute_permutation_grand_product(std::shared_ptr<typename Flavor::ProvingKey>& key,
                                                               typename Flavor::FF beta,
@@ -14,15 +16,15 @@ typename Flavor::Polynomial compute_permutation_grand_product(std::shared_ptr<ty
 
 template <typename Flavor>
 typename Flavor::Polynomial compute_lookup_grand_product(std::shared_ptr<typename Flavor::ProvingKey>& key,
-                                                         typename Flavor::Polynomial& sorted_list_accumulator,
                                                          typename Flavor::FF eta,
                                                          typename Flavor::FF beta,
                                                          typename Flavor::FF gamma);
 
 template <typename Flavor>
-typename Flavor::Polynomial compute_sorted_list_accumulator(
-    std::shared_ptr<typename Flavor::ProvingKey>& key,
-    std::vector<typename Flavor::Polynomial>& sorted_list_polynomials,
-    typename Flavor::FF eta);
+typename Flavor::Polynomial compute_sorted_list_accumulator(std::shared_ptr<typename Flavor::ProvingKey>& key,
+                                                            typename Flavor::FF eta);
+
+template <typename Flavor>
+void add_plookup_memory_records_to_wire_4(std::shared_ptr<typename Flavor::ProvingKey>& key, typename Flavor::FF eta);
 
 } // namespace proof_system::honk::prover_library

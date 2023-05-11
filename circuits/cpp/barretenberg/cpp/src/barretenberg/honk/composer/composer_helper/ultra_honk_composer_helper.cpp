@@ -146,27 +146,25 @@ UltraProver UltraHonkComposerHelper::create_prover(CircuitConstructor& circuit_c
     return output_state;
 }
 
-// /**
-//  * Create verifier: compute verification key,
-//  * initialize verifier with it and an initial manifest and initialize commitment_scheme.
-//  *
-//  * @return The verifier.
-//  * */
-// plonk::UltraVerifier UltraHonkComposerHelper::create_verifier(
-//     const CircuitConstructor& circuit_constructor)
-// {
-//     auto verification_key = compute_verification_key(circuit_constructor);
+/**
+ * Create verifier: compute verification key,
+ * initialize verifier with it and an initial manifest and initialize commitment_scheme.
+ *
+ * @return The verifier.
+ * */
+UltraVerifier UltraHonkComposerHelper::create_verifier(const CircuitConstructor& circuit_constructor)
+{
+    auto verification_key = compute_verification_key(circuit_constructor);
 
-//     plonk::UltraVerifier output_state(verification_key,
-//                                       create_manifest(circuit_constructor.public_inputs.size()));
+    UltraVerifier output_state(verification_key);
 
-//     std::unique_ptr<plonk::KateCommitmentScheme<plonk::ultra_settings>> kate_commitment_scheme =
-//         std::make_unique<plonk::KateCommitmentScheme<plonk::ultra_settings>>();
+    // TODO(Cody): This should be more generic
+    auto kate_verification_key = std::make_unique<pcs::kzg::VerificationKey>("../srs_db/ignition");
 
-//     output_state.commitment_scheme = std::move(kate_commitment_scheme);
+    output_state.kate_verification_key = std::move(kate_verification_key);
 
-//     return output_state;
-// }
+    return output_state;
+}
 
 std::shared_ptr<UltraHonkComposerHelper::Flavor::ProvingKey> UltraHonkComposerHelper::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
@@ -296,50 +294,65 @@ std::shared_ptr<UltraHonkComposerHelper::Flavor::ProvingKey> UltraHonkComposerHe
     return proving_key;
 }
 
-// /**
-//  * Compute verification key consisting of selector precommitments.
-//  *
-//  * @return Pointer to created circuit verification key.
-//  * */
-// std::shared_ptr<VerificationKey> UltraHonkComposerHelper::compute_verification_key(
-//     const CircuitConstructor& circuit_constructor)
-// {
-//     if (verification_key) {
-//         return verification_key;
-//     }
+/**
+ * Compute verification key consisting of selector precommitments.
+ *
+ * @return Pointer to created circuit verification key.
+ * */
+std::shared_ptr<UltraHonkComposerHelper::VerificationKey> UltraHonkComposerHelper::compute_verification_key(
+    const CircuitConstructor& circuit_constructor)
+{
+    if (verification_key) {
+        return verification_key;
+    }
 
-//     if (!proving_key) {
-//         compute_proving_key(circuit_constructor);
-//     }
-//     verification_key = compute_verification_key_common(proving_key,
-//     crs_factory_->get_verifier_crs());
+    if (!proving_key) {
+        compute_proving_key(circuit_constructor);
+    }
 
-//     verification_key->composer_type = type; // Invariably plookup for this class.
+    verification_key = std::make_shared<UltraHonkComposerHelper::VerificationKey>(proving_key->circuit_size,
+                                                                                  proving_key->num_public_inputs,
+                                                                                  crs_factory_->get_verifier_crs(),
+                                                                                  proving_key->composer_type);
 
-//     // See `add_recusrive_proof()` for how this recursive data is assigned.
-//     verification_key->recursive_proof_public_input_indices =
-//         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(),
-//         recursive_proof_public_input_indices.end());
+    // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
+    auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
 
-//     verification_key->contains_recursive_proof = contains_recursive_proof;
+    // Compute and store commitments to all precomputed polynomials
+    verification_key->q_m = commitment_key.commit(proving_key->q_m);
+    verification_key->q_l = commitment_key.commit(proving_key->q_l);
+    verification_key->q_r = commitment_key.commit(proving_key->q_r);
+    verification_key->q_o = commitment_key.commit(proving_key->q_o);
+    verification_key->q_4 = commitment_key.commit(proving_key->q_4);
+    verification_key->q_c = commitment_key.commit(proving_key->q_c);
+    verification_key->q_arith = commitment_key.commit(proving_key->q_arith);
+    verification_key->q_sort = commitment_key.commit(proving_key->q_sort);
+    verification_key->q_elliptic = commitment_key.commit(proving_key->q_elliptic);
+    verification_key->q_aux = commitment_key.commit(proving_key->q_aux);
+    verification_key->q_lookup = commitment_key.commit(proving_key->q_lookup);
+    verification_key->sigma_1 = commitment_key.commit(proving_key->sigma_1);
+    verification_key->sigma_2 = commitment_key.commit(proving_key->sigma_2);
+    verification_key->sigma_3 = commitment_key.commit(proving_key->sigma_3);
+    verification_key->sigma_4 = commitment_key.commit(proving_key->sigma_4);
+    verification_key->id_1 = commitment_key.commit(proving_key->id_1);
+    verification_key->id_2 = commitment_key.commit(proving_key->id_2);
+    verification_key->id_3 = commitment_key.commit(proving_key->id_3);
+    verification_key->id_4 = commitment_key.commit(proving_key->id_4);
+    verification_key->table_1 = commitment_key.commit(proving_key->table_1);
+    verification_key->table_2 = commitment_key.commit(proving_key->table_2);
+    verification_key->table_3 = commitment_key.commit(proving_key->table_3);
+    verification_key->table_4 = commitment_key.commit(proving_key->table_4);
+    verification_key->lagrange_first = commitment_key.commit(proving_key->lagrange_first);
+    verification_key->lagrange_last = commitment_key.commit(proving_key->lagrange_last);
 
-//     return verification_key;
-// }
+    // // See `add_recusrive_proof()` for how this recursive data is assigned.
+    // verification_key->recursive_proof_public_input_indices =
+    //     std::vector<uint32_t>(recursive_proof_public_input_indices.begin(),
+    //     recursive_proof_public_input_indices.end());
 
-// void UltraHonkComposerHelper::add_table_column_selector_poly_to_proving_key(
-//     polynomial& selector_poly_lagrange_form, const std::string& tag)
-// {
-//     polynomial selector_poly_lagrange_form_copy(selector_poly_lagrange_form, proving_key->small_domain.size);
+    // verification_key->contains_recursive_proof = contains_recursive_proof;
 
-//     selector_poly_lagrange_form.ifft(proving_key->small_domain);
-//     auto& selector_poly_coeff_form = selector_poly_lagrange_form;
-
-//     polynomial selector_poly_coset_form(selector_poly_coeff_form, proving_key->circuit_size * 4);
-//     selector_poly_coset_form.coset_fft(proving_key->large_domain);
-
-//     proving_key->polynomial_store.put(tag, std::move(selector_poly_coeff_form));
-//     proving_key->polynomial_store.put(tag + "_lagrange", std::move(selector_poly_lagrange_form_copy));
-//     proving_key->polynomial_store.put(tag + "_fft", std::move(selector_poly_coset_form));
-// }
+    return verification_key;
+}
 
 } // namespace proof_system::honk

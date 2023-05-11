@@ -204,7 +204,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         auto lookup_index_selector = get_random_polynomial(circuit_size);
         auto lookup_selector = get_random_polynomial(circuit_size);
 
-        // populate_span(proving_key->sorted_batched, sorted_batched);
+        proving_key->sorted_accum = sorted_batched;
         populate_span(proving_key->q_r, column_1_step_size);
         populate_span(proving_key->q_m, column_2_step_size);
         populate_span(proving_key->q_c, column_3_step_size);
@@ -217,8 +217,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         auto eta = FF::random_element();
 
         // Method 1: Compute z_lookup using the prover library method
-        Polynomial z_lookup =
-            prover_library::compute_lookup_grand_product<Flavor>(proving_key, sorted_batched, eta, beta, gamma);
+        Polynomial z_lookup = prover_library::compute_lookup_grand_product<Flavor>(proving_key, eta, beta, gamma);
 
         // Method 2: Compute the lookup grand product polynomial Z_lookup:
         //
@@ -315,25 +314,26 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         auto eta = FF::random_element();
 
         // Construct mock sorted list polynomials.
-        std::vector<Polynomial> sorted_list_polynomials;
-        for (size_t i = 0; i < 4; ++i) {
-            sorted_list_polynomials.emplace_back(get_random_polynomial(circuit_size));
+        std::vector<Polynomial> sorted_lists;
+        auto sorted_list_polynomials = proving_key->get_sorted_polynomials();
+        for (auto& sorted_list_poly : sorted_list_polynomials) {
+            Polynomial random_polynomial = get_random_polynomial(circuit_size);
+            sorted_lists.emplace_back(random_polynomial);
+            populate_span(sorted_list_poly, random_polynomial);
         }
 
         // Method 1: computed sorted list accumulator polynomial using prover library method
-        Polynomial sorted_list_accumulator =
-            prover_library::compute_sorted_list_accumulator<Flavor>(proving_key, sorted_list_polynomials, eta);
+        Polynomial sorted_list_accumulator = prover_library::compute_sorted_list_accumulator<Flavor>(proving_key, eta);
 
         // Method 2: Compute local sorted list accumulator simply and inefficiently
         const FF eta_sqr = eta.sqr();
         const FF eta_cube = eta_sqr * eta;
 
         // Compute s = s_1 + η*s_2 + η²*s_3 + η³*s_4
-        Polynomial sorted_list_accumulator_expected{ sorted_list_polynomials[0] };
+        Polynomial sorted_list_accumulator_expected{ sorted_lists[0] };
         for (size_t i = 0; i < circuit_size; ++i) {
-            sorted_list_accumulator_expected[i] += sorted_list_polynomials[1][i] * eta +
-                                                   sorted_list_polynomials[2][i] * eta_sqr +
-                                                   sorted_list_polynomials[3][i] * eta_cube;
+            sorted_list_accumulator_expected[i] +=
+                sorted_lists[1][i] * eta + sorted_lists[2][i] * eta_sqr + sorted_lists[3][i] * eta_cube;
         }
 
         EXPECT_EQ(sorted_list_accumulator, sorted_list_accumulator_expected);

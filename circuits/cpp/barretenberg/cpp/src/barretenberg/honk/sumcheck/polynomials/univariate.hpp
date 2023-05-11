@@ -291,6 +291,13 @@ template <class Fr, size_t view_length> class UnivariateView {
         return res;
     }
 
+    Univariate<Fr, view_length> operator-(const Univariate<Fr, view_length>& other) const
+    {
+        Univariate<Fr, view_length> res(*this);
+        res -= other;
+        return res;
+    }
+
     // Output is immediately parsable as a list of integers by Python.
     friend std::ostream& operator<<(std::ostream& os, const UnivariateView& u)
     {

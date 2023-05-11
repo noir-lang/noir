@@ -29,64 +29,64 @@ std::vector<uint32_t> add_variables(UltraPlonkComposer& composer, std::vector<fr
     return res;
 }
 
-// TODO(luke): TEMPORARY: this test is useful for debugging descrepencies between old composer and new one
-TEST(ultra_plonk_composer_splitting_tmp, debug_composer_discrepencies)
-{
-    UltraPlonkComposer composer_new = UltraPlonkComposer();
-    UltraComposer composer = UltraComposer();
+// // TODO(luke): TEMPORARY: this test is useful for debugging descrepencies between old composer and new one
+// TEST(ultra_plonk_composer_splitting_tmp, debug_composer_discrepencies)
+// {
+//     UltraPlonkComposer composer_new = UltraPlonkComposer();
+//     UltraComposer composer = UltraComposer();
 
-    for (size_t i = 0; i < 16; ++i) {
-        for (size_t j = 0; j < 16; ++j) {
-            uint64_t left = static_cast<uint64_t>(j);
-            uint64_t right = static_cast<uint64_t>(i);
-            uint32_t left_idx = composer.add_variable(fr(left));
-            uint32_t right_idx = composer.add_variable(fr(right));
-            uint32_t result_idx = composer.add_variable(fr(left ^ right));
+//     for (size_t i = 0; i < 16; ++i) {
+//         for (size_t j = 0; j < 16; ++j) {
+//             uint64_t left = static_cast<uint64_t>(j);
+//             uint64_t right = static_cast<uint64_t>(i);
+//             uint32_t left_idx = composer.add_variable(fr(left));
+//             uint32_t right_idx = composer.add_variable(fr(right));
+//             uint32_t result_idx = composer.add_variable(fr(left ^ right));
 
-            uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
-            composer.create_big_add_gate(
-                { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
-        }
-    }
+//             uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
+//             composer.create_big_add_gate(
+//                 { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
+//         }
+//     }
 
-    for (size_t i = 0; i < 16; ++i) {
-        for (size_t j = 0; j < 16; ++j) {
-            uint64_t left = static_cast<uint64_t>(j);
-            uint64_t right = static_cast<uint64_t>(i);
-            uint32_t left_idx = composer_new.add_variable(fr(left));
-            uint32_t right_idx = composer_new.add_variable(fr(right));
-            uint32_t result_idx = composer_new.add_variable(fr(left ^ right));
+//     for (size_t i = 0; i < 16; ++i) {
+//         for (size_t j = 0; j < 16; ++j) {
+//             uint64_t left = static_cast<uint64_t>(j);
+//             uint64_t right = static_cast<uint64_t>(i);
+//             uint32_t left_idx = composer_new.add_variable(fr(left));
+//             uint32_t right_idx = composer_new.add_variable(fr(right));
+//             uint32_t result_idx = composer_new.add_variable(fr(left ^ right));
 
-            uint32_t add_idx = composer_new.add_variable(fr(left) + fr(right) + composer_new.get_variable(result_idx));
-            composer_new.create_big_add_gate(
-                { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
-        }
-    }
+//             uint32_t add_idx = composer_new.add_variable(fr(left) + fr(right) +
+//             composer_new.get_variable(result_idx)); composer_new.create_big_add_gate(
+//                 { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
+//         }
+//     }
 
-    EXPECT_EQ(composer.num_gates, composer_new.num_gates);
+//     EXPECT_EQ(composer.num_gates, composer_new.num_gates);
 
-    auto prover = composer.create_prover();
-    auto prover_new = composer_new.create_prover();
+//     auto prover = composer.create_prover();
+//     auto prover_new = composer_new.create_prover();
 
-    for (const auto& [key, poly] : prover.key->polynomial_store) {
-        if (prover_new.key->polynomial_store.contains(key)) {
-            EXPECT_EQ(prover.key->polynomial_store.get(key), prover_new.key->polynomial_store.get(key));
-        }
-    }
+//     for (const auto& [key, poly] : prover.key->polynomial_store) {
+//         if (prover_new.key->polynomial_store.contains(key)) {
+//             EXPECT_EQ(prover.key->polynomial_store.get(key), prover_new.key->polynomial_store.get(key));
+//         }
+//     }
 
-    auto verifier = composer.create_verifier();
-    auto verifier_new = composer_new.create_verifier();
+//     auto verifier = composer.create_verifier();
+//     auto verifier_new = composer_new.create_verifier();
 
-    for (const auto& [key, poly] : verifier.key->commitments) {
-        EXPECT_EQ(verifier.key->commitments[key], verifier_new.key->commitments[key]);
-    }
+//     for (const auto& [key, poly] : verifier.key->commitments) {
+//         EXPECT_EQ(verifier.key->commitments[key], verifier_new.key->commitments[key]);
+//     }
 
-    auto proof = prover.construct_proof();
-    auto proof_new = prover_new.construct_proof();
+//     auto proof = prover.construct_proof();
+//     auto proof_new = prover_new.construct_proof();
 
-    bool result_new = verifier_new.verify_proof(proof_new); // instance, prover.reference_string.SRS_T2);
-    EXPECT_EQ(result_new, true);
-}
+//     bool result_new = verifier_new.verify_proof(proof_new); // instance, prover.reference_string.SRS_T2);
+//     EXPECT_EQ(result_new, true);
+// }
 
 TEST(ultra_plonk_composer_splitting_tmp, create_gates_from_plookup_accumulators)
 {

@@ -7,7 +7,7 @@ namespace {
 // Parameters for generator table construction
 struct GeneratorParameters {
     size_t num_default_generators; // Number of unique base points with default main index with precomputed ladders
-    size_t num_hash_indices; // Number of unique hash indices
+    size_t num_hash_indices;       // Number of unique hash indices
     size_t num_generators_per_hash_index; // Number of generators per hash index
     size_t hash_indices_generator_offset; // Offset for hash index generators
 };
@@ -16,13 +16,13 @@ struct GeneratorParameters {
 // This hack is to avoid breakage due to generators in aztec circuits while maintaining compatibility
 // with the barretenberg master.
 #ifdef BARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK
-constexpr GeneratorParameters GEN_PARAMS = {BARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK};
+constexpr GeneratorParameters GEN_PARAMS = { BARRETENBERG_CRYPTO_GENERATOR_PARAMETERS_HACK };
 #else
 #ifdef __wasm__
-constexpr GeneratorParameters GEN_PARAMS = {32, 16, 8, 2048};
+constexpr GeneratorParameters GEN_PARAMS = { 32, 16, 8, 2048 };
 // TODO need to resolve memory out of bounds when these are too high
 #else
-constexpr GeneratorParameters GEN_PARAMS = {2048, 16, 8, 2048};
+constexpr GeneratorParameters GEN_PARAMS = { 2048, 16, 8, 2048 };
 #endif
 #endif
 
@@ -277,8 +277,8 @@ generator_data const& get_generator_data(generator_index_t index)
     }
     ASSERT(index.index <= GEN_PARAMS.num_hash_indices);
     ASSERT(index.sub_index < GEN_PARAMS.num_generators_per_hash_index);
-    return *global_generator_data[GEN_PARAMS.hash_indices_generator_offset + ((index.index - 1) * GEN_PARAMS.num_generators_per_hash_index) +
-                                  index.sub_index];
+    return *global_generator_data[GEN_PARAMS.hash_indices_generator_offset +
+                                  ((index.index - 1) * GEN_PARAMS.num_generators_per_hash_index) + index.sub_index];
 }
 
 const fixed_base_ladder* generator_data::get_ladder(size_t num_bits) const

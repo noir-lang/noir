@@ -585,8 +585,11 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
         w_4.reserve(size_hint);
-        zero_idx = put_constant_variable(0);
-        tau.insert({ DUMMY_TAG, DUMMY_TAG });
+        zero_idx = put_constant_variable(barretenberg::fr::zero());
+        tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
+
+        // TODO(#217/#423): Related to issue of ensuring no identically 0 polynomials
+        add_gates_to_ensure_all_polys_are_non_zero();
     };
 
     UltraCircuitConstructor(const UltraCircuitConstructor& other) = delete;
@@ -596,6 +599,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     ~UltraCircuitConstructor() override = default;
 
     void finalize_circuit();
+
+    void add_gates_to_ensure_all_polys_are_non_zero();
 
     void create_add_gate(const add_triple& in) override;
 

@@ -1,6 +1,9 @@
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation_secondary.hpp"
 #include "barretenberg/honk/sumcheck/relations/lookup_grand_product_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "relation.hpp"
 #include "arithmetic_relation.hpp"
@@ -398,6 +401,290 @@ TEST_F(UltraRelationConsistency, LookupGrandProductInitializationRelation)
 
     // Compute the expected result using a simple to read version of the relation expression
     auto expected_evals = z_lookup_shift * lagrange_last;
+
+    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+};
+
+TEST_F(UltraRelationConsistency, GenPermSortRelation)
+{
+    using Flavor = honk::flavor::Ultra;
+    using FF = typename Flavor::FF;
+    using Flavor = honk::flavor::Ultra;
+    static constexpr size_t FULL_RELATION_LENGTH = 6;
+    using ExtendedEdges = typename Flavor::ExtendedEdges<FULL_RELATION_LENGTH>;
+    static const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
+    auto relation_parameters = compute_mock_relation_parameters();
+    ExtendedEdges extended_edges;
+    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
+
+    // input_univariates are random polynomials of degree one
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
+    }
+    compute_mock_extended_edges(extended_edges, input_polynomials);
+
+    auto relation = GenPermSortRelation<FF>();
+
+    // Extract the extended edges for manual computation of relation contribution
+    const auto& z_lookup_shift = extended_edges.z_lookup_shift;
+    const auto& lagrange_last = extended_edges.lagrange_last;
+
+    const auto& w_1 = extended_edges.w_l;
+    const auto& w_2 = extended_edges.w_r;
+    const auto& w_3 = extended_edges.w_o;
+    const auto& w_4 = extended_edges.w_4;
+    const auto& w_1_shift = extended_edges.w_l_shift;
+    const auto& q_sort = extended_edges.q_sort;
+
+    static const FF fake_alpha_1 = FF(1);
+    static const FF fake_alpha_2 = fake_alpha_1 * fake_alpha_1;
+    static const FF fake_alpha_3 = fake_alpha_2 * fake_alpha_1;
+    static const FF fake_alpha_4 = fake_alpha_3 * fake_alpha_1;
+
+    // Compute wire differences
+    auto delta_1 = w_2 - w_1;
+    auto delta_2 = w_3 - w_2;
+    auto delta_3 = w_4 - w_3;
+    auto delta_4 = w_1_shift - w_4;
+
+    // Compute the expected result using a simple to read version of the relation expression
+    auto expected_evals = delta_1 * (delta_1 - 1) * (delta_1 - 2) * (delta_1 - 3) * fake_alpha_1;
+    expected_evals += delta_2 * (delta_2 - 1) * (delta_2 - 2) * (delta_2 - 3) * fake_alpha_2;
+    expected_evals += delta_3 * (delta_3 - 1) * (delta_3 - 2) * (delta_3 - 3) * fake_alpha_3;
+    expected_evals += delta_4 * (delta_4 - 1) * (delta_4 - 2) * (delta_4 - 3) * fake_alpha_4;
+    expected_evals *= q_sort;
+
+    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+};
+
+TEST_F(UltraRelationConsistency, EllipticRelation)
+{
+    using Flavor = honk::flavor::Ultra;
+    using FF = typename Flavor::FF;
+    using Flavor = honk::flavor::Ultra;
+    static constexpr size_t FULL_RELATION_LENGTH = 6;
+    using ExtendedEdges = typename Flavor::ExtendedEdges<FULL_RELATION_LENGTH>;
+    static const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
+    auto relation_parameters = compute_mock_relation_parameters();
+    ExtendedEdges extended_edges;
+    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
+
+    // input_univariates are random polynomials of degree one
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
+    }
+    compute_mock_extended_edges(extended_edges, input_polynomials);
+
+    auto relation = EllipticRelation<FF>();
+
+    // Extract the extended edges for manual computation of relation contribution
+    const auto& x_1 = extended_edges.w_r;
+    const auto& y_1 = extended_edges.w_o;
+
+    const auto& x_2 = extended_edges.w_l_shift;
+    const auto& y_2 = extended_edges.w_4_shift;
+    const auto& x_3 = extended_edges.w_r_shift;
+    const auto& y_3 = extended_edges.w_o_shift;
+
+    const auto& q_sign = extended_edges.q_l;
+    const auto& q_beta = extended_edges.q_o;
+    const auto& q_beta_sqr = extended_edges.q_4;
+    const auto& q_elliptic = extended_edges.q_elliptic;
+
+    static const FF fake_alpha_1 = FF(1);
+    static const FF fake_alpha_2 = fake_alpha_1 * fake_alpha_1;
+
+    // Compute x/y coordinate identities
+    auto x_identity = q_sign * (y_1 * y_2 * 2);
+    x_identity += q_beta * (x_1 * x_2 * x_3 * 2 + x_1 * x_1 * x_2) * FF(-1);
+    x_identity += q_beta_sqr * (x_2 * x_2 * x_3 - x_1 * x_2 * x_2);
+    x_identity += (x_1 * x_1 * x_3 - y_2 * y_2 - y_1 * y_1 + x_2 * x_2 * x_2 + x_1 * x_1 * x_1);
+
+    auto y_identity = q_sign * (y_2 * x_3 - y_2 * x_1);
+    y_identity += q_beta * (x_2 * y_3 + y_1 * x_2);
+    y_identity += (x_1 * y_1 - x_1 * y_3 - y_1 * x_3 - x_1 * y_1);
+
+    auto expected_evals = x_identity * fake_alpha_1 + y_identity * fake_alpha_2;
+    expected_evals *= q_elliptic;
+
+    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+};
+
+TEST_F(UltraRelationConsistency, AuxiliaryRelation)
+{
+    using Flavor = honk::flavor::Ultra;
+    using FF = typename Flavor::FF;
+    using Flavor = honk::flavor::Ultra;
+    static constexpr size_t FULL_RELATION_LENGTH = 6;
+    using ExtendedEdges = typename Flavor::ExtendedEdges<FULL_RELATION_LENGTH>;
+    static const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
+    auto relation_parameters = compute_mock_relation_parameters();
+    ExtendedEdges extended_edges;
+    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
+
+    // input_univariates are random polynomials of degree one
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
+    }
+    compute_mock_extended_edges(extended_edges, input_polynomials);
+
+    auto relation = AuxiliaryRelation<FF>();
+
+    const auto& eta = relation_parameters.eta;
+    const auto fake_alpha = FF(1);
+
+    // Extract the extended edges for manual computation of relation contribution
+    const auto& w_1 = extended_edges.w_l;
+    const auto& w_2 = extended_edges.w_r;
+    const auto& w_3 = extended_edges.w_o;
+    const auto& w_4 = extended_edges.w_4;
+    const auto& w_1_shift = extended_edges.w_l_shift;
+    const auto& w_2_shift = extended_edges.w_r_shift;
+    const auto& w_3_shift = extended_edges.w_o_shift;
+    const auto& w_4_shift = extended_edges.w_4_shift;
+
+    const auto& q_1 = extended_edges.q_l;
+    const auto& q_2 = extended_edges.q_r;
+    const auto& q_3 = extended_edges.q_o;
+    const auto& q_4 = extended_edges.q_4;
+    const auto& q_m = extended_edges.q_m;
+    const auto& q_c = extended_edges.q_c;
+    const auto& q_arith = extended_edges.q_arith;
+    const auto& q_aux = extended_edges.q_aux;
+
+    constexpr FF LIMB_SIZE(uint256_t(1) << 68);
+    constexpr FF SUBLIMB_SHIFT(uint256_t(1) << 14);
+    constexpr FF SUBLIMB_SHIFT_2(SUBLIMB_SHIFT * SUBLIMB_SHIFT);
+    constexpr FF SUBLIMB_SHIFT_3(SUBLIMB_SHIFT_2 * SUBLIMB_SHIFT);
+    constexpr FF SUBLIMB_SHIFT_4(SUBLIMB_SHIFT_3 * SUBLIMB_SHIFT);
+
+    /**
+     * Non native field arithmetic gate 2
+     *
+     *             _                                                                               _
+     *            /   _                   _                               _       14                \
+     * q_2 . q_4 |   (w_1 . w_2) + (w_1 . w_2) + (w_1 . w_4 + w_2 . w_3 - w_3) . 2    - w_3 - w_4   |
+     *            \_                                                                               _/
+     *
+     **/
+    auto limb_subproduct = w_1 * w_2_shift + w_1_shift * w_2;
+    auto non_native_field_gate_2 = (w_1 * w_4 + w_2 * w_3 - w_3_shift);
+    non_native_field_gate_2 *= LIMB_SIZE;
+    non_native_field_gate_2 -= w_4_shift;
+    non_native_field_gate_2 += limb_subproduct;
+    non_native_field_gate_2 *= q_4;
+
+    limb_subproduct *= LIMB_SIZE;
+    limb_subproduct += (w_1_shift * w_2_shift);
+    auto non_native_field_gate_1 = limb_subproduct;
+    non_native_field_gate_1 -= (w_3 + w_4);
+    non_native_field_gate_1 *= q_3;
+
+    auto non_native_field_gate_3 = limb_subproduct;
+    non_native_field_gate_3 += w_4;
+    non_native_field_gate_3 -= (w_3_shift + w_4_shift);
+    non_native_field_gate_3 *= q_m;
+
+    auto non_native_field_identity = non_native_field_gate_1 + non_native_field_gate_2 + non_native_field_gate_3;
+    non_native_field_identity *= q_2;
+
+    auto limb_accumulator_1 = w_1 + w_2 * SUBLIMB_SHIFT + w_3 * SUBLIMB_SHIFT_2 + w_1_shift * SUBLIMB_SHIFT_3 +
+                              w_2_shift * SUBLIMB_SHIFT_4 - w_4;
+    limb_accumulator_1 *= q_4;
+
+    auto limb_accumulator_2 = w_3 + w_4 * SUBLIMB_SHIFT + w_1_shift * SUBLIMB_SHIFT_2 + w_2_shift * SUBLIMB_SHIFT_3 +
+                              w_3_shift * SUBLIMB_SHIFT_4 - w_4_shift;
+    limb_accumulator_2 *= q_m;
+
+    auto limb_accumulator_identity = limb_accumulator_1 + limb_accumulator_2;
+    limb_accumulator_identity *= q_3;
+
+    /**
+     * MEMORY
+     **/
+
+    /**
+     * Memory Record Check
+     */
+    auto memory_record_check = w_3;
+    memory_record_check *= eta;
+    memory_record_check += w_2;
+    memory_record_check *= eta;
+    memory_record_check += w_1;
+    memory_record_check *= eta;
+    memory_record_check += q_c;
+    auto partial_record_check = memory_record_check; // used in RAM consistency check
+    memory_record_check = memory_record_check - w_4;
+
+    /**
+     * ROM Consistency Check
+     */
+    auto index_delta = w_1_shift - w_1;
+    auto record_delta = w_4_shift - w_4;
+
+    auto index_is_monotonically_increasing = index_delta * index_delta - index_delta;
+
+    // auto adjacent_values_match_if_adjacent_indices_match = (FF(1) - index_delta) * record_delta;
+    auto adjacent_values_match_if_adjacent_indices_match = (index_delta * FF(-1) + FF(1)) * record_delta;
+
+    auto ROM_consistency_check_identity = adjacent_values_match_if_adjacent_indices_match;
+    ROM_consistency_check_identity *= fake_alpha;
+    ROM_consistency_check_identity += index_is_monotonically_increasing;
+    ROM_consistency_check_identity *= fake_alpha;
+    ROM_consistency_check_identity += memory_record_check;
+
+    /**
+     * RAM Consistency Check
+     */
+    auto access_type = (w_4 - partial_record_check);             // will be 0 or 1 for honest Prover
+    auto access_check = access_type * access_type - access_type; // check value is 0 or 1
+
+    auto next_gate_access_type = w_3_shift;
+    next_gate_access_type *= eta;
+    next_gate_access_type += w_2_shift;
+    next_gate_access_type *= eta;
+    next_gate_access_type += w_1_shift;
+    next_gate_access_type *= eta;
+    next_gate_access_type = w_4_shift - next_gate_access_type;
+
+    auto value_delta = w_3_shift - w_3;
+    auto adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation =
+        (index_delta * FF(-1) + FF(1)) * value_delta * (next_gate_access_type * FF(-1) + FF(1));
+
+    // We can't apply the RAM consistency check identity on the final entry in the sorted list (the wires in the
+    // next gate would make the identity fail).
+    // We need to validate that its 'access type' bool is correct. Can't do
+    // with an arithmetic gate because of the `eta` factors. We need to check that the *next* gate's access type is
+    // correct, to cover this edge case
+    auto next_gate_access_type_is_boolean = next_gate_access_type * next_gate_access_type - next_gate_access_type;
+
+    // Putting it all together...
+    auto RAM_consistency_check_identity =
+        adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation;
+    RAM_consistency_check_identity *= fake_alpha;
+    RAM_consistency_check_identity += index_is_monotonically_increasing;
+    RAM_consistency_check_identity *= fake_alpha;
+    RAM_consistency_check_identity += next_gate_access_type_is_boolean;
+    RAM_consistency_check_identity *= fake_alpha;
+    RAM_consistency_check_identity += access_check;
+
+    /**
+     * RAM Timestamp Consistency Check
+     */
+    auto timestamp_delta = w_2_shift - w_2;
+    auto RAM_timestamp_check_identity = (index_delta * FF(-1) + FF(1)) * timestamp_delta - w_3;
+
+    /**
+     * The complete RAM/ROM memory identity
+     */
+    auto memory_identity = ROM_consistency_check_identity * q_2;
+    memory_identity += RAM_timestamp_check_identity * q_4;
+    memory_identity += memory_record_check * q_m;
+    memory_identity *= q_1;
+    memory_identity += (RAM_consistency_check_identity * q_arith);
+
+    auto expected_evals = memory_identity + non_native_field_identity + limb_accumulator_identity;
+    expected_evals *= q_aux;
 
     validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
 };

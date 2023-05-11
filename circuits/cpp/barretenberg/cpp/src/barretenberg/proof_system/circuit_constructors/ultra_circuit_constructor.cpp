@@ -52,6 +52,74 @@ void UltraCircuitConstructor::finalize_circuit()
 }
 
 /**
+ * @brief Avoid zero-polynomials and ensure first coeff of wire polynomials is 0
+ *
+ * @param in Structure containing variables and witness selectors
+ */
+// TODO(#423): This function adds valid (but arbitrary) gates to ensure that the circuit which includes
+// them will not result in any zero-polynomials. It also ensures that the first coefficient of the wire
+// polynomials is zero, which is required for them to be shiftable. Its currently wildly inefficient
+// (~16k gates) mostly due to the lookups it includes.
+// TODO(#423)(luke): Add 0 as a PI since PI always start at the 0th index of the wire polynomials?
+// TODO(luke): may need to reevaluate once aux relation is implemented
+void UltraCircuitConstructor::add_gates_to_ensure_all_polys_are_non_zero()
+{
+    // First add a gate to simultaneously ensure first entries of all wires is zero and to add a non
+    // zero value to all selectors aside from q_c and q_lookup
+    w_l.emplace_back(zero_idx);
+    w_r.emplace_back(zero_idx);
+    w_o.emplace_back(zero_idx);
+    w_4.emplace_back(zero_idx);
+    q_m.emplace_back(1);
+    q_1.emplace_back(1);
+    q_2.emplace_back(1);
+    q_3.emplace_back(1);
+    q_c.emplace_back(0);
+    q_sort.emplace_back(1);
+
+    q_arith.emplace_back(1);
+    q_4.emplace_back(1);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(1);
+    q_aux.emplace_back(1);
+    ++num_gates;
+
+    // Some relations depend on wire shifts so we add another gate with
+    // wires set to 0 to ensure corresponding constraints are satisfied
+    create_poly_gate({ zero_idx, zero_idx, zero_idx, 0, 0, 0, 0, 0 });
+
+    // Add nonzero values in w_4 and q_c (q_4*w_4 + q_c --> 1*1 - 1 = 0)
+    one_idx = put_constant_variable(barretenberg::fr::one());
+    create_big_add_gate({ zero_idx, zero_idx, zero_idx, one_idx, 0, 0, 0, 1, -1 });
+
+    // Take care of all polys related to lookups (q_lookup, tables, sorted, etc)
+    // by doing an arbitrary xor and an "and" lookup.
+    // Note: the 4th table poly is the table index: this is not the value of the table
+    // type enum but rather the index of the table in the list of all tables utilized
+    // in the circuit. Therefore we naively need two different tables (indices 0, 1)
+    // to get a non-zero value in table_4. I assume this index is arbitrary and could
+    // start from 1 instead of 0?
+    uint32_t left_value = 3;
+    uint32_t right_value = 5;
+
+    fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
+    fr right_witness_value = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
+
+    uint32_t left_witness_index = add_variable(left_witness_value);
+    uint32_t right_witness_index = add_variable(right_witness_value);
+
+    const auto and_accumulators = plookup::get_lookup_accumulators(
+        plookup::MultiTableId::UINT32_AND, left_witness_value, right_witness_value, true);
+    const auto xor_accumulators = plookup::get_lookup_accumulators(
+        plookup::MultiTableId::UINT32_XOR, left_witness_value, right_witness_value, true);
+
+    create_gates_from_plookup_accumulators(
+        plookup::MultiTableId::UINT32_AND, and_accumulators, left_witness_index, right_witness_index);
+    create_gates_from_plookup_accumulators(
+        plookup::MultiTableId::UINT32_XOR, xor_accumulators, left_witness_index, right_witness_index);
+}
+
+/**
  * @brief Create an addition gate, where in.a * in.a_scaling + in.b * in.b_scaling + in.c * in.c_scaling +
  * in.const_scaling = 0
  *
