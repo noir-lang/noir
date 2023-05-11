@@ -116,10 +116,9 @@ mod test {
     use std::collections::BTreeMap;
 
     use acvm::{
-        acir::{circuit::opcodes::BlackBoxFuncCall, native_types::Witness},
-        pwg::block::Blocks,
-        FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator,
-        PartialWitnessGeneratorStatus,
+        acir::{circuit::opcodes::FunctionInput, native_types::Witness},
+        pwg::{block::Blocks, solve, OpcodeResolution, PartialWitnessGeneratorStatus},
+        FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
     };
 
     use crate::{
@@ -130,12 +129,118 @@ mod test {
 
     struct MockBackend {}
     impl PartialWitnessGenerator for MockBackend {
-        fn solve_black_box_function_call(
+        fn aes(
             &self,
             _initial_witness: &mut BTreeMap<Witness, FieldElement>,
-            _func_call: &BlackBoxFuncCall,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
-            unreachable!();
+            panic!("Path not trodden by this test")
+        }
+        fn and(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _lhs: &FunctionInput,
+            _rhs: &FunctionInput,
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn xor(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _lhs: &FunctionInput,
+            _rhs: &FunctionInput,
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn range(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _input: &FunctionInput,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn sha256(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn blake2s(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn compute_merkle_root(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _leaf: &FunctionInput,
+            _index: &FunctionInput,
+            _hash_path: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn schnorr_verify(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _public_key_x: &FunctionInput,
+            _public_key_y: &FunctionInput,
+            _signature: &[FunctionInput],
+            _message: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn pedersen(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn hash_to_field_128_security(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn ecdsa_secp256k1(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _public_key_x: &[FunctionInput],
+            _public_key_y: &[FunctionInput],
+            _signature: &[FunctionInput],
+            _message: &[FunctionInput],
+            _output: &Witness,
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn fixed_base_scalar_mul(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _input: &FunctionInput,
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn keccak256(
+            &self,
+            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
+            _inputs: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
         }
     }
 
@@ -181,9 +286,9 @@ mod test {
             // compute the network output by solving the constraints
             let backend = MockBackend {};
             let mut blocks = Blocks::default();
-            let solver_status = backend
-                .solve(&mut solved_witness, &mut blocks, eval.opcodes.clone())
-                .expect("Could not solve permutation constraints");
+            let solver_status =
+                solve(&backend, &mut solved_witness, &mut blocks, eval.opcodes.clone())
+                    .expect("Could not solve permutation constraints");
             assert_eq!(solver_status, PartialWitnessGeneratorStatus::Solved, "Incomplete solution");
             let mut b_val = Vec::new();
             for i in 0..output.len() {

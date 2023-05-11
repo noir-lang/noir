@@ -586,15 +586,11 @@ impl NodeInterner {
     #[allow(deprecated)]
     pub fn foreign(&self, opcode: &str) -> bool {
         let is_supported = acvm::default_is_opcode_supported(self.language.clone());
-        let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
-            Some(black_box_func) => black_box_func,
+        let black_box_func_call = match acvm::acir::BlackBoxFunc::lookup(opcode) {
+            Some(black_box_func) => BlackBoxFuncCall::dummy(black_box_func),
             None => return false,
         };
-        is_supported(&Opcode::BlackBoxFuncCall(BlackBoxFuncCall {
-            name: black_box_func,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-        }))
+        is_supported(&Opcode::BlackBoxFuncCall(black_box_func_call))
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
