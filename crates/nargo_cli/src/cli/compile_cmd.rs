@@ -1,4 +1,5 @@
 use acvm::Backend;
+use iter_extended::try_vecmap;
 use noirc_driver::{CompileOptions, CompiledProgram, Driver};
 use std::path::Path;
 
@@ -39,12 +40,9 @@ pub(crate) fn run<B: Backend>(
         let compiled_contracts = driver
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
-        let mut preprocessed_contracts = vec![];
-        for contract in compiled_contracts {
-            let preprocessed = preprocess_contract(backend, contract)
-                .map_err(CliError::ProofSystemCompilerError)?;
-            preprocessed_contracts.push(preprocessed);
-        }
+        let preprocessed_contracts = try_vecmap(compiled_contracts, |contract| {
+            preprocess_contract(backend, contract).map_err(CliError::ProofSystemCompilerError)
+        });
         for contract in preprocessed_contracts {
             save_contract_to_file(
                 &contract,

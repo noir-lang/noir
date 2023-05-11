@@ -1,4 +1,5 @@
 use acvm::ProofSystemCompiler;
+use iter_extended::try_vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
 
 use crate::artifacts::{
@@ -31,14 +32,13 @@ pub fn preprocess_contract<B: ProofSystemCompiler>(
     backend: &B,
     compiled_contract: CompiledContract,
 ) -> Result<PreprocessedContract, B::Error> {
-    let mut preprocessed_contract_functions = vec![];
-    for func in compiled_contract.functions.into_iter() {
+    let preprocessed_contract_functions = try_vecmap(compiled_contract.functions, |func| {
         // TODO: currently `func`'s bytecode is already optimized for the backend.
         // In future we'll need to apply those optimizations here.
         let optimized_bytecode = func.bytecode;
         let (proving_key, verification_key) = backend.preprocess(&optimized_bytecode)?;
 
-        let preprocessed = PreprocessedContractFunction {
+        Ok(PreprocessedContractFunction {
             name: func.name,
             function_type: func.function_type,
             abi: func.abi,
@@ -46,10 +46,8 @@ pub fn preprocess_contract<B: ProofSystemCompiler>(
             bytecode: optimized_bytecode,
             proving_key,
             verification_key,
-        };
-
-        preprocessed_contract_functions.push(preprocessed);
-    }
+        })
+    })?;
 
     Ok(PreprocessedContract {
         name: compiled_contract.name,
