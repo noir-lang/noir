@@ -1922,6 +1922,8 @@ dependencies = [
  "iter-extended",
  "serde",
  "serde_json",
+ "strum",
+ "strum_macros",
  "thiserror",
  "toml",
 ]
