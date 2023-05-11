@@ -5,6 +5,10 @@ on:
     types:
       - labeled
       - unlabeled
+  pull_request:
+    types:
+      - labeled
+      - unlabeled
 
 jobs:
   dispatch:
