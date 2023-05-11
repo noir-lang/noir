@@ -164,9 +164,11 @@ impl Instruction {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
-            Instruction::Cast(value, typ) => match (*typ == dfg.type_of_value(*value)).then_some(*value) {
-                Some(value) => SimplifiedTo(value),
-                _ => None,
+            Instruction::Cast(value, typ) => {
+                match (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                    Some(value) => SimplifiedTo(value),
+                    _ => None,
+                }
             }
             Instruction::Not(value) => {
                 match &dfg[*value] {
@@ -346,17 +348,23 @@ impl Binary {
             }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
-                    return SimplifyResult::SimplifiedTo(dfg.make_constant(FieldElement::one(), Type::bool()));
+                    return SimplifyResult::SimplifiedTo(
+                        dfg.make_constant(FieldElement::one(), Type::bool()),
+                    );
                 }
             }
             BinaryOp::Lt => {
                 if self.lhs == self.rhs {
-                    return SimplifyResult::SimplifiedTo(dfg.make_constant(FieldElement::zero(), Type::bool()));
+                    return SimplifyResult::SimplifiedTo(
+                        dfg.make_constant(FieldElement::zero(), Type::bool()),
+                    );
                 }
             }
             BinaryOp::And => {
                 if lhs_is_zero || rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(dfg.make_constant(FieldElement::zero(), operand_type));
+                    return SimplifyResult::SimplifiedTo(
+                        dfg.make_constant(FieldElement::zero(), operand_type),
+                    );
                 }
             }
             BinaryOp::Or => {
@@ -516,5 +524,5 @@ pub(crate) enum SimplifyResult {
     Remove,
 
     /// Instruction could not be simplified
-    None
+    None,
 }

@@ -5,3 +5,4 @@
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 mod inlining;
 mod simplify_cfg;
+mod unrolling;
