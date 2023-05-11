@@ -23,7 +23,6 @@ void create_circuit(Composer& composer, const acir_format& constraint_system)
         if (std::find(constraint_system.public_inputs.begin(), constraint_system.public_inputs.end(), i) !=
             constraint_system.public_inputs.end()) {
             composer.add_public_variable(0);
-
         } else {
             composer.add_variable(0);
         }
@@ -62,7 +61,7 @@ void create_circuit(Composer& composer, const acir_format& constraint_system)
 
     // Add ECDSA constraints
     for (const auto& constraint : constraint_system.ecdsa_constraints) {
-        create_ecdsa_verify_constraints(composer, constraint);
+        create_ecdsa_verify_constraints(composer, constraint, false);
     }
 
     // Add blake2s constraints
@@ -145,7 +144,7 @@ Composer create_circuit(const acir_format& constraint_system,
 
     // Add ECDSA constraints
     for (const auto& constraint : constraint_system.ecdsa_constraints) {
-        create_ecdsa_verify_constraints(composer, constraint);
+        create_ecdsa_verify_constraints(composer, constraint, false);
     }
 
     // Add blake2s constraints

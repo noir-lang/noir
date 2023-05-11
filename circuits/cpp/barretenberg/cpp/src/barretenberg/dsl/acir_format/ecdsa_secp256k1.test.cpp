@@ -110,6 +110,34 @@ TEST(ECDSASecp256k1, TestECDSAConstraintSucceed)
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
+// Test that the verifier can create an ECDSA circuit.
+// The ECDSA circuit requires that certain dummy data is valid
+// even though we are just building the circuit.
+TEST(ECDSASecp256k1, TestECDSACompilesForVerifier)
+{
+    acir_format::EcdsaSecp256k1Constraint ecdsa_constraint;
+    std::vector<fr> witness_values;
+    size_t num_variables = generate_ecdsa_constraint(ecdsa_constraint, witness_values);
+    acir_format::acir_format constraint_system{
+        .varnum = static_cast<uint32_t>(num_variables),
+        .public_inputs = {},
+        .fixed_base_scalar_mul_constraints = {},
+        .logic_constraints = {},
+        .range_constraints = {},
+        .schnorr_constraints = {},
+        .ecdsa_constraints = { ecdsa_constraint },
+        .sha256_constraints = {},
+        .blake2s_constraints = {},
+        .keccak_constraints = {},
+        .hash_to_field_constraints = {},
+        .pedersen_constraints = {},
+        .compute_merkle_root_constraints = {},
+        .constraints = {},
+    };
+    auto crs_factory = std::make_unique<proof_system::ReferenceStringFactory>();
+    auto composer = create_circuit(constraint_system, std::move(crs_factory));
+}
+
 TEST(ECDSASecp256k1, TestECDSAConstraintFail)
 {
     acir_format::EcdsaSecp256k1Constraint ecdsa_constraint;
