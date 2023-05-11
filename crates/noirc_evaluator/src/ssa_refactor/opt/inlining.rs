@@ -407,6 +407,7 @@ impl<'function> PerFunctionContext<'function> {
                 if self.inlining_main {
                     self.context.builder.terminate_with_return(return_values.clone());
                 }
+                let block_id = self.translate_block(block_id, block_queue);
                 Some((block_id, return_values))
             }
             None => unreachable!("Block has no terminator instruction"),
