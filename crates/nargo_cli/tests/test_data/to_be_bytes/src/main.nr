@@ -7,8 +7,8 @@ fn main(x : Field) -> pub [u8; 31] {
     for i in 0..31 {
         bytes[i] = byte_array[i];
     }
-    constrain bytes[30] == 60;
-    constrain bytes[29] == 33;
-    constrain bytes[28] == 31;
+    assert(bytes[30] == 60);
+    assert(bytes[29] == 33);
+    assert(bytes[28] == 31);
     bytes
 }

@@ -1,16 +1,17 @@
 use super::compile_cmd::compile_circuit;
 use super::fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file};
-use super::{InputMap, NargoConfig};
+use super::NargoConfig;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
-use acvm::ProofSystemCompiler;
+
+use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::ops::preprocess_program;
-use noirc_abi::input_parser::{Format, InputValue};
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_abi::input_parser::Format;
+use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid
@@ -26,7 +27,11 @@ pub(crate) struct VerifyCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: VerifyCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
     let proof_path =
         config.program_dir.join(PROOFS_DIR).join(&args.proof).with_extension(PROOF_EXT);
 
@@ -34,68 +39,49 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         .circuit_name
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
-    verify_with_path(config.program_dir, proof_path, circuit_build_path, args.compile_options)
+    verify_with_path(
+        backend,
+        &config.program_dir,
+        proof_path,
+        circuit_build_path.as_ref(),
+        args.compile_options,
+    )
 }
 
-fn verify_with_path<P: AsRef<Path>>(
+fn verify_with_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
     program_dir: P,
     proof_path: PathBuf,
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
-) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+) -> Result<(), CliError<B>> {
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
             let compiled_program =
-                compile_circuit(&backend, program_dir.as_ref(), &compile_options)?;
-            preprocess_program(&backend, compiled_program)?
+                compile_circuit(backend, program_dir.as_ref(), &compile_options)?;
+            preprocess_program(backend, compiled_program)
+                .map_err(CliError::ProofSystemCompilerError)?
         }
     };
 
     let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
-    let compiled_program = CompiledProgram { abi, circuit: bytecode };
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
-    let public_abi = compiled_program.abi.clone().public_abi();
+    let public_abi = abi.public_abi();
     let (public_inputs_map, return_value) =
         read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
-    verify_proof(
-        &backend,
-        &compiled_program,
-        public_inputs_map,
-        return_value,
-        &load_hex_data(&proof_path)?,
-        &verification_key,
-        proof_path,
-    )
-}
-
-pub(crate) fn verify_proof(
-    backend: &impl ProofSystemCompiler,
-    compiled_program: &CompiledProgram,
-    public_inputs_map: InputMap,
-    return_value: Option<InputValue>,
-    proof: &[u8],
-    verification_key: &[u8],
-    proof_name: PathBuf,
-) -> Result<(), CliError> {
-    let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
+    let proof = load_hex_data(&proof_path)?;
 
-    let valid_proof = nargo::ops::verify_proof(
-        backend,
-        &compiled_program.circuit,
-        proof,
-        public_inputs,
-        verification_key,
-    )?;
+    let valid_proof =
+        nargo::ops::verify_proof(backend, &bytecode, &proof, public_inputs, &verification_key)
+            .map_err(CliError::ProofSystemCompilerError)?;
 
     if valid_proof {
         Ok(())
     } else {
-        Err(CliError::InvalidProof(proof_name))
+        Err(CliError::InvalidProof(proof_path))
     }
 }

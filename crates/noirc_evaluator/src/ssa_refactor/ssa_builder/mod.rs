@@ -9,7 +9,10 @@ use crate::ssa_refactor::ir::{
 };
 
 use super::{
-    ir::instruction::{InstructionId, Intrinsic},
+    ir::{
+        basic_block::BasicBlock,
+        instruction::{InstructionId, Intrinsic},
+    },
     ssa_gen::Ssa,
 };
 
@@ -95,8 +98,13 @@ impl FunctionBuilder {
         self.current_function.dfg.add_block_parameter(block, typ)
     }
 
+    /// Returns the parameters of the given block in the current function.
+    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
+        self.current_function.dfg.block_parameters(block)
+    }
+
     /// Inserts a new instruction at the end of the current block and returns its results
-    fn insert_instruction(
+    pub(crate) fn insert_instruction(
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
@@ -111,6 +119,11 @@ impl FunctionBuilder {
     /// instructions into a new function, call new_function instead.
     pub(crate) fn switch_to_block(&mut self, block: BasicBlockId) {
         self.current_block = block;
+    }
+
+    /// Returns the block currently being inserted into
+    pub(crate) fn current_block(&mut self) -> BasicBlockId {
+        self.current_block
     }
 
     /// Insert an allocate instruction at the end of the current block, allocating the
@@ -228,8 +241,12 @@ impl FunctionBuilder {
     /// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
-        Intrinsic::lookup(name)
-            .map(|intrinsic| self.current_function.dfg.import_intrinsic(intrinsic))
+        Intrinsic::lookup(name).map(|intrinsic| self.import_intrinsic_id(intrinsic))
+    }
+
+    /// Retrieve a value reference to the given intrinsic operation.
+    pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> ValueId {
+        self.current_function.dfg.import_intrinsic(intrinsic)
     }
 
     /// Removes the given instruction from the current block or panics otherwise.
@@ -250,6 +267,14 @@ impl std::ops::Index<InstructionId> for FunctionBuilder {
     type Output = Instruction;
 
     fn index(&self, id: InstructionId) -> &Self::Output {
+        &self.current_function.dfg[id]
+    }
+}
+
+impl std::ops::Index<BasicBlockId> for FunctionBuilder {
+    type Output = BasicBlock;
+
+    fn index(&self, id: BasicBlockId) -> &Self::Output {
         &self.current_function.dfg[id]
     }
 }

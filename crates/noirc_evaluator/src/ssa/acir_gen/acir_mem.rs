@@ -8,7 +8,10 @@ use crate::{
 };
 use acvm::{
     acir::{
-        circuit::{directives::Directive, opcodes::Opcode as AcirOpcode},
+        circuit::{
+            directives::Directive,
+            opcodes::{BlockId as AcirBlockId, MemOp, MemoryBlock, Opcode as AcirOpcode},
+        },
         native_types::{Expression, Witness},
     },
     FieldElement,
@@ -21,15 +24,6 @@ use super::{
     constraints::{self, mul_with_witness, subtract},
     operations::{self},
 };
-
-/// Represent a memory operation on the ArrayHeap, at the specified index
-/// Operation is one for a store and 0 for a load
-#[derive(Clone, Debug)]
-pub(crate) struct MemOp {
-    operation: Expression,
-    value: Expression,
-    index: Expression,
-}
 
 type MemAddress = u32;
 
@@ -137,7 +131,7 @@ impl ArrayHeap {
         outputs
     }
 
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
+    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
         let (len, read_write) = match self.typ {
             ArrayType::Init(_, _) | ArrayType::WriteOnly => (0, true),
             ArrayType::ReadOnly(last) => (last.unwrap_or(self.trace.len()), false),
@@ -147,6 +141,11 @@ impl ArrayHeap {
         if len == 0 {
             return;
         }
+        evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
+            id: AcirBlockId(array_id.as_u32()),
+            len: array_len,
+            trace: self.trace.clone(),
+        }));
         let len_bits = AcirMem::bits(len);
         // permutations
         let mut in_counter = Vec::new();
@@ -318,9 +317,10 @@ impl AcirMem {
         let item = MemOp { operation: op, value, index };
         self.array_heap_mut(*array_id).push(item);
     }
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
+    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, ctx: &SsaContext) {
         for mem in &self.virtual_memory {
-            mem.1.acir_gen(evaluator);
+            let array = &ctx.mem[*mem.0];
+            mem.1.acir_gen(evaluator, array.id, array.len);
         }
     }
 }

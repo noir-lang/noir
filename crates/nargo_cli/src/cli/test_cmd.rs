@@ -1,6 +1,6 @@
 use std::{io::Write, path::Path};
 
-use acvm::{acir::native_types::WitnessMap, ProofSystemCompiler};
+use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::ops::execute_circuit;
 use noirc_driver::{CompileOptions, Driver};
@@ -21,19 +21,21 @@ pub(crate) struct TestCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<B>(backend: &B, args: TestCommand, config: NargoConfig) -> Result<(), CliError<B>>
+where
+    B: Backend,
+{
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    run_tests(&config.program_dir, &test_name, &args.compile_options)
+    run_tests(backend, &config.program_dir, &test_name, &args.compile_options)
 }
 
-fn run_tests(
+fn run_tests<B: Backend>(
+    backend: &B,
     program_dir: &Path,
     test_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+) -> Result<(), CliError<B>> {
     let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
@@ -50,7 +52,7 @@ fn run_tests(
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(test_name, test_function, &driver, compile_options) {
+        match run_test(backend, test_name, test_function, &driver, compile_options) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -73,21 +75,20 @@ fn run_tests(
     Ok(())
 }
 
-fn run_test(
+fn run_test<B: Backend>(
+    backend: &B,
     test_name: &str,
     main: FuncId,
     driver: &Driver,
     config: &CompileOptions,
-) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+) -> Result<(), CliError<B>> {
     let program = driver
         .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match execute_circuit(&backend, program.circuit, WitnessMap::new()) {
+    match execute_circuit(backend, program.circuit, WitnessMap::new()) {
         Ok(_) => Ok(()),
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);

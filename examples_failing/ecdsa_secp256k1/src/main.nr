@@ -13,5 +13,5 @@ fn main(hashed_message : [32]u8, pub_key_x : [32]u8, pub_key_y : [32]u8, signatu
      // Is there ever a situation where someone would want 
      // to ensure that a signature was invalid?
      let x = std::ecdsa_secp256k1::verify_signature(pub_key_x,pub_key_y,signature, hashed_message);
-     constrain x == 1;
+     assert(x == 1);
 }

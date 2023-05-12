@@ -9,14 +9,11 @@ mod ssa;
 // SSA code to create the SSA based IR
 // for functions and execute different optimizations.
 pub mod ssa_refactor;
-// Frontend helper module to translate a different AST
-// into the SSA IR.
-pub mod frontend;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::transformers::IsOpcodeSupported,
+    compiler::{optimizers::simplify::CircuitSimplifier, transformers::IsOpcodeSupported},
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
@@ -86,6 +83,7 @@ pub fn create_circuit(
         opcodes,
         ..
     } = evaluator;
+    let simplifier = CircuitSimplifier::new(current_witness_index);
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index,
@@ -95,6 +93,7 @@ pub fn create_circuit(
         },
         np_language,
         is_opcode_supported,
+        &simplifier,
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
@@ -316,10 +315,6 @@ impl Evaluator {
     /// However, this intermediate representation is useful as it allows us to have
     /// intermediate Types which the core type system does not know about like Strings.
     fn parse_abi_alt(&mut self, ir_gen: &mut IrGenerator) {
-        // XXX: Currently, the syntax only supports public witnesses
-        // u8 and arrays are assumed to be private
-        // This is not a short-coming of the ABI, but of the grammar
-        // The new grammar has been conceived, and will be implemented.
         let main = ir_gen.program.main_mut();
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut ir_gen.program.main_function_signature.0);

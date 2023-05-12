@@ -45,6 +45,18 @@ impl<T> std::hash::Hash for Id<T> {
     }
 }
 
+impl<T> PartialOrd for Id<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.index.partial_cmp(&other.index)
+    }
+}
+
+impl<T> Ord for Id<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.index.cmp(&other.index)
+    }
+}
+
 impl<T> Eq for Id<T> {}
 
 impl<T> PartialEq for Id<T> {
@@ -123,7 +135,7 @@ impl<T> DenseMap<T> {
     ///
     /// The id-element pairs are ordered by the numeric values of the ids.
     pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
-        let ids_iter = (0..self.storage.len()).into_iter().map(|idx| Id::new(idx));
+        let ids_iter = (0..self.storage.len()).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
 }
@@ -272,6 +284,12 @@ pub(crate) struct AtomicCounter<T> {
 }
 
 impl<T> AtomicCounter<T> {
+    /// Create a new counter starting after the given Id.
+    /// Use AtomicCounter::default() to start at zero.
+    pub(crate) fn starting_after(id: Id<T>) -> Self {
+        Self { next: AtomicUsize::new(id.index + 1), _marker: Default::default() }
+    }
+
     /// Return the next fresh id
     pub(crate) fn next(&self) -> Id<T> {
         Id::new(self.next.fetch_add(1, Ordering::Relaxed))

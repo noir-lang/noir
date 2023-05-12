@@ -1,4 +1,4 @@
-use acvm::ProofSystemCompiler;
+use acvm::Backend;
 use iter_extended::try_vecmap;
 use noirc_driver::{CompileOptions, CompiledProgram, Driver};
 use std::path::Path;
@@ -27,19 +27,22 @@ pub(crate) struct CompileCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: CompileCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
     let circuit_dir = config.program_dir.join(TARGET_DIR);
-
-    let backend = crate::backends::ConcreteBackend::default();
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let mut driver = setup_driver(&backend, &config.program_dir)?;
+        let mut driver = setup_driver(backend, &config.program_dir)?;
         let compiled_contracts = driver
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
-        let preprocessed_contracts =
-            try_vecmap(compiled_contracts, |contract| preprocess_contract(&backend, contract))?;
+        let preprocessed_contracts = try_vecmap(compiled_contracts, |contract| {
+            preprocess_contract(backend, contract).map_err(CliError::ProofSystemCompilerError)
+        })?;
         for contract in preprocessed_contracts {
             save_contract_to_file(
                 &contract,
@@ -48,25 +51,26 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
             );
         }
     } else {
-        let program = compile_circuit(&backend, &config.program_dir, &args.compile_options)?;
-        let preprocessed_program = preprocess_program(&backend, program)?;
+        let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+        let preprocessed_program =
+            preprocess_program(backend, program).map_err(CliError::ProofSystemCompilerError)?;
         save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
     }
     Ok(())
 }
 
-fn setup_driver(
-    backend: &impl ProofSystemCompiler,
+fn setup_driver<B: Backend>(
+    backend: &B,
     program_dir: &Path,
 ) -> Result<Driver, DependencyResolutionError> {
     Resolver::resolve_root_manifest(program_dir, backend.np_language())
 }
 
-pub(crate) fn compile_circuit(
-    backend: &impl ProofSystemCompiler,
+pub(crate) fn compile_circuit<B: Backend>(
+    backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<CompiledProgram, CliError> {
+) -> Result<CompiledProgram, CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
     driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
 }

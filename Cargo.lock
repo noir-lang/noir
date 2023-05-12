@@ -4,19 +4,20 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
+version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=b248e606dd69c25d33ae77c5c5c0541adbf80cd6#b248e606dd69c25d33ae77c5c5c0541adbf80cd6"
 dependencies = [
  "acir_field",
  "flate2",
  "rmp-serde",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
 name = "acir_field"
-version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
+version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=b248e606dd69c25d33ae77c5c5c0541adbf80cd6#b248e606dd69c25d33ae77c5c5c0541adbf80cd6"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -28,8 +29,8 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
+version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=b248e606dd69c25d33ae77c5c5c0541adbf80cd6#b248e606dd69c25d33ae77c5c5c0541adbf80cd6"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -39,18 +40,18 @@ dependencies = [
  "k256",
  "num-bigint",
  "num-traits",
- "sha2 0.9.9",
+ "sha2 0.10.6",
+ "sha3",
  "thiserror",
 ]
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.0.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=148521f851d22a1411b8491905585d3c77e22ee1#148521f851d22a1411b8491905585d3c77e22ee1"
+version = "0.1.2"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=030a7e7b9ba842f3d307dbab178962b63d0dedcf#030a7e7b9ba842f3d307dbab178962b63d0dedcf"
 dependencies = [
  "acvm",
  "barretenberg-sys",
- "blake2",
  "dirs 3.0.2",
  "futures-util",
  "getrandom",
@@ -58,14 +59,15 @@ dependencies = [
  "pkg-config",
  "reqwest",
  "rust-embed",
+ "thiserror",
  "tokio",
  "wasmer",
 ]
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.10.3"
-source = "git+https://github.com/noir-lang/acvm?rev=46c645233228c35bc22b6eb5fb5d1d3c0a33d507#46c645233228c35bc22b6eb5fb5d1d3c0a33d507"
+version = "0.11.0"
+source = "git+https://github.com/noir-lang/acvm?rev=b248e606dd69c25d33ae77c5c5c0541adbf80cd6#b248e606dd69c25d33ae77c5c5c0541adbf80cd6"
 dependencies = [
  "acir",
 ]
@@ -367,13 +369,11 @@ dependencies = [
 
 [[package]]
 name = "blake2"
-version = "0.9.2"
+version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a4e37d16930f5459780f5621038b6382b9bb37c19016f39fb6b5808d831f174"
+checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
 dependencies = [
- "crypto-mac 0.8.0",
- "digest 0.9.0",
- "opaque-debug",
+ "digest 0.10.6",
 ]
 
 [[package]]
@@ -812,16 +812,6 @@ dependencies = [
 
 [[package]]
 name = "crypto-mac"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b584a330336237c1eecd3e94266efb216c56ed91225d634cb2991c5f3fd1aeab"
-dependencies = [
- "generic-array",
- "subtle",
-]
-
-[[package]]
-name = "crypto-mac"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bff07008ec701e8028e2ceb8f83f0e4274ee62bd2dbdc4fefff2e9a91824081a"
@@ -951,6 +941,7 @@ checksum = "8168378f4e5023e7218c89c891c0fd8ecdb5e5e4f18cb78f38cf245dd021e76f"
 dependencies = [
  "block-buffer 0.10.4",
  "crypto-common",
+ "subtle",
 ]
 
 [[package]]
@@ -1434,7 +1425,7 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1441c6b1e930e2817404b5046f1f989899143a12bf92de603b69f4e0aee1e15"
 dependencies = [
- "crypto-mac 0.10.1",
+ "crypto-mac",
  "digest 0.9.0",
 ]
 
@@ -1670,6 +1661,15 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "sha2 0.9.9",
+]
+
+[[package]]
+name = "keccak"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f6d5ed8676d904364de097082f4e7d240b571b67989ced0240f08b7f966f940"
+dependencies = [
+ "cpufeatures",
 ]
 
 [[package]]
@@ -1960,6 +1960,7 @@ dependencies = [
  "noirc_errors",
  "rustc-hash",
  "serde",
+ "small-ord-set",
  "smol_str",
  "strum",
  "strum_macros",
@@ -2817,6 +2818,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha3"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
+dependencies = [
+ "digest 0.10.6",
+ "keccak",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2863,6 +2874,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6528351c9bc8ab22353f9d776db39a20288e8d6c37ef8cfe3317cf875eecfc2d"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "small-ord-set"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf7035a2b2268a5be8c1395738565b06beda836097e12021cdefc06b127a0e7e"
+dependencies = [
+ "smallvec",
 ]
 
 [[package]]
