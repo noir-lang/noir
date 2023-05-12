@@ -133,6 +133,7 @@ TEST(ECDSASecp256k1, TestECDSACompilesForVerifier)
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
         .compute_merkle_root_constraints = {},
+        .block_constraints = {},
         .constraints = {},
     };
     auto crs_factory = std::make_unique<proof_system::ReferenceStringFactory>();
