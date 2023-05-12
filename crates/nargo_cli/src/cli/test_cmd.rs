@@ -21,10 +21,11 @@ pub(crate) struct TestCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B>(backend: &B, args: TestCommand, config: NargoConfig) -> Result<(), CliError<B>>
-where
-    B: Backend,
-{
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: TestCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
     run_tests(backend, &config.program_dir, &test_name, &args.compile_options)
