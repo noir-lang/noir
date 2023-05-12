@@ -13,7 +13,7 @@ pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     create_named_dir(witness_dir.as_ref(), "witness");
     let witness_path = witness_dir.as_ref().join(witness_name).with_extension(WITNESS_EXT);
 
-    let buf: Vec<u8> = witness.try_into().expect("Could not serialize witness");
+    let buf: Vec<u8> = witness.try_into()?;
 
     write_to_file(buf.as_slice(), &witness_path);
 

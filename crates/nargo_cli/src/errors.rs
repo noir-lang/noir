@@ -21,6 +21,10 @@ pub(crate) enum FilesystemError {
     /// Input parsing error
     #[error(transparent)]
     InputParserError(#[from] InputParserError),
+
+    /// WitnessMap serialization error
+    #[error(transparent)]
+    WitnessMapSerialization(#[from] WitnessMapError),
 }
 
 #[derive(Debug, Error)]
