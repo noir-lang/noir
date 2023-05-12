@@ -437,7 +437,7 @@ pub(crate) fn to_radix_base(
             .expect("Constant expressions should already be simplified");
         let y = subtract(lhs, FieldElement::one(), &Expression::from(a));
         let radix_f = FieldElement::from(radix as i128);
-        let y = Expression::default().add_mul(FieldElement::one() / radix_f, &y);
+        let y = add(&Expression::default(), FieldElement::one() / radix_f, &y);
         let mut b = to_radix_base(&y, radix, limb_size - 1, endianness, evaluator);
         match endianness {
             Endian::Little => b.insert(0, a),
