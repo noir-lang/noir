@@ -13,7 +13,9 @@ use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
 
-use self::acir_gen::Acir;
+use self::acir_gen::GeneratedAcir;
+
+mod abi_gen;
 
 mod acir_gen;
 mod ir;
@@ -23,7 +25,7 @@ pub mod ssa_gen;
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
-pub fn optimize_into_acir(program: Program) -> Acir {
+pub fn optimize_into_acir(program: Program) -> GeneratedAcir {
     ssa_gen::generate_ssa(program).into_acir()
 }
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
