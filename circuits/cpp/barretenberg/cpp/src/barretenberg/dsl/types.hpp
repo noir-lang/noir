@@ -19,6 +19,7 @@
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
 #include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
+#include "barretenberg/stdlib/primitives/memory/ram_table.hpp"
 namespace acir_format {
 
 using Composer = plonk::UltraComposer;
@@ -59,5 +60,6 @@ using schnorr_signature_bits_ct = proof_system::plonk::stdlib::schnorr::signatur
 
 // Ultra-composer specific typesv
 using rom_table_ct = proof_system::plonk::stdlib::rom_table<plonk::UltraComposer>;
+using ram_table_ct = proof_system::plonk::stdlib::ram_table<plonk::UltraComposer>;
 
 } // namespace acir_format
