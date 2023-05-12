@@ -4,6 +4,7 @@ use crate::{
     cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, constants::TARGET_DIR,
     errors::CliError,
 };
+use acvm::Backend;
 use clap::Args;
 use nargo::ops::{codegen_verifier, preprocess_program};
 use noirc_driver::CompileOptions;
@@ -18,9 +19,11 @@ pub(crate) struct CodegenVerifierCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: CodegenVerifierCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
     // TODO(#1201): Should this be a utility function?
     let circuit_build_path = args
         .circuit_name
@@ -30,12 +33,14 @@ pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
             let compiled_program =
-                compile_circuit(&backend, config.program_dir.as_ref(), &args.compile_options)?;
-            preprocess_program(&backend, compiled_program)?
+                compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
+            preprocess_program(backend, compiled_program)
+                .map_err(CliError::ProofSystemCompilerError)?
         }
     };
 
-    let smart_contract_string = codegen_verifier(&backend, &preprocessed_program.verification_key)?;
+    let smart_contract_string = codegen_verifier(backend, &preprocessed_program.verification_key)
+        .map_err(CliError::SmartContractError)?;
 
     let contract_dir = config.program_dir.join(CONTRACT_DIR);
     create_named_dir(&contract_dir, "contract");
