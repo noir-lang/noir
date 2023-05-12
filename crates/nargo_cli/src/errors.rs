@@ -1,4 +1,4 @@
-use acvm::{Backend, ProofSystemCompiler, SmartContract};
+use acvm::{acir::native_types::WitnessMapError, Backend, ProofSystemCompiler, SmartContract};
 use hex::FromHexError;
 use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
