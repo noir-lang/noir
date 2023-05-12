@@ -18,11 +18,32 @@ import { isArrayEmpty } from '@aztec/foundation/collection';
 
 /**
  * Contract storage read operation on a specific contract.
+ *
+ * Note: Similar to `PublicDataRead` but it's from the POV of contract storage so we are not working with public data
+ * tree leaf index but storage slot index.
  */
 export class ContractStorageRead {
-  constructor(public readonly storageSlot: Fr, public readonly value: Fr) {}
+  constructor(
+    /**
+     * Storage slot we are reading from.
+     */
+    public readonly storageSlot: Fr,
+    /**
+     * Value read from the storage slot.
+     */
+    public readonly value: Fr,
+  ) {}
 
-  static from(args: { storageSlot: Fr; value: Fr }) {
+  static from(args: {
+    /**
+     * Storage slot we are reading from.
+     */
+    storageSlot: Fr;
+    /**
+     * Value read from the storage slot.
+     */
+    value: Fr;
+  }) {
     return new ContractStorageRead(args.storageSlot, args.value);
   }
 
@@ -50,11 +71,40 @@ export class ContractStorageRead {
 
 /**
  * Contract storage update request for a slot on a specific contract.
+ *
+ * Note: Similar to `PublicDataUpdateRequest` but it's from the POV of contract storage so we are not working with
+ * public data tree leaf index but storage slot index.
  */
 export class ContractStorageUpdateRequest {
-  constructor(public readonly storageSlot: Fr, public readonly oldValue: Fr, public readonly newValue: Fr) {}
+  constructor(
+    /**
+     * Storage slot we are updating.
+     */
+    public readonly storageSlot: Fr,
+    /**
+     * Old value of the storage slot.
+     */
+    public readonly oldValue: Fr,
+    /**
+     * New value of the storage slot.
+     */
+    public readonly newValue: Fr,
+  ) {}
 
-  static from(args: { storageSlot: Fr; oldValue: Fr; newValue: Fr }) {
+  static from(args: {
+    /**
+     * Storage slot we are updating.
+     */
+    storageSlot: Fr;
+    /**
+     * Old value of the storage slot.
+     */
+    oldValue: Fr;
+    /**
+     * New value of the storage slot.
+     */
+    newValue: Fr;
+  }) {
     return new ContractStorageUpdateRequest(args.storageSlot, args.oldValue, args.newValue);
   }
 
@@ -85,15 +135,45 @@ export class ContractStorageUpdateRequest {
  */
 export class PublicCircuitPublicInputs {
   constructor(
+    /**
+     * Current call context.
+     */
     public callContext: CallContext,
+    /**
+     * Arguments of the call.
+     */
     public args: Fr[],
+    /**
+     * Return values of the call.
+     */
     public returnValues: Fr[],
+    /**
+     * Events emitted during the call.
+     */
     public emittedEvents: Fr[],
+    /**
+     * Contract storage update requests executed during the call.
+     */
     public contractStorageUpdateRequests: ContractStorageUpdateRequest[],
-    public contractStorageRead: ContractStorageRead[],
+    /**
+     * Contract storage reads executed during the call.
+     */
+    public contractStorageReads: ContractStorageRead[],
+    /**
+     * Public call stack of the current kernel iteration.
+     */
     public publicCallStack: Fr[],
+    /**
+     * New L2 to L1 messages generated during the call.
+     */
     public newL2ToL1Msgs: Fr[],
+    /**
+     * Root of the public data tree when the call started.
+     */
     public historicPublicDataTreeRoot: Fr,
+    /**
+     * Address of the prover.
+     */
     public proverAddress: AztecAddress,
   ) {
     assertLength(this, 'args', ARGS_LENGTH);
@@ -102,7 +182,7 @@ export class PublicCircuitPublicInputs {
     assertLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
     assertLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
     assertLength(this, 'contractStorageUpdateRequests', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);
-    assertLength(this, 'contractStorageRead', KERNEL_PUBLIC_DATA_READS_LENGTH);
+    assertLength(this, 'contractStorageReads', KERNEL_PUBLIC_DATA_READS_LENGTH);
   }
 
   /**
@@ -116,7 +196,7 @@ export class PublicCircuitPublicInputs {
 
   /**
    * Returns an empty instance.
-   * @returns an empty instance.
+   * @returns An empty instance.
    */
   public static empty() {
     const frArray = (num: number) => times(num, () => Fr.ZERO);
@@ -142,7 +222,7 @@ export class PublicCircuitPublicInputs {
       isFrArrayEmpty(this.returnValues) &&
       isFrArrayEmpty(this.emittedEvents) &&
       isArrayEmpty(this.contractStorageUpdateRequests, item => item.isEmpty()) &&
-      isArrayEmpty(this.contractStorageRead, item => item.isEmpty()) &&
+      isArrayEmpty(this.contractStorageReads, item => item.isEmpty()) &&
       isFrArrayEmpty(this.publicCallStack) &&
       isFrArrayEmpty(this.newL2ToL1Msgs) &&
       this.historicPublicDataTreeRoot.isZero() &&
@@ -162,7 +242,7 @@ export class PublicCircuitPublicInputs {
       fields.returnValues,
       fields.emittedEvents,
       fields.contractStorageUpdateRequests,
-      fields.contractStorageRead,
+      fields.contractStorageReads,
       fields.publicCallStack,
       fields.newL2ToL1Msgs,
       fields.historicPublicDataTreeRoot,

@@ -18,7 +18,7 @@ function simplifyHexValues(input: string) {
  * Test utility. Sends a serialized buffer to wasm and gets the result.
  * @param inputBuf - Buffer to write.
  * @param serializeMethod - Method to use buffer with.
- * @param wasm - Optional circuit wasm.
+ * @param wasm - Optional circuit wasm. If not set, we fetch a singleton.
  */
 async function callWasm(inputBuf: Buffer, serializeMethod: string, wasm?: CircuitsWasm): Promise<Buffer> {
   wasm = wasm || (await CircuitsWasm.get());
@@ -46,8 +46,9 @@ async function callWasm(inputBuf: Buffer, serializeMethod: string, wasm?: Circui
 
 /**
  * Test utility. Checks a buffer serialize against a snapshot.
- * @param inputBuf - Buffer to write.
+ * @param inputBuf - Buffer to write to.
  * @param serializeMethod - Method to use buffer with.
+ * @param wasm - Optional circuit wasm. If not set, we fetch a singleton.
  */
 export async function expectSerializeToMatchSnapshot(inputBuf: Buffer, serializeMethod: string, wasm?: CircuitsWasm) {
   const outputBuf = await callWasm(inputBuf, serializeMethod, wasm);
@@ -60,13 +61,17 @@ export async function expectSerializeToMatchSnapshot(inputBuf: Buffer, serialize
  * gets it back, deserializes it, and checks it matches the original.
  * @param inputObj - Object to check.
  * @param serializeMethod - Wasm method to send and get back the object.
+ * @param deserialize - Method to deserialize the object with.
+ * @param wasm - Optional circuit wasm. If not set, we fetch a singleton.
  */
-export async function expectReserializeToMatchObject<T extends { toBuffer: () => Buffer }>(
-  inputObj: T,
-  serializeMethod: string,
-  deserialize: (buf: Buffer) => T,
-  wasm?: CircuitsWasm,
-) {
+export async function expectReserializeToMatchObject<
+  T extends {
+    /**
+     * Signature of the target serialization function.
+     */
+    toBuffer: () => Buffer;
+  },
+>(inputObj: T, serializeMethod: string, deserialize: (buf: Buffer) => T, wasm?: CircuitsWasm) {
   const outputBuf = await callWasm(inputObj.toBuffer(), serializeMethod, wasm);
   const deserializedObj = deserialize(outputBuf);
   expect(deserializedObj).toEqual(deserializedObj);

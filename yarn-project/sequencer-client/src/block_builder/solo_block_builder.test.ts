@@ -18,7 +18,7 @@ import {
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
   fr,
-  makeBaseRollupPublicInputs,
+  makeBaseOrMergeRollupPublicInputs,
   makeKernelPublicInputs,
   makeNewContractData,
   makeProof,
@@ -84,8 +84,8 @@ describe('sequencer/solo_block_builder', () => {
     mockL1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
 
     // Create mock outputs for simulator
-    baseRollupOutputLeft = makeBaseRollupPublicInputs();
-    baseRollupOutputRight = makeBaseRollupPublicInputs();
+    baseRollupOutputLeft = makeBaseOrMergeRollupPublicInputs();
+    baseRollupOutputRight = makeBaseOrMergeRollupPublicInputs();
     rootRollupOutput = makeRootRollupPublicInputs();
 
     // Set up mocks

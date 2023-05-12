@@ -10,8 +10,17 @@ import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
  */
 export class PrivateCallStackItem {
   constructor(
+    /**
+     * Address of the contract on which the function is invoked.
+     */
     public contractAddress: AztecAddress,
+    /**
+     * Data identifying the function being called.
+     */
     public functionData: FunctionData,
+    /**
+     * Public inputs to the private kernel circuit.
+     */
     public publicInputs: PrivateCircuitPublicInputs,
   ) {}
 
@@ -19,7 +28,11 @@ export class PrivateCallStackItem {
     return serializeToBuffer(this.contractAddress, this.functionData, this.publicInputs);
   }
 
-  public static empty() {
+  /**
+   * Returns a new instance of PrivateCallStackItem with zero contract address, function data and public inputs.
+   * @returns A new instance of PrivateCallStackItem with zero contract address, function data and public inputs.
+   */
+  public static empty(): PrivateCallStackItem {
     return new PrivateCallStackItem(
       AztecAddress.ZERO,
       FunctionData.empty({ isPrivate: true }),
@@ -34,8 +47,17 @@ export class PrivateCallStackItem {
  */
 export class PublicCallStackItem {
   constructor(
+    /**
+     * Address of the contract on which the function is invoked.
+     */
     public contractAddress: AztecAddress,
+    /**
+     * Data identifying the function being called.
+     */
     public functionData: FunctionData,
+    /**
+     * Public inputs to the public kernel circuit.
+     */
     public publicInputs: PublicCircuitPublicInputs,
   ) {}
 
@@ -43,7 +65,11 @@ export class PublicCallStackItem {
     return serializeToBuffer(this.contractAddress, this.functionData, this.publicInputs);
   }
 
-  public static empty() {
+  /**
+   * Returns a new instance of PublicCallStackItem with zero contract address, function data and public inputs.
+   * @returns A new instance of PublicCallStackItem with zero contract address, function data and public inputs.
+   */
+  public static empty(): PublicCallStackItem {
     return new PublicCallStackItem(
       AztecAddress.ZERO,
       FunctionData.empty({ isPrivate: false }),

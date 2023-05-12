@@ -19,21 +19,63 @@ import { ContractDeploymentData } from './tx_context.js';
  * @see abis/private_circuit_public_inputs.hpp.
  */
 export class PrivateCircuitPublicInputs {
+  // NOTE: Args must have same order as CPP.
   constructor(
-    // NOTE: Must have same order as CPP.
+    /**
+     * Context of the call corresponding to this private circuit execution.
+     */
     public callContext: CallContext,
+    /**
+     * Function arguments.
+     */
     public args: Fr[],
+    /**
+     * Return values of the corresponding function call.
+     */
     public returnValues: Fr[],
+    /**
+     * Events emitted by the corresponding function call.
+     */
     public emittedEvents: Fr[],
+    /**
+     * New commitments created by the corresponding function call.
+     */
     public newCommitments: Fr[],
+    /**
+     * New nullifiers created by the corresponding function call.
+     */
     public newNullifiers: Fr[],
+    /**
+     * Private call stack at the current kernel iteration.
+     */
     public privateCallStack: Fr[],
+    /**
+     * Public call stack at the current kernel iteration.
+     */
     public publicCallStack: Fr[],
+    /**
+     * New L2 to L1 messages created by the corresponding function call.
+     */
     public newL2ToL1Msgs: Fr[],
+    /**
+     * Root of the private data tree roots tree.
+     */
     public historicPrivateDataTreeRoot: Fr,
+    /**
+     * Root of the nullifier tree roots tree.
+     */
     public historicPrivateNullifierTreeRoot: Fr,
+    /**
+     * Root of the contract tree roots tree.
+     */
     public historicContractTreeRoot: Fr,
+    /**
+     * Root of the L2 to L1 messages tree roots tree.
+     */
     public historicL1ToL2MessagesTreeRoot: Fr,
+    /**
+     * Deployment data of contracts being deployed in this kernel iteration.
+     */
     public contractDeploymentData: ContractDeploymentData,
   ) {
     assertLength(this, 'args', ARGS_LENGTH);
@@ -54,7 +96,11 @@ export class PrivateCircuitPublicInputs {
     return new PrivateCircuitPublicInputs(...PrivateCircuitPublicInputs.getFields(fields));
   }
 
-  public static empty() {
+  /**
+   * Create an empty PrivateCircuitPublicInputs.
+   * @returns An empty PrivateCircuitPublicInputs object.
+   */
+  public static empty(): PrivateCircuitPublicInputs {
     const frArray = (num: number) =>
       Array(num)
         .fill(0)

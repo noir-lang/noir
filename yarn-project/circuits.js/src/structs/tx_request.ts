@@ -12,7 +12,16 @@ import { ARGS_LENGTH } from './constants.js';
  * @see cpp/src/aztec3/circuits/abis/signed_tx_request.hpp.
  */
 export class SignedTxRequest {
-  constructor(public txRequest: TxRequest, public signature: EcdsaSignature) {}
+  constructor(
+    /**
+     * Transaction request.
+     */
+    public txRequest: TxRequest,
+    /**
+     * Signature.
+     */
+    public signature: EcdsaSignature,
+  ) {}
 
   /**
    * Serialize as a buffer.
@@ -29,12 +38,33 @@ export class SignedTxRequest {
  */
 export class TxRequest {
   constructor(
+    /**
+     * Sender.
+     */
     public from: AztecAddress,
+    /**
+     * Target.
+     */
     public to: AztecAddress,
+    /**
+     * Function data representing the function to call.
+     */
     public functionData: FunctionData,
+    /**
+     * Function arguments.
+     */
     public args: Fr[],
+    /**
+     * Tx nonce.
+     */
     public nonce: Fr,
+    /**
+     * Transaction context.
+     */
     public txContext: TxContext,
+    /**
+     * Chain ID of the transaction. Here for replay protection.
+     */
     public chainId: Fr,
   ) {
     assertLength(this, 'args', ARGS_LENGTH);

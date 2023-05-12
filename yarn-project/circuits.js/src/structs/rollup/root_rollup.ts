@@ -13,16 +13,44 @@ import { AggregationObject } from '../aggregation_object.js';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
+/**
+ * Represents inputs of the root rollup circuit.
+ */
 export class RootRollupInputs {
   constructor(
+    /**
+     * The previous rollup data.
+     * Note: Root rollup circuit is the latest circuit the chain of circuits and the previous rollup data is the data
+     * from 2 merge or base rollup circuits.
+     */
     public previousRollupData: [PreviousRollupData, PreviousRollupData],
-
+    /**
+     * Sibling path of the new historic private data tree root.
+     */
     public newHistoricPrivateDataTreeRootSiblingPath: Fr[],
+    /**
+     * Sibling path of the new historic contract data tree root.
+     */
     public newHistoricContractDataTreeRootSiblingPath: Fr[],
+    /**
+     * New L1 to L2 messages.
+     */
     public newL1ToL2Messages: Fr[],
+    /**
+     * Sibling path of the new L1 to L2 message tree root.
+     */
     public newL1ToL2MessageTreeRootSiblingPath: Fr[],
+    /**
+     * Sibling path of the new historic L1 to L2 message tree root.
+     */
     public newHistoricL1ToL2MessageTreeRootSiblingPath: Fr[],
+    /**
+     * Snapshot of the L1 to L2 message tree at the start of the rollup.
+     */
     public startL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the historic L1 to L2 message tree roots at the start of the rollup.
+     */
     public startHistoricTreeL1ToL2MessageTreeRootsSnapshot: AppendOnlyTreeSnapshot,
   ) {
     assertLength(this, 'newHistoricPrivateDataTreeRootSiblingPath', PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
@@ -54,38 +82,100 @@ export class RootRollupInputs {
   }
 }
 
+/**
+ * Represents public inputs of the root rollup circuit.
+ *
+ * NOTE: in practice, we'll hash all of this up into a single public input, for cheap on-chain verification.
+ */
 export class RootRollupPublicInputs {
   constructor(
-    // NOTE: in practice, we'll hash all of this up into a single public input, for cheap on-chain verification.
+    /**
+     * Native aggregation state at the end of the rollup.
+     */
     public endAggregationObject: AggregationObject,
 
     // constants: ConstantRollupData // TODO maybe don't include this
 
+    /**
+     * Snapshot of the private data tree at the start of the rollup.
+     */
     public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
+
+    /**
+     * Snapshot of the private data tree at the end of the rollup.
+     */
     public endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Snapshot of the nullifier tree at the start of the rollup.
+     */
     public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the nullifier tree at the end of the rollup.
+     */
     public endNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Snapshot of the contract tree at the start of the rollup.
+     */
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the contract tree at the end of the rollup.
+     */
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Root of the public data tree at the start of the rollup.
+     */
     public startPublicDataTreeRoot: Fr,
+    /**
+     * Root of the public data tree at the end of the rollup.
+     */
     public endPublicDataTreeRoot: Fr,
 
+    /**
+     * Snapshot of the historic private data tree roots tree at the start of the rollup.
+     */
     public startTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the historic private data tree roots tree at the end of the rollup.
+     */
     public endTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Snapshot of the historic contract tree roots tree at the start of the rollup.
+     */
     public startTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the historic contract tree roots tree at the end of the rollup.
+     */
     public endTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Snapshot of the L1 to L2 message tree at the start of the rollup.
+     */
     public startL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the L1 to L2 message tree at the end of the rollup.
+     */
     public endL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Snapshot of the historic L1 to L2 message tree roots tree at the start of the rollup.
+     */
     public startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the historic L1 to L2 message tree roots tree at the end of the rollup.
+     */
     public endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Hash of the calldata.
+     */
     public calldataHash: [Fr, Fr],
+    /**
+     * Hash of the L1 to L2 messages.
+     */
     public l1ToL2MessagesHash: [Fr, Fr],
   ) {}
 
@@ -121,6 +211,10 @@ export class RootRollupPublicInputs {
     return new RootRollupPublicInputs(...RootRollupPublicInputs.getFields(fields));
   }
 
+  /**
+   * Returns the sha256 hash of the calldata.
+   * @returns The sha256 hash of the calldata.
+   */
   public sha256CalldataHash(): Buffer {
     const high = this.calldataHash[0].toBuffer();
     const low = this.calldataHash[1].toBuffer();
@@ -134,7 +228,12 @@ export class RootRollupPublicInputs {
     return hash;
   }
 
-  static fromBuffer(buffer: Buffer | BufferReader): RootRollupPublicInputs {
+  /**
+   * Deserializes a buffer into a `RootRollupPublicInputs` object.
+   * @param buffer - The buffer to deserialize.
+   * @returns The deserialized `RootRollupPublicInputs` object.
+   */
+  public static fromBuffer(buffer: Buffer | BufferReader): RootRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new RootRollupPublicInputs(
       reader.readObject(AggregationObject),

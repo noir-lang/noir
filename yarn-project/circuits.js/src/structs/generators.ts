@@ -1,5 +1,5 @@
 /**
- * Enumerate the hash_indices which are used for pedersen hashing (copied from cpp)
+ * Enumerate the hash_indices which are used for pedersen hashing (copied from cpp).
  * @see circuits/cpp/src/aztec3/constants.hpp
  */
 export enum GeneratorIndex {

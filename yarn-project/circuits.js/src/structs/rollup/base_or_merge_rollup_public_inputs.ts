@@ -7,35 +7,77 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 /**
- * Output of the base rollup circuit
+ * Output of the base and merge rollup circuits.
  */
-
 export class BaseOrMergeRollupPublicInputs {
   constructor(
+    /**
+     * Specifies from which type of rollup circuit these inputs are from.
+     */
     public rollupType: RollupTypes,
+    /**
+     * Rollup sub tree height.
+     * Note 1: Base rollup circuit always have a sub tree height of 0.
+     * Note 2: With each merge, the sub tree height increases by 1.
+     */
     public rollupSubTreeHeight: Fr,
+    /**
+     * Native aggregation state at the end of the rollup circuit.
+     */
     public endAggregationObject: AggregationObject,
+    /**
+     * Data which is forwarded through the rollup circuits unchanged.
+     */
     public constants: ConstantBaseRollupData,
 
+    /**
+     * Snapshot of the private data tree at the start of the rollup circuit.
+     */
     public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the private data tree at the end of the rollup circuit.
+     */
     public endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Snapshot of the nullifier tree at the start of the rollup circuit.
+     */
     public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the nullifier tree at the end of the rollup circuit.
+     */
     public endNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Snapshot of the contract tree at the start of the rollup circuit.
+     */
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the contract tree at the end of the rollup circuit.
+     */
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
 
+    /**
+     * Root of the public data tree at the start of the rollup circuit.
+     */
     public startPublicDataTreeRoot: Fr,
+    /**
+     * Root of the public data tree at the end of the rollup circuit.
+     */
     public endPublicDataTreeRoot: Fr,
 
-    // Hashes (sha256), to make public inputs constant-sized (to then be unpacked on-chain). Length 2 for high and low
+    /**
+     * SHA256 hashes of calldata. Used to make public inputs constant-sized (to then be unpacked on-chain).
+     * Note: Length 2 for high and low.
+     */
     public calldataHash: [Fr, Fr],
   ) {}
 
   /**
-   * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param bufferReader - Buffer to read from.
+   * Deserializes from a buffer or reader.
+   * Note: Corresponds to a write in cpp.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized public inputs.
    */
   static fromBuffer(buffer: Buffer | BufferReader): BaseOrMergeRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);

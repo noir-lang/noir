@@ -10,12 +10,30 @@ import { KernelCircuitPublicInputs } from './public_inputs.js';
 import { makeEmptyProof } from './private_kernel.js';
 import { BufferReader } from '@aztec/foundation/serialize';
 
+/**
+ * Data of the previous kernel iteration in the chain of kernels.
+ */
 export class PreviousKernelData {
   constructor(
+    /**
+     * Public inputs of the previous kernel.
+     */
     public publicInputs: KernelCircuitPublicInputs,
+    /**
+     * Proof of the previous kernel.
+     */
     public proof: UInt8Vector,
+    /**
+     * Verification key of the previous kernel.
+     */
     public vk: VerificationKey,
+    /**
+     * Index of the previous kernel's vk in a tree of vks.
+     */
     public vkIndex: UInt32,
+    /**
+     * Sibling path of the previous kernel's vk in a tree of vks.
+     */
     public vkSiblingPath: Fr[],
   ) {
     assertLength(this, 'vkSiblingPath', VK_TREE_HEIGHT);
@@ -31,7 +49,8 @@ export class PreviousKernelData {
 
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param buffer - Buffer to read from.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized instance.
    */
   static fromBuffer(buffer: Buffer | BufferReader): PreviousKernelData {
     const reader = BufferReader.asReader(buffer);
@@ -45,9 +64,10 @@ export class PreviousKernelData {
   }
 
   /**
-   * Creates an empty instance, valid enough to be accepted by circuits
+   * Creates an empty instance, valid enough to be accepted by circuits.
+   * @returns The empty instance.
    */
-  static empty() {
+  static empty(): PreviousKernelData {
     return new PreviousKernelData(
       KernelCircuitPublicInputs.empty(),
       makeEmptyProof(),
@@ -58,12 +78,20 @@ export class PreviousKernelData {
   }
 }
 
+/**
+ * Dummy data used in the first kernel in the chain of kernels.
+ */
 export class DummyPreviousKernelData {
   private static instance: DummyPreviousKernelData;
 
   private constructor(private data: PreviousKernelData) {}
 
-  public static async getDummyPreviousKernelData(wasm: CircuitsWasm) {
+  /**
+   * Gets the dummy data.
+   * @param wasm - The circuits wasm instance.
+   * @returns The dummy previous kernel data.
+   */
+  public static async getDummyPreviousKernelData(wasm: CircuitsWasm): Promise<PreviousKernelData> {
     if (!DummyPreviousKernelData.instance) {
       const data = await getDummyPreviousKernelData(wasm);
       DummyPreviousKernelData.instance = new DummyPreviousKernelData(data);
@@ -72,7 +100,11 @@ export class DummyPreviousKernelData {
     return DummyPreviousKernelData.instance.getData();
   }
 
-  public getData() {
+  /**
+   * Gets the the dummy data.
+   * @returns The dummy previous kernel data.
+   */
+  public getData(): PreviousKernelData {
     return this.data;
   }
 }

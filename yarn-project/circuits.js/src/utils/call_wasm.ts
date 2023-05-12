@@ -5,11 +5,31 @@ import { uint8ArrayToNum } from './serialize.js';
 const CIRCUIT_FAILURE_ERROR_CODE_LENGTH_IN_BYTES = 2;
 const CIRCUIT_FAILURE_ERROR_MESSAGE_SIZE_LENGTH_IN_BYTES = 4;
 
+/**
+ * Asynchronously call a wasm method.
+ * @param wasm - The wasm wrapper.
+ * @param method - The name of the exported wasm method to call.
+ * @param input - The input to the wasm method (a buffer or an object serializable to a buffer).
+ * @param outputType - The type of the output of the wasm method.
+ *
+ */
 export async function callAsyncWasm<T>(
   wasm: AsyncWasmWrapper,
   method: string,
-  input: Buffer | { toBuffer: () => Buffer },
-  outputType: { fromBuffer: (b: Buffer) => T },
+  input:
+    | Buffer
+    | {
+        /**
+         * Signature of the target serialization function.
+         */
+        toBuffer: () => Buffer;
+      },
+  outputType: {
+    /**
+     * Signature of the target deserialization function which the output type has to implement.
+     */
+    fromBuffer: (b: Buffer) => T;
+  },
 ): Promise<T> {
   const inputBuf: Buffer = input instanceof Buffer ? input : input.toBuffer();
 
@@ -21,9 +41,9 @@ export async function callAsyncWasm<T>(
   // Run and read outputs
   const circuitFailureBufPtr = await wasm.asyncCall(method, inputBufPtr, outputBufSizePtr, outputBufPtrPtr);
 
-  // handle circuit failure but in either case, free the input buffer from memory.
+  // Handle wasm output and ensure memory is correctly freed even when an error occurred.
   try {
-    const output = handleCircuitFailure(wasm, outputBufSizePtr, outputBufPtrPtr, circuitFailureBufPtr, outputType);
+    const output = handleCircuitOutput(wasm, outputBufSizePtr, outputBufPtrPtr, circuitFailureBufPtr, outputType);
     return output;
   } finally {
     // Free memory
@@ -34,12 +54,26 @@ export async function callAsyncWasm<T>(
   }
 }
 
-export function handleCircuitFailure<T>(
+/**
+ * Tries to deserialize the circuit output into the output type and throws a CircuitError if there was an error.
+ * @param wasm - The wasm wrapper.
+ * @param outputBufSizePtr - The pointer to the output buffer size.
+ * @param outputBufPtrPtr - The pointer to the pointer to the output buffer.
+ * @param circuitFailureBufPtr - The pointer to the circuit failure buffer.
+ * @param outputType - The type of the output of the wasm method.
+ * @returns The deserialized output.
+ */
+export function handleCircuitOutput<T>(
   wasm: AsyncWasmWrapper,
   outputBufSizePtr: number,
   outputBufPtrPtr: number,
   circuitFailureBufPtr: number,
-  outputType: { fromBuffer: (b: Buffer) => T },
+  outputType: {
+    /**
+     * Signature of the target deserialization function which the output type has to implement.
+     */
+    fromBuffer: (b: Buffer) => T;
+  },
 ): T {
   if (circuitFailureBufPtr != 0) {
     // there is an error: CircuitError struct is structured as:

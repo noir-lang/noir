@@ -7,11 +7,19 @@ import { CombinedConstantData } from './combined_constant_data.js';
  * Public inputs of the public and private kernel circuits.
  * @see circuits/cpp/src/aztec3/circuits/abis/kernel_circuit_public_inputs.hpp
  */
-
 export class KernelCircuitPublicInputs {
   constructor(
+    /**
+     * Data accumulated from both public and private circuits.
+     */
     public end: CombinedAccumulatedData,
+    /**
+     * Data which is not modified by the circuits.
+     */
     public constants: CombinedConstantData,
+    /**
+     * Indicates whether the input is for a private or public kernel.
+     */
     public isPrivateKernel: boolean,
   ) {}
 
@@ -21,7 +29,8 @@ export class KernelCircuitPublicInputs {
 
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param buffer - Buffer to read from.
+   * @param buffer - Buffer or reader to read from.
+   * @returns A new instance of KernelCircuitPublicInputs.
    */
   static fromBuffer(buffer: Buffer | BufferReader): KernelCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
@@ -37,12 +46,18 @@ export class KernelCircuitPublicInputs {
   }
 }
 
+/**
+ * Public inputs of the public kernel circuit.
+ */
 export class PublicKernelPublicInputs extends KernelCircuitPublicInputs {
   constructor(end: CombinedAccumulatedData, constants: CombinedConstantData) {
     super(end, constants, false);
   }
 }
 
+/**
+ * Public inputs of the private kernel circuit.
+ */
 export class PrivateKernelPublicInputs extends KernelCircuitPublicInputs {
   constructor(end: CombinedAccumulatedData, constants: CombinedConstantData) {
     super(end, constants, true);

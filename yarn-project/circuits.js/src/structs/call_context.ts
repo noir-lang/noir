@@ -9,15 +9,39 @@ import { FieldsOf } from '../utils/jsUtils.js';
  */
 export class CallContext {
   constructor(
+    /**
+     * Address of the account which represents the entity who invoked the call.
+     */
     public msgSender: AztecAddress,
+    /**
+     * The contract address against which all state changes will be stored. Not called `contractAddress` because during
+     * delegate call the contract whose code is being executed may be different from the contract whose state is being
+     * modified.
+     */
     public storageContractAddress: AztecAddress,
+    /**
+     * Address of the portal contract to the storage contract.
+     */
     public portalContractAddress: EthAddress,
+    /**
+     * Determines whether the call is a delegate call (see Ethereum's delegate call opcode for more information).
+     */
     public isDelegateCall: boolean,
+    /**
+     * Determines whether the call is modifying state.
+     */
     public isStaticCall: boolean,
+    /**
+     * Determines whether the call is a contract deployment.
+     */
     public isContractDeployment: boolean,
   ) {}
 
-  public static empty() {
+  /**
+   * Returns a new instance of CallContext with zero msg sender, storage contract address and portal contract address.
+   * @returns A new instance of CallContext with zero msg sender, storage contract address and portal contract address.
+   */
+  public static empty(): CallContext {
     return new CallContext(AztecAddress.ZERO, AztecAddress.ZERO, EthAddress.ZERO, false, false, false);
   }
 

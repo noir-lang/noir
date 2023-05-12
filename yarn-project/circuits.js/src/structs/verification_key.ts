@@ -8,7 +8,13 @@ import { Fr } from '@aztec/foundation/fields';
  * Curve data.
  */
 export class G1AffineElement {
+  /**
+   * Element's x coordinate.
+   */
   public x: Fr;
+  /**
+   * Element's y coordinate.
+   */
   public y: Fr;
 
   constructor(x: Fr | bigint, y: Fr | bigint) {
@@ -25,7 +31,8 @@ export class G1AffineElement {
 
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param buffer - Buffer to read from.
+   * @param buffer - Buffer  or BufferReader to read from.
+   * @returns The G1AffineElement.
    */
   static fromBuffer(buffer: Buffer | BufferReader): G1AffineElement {
     const reader = BufferReader.asReader(buffer);
@@ -34,10 +41,17 @@ export class G1AffineElement {
 }
 
 /**
- *
+ * Used store and serialize a key-value map of commitments where key is the name of the commitment and value is
+ * the commitment itself. The name can be e.g. Q_1, Q_2, SIGMA_1 etc.
  */
 export class CommitmentMap {
-  constructor(public record: { [name: string]: G1AffineElement }) {}
+  constructor(
+    /**
+     * An object used to store the commitments.
+     */
+    public record: { [name: string]: G1AffineElement },
+  ) {}
+
   /**
    * Serialize as a buffer.
    * @returns The buffer.
@@ -49,7 +63,8 @@ export class CommitmentMap {
 
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param buffer - Buffer to read from.
+   * @param buffer - Buffer or BufferReader to read from.
+   * @returns The CommitmentMap.
    */
   static fromBuffer(buffer: Buffer | BufferReader): CommitmentMap {
     const reader = BufferReader.asReader(buffer);
@@ -107,6 +122,7 @@ export class VerificationKey {
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
+   * @returns The VerificationKey.
    */
   static fromBuffer(buffer: Buffer | BufferReader): VerificationKey {
     const reader = BufferReader.asReader(buffer);

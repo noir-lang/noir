@@ -4,7 +4,7 @@
  * @param arr - Array of bufffers.
  * @returns The serialized buffers.
  */
-export function serializeBufferArrayToVector(arr: Buffer[]) {
+export function serializeBufferArrayToVector(arr: Buffer[]): Buffer {
   const lengthBuf = Buffer.alloc(4);
   lengthBuf.writeUInt32BE(arr.length, 0);
   return Buffer.concat([lengthBuf, ...arr]);
@@ -28,12 +28,28 @@ type DeserializeFn<T> = (
 };
 
 /**
- * For deserializing numbers to 32-bit little-endian form.
- * TODO move to foundation pkg.
- * @param n - The number.
- * @returns The endian-corrected number.
+ * Deserializes an array from a vector on an element-by-element basis.
+ * @param deserialize - A function used to deserialize each element of the vecotr.
+ * @param vector - The vector to deserialize.
+ * @param offset - The position in the vector to start deserializing from.
+ * @returns Deserialized array and how many bytes we advanced by.
+ *
+ * TODO: move to foundation pkg.
  */
-export function deserializeArrayFromVector<T>(deserialize: DeserializeFn<T>, vector: Buffer, offset = 0) {
+export function deserializeArrayFromVector<T>(
+  deserialize: DeserializeFn<T>,
+  vector: Buffer,
+  offset = 0,
+): {
+  /**
+   * The deserialized array.
+   */
+  elem: T[];
+  /**
+   * How many bytes we advanced by.
+   */
+  adv: number;
+} {
   let pos = offset;
   const size = vector.readUInt32BE(pos);
   pos += 4;
@@ -47,24 +63,24 @@ export function deserializeArrayFromVector<T>(deserialize: DeserializeFn<T>, vec
 }
 
 /**
- * For serializing numbers to 32 bit little-endian form.
- * TODO move to foundation pkg.
- * @param n - The number.
- * @returns The endian-corrected number.
+ * Serializes a number to 32 bit little-endian form.
+ * @param n - The number to serialize.
+ * @param bufferSize - The size of the buffer to return.
+ * @returns Number in little-endian form.
  */
-export function numToUInt32LE(n: number, bufferSize = 4) {
+export function numToUInt32LE(n: number, bufferSize = 4): Buffer {
   const buf = Buffer.alloc(bufferSize);
   buf.writeUInt32LE(n, bufferSize - 4);
   return buf;
 }
 
 /**
- * For serializing numbers to 32 bit big-endian form.
- * TODO move to foundation pkg.
- * @param n - The number.
- * @returns The endian-corrected number.
+ * Serializes a number to 32 bit big-endian form.
+ * @param n - The number to serialize.
+ * @param bufferSize - The size of the buffer to return.
+ * @returns Number in big-endian form.
  */
-export function numToUInt32BE(n: number, bufferSize = 4) {
+export function numToUInt32BE(n: number, bufferSize = 4): Buffer {
   const buf = Buffer.alloc(bufferSize);
   buf.writeUInt32BE(n, bufferSize - 4);
   return buf;
@@ -75,16 +91,17 @@ export function numToUInt32BE(n: number, bufferSize = 4) {
  * @param array - The uint8 array.
  * @returns The number.
  */
-export function uint8ArrayToNum(array: Uint8Array) {
+export function uint8ArrayToNum(array: Uint8Array): number {
   const buf = Buffer.from(array);
   return buf.readUint32LE();
 }
 
 /**
- * For serializing booleans in structs for calling into wasm.
- * @param bool - Value to serialize.
+ * Serializes booleans in structs for calling into wasm.
+ * @param value - Value to serialize.
+ * @returns The serialized boolean.
  */
-export function boolToBuffer(value: boolean) {
+export function boolToBuffer(value: boolean): Buffer {
   return Buffer.from([value ? 1 : 0]);
 }
 
@@ -92,7 +109,7 @@ export function boolToBuffer(value: boolean) {
  * Deserialize the 256-bit number at address `offset`.
  * @param buf - The buffer.
  * @param offset - The address.
- * @returns The derserialized 256-bit field.
+ * @returns The deserialized 256-bit field.
  */
 export function deserializeField(buf: Buffer, offset = 0) {
   const adv = 32;
@@ -119,8 +136,25 @@ export type Bufferable =
     }
   | Bufferable[];
 
-function isSerializableToBuffer32(obj: object): obj is { toBuffer32: () => Buffer } {
-  return !!(obj as { toBuffer32: () => Buffer }).toBuffer32;
+/**
+ * Checks whether an object implements the toBuffer32 method.
+ * @param obj - The object to check.
+ * @returns Whether the object implements the toBuffer32 method.
+ */
+function isSerializableToBuffer32(obj: object): obj is {
+  /**
+   * Signature of the target serialization function.
+   */
+  toBuffer32: () => Buffer;
+} {
+  return !!(
+    obj as {
+      /**
+       * Signature of the target serialization function.
+       */
+      toBuffer32: () => Buffer;
+    }
+  ).toBuffer32;
 }
 
 /**
@@ -175,7 +209,17 @@ export function toFriendlyJSON(obj: object): string {
         return '0x' + Buffer.from(value.data).toString('hex');
       } else if (typeof value === 'bigint') {
         return value.toString();
-      } else if (value && (value as { toFriendlyJSON: () => string }).toFriendlyJSON) {
+      } else if (
+        value &&
+        (
+          value as {
+            /**
+             * Signature of the target serialization function.
+             */
+            toFriendlyJSON: () => string;
+          }
+        ).toFriendlyJSON
+      ) {
         return value.toFriendlyJSON();
       } else {
         return value;

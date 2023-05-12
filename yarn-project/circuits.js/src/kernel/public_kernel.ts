@@ -6,10 +6,20 @@ import {
 } from '../index.js';
 import { callAsyncWasm } from '../utils/call_wasm.js';
 
+/**
+ * Computes the public inputs of the kernel circuit.
+ * @param input - The kernel circuit inputs.
+ * @returns The public inputs.
+ */
 export async function simulatePublicKernelCircuit(input: PublicKernelInputs): Promise<KernelCircuitPublicInputs> {
   return callAsyncWasm(await CircuitsWasm.get(), 'public_kernel__sim', input, KernelCircuitPublicInputs);
 }
 
+/**
+ * Computes the public inputs of the kernel circuit when there is no previous kernel. Used for direct calls to public functions in a transaction.
+ * @param input - The kernel circuit inputs.
+ * @returns The public inputs.
+ */
 export async function simulatePublicKernelCircuitNoPreviousKernel(
   input: PublicKernelInputsNoPreviousKernel,
 ): Promise<KernelCircuitPublicInputs> {

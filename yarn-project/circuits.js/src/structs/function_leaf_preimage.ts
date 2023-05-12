@@ -9,12 +9,31 @@ import { Fr } from '@aztec/foundation/fields';
 export class FunctionLeafPreimage {
   readonly FUNCTION_SELECTOR_LENGTH = 4;
 
-  constructor(public functionSelector: Buffer, public isPrivate: boolean, public vkHash: Fr, public acirHash: Fr) {
+  constructor(
+    /**
+     * Function selector `FUNCTION_SELECTOR_LENGTH` bytes long.
+     */
+    public functionSelector: Buffer,
+    /**
+     * Indicates whether the function is private or public.
+     */
+    public isPrivate: boolean,
+    /**
+     * Verification key hash of the function.
+     */
+    public vkHash: Fr,
+    /**
+     * Hash of the ACIR of the function.
+     */
+    public acirHash: Fr,
+  ) {
     this.assertFunctionSelectorLength(functionSelector);
   }
 
   /**
-   * Assert the function selector buffer length matches `FUNCTION_SELECTOR_LENGTH`
+   * Assert the function selector buffer length matches `FUNCTION_SELECTOR_LENGTH`.
+   * @param functionSelector - The buffer containing the function selector.
+   * @throws If the function selector buffer length does not match `FUNCTION_SELECTOR_LENGTH`.
    */
   private assertFunctionSelectorLength(functionSelector: Buffer) {
     if (functionSelector.byteLength !== this.FUNCTION_SELECTOR_LENGTH) {
@@ -35,7 +54,8 @@ export class FunctionLeafPreimage {
 
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param buffer - Buffer to read from.
+   * @param buffer - Buffer or reader to read from.
+   * @returns A new instance of FunctionLeafPreimage.
    */
   static fromBuffer(buffer: Buffer | BufferReader): FunctionLeafPreimage {
     const reader = BufferReader.asReader(buffer);

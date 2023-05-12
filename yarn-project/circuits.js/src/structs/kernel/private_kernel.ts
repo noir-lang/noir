@@ -16,13 +16,38 @@ import { Fr } from '@aztec/foundation/fields';
  */
 export class PrivateCallData {
   constructor(
+    /**
+     * The call stack item currently being processed.
+     */
     public callStackItem: PrivateCallStackItem,
+    /**
+     * Other private call stack items to be processed.
+     */
     public privateCallStackPreimages: PrivateCallStackItem[],
+    /**
+     * The proof of the execution of this private call.
+     */
     public proof: UInt8Vector,
+    /**
+     * The verification key for the function being invoked.
+     */
     public vk: VerificationKey,
+    /**
+     * The membership witness for the function leaf corresponding to the function being invoked.
+     */
     public functionLeafMembershipWitness: MembershipWitness<typeof FUNCTION_TREE_HEIGHT>,
+    /**
+     * The membership witness for the contract leaf corresponding to the contract on which the function is being
+     * invoked.
+     */
     public contractLeafMembershipWitness: MembershipWitness<typeof CONTRACT_TREE_HEIGHT>,
+    /**
+     * The address of the portal contract corresponding to the contract on which the function is being invoked.
+     */
     public portalContractAddress: EthAddress,
+    /**
+     * The hash of the ACIR of the function being invoked.
+     */
     public acirHash: Fr,
   ) {
     assertLength(this, 'privateCallStackPreimages', PRIVATE_CALL_STACK_LENGTH);
@@ -65,8 +90,17 @@ export class PrivateCallData {
  */
 export class PrivateKernelInputs {
   constructor(
+    /**
+     * The transaction request which led to the creation of these inputs.
+     */
     public signedTxRequest: SignedTxRequest,
+    /**
+     * The previous kernel data (dummy if this is the first kernel).
+     */
     public previousKernel: PreviousKernelData,
+    /**
+     * Private calldata corresponding to this iteration of the kernel.
+     */
     public privateCall: PrivateCallData,
   ) {}
 
@@ -79,6 +113,11 @@ export class PrivateKernelInputs {
   }
 }
 
-export function makeEmptyProof() {
+/**
+ * Makes an empty proof.
+ * Note: Used for local devnet milestone where we are not proving anything yet.
+ * @returns The empty "proof".
+ */
+export function makeEmptyProof(): UInt8Vector {
   return new UInt8Vector(Buffer.alloc(0));
 }

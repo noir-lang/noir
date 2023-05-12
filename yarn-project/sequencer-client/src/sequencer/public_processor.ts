@@ -181,7 +181,7 @@ export class PublicProcessor {
       emittedEvents: padArrayEnd([], Fr.ZERO, EMITTED_EVENTS_LENGTH),
       newL2ToL1Msgs: padArrayEnd([], Fr.ZERO, NEW_L2_TO_L1_MSGS_LENGTH),
       returnValues: padArrayEnd(result.returnValues, Fr.ZERO, RETURN_VALUES_LENGTH),
-      contractStorageRead: padArrayEnd(
+      contractStorageReads: padArrayEnd(
         result.contractStorageReads,
         ContractStorageRead.empty(),
         KERNEL_PUBLIC_DATA_READS_LENGTH,
