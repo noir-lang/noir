@@ -48,11 +48,12 @@ checkout: &checkout
       cd project
       git init
       git remote add origin $CIRCLE_REPOSITORY_URL
+
       # Only download metadata when fetching.
       git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
       git checkout FETCH_HEAD
-      # Initialize submodules recursively
-      git submodule update --init --recursive
+      # Initialize submodules recursively (retry 5 times on failure)
+      for i in $(seq 1 5); do git submodule update --init --recursive && s=0 && break || s=$? && sleep 5; done; (exit $s)
 
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
 # It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
