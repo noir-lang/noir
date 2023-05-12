@@ -5,7 +5,6 @@
 
 use acvm::Language;
 use clap::Args;
-use contract::ContractFunction;
 use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
@@ -22,7 +21,7 @@ use std::path::{Path, PathBuf};
 mod contract;
 mod program;
 
-pub use contract::{CompiledContract, ContractFunctionType};
+pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
 pub struct Driver {

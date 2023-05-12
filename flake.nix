@@ -84,10 +84,6 @@
 
         # We set the environment variable because barretenberg must be compiled in a special way for wasm
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
-
-        # We provide `barretenberg-transcript00` from the overlay to the build.
-        # This is necessary because the Nix sandbox disables the $HOME so downloading during tests would fail
-        BARRETENBERG_TRANSCRIPT = pkgs.barretenberg-transcript00;
       };
 
       # The `self.rev` property is only available when the working tree is not dirty
@@ -138,6 +134,31 @@
         inherit GIT_DIRTY;
       };
 
+      # The `port` is parameterized to support parallel test runs without colliding static servers
+      testArgs = port: {
+        # We provide `barretenberg-transcript00` from the overlay to the tests as a URL hosted via a static server
+        # This is necessary because the Nix sandbox has no network access and downloading during tests would fail
+        TRANSCRIPT_URL = "http://0.0.0.0:${toString port}/${builtins.baseNameOf pkgs.barretenberg-transcript00}";
+
+        # This copies the `barretenberg-transcript00` from the Nix store into this sandbox
+        # which avoids exposing the entire Nix store to the static server it starts
+        # The static server is moved to the background and killed after checks are completed
+        #
+        # We also set the BACKEND_CACHE_DIR environment variable to the $TMP directory so we can successfully cache
+        # the transcript; which isn't possible with the default path because the Nix sandbox disabled $HOME
+        preCheck = ''
+          export BACKEND_CACHE_DIR=$TMP
+          cp ${pkgs.barretenberg-transcript00} .
+          echo "Starting simple static server"
+          ${pkgs.simple-http-server}/bin/simple-http-server --port ${toString port} --silent &
+          HTTP_SERVER_PID=$!
+        '';
+
+        postCheck = ''
+          kill $HTTP_SERVER_PID
+        '';
+      };
+
       # Build *just* the cargo dependencies, so we can reuse all of that work between runs
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
@@ -152,16 +173,15 @@
 
           # TODO(#1198): It'd be nice to include these flags when running `cargo clippy` in a devShell.
           cargoClippyExtraArgs = "--all-targets -- -D warnings";
-
-          doCheck = true;
         });
 
-        cargo-test = craneLib.cargoTest (commonArgs // {
+        cargo-test = craneLib.cargoTest (commonArgs // (testArgs 8000) // {
           inherit cargoArtifacts;
 
           # TODO(#1198): It'd be nice to include this flag when running `cargo test` in a devShell.
           cargoTestExtraArgs = "--workspace";
 
+          # It's unclear why doCheck needs to be enabled for tests to run but not clippy
           doCheck = true;
         });
       };
