@@ -106,6 +106,12 @@ impl Recoverable for Expression {
     }
 }
 
+impl Recoverable for Option<Expression> {
+    fn error(span: Span) -> Self {
+        Some(Expression::new(ExpressionKind::Error, span))
+    }
+}
+
 #[derive(Debug, Eq, Clone)]
 pub struct Expression {
     pub kind: ExpressionKind,

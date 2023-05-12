@@ -21,6 +21,8 @@ pub enum ParserErrorReason {
     ConstrainDeprecated,
     #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
     InvalidArrayLengthExpression(Expression),
+    #[error("Early 'return' is unsupported")]
+    EarlyReturn,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

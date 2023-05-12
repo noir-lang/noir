@@ -1,3 +1,4 @@
+use acvm::Backend;
 use clap::Args;
 use noirc_driver::CompileOptions;
 use std::path::Path;
@@ -14,17 +15,20 @@ pub(crate) struct PrintAcirCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: PrintAcirCommand, config: NargoConfig) -> Result<(), CliError> {
-    print_acir_with_path(config.program_dir, &args.compile_options)
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: PrintAcirCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
+    print_acir_with_path(backend, config.program_dir, &args.compile_options)
 }
 
-fn print_acir_with_path<P: AsRef<Path>>(
+fn print_acir_with_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
     program_dir: P,
     compile_options: &CompileOptions,
-) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
-    let compiled_program = compile_circuit(&backend, program_dir.as_ref(), compile_options)?;
+) -> Result<(), CliError<B>> {
+    let compiled_program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
     println!("{}", compiled_program.circuit);
 
     Ok(())
