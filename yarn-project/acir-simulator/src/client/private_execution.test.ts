@@ -2,26 +2,29 @@ import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   ARGS_LENGTH,
+  CallContext,
   ContractDeploymentData,
   FunctionData,
   NEW_COMMITMENTS_LENGTH,
   PRIVATE_DATA_TREE_HEIGHT,
   PrivateHistoricTreeRoots,
+  PublicCallRequest,
   TxContext,
   TxRequest,
 } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { padArrayEnd } from '@aztec/foundation/collection';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import { ChildAbi, ParentAbi, TestContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import { default as memdown, type MemDown } from 'memdown';
 import { encodeArguments } from '../abi_coder/index.js';
+import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
-import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
-import { Fr } from '@aztec/foundation/fields';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -42,7 +45,7 @@ describe('Private Execution test suite', () => {
   describe('empty constructor', () => {
     const historicRoots = PrivateHistoricTreeRoots.empty();
     const contractDeploymentData = ContractDeploymentData.empty();
-    const txContext = new TxContext(false, false, true, contractDeploymentData);
+    const txContext = new TxContext(false, false, false, contractDeploymentData);
 
     it('should run the empty constructor', async () => {
       const txRequest = new TxRequest(
@@ -332,6 +335,54 @@ describe('Private Execution test suite', () => {
       expect(oracle.getPortalContractAddress.mock.calls[0]).toEqual([childAddress]);
       expect(result.nestedExecutions).toHaveLength(1);
       expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(42n));
+    });
+  });
+
+  describe('enqueued calls', () => {
+    const historicRoots = PrivateHistoricTreeRoots.empty();
+    const txContext = new TxContext(false, false, true, ContractDeploymentData.empty());
+
+    it('parent should enqueue call to child', async () => {
+      const parentAbi = ParentAbi.functions.find(f => f.name === 'enqueueCallToChild')!;
+      const childAddress = AztecAddress.random();
+      const childPortalContractAddress = EthAddress.random();
+      const childSelector = Buffer.alloc(4, 1); // should match the call
+      const parentAddress = AztecAddress.random();
+
+      oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(childPortalContractAddress));
+
+      const txRequest = new TxRequest(
+        AztecAddress.random(),
+        parentAddress,
+        new FunctionData(Buffer.alloc(4), true, false),
+        encodeArguments(parentAbi, [
+          Fr.fromBuffer(childAddress.toBuffer()).value,
+          Fr.fromBuffer(childSelector).value,
+          42n,
+        ]),
+        Fr.random(),
+        txContext,
+        Fr.ZERO,
+      );
+
+      const result = await acirSimulator.run(txRequest, parentAbi, parentAddress, EthAddress.ZERO, historicRoots);
+
+      expect(result.enqueuedPublicFunctionCalls).toHaveLength(1);
+      expect(result.enqueuedPublicFunctionCalls[0]).toEqual(
+        PublicCallRequest.from({
+          contractAddress: childAddress,
+          functionData: new FunctionData(childSelector, false, false),
+          args: padArrayEnd([new Fr(42n)], Fr.ZERO, ARGS_LENGTH),
+          callContext: CallContext.from({
+            msgSender: parentAddress,
+            storageContractAddress: childAddress,
+            portalContractAddress: childPortalContractAddress,
+            isContractDeployment: false,
+            isDelegateCall: false,
+            isStaticCall: false,
+          }),
+        }),
+      );
     });
   });
 });

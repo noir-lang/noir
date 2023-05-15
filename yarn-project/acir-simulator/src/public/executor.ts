@@ -47,6 +47,7 @@ export class PublicExecutor {
       notifyCreatedNote: notAvailable,
       notifyNullifiedNote: notAvailable,
       callPrivateFunction: notAvailable,
+      enqueuePublicFunctionCall: notAvailable,
       viewNotesPage: notAvailable,
       storageRead: async ([slot]) => {
         const storageSlot = fromACVMField(slot);

@@ -55,6 +55,7 @@ export class UnconstrainedFunctionExecution {
           frToNumber(fromACVMField(acvmLimit)),
           frToNumber(fromACVMField(acvmOffset)),
         ),
+      enqueuePublicFunctionCall: notAvailable,
       notifyCreatedNote: notAvailable,
       notifyNullifiedNote: notAvailable,
       callPrivateFunction: notAvailable,

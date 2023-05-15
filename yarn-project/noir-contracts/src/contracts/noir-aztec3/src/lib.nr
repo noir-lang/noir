@@ -5,6 +5,7 @@ mod state_vars;
 mod types;
 mod utils;
 mod private_call_stack_item;
+mod public_call_stack_item;
 mod public_call;
 
 global Nonce = 1;

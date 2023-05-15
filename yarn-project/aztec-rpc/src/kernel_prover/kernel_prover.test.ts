@@ -51,7 +51,8 @@ describe('Kernel Prover', () => {
       returnValues: [],
       acir: Buffer.alloc(0),
       partialWitness: new Map(),
-    } as ExecutionResult;
+      enqueuedPublicFunctionCalls: [],
+    };
   };
 
   const createProofOutput = (newNoteIndices: number[]) => {

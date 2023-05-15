@@ -1,12 +1,13 @@
 import {
   AztecAddress,
   CallContext,
-  Fr,
-  FunctionData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
-  TxRequest,
+  Fr,
+  FunctionData,
 } from '@aztec/circuits.js';
+import { serializeToBuffer } from '@aztec/circuits.js/utils';
+import { keccak } from '@aztec/foundation/crypto';
 
 /**
  * The public function execution result.
@@ -36,14 +37,4 @@ export interface PublicExecution {
   args: Fr[];
   /** Context of the call. */
   callContext: CallContext;
-}
-
-/**
- * Returns whether the input is a public execution.
- * @param input - Input to check.
- * @returns Whether it's a public execution.
- */
-export function isPublicExecution(input: PublicExecution | TxRequest): input is PublicExecution {
-  const execution = input as PublicExecution;
-  return !!execution.callContext && !!execution.args && !!execution.contractAddress && !!execution.functionData;
 }

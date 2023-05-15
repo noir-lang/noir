@@ -5,6 +5,7 @@ contract Parent {
     use dep::aztec3::context::PrivateFunctionContext;
     use dep::aztec3::public_call;
     use dep::aztec3::private_call_stack_item::PrivateCallStackItem;
+    use dep::aztec3::public_call_stack_item::PublicCallStackItem;
     
     fn constructor(
         inputs: pub Inputs,
@@ -37,5 +38,21 @@ contract Parent {
         let mut args = [0; dep::aztec3::abi::MAX_ARGS];
         args[0] = initValue;
         public_call::call_public_function(targetContract, targetSelector, args)[0]
+    }
+
+    fn enqueueCallToChild(
+        inputs: pub Inputs,
+        targetContract: pub Field,
+        targetSelector: pub Field,
+        targetValue: pub Field,
+    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        let mut initialContext = PrivateFunctionContext::new();
+        initialContext.args = initialContext.args.push_array([targetContract, targetSelector, targetValue]);
+
+        let mut args = [0; dep::aztec3::abi::MAX_ARGS];
+        args[0] = targetValue;
+        let (_callStackItem, mut context) = PublicCallStackItem::call(targetContract, targetSelector, args, initialContext);
+
+        context.finish(inputs)
     }
 }

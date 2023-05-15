@@ -1,22 +1,22 @@
-import {
-  ACVMField,
-  acvm,
-  toACVMField,
-  fromACVMField,
-  ZERO_ACVM_FIELD,
-  toAcvmCallPrivateStackItem,
-  toACVMWitness,
-} from '../acvm/index.js';
-import { CallContext, PrivateCallStackItem, FunctionData } from '@aztec/circuits.js';
-import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
+import { CallContext, FunctionData, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
 import { FunctionAbi } from '@aztec/foundation/abi';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
-import { ClientTxExecutionContext } from './client_execution_context.js';
-import { Fr } from '@aztec/foundation/fields';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
+import {
+  ACVMField,
+  ZERO_ACVM_FIELD,
+  acvm,
+  fromACVMField,
+  toACVMField,
+  toACVMWitness,
+  toAcvmCallPrivateStackItem,
+  toAcvmEnqueuePublicFunctionResult,
+} from '../acvm/index.js';
 import { sizeOfType } from '../index.js';
+import { ClientTxExecutionContext } from './client_execution_context.js';
 
 /**
  * The contents of a new note.
@@ -78,6 +78,8 @@ export interface ExecutionResult {
   returnValues: any[];
   /** The nested executions. */
   nestedExecutions: this[];
+  /** Enqueued public function execution requests to be picked up by the sequencer. */
+  enqueuedPublicFunctionCalls: PublicCallRequest[];
 }
 
 const notAvailable = () => {
@@ -116,6 +118,7 @@ export class PrivateFunctionExecution {
     const newNotePreimages: NewNoteData[] = [];
     const newNullifiers: NewNullifierData[] = [];
     const nestedExecutionContexts: ExecutionResult[] = [];
+    const enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
 
     const { partialWitness } = await acvm(acir, initialWitness, {
       getSecretKey: async ([address]: ACVMField[]) => [
@@ -154,6 +157,16 @@ export class PrivateFunctionExecution {
 
         return toAcvmCallPrivateStackItem(childExecutionResult.callStackItem);
       },
+      enqueuePublicFunctionCall: async ([acvmContractAddress, acvmFunctionSelector, ...acvmArgs]) => {
+        const enqueuedRequest = await this.enqueuePublicFunctionCall(
+          frToAztecAddress(fromACVMField(acvmContractAddress)),
+          frToSelector(fromACVMField(acvmFunctionSelector)),
+          acvmArgs.map(f => fromACVMField(f)),
+          this.callContext,
+        );
+        enqueuedPublicFunctionCalls.push(enqueuedRequest);
+        return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
+      },
       viewNotesPage: notAvailable,
       storageRead: notAvailable,
       storageWrite: notAvailable,
@@ -177,6 +190,7 @@ export class PrivateFunctionExecution {
       },
       vk: Buffer.from(this.abi.verificationKey!, 'hex'),
       nestedExecutions: nestedExecutionContexts,
+      enqueuedPublicFunctionCalls,
     };
   }
 
@@ -230,15 +244,8 @@ export class PrivateFunctionExecution {
     callerContext: CallContext,
   ) {
     const targetAbi = await this.context.db.getFunctionABI(targetContractAddress, targetFunctionSelector);
-    const targetPortalContractAddress = await this.context.db.getPortalContractAddress(targetContractAddress);
     const targetFunctionData = new FunctionData(targetFunctionSelector, true, false);
-    const derivedCallContext = this.deriveCallContext(
-      callerContext,
-      targetContractAddress,
-      targetPortalContractAddress,
-      false,
-      false,
-    );
+    const derivedCallContext = await this.deriveCallContext(callerContext, targetContractAddress, false, false);
 
     const nestedExecution = new PrivateFunctionExecution(
       this.context,
@@ -253,21 +260,45 @@ export class PrivateFunctionExecution {
   }
 
   /**
+   * Creates a PublicCallStackItem object representing the request to call a public function. No function
+   * is actually called, since that must happen on the sequencer side. All the fields related to the result
+   * of the execution are empty.
+   * @param targetContractAddress - The address of the contract to call.
+   * @param targetFunctionSelector - The function selector of the function to call.
+   * @param targetArgs - The arguments to pass to the function.
+   * @param callerContext - The call context of the caller.
+   * @returns The public call stack item with the request information.
+   */
+  private async enqueuePublicFunctionCall(
+    targetContractAddress: AztecAddress,
+    targetFunctionSelector: Buffer,
+    targetArgs: Fr[],
+    callerContext: CallContext,
+  ): Promise<PublicCallRequest> {
+    const derivedCallContext = await this.deriveCallContext(callerContext, targetContractAddress, false, false);
+    return PublicCallRequest.from({
+      args: targetArgs,
+      callContext: derivedCallContext,
+      functionData: new FunctionData(targetFunctionSelector, false, false),
+      contractAddress: targetContractAddress,
+    });
+  }
+
+  /**
    * Derives the call context for a nested execution.
    * @param parentContext - The parent call context.
    * @param targetContractAddress - The address of the contract being called.
-   * @param portalContractAddress - The address of the portal contract.
    * @param isDelegateCall - Whether the call is a delegate call.
    * @param isStaticCall - Whether the call is a static call.
    * @returns The derived call context.
    */
-  private deriveCallContext(
+  private async deriveCallContext(
     parentContext: CallContext,
     targetContractAddress: AztecAddress,
-    portalContractAddress: EthAddress,
     isDelegateCall = false,
     isStaticCall = false,
   ) {
+    const portalContractAddress = await this.context.db.getPortalContractAddress(targetContractAddress);
     return new CallContext(
       parentContext.storageContractAddress,
       targetContractAddress,
