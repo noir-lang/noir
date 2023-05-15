@@ -69,7 +69,7 @@ class merge_rollup_tests : public ::testing::Test {
 
 TEST_F(merge_rollup_tests, native_different_rollup_type_fails)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_different_rollup_type_fails");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -83,7 +83,7 @@ TEST_F(merge_rollup_tests, native_different_rollup_type_fails)
 
 TEST_F(merge_rollup_tests, native_different_rollup_height_fails)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_different_rollup_height_fails");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -97,7 +97,7 @@ TEST_F(merge_rollup_tests, native_different_rollup_height_fails)
 
 TEST_F(merge_rollup_tests, native_constants_different_failure)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_constants_different_failure");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -111,7 +111,7 @@ TEST_F(merge_rollup_tests, native_constants_different_failure)
 
 TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
 {
-    DummyComposer composerA = DummyComposer();
+    DummyComposer composerA = DummyComposer("merge_rollup_tests__native_fail_if_previous_rollups_dont_follow_on_A");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -129,7 +129,7 @@ TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
     ASSERT_EQ(composerA.get_first_failure().message, "input proofs have different private data tree snapshots");
 
     // do the same for nullifier tree
-    DummyComposer composerB = DummyComposer();
+    DummyComposer composerB = DummyComposer("merge_rollup_tests__native_fail_if_previous_rollups_dont_follow_on_B");
     auto inputB = inputs;
 
     inputB.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_nullifier_tree_snapshot = {
@@ -143,7 +143,7 @@ TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
     ASSERT_EQ(composerB.get_first_failure().message, "input proofs have different nullifier tree snapshots");
 
     // do the same for contract tree
-    DummyComposer composerC = DummyComposer();
+    DummyComposer composerC = DummyComposer("merge_rollup_tests__native_fail_if_previous_rollups_dont_follow_on_C");
     auto inputC = inputs;
     inputC.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot = {
         .root = fr(0), .next_available_leaf_index = 0
@@ -158,7 +158,7 @@ TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
 
 TEST_F(merge_rollup_tests, native_rollup_fields_are_set_correctly)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_rollup_fields_are_set_correctly");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -185,7 +185,7 @@ TEST_F(merge_rollup_tests, native_rollup_fields_are_set_correctly)
 
 TEST_F(merge_rollup_tests, native_start_and_end_snapshots)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_start_and_end_snapshots");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -217,7 +217,7 @@ TEST_F(merge_rollup_tests, native_start_and_end_snapshots)
 
 TEST_F(merge_rollup_tests, native_calldata_hash)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_calldata_hash");
     std::vector<uint8_t> const zero_bytes_vec = test_utils::utils::get_empty_calldata_leaf();
     auto call_data_hash_inner = sha256::sha256(zero_bytes_vec);
 
@@ -254,7 +254,7 @@ TEST_F(merge_rollup_tests, native_calldata_hash)
 
 TEST_F(merge_rollup_tests, native_constants_dont_change)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_constants_dont_change");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -268,7 +268,7 @@ TEST_F(merge_rollup_tests, native_constants_dont_change)
 TEST_F(merge_rollup_tests, native_aggregate)
 {
     // TODO: Fix this when aggregation works
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_aggregate");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -282,7 +282,7 @@ TEST_F(merge_rollup_tests, native_aggregate)
 
 TEST_F(merge_rollup_tests, native_merge_cbind)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_merge_cbind");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };

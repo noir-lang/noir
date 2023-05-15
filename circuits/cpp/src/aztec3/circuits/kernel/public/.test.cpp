@@ -458,7 +458,7 @@ void validate_private_data_propagation(const PublicKernelInputs<NT>& inputs,
 
 TEST(public_kernel_tests, no_previous_kernel_public_call_should_succeed)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__no_previous_kernel_public_call_should_succeed");
     PublicKernelInputsNoPreviousKernel<NT> const inputs = get_kernel_inputs_no_previous_kernel();
     auto public_inputs = native_public_kernel_circuit_no_previous_kernel(dummyComposer, inputs);
     ASSERT_FALSE(dummyComposer.failed());
@@ -466,7 +466,7 @@ TEST(public_kernel_tests, no_previous_kernel_public_call_should_succeed)
 
 TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__circuit_outputs_should_be_correctly_populated");
     PublicKernelInputsNoPreviousKernel<NT> const inputs = get_kernel_inputs_no_previous_kernel();
     auto public_inputs = native_public_kernel_circuit_no_previous_kernel(dummyComposer, inputs);
     ASSERT_FALSE(dummyComposer.failed());
@@ -479,7 +479,8 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated)
 
 TEST(public_kernel_tests, only_valid_public_data_reads_should_be_propagated)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__only_valid_public_data_reads_should_be_propagated");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     // modify the contract storage reads so only 2 are valid and only those should be propagated
@@ -518,7 +519,7 @@ TEST(public_kernel_tests, only_valid_public_data_reads_should_be_propagated)
 
 TEST(public_kernel_tests, only_valid_update_requests_should_be_propagated)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__only_valid_update_requests_should_be_propagated");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     // modify the contract storage update requests so only 2 are valid and only those should be propagated
@@ -561,7 +562,7 @@ TEST(public_kernel_tests, only_valid_update_requests_should_be_propagated)
 
 TEST(public_kernel_tests, constructor_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__constructor_should_fail");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.call_stack_item.function_data.is_constructor = true;
@@ -572,7 +573,7 @@ TEST(public_kernel_tests, constructor_should_fail)
 
 TEST(public_kernel_tests, constructor_should_fail_2)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__constructor_should_fail_2");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.call_stack_item.public_inputs.call_context.is_contract_deployment = true;
@@ -583,7 +584,7 @@ TEST(public_kernel_tests, constructor_should_fail_2)
 
 TEST(public_kernel_tests, no_bytecode_hash_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__no_bytecode_hash_should_fail");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.bytecode_hash = 0;
@@ -594,7 +595,7 @@ TEST(public_kernel_tests, no_bytecode_hash_should_fail)
 
 TEST(public_kernel_tests, delegate_call_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__delegate_call_should_fail");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.call_stack_item.public_inputs.call_context.is_delegate_call = true;
@@ -606,7 +607,7 @@ TEST(public_kernel_tests, delegate_call_should_fail)
 
 TEST(public_kernel_tests, static_call_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__static_call_should_fail");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.call_stack_item.public_inputs.call_context.is_static_call = true;
@@ -617,7 +618,8 @@ TEST(public_kernel_tests, static_call_should_fail)
 
 TEST(public_kernel_tests, storage_contract_address_must_equal_contract_address)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__storage_contract_address_must_equal_contract_address");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     const NT::fr contract_address = inputs.public_call.call_stack_item.contract_address;
@@ -629,7 +631,7 @@ TEST(public_kernel_tests, storage_contract_address_must_equal_contract_address)
 
 TEST(public_kernel_tests, contract_address_must_be_valid)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__contract_address_must_be_valid");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.call_stack_item.contract_address = 0;
@@ -640,7 +642,7 @@ TEST(public_kernel_tests, contract_address_must_be_valid)
 
 TEST(public_kernel_tests, function_selector_must_be_valid)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__function_selector_must_be_valid");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.call_stack_item.function_data.function_selector = 0;
@@ -651,7 +653,7 @@ TEST(public_kernel_tests, function_selector_must_be_valid)
 
 TEST(public_kernel_tests, private_call_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__private_call_should_fail");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     inputs.public_call.call_stack_item.function_data.is_private = true;
@@ -663,7 +665,8 @@ TEST(public_kernel_tests, private_call_should_fail)
 TEST(public_kernel_tests, inconsistent_call_hash_should_fail)
 {
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
-        DummyComposer dummyComposer;
+        DummyComposer dummyComposer =
+            DummyComposer(format("public_kernel_tests__inconsistent_call_hash_should_fail-", i));
         PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
         // change a value of something in the call stack pre-image
@@ -677,7 +680,8 @@ TEST(public_kernel_tests, inconsistent_call_hash_should_fail)
 TEST(public_kernel_tests, incorrect_storage_contract_address_fails_for_regular_calls)
 {
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
-        DummyComposer dummyComposer;
+        DummyComposer dummyComposer = DummyComposer(
+            format("public_kernel_tests__incorrect_storage_contract_address_fails_for_regular_calls-", i));
         PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
         // change the storage contract address so it does not equal the contract address
@@ -695,7 +699,8 @@ TEST(public_kernel_tests, incorrect_storage_contract_address_fails_for_regular_c
 TEST(public_kernel_tests, incorrect_msg_sender_fails_for_regular_calls)
 {
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
-        DummyComposer dummyComposer;
+        DummyComposer dummyComposer =
+            DummyComposer(format("public_kernel_tests__incorrect_msg_sender_fails_for_regular_calls-", i));
         PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
         // set the msg sender to be the address of the called contract, which is wrong
         const auto new_msg_sender = inputs.public_call.public_call_stack_preimages[i].contract_address;
@@ -710,7 +715,8 @@ TEST(public_kernel_tests, incorrect_msg_sender_fails_for_regular_calls)
 
 TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_and_delegate_calls)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_kernel_circuit_succeeds_for_mixture_of_regular_and_delegate_calls");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     const auto contract_address = NT::fr(inputs.signed_tx_request.tx_request.to);
@@ -748,7 +754,8 @@ TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_
 
 TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_msg_sender_in_delegate_call)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_kernel_circuit_fails_on_incorrect_msg_sender_in_delegate_call");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     const auto contract_address = NT::fr(inputs.signed_tx_request.tx_request.to);
@@ -780,7 +787,8 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_msg_sender_in
 
 TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_storage_contract_in_delegate_call)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer(
+        "public_kernel_tests__public_kernel_circuit_fails_on_incorrect_storage_contract_in_delegate_call");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     // const auto contract_address = NT::fr(inputs.signed_tx_request.tx_request.to);
@@ -810,7 +818,8 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_storage_contr
 
 TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_portal_contract_in_delegate_call)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_kernel_circuit_fails_on_incorrect_portal_contract_in_delegate_call");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     const auto contract_address = NT::fr(inputs.signed_tx_request.tx_request.to);
@@ -842,7 +851,8 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_portal_contra
 
 TEST(public_kernel_tests, public_kernel_circuit_only_checks_non_empty_call_stacks)
 {
-    DummyComposer dc;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_kernel_circuit_only_checks_non_empty_call_stacks");
     PublicKernelInputsNoPreviousKernel<NT> inputs = get_kernel_inputs_no_previous_kernel();
 
     const auto contract_address = NT::fr(inputs.signed_tx_request.tx_request.to);
@@ -869,13 +879,14 @@ TEST(public_kernel_tests, public_kernel_circuit_only_checks_non_empty_call_stack
         // setting this to zero makes the call stack item be ignored so it won't fail
         call_stack_hashes[i] = 0;
     }
-    auto public_inputs = native_public_kernel_circuit_no_previous_kernel(dc, inputs);
-    ASSERT_FALSE(dc.failed());
+    auto public_inputs = native_public_kernel_circuit_no_previous_kernel(dummyComposer, inputs);
+    ASSERT_FALSE(dummyComposer.failed());
 }
 
 TEST(public_kernel_tests, public_kernel_circuit_with_private_previous_kernel_should_succeed)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_kernel_circuit_with_private_previous_kernel_should_succeed");
     PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(true);
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
     ASSERT_FALSE(dummyComposer.failed());
@@ -883,7 +894,8 @@ TEST(public_kernel_tests, public_kernel_circuit_with_private_previous_kernel_sho
 
 TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_previous_private_kernel)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer(
+        "public_kernel_tests__circuit_outputs_should_be_correctly_populated_with_previous_private_kernel");
     PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(true);
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
 
@@ -896,7 +908,8 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
 
 TEST(public_kernel_tests, private_previous_kernel_non_empty_private_call_stack_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__private_previous_kernel_non_empty_private_call_stack_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
     inputs.previous_kernel.public_inputs.end.private_call_stack[0] = 1;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
@@ -906,7 +919,8 @@ TEST(public_kernel_tests, private_previous_kernel_non_empty_private_call_stack_s
 
 TEST(public_kernel_tests, private_previous_kernel_empty_public_call_stack_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__private_previous_kernel_empty_public_call_stack_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
     inputs.public_call.call_stack_item.public_inputs.public_call_stack = zero_array<NT::fr, PUBLIC_CALL_STACK_LENGTH>();
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
@@ -916,7 +930,8 @@ TEST(public_kernel_tests, private_previous_kernel_empty_public_call_stack_should
 
 TEST(public_kernel_tests, private_previous_kernel_zero_private_call_count_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__private_previous_kernel_zero_private_call_count_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
     inputs.previous_kernel.public_inputs.end.private_call_count = 0;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
@@ -926,7 +941,8 @@ TEST(public_kernel_tests, private_previous_kernel_zero_private_call_count_should
 
 TEST(public_kernel_tests, private_previous_kernel_non_zero_public_call_count_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__private_previous_kernel_non_zero_public_call_count_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
     inputs.previous_kernel.public_inputs.end.public_call_count = 1;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
@@ -936,7 +952,8 @@ TEST(public_kernel_tests, private_previous_kernel_non_zero_public_call_count_sho
 
 TEST(public_kernel_tests, private_previous_kernel_non_private_previous_kernel_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__private_previous_kernel_non_private_previous_kernel_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
     inputs.previous_kernel.public_inputs.is_private = false;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
@@ -946,7 +963,8 @@ TEST(public_kernel_tests, private_previous_kernel_non_private_previous_kernel_sh
 
 TEST(public_kernel_tests, previous_private_kernel_fails_if_contract_storage_update_requests_on_static_call)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer(
+        "public_kernel_tests__previous_private_kernel_fails_if_contract_storage_update_requests_on_static_call");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
 
     // the function call has contract storage update requests so setting it to static should fail
@@ -961,7 +979,8 @@ TEST(public_kernel_tests, previous_private_kernel_fails_if_contract_storage_upda
 
 TEST(public_kernel_tests, previous_private_kernel_fails_if_incorrect_storage_contract_on_delegate_call)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer(
+        "public_kernel_tests__previous_private_kernel_fails_if_incorrect_storage_contract_on_delegate_call");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
 
     // the function call has the contract address and storage contract address equal and so it should fail for a
@@ -976,7 +995,8 @@ TEST(public_kernel_tests, previous_private_kernel_fails_if_incorrect_storage_con
 
 TEST(public_kernel_tests, public_kernel_circuit_with_public_previous_kernel_should_succeed)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_kernel_circuit_with_public_previous_kernel_should_succeed");
     PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(false);
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyComposer, inputs);
     ASSERT_FALSE(dummyComposer.failed());
@@ -984,7 +1004,8 @@ TEST(public_kernel_tests, public_kernel_circuit_with_public_previous_kernel_shou
 
 TEST(public_kernel_tests, public_previous_kernel_empty_public_call_stack_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_previous_kernel_empty_public_call_stack_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
     inputs.previous_kernel.public_inputs.end.public_call_stack = zero_array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyComposer, inputs);
@@ -994,7 +1015,8 @@ TEST(public_kernel_tests, public_previous_kernel_empty_public_call_stack_should_
 
 TEST(public_kernel_tests, public_previous_kernel_zero_public_call_count_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_previous_kernel_zero_public_call_count_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
     inputs.previous_kernel.public_inputs.end.public_call_count = 0;
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyComposer, inputs);
@@ -1004,7 +1026,8 @@ TEST(public_kernel_tests, public_previous_kernel_zero_public_call_count_should_f
 
 TEST(public_kernel_tests, public_previous_kernel_private_previous_kernel_should_fail)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__public_previous_kernel_private_previous_kernel_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
     inputs.previous_kernel.public_inputs.is_private = true;
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyComposer, inputs);
@@ -1014,7 +1037,8 @@ TEST(public_kernel_tests, public_previous_kernel_private_previous_kernel_should_
 
 TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_previous_public_kernel)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer =
+        DummyComposer("public_kernel_tests__circuit_outputs_should_be_correctly_populated_with_previous_public_kernel");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
 
     // setup 2 previous data writes on the public inputs
@@ -1090,7 +1114,8 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
 
 TEST(public_kernel_tests, previous_public_kernel_fails_if_contract_storage_update_requests_on_static_call)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer(
+        "public_kernel_tests__previous_public_kernel_fails_if_contract_storage_update_requests_on_static_call");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
 
     // the function call has contract storage update requests so setting it to static should fail
@@ -1105,7 +1130,8 @@ TEST(public_kernel_tests, previous_public_kernel_fails_if_contract_storage_updat
 
 TEST(public_kernel_tests, previous_public_kernel_fails_if_incorrect_storage_contract_on_delegate_call)
 {
-    DummyComposer dummyComposer;
+    DummyComposer dummyComposer = DummyComposer(
+        "public_kernel_tests__previous_public_kernel_fails_if_incorrect_storage_contract_on_delegate_call");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
 
     // the function call has the contract address and storage contract address equal and so it should fail for a

@@ -77,7 +77,7 @@ WASM_EXPORT uint8_t* private_kernel__sim(uint8_t const* signed_tx_request_buf,
                                          size_t* private_kernel_public_inputs_size_out,
                                          uint8_t const** private_kernel_public_inputs_buf)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("private_kernel__sim");
     SignedTxRequest<NT> signed_tx_request;
     read(signed_tx_request_buf, signed_tx_request);
 
@@ -121,7 +121,6 @@ WASM_EXPORT uint8_t* private_kernel__sim(uint8_t const* signed_tx_request_buf,
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *private_kernel_public_inputs_buf = raw_public_inputs_buf;
     *private_kernel_public_inputs_size_out = public_inputs_vec.size();
-    composer.log_failures_if_any("private_kernel__sim");
     return composer.alloc_and_serialize_first_failure();
 }
 

@@ -162,7 +162,7 @@ TEST_F(root_rollup_tests, native_check_block_hashes_empty_blocks)
     std::vector<uint8_t> const messages_hash_input_bytes_vec(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP * 32, 0);
     auto messages_hash = sha256::sha256(messages_hash_input_bytes_vec);
 
-    utils::DummyComposer composer = utils::DummyComposer();
+    utils::DummyComposer composer = utils::DummyComposer("root_rollup_tests__native_check_block_hashes_empty_blocks");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
@@ -183,7 +183,7 @@ TEST_F(root_rollup_tests, native_check_block_hashes_empty_blocks)
 
 TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 {
-    utils::DummyComposer composer = utils::DummyComposer();
+    utils::DummyComposer composer = utils::DummyComposer("root_rollup_tests__native_root_missing_nullifier_logic");
 
     MemoryTree data_tree = MemoryTree(PRIVATE_DATA_TREE_HEIGHT);
     MemoryTree contract_tree = MemoryTree(CONTRACT_TREE_HEIGHT);

@@ -57,7 +57,7 @@ WASM_EXPORT uint8_t* public_kernel__sim(uint8_t const* public_kernel_inputs_buf,
                                         size_t* public_kernel_public_inputs_size_out,
                                         uint8_t const** public_kernel_public_inputs_buf)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("public_kernel__sim");
 
     PublicKernelInputs<NT> public_kernel_inputs;
     read(public_kernel_inputs_buf, public_kernel_inputs);
@@ -75,7 +75,6 @@ WASM_EXPORT uint8_t* public_kernel__sim(uint8_t const* public_kernel_inputs_buf,
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *public_kernel_public_inputs_buf = raw_public_inputs_buf;
     *public_kernel_public_inputs_size_out = public_inputs_vec.size();
-    composer.log_failures_if_any("public_kernel__sim");
     return composer.alloc_and_serialize_first_failure();
 }
 
@@ -83,7 +82,7 @@ WASM_EXPORT uint8_t* public_kernel_no_previous_kernel__sim(uint8_t const* public
                                                            size_t* public_kernel_public_inputs_size_out,
                                                            uint8_t const** public_kernel_public_inputs_buf)
 {
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("public_kernel_no_previous_kernel__sim");
 
     PublicKernelInputsNoPreviousKernel<NT> public_kernel_inputs;
     read(public_kernel_inputs_buf, public_kernel_inputs);
@@ -99,7 +98,6 @@ WASM_EXPORT uint8_t* public_kernel_no_previous_kernel__sim(uint8_t const* public
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *public_kernel_public_inputs_buf = raw_public_inputs_buf;
     *public_kernel_public_inputs_size_out = public_inputs_vec.size();
-    composer.log_failures_if_any("public_kernel_no_previous_kernel__sim");
     return composer.alloc_and_serialize_first_failure();
 }
 

@@ -11,6 +11,10 @@ namespace aztec3::utils {
 class DummyComposer {
   public:
     std::vector<CircuitError> failure_msgs;
+    // method that created this composer instance. Useful for logging.
+    std::string method_name;
+
+    explicit DummyComposer(std::string method_name) : method_name(std::move(method_name)) {}
 
     void do_assert(bool const& assertion, std::string const& msg, CircuitErrorCode error_code)
     {
@@ -22,7 +26,7 @@ class DummyComposer {
         }
     }
 
-    bool failed() const { return !failure_msgs.empty(); }
+    [[nodiscard]] bool failed() const { return !failure_msgs.empty(); }
 
     CircuitError get_first_failure()
     {
@@ -38,6 +42,8 @@ class DummyComposer {
         if (failure.code == CircuitErrorCode::NO_ERROR) {
             return nullptr;
         }
+        info(this->method_name, ": composer.get_first_failure() = ", failure_msgs[0]);
+
 
         // serialize circuit failure to bytes vec
         std::vector<uint8_t> circuit_failure_vec;
@@ -47,13 +53,6 @@ class DummyComposer {
         auto* raw_failure_buf = static_cast<uint8_t*>(malloc(circuit_failure_vec.size()));
         memcpy(raw_failure_buf, (void*)circuit_failure_vec.data(), circuit_failure_vec.size());
         return raw_failure_buf;
-    }
-
-    void log_failures_if_any(std::string from_method_name)
-    {
-        if (failed()) {
-            info(std::move(from_method_name), ": composer.get_first_failure() = ", get_first_failure());
-        }
     }
 };
 

@@ -60,7 +60,7 @@ WASM_EXPORT uint8_t* root_rollup__sim(uint8_t const* root_rollup_inputs_buf,
     RootRollupInputs root_rollup_inputs;
     read(root_rollup_inputs_buf, root_rollup_inputs);
 
-    DummyComposer composer = DummyComposer();
+    DummyComposer composer = DummyComposer("root_rollup__sim");
     RootRollupPublicInputs const public_inputs = root_rollup_circuit(composer, root_rollup_inputs);
 
     // serialize public inputs to bytes vec
@@ -71,7 +71,6 @@ WASM_EXPORT uint8_t* root_rollup__sim(uint8_t const* root_rollup_inputs_buf,
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *root_rollup_public_inputs_buf = raw_public_inputs_buf;
     *root_rollup_public_inputs_size_out = public_inputs_vec.size();
-    composer.log_failures_if_any("root_rollup__sim");
     return composer.alloc_and_serialize_first_failure();
 }
 

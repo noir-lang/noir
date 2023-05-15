@@ -460,7 +460,7 @@ TEST(private_kernel_tests, native_deposit)
     NT::fr const& memo = 999;
 
     auto const& private_inputs = do_private_call_get_kernel_inputs(false, deposit, { amount, asset_id, memo });
-    DummyComposer composer;
+    DummyComposer composer = DummyComposer("private_kernel_tests__native_deposit");
     auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
 
     validate_deployed_contract_address(private_inputs, public_inputs);
@@ -505,7 +505,7 @@ TEST(private_kernel_tests, native_basic_contract_deployment)
     NT::fr const& arg2 = 999;
 
     auto const& private_inputs = do_private_call_get_kernel_inputs(true, constructor, { arg0, arg1, arg2 });
-    DummyComposer composer;
+    DummyComposer composer = DummyComposer("private_kernel_tests__native_basic_contract_deployment");
     auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
 
     validate_deployed_contract_address(private_inputs, public_inputs);
@@ -522,7 +522,7 @@ TEST(private_kernel_tests, circuit_create_proof_cbinds)
 
     // first run actual simulation to get public inputs
     auto const& private_inputs = do_private_call_get_kernel_inputs(true, constructor, { arg0, arg1, arg2 }, true);
-    DummyComposer composer;
+    DummyComposer composer = DummyComposer("private_kernel_tests__circuit_create_proof_cbinds");
     auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
 
     // serialize expected public inputs for later comparison
