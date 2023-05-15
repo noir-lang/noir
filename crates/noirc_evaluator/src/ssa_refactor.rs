@@ -13,7 +13,7 @@ use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
 
-use self::acir_gen::GeneratedAcir;
+use self::acir_gen::generated_acir::GeneratedAcir;
 
 mod abi_gen;
 
@@ -26,7 +26,8 @@ pub mod ssa_gen;
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
 pub fn optimize_into_acir(program: Program) -> GeneratedAcir {
-    ssa_gen::generate_ssa(program).into_acir()
+    let function_signature = program.main_function_signature.clone();
+    ssa_gen::generate_ssa(program).into_acir(function_signature)
 }
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 /// This is analogous to `ssa:create_circuit` and this method is called when one wants
