@@ -118,7 +118,7 @@ impl ArrayHeap {
         self.staged.insert(index, (value, op));
     }
 
-    /// This helper function transforms an expression into a linear expression, by generating a witness if the input expression is not linear nor constant
+    /// This helper function transforms an expression into a (univariate) linear expression, by generating a witness if the input expression is not linear nor constant
     fn normalize_expression(expr: &Expression, evaluator: &mut Evaluator) -> Expression {
         if !expr.is_linear() || expr.linear_combinations.len() > 1 {
             let w = evaluator.create_intermediate_variable(expr.clone());
