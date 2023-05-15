@@ -565,13 +565,13 @@ pub(crate) fn evaluate_constant_modulo(
     //1. Generate witnesses b,c
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
+    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
         a: lhs.clone(),
         b: modulus_exp.clone(),
         q: c_witness,
         r: b_witness,
         predicate: None,
-    }));
+    })));
     bound_constraint_with_offset(
         &Expression::from(b_witness),
         &modulus_exp,
