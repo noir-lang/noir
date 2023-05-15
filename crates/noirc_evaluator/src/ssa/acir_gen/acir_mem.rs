@@ -145,14 +145,12 @@ impl ArrayHeap {
                 return;
             }
         }
-        if !is_opcode_supported(&AcirOpcode::Block(dummy.clone())) {
-            if is_opcode_supported(&AcirOpcode::RAM(dummy)) {
-                self.add_ram_opcode(evaluator, array_id, array_len);
-            } else {
-                self.generate_permutation_constraints(evaluator, array_id, array_len);
-            }
-        } else {
+        if is_opcode_supported(&AcirOpcode::Block(dummy.clone())) {
             self.add_block_opcode(evaluator, array_id, array_len);
+        } else if is_opcode_supported(&AcirOpcode::RAM(dummy)) {
+            self.add_ram_opcode(evaluator, array_id, array_len);
+        } else {
+            self.generate_permutation_constraints(evaluator, array_id, array_len);
         }
     }
 
