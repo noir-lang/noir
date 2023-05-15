@@ -26,15 +26,13 @@ fn eddsa_poseidon_verify(
     assert(field::lt_bytes32(signature_s, bjj.suborder));
 
     // Calculate the h = H(R, A, msg)
-    let perm: [Field; 6] = poseidon::bn254::perm::x5_6([
-        0,
+    let hash: Field = poseidon::bn254::hash_5([
         signature_r8_x,
         signature_r8_y,
         pub_key_x,
         pub_key_y,
         message,
     ]);
-    let hash = perm[0];
 
     // Calculate second part of the right side:  right2 = h*8*A
 

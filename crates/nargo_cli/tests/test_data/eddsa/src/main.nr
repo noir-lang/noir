@@ -22,25 +22,21 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
         let r8_a = bjj.curve.mul(r_a, bjj.base8);
         let r8_b = bjj.curve.mul(r_b, bjj.base8);
 
-        // let perm_a: [Field; 6] = hash::poseidon::bn254::perm::x5_6([
-        //     0,
+        // let h_a: [Field; 6] = hash::poseidon::bn254::hash_5([
         //     r8_a.x,
         //     r8_a.y,
         //     pub_key_a.x,
         //     pub_key_a.y,
         //     msg,
         // ]);
-        // let h_a = perm_a[0];
 
-        // let perm_b: [Field; 6] = hash::poseidon::bn254::perm::x5_6([
-        //     0,
+        // let h_b: [Field; 6] = hash::poseidon::bn254::hash_5([
         //     r8_b.x,
         //     r8_b.y,
         //     pub_key_b.x,
         //     pub_key_b.y,
         //     msg,
         // ]);
-        // let h_b = perm_b[0];
 
         // let s_a = (r_a + _priv_key_a * h_a) % bjj.suborder; // modulus computed manually
         let s_a =  30333430637424319196043722294837632681219980330991241982145549329256671548;
