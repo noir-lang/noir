@@ -558,7 +558,8 @@ pub(crate) fn evaluate_constant_modulo(
 ) -> Expression {
     let modulus = FieldElement::from(rhs as i128);
     let modulus_exp = Expression::from_field(modulus);
-    let modulus_bits = bit_size_u128(rhs as u128);
+    assert_ne!(rhs, 0);
+    let modulus_bits = bit_size_u128((rhs - 1) as u128);
     assert!(max_bits >= rhs, "max_bits = {max_bits}, rhs = {rhs}");
     //0. Check for constant expression. This can happen through arithmetic simplifications
     if let Some(a_c) = lhs.to_const() {
@@ -584,8 +585,12 @@ pub(crate) fn evaluate_constant_modulo(
         modulus_bits,
         evaluator,
     );
-    try_range_constraint(b_witness, modulus_bits, evaluator);
-    try_range_constraint(c_witness, max_bits - modulus_bits, evaluator);
+    //if rhs is a power of 2, then we avoid this range check as it is redundant with the previous one.
+    if rhs & (rhs - 1) != 0 {
+        try_range_constraint(b_witness, modulus_bits, evaluator);
+    }
+    let c_bound = FieldElement::modulus() / BigUint::from(rhs) - BigUint::one();
+    try_range_constraint(c_witness, c_bound.bits() as u32, evaluator);
 
     //2. Add the constraint lhs = b+q*rhs
     let b_arith = b_witness.into();
