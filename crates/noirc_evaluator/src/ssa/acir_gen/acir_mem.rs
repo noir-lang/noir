@@ -292,13 +292,6 @@ impl ArrayHeap {
             };
             evaluator.opcodes.push(AcirOpcode::Arithmetic(load_on_same_adr));
         }
-
-        let id = array_id.as_u32();
-        evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
-            id: AcirBlockId(id),
-            len: array_len,
-            trace: self.trace.clone(),
-        }));
     }
 }
 
