@@ -1,3 +1,4 @@
+mod json;
 mod toml;
 
 use std::{collections::BTreeMap, path::Path};
@@ -73,13 +74,16 @@ pub trait InitialWitnessParser {
 
 /// The different formats that are supported when parsing
 /// the initial witness values
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum Format {
+    Json,
     Toml,
 }
 
 impl Format {
     pub fn ext(&self) -> &'static str {
         match self {
+            Format::Json => "json",
             Format::Toml => "toml",
         }
     }
@@ -92,6 +96,7 @@ impl Format {
         abi: &Abi,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
+            Format::Json => json::parse_json(input_string, abi),
             Format::Toml => toml::parse_toml(input_string, abi),
         }
     }
@@ -101,7 +106,94 @@ impl Format {
         w_map: &BTreeMap<String, InputValue>,
     ) -> Result<String, InputParserError> {
         match self {
+            Format::Json => json::serialize_to_json(w_map),
             Format::Toml => toml::serialize_to_toml(w_map),
         }
+    }
+}
+
+#[cfg(test)]
+mod serialization_tests {
+    use std::collections::BTreeMap;
+
+    use acvm::FieldElement;
+    use strum::IntoEnumIterator;
+
+    use crate::{
+        input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, Sign, MAIN_RETURN_NAME,
+    };
+
+    use super::Format;
+
+    #[test]
+    fn serialization_round_trip() {
+        let abi = Abi {
+            parameters: vec![
+                AbiParameter {
+                    name: "foo".into(),
+                    typ: AbiType::Field,
+                    visibility: AbiVisibility::Private,
+                },
+                AbiParameter {
+                    name: "bar".into(),
+                    typ: AbiType::Struct {
+                        fields: BTreeMap::from([
+                            ("field1".into(), AbiType::Integer { sign: Sign::Unsigned, width: 8 }),
+                            (
+                                "field2".into(),
+                                AbiType::Array { length: 2, typ: Box::new(AbiType::Boolean) },
+                            ),
+                        ]),
+                    },
+                    visibility: AbiVisibility::Private,
+                },
+            ],
+            return_type: Some(AbiType::String { length: 5 }),
+            // These two fields are unused when serializing/deserializing to file.
+            param_witnesses: BTreeMap::new(),
+            return_witnesses: Vec::new(),
+        };
+
+        let input_map: BTreeMap<String, InputValue> = BTreeMap::from([
+            ("foo".into(), InputValue::Field(FieldElement::one())),
+            (
+                "bar".into(),
+                InputValue::Struct(BTreeMap::from([
+                    ("field1".into(), InputValue::Field(255u128.into())),
+                    ("field2".into(), InputValue::Vec(vec![true.into(), false.into()])),
+                ])),
+            ),
+            (MAIN_RETURN_NAME.into(), InputValue::String("hello".to_owned())),
+        ]);
+
+        for format in Format::iter() {
+            let serialized_inputs = format.serialize(&input_map).unwrap();
+
+            let reconstructed_input_map = format.parse(&serialized_inputs, &abi).unwrap();
+
+            assert_eq!(input_map, reconstructed_input_map);
+        }
+    }
+}
+
+fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
+    if value.starts_with("0x") {
+        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
+    } else {
+        value
+            .parse::<i128>()
+            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
+            .map(FieldElement::from)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::parse_str_to_field;
+
+    #[test]
+    fn parse_empty_str_fails() {
+        // Check that this fails appropriately rather than being treated as 0, etc.
+        assert!(parse_str_to_field("").is_err());
     }
 }

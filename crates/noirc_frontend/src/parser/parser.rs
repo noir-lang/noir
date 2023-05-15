@@ -449,6 +449,7 @@ where
         assertion(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
+        return_statement(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
     ))
 }
@@ -712,6 +713,18 @@ where
 fn expression() -> impl ExprParser {
     recursive(|expr| expression_with_precedence(Precedence::Lowest, expr, false))
         .labelled(ParsingRuleLabel::Expression)
+}
+
+fn return_statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    ignore_then_commit(keyword(Keyword::Return), expr_parser.or_not())
+        .validate(|_, span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::EarlyReturn, span));
+            Statement::Error
+        })
+        .labelled(ParsingRuleLabel::Statement)
 }
 
 // An expression is a single term followed by 0 or more (OP subexpression)*
@@ -1598,5 +1611,41 @@ mod test {
                 expected_errors, errors.len(), show_errors(&errors), src, expected_result, actual
             );
         }
+    }
+
+    #[test]
+    fn return_validation() {
+        let cases = vec![
+            ("{ return 42; }", 1, "{\n    Error\n}"),
+            ("{ return 1; return 2; }", 2, "{\n    Error\n    Error\n}"),
+            (
+                "{ return 123; let foo = 4 + 3; }",
+                1,
+                "{\n    Error\n    let foo: unspecified = (4 + 3)\n}",
+            ),
+            ("{ return 1 + 2 }", 2, "{\n    Error\n}"),
+            ("{ return; }", 1, "{\n    Error\n}"),
+        ];
+
+        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
+
+        let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
+            let (opt, errors) = parse_recover(block(expression()), src);
+            let actual = opt.map(|ast| ast.to_string());
+            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
+
+            let result =
+                ((errors.len(), actual.clone()), (expected_errors, expected_result.to_string()));
+            if result.0 != result.1 {
+                let num_errors = errors.len();
+                let shown_errors = show_errors(errors);
+                eprintln!(
+                    "\nExpected {} error(s) and got {}:\n\n{}\n\nFrom input:   {}\nExpected AST: {}\nActual AST:   {}\n",
+                    expected_errors, num_errors, shown_errors, src, expected_result, actual);
+            }
+            result
+        });
+
+        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
     }
 }
