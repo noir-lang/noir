@@ -5,7 +5,7 @@ use noirc_abi::{Abi, AbiDistinctness, AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::{Definition, Program};
 use std::collections::{BTreeMap, BTreeSet};
 
-mod parse_abi;
+pub(crate) mod parse_abi;
 
 use crate::{
     errors::{RuntimeError, RuntimeErrorKind},
@@ -15,7 +15,7 @@ use crate::{
 ///! This module will create the Abi for a given program.
 
 #[derive(Default)]
-pub struct Evaluator {
+pub(crate) struct Evaluator {
     // Why is this not u64?
     //
     // At the moment, wasm32 is being used in the default backend
