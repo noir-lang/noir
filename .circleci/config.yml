@@ -150,6 +150,15 @@ jobs:
           command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 x86_64 scripts/a3-tests -*.skip*
       - *save_logs
 
+  circuits-end:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: "Noop"
+          command: echo Noop
+
   l1-contracts:
     machine:
       image: ubuntu-2004:202010-01
@@ -418,6 +427,15 @@ jobs:
           name: "Noop"
           command: echo Noop
 
+  e2e-end:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: "Noop"
+          command: echo Noop
+
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /v[0-9]+(\.[0-9]+)*(-[a-zA-Z-]+\.[0-9]+)?/
 defaults: &defaults
@@ -461,12 +479,25 @@ workflows:
           <<: *circuits-wasm-test
       - circuits-x86_64-tests:
           <<: *circuits-x86_64-test
+        
+      - circuits-end:
+          requires:
+          - circuits-wasm-linux-clang
+          - circuits-wasm-linux-clang-assert
+          - circuits-x86_64-linux-clang-tidy
+          - circuits-x86_64-linux-clang
+          - circuits-x86_64-linux-clang-assert
+          - circuits-wasm-tests
+          - circuits-x86_64-tests
+          <<: *defaults
+
+      - l1-contracts: *defaults
+
       - yarn-project-base:
           requires:
             - circuits-wasm-linux-clang
             - l1-contracts
           <<: *defaults
-      - l1-contracts: *defaults
 
       - aztec-js: *yarn_project
       - end-to-end: *yarn_project
@@ -487,16 +518,35 @@ workflows:
       - e2e-join:
           requires:
             - aztec-js
-            - circuits-js
             - end-to-end
             - foundation
-            - noir-contracts
-            - sequencer-client
             - world-state
+            - acir-simulator
+            - archiver
+            - aztec-rpc
+            - barretenberg-js
+            - merkle-tree
+            - p2p
+            - noir-contracts
+            - noir-compiler
+            - sequencer-client
+            - types
+            - circuits-js
           <<: *defaults
+
       - e2e-deploy-contract: *e2e_test
       - e2e-zk-token-contract: *e2e_test
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
       - e2e-public-token-contract: *e2e_test
       - integration-l1-publisher: *e2e_test
+
+      - e2e-end:
+          requires:
+            - e2e-deploy-contract
+            - e2e-zk-token-contract
+            - e2e-block-building
+            - e2e-nested-contract
+            - e2e-public-token-contract
+            - integration-l1-publisher
+          <<: *defaults
