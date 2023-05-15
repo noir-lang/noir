@@ -64,6 +64,8 @@
         # We include rust-src to ensure rust-analyzer works.
         # See https://discourse.nixos.org/t/rust-src-not-found-and-other-misadventures-of-developing-rust-on-nixos/11570/4
         extensions = [ "rust-src" ];
+        # possible fix for "section too large"
+        # targets = [ "aarch64-apple-darwin" "wasm32-unknown-unknown" ];
         targets = [ "wasm32-unknown-unknown" ];
       };
 
@@ -196,11 +198,16 @@
         '';
       });
 
-      packages.wasm = pkgs.stdenv.mkDerivation rec {
+      # throws failed to get '"acvm" as a dependency of package noirc_evaluator v0.4.1'
+      # packages.wasm = pkgs.stdenv.mkDerivation rec {
+      
+      # throws "error: failed to build archive: section too large"
+      packages.wasm = craneLib.buildPackage rec {
         pname = "noir_wasm";
         version = "1.0.0";
 
-        src = ./.; 
+        # src = ./.; 
+        src = craneLib.cleanCargoSource (craneLib.path ./.);
 
         nativeBuildInputs = with pkgs; [
           wasm-pack
@@ -209,21 +216,12 @@
           git
         ];
 
-        buildPhase = ''          
-          set -x
-      
-          ${pkgs.bash}/bin/bash ./crates/wasm/build-wasm 2>&1 | tee build.log
-          BUILD_RESULT=$?
-          if [ $BUILD_RESULT -ne 0 ]; then
-            touch BUILD_FAILED
-          fi
-          exit $BUILD_RESULT
+        buildPhase = ''
+          wasm-pack build crates/wasm --scope noir-lang --target web --out-dir pkg/web --release
         '';
       
         installPhase = ''
           mkdir -p $out
-          cp build.log $out/
-          # cp -r pkg/* $out/pkg/
         '';
       };
     });

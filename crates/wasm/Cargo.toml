@@ -24,3 +24,7 @@ gloo-utils = { version = "0.1", features = ["serde"] }
 
 [build-dependencies]
 build-data = "0.1.3"
+
+# added to strip the sections
+[profile.release]
+strip = true
