@@ -70,7 +70,6 @@ pub struct NodeInterner {
     next_type_variable_id: usize,
 
     //used for fallback mechanism
-    language: Language,
     is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 
     delayed_type_checks: Vec<TypeCheckFn>,
@@ -259,7 +258,6 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
-            language: Language::R1CS,
             #[allow(deprecated)]
             is_opcode_supported: Box::new(acvm::default_is_opcode_supported(Language::R1CS)),
             delayed_type_checks: vec![],
@@ -580,10 +578,6 @@ impl NodeInterner {
 
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
         self.function_definition_ids[&function]
-    }
-
-    pub fn set_language(&mut self, language: &Language) {
-        self.language = language.clone();
     }
 
     pub fn set_opcode_support(&mut self, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) {

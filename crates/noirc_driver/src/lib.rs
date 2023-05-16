@@ -59,7 +59,6 @@ impl Default for CompileOptions {
 impl Driver {
     pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
         let mut driver = Driver { context: Context::default(), language: language.clone() };
-        driver.context.def_interner.set_language(language);
         driver.context.def_interner.set_opcode_support(is_opcode_supported);
         driver
     }
