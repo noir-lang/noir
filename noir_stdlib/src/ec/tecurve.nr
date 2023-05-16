@@ -364,7 +364,7 @@ mod curvegroup {
                     self.add(out, out),
                     if(bits[n - i - 1] == 0) {Point::zero()} else {p});
             }
-            
+
             out
         }
         
@@ -372,16 +372,14 @@ mod curvegroup {
         fn mul(self, n: Field, p: Point) -> Point {
             let N_BITS = crate::field::modulus_num_bits();
 
-            let mut out = Point::zero();
-            let n_as_bits = n.to_le_bits(N_BITS as u32); // N_BITS-bit representation
-
-            for i in 0..N_BITS {
-                out = self.add(
-                    self.add(out, out),
-                    if(n_as_bits[N_BITS - i - 1] == 0) {Point::zero()} else {p});
+            // temporary workaround until issue 1354 is solved
+            let mut n_as_bits :[u1; 254] = [0; 254];
+            let tmp = n.to_le_bits(N_BITS as u32);
+            for i in 0..254 {
+               n_as_bits[i]= tmp[i]; 
             }
 
-            out
+            self.bit_mul(n_as_bits, p)
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
