@@ -5,6 +5,7 @@
 #include <barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp>
 #include <barretenberg/stdlib/encryption/schnorr/schnorr.hpp>
 #include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
+#include <barretenberg/stdlib/hash/blake3s/blake3s.hpp>
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/primitives/address/address.hpp>
 #include <barretenberg/stdlib/primitives/bigfield/bigfield.hpp>

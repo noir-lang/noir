@@ -1,4 +1,5 @@
 #pragma once
+#include <barretenberg/crypto/blake2s/blake2s.hpp>
 #include <barretenberg/crypto/blake3s/blake3s.hpp>
 #include <barretenberg/crypto/ecdsa/ecdsa.hpp>
 #include <barretenberg/crypto/generators/generator_data.hpp>
