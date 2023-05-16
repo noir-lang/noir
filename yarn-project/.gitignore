@@ -6,6 +6,7 @@ node_modules
 *.swp
 .tsbuildinfo
 tsconfig.tsbuildinfo
+.eslintcache
 
 # Zero install: https://yarnpkg.com/features/zero-installs
 .yarn/*
