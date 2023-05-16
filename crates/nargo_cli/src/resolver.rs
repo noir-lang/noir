@@ -71,7 +71,7 @@ impl<'a> Resolver<'a> {
     pub(crate) fn resolve_root_manifest(
         dir_path: &std::path::Path,
         np_language: Language,
-        is_opcode_supported: Box<impl Fn(&Opcode) -> bool>,
+        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
     ) -> Result<Driver, DependencyResolutionError> {
         let mut driver = Driver::new(&np_language, is_opcode_supported);
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
