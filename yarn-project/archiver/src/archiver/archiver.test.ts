@@ -8,14 +8,17 @@ import { sleep } from '@aztec/foundation/sleep';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';
   const unverifiedDataEmitterAddress = '0x0000000000000000000000000000000000000001';
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
+  let archiverStore: ArchiverDataStore;
 
   beforeEach(() => {
     publicClient = mock<PublicClient<HttpTransport, Chain>>();
+    archiverStore = new MemoryArchiverStore();
   });
 
   it('can start, sync and stop', async () => {
@@ -23,6 +26,7 @@ describe('Archiver', () => {
       publicClient,
       EthAddress.fromString(rollupAddress),
       EthAddress.fromString(unverifiedDataEmitterAddress),
+      archiverStore,
       1000,
     );
 

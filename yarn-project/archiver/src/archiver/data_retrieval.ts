@@ -95,6 +95,7 @@ export async function retrieveUnverifiedData(
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
+ * @returns An array of ContractPublicData and their equivalent L2 Block number.
  */
 export async function retrieveNewContractData(
   publicClient: PublicClient,
@@ -103,7 +104,7 @@ export async function retrieveNewContractData(
   currentBlockNumber: bigint,
   searchStartBlock: bigint,
 ) {
-  let retrievedNewContracts: (ContractPublicData[] | undefined)[] = [];
+  let retrievedNewContracts: [ContractPublicData[], number][] = [];
   do {
     if (searchStartBlock > currentBlockNumber) {
       break;

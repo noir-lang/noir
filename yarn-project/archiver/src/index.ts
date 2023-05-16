@@ -2,6 +2,7 @@ import { fileURLToPath } from 'url';
 import { createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 import { Archiver, getConfigEnvVars } from './archiver/index.js';
+import { MemoryArchiverStore } from './archiver/archiver_store.js';
 
 export * from './archiver/index.js';
 
@@ -18,7 +19,9 @@ async function main() {
     transport: http(rpcUrl),
   });
 
-  const archiver = new Archiver(publicClient, rollupContract, unverifiedDataEmitterContract);
+  const archiverStore = new MemoryArchiverStore();
+
+  const archiver = new Archiver(publicClient, rollupContract, unverifiedDataEmitterContract, archiverStore);
 
   const shutdown = async () => {
     await archiver.stop();
