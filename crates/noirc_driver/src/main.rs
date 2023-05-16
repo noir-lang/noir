@@ -1,4 +1,4 @@
-use acvm::acir::circuit::Opcode;
+use acvm::Language;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateType, LOCAL_CRATE};
 fn main() {
@@ -7,8 +7,9 @@ fn main() {
     const ROOT_DIR_MAIN: &str = "example_real_project/main.nr";
 
     let mut driver = Driver::new(
-        &acvm::Language::R1CS,
-        Box::new(|opcode| matches!(opcode, Opcode::Arithmetic(_))),
+        &Language::R1CS,
+        #[allow(deprecated)]
+        Box::new(acvm::default_is_opcode_supported(Language::R1CS)),
     );
 
     // Add local crate to dep graph

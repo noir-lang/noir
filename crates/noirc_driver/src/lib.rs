@@ -258,6 +258,7 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
+        // TODO: use proper `is_opcode_supported` implementation.
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         let circuit_abi = if options.experimental_ssa {
@@ -320,6 +321,7 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new(&Language::R1CS, Box::new(|opcode| matches!(opcode, Opcode::Arithmetic(_))))
+        #[allow(deprecated)]
+        Self::new(&Language::R1CS, Box::new(acvm::default_is_opcode_supported(Language::R1CS)))
     }
 }
