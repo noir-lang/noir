@@ -142,25 +142,11 @@ export class PublicProcessor {
     previousProof: Proof | undefined,
   ): Promise<[KernelCircuitPublicInputs, Proof]> {
     const output = await this.getKernelCircuitOutput(callData, txRequest, previousOutput, previousProof);
-
-    // TODO: This should be set by the public kernel circuit.
-    // See https://github.com/AztecProtocol/aztec-packages/issues/482
-    const contractTreeInfo = await this.db.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
-    const privateDataTreeInfo = await this.db.getTreeInfo(MerkleTreeId.PRIVATE_DATA_TREE);
-    const nullifierTreeInfo = await this.db.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
-    const l1ToL2MessagesTreeInfo = await this.db.getTreeInfo(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
-
-    const outputRoots = output.constants.historicTreeRoots.privateHistoricTreeRoots;
-    outputRoots.nullifierTreeRoot = Fr.fromBuffer(nullifierTreeInfo.root);
-    outputRoots.contractTreeRoot = Fr.fromBuffer(contractTreeInfo.root);
-    outputRoots.privateDataTreeRoot = Fr.fromBuffer(privateDataTreeInfo.root);
-    outputRoots.l1ToL2MessagesTreeRoot = Fr.fromBuffer(l1ToL2MessagesTreeInfo.root);
-
     const proof = await this.publicProver.getPublicKernelCircuitProof(output);
     return [output, proof];
   }
 
-  protected getKernelCircuitOutput(
+  protected async getKernelCircuitOutput(
     callData: PublicCallData,
     txRequest: SignedTxRequest | undefined,
     previousOutput: KernelCircuitPublicInputs | undefined,
@@ -184,7 +170,8 @@ export class PublicProcessor {
       return this.publicKernel.publicKernelCircuitNonFirstIteration(inputs);
     } else if (txRequest) {
       // Run the public kernel circuit with no previous kernel
-      const inputs = new PublicKernelInputsNoPreviousKernel(txRequest, callData);
+      const treeRoots = await getCombinedHistoricTreeRoots(this.db);
+      const inputs = new PublicKernelInputsNoPreviousKernel(txRequest, callData, treeRoots);
       return this.publicKernel.publicKernelCircuitNoInput(inputs);
     } else {
       throw new Error(`No public kernel circuit for inputs`);

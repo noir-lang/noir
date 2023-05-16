@@ -4,6 +4,7 @@
 #include "../previous_kernel_data.hpp"
 #include "../signed_tx_request.hpp"
 
+#include "aztec3/circuits/abis/combined_historic_tree_roots.hpp"
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -22,6 +23,7 @@ template <typename NCT> struct PublicKernelInputsNoPreviousKernel {
 
     SignedTxRequest<NCT> signed_tx_request{};
     PublicCallData<NCT> public_call{};
+    CombinedHistoricTreeRoots<NCT> historic_tree_roots{};
 
     boolean operator==(PublicKernelInputsNoPreviousKernel<NCT> const& other) const
     {
@@ -37,6 +39,7 @@ template <typename NCT> struct PublicKernelInputsNoPreviousKernel {
             // TODO to_ct(signature),
             signed_tx_request.to_circuit_type(composer),
             public_call.to_circuit_type(composer),
+            historic_tree_roots.to_circuit_type(composer)
         };
 
         return public_kernel_inputs;
@@ -49,6 +52,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicKernelInputsNoPrevio
 
     read(it, public_kernel_inputs.signed_tx_request);
     read(it, public_kernel_inputs.public_call);
+    read(it, public_kernel_inputs.historic_tree_roots);
 };
 
 template <typename NCT>
@@ -58,6 +62,7 @@ void write(std::vector<uint8_t>& buf, PublicKernelInputsNoPreviousKernel<NCT> co
 
     write(buf, public_kernel_inputs.signed_tx_request);
     write(buf, public_kernel_inputs.public_call);
+    write(buf, public_kernel_inputs.historic_tree_roots);
 };
 
 template <typename NCT>
@@ -66,7 +71,9 @@ std::ostream& operator<<(std::ostream& os, PublicKernelInputsNoPreviousKernel<NC
     return os << "signed_tx_request:\n"
               << public_kernel_inputs.signed_tx_request << "\n"
               << "public_call:\n"
-              << public_kernel_inputs.public_call << "\n";
+              << public_kernel_inputs.public_call << "\n"
+              << "historic_tree_roots:\n"
+              << public_kernel_inputs.historic_tree_roots << "\n";
 }
 
 }  // namespace aztec3::circuits::abis::public_kernel

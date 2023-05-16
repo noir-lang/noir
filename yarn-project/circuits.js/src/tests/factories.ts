@@ -1,8 +1,8 @@
-import { Fr } from '@aztec/foundation/fields';
-import { Fq } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fq, Fr } from '@aztec/foundation/fields';
 
+import { computeCallStackItemHash } from '../abis/abis.js';
 import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
@@ -12,6 +12,8 @@ import {
   CombinedConstantData,
   CombinedHistoricTreeRoots,
   ConstantBaseRollupData,
+  ContractStorageRead,
+  ContractStorageUpdateRequest,
   KernelCircuitPublicInputs,
   MergeRollupInputs,
   NewContractData,
@@ -31,8 +33,6 @@ import {
   PublicKernelInputsNoPreviousKernel,
   RootRollupInputs,
   RootRollupPublicInputs,
-  ContractStorageRead,
-  ContractStorageUpdateRequest,
   WitnessedPublicCallData,
   PublicCallRequest,
 } from '../index.js';
@@ -44,16 +44,19 @@ import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   EMITTED_EVENTS_LENGTH,
   FUNCTION_TREE_HEIGHT,
-  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_CONTRACTS_LENGTH,
+  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
   KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
+  KERNEL_PUBLIC_DATA_READS_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
-  NEW_L2_TO_L1_MSGS_LENGTH,
+  L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
   NEW_COMMITMENTS_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
@@ -64,10 +67,7 @@ import {
   PUBLIC_DATA_TREE_HEIGHT,
   RETURN_VALUES_LENGTH,
   ROLLUP_VK_TREE_HEIGHT,
-  KERNEL_PUBLIC_DATA_READS_LENGTH,
-  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   VK_TREE_HEIGHT,
-  L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
 } from '../structs/constants.js';
 import { FunctionData } from '../structs/function_data.js';
 import { MembershipWitness } from '../structs/membership_witness.js';
@@ -78,7 +78,6 @@ import { SignedTxRequest, TxRequest } from '../structs/tx_request.js';
 import { CommitmentMap, G1AffineElement, VerificationKey } from '../structs/verification_key.js';
 import { range } from '../utils/jsUtils.js';
 import { numToUInt32BE } from '../utils/serialize.js';
-import { computeCallStackItemHash } from '../abis/abis.js';
 
 /**
  * Creates an arbitrary tx context with the given seed.
@@ -514,7 +513,11 @@ export async function makePublicKernelInputsWithEmptyOutput(seed = 1): Promise<P
  * @returns Public kernel inputs.
  */
 export async function makePublicKernelInputsNoKernelInput(seed = 1): Promise<PublicKernelInputsNoPreviousKernel> {
-  return new PublicKernelInputsNoPreviousKernel(makeSignedTxRequest(seed), await makePublicCallData(seed + 0x100));
+  return new PublicKernelInputsNoPreviousKernel(
+    makeSignedTxRequest(seed),
+    await makePublicCallData(seed + 0x100),
+    makeCombinedHistoricTreeRoots(seed + 0x200),
+  );
 }
 
 /**

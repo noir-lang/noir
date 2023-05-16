@@ -3,6 +3,7 @@
 #include "native_public_kernel_circuit_private_previous_kernel.hpp"
 #include "native_public_kernel_circuit_public_previous_kernel.hpp"
 
+#include "aztec3/circuits/abis/combined_historic_tree_roots.hpp"
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/abis/call_stack_item.hpp>
 #include <aztec3/circuits/abis/combined_accumulated_data.hpp>
@@ -270,12 +271,20 @@ PublicKernelInputsNoPreviousKernel<NT> get_kernel_inputs_no_previous_kernel()
         .bytecode_hash = 1234567,
     };
 
+    CombinedHistoricTreeRoots<NT> const historic_tree_roots = { .private_historic_tree_roots = {
+                                                                    .private_data_tree_root = 1000,
+                                                                    .contract_tree_root = 2000,
+                                                                    .l1_to_l2_messages_tree_root = 3000,
+                                                                    .private_kernel_vk_tree_root = 4000,
+                                                                } };
+
     //***************************************************************************
     // Now we can construct the full inputs to the kernel circuit
     //***************************************************************************
     PublicKernelInputsNoPreviousKernel<NT> public_kernel_inputs = {
         .signed_tx_request = signed_tx_request,
         .public_call = { public_call_data },
+        .historic_tree_roots = historic_tree_roots,
     };
 
     return public_kernel_inputs;
@@ -473,6 +482,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated)
 
     ASSERT_FALSE(public_inputs.is_private);
     ASSERT_EQ(public_inputs.constants.tx_context, inputs.signed_tx_request.tx_request.tx_context);
+    ASSERT_EQ(public_inputs.constants.historic_tree_roots, inputs.historic_tree_roots);
 
     validate_public_kernel_outputs_correctly_propagated(inputs, public_inputs);
 }

@@ -1412,5 +1412,13 @@ proof:
 portal_contract_address: 0x102
 bytecode_hash: 0x103
 
+historic_tree_roots:
+private_historic_tree_roots: private_data_tree_root: 0x201
+nullifier_tree_root: 0x202
+contract_tree_root: 0x203
+l1_to_l2_messages_tree_root: 0x204
+private_kernel_vk_tree_root: 0x205
+
+
 "
 `;

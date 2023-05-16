@@ -12,6 +12,7 @@ import { MembershipWitness } from '../membership_witness.js';
 import { UInt8Vector } from '../shared.js';
 import { SignedTxRequest } from '../tx_request.js';
 import { PreviousKernelData } from './previous_kernel_data.js';
+import { CombinedHistoricTreeRoots } from './combined_constant_data.js';
 
 /**
  * Inputs to the public kernel circuit.
@@ -51,10 +52,14 @@ export class PublicKernelInputsNoPreviousKernel {
      * Public calldata assembled from the kernel execution result and proof.
      */
     public readonly publicCallData: PublicCallData,
+    /**
+     * Constant data historic tree roots.
+     */
+    public readonly historicTreeRoots: CombinedHistoricTreeRoots,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.signedTxRequest, this.publicCallData);
+    return serializeToBuffer(this.signedTxRequest, this.publicCallData, this.historicTreeRoots);
   }
 }
 

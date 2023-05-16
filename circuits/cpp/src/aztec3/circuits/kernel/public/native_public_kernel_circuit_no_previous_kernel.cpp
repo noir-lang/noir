@@ -22,6 +22,7 @@ void initialise_end_values(PublicKernelInputsNoPreviousKernel<NT> const& public_
                            KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     circuit_outputs.constants.tx_context = public_kernel_inputs.signed_tx_request.tx_request.tx_context;
+    circuit_outputs.constants.historic_tree_roots = public_kernel_inputs.historic_tree_roots;
 }
 
 /**
