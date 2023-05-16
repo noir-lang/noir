@@ -507,6 +507,22 @@ fn cse_block_with_anchor(
                         new_list.push(*ins_id);
                     }
                 }
+                Operation::Constrain(condition, location) => {
+                    if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                        assert_ne!(similar, ins.id);
+                        *modified = true;
+                        let similar_ins = ctx
+                            .try_get_mut_instruction(similar)
+                            .expect("Similar instructions are instructions");
+                        if location.is_some() && similar_ins.get_location().is_none() {
+                            similar_ins.operation = Operation::Constrain(*condition, *location);
+                        }
+                        new_mark = Mark::ReplaceWith(similar);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
+                    }
+                }
                 _ => {
                     //TODO: checks we do not need to propagate res arguments
                     new_list.push(*ins_id);

@@ -506,6 +506,36 @@ impl Instruction {
             }
         }
     }
+
+    pub(crate) fn get_location(&self) -> Option<Location> {
+        match &self.operation {
+            Operation::Binary(bin) => match bin.operator {
+                BinaryOp::Udiv(location)
+                | BinaryOp::Sdiv(location)
+                | BinaryOp::Urem(location)
+                | BinaryOp::Srem(location)
+                | BinaryOp::Div(location)
+                | BinaryOp::Shr(location) => Some(location),
+                _ => None,
+            },
+            Operation::Call { location, .. } => Some(*location),
+            Operation::Load { location, .. }
+            | Operation::Store { location, .. }
+            | Operation::Constrain(_, location) => *location,
+            Operation::Cast(_)
+            | Operation::Truncate { .. }
+            | Operation::Not(_)
+            | Operation::Jne(_, _)
+            | Operation::Jeq(_, _)
+            | Operation::Jmp(_)
+            | Operation::Phi { .. }
+            | Operation::Return(_)
+            | Operation::Result { .. }
+            | Operation::Cond { .. }
+            | Operation::Intrinsic(_, _)
+            | Operation::Nop => None,
+        }
+    }
 }
 
 //adapted from LLVM IR
