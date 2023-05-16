@@ -4,6 +4,7 @@
 #include "private_circuit_public_inputs.hpp"
 #include "public_circuit_public_inputs.hpp"
 
+#include "aztec3/circuits/abis/types.hpp"
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -30,11 +31,14 @@ template <typename NCT, template <class> typename PrivatePublic> struct CallStac
     address contract_address = 0;
     FunctionData<NCT> function_data{};
     typename PrivatePublic<NCT>::AppCircuitPublicInputs public_inputs{};
+    // True if this call stack item represents a request to execute a function rather than a
+    // fulfilled execution. Used when enqueuing calls from private to public functions.
+    boolean is_execution_request = false;
 
     boolean operator==(CallContext<NCT> const& other) const
     {
         return contract_address == other.contract_address && function_data == other.function_data &&
-               public_inputs == other.public_inputs;
+               public_inputs == other.public_inputs && is_execution_request == other.is_execution_request;
     };
 
     template <typename Composer>
@@ -49,6 +53,7 @@ template <typename NCT, template <class> typename PrivatePublic> struct CallStac
             to_ct(contract_address),
             function_data.to_circuit_type(composer),
             public_inputs.to_circuit_type(composer),
+            to_ct(is_execution_request),
         };
 
         return call_stack_item;
@@ -77,6 +82,7 @@ void read(uint8_t const*& it, CallStackItem<NCT, PrivatePublic>& call_stack_item
     read(it, call_stack_item.contract_address);
     read(it, call_stack_item.function_data);
     read(it, call_stack_item.public_inputs);
+    read(it, call_stack_item.is_execution_request);
 };
 
 template <typename NCT, template <class> typename PrivatePublic>
@@ -87,6 +93,7 @@ void write(std::vector<uint8_t>& buf, CallStackItem<NCT, PrivatePublic> const& c
     write(buf, call_stack_item.contract_address);
     write(buf, call_stack_item.function_data);
     write(buf, call_stack_item.public_inputs);
+    write(buf, call_stack_item.is_execution_request);
 };
 
 template <typename NCT, template <class> typename PrivatePublic>
@@ -94,7 +101,33 @@ std::ostream& operator<<(std::ostream& os, CallStackItem<NCT, PrivatePublic> con
 {
     return os << "contract_address: " << call_stack_item.contract_address << "\n"
               << "function_data: " << call_stack_item.function_data << "\n"
-              << "public_inputs: " << call_stack_item.public_inputs << "\n";
+              << "public_inputs: " << call_stack_item.public_inputs << "\n"
+              << "is_execution_request: " << call_stack_item.is_execution_request << "\n";
+}
+
+// Returns a copy of this call stack item where all result-related fields are zeroed out.
+inline CallStackItem<NativeTypes, PublicTypes> as_execution_request(
+    CallStackItem<NativeTypes, PublicTypes> const& call_stack_item)
+{
+    return {
+        .contract_address = call_stack_item.contract_address,
+        .function_data = call_stack_item.function_data,
+        .public_inputs = {
+            .call_context = call_stack_item.public_inputs.call_context,
+            .args = call_stack_item.public_inputs.args,
+        },
+        .is_execution_request = call_stack_item.is_execution_request,
+    };
+};
+
+// Returns the hash of a call stack item, or if the call stack item represents an execution request,
+// zeroes out all fields but those related to the request (contract, function data, call context, args)
+// and then hashes the item. Implemented only for native types for now.
+inline fr get_call_stack_item_hash(abis::CallStackItem<NativeTypes, PublicTypes> const& call_stack_item)
+{
+    auto const& preimage =
+        call_stack_item.is_execution_request ? as_execution_request(call_stack_item) : call_stack_item;
+    return preimage.hash();
 }
 
 }  // namespace aztec3::circuits::abis

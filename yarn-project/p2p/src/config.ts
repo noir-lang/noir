@@ -1,9 +1,9 @@
 /**
- * P2P client configuration values
+ * P2P client configuration values.
  */
 export interface P2PConfig {
   /**
-   * The frequency in which to check
+   * The frequency in which to check.
    */
   checkInterval: number;
 

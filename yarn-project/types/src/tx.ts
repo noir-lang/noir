@@ -1,11 +1,17 @@
-import { CircuitsWasm, KernelCircuitPublicInputs, SignedTxRequest, UInt8Vector } from '@aztec/circuits.js';
+import {
+  CircuitsWasm,
+  KernelCircuitPublicInputs,
+  PublicCallRequest,
+  SignedTxRequest,
+  UInt8Vector,
+} from '@aztec/circuits.js';
 import { computeContractLeaf, computeTxHash } from '@aztec/circuits.js/abis';
 
+import { arrayNonEmptyLength } from '@aztec/foundation/collection';
+import { EncodedContractFunction } from './contract_data.js';
 import { createTxHash } from './create_tx_hash.js';
 import { TxHash } from './tx_hash.js';
 import { UnverifiedData } from './unverified_data.js';
-import { EncodedContractFunction } from './contract_data.js';
-import { keccak224 } from '@aztec/foundation/crypto';
 
 /**
  * Defines valid fields for a private transaction.
@@ -53,15 +59,24 @@ export class Tx {
    * @param proof - Proof from the private kernel circuit.
    * @param unverifiedData - Unverified data created by this tx.
    * @param newContractPublicFunctions - Public functions made available by this tx.
+   * @param enqueuedPublicFunctionCalls - Preimages of the public call stack of the kernel output.
    * @returns A new private tx instance.
    */
   public static createPrivate(
     data: KernelCircuitPublicInputs,
     proof: UInt8Vector,
     unverifiedData: UnverifiedData,
-    newContractPublicFunctions?: EncodedContractFunction[],
+    newContractPublicFunctions: EncodedContractFunction[] | undefined,
+    enqueuedPublicFunctionCalls: PublicCallRequest[],
   ): PrivateTx {
-    return new this(data, proof, unverifiedData, undefined, newContractPublicFunctions) as PrivateTx;
+    return new this(
+      data,
+      proof,
+      unverifiedData,
+      undefined,
+      newContractPublicFunctions,
+      enqueuedPublicFunctionCalls,
+    ) as PrivateTx;
   }
 
   /**
@@ -71,23 +86,6 @@ export class Tx {
    */
   public static createPublic(txRequest: SignedTxRequest): PublicTx {
     return new this(undefined, undefined, undefined, txRequest) as PublicTx;
-  }
-
-  /**
-   * Creates a new transaction containing both private and public calls.
-   * @param data - Public inputs of the private kernel circuit.
-   * @param proof - Proof from the private kernel circuit.
-   * @param unverifiedData - Unverified data created by this tx.
-   * @param txRequest - The tx request defining the public call.
-   * @returns A new tx instance.
-   */
-  public static createPrivatePublic(
-    data: KernelCircuitPublicInputs,
-    proof: UInt8Vector,
-    unverifiedData: UnverifiedData,
-    txRequest: SignedTxRequest,
-  ): PrivateTx & PublicTx {
-    return new this(data, proof, unverifiedData, txRequest) as PrivateTx & PublicTx;
   }
 
   /**
@@ -144,7 +142,20 @@ export class Tx {
      * New public functions made available by this tx.
      */
     public readonly newContractPublicFunctions?: EncodedContractFunction[],
-  ) {}
+    /**
+     * Enqueued public functions from the private circuit to be run by the sequencer.
+     * Preimages of the public call stack entries from the private kernel circuit output.
+     */
+    public readonly enqueuedPublicFunctionCalls?: PublicCallRequest[],
+  ) {
+    const kernelPublicCallStackSize =
+      data?.end.publicCallStack && arrayNonEmptyLength(data.end.publicCallStack, item => item.isZero());
+    if (kernelPublicCallStackSize && kernelPublicCallStackSize > (enqueuedPublicFunctionCalls?.length ?? 0)) {
+      throw new Error(
+        `Missing preimages for enqueued public function calls in kernel circuit public inputs (expected ${kernelPublicCallStackSize}, got ${enqueuedPublicFunctionCalls?.length})`,
+      );
+    }
+  }
 
   /**
    * Construct & return transaction hash.

@@ -373,7 +373,7 @@ WASM_EXPORT void abis__compute_call_stack_item_hash(uint8_t const* call_stack_it
 {
     CallStackItem<NT, PublicTypes> call_stack_item;
     read(call_stack_item_buf, call_stack_item);
-    NT::fr::serialize_to_buffer(call_stack_item.hash(), output);
+    NT::fr::serialize_to_buffer(get_call_stack_item_hash(call_stack_item), output);
 }
 
 /* Typescript test helpers that call as_string_output() to stress serialization.

@@ -10,13 +10,13 @@ fn call_private_function_oracle(
     _contract_address: Field, 
     _function_selector: Field, 
     _args: [Field; crate::abi::MAX_ARGS]
-) -> [Field; 52] {}
+) -> [Field; 53] {}
 
 unconstrained fn call_private_function_internal(
     contract_address: Field, 
     function_selector: Field,
     args: [Field; crate::abi::MAX_ARGS]
-) -> [Field; 52] {
+) -> [Field; 53] {
     call_private_function_oracle(
         contract_address, 
         function_selector, 
@@ -45,6 +45,7 @@ struct PrivateCallStackItem {
     contract_address: Field,
     function_data: FunctionData,
     public_inputs: PrivateCircuitPublicInputs,
+    is_execution_request: bool,
 }
 
 impl PrivateCallStackItem {
@@ -91,12 +92,14 @@ impl PrivateCallStackItem {
                     portal_contract_address : fields[51],
                 },
             },
+            is_execution_request: fields[52] as bool,
         };
         constrain contract_address == item.contract_address;
         constrain function_selector == item.function_data.function_selector;
         for i in 0..crate::abi::MAX_ARGS {
             constrain args[i] == item.public_inputs.args[i];
         }
+        constrain item.is_execution_request == false;
 
         constrain item.public_inputs.call_context.is_delegate_call == false;
         constrain item.public_inputs.call_context.is_static_call == false;

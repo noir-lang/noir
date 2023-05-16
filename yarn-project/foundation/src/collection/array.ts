@@ -33,3 +33,12 @@ export function isArrayEmpty<T>(arr: T[], isEmpty: (item: T) => boolean): boolea
   }
   return true;
 }
+
+/**
+ * Returns the number of non-empty items in an array.
+ * @param arr - Array to check.
+ * @returns Number of non-empty items in an array.
+ */
+export function arrayNonEmptyLength<T>(arr: T[], isEmpty: (item: T) => boolean): number {
+  return arr.reduce((sum, item) => (isEmpty(item) ? sum : sum + 1), 0);
+}

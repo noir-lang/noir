@@ -1,5 +1,5 @@
 import { CombinedHistoricTreeRoots, KernelCircuitPublicInputs, makeEmptyProof } from '@aztec/circuits.js';
-import { PrivateTx, PublicTx, Tx, TxHash } from '@aztec/types';
+import { PrivateTx, Tx, TxHash } from '@aztec/types';
 import { Proof } from '../prover/index.js';
 
 /**
@@ -13,7 +13,7 @@ export type ProcessedTx = Pick<Tx, 'txRequest' | 'unverifiedData'> &
      */
     hash: TxHash;
     /**
-     * Flag indicating the tx is 'empty' i.e. it's a padding tx to take us to a power of 2.
+     * Flag indicating the tx is 'empty' meaning it's a padding tx to take us to a power of 2.
      */
     isEmpty: boolean;
   };
@@ -31,7 +31,7 @@ export async function makeProcessedTx(tx: PrivateTx): Promise<ProcessedTx>;
  * @param proof - Proof of the public kernel circuit for this tx.
  */
 export async function makeProcessedTx(
-  tx: PublicTx,
+  tx: Tx,
   kernelOutput: KernelCircuitPublicInputs,
   proof: Proof,
 ): Promise<ProcessedTx>;

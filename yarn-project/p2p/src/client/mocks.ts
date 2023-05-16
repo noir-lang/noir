@@ -1,11 +1,16 @@
-import { UInt8Vector } from '@aztec/circuits.js';
-import { makeKernelPublicInputs } from '@aztec/circuits.js/factories';
-import { L2Block, L2BlockSource } from '@aztec/types';
-import { Tx } from '@aztec/types';
-import { UnverifiedData } from '@aztec/types';
+import { KERNEL_PUBLIC_CALL_STACK_LENGTH, UInt8Vector } from '@aztec/circuits.js';
+import { makeKernelPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
+import { L2Block, L2BlockSource, Tx, UnverifiedData } from '@aztec/types';
+import times from 'lodash.times';
 
 export const MockTx = () => {
-  return Tx.createPrivate(makeKernelPublicInputs(), new UInt8Vector(Buffer.alloc(0)), UnverifiedData.random(8));
+  return Tx.createPrivate(
+    makeKernelPublicInputs(),
+    new UInt8Vector(Buffer.alloc(0)),
+    UnverifiedData.random(8),
+    [],
+    times(KERNEL_PUBLIC_CALL_STACK_LENGTH, makePublicCallRequest),
+  );
 };
 
 /**

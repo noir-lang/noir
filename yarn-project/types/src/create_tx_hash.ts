@@ -1,8 +1,6 @@
+import { keccak224 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { TxHash } from './tx_hash.js';
-import { keccak224 } from '@aztec/foundation/crypto';
-import { CircuitsWasm, CombinedAccumulatedData } from '@aztec/circuits.js';
-import { computeContractLeaf } from '@aztec/circuits.js/abis';
 
 /**
  * Defines transaction data.

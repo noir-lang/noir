@@ -496,6 +496,7 @@ contract_address_salt: 0x3
 portal_contract_address: 0x4
 
 
+is_execution_request: 0
 
 private_call_stack_preimages:
 [ contract_address: 0x2011
@@ -528,6 +529,7 @@ contract_address_salt: 0x3
 portal_contract_address: 0x4
 
 
+is_execution_request: 0
  contract_address: 0x2012
 function_data: function_selector: 2013
 is_private: 1
@@ -558,6 +560,7 @@ contract_address_salt: 0x3
 portal_contract_address: 0x4
 
 
+is_execution_request: 0
  contract_address: 0x2013
 function_data: function_selector: 2014
 is_private: 1
@@ -588,6 +591,7 @@ contract_address_salt: 0x3
 portal_contract_address: 0x4
 
 
+is_execution_request: 0
  contract_address: 0x2014
 function_data: function_selector: 2015
 is_private: 1
@@ -618,6 +622,7 @@ contract_address_salt: 0x3
 portal_contract_address: 0x4
 
 
+is_execution_request: 0
  ]
 proof:
 [ 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 ]
@@ -974,6 +979,7 @@ new_l2_to_l1_msgs: [ 0x1711 0x1712 ]
 historic_public_data_tree_root: 0x1811
 prover_address: 0x1812
 
+is_execution_request: 0
 
 public_call_stack_preimages:
 [ contract_address: 0x1301
@@ -1018,6 +1024,7 @@ new_l2_to_l1_msgs: [ 0x1a11 0x1a12 ]
 historic_public_data_tree_root: 0x1b11
 prover_address: 0x1b12
 
+is_execution_request: 0
  contract_address: 0x1302
 function_data: function_selector: 1303
 is_private: 0
@@ -1060,6 +1067,7 @@ new_l2_to_l1_msgs: [ 0x1a12 0x1a13 ]
 historic_public_data_tree_root: 0x1b12
 prover_address: 0x1b13
 
+is_execution_request: 0
  contract_address: 0x1303
 function_data: function_selector: 1304
 is_private: 0
@@ -1102,6 +1110,7 @@ new_l2_to_l1_msgs: [ 0x1a13 0x1a14 ]
 historic_public_data_tree_root: 0x1b13
 prover_address: 0x1b14
 
+is_execution_request: 0
  contract_address: 0x1304
 function_data: function_selector: 1305
 is_private: 0
@@ -1144,6 +1153,7 @@ new_l2_to_l1_msgs: [ 0x1a14 0x1a15 ]
 historic_public_data_tree_root: 0x1b14
 prover_address: 0x1b15
 
+is_execution_request: 0
  ]
 proof:
 [ 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 ]
@@ -1221,6 +1231,7 @@ new_l2_to_l1_msgs: [ 0x811 0x812 ]
 historic_public_data_tree_root: 0x911
 prover_address: 0x912
 
+is_execution_request: 0
 
 public_call_stack_preimages:
 [ contract_address: 0x401
@@ -1265,6 +1276,7 @@ new_l2_to_l1_msgs: [ 0xb11 0xb12 ]
 historic_public_data_tree_root: 0xc11
 prover_address: 0xc12
 
+is_execution_request: 0
  contract_address: 0x402
 function_data: function_selector: 403
 is_private: 0
@@ -1307,6 +1319,7 @@ new_l2_to_l1_msgs: [ 0xb12 0xb13 ]
 historic_public_data_tree_root: 0xc12
 prover_address: 0xc13
 
+is_execution_request: 0
  contract_address: 0x403
 function_data: function_selector: 404
 is_private: 0
@@ -1349,6 +1362,7 @@ new_l2_to_l1_msgs: [ 0xb13 0xb14 ]
 historic_public_data_tree_root: 0xc13
 prover_address: 0xc14
 
+is_execution_request: 0
  contract_address: 0x404
 function_data: function_selector: 405
 is_private: 0
@@ -1391,6 +1405,7 @@ new_l2_to_l1_msgs: [ 0xb14 0xb15 ]
 historic_public_data_tree_root: 0xc14
 prover_address: 0xc15
 
+is_execution_request: 0
  ]
 proof:
 [ 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 ]

@@ -2,6 +2,9 @@
 
 #include "init.hpp"
 
+#include "aztec3/circuits/abis/call_stack_item.hpp"
+#include "aztec3/circuits/abis/types.hpp"
+
 namespace aztec3::circuits::kernel::public_kernel {
 
 void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_inputs,
@@ -49,7 +52,8 @@ void validate_this_public_call_hash(DummyComposer& composer,
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
     // and the 'gas rebate' tx).
     const auto popped_public_call_hash = array_pop(public_inputs.end.public_call_stack);
-    const auto calculated_this_public_call_hash = public_kernel_inputs.public_call.call_stack_item.hash();
+    const auto calculated_this_public_call_hash =
+        get_call_stack_item_hash(public_kernel_inputs.public_call.call_stack_item);
 
     composer.do_assert(
         popped_public_call_hash == calculated_this_public_call_hash,

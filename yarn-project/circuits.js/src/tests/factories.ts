@@ -34,6 +34,7 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   WitnessedPublicCallData,
+  PublicCallRequest,
 } from '../index.js';
 import { AggregationObject } from '../structs/aggregation_object.js';
 import { PrivateCallStackItem, PublicCallStackItem } from '../structs/call_stack_item.js';
@@ -320,12 +321,26 @@ export function makeKernelPublicInputs(seed = 1): KernelCircuitPublicInputs {
 }
 
 /**
+ * Creates a public call request for testing.
+ * @param seed - The seed.
+ * @returns Public call request.
+ */
+export function makePublicCallRequest(seed = 1): PublicCallRequest {
+  return new PublicCallRequest(
+    makeAztecAddress(seed),
+    new FunctionData(makeSelector(seed + 0x1), false, false),
+    makeCallContext(seed + 0x2),
+    range(ARGS_LENGTH, seed + 0x10).map(fr),
+  );
+}
+
+/**
  * Creates a uint8 vector of a given size filled with a given value.
  * @param size - The size of the vector.
  * @param fill - The value to fill the vector with.
  * @returns A uint8 vector.
  */
-export function makeDynamicSizeBuffer(size: number, fill: number): UInt8Vector {
+export function makeDynamicSizeBuffer(size: number, fill: number) {
   return new UInt8Vector(Buffer.alloc(size, fill));
 }
 
@@ -405,6 +420,7 @@ export function makePublicCallStackItem(seed = 1): PublicCallStackItem {
     // in the public kernel, function can't be a constructor or private
     new FunctionData(makeSelector(seed + 0x1), false, false),
     makePublicCircuitPublicInputs(seed + 0x10),
+    false,
   );
   callStackItem.publicInputs.callContext.storageContractAddress = callStackItem.contractAddress;
   return callStackItem;

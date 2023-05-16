@@ -50,7 +50,7 @@ export class BufferReader {
    * Reads a 16-bit unsigned integer from the buffer at the current index position.
    * Updates the index position by 2 bytes after reading the number.
    *
-   * @returns The read 16 bit value
+   * @returns The read 16 bit value.
    */
   public readUInt16(): number {
     this.index += 2;

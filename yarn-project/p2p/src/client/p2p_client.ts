@@ -52,8 +52,8 @@ export interface P2P {
   getTxs(): Promise<Tx[]>;
 
   /**
-   * Returns a transaction in the transaction pool by its hash
-   * @returns A single tx or undefined
+   * Returns a transaction in the transaction pool by its hash.
+   * @returns A single tx or undefined.
    */
   getTxByhash(txHash: TxHash): Promise<Tx | undefined>;
 
@@ -192,7 +192,7 @@ export class P2PClient implements P2P {
   /**
    * Returns a transaction in the transaction pool by its hash.
    * @param txHash - Hash of the transaction to look for in the pool.
-   * @returns A single tx or undefined
+   * @returns A single tx or undefined.
    */
   getTxByhash(txHash: TxHash): Promise<Tx | undefined> {
     return Promise.resolve(this.txPool.getTxByHash(txHash));

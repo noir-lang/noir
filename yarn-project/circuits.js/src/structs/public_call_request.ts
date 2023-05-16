@@ -69,6 +69,6 @@ export class PublicCallRequest {
     const publicInputs = PublicCircuitPublicInputs.empty();
     publicInputs.callContext = this.callContext;
     publicInputs.args = this.args;
-    return new PublicCallStackItem(this.contractAddress, this.functionData, publicInputs);
+    return new PublicCallStackItem(this.contractAddress, this.functionData, publicInputs, true);
   }
 }

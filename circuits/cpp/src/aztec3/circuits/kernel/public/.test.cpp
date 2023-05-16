@@ -922,7 +922,7 @@ TEST(public_kernel_tests, private_previous_kernel_empty_public_call_stack_should
     DummyComposer dummyComposer =
         DummyComposer("public_kernel_tests__private_previous_kernel_empty_public_call_stack_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
-    inputs.public_call.call_stack_item.public_inputs.public_call_stack = zero_array<NT::fr, PUBLIC_CALL_STACK_LENGTH>();
+    inputs.previous_kernel.public_inputs.end.public_call_stack = zero_array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
     ASSERT_TRUE(dummyComposer.failed());
     ASSERT_EQ(dummyComposer.get_first_failure().code, CircuitErrorCode::PUBLIC_KERNEL__EMPTY_PUBLIC_CALL_STACK);

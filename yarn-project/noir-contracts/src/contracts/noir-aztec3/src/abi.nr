@@ -47,6 +47,11 @@ impl CallContext {
             self.is_contract_deployment as Field,
         ]
     }
+
+    fn hash(self) -> Field {
+        // TODO hash_index
+        dep::std::hash::pedersen(self.serialize())[0]
+    }
 }
 
 struct ContractDeploymentData {

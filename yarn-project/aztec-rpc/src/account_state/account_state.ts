@@ -246,29 +246,39 @@ export class AccountState {
     this.log('Proof completed!');
 
     const unverifiedData = this.createUnverifiedData(outputNotes);
+    const newContractPublicFunctions = newContractAddress
+      ? await this.getNewContractPublicFunctions(newContractAddress)
+      : undefined;
 
-    if (newContractAddress) {
-      const newContract = await this.db.getContract(newContractAddress);
-      if (!newContract) {
-        throw new Error(`Invalid new contract address provided at ${newContractAddress}. Contract not found in DB.`);
-      }
+    return Tx.createPrivate(
+      publicInputs,
+      proof,
+      unverifiedData,
+      newContractPublicFunctions,
+      executionResult.enqueuedPublicFunctionCalls,
+    );
+  }
 
-      const newContractPublicFunctions = newContract.functions.filter(c => c.functionType === FunctionType.OPEN);
-      return Tx.createPrivate(
-        publicInputs,
-        proof,
-        unverifiedData,
-        newContractPublicFunctions.map(
-          fn =>
-            new EncodedContractFunction(
-              generateFunctionSelector(fn.name, fn.parameters),
-              Buffer.from(fn.bytecode, 'hex'),
-            ),
-        ),
-      );
+  /**
+   * Return public functions from the newly deployed contract to be injected into the tx object.
+   * @param newContractAddress - Address of the new contract.
+   * @returns List of EncodedContractFunction.
+   */
+  private async getNewContractPublicFunctions(newContractAddress: AztecAddress) {
+    const newContract = await this.db.getContract(newContractAddress);
+    if (!newContract) {
+      throw new Error(`Invalid new contract address provided at ${newContractAddress}. Contract not found in DB.`);
     }
 
-    return Tx.createPrivate(publicInputs, proof, unverifiedData);
+    return newContract.functions
+      .filter(c => c.functionType === FunctionType.OPEN)
+      .map(
+        fn =>
+          new EncodedContractFunction(
+            generateFunctionSelector(fn.name, fn.parameters),
+            Buffer.from(fn.bytecode, 'hex'),
+          ),
+      );
   }
 
   /**

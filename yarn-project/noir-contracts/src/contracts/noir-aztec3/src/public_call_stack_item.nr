@@ -36,6 +36,7 @@ struct PublicCallStackItem {
     contract_address: Field,
     function_data: FunctionData,
     public_inputs: PublicCircuitPublicInputs,
+    is_execution_request: bool,
 }
 
 impl PublicCallStackItem {
@@ -72,6 +73,7 @@ impl PublicCallStackItem {
                 historic_public_data_tree_root: 0,
                 prover_address: 0,
             },
+            is_execution_request: true,
         };
         constrain contract_address == item.contract_address;
         constrain function_selector == item.function_data.function_selector;
@@ -91,6 +93,7 @@ impl PublicCallStackItem {
     fn hash(self) -> Field {
         dep::std::hash::pedersen([
             // TODO hash_index
+            // FIXME - https://github.com/AztecProtocol/aztec-packages/issues/499
             self.contract_address,
             self.function_data.hash(),
             self.public_inputs.hash(),

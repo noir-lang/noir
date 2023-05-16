@@ -23,12 +23,12 @@ import {
   SignedTxRequest,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { ContractDataSource, MerkleTreeId, PublicTx, Tx } from '@aztec/types';
+import { ContractDataSource, MerkleTreeId, PrivateTx, PublicTx, Tx } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
-import { PublicExecutionResult, PublicExecutor } from '@aztec/acir-simulator';
+import { PublicExecution, PublicExecutionResult, PublicExecutor, isPublicExecutionResult } from '@aztec/acir-simulator';
 import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
-import { padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
+import { isArrayEmpty, padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { getVerificationKeys } from '../index.js';
 import { Proof, PublicProver } from '../prover/index.js';
@@ -85,6 +85,9 @@ export class PublicProcessor {
     if (tx.isPublic()) {
       const [publicKernelOutput, publicKernelProof] = await this.processPublicTx(tx);
       return makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
+    } else if (tx.isPrivate() && !isArrayEmpty(tx.data.end.publicCallStack, item => item.isZero())) {
+      const [publicKernelOutput, publicKernelProof] = await this.processEnqueuedPublicCalls(tx);
+      return makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
     } else if (tx.isPrivate()) {
       return makeProcessedTx(tx);
     } else {
@@ -92,34 +95,53 @@ export class PublicProcessor {
     }
   }
 
+  protected async processEnqueuedPublicCalls(tx: PrivateTx): Promise<[PublicKernelPublicInputs, Proof]> {
+    this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
+    if (!tx.enqueuedPublicFunctionCalls) throw new Error(`Missing preimages for enqueued public calls`);
+
+    // We execute the requests in order, which means reversing the input as the stack pops from the end of the array
+    const executionStack: (PublicExecution | PublicExecutionResult)[] = [...tx.enqueuedPublicFunctionCalls].reverse();
+    return await this.processExecutionStack(executionStack, undefined, tx.data, tx.proof);
+  }
+
   protected async processPublicTx(tx: PublicTx): Promise<[PublicKernelPublicInputs, Proof]> {
     this.log(`Executing public tx request ${await tx.getTxHash()}`);
     const firstExecution = await this.publicExecutor.getPublicExecution(tx.txRequest.txRequest);
     const firstResult: PublicExecutionResult = await this.publicExecutor.execute(firstExecution);
     const executionStack = [firstResult];
+    return await this.processExecutionStack(executionStack, tx.txRequest, undefined, undefined);
+  }
 
-    let kernelOutput: KernelCircuitPublicInputs | undefined = undefined;
-    let kernelProof: Proof | undefined = undefined;
+  protected async processExecutionStack(
+    executionStack: (PublicExecution | PublicExecutionResult)[],
+    txRequest: SignedTxRequest | undefined,
+    kernelOutput: KernelCircuitPublicInputs | undefined,
+    kernelProof: Proof | undefined,
+  ): Promise<[PublicKernelPublicInputs, Proof]> {
+    if (!executionStack.length) throw new Error(`Execution stack cannot be empty`);
 
     while (executionStack.length) {
-      const result = executionStack.pop()!;
+      const current = executionStack.pop()!;
+      const isExecutionRequest = !isPublicExecutionResult(current);
+      const result = isExecutionRequest ? await this.publicExecutor.execute(current) : current;
       const functionSelector = result.execution.functionData.functionSelector.toString('hex');
       this.log(`Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`);
       executionStack.push(...result.nestedExecutions);
-      const callData = await this.getPublicCallData(result);
-      [kernelOutput, kernelProof] = await this.runKernelCircuit(tx.txRequest, callData, kernelOutput, kernelProof);
+      const preimages = await this.getPublicCallStackPreimages(result);
+      const callData = await this.getPublicCallData(result, preimages, isExecutionRequest);
+      [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, txRequest, kernelOutput, kernelProof);
     }
 
     return [kernelOutput!, kernelProof!];
   }
 
   protected async runKernelCircuit(
-    txRequest: SignedTxRequest,
     callData: PublicCallData,
+    txRequest: SignedTxRequest | undefined,
     previousOutput: KernelCircuitPublicInputs | undefined,
     previousProof: Proof | undefined,
   ): Promise<[KernelCircuitPublicInputs, Proof]> {
-    const output = await this.getKernelCircuitOutput(txRequest, callData, previousOutput, previousProof);
+    const output = await this.getKernelCircuitOutput(callData, txRequest, previousOutput, previousProof);
 
     // TODO: This should be set by the public kernel circuit.
     // See https://github.com/AztecProtocol/aztec-packages/issues/482
@@ -139,30 +161,41 @@ export class PublicProcessor {
   }
 
   protected getKernelCircuitOutput(
-    txRequest: SignedTxRequest,
     callData: PublicCallData,
+    txRequest: SignedTxRequest | undefined,
     previousOutput: KernelCircuitPublicInputs | undefined,
     previousProof: Proof | undefined,
   ): Promise<KernelCircuitPublicInputs> {
-    if (previousOutput && previousProof) {
-      if (previousOutput.isPrivateKernel) {
-        throw new Error(`Calling public functions from private ones is not implemented yet`);
-      }
-
-      const vk = getVerificationKeys().publicKernelCircuit;
-      const vkIndex = 0;
-      const vkSiblingPath = MembershipWitness.random(VK_TREE_HEIGHT).siblingPath;
-      const previousKernel = new PreviousKernelData(previousOutput, previousProof, vk, vkIndex, vkSiblingPath);
+    if (previousOutput?.isPrivateKernel && previousProof) {
+      // Run the public kernel circuit with previous private kernel
+      const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
       const inputs = new PublicKernelInputs(previousKernel, callData);
-
+      // TODO: This should be set by the private kernel circuit
+      // See https://github.com/AztecProtocol/aztec-packages/issues/487
+      inputs.previousKernel.publicInputs.end.privateCallCount = new Fr(1n);
+      return this.publicKernel.publicKernelCircuitPrivateInput(inputs);
+    } else if (previousOutput && previousProof) {
+      // Run the public kernel circuit with previous public kernel
+      const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
+      const inputs = new PublicKernelInputs(previousKernel, callData);
       // TODO: This should be set by the public kernel circuit
       // See https://github.com/AztecProtocol/aztec-packages/issues/487
       inputs.previousKernel.publicInputs.end.publicCallCount = new Fr(1n);
       return this.publicKernel.publicKernelCircuitNonFirstIteration(inputs);
-    } else {
+    } else if (txRequest) {
+      // Run the public kernel circuit with no previous kernel
       const inputs = new PublicKernelInputsNoPreviousKernel(txRequest, callData);
       return this.publicKernel.publicKernelCircuitNoInput(inputs);
+    } else {
+      throw new Error(`No public kernel circuit for inputs`);
     }
+  }
+
+  protected getPreviousKernelData(previousOutput: KernelCircuitPublicInputs, previousProof: Proof): PreviousKernelData {
+    const vk = getVerificationKeys().publicKernelCircuit;
+    const vkIndex = 0;
+    const vkSiblingPath = MembershipWitness.random(VK_TREE_HEIGHT).siblingPath;
+    return new PreviousKernelData(previousOutput, previousProof, vk, vkIndex, vkSiblingPath);
   }
 
   protected async getPublicCircuitPublicInputs(result: PublicExecutionResult) {
@@ -196,11 +229,12 @@ export class PublicProcessor {
     });
   }
 
-  protected async getPublicCallStackItem(result: PublicExecutionResult) {
+  protected async getPublicCallStackItem(result: PublicExecutionResult, isExecutionRequest = false) {
     return new PublicCallStackItem(
       result.execution.contractAddress,
       result.execution.functionData,
       await this.getPublicCircuitPublicInputs(result),
+      isExecutionRequest,
     );
   }
 
@@ -226,12 +260,17 @@ export class PublicProcessor {
    * Calculates the PublicCircuitOutput for this execution result along with its proof,
    * and assembles a PublicCallData object from it.
    * @param result - The execution result.
+   * @param preimages - The preimages of the callstack items.
+   * @param isExecutionRequest - Whether the current callstack item should be considered a public fn execution request.
    * @returns A corresponding PublicCallData object.
    */
-  protected async getPublicCallData(result: PublicExecutionResult) {
+  protected async getPublicCallData(
+    result: PublicExecutionResult,
+    preimages: PublicCallStackItem[],
+    isExecutionRequest = false,
+  ) {
     const bytecodeHash = await this.getBytecodeHash(result);
-    const callStackItem = await this.getPublicCallStackItem(result);
-    const preimages = await this.getPublicCallStackPreimages(result);
+    const callStackItem = await this.getPublicCallStackItem(result, isExecutionRequest);
     const portalContractAddress = result.execution.callContext.portalContractAddress.toField();
     const proof = await this.publicProver.getPublicCircuitProof(callStackItem.publicInputs);
     return new PublicCallData(callStackItem, preimages, proof, portalContractAddress, bytecodeHash);

@@ -2,17 +2,25 @@ import { PublicExecution, PublicExecutionResult, PublicExecutor } from '@aztec/a
 import {
   ARGS_LENGTH,
   CallContext,
+  CircuitsWasm,
   EthAddress,
   Fr,
   FunctionData,
+  KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
+  PublicCallRequest,
   TxRequest,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { makeAztecAddress, makeKernelPublicInputs, makeSelector } from '@aztec/circuits.js/factories';
+import {
+  makeAztecAddress,
+  makeKernelPublicInputs,
+  makePublicCallRequest,
+  makeSelector,
+} from '@aztec/circuits.js/factories';
 import { SiblingPath } from '@aztec/merkle-tree';
-import { ContractDataSource, ContractPublicData, EncodedContractFunction, Tx } from '@aztec/types';
+import { ContractDataSource, ContractPublicData, EncodedContractFunction, Tx, UnverifiedData } from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
@@ -23,6 +31,8 @@ import { Proof, PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { PublicProcessor } from './public_processor.js';
+import { padArrayEnd } from '@aztec/foundation/collection';
+import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 
 describe('public_processor', () => {
   let db: MockProxy<MerkleTreeOperations>;
@@ -63,8 +73,9 @@ describe('public_processor', () => {
       processor = new PublicProcessor(db, publicExecutor, publicKernel, publicProver, contractDataSource);
     });
 
-    it('skips non-public txs', async function () {
+    it('skips non-public txs without public execution requests', async function () {
       const tx = makePrivateTx();
+      tx.data.end.publicCallStack = times(KERNEL_PUBLIC_CALL_STACK_LENGTH, Fr.zero);
       const hash = await tx.getTxHash();
       const [processed, failed] = await processor.process([tx]);
 
@@ -108,11 +119,15 @@ describe('public_processor', () => {
 
   describe('with actual circuits', () => {
     let publicKernel: PublicKernelCircuitSimulator;
+    let wasm: CircuitsWasm;
+
+    beforeAll(async () => {
+      wasm = await CircuitsWasm.get();
+    });
 
     beforeEach(() => {
       const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
       db.getSiblingPath.mockResolvedValue(new SiblingPath(path));
-
       publicKernel = new WasmPublicKernelCircuitSimulator();
       processor = new PublicProcessor(db, publicExecutor, publicKernel, publicProver, contractDataSource);
     });
@@ -124,6 +139,12 @@ describe('public_processor', () => {
         txRequest: tx.txRequest,
         isEmpty: false,
         data: expect.objectContaining({ isPrivateKernel: false }),
+      });
+
+    const expectedTxByHash = async (tx: Tx) =>
+      expect.objectContaining({
+        hash: await tx.getTxHash(),
+        proof,
       });
 
     it('runs a public tx', async function () {
@@ -208,8 +229,47 @@ describe('public_processor', () => {
       expect(failed).toEqual([]);
       expect(publicExecutor.execute).toHaveBeenCalled();
     });
+
+    it('runs a private tx with enqueued calls', async function () {
+      const callRequests: PublicCallRequest[] = [makePublicCallRequest(0x100), makePublicCallRequest(0x100)];
+      const callStackHashes = callRequests.map(call => computeCallStackItemHash(wasm, call.toPublicCallStackItem()));
+
+      const kernelOutput = makeKernelPublicInputs(0x10);
+      kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
+      kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, KERNEL_PRIVATE_CALL_STACK_LENGTH);
+      kernelOutput.end.publicCallCount = Fr.ZERO;
+      const tx = Tx.createPrivate(kernelOutput, proof, UnverifiedData.random(2), [], callRequests);
+
+      publicExecutor.execute.mockImplementation(execution => {
+        for (const request of callRequests) {
+          if (execution.contractAddress.equals(request.contractAddress)) {
+            return Promise.resolve(makePublicExecutionResultFromRequest(request));
+          }
+        }
+        throw new Error(`Unexpected execution request: ${execution}`);
+      });
+
+      const [processed, failed] = await processor.process([tx]);
+
+      expect(processed).toHaveLength(1);
+      expect(processed).toEqual([await expectedTxByHash(tx)]);
+      expect(failed).toHaveLength(0);
+      expect(publicExecutor.execute).toHaveBeenCalledTimes(2);
+    });
+
+    it.todo('runs a private tx with enqueued calls that span nested calls');
   });
 });
+
+function makePublicExecutionResultFromRequest(item: PublicCallRequest): PublicExecutionResult {
+  return {
+    execution: item,
+    nestedExecutions: [],
+    returnValues: [new Fr(1n)],
+    contractStorageReads: [],
+    contractStorageUpdateRequests: [],
+  };
+}
 
 function makePublicExecutionResult(
   tx: Pick<TxRequest, 'from' | 'to' | 'functionData' | 'args'>,

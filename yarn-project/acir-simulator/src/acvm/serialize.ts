@@ -94,6 +94,7 @@ export function toAcvmCallPrivateStackItem(item: PrivateCallStackItem): ACVMFiel
     toACVMField(item.contractAddress),
     ...toACVMFunctionData(item.functionData),
     ...toACVMPublicInputs(item.publicInputs),
+    toACVMField(item.isExecutionRequest),
   ];
 }
 

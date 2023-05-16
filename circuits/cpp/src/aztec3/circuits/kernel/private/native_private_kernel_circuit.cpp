@@ -228,9 +228,14 @@ void update_end_values(DummyComposer& composer,
         push_array_to_array(siloed_new_nullifiers, public_inputs.end.new_nullifiers);
     }
 
-    {  // call stacks
+    {  // private call stack
         const auto& this_private_call_stack = private_call_public_inputs.private_call_stack;
         push_array_to_array(this_private_call_stack, public_inputs.end.private_call_stack);
+    }
+
+    {  // public call stack
+        const auto& this_public_call_stack = private_call_public_inputs.public_call_stack;
+        push_array_to_array(this_public_call_stack, public_inputs.end.public_call_stack);
     }
 
     // const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;

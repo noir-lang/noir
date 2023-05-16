@@ -1,6 +1,15 @@
-import { CallContext, FunctionData, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import {
+  CallContext,
+  CircuitsWasm,
+  FunctionData,
+  PUBLIC_CALL_STACK_LENGTH,
+  PrivateCallStackItem,
+  PublicCallRequest,
+} from '@aztec/circuits.js';
+import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
@@ -106,11 +115,8 @@ export class PrivateFunctionExecution {
    * @returns The execution result.
    */
   public async run(): Promise<ExecutionResult> {
-    this.log(
-      `Executing external function ${this.contractAddress.toShortString()}:${this.functionData.functionSelector.toString(
-        'hex',
-      )}`,
-    );
+    const selector = this.functionData.functionSelector.toString('hex');
+    this.log(`Executing external function ${this.contractAddress.toShortString()}:${selector}`);
 
     const acir = Buffer.from(this.abi.bytecode, 'hex');
     const initialWitness = this.writeInputs();
@@ -164,6 +170,8 @@ export class PrivateFunctionExecution {
           acvmArgs.map(f => fromACVMField(f)),
           this.callContext,
         );
+
+        this.log(`Enqueued call to public function ${acvmContractAddress}:${acvmFunctionSelector}`);
         enqueuedPublicFunctionCalls.push(enqueuedRequest);
         return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
       },
@@ -174,10 +182,15 @@ export class PrivateFunctionExecution {
     });
 
     const publicInputs = extractPublicInputs(partialWitness, acir);
-
     const callStackItem = new PrivateCallStackItem(this.contractAddress, this.functionData, publicInputs);
 
     const returnValues = decodeReturnValues(this.abi, publicInputs.returnValues);
+
+    // TODO: Noir fails to compute the enqueued calls preimages properly, since it cannot use pedersen
+    // generators, so we patch those values here. See https://github.com/AztecProtocol/aztec-packages/issues/499.
+    const wasm = await CircuitsWasm.get();
+    const publicStack = enqueuedPublicFunctionCalls.map(c => computeCallStackItemHash(wasm, c.toPublicCallStackItem()));
+    callStackItem.publicInputs.publicCallStack = padArrayEnd(publicStack, Fr.ZERO, PUBLIC_CALL_STACK_LENGTH);
 
     return {
       acir,
