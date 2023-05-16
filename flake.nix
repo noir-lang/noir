@@ -200,29 +200,40 @@
 
       # throws failed to get '"acvm" as a dependency of package noirc_evaluator v0.4.1'
       # packages.wasm = pkgs.stdenv.mkDerivation rec {
-      
+
       # throws "error: failed to build archive: section too large"
-      packages.wasm = craneLib.buildPackage rec {
+      packages.wasm = craneLib.mkCargoDerivation rec {
         pname = "noir_wasm";
         version = "1.0.0";
 
-        # src = ./.; 
+        inherit cargoArtifacts;
+        inherit GIT_COMMIT;
+        inherit GIT_DIRTY;
+
+        # src = ./.;
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
         nativeBuildInputs = with pkgs; [
-          wasm-pack
-          rustToolchain
-          jq
+          which
           git
+          jq
+          rustToolchain
+          wasm-bindgen-cli
+          wasm-pack
         ];
 
-        buildPhase = ''
-          wasm-pack build crates/wasm --scope noir-lang --target web --out-dir pkg/web --release
+        buildPhaseCargoCommand = ''
+          echo About to Wasm-Pack
+          echo $(which wasm-bindgen)
+          RUST_LOG="debug"
+          wasm-pack build crates/wasm --mode normal --scope noir-lang --target web --out-dir pkg/web --release
         '';
-      
+
         installPhase = ''
-          mkdir -p $out
+          mkdir - p $out
         '';
+
       };
     });
 }
+
