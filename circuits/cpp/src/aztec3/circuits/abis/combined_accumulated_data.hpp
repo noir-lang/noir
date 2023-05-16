@@ -12,7 +12,6 @@
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 
 namespace aztec3::circuits::abis {
 

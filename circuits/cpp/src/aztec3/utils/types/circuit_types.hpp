@@ -18,6 +18,7 @@
 #include <barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
 #include <barretenberg/stdlib/primitives/point/point.hpp>
 #include <barretenberg/stdlib/primitives/uint/uint.hpp>
+#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 #include <barretenberg/stdlib/recursion/verification_key/verification_key.hpp>
 #include <barretenberg/stdlib/recursion/verifier/program_settings.hpp>
 #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
