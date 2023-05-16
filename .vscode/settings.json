@@ -107,7 +107,8 @@
     "*.macros": "cpp",
     "*.tpp": "cpp"
   },
-  "solidity.compileUsingRemoteVersion": "v0.6.10+commit.00c0fcaf",
+  "solidity.compileUsingRemoteVersion": "v0.8.18",
+  "solidity.formatter": "forge",
   "search.exclude": {
     "**/.yarn": true,
     "**/.yalc": true,

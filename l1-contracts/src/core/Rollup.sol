@@ -2,7 +2,7 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {MockVerifier} from "@aztec3/mock/MockVerifier.sol";
+import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
 import {Decoder} from "./Decoder.sol";
 
 /**

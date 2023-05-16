@@ -4,8 +4,8 @@ pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 
-import {Decoder} from "@aztec3/core/Decoder.sol";
-import {Rollup} from "@aztec3/core/Rollup.sol";
+import {Decoder} from "@aztec/core/Decoder.sol";
+import {Rollup} from "@aztec/core/Rollup.sol";
 import {DecoderHelper} from "./DecoderHelper.sol";
 
 /**
