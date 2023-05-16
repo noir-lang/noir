@@ -4,6 +4,7 @@
 
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/circuit_errors.hpp"
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/abis/call_stack_item.hpp>
 #include <aztec3/circuits/abis/combined_accumulated_data.hpp>
@@ -59,6 +60,8 @@ using aztec3::circuits::apps::test_apps::escrow::deposit;
 
 using DummyComposer = aztec3::utils::DummyComposer;
 
+using aztec3::utils::array_push;
+using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 
 // A type representing any private circuit function
 // (for now it works for deposit and constructor)
@@ -464,6 +467,9 @@ TEST(private_kernel_tests, native_deposit)
     auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs, true);
 
     validate_deployed_contract_address(private_inputs, public_inputs);
+
+    // Check the first nullifier is hash of the signed tx request
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
 }
 
 /**
@@ -509,6 +515,9 @@ TEST(private_kernel_tests, native_basic_contract_deployment)
     auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs, true);
 
     validate_deployed_contract_address(private_inputs, public_inputs);
+
+    // Check the first nullifier is hash of the signed tx request
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
 }
 
 /**
@@ -606,6 +615,25 @@ TEST(private_kernel_tests, native_dummy_previous_kernel_cbind)
         ASSERT_EQ(cbind_previous_kernel_buf[i], expected_vec[i]);
     }
     (void)cbind_buf_size;
+}
+
+/**
+ * @brief Test error is registered when `new_nullifiers` are not empty in first iteration
+ */
+TEST(private_kernel_tests, native_registers_error_when_no_space_for_nullifier)
+{
+    NT::fr const& amount = 5;
+    NT::fr const& asset_id = 1;
+    NT::fr const& memo = 999;
+
+    auto private_inputs = do_private_call_get_kernel_inputs(false, deposit, { amount, asset_id, memo });
+    array_push(private_inputs.previous_kernel.public_inputs.end.new_nullifiers, NT::fr::random_element());
+
+    DummyComposer composer = DummyComposer("private_kernel_tests__native_registers_error_when_no_space_for_nullifier");
+    native_private_kernel_circuit(composer, private_inputs, true);
+
+    ASSERT_EQ(composer.get_first_failure().code,
+              CircuitErrorCode::PRIVATE_KERNEL__NEW_NULLIFIERS_NOT_EMPTY_IN_FIRST_ITERATION);
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

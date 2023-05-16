@@ -254,8 +254,8 @@ template <typename KernelInput> void propagate_valid_public_data_reads(KernelInp
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput>
-void update_public_end_values(KernelInput const& public_kernel_inputs, KernelCircuitPublicInputs<NT>& circuit_outputs)
+template <typename KernelInput> void common_update_public_end_values(KernelInput const& public_kernel_inputs,
+                                                                     KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     // Updates the circuit outputs with new state changes, call stack etc
     circuit_outputs.is_private = false;

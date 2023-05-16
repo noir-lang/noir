@@ -107,19 +107,10 @@ describe('sequencer/solo_block_builder', () => {
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: ProcessedTx[]) => {
     const newContracts = flatMap(txs, tx => tx.data.end.newContracts.map(n => computeContractLeaf(wasm, n)));
-    const nullifiersFromTx = (tx: ProcessedTx) => {
-      if (tx.isEmpty) {
-        return tx.data.end.newNullifiers.map(l => l.toBuffer());
-      }
-      return [
-        tx.hash.buffer,
-        ...tx.data.end.newNullifiers.slice(0, tx.data.end.newNullifiers.length - 1).map(x => x.toBuffer()),
-      ];
-    };
     for (const [tree, leaves] of [
       [MerkleTreeId.PRIVATE_DATA_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
-      [MerkleTreeId.NULLIFIER_TREE, flatMap(txs, nullifiersFromTx)],
+      [MerkleTreeId.NULLIFIER_TREE, flatMap(txs, tx => tx.data.end.newNullifiers.map(x => x.toBuffer()))],
     ] as const) {
       await expectsDb.appendLeaves(tree, leaves);
     }
@@ -140,7 +131,6 @@ describe('sequencer/solo_block_builder', () => {
 
   const buildMockSimulatorInputs = async () => {
     const kernelOutput = makeKernelPublicInputs();
-    kernelOutput.end.newNullifiers[kernelOutput.end.newNullifiers.length - 1] = Fr.ZERO;
     kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(expectsDb);
 
     const tx = await makeProcessedTx(
@@ -191,12 +181,6 @@ describe('sequencer/solo_block_builder', () => {
 
     const txs = [...txsLeft, ...txsRight];
 
-    const originalNullifiers = txs[0].data.end.newNullifiers;
-    txs[0].data.end.newNullifiers = [
-      Fr.fromBuffer(txs[0].hash.buffer),
-      ...txs[0].data.end.newNullifiers.slice(0, txs[0].data.end.newNullifiers.length - 1),
-    ];
-
     const newNullifiers = flatMap(txs, tx => tx.data.end.newNullifiers);
     const newCommitments = flatMap(txs, tx => tx.data.end.newCommitments);
     const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd => computeContractLeaf(wasm, cd));
@@ -242,8 +226,6 @@ describe('sequencer/solo_block_builder', () => {
 
     rootRollupOutput.calldataHash = [high, low];
 
-    txs[0].data.end.newNullifiers = originalNullifiers;
-
     return txs;
   };
 
@@ -281,7 +263,7 @@ describe('sequencer/solo_block_builder', () => {
       expect(actual).toEqual(expected);
     });
 
-    it('Rejects if too many l1 to l2 messages are provided', async () => {
+    it('rejects if too many l1 to l2 messages are provided', async () => {
       // Assemble a fake transaction
       const txs = await buildMockSimulatorInputs();
       const l1ToL2Messages = new Array(100).fill(new Fr(0n));

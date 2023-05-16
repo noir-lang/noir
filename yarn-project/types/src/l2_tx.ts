@@ -7,6 +7,12 @@ import { TxHash } from './tx_hash.js';
  * Represents an L2 transaction.
  */
 export class L2Tx {
+  /**
+   * The transaction's hash.
+   * Note: It's the first nullifier emitted by the kernel circuit.
+   */
+  public readonly txHash: TxHash;
+
   constructor(
     /**
      * New commitments created by the transaction.
@@ -32,17 +38,7 @@ export class L2Tx {
      * New contract data created by the transaction.
      */
     public newContractData: ContractData[],
-    private hash?: TxHash,
-  ) {}
-
-  /**
-   * Construct & return transaction hash.
-   * @returns The transaction's hash.
-   */
-  get txHash() {
-    if (!this.hash) {
-      this.hash = new TxHash(this.newNullifiers[0].toBuffer());
-    }
-    return this.hash;
+  ) {
+    this.txHash = new TxHash(this.newNullifiers[0].toBuffer());
   }
 }

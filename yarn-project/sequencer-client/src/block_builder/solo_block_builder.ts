@@ -129,19 +129,6 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Check txs are good for processing
     this.validateTxs(txs);
 
-    for (const tx of txs) {
-      if (tx.isEmpty) {
-        continue;
-      }
-      if (!tx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1].isZero()) {
-        throw new Error(`Unable to insert tx hash as first nullifier`);
-      }
-      tx.data.end.newNullifiers = [
-        Fr.fromBuffer(tx.hash.buffer),
-        ...tx.data.end.newNullifiers.slice(0, KERNEL_NEW_NULLIFIERS_LENGTH - 1),
-      ];
-    }
-
     // We fill the tx batch with empty txs, we process only one tx at a time for now
     const [circuitsOutput, proof] = await this.runCircuits(txs, newL1ToL2Messages);
 

@@ -372,9 +372,13 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         zero_array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
     public_call_stack[0] = kernel_inputs_no_previous.public_call.call_stack_item.hash();
 
+    // It is expected that the previous kernel set first nullifier as a tx hash
+    auto new_nullifiers = array_of_values<KERNEL_NEW_NULLIFIERS_LENGTH>(seed, private_previous ? 3 : 1);
+    new_nullifiers[0] = kernel_inputs_no_previous.signed_tx_request.hash();
+
     CombinedAccumulatedData<NT> const end_accumulated_data = {
         .new_commitments = array_of_values<KERNEL_NEW_COMMITMENTS_LENGTH>(seed, private_previous ? 2 : 0),
-        .new_nullifiers = array_of_values<KERNEL_NEW_NULLIFIERS_LENGTH>(seed, private_previous ? 3 : 0),
+        .new_nullifiers = new_nullifiers,
         .private_call_stack = array_of_values<KERNEL_PRIVATE_CALL_STACK_LENGTH>(seed, 0),
         .public_call_stack = public_call_stack,
         .new_l2_to_l1_msgs = array_of_values<KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>(seed, 4),
@@ -483,6 +487,9 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated)
     ASSERT_EQ(public_inputs.constants.historic_tree_roots, inputs.historic_tree_roots);
 
     validate_public_kernel_outputs_correctly_propagated(inputs, public_inputs);
+
+    // Check the first nullifier is hash of the signed tx request
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], inputs.signed_tx_request.hash());
 }
 
 TEST(public_kernel_tests, only_valid_public_data_reads_should_be_propagated)

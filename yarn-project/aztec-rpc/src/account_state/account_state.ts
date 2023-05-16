@@ -248,7 +248,7 @@ export class AccountState {
     const unverifiedData = this.createUnverifiedData(outputNotes);
     const newContractPublicFunctions = newContractAddress
       ? await this.getNewContractPublicFunctions(newContractAddress)
-      : undefined;
+      : [];
 
     return Tx.createPrivate(
       publicInputs,
