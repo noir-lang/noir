@@ -7,6 +7,7 @@
 //! This file is mostly helper functions and types for the parser. For the parser itself,
 //! see parser.rs. The definition of the abstract syntax tree can be found in the `ast` folder.
 mod errors;
+mod labels;
 #[allow(clippy::module_inception)]
 mod parser;
 

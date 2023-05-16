@@ -100,15 +100,21 @@ impl DataFlowGraph {
         id
     }
 
-    /// Replace an instruction id with another.
-    ///
-    /// This function should generally be avoided if possible in favor of inserting new
-    /// instructions since it does not check whether the instruction results of the removed
-    /// instruction are still in use. Users of this function thus need to ensure the old
-    /// instruction's results are no longer in use or are otherwise compatible with the
-    /// new instruction's result count and types.
-    pub(crate) fn replace_instruction(&mut self, id: Id<Instruction>, instruction: Instruction) {
-        self.instructions[id] = instruction;
+    /// Inserts a new instruction at the end of the given block and returns its results
+    pub(crate) fn insert_instruction(
+        &mut self,
+        instruction: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InsertInstructionResult {
+        match instruction.simplify(self) {
+            Some(simplification) => InsertInstructionResult::SimplifiedTo(simplification),
+            None => {
+                let id = self.make_instruction(instruction, ctrl_typevars);
+                self.insert_instruction_in_block(block, id);
+                InsertInstructionResult::Results(self.instruction_results(id))
+            }
+        }
     }
 
     /// Insert a value into the dfg's storage and return an id to reference it.
@@ -297,6 +303,52 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
     fn index_mut(&mut self, id: BasicBlockId) -> &mut BasicBlock {
         &mut self.blocks[id]
+    }
+}
+
+// The result of calling DataFlowGraph::insert_instruction can
+// be a list of results or a single ValueId if the instruction was simplified
+// to an existing value.
+pub(crate) enum InsertInstructionResult<'dfg> {
+    Results(&'dfg [ValueId]),
+    SimplifiedTo(ValueId),
+    InstructionRemoved,
+}
+
+impl<'dfg> InsertInstructionResult<'dfg> {
+    /// Retrieve the first (and expected to be the only) result.
+    pub(crate) fn first(&self) -> ValueId {
+        match self {
+            InsertInstructionResult::SimplifiedTo(value) => *value,
+            InsertInstructionResult::Results(results) => results[0],
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("Instruction was removed, no results")
+            }
+        }
+    }
+
+    /// Return all the results contained in the internal results array.
+    /// This is used for instructions returning multiple results that were
+    /// not simplified - like function calls.
+    pub(crate) fn results(&self) -> &'dfg [ValueId] {
+        match self {
+            InsertInstructionResult::Results(results) => results,
+            InsertInstructionResult::SimplifiedTo(_) => {
+                panic!("InsertInstructionResult::results called on a simplified instruction")
+            }
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("InsertInstructionResult::results called on a removed instruction")
+            }
+        }
+    }
+
+    /// Returns the amount of ValueIds contained
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            InsertInstructionResult::SimplifiedTo(_) => 1,
+            InsertInstructionResult::Results(results) => results.len(),
+            InsertInstructionResult::InstructionRemoved => 0,
+        }
     }
 }
 
