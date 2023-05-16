@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use clap::Args;
 use contract::ContractFunction;
@@ -56,9 +57,10 @@ impl Default for CompileOptions {
 }
 
 impl Driver {
-    pub fn new(np_language: &Language) -> Self {
-        let mut driver = Driver { context: Context::default(), language: np_language.clone() };
-        driver.context.def_interner.set_language(np_language);
+    pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
+        let mut driver = Driver { context: Context::default(), language: language.clone() };
+        driver.context.def_interner.set_language(language);
+        driver.context.def_interner.set_opcode_support(is_opcode_supported);
         driver
     }
 
@@ -66,9 +68,10 @@ impl Driver {
     // with the restricted version which only uses one file
     pub fn compile_file(
         root_file: PathBuf,
-        np_language: acvm::Language,
+        language: &Language,
+        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
     ) -> Result<CompiledProgram, ReportedError> {
-        let mut driver = Driver::new(&np_language);
+        let mut driver = Driver::new(language, is_opcode_supported);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.compile_main(&CompileOptions::default())
     }
@@ -318,6 +321,6 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new(&Language::R1CS)
+        Self::new(&Language::R1CS, Box::new(|opcode| matches!(opcode, Opcode::Arithmetic(_))))
     }
 }

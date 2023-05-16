@@ -63,7 +63,12 @@ fn setup_driver<B: Backend>(
     backend: &B,
     program_dir: &Path,
 ) -> Result<Driver, DependencyResolutionError> {
-    Resolver::resolve_root_manifest(program_dir, backend.np_language())
+    Resolver::resolve_root_manifest(
+        program_dir,
+        backend.np_language(),
+        #[allow(deprecated)]
+        Box::new(acvm::default_is_opcode_supported(backend.np_language())),
+    )
 }
 
 pub(crate) fn compile_circuit<B: Backend>(

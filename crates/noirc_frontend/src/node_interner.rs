@@ -71,6 +71,7 @@ pub struct NodeInterner {
 
     //used for fallback mechanism
     language: Language,
+    is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 
     delayed_type_checks: Vec<TypeCheckFn>,
 
@@ -259,6 +260,8 @@ impl Default for NodeInterner {
             next_type_variable_id: 0,
             globals: HashMap::new(),
             language: Language::R1CS,
+            #[allow(deprecated)]
+            is_opcode_supported: Box::new(acvm::default_is_opcode_supported(Language::R1CS)),
             delayed_type_checks: vec![],
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
@@ -583,14 +586,17 @@ impl NodeInterner {
         self.language = language.clone();
     }
 
+    pub fn set_opcode_support(&mut self, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) {
+        self.is_opcode_supported = is_opcode_supported;
+    }
+
     #[allow(deprecated)]
     pub fn foreign(&self, opcode: &str) -> bool {
-        let is_supported = acvm::default_is_opcode_supported(self.language.clone());
         let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
             Some(black_box_func) => black_box_func,
             None => return false,
         };
-        is_supported(&Opcode::BlackBoxFuncCall(BlackBoxFuncCall {
+        (self.is_opcode_supported)(&Opcode::BlackBoxFuncCall(BlackBoxFuncCall {
             name: black_box_func,
             inputs: Vec::new(),
             outputs: Vec::new(),
