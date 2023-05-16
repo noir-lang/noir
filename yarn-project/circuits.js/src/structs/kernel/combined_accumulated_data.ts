@@ -264,16 +264,6 @@ export class CombinedAccumulatedData {
      * Aggregated proof of all the previous kernel iterations.
      */
     public aggregationObject: AggregationObject,
-
-    /**
-     * The number of private calls made in this transaction.
-     */
-    public privateCallCount: Fr,
-    /**
-     * The number of public calls made in this transaction.
-     */
-    public publicCallCount: Fr,
-
     /**
      * The number of new commitments made in this transaction.
      */
@@ -282,7 +272,6 @@ export class CombinedAccumulatedData {
      * The number of new nullifiers made in this transaction.
      */
     public newNullifiers: Fr[],
-
     /**
      * Current private call stack.
      */
@@ -295,7 +284,6 @@ export class CombinedAccumulatedData {
      * All the new L2 to L1 messages created in this transaction.
      */
     public newL2ToL1Msgs: Fr[],
-
     /**
      * All the new contracts deployed in this transaction.
      */
@@ -329,8 +317,6 @@ export class CombinedAccumulatedData {
   toBuffer() {
     return serializeToBuffer(
       this.aggregationObject,
-      this.privateCallCount,
-      this.publicCallCount,
       this.newCommitments,
       this.newNullifiers,
       this.privateCallStack,
@@ -352,8 +338,6 @@ export class CombinedAccumulatedData {
     const reader = BufferReader.asReader(buffer);
     return new CombinedAccumulatedData(
       reader.readObject(AggregationObject),
-      reader.readFr(),
-      reader.readFr(),
       reader.readArray(KERNEL_NEW_COMMITMENTS_LENGTH, Fr),
       reader.readArray(KERNEL_NEW_NULLIFIERS_LENGTH, Fr),
       reader.readArray(KERNEL_PRIVATE_CALL_STACK_LENGTH, Fr),
@@ -369,8 +353,6 @@ export class CombinedAccumulatedData {
   static empty() {
     return new CombinedAccumulatedData(
       AggregationObject.makeFake(),
-      Fr.ZERO,
-      Fr.ZERO,
       times(KERNEL_NEW_COMMITMENTS_LENGTH, Fr.zero),
       times(KERNEL_NEW_NULLIFIERS_LENGTH, Fr.zero),
       times(KERNEL_PRIVATE_CALL_STACK_LENGTH, Fr.zero),

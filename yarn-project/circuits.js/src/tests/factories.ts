@@ -188,8 +188,6 @@ export function makeContractStorageRead(seed = 1): ContractStorageRead {
 export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
   return new CombinedAccumulatedData(
     makeAggregationObject(seed),
-    fr(seed + 12),
-    fr(seed + 13),
     range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr),
     range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr),
     new Array(KERNEL_PRIVATE_CALL_STACK_LENGTH).fill(Fr.ZERO), // private call stack must be empty
@@ -210,8 +208,6 @@ export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
 export function makeAccumulatedData(seed = 1): CombinedAccumulatedData {
   return new CombinedAccumulatedData(
     makeAggregationObject(seed),
-    fr(seed + 12),
-    fr(seed + 13),
     range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr),
     range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr),
     range(KERNEL_PRIVATE_CALL_STACK_LENGTH, seed + 0x300).map(fr),

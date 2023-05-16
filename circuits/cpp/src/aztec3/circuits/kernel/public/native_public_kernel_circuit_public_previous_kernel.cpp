@@ -18,9 +18,6 @@ using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 void validate_inputs(DummyComposer& composer, PublicKernelInputs<NT> const& public_kernel_inputs)
 {
     const auto& previous_kernel = public_kernel_inputs.previous_kernel.public_inputs;
-    composer.do_assert(previous_kernel.end.public_call_count > 0,
-                       "Public call count can't be zero",
-                       CircuitErrorCode::PUBLIC_KERNEL__ZERO_PUBLIC_CALL_COUNT);
     composer.do_assert(previous_kernel.is_private == false,
                        "Previous kernel must be public",
                        CircuitErrorCode::PUBLIC_KERNEL__PREVIOUS_KERNEL_NOT_PUBLIC);

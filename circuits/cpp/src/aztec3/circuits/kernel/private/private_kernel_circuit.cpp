@@ -68,9 +68,6 @@ void initialise_end_values(PrivateInputs<CT> const& private_inputs, KernelCircui
     // TODO
     // end.aggregation_object = start.aggregation_object;
 
-    // TODO
-    // end.private_call_count = start.private_call_count;
-
     end.new_commitments = start.new_commitments;
     end.new_nullifiers = start.new_nullifiers;
 
@@ -237,7 +234,7 @@ void validate_this_private_call_stack(PrivateInputs<CT> const& private_inputs)
     }
 };
 
-void validate_inputs(PrivateInputs<CT> const& private_inputs)
+void validate_inputs(PrivateInputs<CT> const& private_inputs, bool first_iteration)
 {
     // this callstack represents the function currently being processed
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
@@ -248,7 +245,7 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
     // base case: have not processed any functions yet
-    const CT::boolean is_base_case = start.private_call_count == 0;
+    const CT::boolean is_base_case(first_iteration);
 
     // TODO: we might want to range-constrain the call_count to prevent some kind of overflow errors
     const CT::boolean is_recursive_case = !is_base_case;
@@ -320,7 +317,9 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
 // TODO: decide what to return.
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
-KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _private_inputs)
+KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer,
+                                                     PrivateInputs<NT> const& _private_inputs,
+                                                     bool first_iteration)
 {
     const PrivateInputs<CT> private_inputs = _private_inputs.to_circuit_type(composer);
 
@@ -330,7 +329,7 @@ KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer, Private
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs, public_inputs);
 
-    validate_inputs(private_inputs);
+    validate_inputs(private_inputs, first_iteration);
 
     validate_this_private_call_hash(private_inputs);
 

@@ -13,8 +13,6 @@ public_inputs: [
 proof_witness_indices: [ 7 8 9 10 11 12 ]
 has_data: 0
 
-private_call_count: 0xd
-public_call_count: 0xe
 new_commitments:
 [ 0x101 0x102 0x103 0x104 ]
 new_nullifiers:
@@ -156,8 +154,6 @@ public_inputs: [
 proof_witness_indices: [ 7 8 9 10 11 12 ]
 has_data: 0
 
-private_call_count: 0xd
-public_call_count: 0xe
 new_commitments:
 [ 0x101 0x102 0x103 0x104 ]
 new_nullifiers:
@@ -330,8 +326,6 @@ public_inputs: [
 proof_witness_indices: [ 4103 4104 4105 4106 4107 4108 ]
 has_data: 0
 
-private_call_count: 0x100d
-public_call_count: 0x100e
 new_commitments:
 [ 0x1101 0x1102 0x1103 0x1104 ]
 new_nullifiers:
@@ -664,8 +658,6 @@ public_inputs: [
 proof_witness_indices: [ 7 8 9 10 11 12 ]
 has_data: 0
 
-private_call_count: 0xd
-public_call_count: 0xe
 new_commitments:
 [ 0x101 0x102 0x103 0x104 ]
 new_nullifiers:
@@ -801,8 +793,6 @@ public_inputs: [
 proof_witness_indices: [ 7 8 9 10 11 12 ]
 has_data: 0
 
-private_call_count: 0xd
-public_call_count: 0xe
 new_commitments:
 [ 0x101 0x102 0x103 0x104 ]
 new_nullifiers:

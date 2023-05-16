@@ -28,9 +28,6 @@ template <typename NCT> struct CombinedAccumulatedData {
 
     AggregationObject aggregation_object{};
 
-    fr private_call_count = 0;
-    fr public_call_count = 0;
-
     std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments = zero_array<fr, KERNEL_NEW_NULLIFIERS_LENGTH>();
     std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers = zero_array<fr, KERNEL_NEW_NULLIFIERS_LENGTH>();
 
@@ -50,8 +47,7 @@ template <typename NCT> struct CombinedAccumulatedData {
 
     boolean operator==(CombinedAccumulatedData<NCT> const& other) const
     {
-        return aggregation_object == other.aggregation_object && private_call_count == other.private_call_count &&
-               public_call_count == other.public_call_count && new_commitments == other.new_commitments &&
+        return aggregation_object == other.aggregation_object && new_commitments == other.new_commitments &&
                new_nullifiers == other.new_nullifiers && private_call_stack == other.private_call_stack &&
                public_call_stack == other.public_call_stack && new_l2_to_l1_msgs == other.new_l2_to_l1_msgs &&
                new_contracts == other.new_contracts && optionally_revealed_data == other.optionally_revealed_data &&
@@ -77,9 +73,6 @@ template <typename NCT> struct CombinedAccumulatedData {
                 aggregation_object.proof_witness_indices,
                 aggregation_object.has_data,
             },
-
-            to_ct(private_call_count),
-            to_ct(public_call_count),
 
             to_ct(new_commitments),
             to_ct(new_nullifiers),
@@ -112,9 +105,6 @@ template <typename NCT> struct CombinedAccumulatedData {
                 aggregation_object.has_data,
             },
 
-            to_nt(private_call_count),
-            to_nt(public_call_count),
-
             to_nt(new_commitments),
             to_nt(new_nullifiers),
 
@@ -135,9 +125,6 @@ template <typename NCT> struct CombinedAccumulatedData {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
         aggregation_object.add_proof_outputs_as_public_inputs();
-
-        private_call_count.set_public();
-        public_call_count.set_public();
 
         set_array_public(new_commitments);
         set_array_public(new_nullifiers);
@@ -198,8 +185,6 @@ template <typename NCT> void read(uint8_t const*& it, CombinedAccumulatedData<NC
     using serialize::read;
 
     read(it, accum_data.aggregation_object);
-    read(it, accum_data.private_call_count);
-    read(it, accum_data.public_call_count);
     read(it, accum_data.new_commitments);
     read(it, accum_data.new_nullifiers);
     read(it, accum_data.private_call_stack);
@@ -216,8 +201,6 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedAccumulate
     using serialize::write;
 
     write(buf, accum_data.aggregation_object);
-    write(buf, accum_data.private_call_count);
-    write(buf, accum_data.public_call_count);
     write(buf, accum_data.new_commitments);
     write(buf, accum_data.new_nullifiers);
     write(buf, accum_data.private_call_stack);
@@ -233,8 +216,6 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedAccum
 {
     return os << "aggregation_object:\n"
               << accum_data.aggregation_object << "\n"
-              << "private_call_count: " << accum_data.private_call_count << "\n"
-              << "public_call_count: " << accum_data.public_call_count << "\n"
               << "new_commitments:\n"
               << accum_data.new_commitments << "\n"
               << "new_nullifiers:\n"

@@ -22,12 +22,6 @@ void validate_inputs(DummyComposer& composer, PublicKernelInputs<NT> const& publ
     composer.do_assert(array_length(public_kernel_inputs.previous_kernel.public_inputs.end.private_call_stack) == 0,
                        "Private call stack must be empty",
                        CircuitErrorCode::PUBLIC_KERNEL__NON_EMPTY_PRIVATE_CALL_STACK);
-    composer.do_assert(public_kernel_inputs.previous_kernel.public_inputs.end.private_call_count > 0,
-                       "Private call count can't be zero",
-                       CircuitErrorCode::PUBLIC_KERNEL__ZERO_PRIVATE_CALL_COUNT);
-    composer.do_assert(public_kernel_inputs.previous_kernel.public_inputs.end.public_call_count == 0,
-                       "Public call count must be zero",
-                       CircuitErrorCode::PUBLIC_KERNEL__NON_ZERO_PUBLIC_CALL_COUNT);
     composer.do_assert(public_kernel_inputs.previous_kernel.public_inputs.is_private == true,
                        "Previous kernel must be private",
                        CircuitErrorCode::PUBLIC_KERNEL__PREVIOUS_KERNEL_NOT_PRIVATE);

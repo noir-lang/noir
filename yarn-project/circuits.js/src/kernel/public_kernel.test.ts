@@ -15,7 +15,6 @@ describe('kernel/public_kernel', () => {
   it('simulates public kernel circuit with previous private kernel', async function () {
     const input = await makePublicKernelInputsWithEmptyOutput();
     input.previousKernel.publicInputs.isPrivateKernel = true;
-    input.previousKernel.publicInputs.end.publicCallCount = Fr.ZERO;
     const result = await simulatePublicKernelCircuit(input);
     expect(result).toBeDefined();
   });

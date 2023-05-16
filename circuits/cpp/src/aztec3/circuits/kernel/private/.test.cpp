@@ -434,7 +434,7 @@ TEST(private_kernel_tests, circuit_deposit)
 
     // Execute and prove the first kernel iteration
     Composer private_kernel_composer("../barretenberg/cpp/srs_db/ignition");
-    auto const& public_inputs = private_kernel_circuit(private_kernel_composer, private_inputs);
+    auto const& public_inputs = private_kernel_circuit(private_kernel_composer, private_inputs, true);
 
     // Check contract address was correctly computed by the circuit
     validate_deployed_contract_address(private_inputs, public_inputs);
@@ -461,7 +461,7 @@ TEST(private_kernel_tests, native_deposit)
 
     auto const& private_inputs = do_private_call_get_kernel_inputs(false, deposit, { amount, asset_id, memo });
     DummyComposer composer = DummyComposer("private_kernel_tests__native_deposit");
-    auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
+    auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs, true);
 
     validate_deployed_contract_address(private_inputs, public_inputs);
 }
@@ -479,7 +479,7 @@ TEST(private_kernel_tests, circuit_basic_contract_deployment)
 
     // Execute and prove the first kernel iteration
     Composer private_kernel_composer("../barretenberg/cpp/srs_db/ignition");
-    auto const& public_inputs = private_kernel_circuit(private_kernel_composer, private_inputs);
+    auto const& public_inputs = private_kernel_circuit(private_kernel_composer, private_inputs, true);
 
     // Check contract address was correctly computed by the circuit
     validate_deployed_contract_address(private_inputs, public_inputs);
@@ -506,7 +506,7 @@ TEST(private_kernel_tests, native_basic_contract_deployment)
 
     auto const& private_inputs = do_private_call_get_kernel_inputs(true, constructor, { arg0, arg1, arg2 });
     DummyComposer composer = DummyComposer("private_kernel_tests__native_basic_contract_deployment");
-    auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
+    auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs, true);
 
     validate_deployed_contract_address(private_inputs, public_inputs);
 }
@@ -523,7 +523,7 @@ TEST(private_kernel_tests, circuit_create_proof_cbinds)
     // first run actual simulation to get public inputs
     auto const& private_inputs = do_private_call_get_kernel_inputs(true, constructor, { arg0, arg1, arg2 }, true);
     DummyComposer composer = DummyComposer("private_kernel_tests__circuit_create_proof_cbinds");
-    auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs);
+    auto const& public_inputs = native_private_kernel_circuit(composer, private_inputs, true);
 
     // serialize expected public inputs for later comparison
     std::vector<uint8_t> expected_public_inputs_vec;

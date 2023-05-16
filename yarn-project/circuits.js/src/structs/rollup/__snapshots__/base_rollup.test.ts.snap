@@ -15,8 +15,6 @@ public_inputs: [
 proof_witness_indices: [ 106 107 108 109 10a 10b ]
 has_data: 0
 
-private_call_count: 0x10c
-public_call_count: 0x10d
 new_commitments:
 [ 0x200 0x201 0x202 0x203 ]
 new_nullifiers:
@@ -161,8 +159,6 @@ public_inputs: [
 proof_witness_indices: [ 206 207 208 209 20a 20b ]
 has_data: 0
 
-private_call_count: 0x20c
-public_call_count: 0x20d
 new_commitments:
 [ 0x300 0x301 0x302 0x303 ]
 new_nullifiers:

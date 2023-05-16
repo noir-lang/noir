@@ -285,7 +285,7 @@ void validate_this_private_call_stack(DummyComposer& composer, PrivateInputs<NT>
     }
 };
 
-void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
+void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_inputs, bool is_base_case)
 {
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
 
@@ -294,8 +294,6 @@ void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_i
                        CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_FUNCTION_EXECUTED_WITH_PRIVATE_KERNEL);
 
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
-
-    const NT::boolean is_base_case = start.private_call_count == 0;
 
     // TODO: we might want to range-constrain the call_count to prevent some kind of overflow errors. Having said that,
     // iterating 2^254 times isn't feasible.
@@ -360,7 +358,8 @@ void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_i
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
 KernelCircuitPublicInputs<NT> native_private_kernel_circuit(DummyComposer& composer,
-                                                            PrivateInputs<NT> const& private_inputs)
+                                                            PrivateInputs<NT> const& private_inputs,
+                                                            bool first_iteration)
 {
     // We'll be pushing data to this during execution of this circuit.
     KernelCircuitPublicInputs<NT> public_inputs{};
@@ -368,7 +367,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit(DummyComposer& compo
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs, public_inputs);
 
-    validate_inputs(composer, private_inputs);
+    validate_inputs(composer, private_inputs, first_iteration);
 
     validate_this_private_call_hash(composer, private_inputs, public_inputs);
 

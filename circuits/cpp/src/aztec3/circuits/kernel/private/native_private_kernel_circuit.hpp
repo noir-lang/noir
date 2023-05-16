@@ -15,6 +15,7 @@ using DummyComposer = aztec3::utils::DummyComposer;
 
 // TODO: decide what to return.
 KernelCircuitPublicInputs<NT> native_private_kernel_circuit(DummyComposer& composer,
-                                                            PrivateInputs<NT> const& _private_inputs);
+                                                            PrivateInputs<NT> const& _private_inputs,
+                                                            bool first_iteration);
 
 }  // namespace aztec3::circuits::kernel::private_kernel

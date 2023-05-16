@@ -237,7 +237,6 @@ describe('public_processor', () => {
       const kernelOutput = makeKernelPublicInputs(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, KERNEL_PRIVATE_CALL_STACK_LENGTH);
-      kernelOutput.end.publicCallCount = Fr.ZERO;
       const tx = Tx.createPrivate(kernelOutput, proof, UnverifiedData.random(2), [], callRequests);
 
       publicExecutor.execute.mockImplementation(execution => {
