@@ -61,6 +61,24 @@ impl Function {
     pub(crate) fn parameters(&self) -> &[ValueId] {
         self.dfg.block_parameters(self.entry_block)
     }
+
+    // Remove any unreachable blocks from this function.
+    // To do this, this method must traverse the cfg of this function in program order.
+    // pub(crate) fn remove_unreachable_blocks(&mut self) {
+    //     let mut reached = HashSet::new();
+    //     let mut stack: Vec<BasicBlockId> = vec![self.entry_block];
+
+    //     while let Some(block) = stack.pop() {
+    //         reached.insert(block);
+    //         for block in self.dfg[block].successors() {
+    //             if !reached.contains(&block) {
+    //                 stack.push(block);
+    //             }
+    //         }
+    //     }
+
+    //     self.dfg.retain_blocks(|block| reached.contains(&block));
+    // }
 }
 
 /// FunctionId is a reference for a function

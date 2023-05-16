@@ -273,6 +273,20 @@ impl TerminatorInstruction {
             }
         }
     }
+
+    pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { then_destination, else_destination, .. } => {
+                *then_destination = f(*then_destination);
+                *else_destination = f(*else_destination);
+            }
+            Jmp { destination, .. } => {
+                *destination = f(*destination);
+            }
+            Return { .. } => (),
+        }
+    }
 }
 
 /// A binary instruction in the IR.

@@ -30,7 +30,7 @@ pub fn optimize_into_acir(program: Program) {
         .inline_functions()
         .print("After Inlining:")
         .unroll_loops()
-        .print("After Simplifying the CFG:");
+        .print("After Unrolling:");
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates

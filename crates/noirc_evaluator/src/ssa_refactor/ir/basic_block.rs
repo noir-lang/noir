@@ -29,10 +29,10 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    /// Create a new BasicBlock with the given instructions.
+    /// Create a new BasicBlock with the given parameters.
     /// Parameters can also be added later via BasicBlock::add_parameter
-    pub(crate) fn new(instructions: Vec<InstructionId>) -> Self {
-        Self { parameters: Vec::new(), instructions, terminator: None }
+    pub(crate) fn new() -> Self {
+        Self { parameters: Vec::new(), instructions: Vec::new(), terminator: None }
     }
 
     /// Returns the parameters of this block
@@ -45,6 +45,12 @@ impl BasicBlock {
     /// instance with its position equal to self.parameters.len().
     pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
         self.parameters.push(parameter);
+    }
+
+    /// Replace this block's current parameters with that of the given Vec.
+    /// This does not perform any checks that any previous parameters were unused.
+    pub(crate) fn set_parameters(&mut self, parameters: Vec<ValueId>) {
+        self.parameters = parameters;
     }
 
     /// Insert an instruction at the end of this block
@@ -76,6 +82,19 @@ impl BasicBlock {
     /// Once this block has finished construction, this is expected to always be Some.
     pub(crate) fn terminator(&self) -> Option<&TerminatorInstruction> {
         self.terminator.as_ref()
+    }
+
+    /// Returns the terminator of this block, panics if there is None.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
+    pub(crate) fn unwrap_terminator(&self) -> &TerminatorInstruction {
+        self.terminator().expect("Expected block to have terminator instruction")
+    }
+
+    pub(crate) fn mutate_terminator_blocks(&mut self, f: impl FnMut(BasicBlockId) -> BasicBlockId) {
+        if let Some(terminator) = self.terminator.as_mut() {
+            terminator.mutate_blocks(f);
+        }
     }
 
     /// Iterate over all the successors of the currently block, as determined by

@@ -15,6 +15,7 @@ use super::{
 };
 
 use acvm::FieldElement;
+use iter_extended::vecmap;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -59,6 +60,8 @@ pub(crate) struct DataFlowGraph {
     signatures: DenseMap<Signature>,
 
     /// All blocks in a function
+    ///
+    /// This map is sparse to allow removing unreachable blocks during optimizations
     blocks: DenseMap<BasicBlock>,
 }
 
@@ -67,7 +70,27 @@ impl DataFlowGraph {
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
     pub(crate) fn make_block(&mut self) -> BasicBlockId {
-        self.blocks.insert(BasicBlock::new(Vec::new()))
+        self.blocks.insert(BasicBlock::new())
+    }
+
+    /// Create a new block with the same parameter count and parameter
+    /// types from the given block.
+    /// This is a somewhat niche operation used in loop unrolling but is included
+    /// here as doing it outside the DataFlowGraph would require cloning the parameters.
+    pub(crate) fn make_block_with_parameters_from_block(
+        &mut self,
+        block: BasicBlockId,
+    ) -> BasicBlockId {
+        let new_block = self.make_block();
+        let parameters = self.blocks[block].parameters();
+
+        let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
+            let typ = self.values[*param].get_type();
+            self.values.insert(Value::Param { block: new_block, position, typ })
+        });
+
+        self.blocks[new_block].set_parameters(parameters);
+        new_block
     }
 
     /// Get an iterator over references to each basic block within the dfg, paired with the basic
@@ -79,6 +102,11 @@ impl DataFlowGraph {
     ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
         self.blocks.iter()
     }
+
+    // Remove all blocks in this DFG that do not satisfy the given predicate
+    // pub(crate) fn retain_blocks(&mut self, mut predicate: impl FnMut(BasicBlockId) -> bool) {
+    //     self.blocks.retain(|id, _| predicate(*id))
+    // }
 
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
