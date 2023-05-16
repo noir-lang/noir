@@ -121,9 +121,6 @@ mod consts; // Commonly used curve presets
 // **TODO: Support arrays of structs to make this work.
 
 
-// TODO: Replace with built-in backend-dependent constant.
-global N_BITS = 254; // Maximum number of bits in field element
-
 // Field-dependent constant ZETA = a non-square element of Field
 // Required for Elligator 2 map
 // TODO: Replace with built-in constant.
@@ -169,6 +166,8 @@ fn is_square(x: Field) -> bool {
 // Power function of two Field arguments of arbitrary size.
 // Adapted from std::field::pow_32.
 fn pow(x: Field, y: Field) -> Field { // As in tests with minor modifications
+    let N_BITS = crate::field::modulus_num_bits();
+
     let mut r = 1 as Field;
     let b = y.to_le_bits(N_BITS as u32);
         
