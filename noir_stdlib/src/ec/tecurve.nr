@@ -373,10 +373,10 @@ mod curvegroup {
             let N_BITS = crate::field::modulus_num_bits();
 
             // temporary workaround until issue 1354 is solved
-            let mut n_as_bits :[u1; 254] = [0; 254];
+            let mut n_as_bits: [u1; 254] = [0; 254];
             let tmp = n.to_le_bits(N_BITS as u32);
             for i in 0..254 {
-               n_as_bits[i]= tmp[i]; 
+               n_as_bits[i] = tmp[i]; 
             }
 
             self.bit_mul(n_as_bits, p)
