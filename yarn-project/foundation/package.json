@@ -6,7 +6,6 @@
   "type": "module",
   "exports": {
     "./eslint": "./.eslintrc.cjs",
-    "./eslint-legacy": "./.eslintrc.legacy.cjs",
     "./prettier": "./.prettierrc.json",
     "./abi": "./dest/abi/index.js",
     "./async-map": "./dest/async-map/index.js",
