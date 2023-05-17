@@ -143,22 +143,10 @@ impl DataFlowGraph {
             SimplifyResult::Remove => InstructionRemoved,
             SimplifyResult::None => {
                 let id = self.make_instruction(instruction, ctrl_typevars);
-                self.insert_instruction_in_block(block, id);
+                self.blocks[block].insert_instruction(instruction);
                 InsertInstructionResult::Results(self.instruction_results(id))
             }
         }
-    }
-
-    /// Insert an instruction at the end of a given block.
-    /// If the block already has a terminator, the instruction is inserted before the terminator.
-    /// Unlike insert_instruction_and_results, this function will not create a new set of
-    /// instruction results for the given instruction.
-    pub(crate) fn insert_instruction_in_block(
-        &mut self,
-        block: BasicBlockId,
-        instruction: InstructionId,
-    ) {
-        self.blocks[block].insert_instruction(instruction);
     }
 
     /// Insert a value into the dfg's storage and return an id to reference it.
@@ -360,7 +348,6 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 // The result of calling DataFlowGraph::insert_instruction can
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
-#[derive(Debug)]
 pub(crate) enum InsertInstructionResult<'dfg> {
     Results(&'dfg [ValueId]),
     SimplifiedTo(ValueId),

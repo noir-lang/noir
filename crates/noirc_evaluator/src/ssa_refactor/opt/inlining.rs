@@ -266,25 +266,55 @@ impl<'function> PerFunctionContext<'function> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = vec![self.source_function.entry_block()];
 
-        let mut function_return = None;
+        // This Vec will contain each block with a Return instruction along with the
+        // returned values of that block.
+        let mut function_returns = vec![];
 
-        while let Some(source_block) = block_queue.pop() {
-            let translated_block = self.translate_block(source_block, &mut block_queue);
-            self.context.builder.switch_to_block(translated_block);
+        while let Some(source_block_id) = block_queue.pop() {
+            let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
+            self.context.builder.switch_to_block(translated_block_id);
 
-            seen_blocks.insert(source_block);
-            self.inline_block(ssa, source_block);
+            seen_blocks.insert(source_block_id);
+            self.inline_block(ssa, source_block_id);
 
-            if let Some(ret) = self.handle_terminator_instruction(source_block, &mut block_queue) {
-                function_return = Some(ret);
+            if let Some((block, values)) =
+                self.handle_terminator_instruction(source_block_id, &mut block_queue)
+            {
+                function_returns.push((block, values));
             }
         }
 
-        if let Some((block, values)) = function_return {
-            self.context.builder.switch_to_block(block);
-            values
-        } else {
-            unreachable!("Inlined function had no return instruction")
+        self.handle_function_returns(function_returns)
+    }
+
+    /// Handle inlining a function's possibly multiple return instructions.
+    /// If there is only 1 return we can just continue inserting into that block.
+    /// If there are multiple, we'll need to create a join block to jump to with each value.
+    fn handle_function_returns(
+        &mut self,
+        mut returns: Vec<(BasicBlockId, Vec<ValueId>)>,
+    ) -> Vec<ValueId> {
+        // Clippy complains if this were written as an if statement
+        match returns.len() {
+            1 => {
+                let (return_block, return_values) = returns.remove(0);
+                self.context.builder.switch_to_block(return_block);
+                return_values
+            }
+            n if n > 1 => {
+                // If there is more than 1 return instruction we'll need to create a single block we
+                // can return to and continue inserting in afterwards.
+                let return_block = self.context.builder.insert_block();
+
+                for (block, return_values) in returns {
+                    self.context.builder.switch_to_block(block);
+                    self.context.builder.terminate_with_jmp(return_block, return_values);
+                }
+
+                self.context.builder.switch_to_block(return_block);
+                self.context.builder.block_parameters(return_block).to_vec()
+            }
+            _ => unreachable!("Inlined function had no return values"),
         }
     }
 
@@ -368,8 +398,8 @@ impl<'function> PerFunctionContext<'function> {
         match self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let destination = self.translate_block(*destination, block_queue);
-                let arguments2 = vecmap(arguments, |arg| self.translate_value(*arg));
-                self.context.builder.terminate_with_jmp(destination, arguments2);
+                let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
+                self.context.builder.terminate_with_jmp(destination, arguments);
                 None
             }
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
@@ -489,7 +519,7 @@ mod test {
 
         // Done, now we test that we can successfully inline all functions.
         let ssa = builder.finish();
-        assert_eq!(ssa.functions.len(), 2);
+        assert_eq!(ssa.functions.len(), 4);
 
         let inlined = ssa.inline_functions();
         assert_eq!(inlined.functions.len(), 1);
