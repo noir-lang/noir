@@ -312,6 +312,14 @@ impl DataFlowGraph {
     ) {
         self.blocks[block].set_terminator(terminator);
     }
+
+    /// Sets the terminator instruction for the given basic block
+    pub(crate) fn get_block_terminator_mut(
+        &mut self,
+        block: BasicBlockId,
+    ) -> &mut TerminatorInstruction {
+        self.blocks[block].unwrap_terminator_mut()
+    }
 }
 
 impl std::ops::Index<InstructionId> for DataFlowGraph {

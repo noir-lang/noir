@@ -7,7 +7,7 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use crate::errors::RuntimeError;
+use crate::errors::{RuntimeError, RuntimeErrorKind};
 use acvm::{acir::circuit::Circuit, compiler::transformers::IsOpcodeSupported, Language};
 use noirc_abi::Abi;
 
@@ -44,7 +44,8 @@ pub fn experimental_create_circuit(
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
     optimize_into_acir(_program);
-    std::process::exit(0);
+    let error_kind = RuntimeErrorKind::Spanless("Acir-gen is unimplemented".into());
+    Err(RuntimeError::new(error_kind, None))
 }
 
 impl Ssa {

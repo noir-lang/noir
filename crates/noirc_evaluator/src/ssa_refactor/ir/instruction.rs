@@ -254,6 +254,7 @@ pub(crate) enum TerminatorInstruction {
 }
 
 impl TerminatorInstruction {
+    /// Map each ValueId in this terminator to a new value.
     pub(crate) fn map_values(
         &self,
         mut f: impl FnMut(ValueId) -> ValueId,
@@ -274,6 +275,7 @@ impl TerminatorInstruction {
         }
     }
 
+    /// Mutate each BlockId to a new BlockId specified by the given mapping function.
     pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
         use TerminatorInstruction::*;
         match self {

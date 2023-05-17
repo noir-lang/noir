@@ -16,7 +16,13 @@ use crate::ssa_refactor::{
     ssa_gen::Ssa,
 };
 
+/// Arbitrary maximum of 10k loops unrolled in a program to prevent looping forever
+/// if a bug causes us to continually unroll the same loop.
+const MAX_LOOPS_UNROLLED: u32 = 10_000;
+
 impl Ssa {
+    /// Unroll all loops in each SSA function.
+    /// Panics if any loop cannot be unrolled.
     pub(crate) fn unroll_loops(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             unroll_loops_in_function(function);
@@ -25,12 +31,11 @@ impl Ssa {
     }
 }
 
+/// Unroll all loops within a given function.
+/// This will panic if the function has more than MAX_LOOPS_UNROLLED loops to unroll
+/// or if the function has loops that cannot be unrolled because it has non-constant indices.
 fn unroll_loops_in_function(function: &mut Function) {
-    // Arbitrary maximum of 10k loops unrolled in a program to prevent looping forever
-    // if a bug causes us to continually unroll the same loop.
-    let max_loops_unrolled = 10_000;
-
-    for _ in 0..max_loops_unrolled {
+    for _ in 0..MAX_LOOPS_UNROLLED {
         // Recompute the cfg & dom_tree after each loop in case we unrolled into another loop.
         // TODO: Optimize: lazily recompute this only if the next loops' blocks have already been visited.
         let cfg = ControlFlowGraph::with_function(function);
@@ -44,11 +49,28 @@ fn unroll_loops_in_function(function: &mut Function) {
         }
     }
 
-    panic!("Did not finish unrolling all loops after the maximum of {max_loops_unrolled} loops unrolled")
+    panic!("Did not finish unrolling all loops after the maximum of {MAX_LOOPS_UNROLLED} loops unrolled")
+}
+
+struct Loop {
+    /// The header block of a loop is the block which dominates all the
+    /// other blocks in the loop.
+    header: BasicBlockId,
+
+    /// The start of the back_edge n -> d is the block n at the end of
+    /// the loop that jumps back to the header block d which restarts the loop.
+    back_edge_start: BasicBlockId,
+
+    /// All the blocks contained within the loop, including `header` and `back_edge_start`.
+    blocks: HashSet<BasicBlockId>,
 }
 
 /// Find a loop in the program by finding a node that dominates any predecessor node.
 /// The edge where this happens will be the back-edge of the loop.
+///
+/// We could change this to return all loops in the function instead, but we'd have to
+/// make sure to automatically refresh the list if any blocks within one loop were modified
+/// as a result of inlining another.
 fn find_next_loop(
     function: &Function,
     cfg: &ControlFlowGraph,
@@ -68,8 +90,9 @@ fn find_next_loop(
         }
     }
 
-    // Sort loops by block size so that we unroll the smaller, nested loops first.
-    loops.sort_by_key(|loop_| loop_.blocks.len());
+    // Sort loops by block size so that we unroll the smaller, nested loops first as an
+    // optimization.
+    loops.sort_by(|loop_a, loop_b| loop_b.blocks.len().cmp(&loop_a.blocks.len()));
     loops.pop()
 }
 
@@ -90,6 +113,8 @@ fn find_blocks_in_loop(
         }
     };
 
+    // Starting from the back edge of the loop, each predecessor of this block until
+    // the header is within the loop.
     let mut stack = vec![];
     insert(back_edge_start, &mut stack);
 
@@ -102,6 +127,7 @@ fn find_blocks_in_loop(
     Loop { header, back_edge_start, blocks }
 }
 
+/// Unroll a single loop in the function
 fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: Loop) -> Result<(), ()> {
     let mut unroll_into = get_pre_header(cfg, &loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
@@ -147,7 +173,9 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
     }
 }
 
-/// Unroll a single iteration of the loop. Returns true if we should perform another iteration.
+/// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
+/// loop and contains the jmpif instruction that lets us know if we should continue looping.
+/// Returns Some(iteration context) if we should perform another iteration.
 fn unroll_loop_header<'a>(
     function: &'a mut Function,
     loop_: &'a Loop,
@@ -159,63 +187,47 @@ fn unroll_loop_header<'a>(
     assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header",);
 
     let first_param = source_block.parameters()[0];
-    println!(
-        "Remembering {} <- {} ({:?})",
-        first_param,
-        induction_value,
-        context.function.dfg.get_numeric_constant(induction_value)
-    );
     context.values.insert(first_param, induction_value);
-
     context.inline_instructions_from_block();
 
     match context.function.dfg[unroll_into].unwrap_terminator() {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
-            let condition = context.get_value(*condition);
+            let next_blocks = context.handle_jmpif(*condition, *then_destination, *else_destination);
 
-            match context.function.dfg.get_numeric_constant(condition) {
-                Some(constant) => {
-                    let next_block = if constant.is_zero() { *else_destination } else { *then_destination };
+            // If there is only 1 next block the jmpif evaluated to a single known block.
+            // This is the expected case and lets us know if we should loop again or not.
+            if next_blocks.len() == 1 {
+                loop_.blocks.contains(&context.source_block).then_some(context)
+            } else {
+                // Non-constant loop. We have to reset the then and else destination back to
+                // the original blocks here since we won't be unrolling into the new blocks.
+                context.function.dfg.get_block_terminator_mut(context.insert_block)
+                    .mutate_blocks(|block| context.original_blocks[&block]);
 
-                    // context.insert_block = next_block;
-                    context.source_block = context.get_original_block(next_block);
-
-                    context.function.dfg.set_block_terminator(context.insert_block, TerminatorInstruction::Jmp {
-                        destination: next_block,
-                        arguments: Vec::new(),
-                    });
-
-                    // If the next block to jump to is outside of the loop, return None
-                    loop_.blocks.contains(&context.source_block).then_some(context)
-                },
-                None => {
-                    // Non-constant loop. We have to reset the then and else destination back to
-                    // the original blocks here since we won't be unrolling into the new blocks.
-                    context.function.dfg.set_block_terminator(context.insert_block, TerminatorInstruction::JmpIf {
-                        condition,
-                        then_destination: context.get_original_block(*then_destination),
-                        else_destination: context.get_original_block(*else_destination),
-                    });
-
-                    None
-                },
+                None
             }
-
         }
         other => panic!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
     }
 }
 
+/// The context object for each loop iteration.
+/// Notably each loop iteration maps each loop block to a fresh, unrolled block.
 struct LoopIteration<'f> {
     function: &'f mut Function,
     loop_: &'f Loop,
     values: HashMap<ValueId, ValueId>,
     blocks: HashMap<BasicBlockId, BasicBlockId>,
+
+    /// Maps unrolled block ids back to the original source block ids
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
     visited_blocks: HashSet<BasicBlockId>,
 
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
+
+    /// The induction value (and the block it was found in) is the new value for
+    /// the variable traditionally called `i` on each iteration of the loop.
     induction_value: Option<(BasicBlockId, ValueId)>,
 }
 
@@ -240,9 +252,13 @@ impl<'f> LoopIteration<'f> {
     }
 
     /// Unroll a single iteration of the loop.
+    ///
+    /// Note that after unrolling a single iteration, the loop is _not_ in a valid state.
+    /// It is expected the terminator instructions are set up to branch into an empty block
+    /// for further unrolling. When the loop is finished this will need to be mutated to
+    /// jump to the end of the loop instead.
     fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
         let mut next_blocks = self.unroll_loop_block();
-        next_blocks.retain(|block| self.loop_.blocks.contains(&self.get_original_block(*block)));
 
         while let Some(block) = next_blocks.pop() {
             self.insert_block = block;
@@ -250,7 +266,6 @@ impl<'f> LoopIteration<'f> {
 
             if !self.visited_blocks.contains(&self.source_block) {
                 let mut blocks = self.unroll_loop_block();
-                blocks.retain(|block| self.loop_.blocks.contains(&self.get_original_block(*block)));
                 next_blocks.append(&mut blocks);
             }
         }
@@ -261,27 +276,22 @@ impl<'f> LoopIteration<'f> {
 
     /// Unroll a single block in the current iteration of the loop
     fn unroll_loop_block(&mut self) -> Vec<BasicBlockId> {
+        let mut next_blocks = self.unroll_loop_block_helper();
+        next_blocks.retain(|block| {
+            let b = self.get_original_block(*block);
+            self.loop_.blocks.contains(&b)
+        });
+        next_blocks
+    }
+
+    /// Unroll a single block in the current iteration of the loop
+    fn unroll_loop_block_helper(&mut self) -> Vec<BasicBlockId> {
         self.inline_instructions_from_block();
         self.visited_blocks.insert(self.source_block);
 
         match self.function.dfg[self.insert_block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
-                let condition = self.get_value(*condition);
-
-                match self.function.dfg.get_numeric_constant(condition) {
-                    Some(constant) => {
-                        let destination =
-                            if constant.is_zero() { *else_destination } else { *then_destination };
-
-                        let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
-                        self.function.dfg.set_block_terminator(self.insert_block, jmp);
-
-                        vec![destination]
-                    }
-                    None => {
-                        vec![*then_destination, *else_destination]
-                    }
-                }
+                self.handle_jmpif(*condition, *then_destination, *else_destination)
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 if self.get_original_block(*destination) == self.loop_.header {
@@ -294,10 +304,37 @@ impl<'f> LoopIteration<'f> {
         }
     }
 
+    /// Find the next branch(es) to take from a jmpif terminator and return them.
+    /// If only one block is returned, it means the jmpif condition evaluated to a known
+    /// constant and we can safely take only the given branch.
+    fn handle_jmpif(
+        &mut self,
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+    ) -> Vec<BasicBlockId> {
+        let condition = self.get_value(condition);
+
+        match self.function.dfg.get_numeric_constant(condition) {
+            Some(constant) => {
+                let destination =
+                    if constant.is_zero() { else_destination } else { then_destination };
+
+                self.source_block = self.get_original_block(destination);
+                let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
+                self.function.dfg.set_block_terminator(self.insert_block, jmp);
+                vec![destination]
+            }
+            None => vec![then_destination, else_destination],
+        }
+    }
+
     fn get_value(&self, value: ValueId) -> ValueId {
         self.values.get(&value).copied().unwrap_or(value)
     }
 
+    /// Translate a block id to a block id in the unrolled loop. If the given
+    /// block id is not within the loop, it is returned as-is.
     fn get_or_insert_block(&mut self, block: BasicBlockId) -> BasicBlockId {
         if let Some(new_block) = self.blocks.get(&block) {
             return *new_block;
@@ -311,7 +348,8 @@ impl<'f> LoopIteration<'f> {
             let new_parameters = self.function.dfg.block_parameters(new_block);
 
             for (param, new_param) in old_parameters.iter().zip(new_parameters) {
-                self.values.insert(*param, *new_param);
+                // Don't overwrite any existing entries to avoid overwriting the induction variable
+                self.values.entry(*param).or_insert(*new_param);
             }
 
             self.blocks.insert(block, new_block);
@@ -328,38 +366,21 @@ impl<'f> LoopIteration<'f> {
 
     fn inline_instructions_from_block(&mut self) {
         let source_block = &self.function.dfg[self.source_block];
-        // assert_eq!(
-        //     source_block.parameters().len(),
-        //     jmp_args.len(),
-        //     "Parameter len != arg len when inlining block {} into {}",
-        //     self.source_block,
-        //     self.insert_block,
-        // );
-
-        // Map each parameter to its new value
-        // for (param, arg) in source_block.parameters().iter().zip(jmp_args) {
-        //     self.values.insert(*param, *arg);
-        // }
-
         let instructions = source_block.instructions().to_vec();
 
-        // We cannot directly append each instruction since we need to substitute the
-        // block parameter values.
+        // We cannot directly append each instruction since we need to substitute any
+        // instances of the induction variable or any values that were changed as a result
+        // of the new induction variable value.
         for instruction in instructions {
             self.push_instruction(instruction);
         }
 
         let mut terminator = self.function.dfg[self.source_block]
-            .terminator()
-            .expect(
-                "Expected each block during the loop unrolling to have a terminator instruction",
-            )
-            .map_values(|id| self.get_value(id));
+            .unwrap_terminator()
+            .map_values(|value| self.get_value(value));
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.function.dfg.set_block_terminator(self.insert_block, terminator);
-
-        println!("Unrolled block: \n{}", self.function);
     }
 
     fn push_instruction(&mut self, id: InstructionId) {
@@ -375,6 +396,7 @@ impl<'f> LoopIteration<'f> {
             self.insert_block,
             ctrl_typevars,
         );
+
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 
@@ -399,17 +421,4 @@ impl<'f> LoopIteration<'f> {
             InsertInstructionResult::InstructionRemoved => (),
         }
     }
-}
-
-struct Loop {
-    /// The header block of a loop is the block which dominates all the
-    /// other blocks in the loop.
-    header: BasicBlockId,
-
-    /// The start of the back_edge n -> d is the block n at the end of
-    /// the loop that jumps back to the header block d which restarts the loop.
-    back_edge_start: BasicBlockId,
-
-    /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    blocks: HashSet<BasicBlockId>,
 }

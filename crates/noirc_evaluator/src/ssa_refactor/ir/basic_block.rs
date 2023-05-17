@@ -91,10 +91,11 @@ impl BasicBlock {
         self.terminator().expect("Expected block to have terminator instruction")
     }
 
-    pub(crate) fn mutate_terminator_blocks(&mut self, f: impl FnMut(BasicBlockId) -> BasicBlockId) {
-        if let Some(terminator) = self.terminator.as_mut() {
-            terminator.mutate_blocks(f);
-        }
+    /// Returns a mutable reference to the terminator of this block.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
+    pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
+        self.terminator.as_mut().expect("Expected block to have terminator instruction")
     }
 
     /// Iterate over all the successors of the currently block, as determined by
