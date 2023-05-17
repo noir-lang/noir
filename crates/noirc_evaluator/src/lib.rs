@@ -231,7 +231,13 @@ impl Evaluator {
                 // This ensures that struct fields are mapped to the correct witness indices during abi encoding.
                 new_fields
                     .iter()
-                    .flat_map(|(field_name, _)| struct_witnesses[field_name].clone())
+                    .flat_map(|(field_name, _)| {
+                        struct_witnesses.remove(field_name).unwrap_or_else(|| {
+                            unreachable!(
+                                "Expected a field named '{field_name}' in the struct pattern"
+                            )
+                        })
+                    })
                     .collect()
             }
             AbiType::String { length } => {
