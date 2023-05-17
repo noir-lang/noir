@@ -3,8 +3,13 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include "barretenberg/common/streams.hpp"
+#include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
-
+TEST(acir_format, msgpack_logic_constraint)
+{
+    auto [actual, expected] = msgpack_roundtrip(acir_format::LogicConstraint {});
+    EXPECT_EQ(actual, expected);
+}
 TEST(acir_format, test_logic_gate_from_noir_circuit)
 {
     /**

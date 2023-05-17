@@ -929,14 +929,9 @@ inline bool TurboCircuitConstructor::lazy_logic_gate_check(const size_t gate_ind
     constexpr fr three(3);
     constexpr fr minus_one = -fr::one();
 
-    fr delta_sum;
-    fr delta_squared_sum;
     fr T0;
     fr T1;
     fr T2;
-    fr T3;
-    fr T4;
-    fr identity;
 
     // T0 = a
     T0 = wire_1_value + wire_1_value;
@@ -1448,7 +1443,7 @@ inline fr TurboCircuitConstructor::fixed_base_gate_evaluation(const size_t gate_
  * */
 bool TurboCircuitConstructor::check_circuit()
 {
-//#define LAZY_CIRCUIT_CHECKS
+// #define LAZY_CIRCUIT_CHECKS
 #ifdef LAZY_CIRCUIT_CHECKS
     for (size_t i = 0; i < num_gates; i++) {
         if (!q_arith[i].is_zero() && !lazy_arithmetic_gate_check(i)) {

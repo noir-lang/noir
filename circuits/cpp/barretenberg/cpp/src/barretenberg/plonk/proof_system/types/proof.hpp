@@ -4,11 +4,14 @@
 #include <ostream>
 #include <iomanip>
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 
 namespace proof_system::plonk {
 
 struct proof {
     std::vector<uint8_t> proof_data;
+    void msgpack_pack(auto& packer) const { packer.pack(proof_data); }
+    void msgpack_unpack(auto object) { proof_data = (std::vector<uint8_t>)object; }
 
     bool operator==(proof const& other) const = default;
 };
@@ -42,3 +45,9 @@ inline std::ostream& operator<<(std::ostream& os, proof const& data)
 }
 
 } // namespace proof_system::plonk
+
+// help our msgpack schema compiler with this typedef
+inline void msgpack_schema_pack(auto& packer, proof_system::plonk::proof const&)
+{
+    packer.pack_alias("Proof", "bin32");
+}

@@ -5,6 +5,7 @@
 #include "barretenberg/common/test.hpp"
 #include <fstream>
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/serialize/test_helper.hpp"
 
 namespace test_affine_element {
 template <typename G1> class test_affine_element : public testing::Test {
@@ -121,5 +122,11 @@ TEST(affine_element, infinity_ordering_regression)
 
     P.self_set_infinity();
     EXPECT_NE(P < Q, Q < P);
+}
+
+TEST(affine_element, msgpack)
+{
+    auto [actual, expected] = msgpack_roundtrip(secp256k1::g1::affine_element{ 1, 1 });
+    EXPECT_EQ(actual, expected);
 }
 } // namespace test_affine_element

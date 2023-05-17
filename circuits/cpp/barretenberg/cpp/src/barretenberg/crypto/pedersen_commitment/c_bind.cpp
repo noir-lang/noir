@@ -30,7 +30,6 @@ WASM_EXPORT void pedersen_plookup_compress_fields(uint8_t const* left, uint8_t c
     barretenberg::fr::serialize_to_buffer(r, result);
 }
 
-
 WASM_EXPORT void pedersen__compress(uint8_t const* inputs_buffer, uint8_t* output)
 {
     std::vector<grumpkin::fq> to_compress;

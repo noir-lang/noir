@@ -7,6 +7,7 @@
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 
 namespace proof_system::plonk {
 
@@ -18,6 +19,13 @@ struct verification_key_data {
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
 
+    // for serialization: update with any new fields
+    MSGPACK_FIELDS(composer_type,
+                   circuit_size,
+                   num_public_inputs,
+                   commitments,
+                   contains_recursive_proof,
+                   recursive_proof_public_input_indices);
     barretenberg::fr compress_native(size_t const hash_index = 0);
 };
 
@@ -50,6 +58,8 @@ inline bool operator==(verification_key_data const& lhs, verification_key_data c
 }
 
 struct verification_key {
+    // default constructor needed for msgpack unpack
+    verification_key() = default;
     verification_key(verification_key_data&& data, std::shared_ptr<VerifierReferenceString> const& crs);
     verification_key(const size_t num_gates,
                      const size_t num_inputs,
@@ -83,7 +93,31 @@ struct verification_key {
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
     size_t program_width = 3;
+
+    // for serialization: update with new fields
+    void msgpack_pack(auto& packer) const
+    {
+        verification_key_data data = { composer_type,
+                                       static_cast<uint32_t>(circuit_size),
+                                       static_cast<uint32_t>(num_public_inputs),
+                                       commitments,
+                                       contains_recursive_proof,
+                                       recursive_proof_public_input_indices };
+        packer.pack(data);
+    }
+    void msgpack_unpack(auto obj)
+    {
+        verification_key_data data = obj;
+        auto env_crs = std::make_unique<proof_system::EnvReferenceStringFactory>();
+        *this = verification_key{ std::move(data), env_crs->get_verifier_crs() };
+    }
 };
+
+// specialize schema serialization
+inline void msgpack_schema(auto& packer, proof_system::plonk::verification_key const&)
+{
+    packer.pack_schema(proof_system::plonk::verification_key_data{});
+}
 
 template <typename B> inline void read(B& buf, verification_key& key)
 {
@@ -125,3 +159,10 @@ inline std::ostream& operator<<(std::ostream& os, verification_key const& key)
 };
 
 } // namespace proof_system::plonk
+
+// help our msgpack schema compiler with this struct
+// Alias verification_key as verification_key_data
+inline void msgpack_schema_pack(auto& packer, proof_system::plonk::verification_key const&)
+{
+    msgpack_schema_pack(packer, proof_system::plonk::verification_key_data{});
+}

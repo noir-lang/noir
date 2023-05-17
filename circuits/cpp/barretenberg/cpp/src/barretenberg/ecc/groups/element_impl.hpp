@@ -925,7 +925,6 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::rand
     Fq yy;
     Fq x;
     Fq y;
-    Fq t0;
     while (!found_one) {
         x = Fq::random_element(engine);
         yy = x.sqr() * x + T::b;
@@ -935,8 +934,6 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::rand
         auto [found_root, y1] = yy.sqrt();
         y = y1;
         found_one = found_root;
-        // t0 = y.sqr();
-        // found_one = (yy == t0);
     }
     return { x, y, Fq::one() };
 }

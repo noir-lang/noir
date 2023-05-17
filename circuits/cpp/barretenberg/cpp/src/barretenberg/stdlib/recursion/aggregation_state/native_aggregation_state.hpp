@@ -21,6 +21,7 @@ struct native_aggregation_state {
     std::vector<uint32_t> proof_witness_indices;
     bool has_data = false;
 
+    MSGPACK_FIELDS(P0, P1, public_inputs, proof_witness_indices, has_data);
     bool operator==(native_aggregation_state const& other) const
     {
         return P0 == other.P0 && P1 == other.P1 && public_inputs == other.public_inputs &&

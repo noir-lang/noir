@@ -406,6 +406,10 @@ template <class Params> struct alignas(32) field {
 
     // BBERG_INLINE sstatic constexpr void butterfly(field& left, field& right) noexcept;
 
+    // For serialization
+    void msgpack_pack(auto& packer) const;
+    void msgpack_unpack(auto o);
+
   private:
     static constexpr uint256_t twice_modulus = modulus + modulus;
     static constexpr uint256_t not_modulus = -modulus;
@@ -543,7 +547,6 @@ template <typename B, typename Params> void read(B& it, field<Params>& value)
     read(it, result.data[0]);
     value = result.to_montgomery_form();
 }
-
 template <typename B, typename Params> void write(B& buf, field<Params> const& value)
 {
     using serialize::write;

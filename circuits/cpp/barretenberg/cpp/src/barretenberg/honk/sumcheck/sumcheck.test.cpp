@@ -96,7 +96,6 @@ TEST(Sumcheck, PolynomialNormalization)
     std::array<FF, multivariate_n> id_3;
     std::array<FF, multivariate_n> lagrange_first;
     std::array<FF, multivariate_n> lagrange_last;
-    std::array<FF, multivariate_n> pow_zeta;
     for (size_t i = 0; i < multivariate_n; i++) {
         w_l[i] = FF::random_element();
         w_r[i] = FF::random_element();

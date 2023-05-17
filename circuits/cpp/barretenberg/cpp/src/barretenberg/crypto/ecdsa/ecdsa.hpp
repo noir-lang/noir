@@ -3,6 +3,7 @@
 #include <array>
 #include <string>
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 
 namespace crypto {
 namespace ecdsa {
@@ -15,6 +16,8 @@ struct signature {
     std::array<uint8_t, 32> r;
     std::array<uint8_t, 32> s;
     uint8_t v;
+    // for serialization, update with any new fields
+    MSGPACK_FIELDS(r, s, v);
 };
 
 template <typename Hash, typename Fq, typename Fr, typename G1>

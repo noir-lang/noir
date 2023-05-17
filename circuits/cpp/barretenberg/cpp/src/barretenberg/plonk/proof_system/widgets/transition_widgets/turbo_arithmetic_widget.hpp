@@ -156,7 +156,6 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
         Field T3;
         Field T4;
         Field T5;
-        Field T6;
 
         /**
          * Quad extraction term. This term is only active when q_arith is set to 2.

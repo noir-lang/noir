@@ -123,6 +123,8 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     //     }
     //     return { x, y, Fq::one() };
     // }
+    // for serialization: update with new fields
+    MSGPACK_FIELDS(x, y, z);
 
     static void conditional_negate_affine(const affine_element<Fq, Fr, Params>& in,
                                           affine_element<Fq, Fr, Params>& out,
