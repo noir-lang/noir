@@ -1,12 +1,35 @@
+//! mem2reg implements a pass for promoting values stored in memory to values in registers where
+//! possible. This is particularly important for converting our memory-based representation of
+//! mutable variables into values that are easier to manipulate.
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::ssa_refactor::ir::{
-    basic_block::BasicBlockId,
-    constant::NumericConstantId,
-    dfg::DataFlowGraph,
-    instruction::{BinaryOp, Instruction, InstructionId},
-    value::{Value, ValueId},
+use crate::ssa_refactor::{
+    ir::{
+        basic_block::BasicBlockId,
+        constant::NumericConstantId,
+        dfg::DataFlowGraph,
+        instruction::{BinaryOp, Instruction, InstructionId},
+        value::{Value, ValueId},
+    },
+    ssa_gen::Ssa,
 };
+
+impl Ssa {
+    /// Attempts to remove any load instructions that recover values that already available in
+    /// scope, and attempts to remove store that are subsequently redundant, as long as they are
+    /// not stores on memory that will be passed into a function call.
+    ///
+    /// This pass assumes that the whole program has been inlined into a single block, such that
+    /// we can be sure that store instructions cannot have side effects outside of this block
+    /// (apart from intrinsic function calls).
+    pub(crate) fn mem2reg_final(mut self) -> Ssa {
+        let func = self.main_mut();
+        assert_eq!(func.dfg.basic_blocks_iter().count(), 1);
+        let block_id = func.entry_block();
+        PerBlockContext::new(&mut func.dfg, block_id).eliminate_store_load();
+        self
+    }
+}
 
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
 enum Address {

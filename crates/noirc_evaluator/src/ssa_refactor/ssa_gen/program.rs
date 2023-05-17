@@ -33,6 +33,11 @@ impl Ssa {
     pub(crate) fn main(&self) -> &Function {
         &self.functions[&self.main_id]
     }
+
+    /// Returns the entry-point function of the program as a mutable reference
+    pub(crate) fn main_mut(&mut self) -> &mut Function {
+        self.functions.get_mut(&self.main_id).expect("ICE: Ssa should have a main function")
+    }
 }
 
 impl Display for Ssa {
