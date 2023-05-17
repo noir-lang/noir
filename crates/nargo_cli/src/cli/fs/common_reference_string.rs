@@ -16,10 +16,10 @@ fn common_reference_string_location() -> PathBuf {
     cache_dir.join(BACKEND_IDENTIFIER).join(TRANSCRIPT_NAME)
 }
 
-pub(crate) fn get_common_reference_string<Backend: CommonReferenceString>(
-    backend: &Backend,
+pub(crate) fn get_common_reference_string<B: CommonReferenceString>(
+    backend: &B,
     circuit: &Circuit,
-) -> Result<Vec<u8>, Backend::Error> {
+) -> Result<Vec<u8>, B::Error> {
     use tokio::runtime::Builder;
 
     let crs_path = common_reference_string_location();
