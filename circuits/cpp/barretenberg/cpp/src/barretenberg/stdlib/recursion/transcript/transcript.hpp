@@ -12,10 +12,11 @@
 #include "../../commitment/pedersen/pedersen_plookup.hpp"
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
-#include "../../primitives/bool/bool.hpp"
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/witness/witness.hpp"
+#include "../../primitives/bool/bool.hpp"
 
+#include "../verification_key//verification_key.hpp"
 namespace proof_system::plonk {
 namespace stdlib {
 namespace recursion {
@@ -133,196 +134,140 @@ template <typename Composer> class Transcript {
             ++current_round;
             return;
         }
-        const size_t bytes_per_element = 31;
-
-        // split element into 2 limbs and insert into element_buffer
-        // each entry in element_buffer is 31 bytes
-        const auto split = [&](field_pt& work_element,
-                               std::vector<field_pt>& element_buffer,
-                               const field_pt& element,
-                               size_t& current_byte_counter,
-                               const size_t num_bytes) {
-            uint256_t element_u256(element.get_value());
-            size_t hi_bytes = bytes_per_element - current_byte_counter;
-            if (hi_bytes >= num_bytes) {
-                // hmm
-                size_t new_byte_counter = current_byte_counter + num_bytes;
-                field_pt hi = element;
-                const size_t leftovers = bytes_per_element - new_byte_counter;
-                field_pt buffer_shift =
-                    field_pt(context, barretenberg::fr(uint256_t(1) << ((uint64_t)leftovers * 8ULL)));
-                work_element = work_element + (hi * buffer_shift);
-                work_element = work_element.normalize();
-                current_byte_counter = new_byte_counter;
-                if (current_byte_counter == bytes_per_element) {
-                    current_byte_counter = 0;
-                    element_buffer.push_back(work_element);
-                    work_element = field_pt(context, barretenberg::fr(0));
-                }
-                return;
-            }
-            const size_t lo_bytes = num_bytes - hi_bytes;
-            field_pt lo = witness_t(context, barretenberg::fr(element_u256.slice(0, lo_bytes * 8)));
-            field_pt hi = witness_t(context, barretenberg::fr(element_u256.slice(lo_bytes * 8, 256)));
-            lo.create_range_constraint(lo_bytes * 8);
-            hi.create_range_constraint(hi_bytes * 8);
-            field_pt shift(context, barretenberg::fr(uint256_t(1ULL) << (uint64_t)lo_bytes * 8ULL));
-            field_pt sum = lo + (hi * shift);
-            if (!element.is_constant() || !sum.is_constant()) {
-                sum.assert_equal(element);
-            }
-            current_byte_counter = (current_byte_counter + num_bytes) % bytes_per_element;
-
-            // if current_byte_counter == 0 we've rolled over
-            if (current_byte_counter == 0) {
-                element_buffer.push_back(work_element + hi);
-                element_buffer.push_back(lo);
-                work_element = field_pt(context, 0);
-            } else {
-                work_element = work_element + hi;
-
-                element_buffer.push_back(work_element);
-
-                field_t lo_shift(
-                    context, barretenberg::fr(uint256_t(1ULL) << ((31ULL - (uint64_t)current_byte_counter) * 8ULL)));
-                work_element = (lo * lo_shift);
-                work_element = work_element.normalize();
-            }
-        };
-
-        std::vector<field_pt> compression_buffer;
         field_pt working_element(context);
 
-        size_t byte_counter = 0;
+        // maximum number of bytes we can store in a field element w/o wrapping modulus is 31.
+        // while we could store more *bits*, we want `preimage_buffer` to mirror how data is formatted
+        // when we serialize field/group elements natively (i.e. a byte array)
+        static constexpr size_t NUM_BITS_PER_PREIMAGE_ELEMENT = 31UL * 8UL;
+        PedersenPreimageBuilder<Composer, NUM_BITS_PER_PREIMAGE_ELEMENT> preimage_buffer(context);
         if (current_round > 0) {
-            split(working_element, compression_buffer, field_pt(current_challenge), byte_counter, 32);
+            preimage_buffer.add_element(current_challenge);
         }
         for (auto manifest_element : get_manifest().get_round_manifest(current_round).elements) {
             if (manifest_element.num_bytes == 32 && manifest_element.name != "public_inputs") {
-                split(working_element,
-                      compression_buffer,
-                      get_field_element(manifest_element.name),
-                      byte_counter,
-                      manifest_element.num_bytes);
+                preimage_buffer.add_element(get_field_element(manifest_element.name));
             } else if (manifest_element.num_bytes == 64 && manifest_element.name != "public_inputs") {
                 group_pt point = get_circuit_group_element(manifest_element.name);
 
-                field_pt y_hi =
-                    point.y.binary_basis_limbs[2].element + (point.y.binary_basis_limbs[3].element * fq_pt::shift_1);
-                field_pt y_lo =
-                    point.y.binary_basis_limbs[0].element + (point.y.binary_basis_limbs[1].element * fq_pt::shift_1);
-                field_pt x_hi =
-                    point.x.binary_basis_limbs[2].element + (point.x.binary_basis_limbs[3].element * fq_pt::shift_1);
-                field_pt x_lo =
-                    point.x.binary_basis_limbs[0].element + (point.x.binary_basis_limbs[1].element * fq_pt::shift_1);
-                const size_t lo_bytes = fq_pt::NUM_LIMB_BITS / 4;
-                const size_t hi_bytes = 32 - lo_bytes;
+                // In our buffer, we want to represent each field element as occupying 256 bits of data (to match what
+                // the native transcript does)
+                const auto& x = point.x;
+                const auto& y = point.y;
+                constexpr size_t last_limb_bits = 256 - (fq_pt::NUM_LIMB_BITS * 3);
+                preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[3].element,
+                                                                           last_limb_bits);
+                preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[2].element,
+                                                                           fq_pt::NUM_LIMB_BITS);
+                preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[1].element,
+                                                                           fq_pt::NUM_LIMB_BITS);
+                preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[0].element,
+                                                                           fq_pt::NUM_LIMB_BITS);
+                preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[3].element,
+                                                                           last_limb_bits);
+                preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[2].element,
+                                                                           fq_pt::NUM_LIMB_BITS);
+                preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[1].element,
+                                                                           fq_pt::NUM_LIMB_BITS);
+                preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[0].element,
+                                                                           fq_pt::NUM_LIMB_BITS);
 
-                split(working_element, compression_buffer, y_hi, byte_counter, hi_bytes);
-                split(working_element, compression_buffer, y_lo, byte_counter, lo_bytes);
-                split(working_element, compression_buffer, x_hi, byte_counter, hi_bytes);
-                split(working_element, compression_buffer, x_lo, byte_counter, lo_bytes);
             } else if (manifest_element.name == "public_inputs") {
                 std::vector<field_pt> field_array = get_field_element_vector(manifest_element.name);
                 for (size_t i = 0; i < field_array.size(); ++i) {
-                    split(working_element, compression_buffer, field_array[i], byte_counter, 32);
+                    preimage_buffer.add_element(field_array[i]);
                 }
             } else if (manifest_element.num_bytes < 32 && manifest_element.name != "public_inputs") {
-                split(working_element,
-                      compression_buffer,
-                      get_field_element(manifest_element.name),
-                      byte_counter,
-                      manifest_element.num_bytes);
+                // TODO(zac): init round data is being grabbed out of the manifest and not the vkey
+                preimage_buffer.add_element_with_existing_range_constraint(get_field_element(manifest_element.name),
+                                                                           manifest_element.num_bytes * 8);
             }
         }
-        std::vector<byte_array<Composer>> round_challenges;
-
-        if (byte_counter != 0) {
-            const uint256_t down_shift = uint256_t(1) << uint256_t((bytes_per_element - byte_counter) * 8);
-            working_element = working_element / barretenberg::fr(down_shift);
-            working_element = working_element.normalize();
-
-            compression_buffer.push_back(working_element);
-        }
+        std::vector<field_pt> round_challenges_new;
 
         field_pt T0;
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            T0 = stdlib::pedersen_plookup_commitment<Composer>::compress(compression_buffer);
-        } else {
-            T0 = stdlib::pedersen_commitment<Composer>::compress(compression_buffer);
-        }
-        byte_array<Composer> compressed_buffer(T0);
+        T0 = preimage_buffer.compress(0);
 
-        // TODO(@zac-williamson) make this a Poseidon hash
-        byte_array<Composer> base_hash;
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            std::vector<field_pt> compression_buffer;
-            field_pt working_element(context);
-            size_t byte_counter = 0;
-            split(working_element, compression_buffer, field_pt(compressed_buffer), byte_counter, 32);
-            if (byte_counter != 0) {
-                const uint256_t down_shift = uint256_t(1) << uint256_t((bytes_per_element - byte_counter) * 8);
-                working_element = working_element / barretenberg::fr(down_shift);
-                working_element = working_element.normalize();
-                compression_buffer.push_back(working_element);
+        // helper method to slice a challenge into 128-bit slices
+        const auto slice_into_halves = [&](const field_pt& in, const size_t low_bits = 128) {
+            uint256_t v = in.get_value();
+            uint256_t lo = v.slice(0, low_bits);
+            uint256_t hi = v.slice(low_bits, 256);
+
+            field_pt y_lo = field_pt::from_witness(context, lo);
+            field_pt y_hi = field_pt::from_witness(context, hi);
+
+            y_lo.create_range_constraint(low_bits);
+            y_hi.create_range_constraint(254 - low_bits);
+
+            in.add_two(-y_lo, -y_hi * (uint256_t(1) << low_bits)).assert_equal(0);
+
+            // Validate the sum of our two halves does not exceed the circuit modulus over the integers
+            constexpr uint256_t modulus = fr::modulus;
+            const field_pt r_lo = field_pt(context, modulus.slice(0, low_bits));
+            const field_pt r_hi = field_pt(context, modulus.slice(low_bits, 256));
+
+            bool need_borrow = (uint256_t(y_lo.get_value()) > uint256_t(r_lo.get_value()));
+            field_pt borrow = field_pt::from_witness(context, need_borrow);
+
+            // directly call `create_new_range_constraint` to avoid creating an arithmetic gate
+            if constexpr (Composer::type == ComposerType::PLOOKUP) {
+                context->create_new_range_constraint(borrow.get_witness_index(), 1, "borrow");
+            } else {
+                context->create_range_constraint(borrow.get_witness_index(), 1, "borrow");
             }
-            base_hash = stdlib::pedersen_plookup_commitment<Composer>::compress(compression_buffer);
+
+            // Hi range check = r_hi - y_hi - borrow
+            // Lo range check = r_lo - y_lo + borrow * 2^{126}
+            field_pt res_hi = (r_hi - y_hi) - borrow;
+            field_pt res_lo = (r_lo - y_lo) + (borrow * (uint256_t(1) << low_bits));
+
+            res_hi.create_range_constraint(modulus.get_msb() + 1 - low_bits);
+            res_lo.create_range_constraint(low_bits);
+
+            return std::array<field_pt, 2>{ y_lo, y_hi };
+        };
+
+        field_pt base_hash;
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+            base_hash = stdlib::pedersen_plookup_commitment<Composer>::compress(std::vector<field_pt>{ T0 }, 0);
         } else {
-            base_hash = stdlib::blake3s(compressed_buffer);
+            base_hash = stdlib::pedersen_commitment<Composer>::compress(std::vector<field_pt>{ T0 }, 0);
         }
-        byte_array<Composer> first(field_pt(0), 16);
-        first.write(base_hash.slice(0, 16));
-        round_challenges.push_back(first);
+        auto hash_halves = slice_into_halves(base_hash);
+        round_challenges_new.push_back(hash_halves[1]);
 
         if (num_challenges > 1) {
-            byte_array<Composer> second(field_pt(0), 16);
-            second.write(base_hash.slice(16, 16));
-            round_challenges.push_back(second);
+            round_challenges_new.push_back(hash_halves[0]);
         }
+        base_hash = (slice_into_halves(base_hash, 8)[1] * 256).normalize();
 
-        // This block of code only executes for num_challenges > 2, which (currently) only happens in the nu round when
-        // we need to generate short scalars. In this case, we generate 32-byte challenges and split them in half to get
-        // the relevant challenges.
+        // This block of code only executes for num_challenges > 2, which (currently) only happens in the nu round
+        // when we need to generate short scalars. In this case, we generate 32-byte challenges and split them in
+        // half to get the relevant challenges.
         for (size_t i = 2; i < num_challenges; i += 2) {
-            byte_array<Composer> rolling_buffer = base_hash;
-            byte_array<Composer> hash_output;
+            // TODO(@zac-williamson) make this a Poseidon hash not a Pedersen hash
+            field_pt hash_output;
             if constexpr (Composer::type == ComposerType::PLOOKUP) {
-                // TODO(@zac-williamson) make this a Poseidon hash not a Pedersen hash
-                std::vector<field_pt> compression_buffer;
-                field_pt working_element(context);
-                size_t byte_counter = 0;
-                split(working_element, compression_buffer, field_pt(rolling_buffer), byte_counter, 32);
-                split(working_element, compression_buffer, field_pt(field_pt(i / 2)), byte_counter, 1);
-                if (byte_counter != 0) {
-                    const uint256_t down_shift = uint256_t(1) << uint256_t((bytes_per_element - byte_counter) * 8);
-                    working_element = working_element / barretenberg::fr(down_shift);
-                    working_element = working_element.normalize();
-                    compression_buffer.push_back(working_element);
-                }
-                hash_output = stdlib::pedersen_plookup_commitment<Composer>::compress(compression_buffer);
+                hash_output = stdlib::pedersen_plookup_commitment<Composer>::compress(
+                    std::vector<field_pt>{ (base_hash + field_pt(i / 2)).normalize() }, 0);
             } else {
-                rolling_buffer.write(byte_array<Composer>(field_pt(i / 2), 1));
-                hash_output = stdlib::blake3s(rolling_buffer);
+                hash_output = stdlib::pedersen_commitment<Composer>::compress(
+                    std::vector<field_pt>{ (base_hash + field_pt(i / 2)).normalize() }, 0);
             }
-            byte_array<Composer> hi(field_pt(0), 16);
-            hi.write(hash_output.slice(0, 16));
-            round_challenges.push_back(hi);
-
+            auto hash_halves = slice_into_halves(hash_output);
+            round_challenges_new.push_back(hash_halves[1]);
             if (i + 1 < num_challenges) {
-                byte_array<Composer> lo(field_pt(0), 16);
-                lo.write(hash_output.slice(16, 16));
-                round_challenges.push_back(lo);
+                round_challenges_new.push_back(hash_halves[0]);
             }
         }
-
-        current_challenge = round_challenges[round_challenges.size() - 1];
+        current_challenge = round_challenges_new[round_challenges_new.size() - 1];
         ++current_round;
-
         challenge_keys.push_back(challenge_name);
 
         std::vector<field_pt> challenge_elements;
-        for (const auto& challenge : round_challenges) {
-            challenge_elements.push_back(static_cast<field_pt>(challenge));
+        for (const auto& challenge : round_challenges_new) {
+            challenge_elements.push_back(challenge);
         }
         challenge_values.push_back(challenge_elements);
     }
@@ -420,7 +365,7 @@ template <typename Composer> class Transcript {
 
   private:
     transcript::Transcript transcript_base;
-    byte_array<Composer> current_challenge;
+    field_pt current_challenge;
 
     mutable std::vector<std::string> field_vector_keys;
     mutable std::vector<std::vector<field_pt>> field_vector_values;

@@ -415,7 +415,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_VERIFICATION(composer);
     }
 
-    static void test_double_montgomery_ladder()
+    static void test_multiple_montgomery_ladder()
     {
         Composer composer = Composer();
         size_t num_repetitions = 10;
@@ -423,19 +423,17 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             affine_element acc_small(element::random_element());
             element_ct acc_big = element_ct::from_witness(&composer, acc_small);
 
-            affine_element add_1_small_0(element::random_element());
-            element_ct add_1_big_0 = element_ct::from_witness(&composer, add_1_small_0);
-            affine_element add_2_small_0(element::random_element());
-            element_ct add_2_big_0 = element_ct::from_witness(&composer, add_2_small_0);
-
-            affine_element add_1_small_1(element::random_element());
-            element_ct add_1_big_1 = element_ct::from_witness(&composer, add_1_small_1);
-            affine_element add_2_small_1(element::random_element());
-            element_ct add_2_big_1 = element_ct::from_witness(&composer, add_2_small_1);
-
-            typename element_ct::chain_add_accumulator add_1 = element_ct::chain_add_start(add_1_big_0, add_1_big_1);
-            typename element_ct::chain_add_accumulator add_2 = element_ct::chain_add_start(add_2_big_0, add_2_big_1);
-            acc_big.double_montgomery_ladder(add_1, add_2);
+            std::vector<typename element_ct::chain_add_accumulator> to_add;
+            for (size_t j = 0; j < i; ++j) {
+                affine_element add_1_small_0(element::random_element());
+                element_ct add_1_big_0 = element_ct::from_witness(&composer, add_1_small_0);
+                affine_element add_2_small_0(element::random_element());
+                element_ct add_2_big_0 = element_ct::from_witness(&composer, add_2_small_0);
+                typename element_ct::chain_add_accumulator add_1 =
+                    element_ct::chain_add_start(add_1_big_0, add_2_big_0);
+                to_add.emplace_back(add_1);
+            }
+            acc_big.multiple_montgomery_ladder(to_add);
         }
 
         EXPECT_VERIFICATION(composer);
@@ -890,10 +888,10 @@ HEAVY_TYPED_TEST(stdlib_biggroup, chain_add)
 
     TestFixture::test_chain_add();
 }
-HEAVY_TYPED_TEST(stdlib_biggroup, double_montgomery_ladder)
+HEAVY_TYPED_TEST(stdlib_biggroup, multiple_montgomery_ladder)
 {
 
-    TestFixture::test_double_montgomery_ladder();
+    TestFixture::test_multiple_montgomery_ladder();
 }
 
 HEAVY_TYPED_TEST(stdlib_biggroup, compute_naf)

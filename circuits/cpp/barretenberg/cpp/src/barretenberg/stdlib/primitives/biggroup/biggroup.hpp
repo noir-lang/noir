@@ -50,15 +50,15 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
 
     void validate_on_curve() const
     {
-        Fq xx = x.sqr();
-        Fq rhs = y.sqr();
         Fq b(get_context(), uint256_t(NativeGroup::curve_b));
-        Fq lhs = xx.madd(x, { b });
-        if constexpr (NativeGroup::has_a) {
+        if constexpr (!NativeGroup::has_a) {
+            // we validate y^2 = x^3 + b by setting "fix_remainder_zero = true" when calling mult_madd
+            Fq::mult_madd({ x.sqr(), y }, { x, -y }, { b }, true);
+        } else {
             Fq a(get_context(), uint256_t(NativeGroup::curve_a));
-            lhs = lhs + (a * x);
+            // we validate y^2 = x^3 + ax + b by setting "fix_remainder_zero = true" when calling mult_madd
+            Fq::mult_madd({ x.sqr(), x, y }, { -x, a, y }, { b }, true);
         }
-        lhs.assert_equal(rhs);
     }
 
     static element one(Composer* ctx)
@@ -99,6 +99,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         *this = *this - other;
         return *this;
     }
+    std::array<element, 2> add_sub(const element& other) const;
 
     element operator*(const Fr& other) const;
 
@@ -139,7 +140,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         bool is_element = false;
 
         chain_add_accumulator(){};
-        explicit chain_add_accumulator(element& input)
+        explicit chain_add_accumulator(const element& input)
         {
             x3_prev = input.x;
             y3_prev = input.y;
@@ -161,10 +162,8 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
 
     element montgomery_ladder(const element& other) const;
     element montgomery_ladder(const chain_add_accumulator& accumulator);
-    element double_montgomery_ladder(const element& add1, const element& add2) const;
-    element double_montgomery_ladder(const chain_add_accumulator& add1, const element& add2) const;
-    element double_montgomery_ladder(const chain_add_accumulator& add1, const chain_add_accumulator& add2) const;
-    element double_into_montgomery_ladder(const element& to_add) const;
+    element multiple_montgomery_ladder(const std::vector<chain_add_accumulator>& to_add) const;
+    element quadruple_and_add(const std::vector<element>& to_add) const;
 
     typename NativeGroup::affine_element get_value() const
     {
@@ -256,12 +255,13 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     template <size_t num_elements,
               typename = typename std::enable_if<std::is_same<Composer, plonk::UltraComposer>::value>>
     static std::array<twin_rom_table<Composer>, 5> create_group_element_rom_tables(
-        const std::array<element, num_elements>& elements);
+        const std::array<element, num_elements>& elements, std::array<uint256_t, 8>& limb_max);
 
     template <size_t num_elements,
               typename = typename std::enable_if<std::is_same<Composer, plonk::UltraComposer>::value>>
     static element read_group_element_rom_tables(const std::array<twin_rom_table<Composer>, 5>& tables,
-                                                 const field_t<Composer>& index);
+                                                 const field_t<Composer>& index,
+                                                 const std::array<uint256_t, 8>& limb_max);
 
     static std::pair<element, element> compute_offset_generators(const size_t num_rounds);
 
@@ -277,6 +277,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         element operator[](const size_t idx) const { return element_table[idx]; }
         std::array<element, 16> element_table;
         std::array<twin_rom_table<Composer>, 5> coordinates;
+        std::array<uint256_t, 8> limb_max; // tracks the maximum limb size represented in each element_table entry
     };
 
     template <typename = typename std::enable_if<std::is_same<Composer, plonk::UltraComposer>::value>>
@@ -310,7 +311,6 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             P1.element_table[i] = P1.element_table[i - 1] + d2;
         }
         for (size_t i = 0; i < 8; ++i) {
-            // TODO: DO WE NEED TO REDUCE THESE ELEMENTS????
             P1.element_table[i] = (-P1.element_table[15 - i]);
         }
         for (size_t i = 0; i < 16; ++i) {
@@ -322,8 +322,8 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             endoP1.element_table[i].x = P1.element_table[i].x * beta;
             endoP1.element_table[15 - i].x = endoP1.element_table[i].x;
         }
-        P1.coordinates = create_group_element_rom_tables<16>(P1.element_table);
-        endoP1.coordinates = create_group_element_rom_tables<16>(endoP1.element_table);
+        P1.coordinates = create_group_element_rom_tables<16>(P1.element_table, P1.limb_max);
+        endoP1.coordinates = create_group_element_rom_tables<16>(endoP1.element_table, endoP1.limb_max);
         auto result = std::make_pair<four_bit_table_plookup<>, four_bit_table_plookup<>>(
             (four_bit_table_plookup<>)P1, (four_bit_table_plookup<>)endoP1);
         return result;
@@ -391,6 +391,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
 
         std::array<element, table_size> element_table;
         std::array<twin_rom_table<Composer>, 5> coordinates;
+        std::array<uint256_t, 8> limb_max;
     };
 
     using twin_lookup_table = typename std::
@@ -418,10 +419,10 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
                 endo_table.element_table[i + 8].x = base_table[7 - i].x * beta;
                 endo_table.element_table[i + 8].y = base_table[7 - i].y;
 
-                endo_table.element_table[7 - i] = (-endo_table.element_table[i + 8]).reduce();
+                endo_table.element_table[7 - i] = (-endo_table.element_table[i + 8]);
             }
 
-            endo_table.coordinates = create_group_element_rom_tables<16>(endo_table.element_table);
+            endo_table.coordinates = create_group_element_rom_tables<16>(endo_table.element_table, endo_table.limb_max);
         } else {
             std::array<element, 4> endo_inputs(inputs);
             for (auto& input : endo_inputs) {
@@ -451,10 +452,10 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
                 endo_table.element_table[i + 16].x = base_table[15 - i].x * beta;
                 endo_table.element_table[i + 16].y = base_table[15 - i].y;
 
-                endo_table.element_table[15 - i] = (-endo_table.element_table[i + 16]).reduce();
+                endo_table.element_table[15 - i] = (-endo_table.element_table[i + 16]);
             }
 
-            endo_table.coordinates = create_group_element_rom_tables<32>(endo_table.element_table);
+            endo_table.coordinates = create_group_element_rom_tables<32>(endo_table.element_table, endo_table.limb_max);
         }
         return std::make_pair<lookup_table_plookup<5>, lookup_table_plookup<5>>((lookup_table_plookup<5>)base_table,
                                                                                 (lookup_table_plookup<5>)endo_table);
@@ -472,11 +473,16 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             num_points = points.size();
             num_fives = num_points / 5;
 
+            // size-6 table is expensive and only benefits us if creating them reduces the number of total tables
             if (num_fives * 5 == (num_points - 1)) {
                 num_fives -= 1;
                 num_sixes = 1;
-            } else {
-                num_sixes = 0;
+            } else if (num_fives * 5 == (num_points - 2) && num_fives >= 2) {
+                num_fives -= 2;
+                num_sixes = 2;
+            } else if (num_fives * 5 == (num_points - 3) && num_fives >= 3) {
+                num_fives -= 3;
+                num_sixes = 3;
             }
 
             has_quad = ((num_fives * 5 + num_sixes * 6) < num_points - 3) && (num_points >= 4);
@@ -490,33 +496,40 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             has_singleton = num_points != ((num_fives * 5 + num_sixes * 6) + ((size_t)has_quad * 4) +
                                            ((size_t)has_triple * 3) + ((size_t)has_twin * 2));
 
+            size_t offset = 0;
+            for (size_t i = 0; i < num_sixes; ++i) {
+                six_tables.push_back(lookup_table_plookup<6>({
+                    points[offset + 6 * i],
+                    points[offset + 6 * i + 1],
+                    points[offset + 6 * i + 2],
+                    points[offset + 6 * i + 3],
+                    points[offset + 6 * i + 4],
+                    points[offset + 6 * i + 5],
+                }));
+            }
+            offset += 6 * num_sixes;
             for (size_t i = 0; i < num_fives; ++i) {
-                five_tables.push_back(lookup_table_plookup<5>(
-                    { points[5 * i], points[5 * i + 1], points[5 * i + 2], points[5 * i + 3], points[5 * i + 4] }));
+                five_tables.push_back(lookup_table_plookup<5>({
+                    points[offset + 5 * i],
+                    points[offset + 5 * i + 1],
+                    points[offset + 5 * i + 2],
+                    points[offset + 5 * i + 3],
+                    points[offset + 5 * i + 4],
+                }));
             }
-
-            if (num_sixes == 1) {
-                six_tables.push_back(lookup_table_plookup<6>({ points[5 * num_fives],
-                                                               points[5 * num_fives + 1],
-                                                               points[5 * num_fives + 2],
-                                                               points[5 * num_fives + 3],
-                                                               points[5 * num_fives + 4],
-                                                               points[5 * num_fives + 5] }));
-            }
+            offset += 5 * num_fives;
 
             if (has_quad) {
-                quad_tables.push_back(quad_lookup_table({ points[5 * num_fives],
-                                                          points[5 * num_fives + 1],
-                                                          points[5 * num_fives + 2],
-                                                          points[5 * num_fives + 3] }));
+                quad_tables.push_back(
+                    quad_lookup_table({ points[offset], points[offset + 1], points[offset + 2], points[offset + 3] }));
             }
 
             if (has_triple) {
-                triple_tables.push_back(triple_lookup_table(
-                    { points[5 * num_fives], points[5 * num_fives + 1], points[5 * num_fives + 2] }));
+                triple_tables.push_back(
+                    triple_lookup_table({ points[offset], points[offset + 1], points[offset + 2] }));
             }
             if (has_twin) {
-                twin_tables.push_back(twin_lookup_table({ points[5 * num_fives], points[5 * num_fives + 1] }));
+                twin_tables.push_back(twin_lookup_table({ points[offset], points[offset + 1] }));
             }
 
             if (has_singleton) {
@@ -587,37 +600,36 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         element::chain_add_accumulator get_chain_add_accumulator(std::vector<bool_t<Composer>>& naf_entries) const
         {
             std::vector<element> round_accumulator;
+            for (size_t j = 0; j < num_sixes; ++j) {
+                round_accumulator.push_back(six_tables[j].get({ naf_entries[6 * j],
+                                                                naf_entries[6 * j + 1],
+                                                                naf_entries[6 * j + 2],
+                                                                naf_entries[6 * j + 3],
+                                                                naf_entries[6 * j + 4],
+                                                                naf_entries[6 * j + 5] }));
+            }
+            size_t offset = num_sixes * 6;
             for (size_t j = 0; j < num_fives; ++j) {
-                round_accumulator.push_back(five_tables[j].get({ naf_entries[5 * j],
-                                                                 naf_entries[5 * j + 1],
-                                                                 naf_entries[5 * j + 2],
-                                                                 naf_entries[5 * j + 3],
-                                                                 naf_entries[5 * j + 4] }));
+                round_accumulator.push_back(five_tables[j].get({ naf_entries[offset + j * 5],
+                                                                 naf_entries[offset + j * 5 + 1],
+                                                                 naf_entries[offset + j * 5 + 2],
+                                                                 naf_entries[offset + j * 5 + 3],
+                                                                 naf_entries[offset + j * 5 + 4] }));
             }
-
-            if (num_sixes == 1) {
-                round_accumulator.push_back(six_tables[0].get({ naf_entries[num_fives * 5],
-                                                                naf_entries[num_fives * 5 + 1],
-                                                                naf_entries[num_fives * 5 + 2],
-                                                                naf_entries[num_fives * 5 + 3],
-                                                                naf_entries[num_fives * 5 + 4],
-                                                                naf_entries[num_fives * 5 + 5] }));
-            }
-
+            offset += num_fives * 5;
             if (has_quad) {
-                round_accumulator.push_back(quad_tables[0].get({ naf_entries[num_fives * 5],
-                                                                 naf_entries[num_fives * 5 + 1],
-                                                                 naf_entries[num_fives * 5 + 2],
-                                                                 naf_entries[num_fives * 5 + 3] }));
+                round_accumulator.push_back(quad_tables[0].get({ naf_entries[offset],
+                                                                 naf_entries[offset + 1],
+                                                                 naf_entries[offset + 2],
+                                                                 naf_entries[offset + 3] }));
             }
 
             if (has_triple) {
-                round_accumulator.push_back(triple_tables[0].get(
-                    { naf_entries[num_fives * 5], naf_entries[num_fives * 5 + 1], naf_entries[num_fives * 5 + 2] }));
+                round_accumulator.push_back(
+                    triple_tables[0].get({ naf_entries[offset], naf_entries[offset + 1], naf_entries[offset + 2] }));
             }
             if (has_twin) {
-                round_accumulator.push_back(
-                    twin_tables[0].get({ naf_entries[num_fives * 5], naf_entries[num_fives * 5 + 1] }));
+                round_accumulator.push_back(twin_tables[0].get({ naf_entries[offset], naf_entries[offset + 1] }));
             }
             if (has_singleton) {
                 round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1]));
@@ -640,37 +652,37 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         element get(std::vector<bool_t<Composer>>& naf_entries) const
         {
             std::vector<element> round_accumulator;
+            for (size_t j = 0; j < num_sixes; ++j) {
+                round_accumulator.push_back(six_tables[j].get({ naf_entries[6 * j],
+                                                                naf_entries[6 * j + 1],
+                                                                naf_entries[6 * j + 2],
+                                                                naf_entries[6 * j + 3],
+                                                                naf_entries[6 * j + 4],
+                                                                naf_entries[6 * j + 5] }));
+            }
+            size_t offset = num_sixes * 6;
+
             for (size_t j = 0; j < num_fives; ++j) {
-                round_accumulator.push_back(five_tables[j].get({ naf_entries[5 * j],
-                                                                 naf_entries[5 * j + 1],
-                                                                 naf_entries[5 * j + 2],
-                                                                 naf_entries[5 * j + 3],
-                                                                 naf_entries[5 * j + 4] }));
+                round_accumulator.push_back(five_tables[j].get({ naf_entries[offset + 5 * j],
+                                                                 naf_entries[offset + 5 * j + 1],
+                                                                 naf_entries[offset + 5 * j + 2],
+                                                                 naf_entries[offset + 5 * j + 3],
+                                                                 naf_entries[offset + 5 * j + 4] }));
             }
 
-            if (num_sixes == 1) {
-                round_accumulator.push_back(six_tables[0].get({ naf_entries[num_fives * 5],
-                                                                naf_entries[num_fives * 5 + 1],
-                                                                naf_entries[num_fives * 5 + 2],
-                                                                naf_entries[num_fives * 5 + 3],
-                                                                naf_entries[num_fives * 5 + 4],
-                                                                naf_entries[num_fives * 5 + 5] }));
-            }
+            offset += num_fives * 5;
 
             if (has_quad) {
-                round_accumulator.push_back(quad_tables[0].get(naf_entries[num_fives * 5],
-                                                               naf_entries[num_fives * 5 + 1],
-                                                               naf_entries[num_fives * 5 + 2],
-                                                               naf_entries[num_fives * 5 + 3]));
+                round_accumulator.push_back(quad_tables[0].get(
+                    naf_entries[offset], naf_entries[offset + 1], naf_entries[offset + 2], naf_entries[offset + 3]));
             }
 
             if (has_triple) {
-                round_accumulator.push_back(triple_tables[0].get(
-                    naf_entries[num_fives * 5], naf_entries[num_fives * 5 + 1], naf_entries[num_fives * 5 + 2]));
+                round_accumulator.push_back(
+                    triple_tables[0].get(naf_entries[offset], naf_entries[offset + 1], naf_entries[offset + 2]));
             }
             if (has_twin) {
-                round_accumulator.push_back(
-                    twin_tables[0].get(naf_entries[num_fives * 5], naf_entries[num_fives * 5 + 1]));
+                round_accumulator.push_back(twin_tables[0].get(naf_entries[offset], naf_entries[offset + 1]));
             }
             if (has_singleton) {
                 round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1]));
@@ -862,67 +874,6 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             return element::chain_add_end(accumulator);
         }
 
-        // chain_add_accumulator get_chain_initial_entry() const
-        // {
-        //     std::vector<element> add_accumulator;
-        //     for (size_t i = 0; i < num_quads; ++i) {
-        //         add_accumulator.push_back(quad_tables[i][0]);
-        //     }
-        //     if (has_twin) {
-        //         add_accumulator.push_back(twin_tables[0][0]);
-        //     }
-        //     if (has_triple) {
-        //         add_accumulator.push_back(triple_tables[0][0]);
-        //     }
-        //     if (has_singleton) {
-        //         add_accumulator.push_back(singletons[0]);
-        //     }
-        //     if (add_accumulator.size() >= 2) {
-        //         chain_add_accumulator output = element::chain_add_start(add_accumulator[0], add_accumulator[1]);
-        //         for (size_t i = 2; i < add_accumulator.size(); ++i) {
-        //             output = element::chain_add(add_accumulator[i], output);
-        //         }
-        //         return output;
-        //     }
-        //     return chain_add_accumulator(add_accumulator[0]);
-        // }
-
-        // element::chain_add_accumulator get_chain_add_accumulator(std::vector<bool_t<Composer>>& naf_entries) const
-        // {
-        //     std::vector<element> round_accumulator;
-        //     for (size_t j = 0; j < num_quads; ++j) {
-        //         round_accumulator.push_back(quad_tables[j].get(
-        //             naf_entries[4 * j], naf_entries[4 * j + 1], naf_entries[4 * j + 2], naf_entries[4 * j + 3]));
-        //     }
-
-        //     if (has_triple) {
-        //         round_accumulator.push_back(triple_tables[0].get(
-        //             naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1], naf_entries[num_quads * 4 + 2]));
-        //     }
-        //     if (has_twin) {
-        //         round_accumulator.push_back(
-        //             twin_tables[0].get(naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1]));
-        //     }
-        //     if (has_singleton) {
-        //         round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1]));
-        //     }
-
-        //     element::chain_add_accumulator accumulator;
-        //     if (round_accumulator.size() == 1) {
-        //         accumulator.x3_prev = round_accumulator[0].x;
-        //         accumulator.y3_prev = round_accumulator[0].y;
-        //         accumulator.is_element = true;
-        //         return accumulator;
-        //     } else if (round_accumulator.size() == 2) {
-        //         return element::chain_add_start(round_accumulator[0], round_accumulator[1]);
-        //     } else {
-        //         accumulator = element::chain_add_start(round_accumulator[0], round_accumulator[1]);
-        //         for (size_t j = 2; j < round_accumulator.size(); ++j) {
-        //             accumulator = element::chain_add(round_accumulator[j], accumulator);
-        //         }
-        //     }
-        //     return (accumulator);
-        // }
         std::vector<quad_lookup_table> quad_tables;
         std::vector<triple_lookup_table> triple_tables;
         std::vector<twin_lookup_table> twin_tables;

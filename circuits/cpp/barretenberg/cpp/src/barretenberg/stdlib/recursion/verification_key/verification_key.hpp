@@ -20,9 +20,162 @@
 #include "../../commitment/pedersen/pedersen_plookup.hpp"
 #include "../../primitives/curves/bn254.hpp"
 
+#include "barretenberg/crypto/pedersen_commitment/convert_buffer_to_field.hpp"
+
 namespace proof_system::plonk {
 namespace stdlib {
 namespace recursion {
+
+/**
+ * @brief Constructs a packed buffer of field elements to be fed into a Pedersen compress function
+ *        Goal is to concatenate multiple inputs together into a single field element if the inputs are known to be
+ * small. Produces a vector of field elements where the maximum number of bits per element is `bits_per_element`.
+ *
+ * @details When calling `pedersen::compress` on the final buffer, we can skip the range checks normally performed in
+ * the compress method, because we know the sums of the scalar slices cannot exceed the field modulus. This requires
+ * `bits_per_element < modulus bits`
+ * @tparam Composer
+ * @tparam bits_per_element
+ */
+template <class Composer, size_t bits_per_element = 248> struct PedersenPreimageBuilder {
+    using field_pt = field_t<Composer>;
+    using witness_pt = witness_t<Composer>;
+
+    Composer* context;
+
+    PedersenPreimageBuilder(Composer* ctx = nullptr)
+        : context(ctx){};
+
+    field_pt compress(const size_t hash_index)
+    {
+        // we can only use relaxed range checks in pedersen::compress iff bits_per_element < modulus bits
+        static_assert(bits_per_element < uint256_t(barretenberg::fr::modulus).get_msb());
+
+        if (current_bit_counter != 0) {
+            const uint256_t down_shift = uint256_t(1) << uint256_t((bits_per_element - current_bit_counter));
+            for (auto& x : work_element) {
+                x = x / barretenberg::fr(down_shift);
+            }
+            preimage_data.push_back(field_pt::accumulate(work_element));
+        }
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+            return pedersen_plookup_commitment<Composer>::compress_with_relaxed_range_constraints(preimage_data,
+                                                                                                  hash_index);
+        } else {
+            return pedersen_commitment<Composer>::compress(preimage_data, hash_index);
+        }
+    }
+
+    /**
+     * @brief preimage_data is a bit-array where `bits_per_element` number of bits are packed into a single field
+     * element
+     */
+    std::vector<field_pt> preimage_data;
+
+    /**
+     * @brief work_element represents the leading element to be added into `preimage_data`.
+     *        Vector is composed of field elements that represent bit chunks of a known length,
+     *        such that the sum of the bit chunks < bits_per_element
+     */
+    std::vector<field_pt> work_element;
+
+    size_t current_bit_counter = 0;
+
+    void add_element(const field_pt& element) { slice_element(element, 256); }
+
+    void add_element_with_existing_range_constraint(const field_pt& element, const size_t num_bits)
+    {
+        slice_element(element, num_bits);
+    }
+
+    /**
+     * @brief Populate `preimage_data` with element whose size is known to be `num_bits`.
+     * `preimage_data` is treated as a bit-array where `bits_per_element` number of bits are packed into a single field
+     * element. `slice_element` will:
+     *
+     * 1. determine how many bits are remaining in work_element
+     * 2. if remaining bits > num_bits, slice `element` into 2 chunks hi/lo
+     * 3. fill work_element with `hi` chunk (or the full element if possible)
+     * 4. (if work_element is full) combine work_element chunks into a field element and push onto `preimage_data`
+     * 4. (if required) create a new work_element and populate with `lo`
+     *
+     * @param element
+     * @param num_bits
+     */
+    void slice_element(const field_pt& element, const size_t num_bits)
+    {
+        ASSERT(context != nullptr);
+        uint256_t element_u256(element.get_value());
+        size_t hi_bits = bits_per_element - current_bit_counter;
+        if (hi_bits >= num_bits) {
+            // hmm
+            size_t new_bit_counter = current_bit_counter + num_bits;
+            field_pt hi = element;
+            const size_t leftovers = bits_per_element - new_bit_counter;
+            field_pt buffer_shift = field_pt(context, barretenberg::fr(uint256_t(1) << ((uint64_t)leftovers)));
+            work_element.emplace_back(hi * buffer_shift);
+            current_bit_counter = new_bit_counter;
+            if (current_bit_counter == bits_per_element) {
+                current_bit_counter = 0;
+                preimage_data.push_back(field_pt::accumulate(work_element));
+
+                work_element = std::vector<field_pt>();
+            }
+            return;
+        }
+        const size_t lo_bits = num_bits - hi_bits;
+        field_pt lo = witness_t(context, barretenberg::fr(element_u256.slice(0, lo_bits)));
+        field_pt hi = witness_t(context, barretenberg::fr(element_u256.slice(lo_bits, 256)));
+        lo.create_range_constraint(lo_bits);
+        hi.create_range_constraint(hi_bits);
+        field_pt shift(context, barretenberg::fr(uint256_t(1ULL) << (uint64_t)lo_bits));
+        if (!element.is_constant() || !lo.is_constant() || !hi.is_constant()) {
+            lo.add_two(hi * shift, -element).assert_equal(0);
+        }
+
+        constexpr uint256_t modulus = barretenberg::fr::modulus;
+        constexpr size_t modulus_bits = modulus.get_msb();
+
+        // If our input is a full field element we must validate the sum of our slices is < p
+        if (num_bits >= modulus_bits) {
+            const field_pt r_lo = field_pt(context, modulus.slice(0, lo_bits));
+            const field_pt r_hi = field_pt(context, modulus.slice(lo_bits, num_bits));
+
+            bool need_borrow = (uint256_t(lo.get_value()) > uint256_t(r_lo.get_value()));
+            field_pt borrow = field_pt::from_witness(context, need_borrow);
+
+            // directly call `create_new_range_constraint` to avoid creating an arithmetic gate
+            if constexpr (Composer::type == ComposerType::PLOOKUP) {
+                context->create_new_range_constraint(borrow.get_witness_index(), 1, "borrow");
+            } else {
+                context->create_range_constraint(borrow.get_witness_index(), 1, "borrow");
+            }
+            // Hi range check = r_hi - y_hi - borrow
+            // Lo range check = r_lo - y_lo + borrow * 2^{126}
+            field_t res_hi = (r_hi - hi) - borrow;
+            field_t res_lo = (r_lo - lo) + (borrow * (uint256_t(1) << lo_bits));
+
+            res_hi.create_range_constraint(modulus_bits + 1 - lo_bits);
+            res_lo.create_range_constraint(lo_bits);
+        }
+        current_bit_counter = (current_bit_counter + num_bits) % bits_per_element;
+
+        // if current_bit_counter == 0 we've rolled over
+        if (current_bit_counter == 0) {
+            work_element.emplace_back(hi);
+            preimage_data.push_back(field_pt::accumulate(work_element));
+            preimage_data.push_back(lo);
+            work_element = std::vector<field_pt>();
+        } else {
+            work_element.emplace_back(hi);
+            preimage_data.push_back(field_pt::accumulate(work_element));
+            field_t lo_shift(context,
+                             barretenberg::fr(uint256_t(1ULL) << ((bits_per_element - (uint64_t)current_bit_counter))));
+            work_element = std::vector<field_pt>();
+            work_element.emplace_back(lo * lo_shift);
+        }
+    };
+};
 
 template <typename Composer> struct evaluation_domain {
     static evaluation_domain from_witness(Composer* ctx, const barretenberg::evaluation_domain& input)
@@ -49,44 +202,6 @@ template <typename Composer> struct evaluation_domain {
         domain.generator_inverse = field_t<Composer>(ctx, input.generator_inverse);
         domain.size = domain.domain;
         return domain;
-    }
-
-    field_t<Composer> compress() const
-    {
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            field_t<Composer> out = pedersen_plookup_commitment<Composer>::compress({
-                root,
-                domain,
-                generator,
-            });
-            return out;
-        } else {
-            field_t<Composer> out = pedersen_commitment<Composer>::compress({
-                root,
-                domain,
-                generator,
-            });
-            return out;
-        }
-    }
-
-    static barretenberg::fr compress_native(const barretenberg::evaluation_domain& input)
-    {
-        barretenberg::fr out;
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            out = crypto::pedersen_commitment::lookup::compress_native({
-                input.root,
-                input.domain,
-                input.generator,
-            });
-        } else {
-            out = crypto::pedersen_commitment::compress_native({
-                input.root,
-                input.domain,
-                input.generator,
-            });
-        }
-        return out;
     }
 
     field_t<Composer> root;
@@ -120,9 +235,15 @@ template <typename Curve> struct verification_key {
         key->num_public_inputs = witness_t<Composer>(ctx, input_key->num_public_inputs);
         key->domain = evaluation_domain<Composer>::from_witness(ctx, input_key->domain);
         key->contains_recursive_proof = witness_t<Composer>(ctx, input_key->contains_recursive_proof);
-
         for (const auto& [tag, value] : input_key->commitments) {
-            key->commitments.insert({ tag, Curve::g1_ct::from_witness(ctx, value) });
+            // We do not perform on_curve() circuit checks when constructing the Curve::g1_ct element.
+            // The assumption is that the circuit creator is honest and that the verification key hash (or some other
+            // method) will be used to ensure the provided key matches the key produced by the circuit creator.
+            // If the circuit creator is not honest, the entire set of circuit constraints being proved over cannot be
+            // trusted!
+            const typename Curve::fq_ct x = Curve::fq_ct::from_witness(ctx, value.x);
+            const typename Curve::fq_ct y = Curve::fq_ct::from_witness(ctx, value.y);
+            key->commitments.insert({ tag, typename Curve::g1_ct(x, y) });
         }
 
         return key;
@@ -189,71 +310,65 @@ template <typename Curve> struct verification_key {
   public:
     field_t<Composer> compress(size_t const hash_index = 0)
     {
-        field_t<Composer> compressed_domain = domain.compress();
+        PedersenPreimageBuilder<Composer> preimage_buffer(context);
 
-        std::vector<field_t<Composer>> preimage_data;
-        preimage_data.push_back(Composer::type);
-        preimage_data.push_back(compressed_domain);
-        preimage_data.push_back(num_public_inputs);
+        field_t<Composer> composer_type = witness_t<Composer>::create_constant_witness(context, Composer::type);
+        domain.generator.create_range_constraint(16, "domain.generator");
+        domain.domain.create_range_constraint(32, "domain.generator");
+        num_public_inputs.create_range_constraint(32, "num_public_inputs");
+        preimage_buffer.add_element_with_existing_range_constraint(composer_type, 8);
+        preimage_buffer.add_element_with_existing_range_constraint(domain.generator, 16); // coset generator is small
+        preimage_buffer.add_element_with_existing_range_constraint(domain.domain, 32);
+        preimage_buffer.add_element_with_existing_range_constraint(num_public_inputs, 32);
+        constexpr size_t limb_bits = Curve::fq_ct::NUM_LIMB_BITS;
+        constexpr size_t last_limb_bits = 256 - (limb_bits * 3);
         for (const auto& [tag, selector] : commitments) {
-            preimage_data.push_back(selector.x.binary_basis_limbs[0].element);
-            preimage_data.push_back(selector.x.binary_basis_limbs[1].element);
-            preimage_data.push_back(selector.x.binary_basis_limbs[2].element);
-            preimage_data.push_back(selector.x.binary_basis_limbs[3].element);
-            preimage_data.push_back(selector.y.binary_basis_limbs[0].element);
-            preimage_data.push_back(selector.y.binary_basis_limbs[1].element);
-            preimage_data.push_back(selector.y.binary_basis_limbs[2].element);
-            preimage_data.push_back(selector.y.binary_basis_limbs[3].element);
+            const auto& x = selector.x;
+            const auto& y = selector.y;
+            preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[3].element, last_limb_bits);
+            preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[2].element, limb_bits);
+            preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[1].element, limb_bits);
+            preimage_buffer.add_element_with_existing_range_constraint(y.binary_basis_limbs[0].element, limb_bits);
+            preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[3].element, last_limb_bits);
+            preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[2].element, limb_bits);
+            preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[1].element, limb_bits);
+            preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[0].element, limb_bits);
         }
-
-        field_t<Composer> compressed_key;
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            compressed_key = pedersen_plookup_commitment<Composer>::compress(preimage_data, hash_index);
-        } else {
-            compressed_key = pedersen_commitment<Composer>::compress(preimage_data, hash_index);
-        }
+        preimage_buffer.add_element(domain.root);
+        field_t<Composer> compressed_key = preimage_buffer.compress(hash_index);
         return compressed_key;
     }
 
-    static barretenberg::fr compress_native(const std::shared_ptr<plonk::verification_key>& key,
-                                            const size_t hash_index = 0)
+    static barretenberg::fr compress_native(const std::shared_ptr<plonk::verification_key>& key, const size_t = 0)
     {
-        barretenberg::fr compressed_domain = evaluation_domain<Composer>::compress_native(key->domain);
+        std::vector<uint8_t> preimage_data;
 
-        constexpr size_t num_limb_bits = bn254<plonk::UltraComposer>::fq_ct::NUM_LIMB_BITS;
-        const auto split_bigfield_limbs = [](const uint256_t& element) {
-            std::vector<barretenberg::fr> limbs;
-            limbs.push_back(element.slice(0, num_limb_bits));
-            limbs.push_back(element.slice(num_limb_bits, num_limb_bits * 2));
-            limbs.push_back(element.slice(num_limb_bits * 2, num_limb_bits * 3));
-            limbs.push_back(element.slice(num_limb_bits * 3, num_limb_bits * 4));
-            return limbs;
-        };
+        preimage_data.push_back(static_cast<uint8_t>(Composer::type));
 
-        std::vector<barretenberg::fr> preimage_data;
-        preimage_data.push_back(Composer::type);
-        preimage_data.push_back(compressed_domain);
-        preimage_data.push_back(key->num_public_inputs);
+        const uint256_t domain = key->domain.domain;
+        const uint256_t generator = key->domain.generator;
+        const uint256_t num_public_inputs = key->num_public_inputs;
+
+        ASSERT(domain < (uint256_t(1) << 32));
+        ASSERT(generator < (uint256_t(1) << 16));
+        ASSERT(num_public_inputs < (uint256_t(1) << 32));
+
+        write(preimage_data, static_cast<uint16_t>(uint256_t(key->domain.generator)));
+        write(preimage_data, static_cast<uint32_t>(uint256_t(key->domain.domain)));
+        write(preimage_data, static_cast<uint32_t>(key->num_public_inputs));
         for (const auto& [tag, selector] : key->commitments) {
-            const auto x_limbs = split_bigfield_limbs(selector.x);
-            const auto y_limbs = split_bigfield_limbs(selector.y);
-
-            preimage_data.push_back(x_limbs[0]);
-            preimage_data.push_back(x_limbs[1]);
-            preimage_data.push_back(x_limbs[2]);
-            preimage_data.push_back(x_limbs[3]);
-
-            preimage_data.push_back(y_limbs[0]);
-            preimage_data.push_back(y_limbs[1]);
-            preimage_data.push_back(y_limbs[2]);
-            preimage_data.push_back(y_limbs[3]);
+            write(preimage_data, selector.y);
+            write(preimage_data, selector.x);
         }
+
+        write(preimage_data, key->domain.root);
 
         barretenberg::fr compressed_key;
         if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            compressed_key = crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index);
+            compressed_key =
+                from_buffer<barretenberg::fr>(crypto::pedersen_commitment::lookup::compress_native(preimage_data));
         } else {
-            compressed_key = crypto::pedersen_commitment::compress_native(preimage_data, hash_index);
+            compressed_key = crypto::pedersen_commitment::compress_native(preimage_data);
         }
         return compressed_key;
     }

@@ -125,7 +125,7 @@ template <typename OuterComposer> class RecursiveCircuit {
             throw_or_abort("inner proof result != 1");
         }
 
-        circuit_output.aggregation_state.add_proof_outputs_as_public_inputs();
+        circuit_output.aggregation_state.assign_object_to_proof_outputs();
 
         if (outer_composer.failed()) {
             throw_or_abort("outer composer failed");

@@ -188,7 +188,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
         EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
-        circuit_output.aggregation_state.add_proof_outputs_as_public_inputs();
+        circuit_output.aggregation_state.assign_object_to_proof_outputs();
 
         EXPECT_EQ(outer_composer.failed(), false);
         std::cout << "creating prover" << std::endl;

@@ -22,7 +22,7 @@ template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, 
     return commit_native(converted).x;
 }
 
-grumpkin::fq compress_native(const std::vector<uint8_t>& input);
+grumpkin::fq compress_native(const std::vector<uint8_t>& input, const size_t hash_index = 0);
 
 grumpkin::fq compress_native(const std::vector<std::pair<grumpkin::fq, generators::generator_index_t>>& input_pairs);
 

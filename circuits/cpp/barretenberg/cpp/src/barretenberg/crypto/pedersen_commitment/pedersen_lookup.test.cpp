@@ -157,7 +157,9 @@ TEST(pedersen_lookup, merkle_damgard_compress)
 
     const auto result = crypto::pedersen_commitment::lookup::merkle_damgard_compress(inputs, iv);
 
-    fq intermediate = (grumpkin::g1::affine_one * fr(iv + 1)).x;
+    auto iv_hash = compute_expected((grumpkin::g1::affine_one * fr(iv + 1)).x, 0);
+    auto length = compute_expected(fq(m), (crypto::pedersen_hash::lookup::NUM_PEDERSEN_TABLES / 2));
+    fq intermediate = affine_element(iv_hash + length).x;
     for (size_t i = 0; i < m; i++) {
         intermediate =
             affine_element(compute_expected(intermediate, 0) +
@@ -165,10 +167,7 @@ TEST(pedersen_lookup, merkle_damgard_compress)
                 .x;
     }
 
-    EXPECT_EQ(affine_element(result).x,
-              affine_element(compute_expected(intermediate, 0) +
-                             compute_expected(fq(m), (crypto::pedersen_hash::lookup::NUM_PEDERSEN_TABLES / 2)))
-                  .x);
+    EXPECT_EQ(affine_element(result).x, intermediate);
 }
 
 TEST(pedersen_lookup, merkle_damgard_compress_multiple_iv)
@@ -188,7 +187,11 @@ TEST(pedersen_lookup, merkle_damgard_compress_multiple_iv)
     const auto result = crypto::pedersen_commitment::lookup::merkle_damgard_compress(inputs, ivs);
 
     const size_t initial_iv = 0;
-    fq intermediate = (grumpkin::g1::affine_one * fr(initial_iv + 1)).x;
+    auto iv_hash = compute_expected((grumpkin::g1::affine_one * fr(initial_iv + 1)).x, 0);
+
+    auto length = compute_expected(fq(m), (crypto::pedersen_hash::lookup::NUM_PEDERSEN_TABLES / 2));
+    fq intermediate = affine_element(iv_hash + length).x;
+
     for (size_t i = 0; i < 2 * m; i++) {
         if ((i & 1) == 0) {
             const auto iv = (grumpkin::g1::affine_one * fr(ivs[i >> 1] + 1)).x;
@@ -204,10 +207,7 @@ TEST(pedersen_lookup, merkle_damgard_compress_multiple_iv)
         }
     }
 
-    EXPECT_EQ(affine_element(result).x,
-              affine_element(compute_expected(intermediate, 0) +
-                             compute_expected(fq(m), (crypto::pedersen_hash::lookup::NUM_PEDERSEN_TABLES / 2)))
-                  .x);
+    EXPECT_EQ(affine_element(result).x, intermediate);
 }
 
 TEST(pedersen_lookup, merkle_damgard_tree_compress)

@@ -41,14 +41,11 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::wnaf_batch_mul(const std::vector<el
     for (size_t i = 1; i < num_rounds; ++i) {
         accumulator = accumulator.dbl();
         accumulator = accumulator.dbl();
-
-        element to_add = point_tables[0][wnaf_entries[0][i]];
-        for (size_t j = 1; j < points.size(); ++j) {
-            to_add += point_tables[j][wnaf_entries[j][i]];
+        std::vector<element> to_add;
+        for (size_t j = 0; j < points.size(); ++j) {
+            to_add.emplace_back(point_tables[j][wnaf_entries[j][i]]);
         }
-        // accumulator = accumulator.dbl();
-        // accumulator = accumulator.montgomery_ladder(to_add);
-        accumulator = accumulator.double_into_montgomery_ladder(to_add);
+        accumulator = accumulator.quadruple_and_add(to_add);
     }
 
     for (size_t i = 0; i < points.size(); ++i) {

@@ -37,7 +37,6 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
                                typename Curve::fr_ct& batch_opening_scalar)
 {
     using fr_ct = typename Curve::fr_ct;
-    using g1_ct = typename Curve::g1_ct;
     const auto& polynomial_manifest = key->polynomial_manifest;
     for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
         const auto& item = polynomial_manifest[i];
@@ -45,14 +44,14 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
         const std::string poly_label(item.polynomial_label);
         switch (item.source) {
         case PolynomialSource::WITNESS: {
-            const auto element = transcript.get_group_element(label);
-            ASSERT(element.on_curve());
-            if (element.is_point_at_infinity()) {
+            // get_circuit_group_element validates that the point produced lies on the curve
+            const auto element = transcript.get_circuit_group_element(label);
+            ASSERT(element.get_value().on_curve());
+            if (element.get_value().is_point_at_infinity()) {
                 std::cerr << label << " witness is point at infinity! Error!" << std::endl;
                 ctx->failure("witness " + label + " is point at infinity");
             }
-            // g1_ct::from_witness validates that the point produced lies on the curve
-            kate_g1_elements.insert({ label, g1_ct::from_witness(ctx, element) });
+            kate_g1_elements.insert({ label, element });
             break;
         }
         case PolynomialSource::SELECTOR:
@@ -89,15 +88,15 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
     fr_ct z_power = 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         std::string quotient_label = "T_" + std::to_string(i + 1);
-        const auto element = transcript.get_group_element(quotient_label);
+        const auto element = transcript.get_circuit_group_element(quotient_label);
 
-        kate_g1_elements.insert({ quotient_label, g1_ct::from_witness(ctx, element) });
+        kate_g1_elements.insert({ quotient_label, element });
         kate_fr_elements_at_zeta_large.insert({ quotient_label, quotient_nu * z_power });
         z_power *= key->z_pow_n;
     }
 
-    const auto PI_Z = transcript.get_group_element("PI_Z");
-    const auto PI_Z_OMEGA = transcript.get_group_element("PI_Z_OMEGA");
+    const auto PI_Z = transcript.get_circuit_group_element("PI_Z");
+    const auto PI_Z_OMEGA = transcript.get_circuit_group_element("PI_Z_OMEGA");
 
     fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
@@ -105,10 +104,10 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
         proof_system::plonk::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
     batch_opening_scalar = -batch_evaluation;
 
-    kate_g1_elements.insert({ "PI_Z_OMEGA", g1_ct::from_witness(ctx, PI_Z_OMEGA) });
+    kate_g1_elements.insert({ "PI_Z_OMEGA", PI_Z_OMEGA });
     kate_fr_elements_at_zeta_large.insert({ "PI_Z_OMEGA", zeta * key->domain.root * u });
 
-    kate_g1_elements.insert({ "PI_Z", g1_ct::from_witness(ctx, PI_Z) });
+    kate_g1_elements.insert({ "PI_Z", PI_Z });
     kate_fr_elements_at_zeta.insert({ "PI_Z", zeta });
 }
 
@@ -287,18 +286,6 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_omega) {
         const auto& g1_value = kate_g1_elements[label];
-        // if (fr_value.get_value() == 0 && fr_value.witness_index != IS_CONSTANT   )
-        // {
-        //     std::cerr << "bad scalar zero at " << label << std::endl;
-        // }
-        // if (fr_value.get_value() == 0 && fr_value.witness_index == IS_CONSTANT) {
-        //     std::cerr << "scalar zero at " << label << std::endl;
-        //     continue;
-        // }
-
-        // if (fr_value.get_value() == 0 && fr_value.witness_index == IS_CONSTANT) {
-        //     continue;
-        // }
         double_opening_scalars.emplace_back(fr_value);
         double_opening_elements.emplace_back(g1_value);
     }
@@ -320,8 +307,7 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
         opening_elements.push_back(previous_output.P0);
         opening_scalars.push_back(random_separator);
 
-        rhs_elements.push_back(
-            (-(previous_output.P1)).reduce()); // TODO: use .normalize() instead? (As per defi bridge project)
+        rhs_elements.push_back((-(previous_output.P1)));
         rhs_scalars.push_back(random_separator);
     }
 
@@ -344,6 +330,10 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
                 const fr_ct l1 = public_inputs[idx1];
                 const fr_ct l2 = public_inputs[idx2];
                 const fr_ct l3 = public_inputs[idx3];
+                l0.create_range_constraint(fq_ct::NUM_LIMB_BITS, "l0");
+                l1.create_range_constraint(fq_ct::NUM_LIMB_BITS, "l1");
+                l2.create_range_constraint(fq_ct::NUM_LIMB_BITS, "l2");
+                l3.create_range_constraint(fq_ct::NUM_LAST_LIMB_BITS, "l3");
                 return fq_ct(l0, l1, l2, l3, false);
             };
 
@@ -369,7 +359,7 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
         opening_elements.push_back(g1_ct(x0, y0));
         opening_scalars.push_back(recursion_separator_challenge);
 
-        rhs_elements.push_back((-g1_ct(x1, y1)).normalize());
+        rhs_elements.push_back((-g1_ct(x1, y1)));
         rhs_scalars.push_back(recursion_separator_challenge);
     }
 
@@ -380,13 +370,13 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
     for (const auto& to_add : elements_to_add) {
         opening_result = opening_result + to_add;
     }
-    opening_result = opening_result.normalize();
 
     g1_ct rhs = g1_ct::template wnaf_batch_mul<128>(rhs_elements, rhs_scalars);
-    rhs = rhs + PI_Z;
-    rhs = (-rhs).normalize();
 
-    std::vector<uint32_t> proof_witness_indices{
+    rhs = (-rhs) - PI_Z;
+
+    // TODO(zac: remove this once a3-packages has migrated to calling `assign_object_to_proof_outputs`)
+    std::vector<uint32_t> proof_witness_indices = {
         opening_result.x.binary_basis_limbs[0].element.normalize().witness_index,
         opening_result.x.binary_basis_limbs[1].element.normalize().witness_index,
         opening_result.x.binary_basis_limbs[2].element.normalize().witness_index,
@@ -404,10 +394,10 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
         rhs.y.binary_basis_limbs[2].element.normalize().witness_index,
         rhs.y.binary_basis_limbs[3].element.normalize().witness_index,
     };
-
-    return aggregation_state<Curve>{
-        opening_result, rhs, transcript.get_field_element_vector("public_inputs"), proof_witness_indices, true,
+    auto result = aggregation_state<Curve>{
+        opening_result, rhs, transcript.get_field_element_vector("public_inputs"), proof_witness_indices, true
     };
+    return result;
 }
 
 } // namespace recursion

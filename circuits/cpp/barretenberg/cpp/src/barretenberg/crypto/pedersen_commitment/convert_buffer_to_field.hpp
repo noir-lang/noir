@@ -5,6 +5,16 @@
 namespace crypto {
 namespace pedersen_commitment {
 
+/**
+ * @brief Converts input uint8_t buffers into vector of field elements. Used to hash the Transcript in a SNARK-friendly
+ * manner for recursive circuits.
+ *
+ * `buffer` is an unstructured byte array we want to convert these into field elements
+ * prior to hashing. We do this by splitting buffer into 31-byte chunks.
+ *
+ * @param buffer
+ * @return std::vector<grumpkin::fq>
+ */
 inline std::vector<grumpkin::fq> convert_buffer_to_field(const std::vector<uint8_t>& input)
 {
     const size_t num_bytes = input.size();

@@ -13,9 +13,9 @@ grumpkin::g1::element merkle_damgard_tree_compress(const std::vector<grumpkin::f
 
 grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index = 0);
 grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const std::vector<size_t>& hash_indices);
-std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input);
+std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input, const size_t hash_index = 0);
 
-grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input);
+grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input, const size_t hash_index = 0);
 
 template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, T>& inputs)
 {

@@ -4,10 +4,27 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 using plookup::MultiTableId;
+
+/**
+ * @brief Constructs a ROM table to look up linear combinations of group elements
+ *
+ * @tparam C
+ * @tparam Fq
+ * @tparam Fr
+ * @tparam G
+ * @tparam num_elements
+ * @tparam typename
+ * @param rom_data the ROM table we are writing into
+ * @param limb_max the maximum size of each limb in the ROM table.
+ *
+ * @details When reading a group element *out* of the ROM table, we must know the maximum value of each coordinate's
+ * limbs. We take this value to be the maximum of the maximum values of the input limbs into the table!
+ * @return std::array<twin_rom_table<C>, 5>
+ */
 template <typename C, class Fq, class Fr, class G>
 template <size_t num_elements, typename>
 std::array<twin_rom_table<C>, 5> element<C, Fq, Fr, G>::create_group_element_rom_tables(
-    const std::array<element, num_elements>& rom_data)
+    const std::array<element, num_elements>& rom_data, std::array<uint256_t, 8>& limb_max)
 {
     std::vector<std::array<field_t<C>, 2>> x_lo_limbs;
     std::vector<std::array<field_t<C>, 2>> x_hi_limbs;
@@ -16,6 +33,15 @@ std::array<twin_rom_table<C>, 5> element<C, Fq, Fr, G>::create_group_element_rom
     std::vector<std::array<field_t<C>, 2>> prime_limbs;
 
     for (size_t i = 0; i < num_elements; ++i) {
+        limb_max[0] = std::max(limb_max[0], rom_data[i].x.binary_basis_limbs[0].maximum_value);
+        limb_max[1] = std::max(limb_max[1], rom_data[i].x.binary_basis_limbs[1].maximum_value);
+        limb_max[2] = std::max(limb_max[2], rom_data[i].x.binary_basis_limbs[2].maximum_value);
+        limb_max[3] = std::max(limb_max[3], rom_data[i].x.binary_basis_limbs[3].maximum_value);
+        limb_max[4] = std::max(limb_max[4], rom_data[i].y.binary_basis_limbs[0].maximum_value);
+        limb_max[5] = std::max(limb_max[5], rom_data[i].y.binary_basis_limbs[1].maximum_value);
+        limb_max[6] = std::max(limb_max[6], rom_data[i].y.binary_basis_limbs[2].maximum_value);
+        limb_max[7] = std::max(limb_max[7], rom_data[i].y.binary_basis_limbs[3].maximum_value);
+
         x_lo_limbs.emplace_back(std::array<field_t<C>, 2>{ rom_data[i].x.binary_basis_limbs[0].element,
                                                            rom_data[i].x.binary_basis_limbs[1].element });
         x_hi_limbs.emplace_back(std::array<field_t<C>, 2>{ rom_data[i].x.binary_basis_limbs[2].element,
@@ -39,7 +65,7 @@ std::array<twin_rom_table<C>, 5> element<C, Fq, Fr, G>::create_group_element_rom
 template <typename C, class Fq, class Fr, class G>
 template <size_t, typename>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::read_group_element_rom_tables(
-    const std::array<twin_rom_table<C>, 5>& tables, const field_t<C>& index)
+    const std::array<twin_rom_table<C>, 5>& tables, const field_t<C>& index, const std::array<uint256_t, 8>& limb_max)
 {
     const auto xlo = tables[0][index];
     const auto xhi = tables[1][index];
@@ -49,6 +75,15 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::read_group_element_rom_tables(
 
     Fq x_fq(xlo[0], xlo[1], xhi[0], xhi[1], xyprime[0]);
     Fq y_fq(ylo[0], ylo[1], yhi[0], yhi[1], xyprime[1]);
+    x_fq.binary_basis_limbs[0].maximum_value = limb_max[0];
+    x_fq.binary_basis_limbs[1].maximum_value = limb_max[1];
+    x_fq.binary_basis_limbs[2].maximum_value = limb_max[2];
+    x_fq.binary_basis_limbs[3].maximum_value = limb_max[3];
+    y_fq.binary_basis_limbs[0].maximum_value = limb_max[4];
+    y_fq.binary_basis_limbs[1].maximum_value = limb_max[5];
+    y_fq.binary_basis_limbs[2].maximum_value = limb_max[6];
+    y_fq.binary_basis_limbs[3].maximum_value = limb_max[7];
+
     const auto output = element(x_fq, y_fq);
     return output;
 }
@@ -64,17 +99,17 @@ element<C, Fq, Fr, G>::four_bit_table_plookup<X>::four_bit_table_plookup(const e
         element_table[i] = element_table[i - 1] + d2;
     }
     for (size_t i = 0; i < 8; ++i) {
-        element_table[i] = (-element_table[15 - i]).reduce();
+        element_table[i] = (-element_table[15 - i]);
     }
 
-    coordinates = create_group_element_rom_tables<16>(element_table);
+    coordinates = create_group_element_rom_tables<16>(element_table, limb_max);
 }
 
 template <typename C, class Fq, class Fr, class G>
 template <typename X>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::four_bit_table_plookup<X>::operator[](const field_t<C>& index) const
 {
-    return read_group_element_rom_tables<16>(coordinates, index);
+    return read_group_element_rom_tables<16>(coordinates, index, limb_max);
 }
 
 template <class C, class Fq, class Fr, class G>
@@ -146,109 +181,134 @@ template <size_t length, typename X>
 element<C, Fq, Fr, G>::lookup_table_plookup<length, X>::lookup_table_plookup(const std::array<element, length>& inputs)
 {
     if constexpr (length == 2) {
-        element_table[0] = inputs[1] + inputs[0];
-        element_table[1] = inputs[1] - inputs[0];
+        auto [A0, A1] = inputs[1].add_sub(inputs[0]);
+        element_table[0] = A0;
+        element_table[1] = A1;
     } else if constexpr (length == 3) {
-        element R0 = inputs[1] + inputs[0];
-        element R1 = inputs[1] - inputs[0];
-        element_table[0] = inputs[2] + R0; // C + B + A
-        element_table[1] = inputs[2] + R1; // C + B - A
-        element_table[2] = inputs[2] - R1; // C - B + A
-        element_table[3] = inputs[2] - R0; // C - B - A
+        auto [R0, R1] = inputs[1].add_sub(inputs[0]); // B ± A
+
+        auto [T0, T1] = inputs[2].add_sub(R0); // C ± (B + A)
+        auto [T2, T3] = inputs[2].add_sub(R1); // C ± (B - A)
+
+        element_table[0] = T0;
+        element_table[1] = T2;
+        element_table[2] = T3;
+        element_table[3] = T1;
     } else if constexpr (length == 4) {
-        element T0 = inputs[1] + inputs[0];
-        element T1 = inputs[1] - inputs[0];
-        element T2 = inputs[3] + inputs[2];
-        element T3 = inputs[3] - inputs[2];
+        auto [T0, T1] = inputs[1].add_sub(inputs[0]); // B ± A
+        auto [T2, T3] = inputs[3].add_sub(inputs[2]); // D ± C
 
-        element_table[0] = T2 + T0; // D + C + B + A
-        element_table[1] = T2 + T1; // D + C + B - A
-        element_table[2] = T2 - T1; // D + C - B + A
-        element_table[3] = T2 - T0; // D + C - B - A
-        element_table[4] = T3 + T0; // D - C + B + A
-        element_table[5] = T3 + T1; // D - C + B - A
-        element_table[6] = T3 - T1; // D - C - B + A
-        element_table[7] = T3 - T0; // D - C - B - A
+        auto [F0, F3] = T2.add_sub(T0); // (D + C) ± (B + A)
+        auto [F1, F2] = T2.add_sub(T1); // (D + C) ± (B - A)
+        auto [F4, F7] = T3.add_sub(T0); // (D - C) ± (B + A)
+        auto [F5, F6] = T3.add_sub(T1); // (D - C) ± (B - A)
+
+        element_table[0] = F0;
+        element_table[1] = F1;
+        element_table[2] = F2;
+        element_table[3] = F3;
+        element_table[4] = F4;
+        element_table[5] = F5;
+        element_table[6] = F6;
+        element_table[7] = F7;
     } else if constexpr (length == 5) {
-        element A0 = inputs[1] + inputs[0]; // B + A
-        element A1 = inputs[1] - inputs[0]; // B - A
+        auto [A0, A1] = inputs[1].add_sub(inputs[0]); // B ± A
+        auto [T2, T3] = inputs[3].add_sub(inputs[2]); // D ± C
 
-        element T2 = inputs[3] + inputs[2]; // D + C
-        element T3 = inputs[3] - inputs[2]; // D - C
+        auto [E0, E3] = inputs[4].add_sub(T2); // E ± (D + C)
+        auto [E1, E2] = inputs[4].add_sub(T3); // E ± (D - C)
 
-        element E0 = inputs[4] + T2; // E + D + C // 0 0 0
-        element E1 = inputs[4] + T3; // E + D - C // 0 0 1
-        element E2 = inputs[4] - T3; // E - D + C // 0 1 0
-        element E3 = inputs[4] - T2; // E - D - C // 0 1 1
+        auto [F0, F3] = E0.add_sub(A0);
+        auto [F1, F2] = E0.add_sub(A1);
+        auto [F4, F7] = E1.add_sub(A0);
+        auto [F5, F6] = E1.add_sub(A1);
+        auto [F8, F11] = E2.add_sub(A0);
+        auto [F9, F10] = E2.add_sub(A1);
+        auto [F12, F15] = E3.add_sub(A0);
+        auto [F13, F14] = E3.add_sub(A1);
 
-        element_table[0] = E0 + A0;  // E + D + C + B + A // 0 0 0 0 0
-        element_table[1] = E0 + A1;  // E + D + C + B - A // 0 0 0 0 1
-        element_table[2] = E0 - A1;  // E + D + C - B + A // 0 0 0 1 0
-        element_table[3] = E0 - A0;  // E + D + C - B - A // 0 0 0 1 1
-        element_table[4] = E1 + A0;  // E + D - C + B + A // 0 0 1 0 0
-        element_table[5] = E1 + A1;  // E + D - C + B - A // 0 0 1 0 1
-        element_table[6] = E1 - A1;  // E + D - C - B + A // 0 0 1 1 0
-        element_table[7] = E1 - A0;  // E + D - C - B - A // 0 0 1 1 1
-        element_table[8] = E2 + A0;  // E - D + C + B + A // 0 1 0 0 0
-        element_table[9] = E2 + A1;  // E - D + C + B - A // 0 1 0 0 1
-        element_table[10] = E2 - A1; // E - D + C - B + A // 0 1 0 1 0
-        element_table[11] = E2 - A0; // E - D - C - B - A // 0 1 0 1 1
-        element_table[12] = E3 + A0; // E - D - C + B + A // 0 1 1 0 0
-        element_table[13] = E3 + A1; // E - D - C + B - A // 0 1 1 0 1
-        element_table[14] = E3 - A1; // E - D - C - B + A // 0 1 1 1 0
-        element_table[15] = E3 - A0; // E - D - C - B - A // 0 1 1 1 1
+        element_table[0] = F0;
+        element_table[1] = F1;
+        element_table[2] = F2;
+        element_table[3] = F3;
+        element_table[4] = F4;
+        element_table[5] = F5;
+        element_table[6] = F6;
+        element_table[7] = F7;
+        element_table[8] = F8;
+        element_table[9] = F9;
+        element_table[10] = F10;
+        element_table[11] = F11;
+        element_table[12] = F12;
+        element_table[13] = F13;
+        element_table[14] = F14;
+        element_table[15] = F15;
     } else if constexpr (length == 6) {
         // 44 adds! Only use this if it saves us adding another table to a multi-scalar-multiplication
-        element A0 = inputs[1] + inputs[0]; // B + A
-        element A1 = inputs[1] - inputs[0]; // B - A
-        element E0 = inputs[4] + inputs[3]; // E + D
-        element E1 = inputs[4] - inputs[3]; // E - D
 
-        element C0 = inputs[2] + A0; //  C + B + A
-        element C1 = inputs[2] + A1; //  C + B - A
-        element C2 = inputs[2] - A1; //  C - B + A
-        element C3 = inputs[2] - A0; //  C - B - A
+        auto [A0, A1] = inputs[1].add_sub(inputs[0]);
+        auto [E0, E1] = inputs[4].add_sub(inputs[3]);
+        auto [C0, C3] = inputs[2].add_sub(A0);
+        auto [C1, C2] = inputs[2].add_sub(A1);
 
-        element F0 = inputs[5] + E0; // F + E + D
-        element F1 = inputs[5] + E1; // F + E - D
-        element F2 = inputs[5] - E1; // F - E + D
-        element F3 = inputs[5] - E0; // F - E - E
+        auto [F0, F3] = inputs[5].add_sub(E0);
+        auto [F1, F2] = inputs[5].add_sub(E1);
 
-        element_table[0] = F0 + C0;
-        element_table[1] = F0 + C1;
-        element_table[2] = F0 + C2;
-        element_table[3] = F0 + C3;
-        element_table[4] = F0 - C3;
-        element_table[5] = F0 - C2;
-        element_table[6] = F0 - C1;
-        element_table[7] = F0 - C0;
+        auto [R0, R7] = F0.add_sub(C0);
+        auto [R1, R6] = F0.add_sub(C1);
+        auto [R2, R5] = F0.add_sub(C2);
+        auto [R3, R4] = F0.add_sub(C3);
 
-        element_table[8] = F1 + C0;
-        element_table[9] = F1 + C1;
-        element_table[10] = F1 + C2;
-        element_table[11] = F1 + C3;
-        element_table[12] = F1 - C3;
-        element_table[13] = F1 - C2;
-        element_table[14] = F1 - C1;
-        element_table[15] = F1 - C0;
+        auto [S0, S7] = F1.add_sub(C0);
+        auto [S1, S6] = F1.add_sub(C1);
+        auto [S2, S5] = F1.add_sub(C2);
+        auto [S3, S4] = F1.add_sub(C3);
 
-        element_table[16] = F2 + C0;
-        element_table[17] = F2 + C1;
-        element_table[18] = F2 + C2;
-        element_table[19] = F2 + C3;
-        element_table[20] = F2 - C3;
-        element_table[21] = F2 - C2;
-        element_table[22] = F2 - C1;
-        element_table[23] = F2 - C0;
+        auto [U0, U7] = F2.add_sub(C0);
+        auto [U1, U6] = F2.add_sub(C1);
+        auto [U2, U5] = F2.add_sub(C2);
+        auto [U3, U4] = F2.add_sub(C3);
 
-        element_table[24] = F3 + C0;
-        element_table[25] = F3 + C1;
-        element_table[26] = F3 + C2;
-        element_table[27] = F3 + C3;
-        element_table[28] = F3 - C3;
-        element_table[29] = F3 - C2;
-        element_table[30] = F3 - C1;
-        element_table[31] = F3 - C0;
+        auto [W0, W7] = F3.add_sub(C0);
+        auto [W1, W6] = F3.add_sub(C1);
+        auto [W2, W5] = F3.add_sub(C2);
+        auto [W3, W4] = F3.add_sub(C3);
+
+        element_table[0] = R0;
+        element_table[1] = R1;
+        element_table[2] = R2;
+        element_table[3] = R3;
+        element_table[4] = R4;
+        element_table[5] = R5;
+        element_table[6] = R6;
+        element_table[7] = R7;
+
+        element_table[8] = S0;
+        element_table[9] = S1;
+        element_table[10] = S2;
+        element_table[11] = S3;
+        element_table[12] = S4;
+        element_table[13] = S5;
+        element_table[14] = S6;
+        element_table[15] = S7;
+
+        element_table[16] = U0;
+        element_table[17] = U1;
+        element_table[18] = U2;
+        element_table[19] = U3;
+        element_table[20] = U4;
+        element_table[21] = U5;
+        element_table[22] = U6;
+        element_table[23] = U7;
+
+        element_table[24] = W0;
+        element_table[25] = W1;
+        element_table[26] = W2;
+        element_table[27] = W3;
+        element_table[28] = W4;
+        element_table[29] = W5;
+        element_table[30] = W6;
+        element_table[31] = W7;
     } else if constexpr (length == 7) {
         // 82 adds! This one is not worth using...
 
@@ -341,9 +401,9 @@ element<C, Fq, Fr, G>::lookup_table_plookup<length, X>::lookup_table_plookup(con
         element_table[63] = G3 - E0;
     }
     for (size_t i = 0; i < table_size / 2; ++i) {
-        element_table[i + table_size / 2] = (-element_table[table_size / 2 - 1 - i]).reduce();
+        element_table[i + table_size / 2] = (-element_table[table_size / 2 - 1 - i]);
     }
-    coordinates = create_group_element_rom_tables<table_size>(element_table);
+    coordinates = create_group_element_rom_tables<table_size>(element_table, limb_max);
 }
 
 template <typename C, class Fq, class Fr, class G>
@@ -356,7 +416,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::lookup_table_plookup<length, X>::ge
         accumulators.emplace_back(field_t<C>(bits[i]) * (1ULL << i));
     }
     field_t<C> index = field_t<C>::accumulate(accumulators);
-    return read_group_element_rom_tables<table_size>(coordinates, index);
+    return read_group_element_rom_tables<table_size>(coordinates, index, limb_max);
 }
 
 /**

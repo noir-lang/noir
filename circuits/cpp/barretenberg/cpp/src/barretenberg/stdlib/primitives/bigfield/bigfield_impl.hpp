@@ -593,18 +593,19 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
     result.binary_basis_limbs[3].element = binary_basis_limbs[3].element + barretenberg::fr(to_add_3);
 
     if constexpr (C::type == ComposerType::PLOOKUP) {
-        if (result.prime_basis_limb.multiplicative_constant == 1 &&
-            other.prime_basis_limb.multiplicative_constant == 1 && !result.is_constant() && !other.is_constant()) {
+        if (prime_basis_limb.multiplicative_constant == 1 && other.prime_basis_limb.multiplicative_constant == 1 &&
+            !is_constant() && !other.is_constant()) {
             bool limbconst = result.binary_basis_limbs[0].element.is_constant();
             limbconst = limbconst || result.binary_basis_limbs[1].element.is_constant();
             limbconst = limbconst || result.binary_basis_limbs[2].element.is_constant();
             limbconst = limbconst || result.binary_basis_limbs[3].element.is_constant();
-            limbconst = limbconst || result.prime_basis_limb.is_constant();
+            limbconst = limbconst || prime_basis_limb.is_constant();
             limbconst = limbconst || other.binary_basis_limbs[0].element.is_constant();
             limbconst = limbconst || other.binary_basis_limbs[1].element.is_constant();
             limbconst = limbconst || other.binary_basis_limbs[2].element.is_constant();
             limbconst = limbconst || other.binary_basis_limbs[3].element.is_constant();
             limbconst = limbconst || other.prime_basis_limb.is_constant();
+            limbconst = limbconst || (prime_basis_limb.witness_index == other.prime_basis_limb.witness_index);
             if (!limbconst) {
                 std::pair<uint32_t, barretenberg::fr> x0{ result.binary_basis_limbs[0].element.witness_index,
                                                           binary_basis_limbs[0].element.multiplicative_constant };
@@ -631,10 +632,11 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
                 barretenberg::fr c3(result.binary_basis_limbs[3].element.additive_constant -
                                     other.binary_basis_limbs[3].element.additive_constant);
 
-                uint32_t xp(result.prime_basis_limb.witness_index);
+                uint32_t xp(prime_basis_limb.witness_index);
                 uint32_t yp(other.prime_basis_limb.witness_index);
-                barretenberg::fr cp(result.prime_basis_limb.additive_constant -
-                                    other.prime_basis_limb.additive_constant);
+                barretenberg::fr cp(prime_basis_limb.additive_constant - other.prime_basis_limb.additive_constant);
+                uint512_t constant_to_add_mod_p = (constant_to_add) % prime_basis.modulus;
+                cp += barretenberg::fr(constant_to_add_mod_p.lo);
 
                 const auto output_witnesses = ctx->evaluate_non_native_field_subtraction(
                     { x0, y0, c0 }, { x1, y1, c1 }, { x2, y2, c2 }, { x3, y3, c3 }, { xp, yp, cp });
@@ -1982,7 +1984,7 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
             modulus,
         };
         // N.B. this method also evaluates the prime field component of the non-native field mul
-        const auto [lo_idx, hi_idx] = ctx->queue_non_native_field_multiplication(witnesses, false);
+        const auto [lo_idx, hi_idx] = ctx->evaluate_non_native_field_multiplication(witnesses, false);
 
         barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
         field_t<C>::evaluate_polynomial_identity(left.prime_basis_limb,
@@ -2267,7 +2269,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
         // we set `neg_modulus = [2^{136}, 0, 0, 0]` and `q = [lo_1, 0, hi_1, 0]`, then we will add `lo_1` into
         // `lo`, and `lo_1/2^{136} + hi_1` into `hi`. we can then subtract off `lo_1/2^{136}` from `hi`, by setting
         // `r = [0, 0, lo_1, 0]` This saves us 2 addition gates as we don't have to add together the outputs of two
-        // calls to `queue_non_native_field_multiplication`
+        // calls to `evaluate_non_native_field_multiplication`
         std::vector<field_t<C>> limb_0_accumulator;
         std::vector<field_t<C>> limb_2_accumulator;
         std::vector<field_t<C>> prime_limb_accumulator;
@@ -2320,7 +2322,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
                     modulus,
                 };
 
-                const auto [lo_2_idx, hi_2_idx] = ctx->evaluate_partial_non_native_field_multiplication(mul_witnesses);
+                const auto [lo_2_idx, hi_2_idx] = ctx->queue_partial_non_native_field_multiplication(mul_witnesses);
 
                 field_t<C> lo_2 = field_t<C>::from_witness_index(ctx, lo_2_idx);
                 field_t<C> hi_2 = field_t<C>::from_witness_index(ctx, hi_2_idx);
@@ -2416,7 +2418,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
             modulus,
         };
 
-        const auto [lo_1_idx, hi_1_idx] = ctx->queue_non_native_field_multiplication(witnesses, false);
+        const auto [lo_1_idx, hi_1_idx] = ctx->evaluate_non_native_field_multiplication(witnesses, false);
 
         barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
 

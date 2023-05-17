@@ -105,16 +105,16 @@ grumpkin::fq compress_native(const std::vector<std::pair<grumpkin::fq, generator
 /**
  * Given an arbitrary length of bytes, convert them to fields and compress the result using the default generators.
  */
-grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input)
+grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input, const size_t hash_index)
 {
     const auto elements = convert_buffer_to_field(input);
-    grumpkin::fq result_fq = compress_native(elements);
+    grumpkin::fq result_fq = compress_native(elements, hash_index);
     return result_fq;
 }
 
-grumpkin::fq compress_native(const std::vector<uint8_t>& input)
+grumpkin::fq compress_native(const std::vector<uint8_t>& input, const size_t hash_index)
 {
-    return compress_native_buffer_to_field(input);
+    return compress_native_buffer_to_field(input, hash_index);
 }
 
 } // namespace pedersen_commitment

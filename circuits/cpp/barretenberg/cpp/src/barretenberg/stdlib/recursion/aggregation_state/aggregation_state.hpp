@@ -28,9 +28,45 @@ template <typename Curve> struct aggregation_state {
         //    has_data == other.has_data; can't compare as native
     };
 
+    /**
+     * @brief TODO(@dbanks12 please migrate A3 circuits to using `assign_object_to_proof_outputs`. Much safer to not
+     * independently track `proof_witness_indices` and whether object has been assigned to public inputs)
+     *
+     */
     void add_proof_outputs_as_public_inputs()
     {
-        ASSERT(proof_witness_indices.size() > 0);
+        auto* context = P0.get_context();
+        context->add_recursive_proof(proof_witness_indices);
+    }
+
+    void assign_object_to_proof_outputs()
+    {
+        if (proof_witness_indices.size() == 0) {
+            std::cerr << "warning. calling `add_proof_outputs_as_public_inputs`, but aggregation object already has "
+                         "assigned proof outputs to public inputs.";
+            return;
+        }
+
+        P0 = P0.reduce();
+        P1 = P1.reduce();
+        proof_witness_indices = {
+            P0.x.binary_basis_limbs[0].element.normalize().witness_index,
+            P0.x.binary_basis_limbs[1].element.normalize().witness_index,
+            P0.x.binary_basis_limbs[2].element.normalize().witness_index,
+            P0.x.binary_basis_limbs[3].element.normalize().witness_index,
+            P0.y.binary_basis_limbs[0].element.normalize().witness_index,
+            P0.y.binary_basis_limbs[1].element.normalize().witness_index,
+            P0.y.binary_basis_limbs[2].element.normalize().witness_index,
+            P0.y.binary_basis_limbs[3].element.normalize().witness_index,
+            P1.x.binary_basis_limbs[0].element.normalize().witness_index,
+            P1.x.binary_basis_limbs[1].element.normalize().witness_index,
+            P1.x.binary_basis_limbs[2].element.normalize().witness_index,
+            P1.x.binary_basis_limbs[3].element.normalize().witness_index,
+            P1.y.binary_basis_limbs[0].element.normalize().witness_index,
+            P1.y.binary_basis_limbs[1].element.normalize().witness_index,
+            P1.y.binary_basis_limbs[2].element.normalize().witness_index,
+            P1.y.binary_basis_limbs[3].element.normalize().witness_index,
+        };
 
         auto* context = P0.get_context();
 

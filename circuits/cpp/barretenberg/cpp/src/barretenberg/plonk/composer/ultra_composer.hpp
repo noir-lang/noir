@@ -29,6 +29,11 @@ class UltraComposer : public ComposerBase {
     // large ranges such as 2^64. For such ranges the element will be decomposed into smaller
     // chuncks according to the parameter below
     static constexpr size_t DEFAULT_PLOOKUP_RANGE_BITNUM = 14;
+    // (DEFAULT_PLOOKUP_RANGE_BITNUM - DEFAULT_PLOOKUP_RANGE_CUTOFF_SIZE) = maximum size of range table that
+    // `decompose_into_default_range` will create in addition to the DEFAULT_PLOOKUP_RANGE_BITNUM table e.g. we don't
+    // want to create a range table of size (DEFAULT_PLOOKUP_RANGE_BITNUM - 1) if it contains very few entries; each
+    // table has a O(1 << bitnum) constraint cost to create
+    static constexpr size_t DEFAULT_PLOOKUP_RANGE_CUTOFF_BITNUM = 4;
     static constexpr size_t DEFAULT_PLOOKUP_RANGE_STEP_SIZE = 3;
     static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1 << DEFAULT_PLOOKUP_RANGE_BITNUM) - 1;
     static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS = 68;
@@ -36,7 +41,7 @@ class UltraComposer : public ComposerBase {
     static constexpr size_t NUMBER_OF_GATES_PER_RAM_ACCESS = 2;
     static constexpr size_t NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY = 1;
     // number of gates created per non-native field operation in process_non_native_field_multiplications
-    static constexpr size_t GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 7;
+    static constexpr size_t GATES_PER_PARTIAL_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 4;
     struct non_native_field_witnesses {
         // first 4 array elements = limbs
         // 5th element = prime basis limb
@@ -58,30 +63,27 @@ class UltraComposer : public ComposerBase {
     };
 
     /**
-     * @brief Used to store instructions to create non_native_field_multiplication gates.
+     * @brief Used to store instructions to create partial_non_native_field_multiplication gates.
      *        We want to cache these (and remove duplicates) as the stdlib code can end up multiplying the same inputs
      * repeatedly.
      */
-    struct cached_non_native_field_multiplication {
+    struct cached_partial_non_native_field_multiplication {
         std::array<uint32_t, 5> a;
         std::array<uint32_t, 5> b;
-        std::array<uint32_t, 5> q;
-        std::array<uint32_t, 5> r;
-        non_native_field_multiplication_cross_terms cross_terms;
-        std::array<barretenberg::fr, 5> neg_modulus;
+        barretenberg::fr lo_0;
+        barretenberg::fr hi_0;
+        barretenberg::fr hi_1;
 
-        bool operator==(const cached_non_native_field_multiplication& other) const
+        bool operator==(const cached_partial_non_native_field_multiplication& other) const
         {
             bool valid = true;
             for (size_t i = 0; i < 5; ++i) {
                 valid = valid && (a[i] == other.a[i]);
                 valid = valid && (b[i] == other.b[i]);
-                valid = valid && (q[i] == other.q[i]);
-                valid = valid && (r[i] == other.r[i]);
             }
             return valid;
         }
-        bool operator<(const cached_non_native_field_multiplication& other) const
+        bool operator<(const cached_partial_non_native_field_multiplication& other) const
         {
             if (a < other.a) {
                 return true;
@@ -90,22 +92,13 @@ class UltraComposer : public ComposerBase {
                 if (b < other.b) {
                     return true;
                 }
-                if (b == other.b) {
-                    if (q < other.q) {
-                        return true;
-                    }
-                    if (q == other.q) {
-                        if (r < other.r) {
-                            return true;
-                        }
-                    }
-                }
             }
             return false;
         }
     };
 
-    std::vector<cached_non_native_field_multiplication> cached_non_native_field_multiplications;
+    std::vector<cached_partial_non_native_field_multiplication> cached_partial_non_native_field_multiplications;
+
     void process_non_native_field_multiplications();
 
     enum AUX_SELECTORS {
@@ -392,13 +385,23 @@ class UltraComposer : public ComposerBase {
                 rangecount += ram_range_sizes[i];
             }
         }
-        std::vector<cached_non_native_field_multiplication> nnf_copy(cached_non_native_field_multiplications);
-        // update nnfcount
-        std::sort(nnf_copy.begin(), nnf_copy.end());
 
-        auto last = std::unique(nnf_copy.begin(), nnf_copy.end());
-        const size_t num_nnf_ops = static_cast<size_t>(std::distance(nnf_copy.begin(), last));
-        nnfcount = num_nnf_ops * GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC;
+        std::vector<cached_partial_non_native_field_multiplication> pnnf_copy(
+            cached_partial_non_native_field_multiplications);
+        for (size_t i = 0; i < pnnf_copy.size(); ++i) {
+            auto& c = pnnf_copy[i];
+            for (size_t j = 0; j < 5; ++j) {
+                c.a[j] = real_variable_index[c.a[j]];
+                c.b[j] = real_variable_index[c.b[j]];
+            }
+        }
+        // update nnfcount
+        std::sort(pnnf_copy.begin(), pnnf_copy.end());
+        auto plast = std::unique(pnnf_copy.begin(), pnnf_copy.end());
+
+        nnfcount = static_cast<size_t>(std::distance(pnnf_copy.begin(), plast)) *
+                   GATES_PER_PARTIAL_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC;
+        ;
     }
 
     /**
@@ -545,9 +548,9 @@ class UltraComposer : public ComposerBase {
                                    const size_t hi_limb_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
         const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
-    std::array<uint32_t, 2> queue_non_native_field_multiplication(
+    std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
         const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true);
-    std::array<uint32_t, 2> evaluate_partial_non_native_field_multiplication(const non_native_field_witnesses& input);
+    std::array<uint32_t, 2> queue_partial_non_native_field_multiplication(const non_native_field_witnesses& input);
     typedef std::pair<uint32_t, barretenberg::fr> scaled_witness;
     typedef std::tuple<scaled_witness, scaled_witness, barretenberg::fr> add_simple;
     std::array<uint32_t, 5> evaluate_non_native_field_subtraction(

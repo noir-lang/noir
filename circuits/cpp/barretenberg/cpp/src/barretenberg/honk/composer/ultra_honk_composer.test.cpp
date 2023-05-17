@@ -649,6 +649,7 @@ TEST(UltraHonkComposer, non_native_field_multiplication)
 
     fq a = fq::random_element();
     fq b = fq::random_element();
+
     uint256_t modulus = fq::modulus;
 
     uint1024_t a_big = uint512_t(uint256_t(a));
@@ -692,7 +693,7 @@ TEST(UltraHonkComposer, non_native_field_multiplication)
     proof_system::UltraCircuitConstructor::non_native_field_witnesses inputs{
         a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
     };
-    const auto [lo_1_idx, hi_1_idx] = composer.queue_non_native_field_multiplication(inputs);
+    const auto [lo_1_idx, hi_1_idx] = composer.evaluate_non_native_field_multiplication(inputs);
     composer.range_constrain_two_limbs(lo_1_idx, hi_1_idx, 70, 70);
 
     prove_and_verify(composer, /*expected_result=*/true);

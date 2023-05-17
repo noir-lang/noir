@@ -167,6 +167,42 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
         }
     };
 
+    /**
+     * @brief Used to store instructions to create partial_non_native_field_multiplication gates.
+     *        We want to cache these (and remove duplicates) as the stdlib code can end up multiplying the same inputs
+     * repeatedly.
+     */
+    struct cached_partial_non_native_field_multiplication {
+        std::array<uint32_t, 5> a;
+        std::array<uint32_t, 5> b;
+        barretenberg::fr lo_0;
+        barretenberg::fr hi_0;
+        barretenberg::fr hi_1;
+
+        bool operator==(const cached_partial_non_native_field_multiplication& other) const
+        {
+            bool valid = true;
+            for (size_t i = 0; i < 5; ++i) {
+                valid = valid && (a[i] == other.a[i]);
+                valid = valid && (b[i] == other.b[i]);
+            }
+            return valid;
+        }
+
+        bool operator<(const cached_partial_non_native_field_multiplication& other) const
+        {
+            if (a < other.a) {
+                return true;
+            }
+            if (a == other.a) {
+                if (b < other.b) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    };
+
     inline std::vector<std::string> ultra_selector_names()
     {
         std::vector<std::string> result{ "q_m",     "q_c",    "q_1",        "q_2",   "q_3",       "q_4",
@@ -181,60 +217,14 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
         uint32_t hi_2_idx;
         uint32_t hi_3_idx;
     };
-    /**
-     * @brief Used to store instructions to create non_native_field_multiplication gates.
-     *        We want to cache these (and remove duplicates) as the stdlib code can end up multiplying the same inputs
-     * repeatedly.
-     */
-    struct cached_non_native_field_multiplication {
-        std::array<uint32_t, 5> a;
-        std::array<uint32_t, 5> b;
-        std::array<uint32_t, 5> q;
-        std::array<uint32_t, 5> r;
-        non_native_field_multiplication_cross_terms cross_terms;
-        std::array<barretenberg::fr, 5> neg_modulus;
 
-        bool operator==(const cached_non_native_field_multiplication& other) const
-        {
-            bool valid = true;
-            for (size_t i = 0; i < 5; ++i) {
-                valid = valid && (a[i] == other.a[i]);
-                valid = valid && (b[i] == other.b[i]);
-                valid = valid && (q[i] == other.q[i]);
-                valid = valid && (r[i] == other.r[i]);
-            }
-            return valid;
-        }
-        bool operator<(const cached_non_native_field_multiplication& other) const
-        {
-            if (a < other.a) {
-                return true;
-            }
-            if (a == other.a) {
-                if (b < other.b) {
-                    return true;
-                }
-                if (b == other.b) {
-                    if (q < other.q) {
-                        return true;
-                    }
-                    if (q == other.q) {
-                        if (r < other.r) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-    };
     /**
-     * @brief CircuitDataBackup is a structure we use to store all the information about the circuit that is needed to
-     * restore it back to a pre-finalized state
-     * @details In check_circuit method in UltraCircuitConstructor we want to check that the whole circuit works, but
-     * ultra circuits need to have ram, rom and range gates added in the end for the check to be complete as well as the
-     * set permutation check, so we finalize the circuit when we check it. This structure allows us to restore the
-     * circuit to the state before the finalization.
+     * @brief CircuitDataBackup is a structure we use to store all the information about the circuit that is needed
+     * to restore it back to a pre-finalized state
+     * @details In check_circuit method in UltraCircuitConstructor we want to check that the whole circuit works,
+     * but ultra circuits need to have ram, rom and range gates added in the end for the check to be complete as
+     * well as the set permutation check, so we finalize the circuit when we check it. This structure allows us to
+     * restore the circuit to the state before the finalization.
      */
     struct CircuitDataBackup {
         std::vector<uint32_t> public_inputs;
@@ -272,8 +262,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
         std::vector<uint32_t> memory_write_records;
         std::map<uint64_t, RangeList> range_lists;
 
-        std::vector<UltraCircuitConstructor::cached_non_native_field_multiplication>
-            cached_non_native_field_multiplications;
+        std::vector<UltraCircuitConstructor::cached_partial_non_native_field_multiplication>
+            cached_partial_non_native_field_multiplications;
 
         size_t num_gates;
         bool circuit_finalised = false;
@@ -326,14 +316,14 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
             stored_state.range_lists = circuit_constructor.range_lists;
             stored_state.circuit_finalised = circuit_constructor.circuit_finalised;
             stored_state.num_gates = circuit_constructor.num_gates;
-            stored_state.cached_non_native_field_multiplications =
-                circuit_constructor.cached_non_native_field_multiplications;
+            stored_state.cached_partial_non_native_field_multiplications =
+                circuit_constructor.cached_partial_non_native_field_multiplications;
             return stored_state;
         }
 
         /**
-         * @brief Stores the state of all members of the circuit constructor that are needed to restore the state after
-         * finalizing the circuit.
+         * @brief Stores the state of all members of the circuit constructor that are needed to restore the state
+         * after finalizing the circuit.
          *
          * @param circuit_constructor
          * @return CircuitDataBackup
@@ -363,8 +353,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
             stored_state.range_lists = circuit_constructor->range_lists;
             stored_state.circuit_finalised = circuit_constructor->circuit_finalised;
             stored_state.num_gates = circuit_constructor->num_gates;
-            stored_state.cached_non_native_field_multiplications =
-                circuit_constructor->cached_non_native_field_multiplications;
+            stored_state.cached_partial_non_native_field_multiplications =
+                circuit_constructor->cached_partial_non_native_field_multiplications;
 
             return stored_state;
         }
@@ -398,7 +388,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
             circuit_constructor->range_lists = range_lists;
             circuit_constructor->circuit_finalised = circuit_finalised;
             circuit_constructor->num_gates = num_gates;
-            circuit_constructor->cached_non_native_field_multiplications = cached_non_native_field_multiplications;
+            circuit_constructor->cached_partial_non_native_field_multiplications =
+                cached_partial_non_native_field_multiplications;
             circuit_constructor->w_l.resize(num_gates);
             circuit_constructor->w_r.resize(num_gates);
             circuit_constructor->w_o.resize(num_gates);
@@ -511,8 +502,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
             if (!(range_lists == circuit_constructor.range_lists)) {
                 return false;
             }
-            if (!(cached_non_native_field_multiplications ==
-                  circuit_constructor.cached_non_native_field_multiplications)) {
+            if (!(cached_partial_non_native_field_multiplications ==
+                  circuit_constructor.cached_partial_non_native_field_multiplications)) {
                 return false;
             }
             if (!(num_gates == circuit_constructor.num_gates)) {
@@ -555,7 +546,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
      * @brief Each entry in ram_arrays represents an independent RAM table.
      * RamTranscript tracks the current table state,
      * as well as the 'records' produced by each read and write operation.
-     * Used in `compute_proving_key` to generate consistency check gates required to validate the RAM read/write history
+     * Used in `compute_proving_key` to generate consistency check gates required to validate the RAM read/write
+     * history
      */
     std::vector<RamTranscript> ram_arrays;
 
@@ -572,7 +564,7 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     // Stores gate index of RAM writes (required by proving key)
     std::vector<uint32_t> memory_write_records;
 
-    std::vector<cached_non_native_field_multiplication> cached_non_native_field_multiplications;
+    std::vector<cached_partial_non_native_field_multiplication> cached_partial_non_native_field_multiplications;
 
     void process_non_native_field_multiplications();
 
@@ -638,11 +630,11 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
             /**
              * N.B. if `variable_index` is not used in any arithmetic constraints, this will create an unsatisfiable
              *      circuit!
-             *      this range constraint will increase the size of the 'sorted set' of range-constrained integers by 1.
-             *      The 'non-sorted set' of range-constrained integers is a subset of the wire indices of all arithmetic
-             *      gates. No arithemtic gate => size imbalance between sorted and non-sorted sets. Checking for this
-             *      and throwing an error would require a refactor of the Composer to catelog all 'orphan' variables not
-             *      assigned to gates.
+             *      this range constraint will increase the size of the 'sorted set' of range-constrained integers
+             *by 1. The 'non-sorted set' of range-constrained integers is a subset of the wire indices of all
+             *arithmetic gates. No arithemtic gate => size imbalance between sorted and non-sorted sets. Checking
+             *for this and throwing an error would require a refactor of the Composer to catelog all 'orphan'
+             *variables not assigned to gates.
              **/
             create_new_range_constraint(variable_index, 1ULL << num_bits, msg);
         } else {
@@ -704,8 +696,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     //             }
     //         }
     //         ramcount += (ram_arrays[i].records.size() * NUMBER_OF_GATES_PER_RAM_ACCESS);
-    //         ramcount += NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY; // we add an addition gate after procesing a ram
-    //         array
+    //         ramcount += NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY; // we add an addition gate after procesing a
+    //         ram array
 
     //         // there will be 'max_timestamp' number of range checks, need to calculate.
     //         const auto max_timestamp = ram_arrays[i].access_count - 1;
@@ -719,7 +711,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     //         const size_t ram_range_check_list_size = max_timestamp + padding;
 
     //         size_t ram_range_check_gate_count = (ram_range_check_list_size / gate_width);
-    //         ram_range_check_gate_count += 1; // we need to add 1 extra addition gates for every distinct range list
+    //         ram_range_check_gate_count += 1; // we need to add 1 extra addition gates for every distinct range
+    //         list
 
     //         ram_range_sizes.push_back(ram_range_check_gate_count);
     //         ram_range_exists.push_back(false);
@@ -885,9 +878,9 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
                                    const size_t hi_limb_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
         const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
-    std::array<uint32_t, 2> queue_non_native_field_multiplication(
+    std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
         const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true);
-    std::array<uint32_t, 2> evaluate_partial_non_native_field_multiplication(const non_native_field_witnesses& input);
+    std::array<uint32_t, 2> queue_partial_non_native_field_multiplication(const non_native_field_witnesses& input);
     typedef std::pair<uint32_t, barretenberg::fr> scaled_witness;
     typedef std::tuple<scaled_witness, scaled_witness, barretenberg::fr> add_simple;
     std::array<uint32_t, 5> evaluate_non_native_field_subtraction(

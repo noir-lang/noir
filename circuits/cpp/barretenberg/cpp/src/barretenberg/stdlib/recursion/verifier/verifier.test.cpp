@@ -212,6 +212,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
                 &outer_composer, verification_key_b, recursive_manifest, recursive_proof_b, previous_output);
 
+        verification_key_b->compress();
+        verification_key->compress();
         return { output, verification_key };
     }
 
@@ -301,7 +303,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
-        circuit_output.aggregation_state.add_proof_outputs_as_public_inputs();
+        circuit_output.aggregation_state.assign_object_to_proof_outputs();
 
         EXPECT_EQ(outer_composer.failed(), false);
 
@@ -346,7 +348,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
-        circuit_output.aggregation_state.add_proof_outputs_as_public_inputs();
+        circuit_output.aggregation_state.assign_object_to_proof_outputs();
 
         EXPECT_EQ(outer_composer.failed(), false);
 
@@ -379,6 +381,9 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         InnerComposer inner_composer_a = InnerComposer("../srs_db/ignition");
         InnerComposer inner_composer_b = InnerComposer("../srs_db/ignition");
 
+        OuterComposer mid_composer_a = OuterComposer("../srs_db/ignition");
+        OuterComposer mid_composer_b = OuterComposer("../srs_db/ignition");
+
         OuterComposer outer_composer = OuterComposer("../srs_db/ignition");
 
         std::vector<barretenberg::fr> inner_inputs{ barretenberg::fr::random_element(),
@@ -388,7 +393,27 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         create_inner_circuit(inner_composer_a, inner_inputs);
         create_inner_circuit(inner_composer_b, inner_inputs);
 
-        auto circuit_output = create_double_outer_circuit(inner_composer_a, inner_composer_b, outer_composer);
+        auto circuit_output_a = create_outer_circuit(inner_composer_a, mid_composer_a);
+
+        uint256_t a0 = circuit_output_a.aggregation_state.P0.x.binary_basis_limbs[1].element.get_value();
+        uint256_t a1 = circuit_output_a.aggregation_state.P0.y.binary_basis_limbs[1].element.get_value();
+        uint256_t a2 = circuit_output_a.aggregation_state.P1.x.binary_basis_limbs[1].element.get_value();
+        uint256_t a3 = circuit_output_a.aggregation_state.P1.y.binary_basis_limbs[1].element.get_value();
+
+        ASSERT(a0.get_msb() <= 68);
+        ASSERT(a1.get_msb() <= 68);
+        ASSERT(a2.get_msb() <= 68);
+        ASSERT(a3.get_msb() <= 68);
+
+        circuit_output_a.aggregation_state.assign_object_to_proof_outputs();
+
+        auto circuit_output_b = create_outer_circuit(inner_composer_b, mid_composer_b);
+
+        circuit_output_b.aggregation_state.assign_object_to_proof_outputs();
+
+        auto circuit_output = create_double_outer_circuit(mid_composer_a, mid_composer_b, outer_composer);
+
+        circuit_output.aggregation_state.assign_object_to_proof_outputs();
 
         g1::affine_element P[2];
         P[0].x = barretenberg::fq(circuit_output.aggregation_state.P0.x.get_value().lo);
@@ -398,8 +423,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
             P, circuit_output.verification_key->reference_string->get_precomputed_g2_lines(), 2);
 
-        EXPECT_EQ(circuit_output.aggregation_state.public_inputs[0].get_value(), inner_inputs[0]);
-        EXPECT_EQ(circuit_output.aggregation_state.public_inputs[1].get_value(), inner_inputs[1]);
+        EXPECT_EQ(circuit_output_a.aggregation_state.public_inputs[0].get_value(), inner_inputs[0]);
+        EXPECT_EQ(circuit_output_a.aggregation_state.public_inputs[1].get_value(), inner_inputs[1]);
 
         EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
@@ -456,7 +481,6 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
         printf("composer gates = %zu\n", outer_composer.get_num_gates());
-
         auto prover = outer_composer.create_prover();
 
         auto verifier = outer_composer.create_verifier();
@@ -638,14 +662,23 @@ HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition)
 
 HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_ultra_no_tables)
 {
-    TestFixture::test_recursive_proof_composition_ultra_no_tables();
+    if constexpr (TypeParam::type == ComposerType::PLOOKUP) {
+        TestFixture::test_recursive_proof_composition_ultra_no_tables();
+    } else {
+        // no point running this if we're not in UltraPlonk
+        GTEST_SKIP();
+    }
 };
 
-// CircleCI can't cope with this.
-// HEAVY_TYPED_TEST(stdlib_verifier, double_verification)
-// {
-//     TestFixture::test_double_verification();
-// };
+HEAVY_TYPED_TEST(stdlib_verifier, double_verification)
+{
+    if constexpr (TypeParam::type == ComposerType::PLOOKUP) {
+        TestFixture::test_double_verification();
+    } else {
+        // CircleCI can't cope with non-ultraplonk version.
+        GTEST_SKIP();
+    }
+};
 
 HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_with_variable_verification_key_a)
 {

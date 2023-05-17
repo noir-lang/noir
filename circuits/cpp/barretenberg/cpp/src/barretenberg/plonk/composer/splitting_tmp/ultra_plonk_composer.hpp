@@ -380,13 +380,14 @@ class UltraPlonkComposer {
     };
     // std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
     //     const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
-    std::array<uint32_t, 2> queue_non_native_field_multiplication(
+    std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
         const UltraCircuitConstructor::non_native_field_witnesses& input,
         const bool range_constrain_quotient_and_remainder = true)
     {
-        return circuit_constructor.queue_non_native_field_multiplication(input, range_constrain_quotient_and_remainder);
+        return circuit_constructor.evaluate_non_native_field_multiplication(input,
+                                                                            range_constrain_quotient_and_remainder);
     };
-    // std::array<uint32_t, 2> evaluate_partial_non_native_field_multiplication(const non_native_field_witnesses&
+    // std::array<uint32_t, 2> queue_partial_non_native_field_multiplication(const non_native_field_witnesses&
     // input); typedef std::pair<uint32_t, barretenberg::fr> scaled_witness; typedef std::tuple<scaled_witness,
     // scaled_witness, barretenberg::fr> add_simple; std::array<uint32_t, 5> evaluate_non_native_field_subtraction(
     //     add_simple limb0,

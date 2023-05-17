@@ -781,7 +781,7 @@ TEST(ultra_plonk_composer_splitting_tmp, non_native_field_multiplication)
     UltraCircuitConstructor::non_native_field_witnesses inputs{
         a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
     };
-    const auto [lo_1_idx, hi_1_idx] = composer.queue_non_native_field_multiplication(inputs);
+    const auto [lo_1_idx, hi_1_idx] = composer.evaluate_non_native_field_multiplication(inputs);
     composer.range_constrain_two_limbs(lo_1_idx, hi_1_idx, 70, 70);
 
     auto prover = composer.create_prover();

@@ -86,15 +86,18 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::secp256k1_ecdsa_mul(const element& 
         // See `stdlib/memory/rom_table.hpp` for how indirect array accesses are implemented in UltraPlonk
         const auto& add_1 = endoP2_table[u2_hi_wnaf.wnaf[2 * i]];
         const auto& add_2 = P2_table[u2_lo_wnaf.wnaf[2 * i + 1]];
-        accumulator = accumulator.double_montgomery_ladder(add_1, add_2);
-
         const auto& add_3 = endoP1_table[u1_hi_wnaf.wnaf[i]];
         const auto& add_4 = P1_table[u1_lo_wnaf.wnaf[i]];
-        accumulator = accumulator.double_montgomery_ladder(add_3, add_4);
-
         const auto& add_5 = endoP2_table[u2_hi_wnaf.wnaf[2 * i + 1]];
         const auto& add_6 = P2_table[u2_lo_wnaf.wnaf[2 * i + 2]];
-        accumulator = accumulator.double_montgomery_ladder(add_5, add_6);
+
+        accumulator = accumulator.multiple_montgomery_ladder({ element::chain_add_accumulator(add_1),
+                                                               element::chain_add_accumulator(add_2),
+                                                               element::chain_add_accumulator(add_3) });
+
+        accumulator = accumulator.multiple_montgomery_ladder({ element::chain_add_accumulator(add_4),
+                                                               element::chain_add_accumulator(add_5),
+                                                               element::chain_add_accumulator(add_6) });
     }
 
     /**

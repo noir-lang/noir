@@ -243,9 +243,15 @@ typename element<C, Fq, Fr, G>::secp256k1_wnaf_pair element<C, Fq, Fr, G>::compu
         // Compute and constrain skews
         field_t<C> negative_skew = witness_t<C>(ctx, is_negative ? 0 : skew);
         field_t<C> positive_skew = witness_t<C>(ctx, is_negative ? skew : 0);
-        negative_skew.create_range_constraint(1);
-        positive_skew.create_range_constraint(1);
-        (negative_skew + positive_skew).create_range_constraint(1);
+        if constexpr (C::type == ComposerType::PLOOKUP) {
+            ctx->create_new_range_constraint(negative_skew.witness_index, 1, "biggroup_nafs");
+            ctx->create_new_range_constraint(positive_skew.witness_index, 1, "biggroup_nafs");
+            ctx->create_new_range_constraint((negative_skew + positive_skew).witness_index, 1, "biggroup_nafs");
+        } else {
+            ctx->create_range_constraint(negative_skew.witness_index, 1, "biggroup_nafs");
+            ctx->create_range_constraint(positive_skew.witness_index, 1, "biggroup_nafs");
+            ctx->create_range_constraint((negative_skew + positive_skew).witness_index, 1, "biggroup_nafs");
+        }
 
         const auto reconstruct_bigfield_from_wnaf = [ctx](const std::vector<field_t<C>>& wnaf,
                                                           const field_t<C>& positive_skew,
@@ -378,14 +384,21 @@ std::vector<field_t<C>> element<C, Fq, Fr, G>::compute_wnaf(const Fr& scalar)
             offset_entry = (1ULL << (WNAF_SIZE - 1)) - 1 - (wnaf_values[i] & 0xffffff);
         }
         field_t<C> entry(witness_t<C>(ctx, offset_entry));
-
-        entry.create_range_constraint(WNAF_SIZE);
+        if constexpr (C::type == ComposerType::PLOOKUP) {
+            ctx->create_new_range_constraint(entry.witness_index, 1ULL << (WNAF_SIZE), "biggroup_nafs");
+        } else {
+            ctx->create_range_constraint(entry.witness_index, WNAF_SIZE, "biggroup_nafs");
+        }
         wnaf_entries.emplace_back(entry);
     }
 
     // add skew
     wnaf_entries.emplace_back(witness_t<C>(ctx, skew));
-    wnaf_entries[wnaf_entries.size() - 1].create_range_constraint(1);
+    if constexpr (C::type == ComposerType::PLOOKUP) {
+        ctx->create_new_range_constraint(wnaf_entries[wnaf_entries.size() - 1].witness_index, 1, "biggroup_nafs");
+    } else {
+        ctx->create_range_constraint(wnaf_entries[wnaf_entries.size() - 1].witness_index, 1, "biggroup_nafs");
+    }
 
     // TODO: VALIDATE SUM DOES NOT OVERFLOW P
 
@@ -494,15 +507,25 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
             bit.context = ctx;
             bit.witness_index = witness_t<C>(ctx, true).witness_index; // flip sign
             bit.witness_bool = true;
-            ctx->create_range_constraint(
-                bit.witness_index, 1, "biggroup_nafs: compute_naf extracted too many bits in non-next_entry case");
+            if constexpr (C::type == ComposerType::PLOOKUP) {
+                ctx->create_new_range_constraint(
+                    bit.witness_index, 1, "biggroup_nafs: compute_naf extracted too many bits in non-next_entry case");
+            } else {
+                ctx->create_range_constraint(
+                    bit.witness_index, 1, "biggroup_nafs: compute_naf extracted too many bits in non-next_entry case");
+            }
             naf_entries[num_rounds - i - 1] = bit;
         } else {
             bool_t<C> bit(ctx, false);
             bit.witness_index = witness_t<C>(ctx, false).witness_index; // don't flip sign
             bit.witness_bool = false;
-            ctx->create_range_constraint(
-                bit.witness_index, 1, "biggroup_nafs: compute_naf extracted too many bits in next_entry case");
+            if constexpr (C::type == ComposerType::PLOOKUP) {
+                ctx->create_new_range_constraint(
+                    bit.witness_index, 1, "biggroup_nafs: compute_naf extracted too many bits in next_entry case");
+            } else {
+                ctx->create_range_constraint(
+                    bit.witness_index, 1, "biggroup_nafs: compute_naf extracted too many bits in next_entry case");
+            }
             naf_entries[num_rounds - i - 1] = bit;
         }
     }

@@ -51,43 +51,34 @@ barretenberg::fr compress_native_evaluation_domain(barretenberg::evaluation_doma
  */
 barretenberg::fr verification_key_data::compress_native(const size_t hash_index)
 {
-    barretenberg::evaluation_domain domain = evaluation_domain(circuit_size);
-    barretenberg::fr compressed_domain =
-        compress_native_evaluation_domain(domain, proof_system::ComposerType(composer_type));
+    barretenberg::evaluation_domain eval_domain = evaluation_domain(circuit_size);
 
-    constexpr size_t num_limb_bits = plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION;
+    std::vector<uint8_t> preimage_data;
 
-    const auto split_bigfield_limbs = [](const uint256_t& element) {
-        std::vector<barretenberg::fr> limbs;
-        limbs.push_back(element.slice(0, num_limb_bits));
-        limbs.push_back(element.slice(num_limb_bits, num_limb_bits * 2));
-        limbs.push_back(element.slice(num_limb_bits * 2, num_limb_bits * 3));
-        limbs.push_back(element.slice(num_limb_bits * 3, num_limb_bits * 4));
-        return limbs;
-    };
+    preimage_data.push_back(static_cast<uint8_t>(proof_system::ComposerType(composer_type)));
 
-    std::vector<barretenberg::fr> preimage_data;
-    preimage_data.emplace_back(composer_type);
-    preimage_data.emplace_back(compressed_domain);
-    preimage_data.emplace_back(num_public_inputs);
+    const uint256_t domain = eval_domain.domain;
+    const uint256_t generator = eval_domain.generator;
+    const uint256_t public_inputs = num_public_inputs;
+
+    ASSERT(domain < (uint256_t(1) << 32));
+    ASSERT(generator < (uint256_t(1) << 16));
+    ASSERT(public_inputs < (uint256_t(1) << 32));
+
+    write(preimage_data, static_cast<uint16_t>(uint256_t(generator)));
+    write(preimage_data, static_cast<uint32_t>(uint256_t(domain)));
+    write(preimage_data, static_cast<uint32_t>(public_inputs));
     for (const auto& [tag, selector] : commitments) {
-        const auto x_limbs = split_bigfield_limbs(selector.x);
-        const auto y_limbs = split_bigfield_limbs(selector.y);
-
-        preimage_data.push_back(x_limbs[0]);
-        preimage_data.push_back(x_limbs[1]);
-        preimage_data.push_back(x_limbs[2]);
-        preimage_data.push_back(x_limbs[3]);
-
-        preimage_data.push_back(y_limbs[0]);
-        preimage_data.push_back(y_limbs[1]);
-        preimage_data.push_back(y_limbs[2]);
-        preimage_data.push_back(y_limbs[3]);
+        write(preimage_data, selector.y);
+        write(preimage_data, selector.x);
     }
 
+    write(preimage_data, eval_domain.root);
+
     barretenberg::fr compressed_key;
-    if (proof_system::ComposerType(composer_type) == proof_system::ComposerType::PLOOKUP) {
-        compressed_key = crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index);
+    if (proof_system::ComposerType(composer_type) == ComposerType::PLOOKUP) {
+        compressed_key = from_buffer<barretenberg::fr>(
+            crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index));
     } else {
         compressed_key = crypto::pedersen_commitment::compress_native(preimage_data, hash_index);
     }

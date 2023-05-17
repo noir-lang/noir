@@ -80,6 +80,39 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator-(const element& other) con
 
     return element(x_3, y_3);
 }
+
+/**
+ * @brief Compute (*this) + other AND (*this) - other as a size-2 array
+ *
+ * @details We require this operation when computing biggroup lookup tables for
+ *          multi-scalar-multiplication. This combined method reduces the number of
+ *          field additions, field subtractions required (as well as 1 less assert_is_not_equal check)
+ *
+ * @tparam C
+ * @tparam Fq
+ * @tparam Fr
+ * @tparam G
+ * @param other
+ * @return std::array<element<C, Fq, Fr, G>, 2>
+ */
+template <typename C, class Fq, class Fr, class G>
+std::array<element<C, Fq, Fr, G>, 2> element<C, Fq, Fr, G>::add_sub(const element& other) const
+{
+    other.x.assert_is_not_equal(x);
+
+    const Fq denominator = other.x - x;
+    const Fq x2x1 = -(other.x + x);
+
+    const Fq lambda1 = Fq::div_without_denominator_check({ other.y, -y }, denominator);
+    const Fq x_3 = lambda1.sqradd({ x2x1 });
+    const Fq y_3 = lambda1.madd(x - x_3, { -y });
+    const Fq lambda2 = Fq::div_without_denominator_check({ -other.y, -y }, denominator);
+    const Fq x_4 = lambda2.sqradd({ x2x1 });
+    const Fq y_4 = lambda2.madd(x - x_4, { -y });
+
+    return { element(x_3, y_3), element(x_4, y_4) };
+}
+
 template <typename C, class Fq, class Fr, class G> element<C, Fq, Fr, G> element<C, Fq, Fr, G>::dbl() const
 {
     Fq two_x = x + x;
@@ -294,171 +327,21 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::montgomery_ladder(const chain_add_a
 }
 
 /**
- * Compute (4 * (*this)) + (2 * add1) + add2
- * If we chain two iterations of the montgomery ladder together, we can squeeze out a non-native field reduction.
+ * @brief Compute 4.P + to_add[0] + ... + to_add[to_add.size() - 1]
  *
- * Total number of field reductions = 9
+ * @details Used in wnaf_batch_mul method. Combining operations requires fewer bigfield reductions.
  *
- * Two calls to mont ladder woud require 10
+ * Method computes R[i] = (2P + A[0]) + (2P + A[1]) + A[2] + ... + A[n-1]
  *
- * Using doublings and additions would require 12!
- **/
+ * @tparam C
+ * @tparam Fq
+ * @tparam Fr
+ * @tparam G
+ * @param to_add
+ * @return element<C, Fq, Fr, G>
+ */
 template <typename C, class Fq, class Fr, class G>
-element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const element& add1, const element& add2) const
-{
-    add1.x.assert_is_not_equal(x);
-    const Fq lambda_1 = Fq::div_without_denominator_check({ add1.y, -y }, (add1.x - x));
-
-    const Fq x_3 = lambda_1.sqradd({ -add1.x, -x });
-
-    const Fq minus_lambda_2 =
-        lambda_1 + Fq::div_without_denominator_check({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
-
-    const Fq x_4 = minus_lambda_2.sqradd({ -x, -x_3 });
-
-    // We can avoid computing y_4, instead substituting the expression `minus_lambda_2 * (x_4 - x) - y` where needed.
-    // This is cheaper, because we can evaluate two field multiplications (or a field multiplication + a field division)
-    // with only one non-native field reduction.
-    // E.g. evaluating (a * b) + (c * d) = e mod p only requires 1 quotient and remainder.
-    // Defining the quotient and remainder elements is the major cost of a non-native field multiplication
-    // because each requires ~256 bits of range checks
-    const Fq x_sub_x4 = x - x_4;
-
-    const Fq x4_sub_add2x = x_4 - add2.x;
-
-    // msub_div; 'compute a multiplication and a division and multiply the two together. Requires only 1 non native
-    // field reduction`
-    const Fq lambda_3 = Fq::msub_div({ minus_lambda_2 }, { (x_sub_x4) }, (x4_sub_add2x), { y, add2.y });
-
-    // validate we can use incomplete addition formulae
-    x_4.assert_is_not_equal(add2.x);
-
-    const Fq x_5 = lambda_3.sqradd({ -x_4, -add2.x });
-    const Fq x5_sub_x4 = x_5 - x_4;
-
-    const Fq half_minus_lambda_4_minus_lambda_3 = Fq::msub_div({ minus_lambda_2 }, { x_sub_x4 }, (x5_sub_x4), { y });
-
-    const Fq minus_lambda_4_minus_lambda_3 = half_minus_lambda_4_minus_lambda_3 + half_minus_lambda_4_minus_lambda_3;
-    const Fq minus_lambda_4 = minus_lambda_4_minus_lambda_3 + lambda_3;
-    const Fq x_6 = minus_lambda_4.sqradd({ -x_4, -x_5 });
-
-    const Fq x6_sub_x4 = x_6 - x_4;
-
-    // y_6 = -L_4 * (x_6 - x_4) - L_2 * (x - x_4) + y
-    const Fq y_6 = Fq::dual_madd(minus_lambda_4, (x6_sub_x4), minus_lambda_2, x_sub_x4, { y });
-
-    return element(x_6, y_6);
-}
-
-/**
- * If we chain two iterations of the montgomery ladder together, we can squeeze out a non-native field reduction
- *
- **/
-template <typename C, class Fq, class Fr, class G>
-element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chain_add_accumulator& add1,
-                                                                      const element& add2) const
-{
-    if (add1.is_element) {
-        throw_or_abort("An accumulator expected");
-    }
-    add1.x3_prev.assert_is_not_equal(x);
-    Fq lambda_1 = Fq::msub_div(
-        { add1.lambda_prev }, { (add1.x1_prev - add1.x3_prev) }, (x - add1.x3_prev), { -add1.y1_prev, -y });
-
-    const Fq x_3 = lambda_1.sqradd({ -add1.x3_prev, -x });
-
-    const Fq minus_lambda_2 =
-        lambda_1 + Fq::div_without_denominator_check({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
-
-    const Fq x_4 = minus_lambda_2.sqradd({ -x, -x_3 });
-
-    // We can avoid computing y_4, instead substituting the expression `minus_lambda_2 * (x_4 - x) - y` where needed.
-    // This is cheaper, because we can evaluate two field multiplications (or a field multiplication + a field division)
-    // with only one non-native field reduction.
-    // E.g. evaluating (a * b) + (c * d) = e mod p only requires 1 quotient and remainder, which is the major cost
-    // of a non-native field multiplication
-    const Fq x_sub_x4 = x - x_4;
-
-    const Fq x4_sub_add2x = x_4 - add2.x;
-    const Fq lambda_3 = Fq::msub_div({ minus_lambda_2 }, { (x_sub_x4) }, (x4_sub_add2x), { y, add2.y });
-
-    x_4.assert_is_not_equal(add2.x);
-
-    const Fq x_5 = lambda_3.sqradd({ -x_4, -add2.x });
-    const Fq x5_sub_x4 = x_5 - x_4;
-
-    const Fq half_minus_lambda_4_minus_lambda_3 = Fq::msub_div({ minus_lambda_2 }, { x_sub_x4 }, (x5_sub_x4), { y });
-
-    const Fq minus_lambda_4_minus_lambda_3 = half_minus_lambda_4_minus_lambda_3 + half_minus_lambda_4_minus_lambda_3;
-    const Fq minus_lambda_4 = minus_lambda_4_minus_lambda_3 + lambda_3;
-    const Fq x_6 = minus_lambda_4.sqradd({ -x_4, -x_5 });
-
-    const Fq x6_sub_x4 = x_6 - x_4;
-
-    const Fq y_6 = Fq::dual_madd(minus_lambda_4, (x6_sub_x4), minus_lambda_2, x_sub_x4, { y });
-
-    return element(x_6, y_6);
-}
-
-/**
- * If we chain two iterations of the montgomery ladder together, we can squeeze out a non-native field reduction
- *
- **/
-template <typename C, class Fq, class Fr, class G>
-element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chain_add_accumulator& add1,
-                                                                      const chain_add_accumulator& add2) const
-{
-    if ((add1.is_element) || (add2.is_element)) {
-        throw_or_abort("An accumulator expected");
-    }
-    add1.x3_prev.assert_is_not_equal(x);
-    // add1.y = lambda_prev * (x1_prev - x3_prev) - y1_prev
-    Fq lambda_1 = Fq::msub_div(
-        { add1.lambda_prev }, { (add1.x1_prev - add1.x3_prev) }, (x - add1.x3_prev), { -add1.y1_prev, -y });
-
-    const Fq x_3 = lambda_1.sqradd({ -add1.x3_prev, -x });
-
-    const Fq minus_lambda_2 =
-        lambda_1 + Fq::div_without_denominator_check({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
-
-    const Fq x_4 = minus_lambda_2.sqradd({ -x, -x_3 });
-
-    // We can avoid computing y_4, instead substituting the expression `minus_lambda_2 * (x_4 - x) - y` where needed.
-    // This is cheaper, because we can evaluate two field multiplications (or a field multiplication + a field division)
-    // with only one non-native field reduction.
-    // E.g. evaluating (a * b) + (c * d) = e mod p only requires 1 quotient and remainder, which is the major cost
-    // of a non-native field multiplication
-    const Fq x_sub_x4 = x - x_4;
-
-    const Fq x4_sub_add2x = x_4 - add2.x3_prev;
-
-    const Fq lambda_3 = Fq::msub_div({ minus_lambda_2, add2.lambda_prev },
-                                     { (x_sub_x4), (add2.x1_prev - add2.x3_prev) },
-                                     (x4_sub_add2x),
-                                     { y, -add2.y1_prev });
-
-    x_4.assert_is_not_equal(add2.x3_prev);
-
-    const Fq x_5 = lambda_3.sqradd({ -x_4, -add2.x3_prev });
-    const Fq x5_sub_x4 = x_5 - x_4;
-
-    const Fq half_minus_lambda_4_minus_lambda_3 = Fq::msub_div({ minus_lambda_2 }, { x_sub_x4 }, (x5_sub_x4), { y });
-
-    const Fq minus_lambda_4_minus_lambda_3 = half_minus_lambda_4_minus_lambda_3 + half_minus_lambda_4_minus_lambda_3;
-    const Fq minus_lambda_4 = minus_lambda_4_minus_lambda_3 + lambda_3;
-    const Fq x_6 = minus_lambda_4.sqradd({ -x_4, -x_5 });
-
-    const Fq x6_sub_x4 = x_6 - x_4;
-
-    const Fq y_6 = Fq::dual_madd(minus_lambda_4, (x6_sub_x4), minus_lambda_2, x_sub_x4, { y });
-
-    return element(x_6, y_6);
-}
-/**
- * If we chain two iterations of the montgomery ladder together, we can squeeze out a non-native field reduction
- **/
-template <typename C, class Fq, class Fr, class G>
-element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_into_montgomery_ladder(const element& add1) const
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::quadruple_and_add(const std::vector<element>& to_add) const
 {
     const Fq two_x = x + x;
     Fq x_1;
@@ -472,22 +355,189 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_into_montgomery_ladder(const
         x_1 = minus_lambda_dbl.sqradd({ -(two_x) });
     }
 
-    add1.x.assert_is_not_equal(x_1);
+    ASSERT(to_add.size() > 0);
+    to_add[0].x.assert_is_not_equal(x_1);
 
     const Fq x_minus_x_1 = x - x_1;
-    const Fq lambda_1 = Fq::msub_div({ minus_lambda_dbl }, { x_minus_x_1 }, (x_1 - add1.x), { add1.y, y });
 
-    const Fq x_3 = lambda_1.sqradd({ -add1.x, -x_1 });
+    const Fq lambda_1 = Fq::msub_div({ minus_lambda_dbl }, { x_minus_x_1 }, (x_1 - to_add[0].x), { to_add[0].y, y });
+
+    const Fq x_3 = lambda_1.sqradd({ -to_add[0].x, -x_1 });
+
     const Fq half_minus_lambda_2_minus_lambda_1 =
         Fq::msub_div({ minus_lambda_dbl }, { x_minus_x_1 }, (x_3 - x_1), { y });
+
     const Fq minus_lambda_2_minus_lambda_1 = half_minus_lambda_2_minus_lambda_1 + half_minus_lambda_2_minus_lambda_1;
     const Fq minus_lambda_2 = minus_lambda_2_minus_lambda_1 + lambda_1;
 
     const Fq x_4 = minus_lambda_2.sqradd({ -x_1, -x_3 });
 
-    const Fq y_4 = Fq::dual_madd(minus_lambda_2, (x_4 - x_1), minus_lambda_dbl, x_minus_x_1, { y });
+    const Fq x_4_sub_x_1 = x_4 - x_1;
 
-    return element(x_4, y_4);
+    if (to_add.size() == 1) {
+        const Fq y_4 = Fq::dual_madd(minus_lambda_2, x_4_sub_x_1, minus_lambda_dbl, x_minus_x_1, { y });
+        return element(x_4, y_4);
+    }
+    to_add[1].x.assert_is_not_equal(to_add[0].x);
+
+    Fq minus_lambda_3 = Fq::msub_div(
+        { minus_lambda_dbl, minus_lambda_2 }, { x_minus_x_1, x_4_sub_x_1 }, (x_4 - to_add[1].x), { y, -(to_add[1].y) });
+
+    // X5 = L3.L3 - X4 - XB
+    const Fq x_5 = minus_lambda_3.sqradd({ -x_4, -to_add[1].x });
+
+    if (to_add.size() == 2) {
+        // Y5 = L3.(XB - X5) - YB
+        const Fq y_5 = minus_lambda_3.madd(x_5 - to_add[1].x, { -to_add[1].y });
+        return element(x_5, y_5);
+    }
+
+    Fq x_prev = x_5;
+    Fq minus_lambda_prev = minus_lambda_3;
+
+    for (size_t i = 2; i < to_add.size(); ++i) {
+
+        to_add[i].x.assert_is_not_equal(to_add[i - 1].x);
+        // Lambda = Yprev - Yadd[i] / Xprev - Xadd[i]
+        //        = -Lprev.(Xprev - Xadd[i-1]) - Yadd[i - 1] - Yadd[i] / Xprev - Xadd[i]
+        const Fq minus_lambda = Fq::msub_div({ minus_lambda_prev },
+                                             { to_add[i - 1].x - x_prev },
+                                             (to_add[i].x - x_prev),
+                                             { to_add[i - 1].y, to_add[i].y });
+        // X = Lambda * Lambda - Xprev - Xadd[i]
+        const Fq x_out = minus_lambda.sqradd({ -x_prev, -to_add[i].x });
+
+        x_prev = x_out;
+        minus_lambda_prev = minus_lambda;
+    }
+    const Fq y_out = minus_lambda_prev.madd(x_prev - to_add[to_add.size() - 1].x, { -to_add[to_add.size() - 1].y });
+
+    return element(x_prev, y_out);
+}
+
+/**
+ * @brief Perform repeated iterations of the montgomery ladder algorithm.
+ *
+ * For points P, Q, montgomery ladder computes R = (P + Q) + P
+ * i.e. it's "double-and-add" without explicit doublings.
+ *
+ * This method can apply repeated iterations of the montgomery ladder.
+ * Each iteration reduces the number of field multiplications by 1, at the cost of more additions.
+ * (i.e. we don't compute intermediate y-coordinates).
+ *
+ * The number of additions scales with the size of the input vector. The optimal input size appears to be 4.
+ *
+ * @tparam C
+ * @tparam Fq
+ * @tparam Fr
+ * @tparam G
+ * @param add
+ * @return element<C, Fq, Fr, G>
+ */
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::multiple_montgomery_ladder(
+    const std::vector<chain_add_accumulator>& add) const
+{
+    struct composite_y {
+        std::vector<Fq> mul_left;
+        std::vector<Fq> mul_right;
+        std::vector<Fq> add;
+        bool is_negative = false;
+    };
+
+    Fq previous_x = x;
+    composite_y previous_y{ std::vector<Fq>(), std::vector<Fq>(), std::vector<Fq>(), false };
+    for (size_t i = 0; i < add.size(); ++i) {
+        previous_x.assert_is_not_equal(add[i].x3_prev);
+
+        // composite_y add_y;
+        bool negate_add_y = (i > 0) && !previous_y.is_negative;
+        std::vector<Fq> lambda1_left;
+        std::vector<Fq> lambda1_right;
+        std::vector<Fq> lambda1_add;
+
+        if (i == 0) {
+            lambda1_add.emplace_back(-y);
+        } else {
+            lambda1_left = previous_y.mul_left;
+            lambda1_right = previous_y.mul_right;
+            lambda1_add = previous_y.add;
+        }
+
+        if (!add[i].is_element) {
+            lambda1_left.emplace_back(add[i].lambda_prev);
+            lambda1_right.emplace_back(negate_add_y ? add[i].x3_prev - add[i].x1_prev
+                                                    : add[i].x1_prev - add[i].x3_prev);
+            lambda1_add.emplace_back(negate_add_y ? add[i].y1_prev : -add[i].y1_prev);
+        } else if (i > 0) {
+            lambda1_add.emplace_back(negate_add_y ? -add[i].y3_prev : add[i].y3_prev);
+        }
+        // if previous_y is negated then add stays positive
+        // if previous_y is positive then add stays negated
+        // | add.y is negated | previous_y is negated | output of msub_div is -lambda |
+        // | --- | --- | --- |
+        // | no  | yes | yes |
+        // | yes | no  | no  |
+
+        Fq lambda1;
+        if (!add[i].is_element || i > 0) {
+            bool flip_lambda1_denominator = !negate_add_y;
+            Fq denominator = flip_lambda1_denominator ? previous_x - add[i].x3_prev : add[i].x3_prev - previous_x;
+            lambda1 = Fq::msub_div(lambda1_left, lambda1_right, denominator, lambda1_add);
+        } else {
+            lambda1 = Fq::div_without_denominator_check({ add[i].y3_prev - y }, (add[i].x3_prev - x));
+        }
+
+        Fq x_3 = lambda1.madd(lambda1, { -add[i].x3_prev, -previous_x });
+
+        // We can avoid computing y_4, instead substituting the expression `minus_lambda_2 * (x_4 - x) - y` where
+        // needed. This is cheaper, because we can evaluate two field multiplications (or a field multiplication + a
+        // field division) with only one non-native field reduction. E.g. evaluating (a * b) + (c * d) = e mod p only
+        // requires 1 quotient and remainder, which is the major cost of a non-native field multiplication
+        Fq lambda2;
+        if (i == 0) {
+            lambda2 = Fq::div_without_denominator_check({ y + y }, (previous_x - x_3)) - lambda1;
+        } else {
+            Fq l2_denominator = previous_y.is_negative ? previous_x - x_3 : x_3 - previous_x;
+            Fq partial_lambda2 =
+                Fq::msub_div(previous_y.mul_left, previous_y.mul_right, l2_denominator, previous_y.add);
+            partial_lambda2 = partial_lambda2 + partial_lambda2;
+            lambda2 = partial_lambda2 - lambda1;
+        }
+
+        Fq x_4 = lambda2.sqradd({ -x_3, -previous_x });
+        composite_y y_4;
+        if (i == 0) {
+            // We want to make sure that at the final iteration, `y_previous.is_negative = false`
+            // Each iteration flips the sign of y_previous.is_negative.
+            // i.e. whether we store y_4 or -y_4 depends on the number of points we have
+            bool num_points_even = ((add.size() & 0x01UL) == 0);
+            y_4.add.emplace_back(num_points_even ? y : -y);
+            y_4.mul_left.emplace_back(lambda2);
+            y_4.mul_right.emplace_back(num_points_even ? x_4 - previous_x : previous_x - x_4);
+            y_4.is_negative = num_points_even;
+        } else {
+            y_4.is_negative = !previous_y.is_negative;
+            y_4.mul_left.emplace_back(lambda2);
+            y_4.mul_right.emplace_back(previous_y.is_negative ? previous_x - x_4 : x_4 - previous_x);
+            // append terms in previous_y to y_4. We want to make sure the terms above are added into the start of y_4.
+            // This is to ensure they are cached correctly when
+            // `composer::evaluate_partial_non_native_field_multiplication` is called.
+            // (the 1st mul_left, mul_right elements will trigger composer::evaluate_non_native_field_multiplication
+            //  when Fq::mult_madd is called - this term cannot be cached so we want to make sure it is unique)
+            std::copy(previous_y.mul_left.begin(), previous_y.mul_left.end(), std::back_inserter(y_4.mul_left));
+            std::copy(previous_y.mul_right.begin(), previous_y.mul_right.end(), std::back_inserter(y_4.mul_right));
+            std::copy(previous_y.add.begin(), previous_y.add.end(), std::back_inserter(y_4.add));
+        }
+        previous_x = x_4;
+        previous_y = y_4;
+    }
+    Fq x_out = previous_x;
+
+    ASSERT(!previous_y.is_negative);
+
+    Fq y_out = Fq::mult_madd(previous_y.mul_left, previous_y.mul_right, previous_y.add);
+    return element(x_out, y_out);
 }
 
 /**
@@ -551,6 +601,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element
                                                        const std::vector<Fr>& scalars,
                                                        const size_t max_num_bits)
 {
+
     const size_t num_points = points.size();
     ASSERT(scalars.size() == num_points);
     batch_lookup_table point_table(points);
@@ -563,38 +614,25 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element
     const auto offset_generators = compute_offset_generators(num_rounds);
     element accumulator =
         element::chain_add_end(element::chain_add(offset_generators.first, point_table.get_chain_initial_entry()));
-    for (size_t i = 1; i < num_rounds / 2; ++i) {
-        std::vector<bool_t<C>> nafs;
-        for (size_t j = 0; j < num_points; ++j) {
-            nafs.emplace_back(naf_entries[j][i * 2 - 1]);
-        }
-        element::chain_add_accumulator add_1 = point_table.get_chain_add_accumulator(nafs);
-        for (size_t j = 0; j < num_points; ++j) {
-            nafs[j] = (naf_entries[j][i * 2]);
-        }
-        element::chain_add_accumulator add_2 = point_table.get_chain_add_accumulator(nafs);
 
-        if (!add_1.is_element) {
-            accumulator = accumulator.double_montgomery_ladder(add_1, add_2);
-        } else {
-            accumulator = accumulator.double_montgomery_ladder(element(add_1.x3_prev, add_1.y3_prev),
-                                                               element(add_2.x3_prev, add_2.y3_prev));
-        }
-    }
-    if ((num_rounds & 0x01ULL) == 0x00ULL) {
-        std::vector<bool_t<C>> nafs;
-        for (size_t j = 0; j < points.size(); ++j) {
-            nafs.emplace_back(naf_entries[j][num_rounds - 1]);
-        }
-        element::chain_add_accumulator add_1 = point_table.get_chain_add_accumulator(nafs);
-        if (add_1.is_element) {
-            element temp(add_1.x3_prev, add_1.y3_prev);
-            accumulator = accumulator.montgomery_ladder(temp);
-        } else {
-            accumulator = accumulator.montgomery_ladder(add_1);
-        }
-    }
+    constexpr size_t num_rounds_per_iteration = 4;
+    size_t num_iterations = num_rounds / num_rounds_per_iteration;
+    num_iterations += ((num_iterations * num_rounds_per_iteration) == num_rounds) ? 0 : 1;
+    const size_t num_rounds_per_final_iteration = (num_rounds - 1) - ((num_iterations - 1) * num_rounds_per_iteration);
+    for (size_t i = 0; i < num_iterations; ++i) {
 
+        std::vector<bool_t<C>> nafs(num_points);
+        std::vector<element::chain_add_accumulator> to_add;
+        const size_t inner_num_rounds =
+            (i != num_iterations - 1) ? num_rounds_per_iteration : num_rounds_per_final_iteration;
+        for (size_t j = 0; j < inner_num_rounds; ++j) {
+            for (size_t k = 0; k < num_points; ++k) {
+                nafs[k] = (naf_entries[k][i * num_rounds_per_iteration + j + 1]);
+            }
+            to_add.emplace_back(point_table.get_chain_add_accumulator(nafs));
+        }
+        accumulator = accumulator.multiple_montgomery_ladder(to_add);
+    }
     for (size_t i = 0; i < num_points; ++i) {
         element skew = accumulator - points[i];
         Fq out_x = accumulator.x.conditional_select(skew.x, naf_entries[i][num_rounds]);

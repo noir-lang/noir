@@ -643,7 +643,7 @@ TEST(ultra_circuit_constructor, non_native_field_multiplication)
     proof_system::UltraCircuitConstructor::non_native_field_witnesses inputs{
         a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
     };
-    const auto [lo_1_idx, hi_1_idx] = circuit_constructor.queue_non_native_field_multiplication(inputs);
+    const auto [lo_1_idx, hi_1_idx] = circuit_constructor.evaluate_non_native_field_multiplication(inputs);
     circuit_constructor.range_constrain_two_limbs(lo_1_idx, hi_1_idx, 70, 70);
 
     auto saved_state = UltraCircuitConstructor::CircuitDataBackup::store_full_state(circuit_constructor);

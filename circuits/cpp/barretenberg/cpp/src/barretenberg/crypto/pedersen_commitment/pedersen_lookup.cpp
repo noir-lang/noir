@@ -28,11 +28,12 @@ grumpkin::g1::element merkle_damgard_compress(const std::vector<grumpkin::fq>& i
     const size_t num_inputs = inputs.size();
 
     grumpkin::fq result = (pedersen_iv_table[iv]).x;
-    for (size_t i = 0; i < num_inputs; i++) {
+    result = hash_pair(result, num_inputs);
+    for (size_t i = 0; i < num_inputs - 1; i++) {
         result = hash_pair(result, inputs[i]);
     }
 
-    return (hash_single(result, false) + hash_single(grumpkin::fq(num_inputs), true));
+    return (hash_single(result, false) + hash_single(inputs[num_inputs - 1], true));
 }
 
 grumpkin::g1::element merkle_damgard_compress(const std::vector<grumpkin::fq>& inputs, const std::vector<size_t>& ivs)
@@ -46,7 +47,8 @@ grumpkin::g1::element merkle_damgard_compress(const std::vector<grumpkin::fq>& i
     const size_t num_inputs = inputs.size();
 
     grumpkin::fq result = (pedersen_iv_table[0]).x;
-    for (size_t i = 0; i < 2 * num_inputs; i++) {
+    result = hash_pair(result, num_inputs);
+    for (size_t i = 0; i < 2 * num_inputs - 1; i++) {
         if ((i & 1) == 0) {
             grumpkin::fq iv_result = (pedersen_iv_table[ivs[i >> 1]]).x;
             result = hash_pair(result, iv_result);
@@ -54,8 +56,7 @@ grumpkin::g1::element merkle_damgard_compress(const std::vector<grumpkin::fq>& i
             result = hash_pair(result, inputs[i >> 1]);
         }
     }
-
-    return (hash_single(result, false) + hash_single(grumpkin::fq(num_inputs), true));
+    return (hash_single(result, false) + hash_single(inputs[num_inputs - 1], true));
 }
 
 grumpkin::g1::element merkle_damgard_tree_compress(const std::vector<grumpkin::fq>& inputs,
@@ -111,16 +112,16 @@ grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const std:
     return commit_native(inputs, hash_indices).x;
 }
 
-grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input)
+grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input, const size_t hash_index)
 {
     const auto elements = convert_buffer_to_field(input);
-    grumpkin::fq result_fq = compress_native(elements);
+    grumpkin::fq result_fq = compress_native(elements, hash_index);
     return result_fq;
 }
 
-std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)
+std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input, const size_t hash_index)
 {
-    const auto result_fq = compress_native_buffer_to_field(input);
+    const auto result_fq = compress_native_buffer_to_field(input, hash_index);
     uint256_t result_u256(result_fq);
     const size_t num_bytes = input.size();
 

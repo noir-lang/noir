@@ -1138,7 +1138,30 @@ std::vector<uint32_t> UltraComposer::decompose_into_default_range(const uint32_t
         const auto limb_idx = add_variable(sublimbs[i]);
         sublimb_indices.emplace_back(limb_idx);
         if ((i == sublimbs.size() - 1) && has_remainder_bits) {
-            create_new_range_constraint(limb_idx, last_limb_range);
+            if ((target_range_bitnum - last_limb_size) < DEFAULT_PLOOKUP_RANGE_CUTOFF_BITNUM) {
+                // we don't want to make a new range table.
+                // X = limb, L = last limb range, K = sublimb mask. L < X
+                // we want X <= L
+                // i.e. L - X >= 0 and L - X <= K
+                // equivalent to saying L - X <= K
+                // D = L - X
+                // D + X - L
+                barretenberg::fr diff = uint256_t(last_limb_range) - get_variable(limb_idx);
+                uint32_t diff_idx = add_variable(diff);
+                create_add_gate({
+                    .a = limb_idx,
+                    .b = zero_idx,
+                    .c = diff_idx,
+                    .a_scaling = 1,
+                    .b_scaling = 0,
+                    .c_scaling = 1,
+                    .const_scaling = -barretenberg::fr(last_limb_range),
+                });
+                create_new_range_constraint(diff_idx, sublimb_mask);
+                create_new_range_constraint(limb_idx, sublimb_mask);
+            } else {
+                create_new_range_constraint(limb_idx, last_limb_range);
+            }
         } else {
             create_new_range_constraint(limb_idx, sublimb_mask);
         }
@@ -1860,14 +1883,10 @@ std::array<uint32_t, 2> UltraComposer::decompose_non_native_field_double_width_l
 }
 
 /**
- * @brief Queue up non-native field multiplication data.
+ * @brief Process a non-native field multiplication data.
  *
- * @details The data queued represents a non-native field multiplication identity a * b = q * p + r,
+ * @details The data represents a non-native field multiplication identity a * b = q * p + r,
  * where a, b, q, r are all emulated non-native field elements that are each split across 4 distinct witness variables.
- *
- * Without this queue some functions, such as proof_system::plonk::stdlib::element::double_montgomery_ladder, would
- * duplicate non-native field operations, which can be quite expensive. We queue up these operations, and remove
- * duplicates in the circuit finishing stage of the proving key computation.
  *
  * The non-native field modulus, p, is a circuit constant
  *
@@ -1875,7 +1894,7 @@ std::array<uint32_t, 2> UltraComposer::decompose_non_native_field_double_width_l
  *
  * N.B.: This method does NOT evaluate the prime field component of non-native field multiplications.
  **/
-std::array<uint32_t, 2> UltraComposer::queue_non_native_field_multiplication(
+std::array<uint32_t, 2> UltraComposer::evaluate_non_native_field_multiplication(
     const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder)
 {
 
@@ -1903,10 +1922,11 @@ std::array<uint32_t, 2> UltraComposer::queue_non_native_field_multiplication(
         get_variable(input.r[2]),
         get_variable(input.r[3]),
     };
-
     constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
     constexpr barretenberg::fr LIMB_SHIFT_2 = uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     constexpr barretenberg::fr LIMB_SHIFT_3 = uint256_t(1) << (3 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr barretenberg::fr LIMB_RSHIFT =
+        barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     constexpr barretenberg::fr LIMB_RSHIFT_2 =
         barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
 
@@ -1955,68 +1975,114 @@ std::array<uint32_t, 2> UltraComposer::queue_non_native_field_multiplication(
         range_constrain_two_limbs(input.q[2], input.q[3]);
     }
 
-    // Add witnesses into the multiplication cache
-    // (when finalising the circuit, we will remove duplicates; several dups produced by biggroup.hpp methods)
-    cached_non_native_field_multiplication cache_entry{
-        .a = input.a,
-        .b = input.b,
-        .q = input.q,
-        .r = input.r,
-        .cross_terms = { lo_0_idx, lo_1_idx, hi_0_idx, hi_1_idx, hi_2_idx, hi_3_idx },
-        .neg_modulus = input.neg_modulus,
-    };
-    cached_non_native_field_multiplications.emplace_back(cache_entry);
+    // product gate 1
+    // (lo_0 + q_0(p_0 + p_1*2^b) + q_1(p_0*2^b) - (r_1)2^b)2^-2b - lo_1 = 0
+    create_big_add_gate({ input.q[0],
+                          input.q[1],
+                          input.r[1],
+                          lo_1_idx,
+                          input.neg_modulus[0] + input.neg_modulus[1] * LIMB_SHIFT,
+                          input.neg_modulus[0] * LIMB_SHIFT,
+                          -LIMB_SHIFT,
+                          -LIMB_SHIFT.sqr(),
+                          0 },
+                        true);
+
+    w_l.emplace_back(input.a[1]);
+    w_r.emplace_back(input.b[1]);
+    w_o.emplace_back(input.r[0]);
+    w_4.emplace_back(lo_0_idx);
+    apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
+    ++num_gates;
+    w_l.emplace_back(input.a[0]);
+    w_r.emplace_back(input.b[0]);
+    w_o.emplace_back(input.a[3]);
+    w_4.emplace_back(input.b[3]);
+    apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
+    ++num_gates;
+    w_l.emplace_back(input.a[2]);
+    w_r.emplace_back(input.b[2]);
+    w_o.emplace_back(input.r[3]);
+    w_4.emplace_back(hi_0_idx);
+    apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
+    ++num_gates;
+    w_l.emplace_back(input.a[1]);
+    w_r.emplace_back(input.b[1]);
+    w_o.emplace_back(input.r[2]);
+    w_4.emplace_back(hi_1_idx);
+    apply_aux_selectors(AUX_SELECTORS::NONE);
+    ++num_gates;
+
+    /**
+     * product gate 6
+     *
+     * hi_2 - hi_1 - lo_1 - q[2](p[1].2^b + p[0]) - q[3](p[0].2^b) = 0
+     *
+     **/
+    create_big_add_gate(
+        {
+            input.q[2],
+            input.q[3],
+            lo_1_idx,
+            hi_1_idx,
+            -input.neg_modulus[1] * LIMB_SHIFT - input.neg_modulus[0],
+            -input.neg_modulus[0] * LIMB_SHIFT,
+            -1,
+            -1,
+            0,
+        },
+        true);
+
+    /**
+     * product gate 7
+     *
+     * hi_3 - (hi_2 - q[0](p[3].2^b + p[2]) - q[1](p[2].2^b + p[1])).2^-2b
+     **/
+    create_big_add_gate({
+        hi_3_idx,
+        input.q[0],
+        input.q[1],
+        hi_2_idx,
+        -1,
+        input.neg_modulus[3] * LIMB_RSHIFT + input.neg_modulus[2] * LIMB_RSHIFT_2,
+        input.neg_modulus[2] * LIMB_RSHIFT + input.neg_modulus[1] * LIMB_RSHIFT_2,
+        LIMB_RSHIFT_2,
+        0,
+    });
 
     return std::array<uint32_t, 2>{ lo_1_idx, hi_3_idx };
 }
 
 /**
  * @brief Called in `compute_proving_key` when finalizing circuit.
- * Iterates over the cached_non_native_field_multiplication objects,
+ * Iterates over the cached_partial_non_native_field_multiplication objects,
  * removes duplicates, and instantiates the remainder as constraints`
  */
 void UltraComposer::process_non_native_field_multiplications()
 {
-    std::sort(cached_non_native_field_multiplications.begin(), cached_non_native_field_multiplications.end());
+    for (size_t i = 0; i < cached_partial_non_native_field_multiplications.size(); ++i) {
+        auto& c = cached_partial_non_native_field_multiplications[i];
+        for (size_t j = 0; j < 5; ++j) {
+            c.a[j] = real_variable_index[c.a[j]];
+            c.b[j] = real_variable_index[c.b[j]];
+        }
+    }
+    std::sort(cached_partial_non_native_field_multiplications.begin(),
+              cached_partial_non_native_field_multiplications.end());
 
-    auto last =
-        std::unique(cached_non_native_field_multiplications.begin(), cached_non_native_field_multiplications.end());
+    auto last = std::unique(cached_partial_non_native_field_multiplications.begin(),
+                            cached_partial_non_native_field_multiplications.end());
 
-    auto it = cached_non_native_field_multiplications.begin();
-
-    constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
-    constexpr barretenberg::fr LIMB_RSHIFT =
-        barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
-    constexpr barretenberg::fr LIMB_RSHIFT_2 =
-        barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
+    auto it = cached_partial_non_native_field_multiplications.begin();
 
     // iterate over the cached items and create constraints
     while (it != last) {
         const auto input = *it;
-        const uint32_t lo_0_idx = input.cross_terms.lo_0_idx;
-        const uint32_t lo_1_idx = input.cross_terms.lo_1_idx;
-        const uint32_t hi_0_idx = input.cross_terms.hi_0_idx;
-        const uint32_t hi_1_idx = input.cross_terms.hi_1_idx;
-        const uint32_t hi_2_idx = input.cross_terms.hi_2_idx;
-        const uint32_t hi_3_idx = input.cross_terms.hi_3_idx;
-
-        // product gate 1
-        // (lo_0 + q_0(p_0 + p_1*2^b) + q_1(p_0*2^b) - (r_1)2^b)2^-2b - lo_1 = 0
-        create_big_add_gate({ input.q[0],
-                              input.q[1],
-                              input.r[1],
-                              lo_1_idx,
-                              input.neg_modulus[0] + input.neg_modulus[1] * LIMB_SHIFT,
-                              input.neg_modulus[0] * LIMB_SHIFT,
-                              -LIMB_SHIFT,
-                              -LIMB_SHIFT.sqr(),
-                              0 },
-                            true);
 
         w_l.emplace_back(input.a[1]);
         w_r.emplace_back(input.b[1]);
-        w_o.emplace_back(input.r[0]);
-        w_4.emplace_back(lo_0_idx);
+        w_o.emplace_back(zero_idx);
+        w_4.emplace_back(input.lo_0);
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
         ++num_gates;
         w_l.emplace_back(input.a[0]);
@@ -2027,65 +2093,34 @@ void UltraComposer::process_non_native_field_multiplications()
         ++num_gates;
         w_l.emplace_back(input.a[2]);
         w_r.emplace_back(input.b[2]);
-        w_o.emplace_back(input.r[3]);
-        w_4.emplace_back(hi_0_idx);
+        w_o.emplace_back(zero_idx);
+        w_4.emplace_back(input.hi_0);
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
         ++num_gates;
         w_l.emplace_back(input.a[1]);
         w_r.emplace_back(input.b[1]);
-        w_o.emplace_back(input.r[2]);
-        w_4.emplace_back(hi_1_idx);
+        w_o.emplace_back(zero_idx);
+        w_4.emplace_back(input.hi_1);
         apply_aux_selectors(AUX_SELECTORS::NONE);
         ++num_gates;
-
-        /**
-         * product gate 6
-         *
-         * hi_2 - hi_1 - lo_1 - q[2](p[1].2^b + p[0]) - q[3](p[0].2^b) = 0
-         *
-         **/
-        create_big_add_gate(
-            {
-                input.q[2],
-                input.q[3],
-                lo_1_idx,
-                hi_1_idx,
-                -input.neg_modulus[1] * LIMB_SHIFT - input.neg_modulus[0],
-                -input.neg_modulus[0] * LIMB_SHIFT,
-                -1,
-                -1,
-                0,
-            },
-            true);
-
-        /**
-         * product gate 7
-         *
-         * hi_3 - (hi_2 - q[0](p[3].2^b + p[2]) - q[1](p[2].2^b + p[1])).2^-2b
-         **/
-        create_big_add_gate({
-            hi_3_idx,
-            input.q[0],
-            input.q[1],
-            hi_2_idx,
-            -1,
-            input.neg_modulus[3] * LIMB_RSHIFT + input.neg_modulus[2] * LIMB_RSHIFT_2,
-            input.neg_modulus[2] * LIMB_RSHIFT + input.neg_modulus[1] * LIMB_RSHIFT_2,
-            LIMB_RSHIFT_2,
-            0,
-        });
         ++it;
     }
 }
 
 /**
- * Compute the limb-multiplication part of a non native field mul
+ * @brief Queue the limb-multiplication part of a non native field mul
  *
  * i.e. compute the low 204 and high 204 bit components of `a * b` where `a, b` are nnf elements composed of 4
  * limbs with size DEFAULT_NON_NATIVE_FIELD_LIMB_BITS
  *
+ * @details The data queued represents part of a non-native field multiplication identity a * b = q * p + r,
+ * where a, b, q, r are all emulated non-native field elements that are each split across 4 distinct witness variables.
+ *
+ * Without this queue some functions, such as proof_system::plonk::stdlib::element::double_montgomery_ladder, would
+ * duplicate non-native field operations, which can be quite expensive. We queue up these operations, and remove
+ * duplicates in the circuit finishing stage of the proving key computation.
  **/
-std::array<uint32_t, 2> UltraComposer::evaluate_partial_non_native_field_multiplication(
+std::array<uint32_t, 2> UltraComposer::queue_partial_non_native_field_multiplication(
     const non_native_field_witnesses& input)
 {
 
@@ -2113,30 +2148,16 @@ std::array<uint32_t, 2> UltraComposer::evaluate_partial_non_native_field_multipl
     const uint32_t hi_0_idx = add_variable(hi_0);
     const uint32_t hi_1_idx = add_variable(hi_1);
 
-    w_l.emplace_back(input.a[1]);
-    w_r.emplace_back(input.b[1]);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(lo_0_idx);
-    apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
-    ++num_gates;
-    w_l.emplace_back(input.a[0]);
-    w_r.emplace_back(input.b[0]);
-    w_o.emplace_back(input.a[3]);
-    w_4.emplace_back(input.b[3]);
-    apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
-    ++num_gates;
-    w_l.emplace_back(input.a[2]);
-    w_r.emplace_back(input.b[2]);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(hi_0_idx);
-    apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
-    ++num_gates;
-    w_l.emplace_back(input.a[1]);
-    w_r.emplace_back(input.b[1]);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(hi_1_idx);
-    apply_aux_selectors(AUX_SELECTORS::NONE);
-    ++num_gates;
+    // Add witnesses into the multiplication cache
+    // (when finalising the circuit, we will remove duplicates; several dups produced by biggroup.hpp methods)
+    cached_partial_non_native_field_multiplication cache_entry{
+        .a = input.a,
+        .b = input.b,
+        .lo_0 = lo_0_idx,
+        .hi_0 = hi_0_idx,
+        .hi_1 = hi_1_idx,
+    };
+    cached_partial_non_native_field_multiplications.emplace_back(cache_entry);
     return std::array<uint32_t, 2>{ lo_0_idx, hi_1_idx };
 }
 
