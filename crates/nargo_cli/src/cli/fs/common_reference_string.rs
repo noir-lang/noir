@@ -1,19 +1,17 @@
 use std::{env, path::PathBuf};
 
-use acvm::{acir::circuit::Circuit, CommonReferenceString};
+use acvm::{acir::circuit::Circuit, CommonReferenceString, ProofSystemCompiler};
 
 use super::{create_named_dir, write_to_file};
 
-// TODO: pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 const TRANSCRIPT_NAME: &str = "common-reference-string.bin";
 
-fn common_reference_string_location() -> PathBuf {
+fn common_reference_string_location(backend: &ProofSystemCompiler) -> PathBuf {
     let cache_dir = match env::var("BACKEND_CACHE_DIR") {
         Ok(cache_dir) => PathBuf::from(cache_dir),
         Err(_) => dirs::home_dir().unwrap().join(".nargo").join("backends"),
     };
-    cache_dir.join(BACKEND_IDENTIFIER).join(TRANSCRIPT_NAME)
+    cache_dir.join(backend.backend_identifier()).join(TRANSCRIPT_NAME)
 }
 
 pub(crate) fn get_common_reference_string<Backend: CommonReferenceString>(
@@ -22,7 +20,7 @@ pub(crate) fn get_common_reference_string<Backend: CommonReferenceString>(
 ) -> Result<Vec<u8>, Backend::Error> {
     use tokio::runtime::Builder;
 
-    let crs_path = common_reference_string_location();
+    let crs_path = common_reference_string_location(backend);
 
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 

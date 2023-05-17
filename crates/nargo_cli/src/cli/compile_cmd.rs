@@ -17,9 +17,6 @@ use super::fs::{
 };
 use super::NargoConfig;
 
-// TODO: pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
-
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
@@ -63,7 +60,7 @@ pub(crate) fn run<B: Backend>(
 
                 Ok(PreprocessedContract {
                     name: contract.name,
-                    backend: String::from(BACKEND_IDENTIFIER),
+                    backend: backend.backend_identifier(),
                     functions: preprocessed_contract_functions,
                 })
             });

@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=eeddcf179880f246383f7f67a11e589269c4e3ff#eeddcf179880f246383f7f67a11e589269c4e3ff"
+source = "git+https://github.com/noir-lang/acvm?rev=650473a6a04df79c3d758c28984dba1d8e119518#650473a6a04df79c3d758c28984dba1d8e119518"
 dependencies = [
  "acir_field",
  "flate2",
@@ -17,7 +17,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=eeddcf179880f246383f7f67a11e589269c4e3ff#eeddcf179880f246383f7f67a11e589269c4e3ff"
+source = "git+https://github.com/noir-lang/acvm?rev=650473a6a04df79c3d758c28984dba1d8e119518#650473a6a04df79c3d758c28984dba1d8e119518"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -30,7 +30,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=eeddcf179880f246383f7f67a11e589269c4e3ff#eeddcf179880f246383f7f67a11e589269c4e3ff"
+source = "git+https://github.com/noir-lang/acvm?rev=650473a6a04df79c3d758c28984dba1d8e119518#650473a6a04df79c3d758c28984dba1d8e119518"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -49,7 +49,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.1.2"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=04c9d0f6b5e0f3625fd7d1e2bb5bacb020ae279d#04c9d0f6b5e0f3625fd7d1e2bb5bacb020ae279d"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=968f1eecaedb52aa6f8da0fd2b3c48b3c32f2c4c#968f1eecaedb52aa6f8da0fd2b3c48b3c32f2c4c"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -69,7 +69,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm?rev=eeddcf179880f246383f7f67a11e589269c4e3ff#eeddcf179880f246383f7f67a11e589269c4e3ff"
+source = "git+https://github.com/noir-lang/acvm?rev=650473a6a04df79c3d758c28984dba1d8e119518#650473a6a04df79c3d758c28984dba1d8e119518"
 dependencies = [
  "acir",
 ]

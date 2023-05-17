@@ -3,9 +3,6 @@ use noirc_driver::{CompiledProgram, ContractFunction};
 
 use crate::artifacts::{contract::PreprocessedContractFunction, program::PreprocessedProgram};
 
-// TODO: pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
-
 pub fn preprocess_program<B: ProofSystemCompiler>(
     backend: &B,
     common_reference_string: &[u8],
@@ -18,7 +15,7 @@ pub fn preprocess_program<B: ProofSystemCompiler>(
         backend.preprocess(common_reference_string, &optimized_bytecode)?;
 
     Ok(PreprocessedProgram {
-        backend: String::from(BACKEND_IDENTIFIER),
+        backend: backend.backend_identifier(),
         abi: compiled_program.abi,
         bytecode: optimized_bytecode,
         proving_key,
