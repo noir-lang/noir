@@ -143,7 +143,7 @@ impl DataFlowGraph {
             SimplifyResult::Remove => InstructionRemoved,
             SimplifyResult::None => {
                 let id = self.make_instruction(instruction, ctrl_typevars);
-                self.blocks[block].insert_instruction(instruction);
+                self.blocks[block].insert_instruction(id);
                 InsertInstructionResult::Results(self.instruction_results(id))
             }
         }
