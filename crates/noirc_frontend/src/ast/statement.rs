@@ -51,6 +51,8 @@ impl Statement {
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Statement {
+        let missing_semicolon =
+            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
         match self {
             Statement::Let(_)
             | Statement::Constrain(_)
@@ -59,10 +61,7 @@ impl Statement {
             | Statement::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
-                    emit_error(ParserError::with_reason(
-                        ParserErrorReason::MissingSeparatingSemi,
-                        span,
-                    ));
+                    emit_error(missing_semicolon);
                 }
                 self
             }
@@ -85,10 +84,7 @@ impl Statement {
                     // for unneeded expressions like { 1 + 2; 3 }
                     (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
-                        emit_error(ParserError::with_reason(
-                            ParserErrorReason::MissingSeparatingSemi,
-                            span,
-                        ));
+                        emit_error(missing_semicolon);
                         Statement::Expression(expr)
                     }
 

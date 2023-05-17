@@ -36,6 +36,10 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub show_ssa: bool,
 
+    /// Display the ACIR for compiled circuit
+    #[arg(short, long)]
+    pub print_acir: bool,
+
     /// Issue a warning for each unused variable instead of an error
     #[arg(short, long)]
     pub allow_warnings: bool,
@@ -51,7 +55,13 @@ pub struct CompileOptions {
 
 impl Default for CompileOptions {
     fn default() -> Self {
-        Self { show_ssa: false, allow_warnings: false, show_output: true, experimental_ssa: false }
+        Self {
+            show_ssa: false,
+            print_acir: false,
+            allow_warnings: false,
+            show_output: true,
+            experimental_ssa: false,
+        }
     }
 }
 
@@ -188,7 +198,12 @@ impl Driver {
                 return Err(e);
             }
         };
-        self.compile_no_check(options, main)
+        let compiled_program = self.compile_no_check(options, main)?;
+        if options.print_acir {
+            println!("Compiled ACIR for main:");
+            println!("{}", compiled_program.circuit);
+        }
+        Ok(compiled_program)
     }
 
     /// Run the frontend to check the crate for errors then compile all contracts if there were none
@@ -198,7 +213,20 @@ impl Driver {
     ) -> Result<Vec<CompiledContract>, ReportedError> {
         self.check_crate(options)?;
         let contracts = self.get_all_contracts();
-        try_vecmap(contracts, |contract| self.compile_contract(contract, options))
+        let compiled_contracts =
+            try_vecmap(contracts, |contract| self.compile_contract(contract, options))?;
+        if options.print_acir {
+            for compiled_contract in &compiled_contracts {
+                for contract_function in &compiled_contract.functions {
+                    println!(
+                        "Compiled ACIR for {}::{}:",
+                        compiled_contract.name, contract_function.name
+                    );
+                    println!("{}", contract_function.bytecode);
+                }
+            }
+        }
+        Ok(compiled_contracts)
     }
 
     /// Compile all of the functions associated with a Noir contract.

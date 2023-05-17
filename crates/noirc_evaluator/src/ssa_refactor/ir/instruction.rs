@@ -1,6 +1,13 @@
-use acvm::acir::BlackBoxFunc;
+use acvm::{acir::BlackBoxFunc, FieldElement};
+use iter_extended::vecmap;
 
-use super::{basic_block::BasicBlockId, map::Id, types::Type, value::ValueId};
+use super::{
+    basic_block::BasicBlockId,
+    dfg::DataFlowGraph,
+    map::Id,
+    types::Type,
+    value::{Value, ValueId},
+};
 
 /// Reference to an instruction
 ///
@@ -114,6 +121,84 @@ impl Instruction {
             Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
+
+    /// True if this instruction requires specifying the control type variables when
+    /// inserting this instruction into a DataFlowGraph.
+    pub(crate) fn requires_ctrl_typevars(&self) -> bool {
+        matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
+    /// Note that the returned instruction is fresh and will not have an assigned InstructionId
+    /// until it is manually inserted in a DataFlowGraph later.
+    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
+        match self {
+            Instruction::Binary(binary) => Instruction::Binary(Binary {
+                lhs: f(binary.lhs),
+                rhs: f(binary.rhs),
+                operator: binary.operator,
+            }),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
+            Instruction::Not(value) => Instruction::Not(f(*value)),
+            Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
+                value: f(*value),
+                bit_size: *bit_size,
+                max_bit_size: *max_bit_size,
+            },
+            Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
+            Instruction::Call { func, arguments } => Instruction::Call {
+                func: f(*func),
+                arguments: vecmap(arguments.iter().copied(), f),
+            },
+            Instruction::Allocate { size } => Instruction::Allocate { size: *size },
+            Instruction::Load { address } => Instruction::Load { address: f(*address) },
+            Instruction::Store { address, value } => {
+                Instruction::Store { address: f(*address), value: f(*value) }
+            }
+        }
+    }
+
+    /// Try to simplify this instruction. If the instruction can be simplified to a known value,
+    /// that value is returned. Otherwise None is returned.
+    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> Option<ValueId> {
+        match self {
+            Instruction::Binary(binary) => binary.simplify(dfg),
+            Instruction::Cast(value, typ) => (*typ == dfg.type_of_value(*value)).then_some(*value),
+            Instruction::Not(value) => {
+                match &dfg[*value] {
+                    // Limit optimizing ! on constants to only booleans. If we tried it on fields,
+                    // there is no Not on FieldElement, so we'd need to convert between u128. This
+                    // would be incorrect however since the extra bits on the field would not be flipped.
+                    Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
+                        let value = dfg[*constant].value().is_zero() as u128;
+                        Some(dfg.make_constant(value.into(), Type::bool()))
+                    }
+                    Value::Instruction { instruction, .. } => {
+                        // !!v => v
+                        match &dfg[*instruction] {
+                            Instruction::Not(value) => Some(*value),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            Instruction::Constrain(value) => {
+                if let Some(constant) = dfg.get_numeric_constant(*value) {
+                    if constant.is_one() {
+                        // "simplify" to a unit literal that will just be thrown away anyway
+                        return Some(dfg.make_constant(0u128.into(), Type::Unit));
+                    }
+                }
+                None
+            }
+            Instruction::Truncate { .. } => None,
+            Instruction::Call { .. } => None,
+            Instruction::Allocate { .. } => None,
+            Instruction::Load { .. } => None,
+            Instruction::Store { .. } => None,
+        }
+    }
 }
 
 /// The possible return values for Instruction::return_types
@@ -182,6 +267,156 @@ impl Binary {
             _ => InstructionResultType::Operand(self.lhs),
         }
     }
+
+    /// Try to simplify this binary instruction, returning the new value if possible.
+    fn simplify(&self, dfg: &mut DataFlowGraph) -> Option<ValueId> {
+        let lhs = dfg.get_numeric_constant(self.lhs);
+        let rhs = dfg.get_numeric_constant(self.rhs);
+        let operand_type = dfg.type_of_value(self.lhs);
+
+        if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+            return self.eval_constants(dfg, lhs, rhs, operand_type);
+        }
+
+        let lhs_is_zero = lhs.map_or(false, |lhs| lhs.is_zero());
+        let rhs_is_zero = rhs.map_or(false, |rhs| rhs.is_zero());
+
+        let lhs_is_one = lhs.map_or(false, |lhs| lhs.is_one());
+        let rhs_is_one = rhs.map_or(false, |rhs| rhs.is_one());
+
+        match self.operator {
+            BinaryOp::Add => {
+                if lhs_is_zero {
+                    return Some(self.rhs);
+                }
+                if rhs_is_zero {
+                    return Some(self.lhs);
+                }
+            }
+            BinaryOp::Sub => {
+                if rhs_is_zero {
+                    return Some(self.lhs);
+                }
+            }
+            BinaryOp::Mul => {
+                if lhs_is_one {
+                    return Some(self.rhs);
+                }
+                if rhs_is_one {
+                    return Some(self.lhs);
+                }
+            }
+            BinaryOp::Div => {
+                if rhs_is_one {
+                    return Some(self.lhs);
+                }
+            }
+            BinaryOp::Mod => {
+                if rhs_is_one {
+                    return Some(self.lhs);
+                }
+            }
+            BinaryOp::Eq => {
+                if self.lhs == self.rhs {
+                    return Some(dfg.make_constant(FieldElement::one(), Type::bool()));
+                }
+            }
+            BinaryOp::Lt => {
+                if self.lhs == self.rhs {
+                    return Some(dfg.make_constant(FieldElement::zero(), Type::bool()));
+                }
+            }
+            BinaryOp::And => {
+                if lhs_is_zero || rhs_is_zero {
+                    return Some(dfg.make_constant(FieldElement::zero(), operand_type));
+                }
+            }
+            BinaryOp::Or => {
+                if lhs_is_zero {
+                    return Some(self.rhs);
+                }
+                if rhs_is_zero {
+                    return Some(self.lhs);
+                }
+            }
+            BinaryOp::Xor => (),
+            BinaryOp::Shl => {
+                if rhs_is_zero {
+                    return Some(self.lhs);
+                }
+            }
+            BinaryOp::Shr => {
+                if rhs_is_zero {
+                    return Some(self.lhs);
+                }
+            }
+        }
+        None
+    }
+
+    /// Evaluate the two constants with the operation specified by self.operator.
+    /// Pushes the resulting value to the given DataFlowGraph's constants and returns it.
+    fn eval_constants(
+        &self,
+        dfg: &mut DataFlowGraph,
+        lhs: FieldElement,
+        rhs: FieldElement,
+        operand_type: Type,
+    ) -> Option<Id<Value>> {
+        let value = match self.operator {
+            BinaryOp::Add => lhs + rhs,
+            BinaryOp::Sub => lhs - rhs,
+            BinaryOp::Mul => lhs * rhs,
+            BinaryOp::Div => lhs / rhs,
+            BinaryOp::Eq => (lhs == rhs).into(),
+            BinaryOp::Lt => (lhs < rhs).into(),
+
+            // The rest of the operators we must try to convert to u128 first
+            BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::And => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Or => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Xor => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
+        };
+        // TODO: Keep original type of constant
+        Some(dfg.make_constant(value, operand_type))
+    }
+
+    /// Try to evaluate the given operands as u128s for operators that are only valid on u128s,
+    /// like the bitwise operators and modulus.
+    fn eval_constant_u128_operations(
+        &self,
+        lhs: FieldElement,
+        rhs: FieldElement,
+    ) -> Option<FieldElement> {
+        let lhs = lhs.try_into_u128()?;
+        let rhs = rhs.try_into_u128()?;
+        match self.operator {
+            BinaryOp::Mod => Some((lhs % rhs).into()),
+            BinaryOp::And => Some((lhs & rhs).into()),
+            BinaryOp::Or => Some((lhs | rhs).into()),
+            BinaryOp::Shr => Some((lhs >> rhs).into()),
+            // Check for overflow and return None if anything does overflow
+            BinaryOp::Shl => {
+                let rhs = rhs.try_into().ok()?;
+                lhs.checked_shl(rhs).map(Into::into)
+            }
+
+            // Converting a field xor to a u128 xor would be incorrect since we wouldn't have the
+            // extra bits of the field. So we don't optimize it here.
+            BinaryOp::Xor => None,
+
+            op @ (BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Eq
+            | BinaryOp::Lt) => panic!(
+                "eval_constant_u128_operations invalid for {op:?} use eval_constants instead"
+            ),
+        }
+    }
 }
 
 /// Binary Operations allowed in the IR.
@@ -191,7 +426,7 @@ impl Binary {
 /// All binary operators are also only for numeric types. To implement
 /// e.g. equality for a compound type like a struct, one must add a
 /// separate Eq operation for each field and combine them later with And.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub(crate) enum BinaryOp {
     /// Addition of lhs + rhs.
     Add,

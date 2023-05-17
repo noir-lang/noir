@@ -1,4 +1,4 @@
-use super::InputValue;
+use super::{parse_str_to_field, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
 use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
@@ -12,18 +12,13 @@ pub(crate) fn parse_toml(
     // Parse input.toml into a BTreeMap.
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)?;
 
-    // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
-    // When parsing the toml map we recursively go through each field to enable struct inputs.
-    // To match this map with the correct abi type we reorganize our abi by parameter name in a BTreeMap, while the struct fields
-    // in the abi are already stored in a BTreeMap.
-    let abi_map = abi.to_btree_map();
-
     // Convert arguments to field elements.
-    let mut parsed_inputs = try_btree_map(abi_map, |(arg_name, abi_type)| {
+    let mut parsed_inputs = try_btree_map(abi.to_btree_map(), |(arg_name, abi_type)| {
         // Check that toml contains a value for each argument in the ABI.
         let value = data
             .get(&arg_name)
             .ok_or_else(|| InputParserError::MissingArgument(arg_name.clone()))?;
+
         InputValue::try_from_toml(value.clone(), &abi_type, &arg_name)
             .map(|input_value| (arg_name, input_value))
     })?;
@@ -58,7 +53,8 @@ enum TomlTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
-    // Just a regular integer, that can fit in 128 bits
+    // Just a regular integer, that can fit in 64 bits
+    // Note that the toml spec specifies that all numbers are represented as `i64`s.
     Integer(u64),
     // Simple boolean flag
     Bool(bool),
@@ -152,27 +148,5 @@ impl InputValue {
         };
 
         Ok(input_value)
-    }
-}
-
-fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
-    if value.starts_with("0x") {
-        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
-    } else {
-        value
-            .parse::<i128>()
-            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
-            .map(FieldElement::from)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::parse_str_to_field;
-
-    #[test]
-    fn parse_empty_str_fails() {
-        // Check that this fails appropriately rather than being treated as 0, etc.
-        assert!(parse_str_to_field("").is_err());
     }
 }

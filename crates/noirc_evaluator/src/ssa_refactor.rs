@@ -17,6 +17,7 @@ use self::acir_gen::Acir;
 
 mod acir_gen;
 mod ir;
+mod opt;
 mod ssa_builder;
 pub mod ssa_gen;
 
@@ -24,7 +25,7 @@ pub mod ssa_gen;
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
 pub fn optimize_into_acir(program: Program) -> Acir {
-    ssa_gen::generate_ssa(program).into_acir()
+    ssa_gen::generate_ssa(program).inline_functions().into_acir()
 }
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 /// This is analogous to `ssa:create_circuit` and this method is called when one wants

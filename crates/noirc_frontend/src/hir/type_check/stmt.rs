@@ -142,28 +142,15 @@ impl<'interner> TypeChecker<'interner> {
                 (typ.clone(), HirLValue::Ident(ident, typ))
             }
             HirLValue::MemberAccess { object, field_name, .. } => {
-                let (result, object) = self.check_lvalue(*object, assign_span);
+                let (lhs_type, object) = self.check_lvalue(*object, assign_span);
                 let object = Box::new(object);
 
-                let mut error = |typ| {
-                    self.errors.push(TypeCheckError::Unstructured {
-                        msg: format!("Type {typ} has no member named {field_name}"),
-                        span: field_name.span(),
-                    });
-                    (Type::Error, None)
-                };
+                let span = field_name.span();
+                let (typ, field_index) = self
+                    .check_field_access(&lhs_type, &field_name.0.contents, span)
+                    .unwrap_or((Type::Error, 0));
 
-                let (typ, field_index) = match result {
-                    Type::Struct(def, args) => {
-                        match def.borrow().get_field(&field_name.0.contents, &args) {
-                            Some((field, index)) => (field, Some(index)),
-                            None => error(Type::Struct(def.clone(), args)),
-                        }
-                    }
-                    Type::Error => (Type::Error, None),
-                    other => error(other),
-                };
-
+                let field_index = Some(field_index);
                 (typ.clone(), HirLValue::MemberAccess { object, field_name, field_index, typ })
             }
             HirLValue::Index { array, index, .. } => {
