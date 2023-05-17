@@ -39,5 +39,6 @@ pub fn experimental_create_circuit(
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
+    optimize_into_acir(_program);
     todo!("this is a stub function for the new SSA refactor module")
 }

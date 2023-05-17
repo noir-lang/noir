@@ -24,11 +24,12 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
 }
 
 fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
+    // let backend = crate::backends::ConcreteBackend::default();
 
-    let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
-
-    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
+    let mut driver = Resolver::resolve_root_manifest(p.as_ref(), acvm::Language::R1CS)?;
+    driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)?;
+    todo!("FINISHED");
+    // driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = driver.compute_function_signature() {

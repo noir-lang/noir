@@ -52,6 +52,8 @@ pub(crate) fn mul_with_witness(
 }
 
 //a*b
+//These are linear expressions -- Not sure we should have removed `Linear`
+// as this was what this type represented.
 pub(crate) fn mul(a: &Expression, b: &Expression) -> Expression {
     if a.is_const() {
         return b * a.q_c;
@@ -215,6 +217,7 @@ pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression
 }
 
 // returns w*b.linear_combinations
+// Note: This assumes that there are no multiplication terms
 pub(crate) fn single_mul(w: Witness, b: &Expression) -> Expression {
     let mut output = Expression::default();
     let mut i1 = 0;
@@ -462,7 +465,7 @@ pub(crate) fn to_radix_little(
     (result, digits)
 }
 
-//Returns 1 if lhs < rhs
+// Returns 1 if lhs < rhs
 pub(crate) fn evaluate_cmp(
     lhs: &Expression,
     rhs: &Expression,

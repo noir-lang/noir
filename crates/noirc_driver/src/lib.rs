@@ -258,7 +258,7 @@ impl Driver {
         let np_language = self.language.clone();
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
-        let circuit_abi = if options.experimental_ssa {
+        let circuit_abi = if true {
             experimental_create_circuit(
                 program,
                 np_language,
