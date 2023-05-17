@@ -59,12 +59,12 @@ pub(crate) fn display_block(
 
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
-pub(crate) fn value(function: &Function, id: ValueId) -> String {
+fn value(function: &Function, id: ValueId) -> String {
     use super::value::Value;
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
             let value = function.dfg[*constant].value();
-            format!("{typ} {value} ({id})")
+            format!("{typ} {value}")
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),

@@ -60,8 +60,6 @@ pub(crate) struct DataFlowGraph {
     signatures: DenseMap<Signature>,
 
     /// All blocks in a function
-    ///
-    /// This map is sparse to allow removing unreachable blocks during optimizations
     blocks: DenseMap<BasicBlock>,
 }
 
@@ -102,11 +100,6 @@ impl DataFlowGraph {
     ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
         self.blocks.iter()
     }
-
-    // Remove all blocks in this DFG that do not satisfy the given predicate
-    // pub(crate) fn retain_blocks(&mut self, mut predicate: impl FnMut(BasicBlockId) -> bool) {
-    //     self.blocks.retain(|id, _| predicate(*id))
-    // }
 
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
@@ -153,15 +146,6 @@ impl DataFlowGraph {
     /// Until the value is used in an instruction it is unreachable.
     pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
         self.values.insert(value)
-    }
-
-    /// Replaces the value specified by the given ValueId with a new Value.
-    ///
-    /// This is the preferred method to call for optimizations simplifying
-    /// values since other instructions referring to the same ValueId need
-    /// not be modified to refer to a new ValueId.
-    pub(crate) fn set_value(&mut self, value_id: ValueId, new_value: Value) {
-        self.values[value_id] = new_value;
     }
 
     /// Creates a new constant value, or returns the Id to an existing one if
