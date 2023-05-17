@@ -10,7 +10,7 @@ declare interface DedicatedWorkerGlobalScope {
   /**
    * Handler for incoming messages from other threads or workers.
    */
-  onmessage: (...args: any) => any;
+  onmessage: any;
 }
 
 /**

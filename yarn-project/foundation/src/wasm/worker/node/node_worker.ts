@@ -1,11 +1,10 @@
 import { Worker } from 'worker_threads';
-import { createDispatchProxy, DispatchMsg, TransportClient } from '../../transport/index.js';
-import { NodeConnector } from '../../transport/index.js';
 import { WasmModule } from '../../wasm/wasm_module.js';
 import { WasmWorker } from '../wasm_worker.js';
+import { DispatchMsg, NodeConnector, TransportClient, createDispatchProxy } from '../../../transport/index.js';
 
 /**
- *
+ * Creates a node worker.
  */
 export async function createNodeWorker(filepath: string, initialMem?: number, maxMem?: number): Promise<WasmWorker> {
   const worker = new Worker(filepath);

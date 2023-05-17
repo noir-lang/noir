@@ -1,8 +1,8 @@
 import { Buffer } from 'buffer';
 import { randomBytes } from 'crypto';
 import { createDebugLogger, DebugLogger } from '../../log/index.js';
-import { MemoryFifo } from '../memory_fifo.js';
 import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
+import { MemoryFifo } from '../../fifo/index.js';
 
 /**
  * WasmModule:

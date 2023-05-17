@@ -1,5 +1,5 @@
+import { DispatchMsg, TransportClient, WorkerConnector, createDispatchProxy } from '../../../transport/index.js';
 import { WasmModule } from '../../wasm/wasm_module.js';
-import { createDispatchProxy, DispatchMsg, TransportClient, WorkerConnector } from '../../transport/index.js';
 import { WasmWorker } from '../wasm_worker.js';
 
 /**
