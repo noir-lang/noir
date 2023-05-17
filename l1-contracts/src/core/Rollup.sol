@@ -2,6 +2,10 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
+import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
+import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
+
 import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
 import {Decoder} from "./Decoder.sol";
 
@@ -20,10 +24,12 @@ contract Rollup is Decoder {
   event L2BlockProcessed(uint256 indexed blockNum);
 
   MockVerifier public immutable VERIFIER;
+  IRegistry public immutable REGISTRY;
   bytes32 public rollupStateHash;
 
-  constructor() {
+  constructor(IRegistry _registry) {
     VERIFIER = new MockVerifier();
+    REGISTRY = _registry;
   }
 
   /**
@@ -41,7 +47,7 @@ contract Rollup is Decoder {
       bytes32[] memory l1ToL2Msgs
     ) = _decode(_l2Block);
 
-    // @todo Proper genesis state. If the state is empty, we allow anything for now.
+    // @todo @LHerskind Proper genesis state. If the state is empty, we allow anything for now.
     if (rollupStateHash != bytes32(0) && rollupStateHash != oldStateHash) {
       revert InvalidStateHash(rollupStateHash, oldStateHash);
     }
@@ -54,6 +60,13 @@ contract Rollup is Decoder {
     }
 
     rollupStateHash = newStateHash;
+
+    // @todo (issue #605) handle fee collector
+    IInbox inbox = REGISTRY.getInbox();
+    inbox.batchConsume(l1ToL2Msgs, msg.sender);
+
+    IOutbox outbox = REGISTRY.getOutbox();
+    outbox.sendL1Messages(l2ToL1Msgs);
 
     emit L2BlockProcessed(l2BlockNumber);
   }

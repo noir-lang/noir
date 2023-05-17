@@ -37,6 +37,7 @@ contract Outbox is MessageBox, IOutbox {
    */
   function sendL1Messages(bytes32[] memory _entryKeys) external onlyRollup {
     for (uint256 i = 0; i < _entryKeys.length; i++) {
+      if (_entryKeys[i] == bytes32(0)) continue;
       _insert(_entryKeys[i], 0, 0);
       emit MessageAdded(_entryKeys[i]);
     }

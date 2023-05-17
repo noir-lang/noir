@@ -47,12 +47,14 @@ contract OutboxTest is Test {
   function testFuzzBatchInsert(bytes32[] memory _entryKeys) public {
     // expected events
     for (uint256 i = 0; i < _entryKeys.length; i++) {
+      if (_entryKeys[i] == bytes32(0)) continue;
       vm.expectEmit(true, false, false, false);
       emit MessageAdded(_entryKeys[i]);
     }
 
     outbox.sendL1Messages(_entryKeys);
     for (uint256 i = 0; i < _entryKeys.length; i++) {
+      if (_entryKeys[i] == bytes32(0)) continue;
       bytes32 key = _entryKeys[i];
       DataStructures.Entry memory entry = outbox.get(key);
       assertGt(entry.count, 0);

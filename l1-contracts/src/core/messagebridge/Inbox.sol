@@ -124,13 +124,16 @@ contract Inbox is MessageBox, IInbox {
   function batchConsume(bytes32[] memory _entryKeys, address _feeCollector) external onlyRollup {
     uint256 totalFee = 0;
     for (uint256 i = 0; i < _entryKeys.length; i++) {
+      if (_entryKeys[i] == bytes32(0)) continue;
       DataStructures.Entry memory entry = get(_entryKeys[i]);
       // cant consume if we are already past deadline.
       if (block.timestamp > entry.deadline) revert Inbox__PastDeadline();
       _consume(_entryKeys[i]);
       totalFee += entry.fee;
     }
-    feesAccrued[_feeCollector] += totalFee;
+    if (totalFee > 0) {
+      feesAccrued[_feeCollector] += totalFee;
+    }
   }
 
   /**

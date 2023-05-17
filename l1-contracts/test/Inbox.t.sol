@@ -181,15 +181,17 @@ contract InboxTest is Test {
     inbox.batchConsume(entryKeys, address(0x1));
   }
 
-  function testFuzzRevertIfConsumingAMessageThatDoesntExist(bytes32[] memory _entryKeys) public {
-    if (_entryKeys.length == 0) {
-      _entryKeys = new bytes32[](1);
-      _entryKeys[0] = bytes32("random");
+  function testFuzzRevertIfConsumingAMessageThatDoesntExist(bytes32 _entryKey) public {
+    bytes32[] memory entryKeys = new bytes32[](1);
+    if (_entryKey == bytes32(0)) {
+      entryKeys[0] = bytes32("random");
+    } else {
+      entryKeys[0] = _entryKey;
     }
     vm.expectRevert(
-      abi.encodeWithSelector(MessageBox.MessageBox__NothingToConsume.selector, _entryKeys[0])
+      abi.encodeWithSelector(MessageBox.MessageBox__NothingToConsume.selector, entryKeys[0])
     );
-    inbox.batchConsume(_entryKeys, address(0x1));
+    inbox.batchConsume(entryKeys, address(0x1));
   }
 
   function testRevertIfConsumingTheSameMessageMoreThanTheCountOfEntries() public {
