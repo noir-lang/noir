@@ -140,13 +140,13 @@ mod serialization_tests {
                 AbiParameter {
                     name: "bar".into(),
                     typ: AbiType::Struct {
-                        fields: BTreeMap::from([
+                        fields: vec![
                             ("field1".into(), AbiType::Integer { sign: Sign::Unsigned, width: 8 }),
                             (
                                 "field2".into(),
                                 AbiType::Array { length: 2, typ: Box::new(AbiType::Boolean) },
                             ),
-                        ]),
+                        ],
                     },
                     visibility: AbiVisibility::Private,
                 },
