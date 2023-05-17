@@ -432,3 +432,119 @@ impl<'f> LoopIteration<'f> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa_refactor::{
+        ir::{dom::DominatorTree, instruction::BinaryOp, map::Id, types::Type},
+        ssa_builder::FunctionBuilder,
+        ssa_gen::Ssa,
+    };
+
+    #[test]
+    fn unroll_nested_loops() {
+        // fn main() {
+        //     for i in 0..3 {
+        //         for j in 0..4 {
+        //             assert(i + j > 10);
+        //         }
+        //     }
+        // }
+        //
+        // fn main f0 {
+        //   b0():
+        //     jmp b1(Field 0)
+        //   b1(v0: Field):  // header of outer loop
+        //     v1 = lt v0, Field 3
+        //     jmpif v1, then: b2, else: b3
+        //   b2():
+        //     jmp b4(Field 0)
+        //   b4(v2: Field):  // header of inner loop
+        //     v3 = lt v2, Field 4
+        //     jmpif v3, then: b5, else: b6
+        //   b5():
+        //     v4 = add v0, v2
+        //     v5 = lt Field 10, v4
+        //     constrain v5
+        //     v6 = add v2, Field 1
+        //     jmp b4(v6)
+        //   b6(): // end of inner loop
+        //     v7 = add v0, Field 1
+        //     jmp b1(v7)
+        //   b3(): // end of outer loop
+        //     return Field 0
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        let b4 = builder.insert_block();
+        let b5 = builder.insert_block();
+        let b6 = builder.insert_block();
+
+        let v0 = builder.add_block_parameter(b1, Type::field());
+        let v2 = builder.add_block_parameter(b4, Type::field());
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(1u128);
+        let three = builder.field_constant(3u128);
+        let four = builder.field_constant(4u128);
+        let ten = builder.field_constant(10u128);
+
+        builder.terminate_with_jmp(b1, vec![zero]);
+
+        // b1
+        builder.switch_to_block(b1);
+        let v1 = builder.insert_binary(v0, BinaryOp::Lt, three);
+        builder.terminate_with_jmpif(v1, b2, b3);
+
+        // b2
+        builder.switch_to_block(b2);
+        builder.terminate_with_jmp(b4, vec![zero]);
+
+        // b3
+        builder.switch_to_block(b3);
+        builder.terminate_with_return(vec![zero]);
+
+        // b4
+        builder.switch_to_block(b4);
+        let v3 = builder.insert_binary(v2, BinaryOp::Lt, four);
+        builder.terminate_with_jmpif(v3, b5, b6);
+
+        // b5
+        builder.switch_to_block(b5);
+        let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
+        let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
+        builder.insert_constrain(v5);
+        let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b4, vec![v6]);
+
+        // b6
+        builder.switch_to_block(b6);
+        let v7 = builder.insert_binary(v0, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b1, vec![v7]);
+
+        // basic_blocks_iter iterates over unreachable blocks as well, so we must filter those out.
+        let count_reachable_blocks = |ssa: &Ssa| {
+            let function = ssa.main();
+            let dom_tree = DominatorTree::with_function(function);
+            function
+                .dfg
+                .basic_blocks_iter()
+                .filter(|(block, _)| dom_tree.is_reachable(*block))
+                .count()
+        };
+
+        let ssa = builder.finish();
+        assert_eq!(count_reachable_blocks(&ssa), 7);
+
+        // The final block count is not 1 because the block creates some unnecessary jmps.
+        // If a simplify cfg pass is ran afterward, the expected block count will be 1.
+        let ssa = ssa.unroll_loops();
+        assert_eq!(count_reachable_blocks(&ssa), 5);
+    }
+}
