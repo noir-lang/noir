@@ -4,8 +4,10 @@ import snakeCase from 'lodash.snakecase';
 import upperFirst from 'lodash.upperfirst';
 import mockedKeys from './mockedKeys.json' assert { type: 'json' };
 import { ABIParameter, ABIType, FunctionType } from '@aztec/foundation/abi';
+import { createLogger } from '@aztec/foundation/log';
 
 const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
+const log = createLogger('aztec:noir-contracts');
 
 /**
  * Creates an Aztec function entry.
@@ -87,12 +89,12 @@ const main = () => {
 
   const exampleFile = `${examples}/${snakeCase(name)}_contract.json`;
   writeFileSync(exampleFile, JSON.stringify(abi, null, 2) + '\n');
-  console.log(`Written ${exampleFile}`);
+  log(`Written ${exampleFile}`);
 };
 
 try {
   main();
 } catch (err: unknown) {
-  console.error(err);
+  log(err);
   process.exit(1);
 }

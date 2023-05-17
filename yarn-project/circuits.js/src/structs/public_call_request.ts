@@ -15,9 +15,21 @@ import {
  */
 export class PublicCallRequest {
   constructor(
+    /**
+     *Address of the contract on which the function is invoked.
+     */
     public contractAddress: AztecAddress,
+    /**
+     * Data identifying the function being called.
+     */
     public functionData: FunctionData,
+    /**
+     * Context of the public call.
+     */
     public callContext: CallContext,
+    /**
+     * Function arguments.
+     */
     public args: Fr[],
   ) {}
 

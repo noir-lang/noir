@@ -1,3 +1,4 @@
+import { createLogger } from '../log/index.js';
 import { sleep } from '../sleep/index.js';
 import { Timer } from '../timer/index.js';
 
@@ -24,9 +25,15 @@ export function* backoffGenerator() {
  * @param fn - The asynchronous function to be retried.
  * @param name - The optional name of the operation, used for logging purposes.
  * @param backoff - The optional backoff generator providing the intervals in seconds between retries. Defaults to a predefined series.
+ * @param log - Logger to use for logging.
  * @returns A Promise that resolves with the successful result of the provided function, or rejects if backoff generator ends.
  */
-export async function retry<Result>(fn: () => Promise<Result>, name = 'Operation', backoff = backoffGenerator()) {
+export async function retry<Result>(
+  fn: () => Promise<Result>,
+  name = 'Operation',
+  backoff = backoffGenerator(),
+  log = createLogger('aztec:foundation:retry'),
+) {
   while (true) {
     try {
       return await fn();
@@ -35,8 +42,8 @@ export async function retry<Result>(fn: () => Promise<Result>, name = 'Operation
       if (s === undefined) {
         throw err;
       }
-      console.log(`${name} failed. Will retry in ${s}s...`);
-      console.log(err);
+      log(`${name} failed. Will retry in ${s}s...`);
+      log(err);
       await sleep(s * 1000);
       continue;
     }

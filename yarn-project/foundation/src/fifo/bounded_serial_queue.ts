@@ -1,3 +1,4 @@
+import { createLogger } from '../log/console.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial_queue.js';
 
@@ -9,7 +10,7 @@ export class BoundedSerialQueue {
   private readonly queue = new SerialQueue();
   private semaphore: Semaphore;
 
-  constructor(maxQueueSize: number) {
+  constructor(maxQueueSize: number, private log = createLogger('aztec:foundation:bounded_serial_queue')) {
     this.semaphore = new Semaphore(maxQueueSize);
   }
 
@@ -70,7 +71,7 @@ export class BoundedSerialQueue {
         }
       })
       .catch(err => {
-        console.error('BoundedSerialQueue handler exception:', err);
+        this.log('BoundedSerialQueue handler exception:', err);
       });
   }
 

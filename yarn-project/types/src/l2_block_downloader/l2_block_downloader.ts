@@ -1,6 +1,9 @@
 import { InterruptableSleep } from '@aztec/foundation/sleep';
 import { MemoryFifo, Semaphore } from '@aztec/foundation/fifo';
 import { L2BlockSource, L2Block, INITIAL_L2_BLOCK_NUM } from '../index.js';
+import { createLogger } from '@aztec/foundation/log';
+
+const log = createLogger('aztec:l2_block_downloader');
 
 /**
  * Downloads L2 blocks from a L2BlockSource.
@@ -49,7 +52,7 @@ export class L2BlockDownloader {
           this.queue.put(blocks);
           this.from += blocks.length;
         } catch (err) {
-          console.log(err);
+          log(err);
           await this.interruptableSleep.sleep(this.pollIntervalMS);
         }
       }

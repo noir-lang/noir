@@ -9,6 +9,9 @@ import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
  * @see cpp/src/aztec3/circuits/abis/call_stack_item.hpp.
  */
 export class PrivateCallStackItem {
+  /**
+   * Whether the current callstack item should be considered a public fn execution request.
+   */
   public readonly isExecutionRequest = false;
 
   constructor(
@@ -61,6 +64,9 @@ export class PublicCallStackItem {
      * Public inputs to the public kernel circuit.
      */
     public publicInputs: PublicCircuitPublicInputs,
+    /**
+     * Whether the current callstack item should be considered a public fn execution request.
+     */
     public isExecutionRequest: boolean,
   ) {}
 

@@ -1,3 +1,5 @@
+import { createLogger } from '../log/console.js';
+
 /**
  * A simple fifo queue. It can grow unbounded. It can have multiple producers and consumers.
  * Putting an item onto the queue always succeeds, unless either end() or cancel() has been called in which case
@@ -7,6 +9,8 @@ export class MemoryFifo<T> {
   private waiting: ((item: T | null) => void)[] = [];
   private items: T[] = [];
   private flushing = false;
+
+  constructor(private log = createLogger('aztec:foundation:memory_fifo')) {}
 
   /**
    * Returns the current number of items in the queue.
@@ -104,7 +108,7 @@ export class MemoryFifo<T> {
         await handler(item);
       }
     } catch (err) {
-      console.error('Queue handler exception:', err);
+      this.log('Queue handler exception:', err);
     }
   }
 }

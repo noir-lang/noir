@@ -11,6 +11,9 @@ import { INITIAL_LEAF, SiblingPath } from '../index.js';
 import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
 import { newTree } from '../new_tree.js';
 import { loadTree } from '../load_tree.js';
+import { createLogger } from '@aztec/foundation/log';
+
+const log = createLogger('aztec:sparse_tree_test');
 
 const createDb = async (
   levelUp: levelup.LevelUp,
@@ -166,6 +169,6 @@ describe('SparseTreeSpecific', () => {
     const start = Date.now();
     await Promise.all(leaves.map((leaf, i) => tree.updateLeaf(leaf, indices[i])));
     const end = Date.now();
-    console.log(`Inserting 1000 leaves at random positions for depth 254 took ${end - start}ms`);
+    log(`Inserting 1000 leaves at random positions for depth 254 took ${end - start}ms`);
   }, 300_000);
 });

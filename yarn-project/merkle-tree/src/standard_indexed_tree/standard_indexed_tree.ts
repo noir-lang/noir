@@ -2,6 +2,9 @@ import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Hasher } from '../hasher.js';
 import { IndexedTree, LeafData } from '../interfaces/indexed_tree.js';
 import { TreeBase } from '../tree_base.js';
+import { createLogger } from '@aztec/foundation/log';
+
+const log = createLogger('aztec:standard-indexed-tree');
 
 const indexToKeyLeaf = (name: string, index: bigint) => {
   return `${name}:leaf:${index}`;
@@ -239,7 +242,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
           resolve();
         })
         .on('error', function () {
-          console.log('stream error');
+          log('stream error');
           reject();
         });
     });

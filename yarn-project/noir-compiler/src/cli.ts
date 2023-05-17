@@ -4,8 +4,10 @@ import fs from 'fs/promises';
 import fsExtra from 'fs-extra';
 import { Command } from 'commander';
 import { ContractCompiler } from './compile.js';
+import { createLogger } from '@aztec/foundation/log';
 
 const program = new Command();
+const log = createLogger('noir-compiler-cli');
 
 const main = async () => {
   program
@@ -32,6 +34,6 @@ const main = async () => {
 };
 
 main().catch(err => {
-  console.log(`Error thrown: ${err}`);
+  log(`Error thrown: ${err}`);
   process.exit(1);
 });

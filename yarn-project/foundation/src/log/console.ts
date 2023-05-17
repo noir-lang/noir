@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 /**
  * Logger is a utility type that represents a logging function that accepts any number of arguments.
  * It is used to provide customizable logging functionality, allowing developers to easily log messages

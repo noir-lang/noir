@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+import { createLogger } from '@aztec/foundation/log';
 import { Command } from 'commander';
 
 const program = new Command();
+const log = createLogger('aztec:aztec-cli');
 
 /**
  * A placeholder for the Aztec-cli.
@@ -11,13 +13,13 @@ async function main() {
     .command('run')
     .argument('<cmd>', 'command')
     .action((cmd: string) => {
-      console.log(`Running '${cmd}'...`);
+      log(`Running '${cmd}'...`);
     });
 
   await program.parseAsync(process.argv);
 }
 
 main().catch(err => {
-  console.log(`Error thrown: ${err}`);
+  log(`Error thrown: ${err}`);
   process.exit(1);
 });

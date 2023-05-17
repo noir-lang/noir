@@ -3,8 +3,11 @@ import { createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 import { Archiver, getConfigEnvVars } from './archiver/index.js';
 import { MemoryArchiverStore } from './archiver/archiver_store.js';
+import { createLogger } from '@aztec/foundation/log';
 
 export * from './archiver/index.js';
+
+const log = createLogger('aztec:archiver_init');
 
 /**
  * A function which instantiates and starts Archiver.
@@ -35,7 +38,7 @@ async function main() {
 if (process.argv[1] === fileURLToPath(import.meta.url).replace(/\/index\.js$/, '')) {
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
   main().catch(err => {
-    console.log(err);
+    log(err);
     process.exit(1);
   });
 }

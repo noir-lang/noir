@@ -10,6 +10,7 @@ import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.
 import { WorldStateRunningState } from './world_state_synchroniser.js';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
+import { createLogger } from '@aztec/foundation/log';
 
 /**
  * Generic mock implementation.
@@ -72,6 +73,8 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
 const createSynchroniser = (merkleTreeDb: any, rollupSource: any) =>
   new ServerWorldStateSynchroniser(merkleTreeDb as MerkleTreeDb, rollupSource as L2BlockSource);
 
+const log = createLogger('aztec:server_world_state_synchroniser_test');
+
 describe('server_world_state_synchroniser', () => {
   const rollupSource: Mockify<Pick<L2BlockSource, 'getBlockHeight' | 'getL2Blocks'>> = {
     getBlockHeight: jest.fn().mockImplementation(getLatestBlockNumber),
@@ -115,7 +118,7 @@ describe('server_world_state_synchroniser', () => {
     nextBlocks = [getMockBlock(currentBlockNumber + 1)];
 
     // start the sync process but don't await
-    server.start().catch(err => console.log('Sync not completed: ', err));
+    server.start().catch(err => log('Sync not completed: ', err));
 
     // now setup a loop to monitor the sync progress and push new blocks in
     while (currentBlockNumber <= LATEST_BLOCK_NUMBER) {

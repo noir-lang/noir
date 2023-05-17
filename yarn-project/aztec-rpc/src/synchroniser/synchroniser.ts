@@ -97,7 +97,7 @@ export class Synchroniser {
       from += unverifiedData.length;
       return from;
     } catch (err) {
-      console.log(err);
+      this.log(err);
       await this.interruptableSleep.sleep(retryInterval);
       return from;
     }

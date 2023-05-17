@@ -17,11 +17,11 @@ describe('pedersen', () => {
   });
 
   it('hasher_consistency_and_benchmark', () => {
-    const start1 = new Date().getTime();
+    // const start1 = new Date().getTime();
     const result = pedersenGetHashTree(barretenbergWasm, values);
-    const end1 = new Date().getTime() - start1;
+    // const end1 = new Date().getTime() - start1;
 
-    console.log(`Single hasher: ~${end1 / values.length}ms / value`);
+    // console.log(`Single hasher: ~${end1 / values.length}ms / value`);
     // TODO more than smoke-test this
     expect(result.length).toBe(values.length * 2 - 1);
     // TODO

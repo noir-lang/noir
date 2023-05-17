@@ -6,9 +6,7 @@ import { ClassConverterInput } from '../class_converter.js';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
 import { JsonProxy } from './json_proxy.js';
-import { createDebugLogger } from '../../log/index.js';
-
-const debug = createDebugLogger('json-rpc:json_rpc_server');
+import { createLogger } from '../../log/index.js';
 
 /**
  * JsonRpcServer.
@@ -16,7 +14,11 @@ const debug = createDebugLogger('json-rpc:json_rpc_server');
  */
 export class JsonRpcServer {
   proxy: JsonProxy;
-  constructor(private handler: object, input: ClassConverterInput) {
+  constructor(
+    private handler: object,
+    input: ClassConverterInput,
+    private log = createLogger('aztec:foundation:json-rpc:server'),
+  ) {
     this.proxy = new JsonProxy(handler, input);
   }
 
@@ -31,14 +33,14 @@ export class JsonRpcServer {
       try {
         await next();
       } catch (err: any) {
-        console.log(err);
+        this.log(err);
         ctx.status = 400;
         ctx.body = { error: err.message };
       }
     };
     const app = new Koa();
     app.on('error', error => {
-      console.log(`KOA app-level error. ${JSON.stringify({ error })}`);
+      this.log(`KOA app-level error. ${JSON.stringify({ error })}`);
     });
     app.use(compress({ br: false } as any));
     app.use(bodyParser());
@@ -66,7 +68,6 @@ export class JsonRpcServer {
       }
       router.post(`/${method}`, async (ctx: Koa.Context) => {
         const { params = [], jsonrpc, id } = ctx.request.body as any;
-        debug('JsonRpcServer:getRouter', method, '<-', params);
         const result = await this.proxy.call(method, params);
         ctx.body = { jsonrpc, id, result };
         ctx.status = 200;

@@ -1,5 +1,5 @@
 import { CombinedHistoricTreeRoots, KernelCircuitPublicInputs, makeEmptyProof } from '@aztec/circuits.js';
-import { PrivateTx, PublicTx, Tx, TxHash, UnverifiedData } from '@aztec/types';
+import { PrivateTx, Tx, TxHash, UnverifiedData } from '@aztec/types';
 import { Proof } from '../prover/index.js';
 
 /**

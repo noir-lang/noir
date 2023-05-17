@@ -1,28 +1,30 @@
+import { createDebugLogger } from '../../../log/debug.js';
+
 /**
- * Represents a dispatch message interface.
- * Contains the target function name and its arguments to be executed in a dispatched manner.
+ * Represents a message object for dispatching function calls.
+ * Contains the function name ('fn') and an array of arguments ('args') required to call the target method.
  */
 export interface DispatchMsg {
   /**
-   * The name of the function to be called on the target object.
+   * Name of the target method to be called.
    */
   fn: string;
   /**
-   * An array of arguments to be passed to the target function.
+   * An array of arguments to be passed to the target method.
    */
   args: any[];
 }
 
 /**
- * Creates a dispatch function that calls a specified method on the target object returned by the targetFn.
- * The created dispatch function takes a single argument, an object containing the name of the function to be called (fn) and an array of arguments (args) to be passed to the function.
- * If the debug flag is enabled, it logs the dispatched call information to the console.
+ * Creates a dispatch function that calls the target's specified method with provided arguments.
+ * The created dispatch function takes a DispatchMsg object as input, which contains the name of
+ * the method to be called ('fn') and an array of arguments to be passed to the method ('args').
  *
- * @param targetFn - A function that returns the target object on which the method should be called.
- * @param debug - An optional console.error function for logging dispatched call information. Defaults to console.error.
- * @returns A dispatch function that takes a DispatchMsg object and calls the specified function on the target object with provided arguments.
+ * @param targetFn - A function that returns the target object containing the methods to be dispatched.
+ * @param debug - Optional logging function for debugging purposes.
+ * @returns A dispatch function that accepts a DispatchMsg object and calls the target's method with provided arguments.
  */
-export function createDispatchFn(targetFn: () => any, debug = console.error) {
+export function createDispatchFn(targetFn: () => any, debug = createDebugLogger('aztec:foundation:dispatch')) {
   return async ({ fn, args }: DispatchMsg) => {
     const target = targetFn();
     debug(`dispatching to ${target}: ${fn}`, args);
