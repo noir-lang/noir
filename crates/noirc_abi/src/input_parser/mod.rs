@@ -51,7 +51,7 @@ impl InputValue {
                     return false;
                 }
 
-                let field_types: BTreeMap<_, _> = fields.iter().cloned().collect();
+                let field_types = BTreeMap::from_iter(fields.iter().cloned());
 
                 // Check that all of the struct's fields' values match the ABI as well.
                 map.iter().all(|(field_name, field_value)| {
