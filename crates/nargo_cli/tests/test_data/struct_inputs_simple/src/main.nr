@@ -6,7 +6,7 @@ struct myStruct {
 }
 
 fn main(y : pub myStruct) {
-    constrain y.foo == 5;
-    constrain y.bar == 7;
+    assert(y.foo == 5);
+    assert(y.bar == 7);
 }
 
