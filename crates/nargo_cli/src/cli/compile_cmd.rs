@@ -60,7 +60,7 @@ pub(crate) fn run<B: Backend>(
 
                 Ok(PreprocessedContract {
                     name: contract.name,
-                    backend: backend.backend_identifier(),
+                    backend: backend.identifier(),
                     functions: preprocessed_contract_functions,
                 })
             });

@@ -15,7 +15,7 @@ pub fn preprocess_program<B: ProofSystemCompiler>(
         backend.preprocess(common_reference_string, &optimized_bytecode)?;
 
     Ok(PreprocessedProgram {
-        backend: backend.backend_identifier(),
+        backend: backend.identifier(),
         abi: compiled_program.abi,
         bytecode: optimized_bytecode,
         proving_key,
