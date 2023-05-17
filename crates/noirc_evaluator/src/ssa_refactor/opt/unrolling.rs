@@ -1,3 +1,13 @@
+//! This file contains the loop unrolling pass for the new SSA IR.
+//!
+//! This pass is divided into three steps:
+//! 1. Find a loop in the program (`find_next_loop`)
+//! 2. Unroll that loop into its "pre-header" block (`unroll_loop`)
+//! 3. Repeat until no more loops are found
+//!
+//! Note that unrolling loops will fail if there are loops with non-constant
+//! indices. This pass also often creates superfluous jmp instructions in the
+//! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
 use iter_extended::vecmap;
