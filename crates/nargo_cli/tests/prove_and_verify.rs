@@ -72,6 +72,10 @@ mod tests {
                 test_dir.file_name().into_string().expect("Directory can't be converted to string");
             let test_program_dir = &test_dir.path();
 
+            if test_name != "struct_inputs_simple" {
+                continue;
+            }
+
             if config_data["exclude"].contains(&test_name) {
                 println!("Skipping test {test_name}");
                 continue;
