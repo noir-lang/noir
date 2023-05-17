@@ -1,64 +1,84 @@
-use super::basic_block::{BasicBlock, BasicBlockId};
+use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
-use super::instruction::Instruction;
-use super::map::{DenseMap, Id, SecondaryMap};
+use super::map::Id;
 use super::types::Type;
-use super::value::Value;
-
-use iter_extended::vecmap;
-use noirc_errors::Location;
+use super::value::ValueId;
 
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
 ///
-/// Like Crane-lift all functions outside of the current function is seen as external.
-/// To reference external functions, one must first import the function signature
-/// into the current function's context.
+/// All functions outside of the current function are seen as external.
+/// To reference external functions its FunctionId can be used but this
+/// cannot be checked for correctness until inlining is performed.
 #[derive(Debug)]
 pub(crate) struct Function {
-    /// Basic blocks associated to this particular function
-    basic_blocks: DenseMap<BasicBlock>,
-
-    /// Maps instructions to source locations
-    source_locations: SecondaryMap<Instruction, Location>,
-
     /// The first basic block in the function
     entry_block: BasicBlockId,
 
-    dfg: DataFlowGraph,
+    /// Name of the function for debugging only
+    name: String,
+
+    id: FunctionId,
+
+    /// The DataFlowGraph holds the majority of data pertaining to the function
+    /// including its blocks, instructions, and values.
+    pub(crate) dfg: DataFlowGraph,
 }
 
 impl Function {
-    pub(crate) fn new(parameter_count: usize) -> Self {
+    /// Creates a new function with an automatically inserted entry block.
+    ///
+    /// Note that any parameters to the function must be manually added later.
+    pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
-        let mut basic_blocks = DenseMap::default();
-
-        // The parameters for each function are stored as the block parameters
-        // of the function's entry block
-        let entry_block = basic_blocks.insert_with_id(|entry_block| {
-            // TODO: Give each parameter its correct type
-            let parameters = vecmap(0..parameter_count, |i| {
-                dfg.make_value(Value::Param { block: entry_block, position: i, typ: Type::Unit })
-            });
-
-            BasicBlock::new(parameters)
-        });
-
-        Self { basic_blocks, source_locations: SecondaryMap::new(), entry_block, dfg }
+        let entry_block = dfg.make_block();
+        Self { name, id, entry_block, dfg }
     }
 
+    /// The name of the function.
+    /// Used exclusively for debugging purposes.
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The id of the function.
+    pub(crate) fn id(&self) -> FunctionId {
+        self.id
+    }
+
+    /// Retrieves the entry block of a function.
+    ///
+    /// A function's entry block contains the instructions
+    /// to be executed first when the function is called.
+    /// The function's parameters are also stored as the
+    /// entry block's parameters.
     pub(crate) fn entry_block(&self) -> BasicBlockId {
         self.entry_block
+    }
+
+    /// Returns the parameters of this function.
+    /// The parameters will always match that of this function's entry block.
+    pub(crate) fn parameters(&self) -> &[ValueId] {
+        self.dfg.block_parameters(self.entry_block)
     }
 }
 
 /// FunctionId is a reference for a function
+///
+/// This Id is how each function refers to other functions
+/// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
+}
+
+impl std::fmt::Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        super::printer::display_function(self, f)
+    }
 }
 
 #[test]

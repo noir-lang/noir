@@ -106,6 +106,12 @@ impl Recoverable for Expression {
     }
 }
 
+impl Recoverable for Option<Expression> {
+    fn error(span: Span) -> Self {
+        Some(Expression::new(ExpressionKind::Error, span))
+    }
+}
+
 #[derive(Debug, Eq, Clone)]
 pub struct Expression {
     pub kind: ExpressionKind,
@@ -325,6 +331,7 @@ pub struct FunctionDefinition {
     pub span: Span,
     pub return_type: UnresolvedType,
     pub return_visibility: noirc_abi::AbiVisibility,
+    pub return_distinctness: noirc_abi::AbiDistinctness,
 }
 
 /// Describes the types of smart contract functions that are allowed.

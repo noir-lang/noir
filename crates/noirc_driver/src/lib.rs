@@ -10,7 +10,7 @@ use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -36,6 +36,10 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub show_ssa: bool,
 
+    /// Display the ACIR for compiled circuit
+    #[arg(short, long)]
+    pub print_acir: bool,
+
     /// Issue a warning for each unused variable instead of an error
     #[arg(short, long)]
     pub allow_warnings: bool,
@@ -43,11 +47,21 @@ pub struct CompileOptions {
     /// Display output of `println` statements
     #[arg(long)]
     pub show_output: bool,
+
+    /// Compile and optimize using the new experimental SSA pass
+    #[arg(long)]
+    pub experimental_ssa: bool,
 }
 
 impl Default for CompileOptions {
     fn default() -> Self {
-        Self { show_ssa: false, allow_warnings: false, show_output: true }
+        Self {
+            show_ssa: false,
+            print_acir: false,
+            allow_warnings: false,
+            show_output: true,
+            experimental_ssa: false,
+        }
     }
 }
 
@@ -184,7 +198,12 @@ impl Driver {
                 return Err(e);
             }
         };
-        self.compile_no_check(options, main)
+        let compiled_program = self.compile_no_check(options, main)?;
+        if options.print_acir {
+            println!("Compiled ACIR for main:");
+            println!("{}", compiled_program.circuit);
+        }
+        Ok(compiled_program)
     }
 
     /// Run the frontend to check the crate for errors then compile all contracts if there were none
@@ -194,7 +213,20 @@ impl Driver {
     ) -> Result<Vec<CompiledContract>, ReportedError> {
         self.check_crate(options)?;
         let contracts = self.get_all_contracts();
-        try_vecmap(contracts, |contract| self.compile_contract(contract, options))
+        let compiled_contracts =
+            try_vecmap(contracts, |contract| self.compile_contract(contract, options))?;
+        if options.print_acir {
+            for compiled_contract in &compiled_contracts {
+                for contract_function in &compiled_contract.functions {
+                    println!(
+                        "Compiled ACIR for {}::{}:",
+                        compiled_contract.name, contract_function.name
+                    );
+                    println!("{}", contract_function.bytecode);
+                }
+            }
+        }
+        Ok(compiled_contracts)
     }
 
     /// Compile all of the functions associated with a Noir contract.
@@ -254,13 +286,25 @@ impl Driver {
         let np_language = self.language.clone();
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
-        match create_circuit(
-            program,
-            np_language,
-            is_opcode_supported,
-            options.show_ssa,
-            options.show_output,
-        ) {
+        let circuit_abi = if options.experimental_ssa {
+            experimental_create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        } else {
+            create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        };
+
+        match circuit_abi {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

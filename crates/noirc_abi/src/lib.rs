@@ -87,6 +87,30 @@ impl std::fmt::Display for AbiVisibility {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Represents whether the return value should compromise of unique witness indices such that no
+/// index occurs within the program's abi more than once.
+///
+/// This is useful for application stacks that require an uniform abi across across multiple
+/// circuits. When index duplication is allowed, the compiler may identify that a public input
+/// reaches the output unaltered and is thus referenced directly, causing the input and output
+/// witness indices to overlap. Similarly, repetitions of copied values in the output may be
+/// optimized away.
+pub enum AbiDistinctness {
+    Distinct,
+    DuplicationAllowed,
+}
+
+impl std::fmt::Display for AbiDistinctness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AbiDistinctness::Distinct => write!(f, "distinct"),
+            AbiDistinctness::DuplicationAllowed => write!(f, "duplication-allowed"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Sign {
     Unsigned,
     Signed,

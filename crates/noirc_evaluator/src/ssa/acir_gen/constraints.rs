@@ -31,7 +31,7 @@ pub(crate) fn mul_with_witness(
     let a_arith;
     let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
         let a_witness = evaluator.create_intermediate_variable(a.clone());
-        a_arith = Expression::from(&a_witness);
+        a_arith = Expression::from(a_witness);
         &a_arith
     } else {
         a
@@ -42,7 +42,7 @@ pub(crate) fn mul_with_witness(
             a_arith
         } else {
             let b_witness = evaluator.create_intermediate_variable(b.clone());
-            b_arith = Expression::from(&b_witness);
+            b_arith = Expression::from(b_witness);
             &b_arith
         }
     } else {
@@ -54,9 +54,9 @@ pub(crate) fn mul_with_witness(
 //a*b
 pub(crate) fn mul(a: &Expression, b: &Expression) -> Expression {
     if a.is_const() {
-        return b * &a.q_c;
+        return b * a.q_c;
     } else if b.is_const() {
-        return a * &b.q_c;
+        return a * b.q_c;
     } else if !(a.is_linear() && b.is_linear()) {
         unreachable!("Can only multiply linear terms");
     }
@@ -125,9 +125,9 @@ pub(crate) fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expre
 // TODO in either case, we can put this in ACIR, if its useful
 pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     if a.is_const() {
-        return (b * &k) + &a.q_c;
+        return (b * k) + a.q_c;
     } else if b.is_const() {
-        return a.clone() + &(k * b.q_c);
+        return a.clone() + (k * b.q_c);
     }
 
     let mut output = Expression::from_field(a.q_c + k * b.q_c);
@@ -405,25 +405,43 @@ pub(crate) fn to_radix_base(
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     // ensure there is no overflow
-    let mut max = BigUint::from(radix);
-    max = max.pow(limb_size) - BigUint::one();
-    assert!(max < FieldElement::modulus());
+    let rad = BigUint::from(radix);
+    let max = rad.pow(limb_size) - BigUint::one();
 
-    let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
+    if max < FieldElement::modulus() {
+        let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
 
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
-        a: lhs.clone(),
-        b: result.clone(),
-        radix,
-    }));
+        evaluator.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
+            a: lhs.clone(),
+            b: result.clone(),
+            radix,
+        }));
 
-    if endianness == Endian::Big {
-        result.reverse();
+        if endianness == Endian::Big {
+            result.reverse();
+        }
+
+        evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
+        result
+    } else {
+        let min = rad.pow(limb_size - 1) - BigUint::one();
+        assert!(min < FieldElement::modulus());
+
+        let max_bits = max.bits() as u32;
+        let a = evaluate_constant_modulo(lhs, radix, max_bits, evaluator)
+            .to_witness()
+            .expect("Constant expressions should already be simplified");
+        let y = subtract(lhs, FieldElement::one(), &Expression::from(a));
+        let radix_f = FieldElement::from(radix as i128);
+        let y = Expression::default().add_mul(FieldElement::one() / radix_f, &y);
+        let mut b = to_radix_base(&y, radix, limb_size - 1, endianness, evaluator);
+        match endianness {
+            Endian::Little => b.insert(0, a),
+            Endian::Big => b.push(a),
+        }
+
+        b
     }
-
-    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
-
-    result
 }
 
 //Decomposition into b-base: \sum ai b^i, where 0<=ai<b
@@ -497,7 +515,7 @@ pub(crate) fn evaluate_truncate(
     if let Some(a_c) = lhs.to_const() {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         a_big %= exp_big;
-        return Expression::from(&FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+        return Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
     }
     let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
 
@@ -524,7 +542,60 @@ pub(crate) fn evaluate_truncate(
     let my_constraint = add(&res, -FieldElement::one(), lhs);
     evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint));
 
-    Expression::from(&b_witness)
+    Expression::from(b_witness)
+}
+
+//Returns b such that lhs (a number whose value requires max_bits) mod rhs is b
+pub(crate) fn evaluate_constant_modulo(
+    lhs: &Expression,
+    rhs: u32,
+    max_bits: u32,
+    evaluator: &mut Evaluator,
+) -> Expression {
+    let modulus = FieldElement::from(rhs as i128);
+    let modulus_exp = Expression::from_field(modulus);
+    assert_ne!(rhs, 0);
+    let modulus_bits = bit_size_u128((rhs - 1) as u128);
+    assert!(max_bits >= rhs, "max_bits = {max_bits}, rhs = {rhs}");
+    //0. Check for constant expression. This can happen through arithmetic simplifications
+    if let Some(a_c) = lhs.to_const() {
+        let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
+        a_big %= BigUint::from_bytes_be(&modulus.to_be_bytes());
+        return Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+    }
+
+    //1. Generate witnesses b,c
+    let b_witness = evaluator.add_witness_to_cs();
+    let c_witness = evaluator.add_witness_to_cs();
+    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
+        a: lhs.clone(),
+        b: modulus_exp.clone(),
+        q: c_witness,
+        r: b_witness,
+        predicate: None,
+    }));
+    bound_constraint_with_offset(
+        &Expression::from(b_witness),
+        &modulus_exp,
+        &Expression::one(),
+        modulus_bits,
+        evaluator,
+    );
+    //if rhs is a power of 2, then we avoid this range check as it is redundant with the previous one.
+    if rhs & (rhs - 1) != 0 {
+        try_range_constraint(b_witness, modulus_bits, evaluator);
+    }
+    let c_bound = FieldElement::modulus() / BigUint::from(rhs) - BigUint::one();
+    try_range_constraint(c_witness, c_bound.bits() as u32, evaluator);
+
+    //2. Add the constraint lhs = b+q*rhs
+    let b_arith = b_witness.into();
+    let c_arith = c_witness.into();
+    let res = add(&b_arith, modulus, &c_arith);
+    let my_constraint = add(&res, -FieldElement::one(), lhs);
+    evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint));
+
+    Expression::from(b_witness)
 }
 
 pub(crate) fn evaluate_udiv(
@@ -552,8 +623,8 @@ pub(crate) fn evaluate_udiv(
     //range check q<=a
     try_range_constraint(q_witness, bit_size, evaluator);
     // a-b*q-r = 0
-    let mut d = mul_with_witness(evaluator, rhs, &Expression::from(&q_witness));
-    d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
+    let mut d = mul_with_witness(evaluator, rhs, &Expression::from(q_witness));
+    d = add(&d, FieldElement::one(), &Expression::from(r_witness));
     d = mul_with_witness(evaluator, &d, predicate);
     let div_euclidean = subtract(&pa, FieldElement::one(), &d);
 

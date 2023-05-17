@@ -7,11 +7,11 @@ fn main(a: [Field; 3]) {
 
     // Nor should using it in an expression with a non-comptime variable.
     let two = i + ii;
-    constrain i == ii;
+    assert(i == ii);
 
     let elem2 = a[i];
-    constrain elem1 == elem2;
-    constrain two == 2;
+    assert(elem1 == elem2);
+    assert(two == 2);
 }
 
 fn foo(x: Field) -> Field { x }

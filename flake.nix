@@ -79,6 +79,9 @@
         # hidden from the developer - i.e. when they see the command being run via `nix flake check`
         RUST_TEST_THREADS = "1";
 
+        # We enable backtraces on any failure for help with debugging
+        RUST_BACKTRACE = "1";
+
         # We set the environment variable because barretenberg must be compiled in a special way for wasm
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
 
@@ -103,7 +106,7 @@
       commonArgs = environment // {
         pname = "noir";
         # x-release-please-start-version
-        version = "0.4.1";
+        version = "0.6.0";
         # x-release-please-end
 
         # Use our custom stdenv to build and test our Rust project
@@ -164,6 +167,9 @@
       };
 
       packages.default = noir;
+
+      # We expose the `cargo-artifacts` derivation so we can cache our cargo dependencies in CI
+      packages.cargo-artifacts = cargoArtifacts;
 
       # TODO(#1197): Look into installable apps with Nix flakes
       # apps.default = flake-utils.lib.mkApp { drv = nargo; };

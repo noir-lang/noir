@@ -649,7 +649,7 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
             Type::Vec(element) => {
-                write!(f, "Vec<{}>", element)
+                write!(f, "Vec<{element}>")
             }
         }
     }

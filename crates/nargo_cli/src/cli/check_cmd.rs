@@ -1,5 +1,5 @@
 use crate::{errors::CliError, resolver::Resolver};
-use acvm::ProofSystemCompiler;
+use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
@@ -17,15 +17,21 @@ pub(crate) struct CheckCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
-    check_from_path(config.program_dir, &args.compile_options)?;
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: CheckCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
+    check_from_path(backend, config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 
-fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-
+fn check_from_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
+    p: P,
+    compile_options: &CompileOptions,
+) -> Result<(), CliError<B>> {
     let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
@@ -148,12 +154,13 @@ d2 = ["", "", ""]
         let pass_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
+        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, path.clone(), &config).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -166,12 +173,13 @@ d2 = ["", "", ""]
         let fail_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
+        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_err(),
+                super::check_from_path(&backend, path.clone(), &config).is_err(),
                 "path: {}",
                 path.display()
             );
@@ -183,13 +191,14 @@ d2 = ["", "", ""]
         let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
+        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions { allow_warnings: true, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, path.clone(), &config).is_ok(),
                 "path: {}",
                 path.display()
             );

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::lexer::token::SpannedToken;
-use crate::parser::ParserError;
+use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 use crate::{Expression, ExpressionKind, IndexExpression, MemberAccessExpression, UnresolvedType};
 use iter_extended::vecmap;
@@ -51,6 +51,8 @@ impl Statement {
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Statement {
+        let missing_semicolon =
+            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
         match self {
             Statement::Let(_)
             | Statement::Constrain(_)
@@ -59,8 +61,7 @@ impl Statement {
             | Statement::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
-                    let reason = "Expected a ; separating these two statements".to_string();
-                    emit_error(ParserError::with_reason(reason, span));
+                    emit_error(missing_semicolon);
                 }
                 self
             }
@@ -83,8 +84,7 @@ impl Statement {
                     // for unneeded expressions like { 1 + 2; 3 }
                     (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
-                        let reason = "Expected a ; separating these two statements".to_string();
-                        emit_error(ParserError::with_reason(reason, span));
+                        emit_error(missing_semicolon);
                         Statement::Expression(expr)
                     }
 
