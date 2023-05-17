@@ -63,12 +63,31 @@ pragma solidity >=0.8.18;
  *  |---                                                   |---         | ---
  */
 contract Decoder {
+  struct ArrayLengths {
+    uint256 commitmentCount;
+    uint256 nullifierCount;
+    uint256 dataWritesCount;
+    uint256 l2ToL1MsgsCount;
+    uint256 contractCount;
+    uint256 l1Tol2MsgsCount;
+  }
+
+  struct ArrayOffsets {
+    uint256 commitmentOffset;
+    uint256 nullifierOffset;
+    uint256 publicDataOffset;
+    uint256 l2ToL1MsgsOffset;
+    uint256 contractOffset;
+    uint256 contractDataOffset;
+    uint256 l1ToL2MsgsOffset;
+  }
+
   uint256 internal constant COMMITMENTS_PER_KERNEL = 4;
   uint256 internal constant NULLIFIERS_PER_KERNEL = 4;
   uint256 internal constant PUBLIC_DATA_WRITES_PER_KERNEL = 4;
   uint256 internal constant L2_TO_L1_MSGS_PER_KERNEL = 2;
   uint256 internal constant CONTRACTS_PER_KERNEL = 1;
-  uint256 internal constant L1_TO_L2_MESSAGES_PER_ROLLUP = 16;
+  uint256 internal constant L1_TO_L2_MSGS_PER_ROLLUP = 16;
 
   // Prime field order
   uint256 internal constant P =
@@ -81,6 +100,8 @@ contract Decoder {
    * @return startStateHash - The state hash expected prior the execution.
    * @return endStateHash - The state hash expected after the execution.
    * @return publicInputHash - The hash of the public inputs
+   * @return l2ToL1Msgs - The L2 to L1 messages
+   * @return l1ToL2Msgs - The L1 to L2 messages
    */
   function _decode(bytes calldata _l2Block)
     internal
@@ -89,7 +110,9 @@ contract Decoder {
       uint256 l2BlockNumber,
       bytes32 startStateHash,
       bytes32 endStateHash,
-      bytes32 publicInputHash
+      bytes32 publicInputHash,
+      bytes32[] memory l2ToL1Msgs,
+      bytes32[] memory l1ToL2Msgs
     )
   {
     l2BlockNumber = _getL2BlockNumber(_l2Block);
@@ -97,32 +120,34 @@ contract Decoder {
     // Only jumping 1 block at a time.
     startStateHash = _computeStateHash(l2BlockNumber - 1, 0x4, _l2Block);
     endStateHash = _computeStateHash(l2BlockNumber, 0x120, _l2Block);
-    publicInputHash = _computePublicInputsHash(_l2Block);
+
+    bytes32 diffRoot;
+    bytes32 l1ToL2MsgsHash;
+    (diffRoot, l1ToL2MsgsHash, l2ToL1Msgs, l1ToL2Msgs) = _computeConsumables(_l2Block);
+    publicInputHash = _computePublicInputHash(_l2Block, diffRoot, l1ToL2MsgsHash);
   }
 
   /**
-   * Computes a hash of the public inputs from the calldata
+   * @notice Computes the public input hash
+   * @dev Uses sha256 to field
    * @param _l2Block - The L2 block calldata.
-   * @return sha256(header[0x4: 0x23c], diffRoot, l1Tol2MessagesHash)
+   * @param _diffRoot - The root of the diff merkle tree
+   * @param _l1ToL2MsgsHash - The hash of the L1 to L2 messages
+   * @return publicInputHash - The hash of the public inputs (sha256 to field)
    */
-  function _computePublicInputsHash(bytes calldata _l2Block) internal pure returns (bytes32) {
-    // header size - block number size + one value for the diffRoot + one value for l1ToL2MessagesHash
+  function _computePublicInputHash(
+    bytes calldata _l2Block,
+    bytes32 _diffRoot,
+    bytes32 _l1ToL2MsgsHash
+  ) internal pure returns (bytes32) {
     uint256 size = 0x23c - 0x04 + 0x20 + 0x20;
-
-    // Compute the public inputs hash
     bytes memory temp = new bytes(size);
     assembly {
       calldatacopy(add(temp, 0x20), add(_l2Block.offset, 0x04), size)
-    }
-
-    // Diff root
-    (bytes32 diffRoot, bytes32 l1ToL2messagesHash) = _computeDiffRootAndMessagesHash(_l2Block);
-    assembly {
       let endOfTreesData := sub(0x23c, 0x04)
-      mstore(add(temp, add(0x20, endOfTreesData)), diffRoot)
-      mstore(add(temp, add(0x40, endOfTreesData)), l1ToL2messagesHash)
+      mstore(add(temp, add(0x20, endOfTreesData)), _diffRoot)
+      mstore(add(temp, add(0x40, endOfTreesData)), _l1ToL2MsgsHash)
     }
-
     return bytes32(uint256(sha256(temp)) % P);
   }
 
@@ -165,36 +190,21 @@ contract Decoder {
     return sha256(temp);
   }
 
-  struct ArrayLengths {
-    uint256 commitmentCount;
-    uint256 nullifierCount;
-    uint256 dataWritesCount;
-    uint256 l2ToL1MessagesCount;
-    uint256 contractCount;
-    uint256 l1Tol2MessagesCount;
-  }
-
-  struct ArrayOffsets {
-    uint256 commitmentOffset;
-    uint256 nullifierOffset;
-    uint256 publicDataOffset;
-    uint256 l2ToL1MsgsOffset;
-    uint256 contractOffset;
-    uint256 contractDataOffset;
-    uint256 l1ToL2MessagesOffset;
-  }
-
   /**
-   * @notice Creates a "diff" tree and compute its root
+   * @notice Computes consumables for the block
    * @param _l2Block - The L2 block calldata.
+   * @return diffRoot - The root of the diff tree (new commitments, nullifiers etc)
+   * @return l1ToL2MsgsHash - The hash of the L1 to L2 messages
+   * @return l2ToL1Msgs - The L2 to L1 messages of the block
+   * @return l1ToL2Msgs - The L1 to L2 messages of the block
    */
-  function _computeDiffRootAndMessagesHash(bytes calldata _l2Block)
+  function _computeConsumables(bytes calldata _l2Block)
     internal
     pure
-    returns (bytes32, bytes32)
+    returns (bytes32, bytes32, bytes32[] memory, bytes32[] memory)
   {
     // Find the lengths of the different inputs
-    // TOOD: Naming / getting the messages root within this function is a bit weird
+    // TODO: Naming / getting the messages root within this function is a bit weird
     ArrayLengths memory lengths;
     ArrayOffsets memory offsets;
     {
@@ -206,24 +216,27 @@ contract Decoder {
         offset := add(add(offset, 0x4), mul(nullifierCount, 0x20))
         let dataWritesCount := and(shr(224, calldataload(offset)), 0xffffffff)
         offset := add(add(offset, 0x4), mul(nullifierCount, 0x40))
-        let l2ToL1Count := and(shr(224, calldataload(offset)), 0xffffffff)
-        offset := add(add(offset, 0x4), mul(l2ToL1Count, 0x20))
+        let l2ToL1MsgsCount := and(shr(224, calldataload(offset)), 0xffffffff)
+        offset := add(add(offset, 0x4), mul(l2ToL1MsgsCount, 0x20))
         let contractCount := and(shr(224, calldataload(offset)), 0xffffffff)
         offset := add(add(offset, 0x4), mul(contractCount, 0x54))
-        let l1Tol2MessagesCount := and(shr(224, calldataload(offset)), 0xffffffff)
+        let l1Tol2MsgsCount := and(shr(224, calldataload(offset)), 0xffffffff)
 
         // Store it in lengths
         mstore(lengths, commitmentCount)
         mstore(add(lengths, 0x20), nullifierCount)
         mstore(add(lengths, 0x40), dataWritesCount)
-        mstore(add(lengths, 0x60), l2ToL1Count)
+        mstore(add(lengths, 0x60), l2ToL1MsgsCount)
         mstore(add(lengths, 0x80), contractCount)
-        mstore(add(lengths, 0xa0), l1Tol2MessagesCount) // currently included to allow optimisation where empty messages are not included in calldata
+        mstore(add(lengths, 0xa0), l1Tol2MsgsCount) // currently included to allow optimisation where empty messages are not included in calldata
       }
     }
 
     bytes32[] memory baseLeafs = new bytes32[](
             lengths.commitmentCount / (COMMITMENTS_PER_KERNEL * 2)
+        );
+    bytes32[] memory l2ToL1Msgs = new bytes32[](
+            lengths.l2ToL1MsgsCount
         );
 
     // Data starts after header. Look at L2 Block Data specification at the top of this file.
@@ -232,9 +245,18 @@ contract Decoder {
       offsets.nullifierOffset = offsets.commitmentOffset + 0x4 + lengths.commitmentCount * 0x20;
       offsets.publicDataOffset = offsets.nullifierOffset + 0x4 + lengths.nullifierCount * 0x20;
       offsets.l2ToL1MsgsOffset = offsets.publicDataOffset + 0x4 + lengths.dataWritesCount * 0x40;
-      offsets.contractOffset = offsets.l2ToL1MsgsOffset + 0x4 + lengths.l2ToL1MessagesCount * 0x20;
+      offsets.contractOffset = offsets.l2ToL1MsgsOffset + 0x4 + lengths.l2ToL1MsgsCount * 0x20;
       offsets.contractDataOffset = offsets.contractOffset + lengths.contractCount * 0x20;
-      offsets.l1ToL2MessagesOffset = offsets.contractDataOffset + 0x4 + lengths.contractCount * 0x34;
+      offsets.l1ToL2MsgsOffset = offsets.contractDataOffset + 0x4 + lengths.contractCount * 0x34;
+
+      // load the l2 to l1 msgs (done here as offset will be altered in loop)
+      assembly {
+        calldatacopy(
+          add(l2ToL1Msgs, 0x20),
+          add(_l2Block.offset, mload(add(offsets, 0x60))),
+          mul(mload(add(lengths, 0x60)), 0x20)
+        )
+      }
 
       for (uint256 i = 0; i < baseLeafs.length; i++) {
         /**
@@ -341,25 +363,23 @@ contract Decoder {
     }
 
     bytes32 diffRoot = _computeRoot(baseLeafs);
-
-    bytes32 messagesHash;
+    bytes32[] memory l1ToL2Msgs;
+    bytes32 l1ToL2MsgsHash;
     {
-      uint256 messagesHashPreimageSize = 0x20 * L1_TO_L2_MESSAGES_PER_ROLLUP;
-      bytes memory messagesHashPreimage = new bytes(
-                messagesHashPreimageSize
-            );
+      uint256 l1ToL2MsgsHashPreimageSize = 0x20 * L1_TO_L2_MSGS_PER_ROLLUP;
+      l1ToL2Msgs = new bytes32[](L1_TO_L2_MSGS_PER_ROLLUP);
       assembly {
         calldatacopy(
-          add(messagesHashPreimage, 0x20),
+          add(l1ToL2Msgs, 0x20),
           add(_l2Block.offset, mload(add(offsets, 0xc0))),
-          messagesHashPreimageSize
+          l1ToL2MsgsHashPreimageSize
         )
       }
 
-      messagesHash = sha256(messagesHashPreimage);
+      l1ToL2MsgsHash = sha256(abi.encodePacked(l1ToL2Msgs));
     }
 
-    return (diffRoot, messagesHash);
+    return (diffRoot, l1ToL2MsgsHash, l2ToL1Msgs, l1ToL2Msgs);
   }
 
   /**
