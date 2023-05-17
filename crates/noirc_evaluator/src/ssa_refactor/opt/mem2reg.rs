@@ -22,6 +22,12 @@ impl Ssa {
     /// This pass assumes that the whole program has been inlined into a single block, such that
     /// we can be sure that store instructions cannot have side effects outside of this block
     /// (apart from intrinsic function calls).
+    ///
+    /// This pass also assumes that constant folding has been run, such that all addresses given
+    /// as input to store/load instructions are represented as one of:
+    /// - a value that directly resolves to an allocate instruction
+    /// - a value that directly resolves to a binary add instruction which has a allocate
+    /// instruction and a numeric constant as its operands
     pub(crate) fn mem2reg_final(mut self) -> Ssa {
         let func = self.main_mut();
         assert_eq!(func.dfg.basic_blocks_iter().count(), 1);
