@@ -232,7 +232,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let mut fields = btree_map(fields, |(name, field)| (name.0.contents, field));
 
-                // Iterate over struct_field_types since unwrap_struct_type will always
+                // Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
                 for (field_name, field_type) in struct_field_types {
                     let field = fields.remove(&field_name).unwrap_or_else(|| {

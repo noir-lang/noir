@@ -316,7 +316,7 @@ impl Abi {
                         encoded_value.extend(Self::encode_value(object[field].clone(), typ)?);
                     }
                 }
-                _ => unreachable!("value does not match type"),
+                _ => unreachable!("value should have already been checked to match abi type"),
             },
         }
         Ok(encoded_value)
