@@ -14,6 +14,15 @@ enum Address {
     Offset(InstructionId, NumericConstantId),
 }
 
+impl Address {
+    fn alloc_id(&self) -> InstructionId {
+        match self {
+            Address::Zeroth(alloc_id) => *alloc_id,
+            Address::Offset(alloc_id, _) => *alloc_id,
+        }
+    }
+}
+
 struct PerBlockContext<'dfg> {
     dfg: &'dfg mut DataFlowGraph,
     block_id: BasicBlockId,
@@ -36,6 +45,7 @@ impl<'dfg> PerBlockContext<'dfg> {
         let mut loads_to_substitute: Vec<(InstructionId, Value)> = Vec::new();
         let mut store_ids: Vec<InstructionId> = Vec::new();
         let mut failed_substitutes: BTreeSet<Address> = BTreeSet::new();
+        let mut alloc_ids_in_calls: BTreeSet<InstructionId> = BTreeSet::new();
 
         let block = &self.dfg[self.block_id];
         for instruction_id in block.instructions() {
@@ -62,13 +72,18 @@ impl<'dfg> PerBlockContext<'dfg> {
                         }
                     }
                 }
+                Instruction::Call { arguments, .. } => {
+                    for arg in arguments {
+                        if let Some(address) = self.try_const_address(*arg) {
+                            alloc_ids_in_calls.insert(address.alloc_id());
+                        }
+                    }
+                }
                 _ => {
                     // Nothing to do
                 }
             }
         }
-
-        // TODO: identify addresses that make their make into intrinsic function calls
 
         // Substitute load result values
         for (instruction_id, new_value) in &loads_to_substitute {
@@ -94,8 +109,10 @@ impl<'dfg> PerBlockContext<'dfg> {
                 Instruction::Store { address, .. } => *address,
                 _ => unreachable!("store_ids should contain only store instructions"),
             };
-            if let Some(alloc_offset_pair) = self.try_const_address(address) {
-                if !failed_substitutes.contains(&alloc_offset_pair) {
+            if let Some(address) = self.try_const_address(address) {
+                if !failed_substitutes.contains(&address)
+                    && !alloc_ids_in_calls.contains(&address.alloc_id())
+                {
                     stores_to_remove.push(instruction_id);
                 }
             }
@@ -157,7 +174,7 @@ mod tests {
 
     use crate::ssa_refactor::{
         ir::{
-            instruction::{BinaryOp, Instruction, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
         },
@@ -212,6 +229,65 @@ mod tests {
             })
             .count();
         assert_eq!(store_count, 0);
+        let ret_val_id = match block.terminator().unwrap() {
+            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            _ => unreachable!(),
+        };
+        assert_eq!(func.dfg[*ret_val_id], func.dfg[const_one]);
+    }
+
+    #[test]
+    fn test_simple_with_call() {
+        // func() {
+        //   block0():
+        //     v0 = alloc 2
+        //     v1 = add v0, Field 1
+        //     store v1, Field 1
+        //     v2 = add v0, Field 1
+        //     v3 = load v1
+        //     v4 = call f0, v0
+        //     return v3
+
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let v0 = builder.insert_allocate(2);
+        let const_one = builder.field_constant(FieldElement::one());
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
+        builder.insert_store(v1, const_one);
+        // v2 is created internally by builder.insert_load
+        let v3 = builder.insert_load(v0, const_one, Type::field());
+        let f0 = builder.import_intrinsic_id(Intrinsic::Println);
+        builder.insert_call(f0, vec![v0], vec![Type::Unit]);
+        builder.terminate_with_return(vec![v3]);
+
+        let mut ssa = builder.finish();
+
+        let mut func = ssa.functions.remove(&func_id).unwrap();
+        let block_id = func.entry_block();
+
+        let mut mem2reg_context = PerBlockContext::new(&mut func.dfg, block_id);
+        let remaining_stores = mem2reg_context.eliminate_store_load();
+
+        assert_eq!(
+            remaining_stores, 1,
+            "Store cannot be removed as it affects intrinsic function call"
+        );
+
+        let block = &func.dfg[block_id];
+        let load_count = block
+            .instructions()
+            .iter()
+            .filter(|instruction_id| matches!(func.dfg[**instruction_id], Instruction::Load { .. }))
+            .count();
+        assert_eq!(load_count, 0);
+        let store_count = block
+            .instructions()
+            .iter()
+            .filter(|instruction_id| {
+                matches!(func.dfg[**instruction_id], Instruction::Store { .. })
+            })
+            .count();
+        assert_eq!(store_count, 1);
         let ret_val_id = match block.terminator().unwrap() {
             TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
             _ => unreachable!(),
