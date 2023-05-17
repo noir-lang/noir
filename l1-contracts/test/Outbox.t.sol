@@ -24,17 +24,6 @@ contract OutboxTest is Test {
     registry.setAddresses(rollup, address(0x0), address(outbox));
   }
 
-  function _helper_computeEntryKey(DataStructures.L2ToL1Msg memory message)
-    internal
-    pure
-    returns (bytes32)
-  {
-    return bytes32(
-      uint256(sha256(abi.encode(message.sender, message.recipient, message.content)))
-        % 21888242871839275222246405745257275088548364400416034343698204186575808495617
-    );
-  }
-
   function _fakeMessage() internal view returns (DataStructures.L2ToL1Msg memory) {
     return DataStructures.L2ToL1Msg({
       sender: DataStructures.L2Actor({
@@ -55,16 +44,16 @@ contract OutboxTest is Test {
   }
 
   // fuzz batch insert -> check inserted. event emitted
-  function testFuzzBatchInsert(bytes32[] memory entryKeys) public {
+  function testFuzzBatchInsert(bytes32[] memory _entryKeys) public {
     // expected events
-    for (uint256 i = 0; i < entryKeys.length; i++) {
+    for (uint256 i = 0; i < _entryKeys.length; i++) {
       vm.expectEmit(true, false, false, false);
-      emit MessageAdded(entryKeys[i]);
+      emit MessageAdded(_entryKeys[i]);
     }
 
-    outbox.sendL1Messages(entryKeys);
-    for (uint256 i = 0; i < entryKeys.length; i++) {
-      bytes32 key = entryKeys[i];
+    outbox.sendL1Messages(_entryKeys);
+    for (uint256 i = 0; i < _entryKeys.length; i++) {
+      bytes32 key = _entryKeys[i];
       DataStructures.Entry memory entry = outbox.get(key);
       assertGt(entry.count, 0);
       assertEq(entry.fee, 0);
@@ -88,30 +77,31 @@ contract OutboxTest is Test {
 
   function testRevertIfConsumingMessageThatDoesntExist() public {
     DataStructures.L2ToL1Msg memory message = _fakeMessage();
-    bytes32 entryKey = _helper_computeEntryKey(message);
+    bytes32 entryKey = outbox.computeEntryKey(message);
     vm.expectRevert(
       abi.encodeWithSelector(MessageBox.MessageBox__NothingToConsume.selector, entryKey)
     );
     outbox.consume(message);
   }
 
-  function testConsume() public {
-    // with fuzzing it takes way too long :()
-    DataStructures.L2ToL1Msg memory message = _fakeMessage();
-    bytes32 expectedEntryKey = _helper_computeEntryKey(message);
+  function testFuzzConsume(DataStructures.L2ToL1Msg memory _message) public {
+    // correctly set message.recipient to this address
+    _message.recipient = DataStructures.L1Actor({actor: address(this), chainId: block.chainid});
+
+    bytes32 expectedEntryKey = outbox.computeEntryKey(_message);
     bytes32[] memory entryKeys = new bytes32[](1);
     entryKeys[0] = expectedEntryKey;
     outbox.sendL1Messages(entryKeys);
 
-    vm.prank(message.recipient.actor);
+    vm.prank(_message.recipient.actor);
     vm.expectEmit(true, true, false, false);
-    emit MessageConsumed(expectedEntryKey, message.recipient.actor);
-    outbox.consume(message);
+    emit MessageConsumed(expectedEntryKey, _message.recipient.actor);
+    outbox.consume(_message);
 
     // ensure no such message to consume:
     vm.expectRevert(
       abi.encodeWithSelector(MessageBox.MessageBox__NothingToConsume.selector, expectedEntryKey)
     );
-    outbox.get(expectedEntryKey);
+    outbox.consume(_message);
   }
 }

@@ -22,7 +22,6 @@ abstract contract MessageBox is IMessageBox {
     uint32 deadlinePassed
   );
   error MessageBox__NothingToConsume(bytes32 entryKey);
-  error MessageBox__OversizedContent();
 
   // Prime field order
   uint256 internal constant P =

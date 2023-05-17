@@ -24,10 +24,7 @@ interface IInbox {
   event L1ToL2MessageCancelled(bytes32 indexed entryKey);
 
   /// @notice Given a message, computes an entry key for the Inbox
-  function computeMessageKey(DataStructures.L1ToL2Msg memory message)
-    external
-    pure
-    returns (bytes32);
+  function computeEntryKey(DataStructures.L1ToL2Msg memory message) external pure returns (bytes32);
 
   /**
    * @notice Inserts an entry into the Inbox

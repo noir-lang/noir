@@ -13,6 +13,7 @@ import {MessageBox} from "./MessageBox.sol";
  */
 contract Inbox is MessageBox, IInbox {
   error Inbox__DeadlineBeforeNow();
+  error Inbox__FeeTooHigh();
   error Inbox__NotPastDeadline();
   error Inbox__PastDeadline();
   error Inbox__Unauthorized();
@@ -24,20 +25,20 @@ contract Inbox is MessageBox, IInbox {
 
   /**
    * @notice Given a message, computes an entry key for the Inbox
-   * @param message - The L1 to L2 message
+   * @param _message - The L1 to L2 message
    * @return The hash of the message (used as the key of the entry in the set)
    */
-  function computeMessageKey(DataStructures.L1ToL2Msg memory message) public pure returns (bytes32) {
+  function computeEntryKey(DataStructures.L1ToL2Msg memory _message) public pure returns (bytes32) {
     return bytes32(
       uint256(
         sha256(
           abi.encode(
-            message.sender,
-            message.recipient,
-            message.content,
-            message.secretHash,
-            message.deadline,
-            message.fee
+            _message.sender,
+            _message.recipient,
+            _message.content,
+            _message.secretHash,
+            _message.deadline,
+            _message.fee
           )
         )
       ) % P // TODO: Replace mod P later on when we have a better idea of how to handle Fields.
@@ -50,6 +51,7 @@ contract Inbox is MessageBox, IInbox {
    * @dev msg.value - The fee provided to sequencer for including the entry
    * @param _recipient - The recipient of the entry
    * @param _deadline - The deadline to consume a message. Only after it, can a message be cancalled.
+   * it is uint32 to for slot packing of the Entry struct. Should work until Feb 2106.
    * @param _content - The content of the entry (application specific)
    * @param _secretHash - The secret hash of the entry (make it possible to hide when a specific entry is consumed on L2)
    * @return The key of the entry in the set
@@ -61,6 +63,9 @@ contract Inbox is MessageBox, IInbox {
     bytes32 _secretHash
   ) external payable returns (bytes32) {
     if (_deadline <= block.timestamp) revert Inbox__DeadlineBeforeNow();
+    // `fee` is uint64 for slot packing of the Entry struct. uint64 caps at ~18.4 ETH which should be enough.
+    // we revert here to safely cast msg.value into uint64.
+    if (msg.value > type(uint64).max) revert Inbox__FeeTooHigh();
     uint64 fee = uint64(msg.value);
     DataStructures.L1ToL2Msg memory message = DataStructures.L1ToL2Msg({
       sender: DataStructures.L1Actor(msg.sender, block.chainid),
@@ -71,7 +76,7 @@ contract Inbox is MessageBox, IInbox {
       fee: fee
     });
 
-    bytes32 key = computeMessageKey(message);
+    bytes32 key = computeEntryKey(message);
     _insert(key, fee, _deadline);
 
     emit MessageAdded(
@@ -102,8 +107,8 @@ contract Inbox is MessageBox, IInbox {
     returns (bytes32 entryKey)
   {
     if (msg.sender != _message.sender.actor) revert Inbox__Unauthorized();
-    if (_message.deadline <= block.timestamp) revert Inbox__NotPastDeadline();
-    entryKey = computeMessageKey(_message);
+    if (block.timestamp <= _message.deadline) revert Inbox__NotPastDeadline();
+    entryKey = computeEntryKey(_message);
     _consume(entryKey);
     feesAccrued[_feeCollector] += _message.fee;
     emit L1ToL2MessageCancelled(entryKey);
@@ -113,16 +118,16 @@ contract Inbox is MessageBox, IInbox {
    * @notice Batch consumes entries from the Inbox
    * @dev Only callable by the rollup contract
    * @dev Will revert if the message is already past deadline
-   * @param entryKeys - Array of entry keys (hash of the messages)
+   * @param _entryKeys - Array of entry keys (hash of the messages)
    * @param _feeCollector - The address to receive the "fee"
    */
-  function batchConsume(bytes32[] memory entryKeys, address _feeCollector) external onlyRollup {
+  function batchConsume(bytes32[] memory _entryKeys, address _feeCollector) external onlyRollup {
     uint256 totalFee = 0;
-    for (uint256 i = 0; i < entryKeys.length; i++) {
-      // TODO: Combine these to optimise for gas.
-      DataStructures.Entry memory entry = get(entryKeys[i]);
-      if (entry.deadline > block.timestamp) revert Inbox__PastDeadline();
-      _consume(entryKeys[i]);
+    for (uint256 i = 0; i < _entryKeys.length; i++) {
+      DataStructures.Entry memory entry = get(_entryKeys[i]);
+      // cant consume if we are already past deadline.
+      if (block.timestamp > entry.deadline) revert Inbox__PastDeadline();
+      _consume(_entryKeys[i]);
       totalFee += entry.fee;
     }
     feesAccrued[_feeCollector] += totalFee;
