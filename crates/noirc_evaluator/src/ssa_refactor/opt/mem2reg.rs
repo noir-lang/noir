@@ -17,18 +17,11 @@ enum Address {
 struct PerBlockContext<'dfg> {
     dfg: &'dfg mut DataFlowGraph,
     block_id: BasicBlockId,
-    allocations: BTreeSet<ValueId>,
-    last_stores: BTreeMap<Address, ValueId>,
 }
 
 impl<'dfg> PerBlockContext<'dfg> {
     fn new(dfg: &'dfg mut DataFlowGraph, block_id: BasicBlockId) -> Self {
-        PerBlockContext {
-            dfg,
-            block_id,
-            allocations: BTreeSet::new(),
-            last_stores: BTreeMap::new(),
-        }
+        PerBlockContext { dfg, block_id }
     }
 
     // Attempts to remove redundant load & store instructions for constant addresses. Returns the
@@ -39,23 +32,29 @@ impl<'dfg> PerBlockContext<'dfg> {
     // an effect beyond the scope of this block.
     fn eliminate_store_load(&mut self) -> u32 {
         let mut store_count: u32 = 0;
-        let instructions = self.dfg[self.block_id].instructions();
+        let mut last_stores: BTreeMap<Address, ValueId> = BTreeMap::new();
         let mut loads_to_substitute: Vec<(InstructionId, Value)> = Vec::new();
         let mut store_ids: Vec<InstructionId> = Vec::new();
         let mut failed_substitutes: BTreeSet<Address> = BTreeSet::new();
 
-        for instruction_id in instructions {
+        let block = &self.dfg[self.block_id];
+        for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
                 Instruction::Store { address, value } => {
                     store_count += 1;
                     if let Some(address) = self.try_const_address(*address) {
-                        self.last_stores.insert(address, *value);
+                        // We can only track the address if it is a constant offset from an
+                        // allocation. A previous constant folding pass should make such addresses
+                        // possible to identify.
+                        last_stores.insert(address, *value);
                     }
+                    // TODO: Consider if it's worth falling back to storing addresses by their
+                    // value id such we can shallowly check for dynamic address reuse.
                     store_ids.push(*instruction_id);
                 }
                 Instruction::Load { address } => {
                     if let Some(address) = self.try_const_address(*address) {
-                        if let Some(last_value) = self.last_stores.get(&address) {
+                        if let Some(last_value) = last_stores.get(&address) {
                             let last_value = self.dfg[*last_value];
                             loads_to_substitute.push((*instruction_id, last_value));
                         } else {
@@ -69,7 +68,7 @@ impl<'dfg> PerBlockContext<'dfg> {
             }
         }
 
-        // TODO: identify address that make their make into intrinsic function calls
+        // TODO: identify addresses that make their make into intrinsic function calls
 
         // Substitute load result values
         for (instruction_id, new_value) in &loads_to_substitute {
@@ -138,7 +137,7 @@ impl<'dfg> PerBlockContext<'dfg> {
     // Tries val1 as an allocation instruction id and val2 as a constant offset
     fn try_const_address_offset(&self, val1: &Value, val2: &Value) -> Option<Address> {
         let alloc_id = match val1 {
-            Value::Instruction { instruction, .. } => match self.dfg[*instruction] {
+            Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
                 Instruction::Allocate { .. } => *instruction,
                 _ => return None,
             },
@@ -149,5 +148,74 @@ impl<'dfg> PerBlockContext<'dfg> {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::FieldElement;
+
+    use crate::ssa_refactor::{
+        ir::{
+            instruction::{BinaryOp, Instruction, TerminatorInstruction},
+            map::Id,
+            types::Type,
+        },
+        ssa_builder::FunctionBuilder,
+    };
+
+    use super::PerBlockContext;
+
+    #[test]
+    fn test_simple() {
+        // func() {
+        //   block0():
+        //     v0 = alloc 2
+        //     v1 = add v0, Field 1
+        //     store v1, Field 1
+        //     v2 = add v0, Field 1
+        //     v3 = load v1
+        //     return v3
+
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let v0 = builder.insert_allocate(2);
+        let const_one = builder.field_constant(FieldElement::one());
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
+        builder.insert_store(v1, const_one);
+        // v2 is created internally by builder.insert_load
+        let v3 = builder.insert_load(v0, const_one, Type::field());
+        builder.terminate_with_return(vec![v3]);
+
+        let mut ssa = builder.finish();
+
+        let mut func = ssa.functions.remove(&func_id).unwrap();
+        let block_id = func.entry_block();
+
+        let mut mem2reg_context = PerBlockContext::new(&mut func.dfg, block_id);
+        let remaining_stores = mem2reg_context.eliminate_store_load();
+
+        assert_eq!(remaining_stores, 0);
+
+        let block = &func.dfg[block_id];
+        let load_count = block
+            .instructions()
+            .iter()
+            .filter(|instruction_id| matches!(func.dfg[**instruction_id], Instruction::Load { .. }))
+            .count();
+        assert_eq!(load_count, 0);
+        let store_count = block
+            .instructions()
+            .iter()
+            .filter(|instruction_id| {
+                matches!(func.dfg[**instruction_id], Instruction::Store { .. })
+            })
+            .count();
+        assert_eq!(store_count, 0);
+        let ret_val_id = match block.terminator().unwrap() {
+            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            _ => unreachable!(),
+        };
+        assert_eq!(func.dfg[*ret_val_id], func.dfg[const_one]);
     }
 }
