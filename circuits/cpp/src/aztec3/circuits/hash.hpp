@@ -6,6 +6,8 @@
 #include <aztec3/constants.hpp>
 #include <aztec3/utils/circuit_errors.hpp>
 
+#include "barretenberg/crypto/sha256/sha256.hpp"
+
 #include <array>
 
 namespace aztec3::circuits {
@@ -267,6 +269,35 @@ template <typename NCT> typename NCT::fr compute_public_data_tree_index(typename
                                                                         typename NCT::fr const& storage_slot)
 {
     return NCT::compress({ contract_address, storage_slot }, GeneratorIndex::PUBLIC_LEAF_INDEX);
+}
+
+template <typename NCT> typename NCT::fr compute_l2_to_l1_hash(typename NCT::address contract_address,
+                                                               typename NCT::fr rollup_version_id,
+                                                               typename NCT::fr portal_contract_address,
+                                                               typename NCT::fr chain_id,
+                                                               typename NCT::fr content)
+{
+    using fr = typename NCT::fr;
+
+    std::vector<fr> const inputs = {
+        contract_address.to_field(), rollup_version_id, portal_contract_address, chain_id, content,
+    };
+
+    constexpr auto const num_bytes = 5 * 32;
+    std::array<uint8_t, num_bytes> calldata_hash_inputs_bytes;
+    // Convert all into a buffer, then copy into the array, then hash
+    for (size_t i = 0; i < inputs.size(); i++) {
+        auto as_bytes = inputs[i].to_buffer();
+
+        auto offset = i * 32;
+        std::copy(as_bytes.begin(), as_bytes.end(), calldata_hash_inputs_bytes.begin() + offset);
+    }
+
+    std::vector<uint8_t> const calldata_hash_inputs_bytes_vec(calldata_hash_inputs_bytes.begin(),
+                                                              calldata_hash_inputs_bytes.end());
+
+    // @todo @LHerskind NOTE sha to field!
+    return sha256::sha256_to_field(calldata_hash_inputs_bytes_vec);
 }
 
 }  // namespace aztec3::circuits

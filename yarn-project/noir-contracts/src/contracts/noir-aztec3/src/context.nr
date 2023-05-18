@@ -12,7 +12,7 @@ struct PrivateFunctionContext {
 
     private_call_stack : BoundedVec<Field, abi::MAX_PRIVATE_CALL_STACK>,
     public_call_stack : BoundedVec<Field, abi::MAX_PUBLIC_CALL_STACK>,
-    l1_message_stack : BoundedVec<Field, abi::MAX_L1_MSG_STACK>,
+    new_l2_to_l1_msgs : BoundedVec<Field, abi::MAX_L1_MSG_STACK>,
 }
 
 impl PrivateFunctionContext {
@@ -27,7 +27,7 @@ impl PrivateFunctionContext {
 
             private_call_stack: BoundedVec::new(0),
             public_call_stack: BoundedVec::new(0),
-            l1_message_stack: BoundedVec::new(0),
+            new_l2_to_l1_msgs: BoundedVec::new(0),
         }
     }
 
@@ -42,7 +42,7 @@ impl PrivateFunctionContext {
             new_nullifiers: self.new_nullifiers.storage,
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
-            new_l2_to_l1_msgs: self.l1_message_stack.storage,
+            new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             historic_private_data_tree_root: inputs.old_private_data_tree_root,
             historic_private_nullifier_tree_root: inputs.old_nullifier_tree_root,
             historic_contract_tree_root: inputs.old_contract_tree_root,
@@ -59,6 +59,11 @@ impl PrivateFunctionContext {
 
     fn push_new_nullifier(mut self: Self, nullifier: Field) -> Self {
         self.new_nullifiers = self.new_nullifiers.push(nullifier);
+        self
+    }
+
+    fn message_portal(mut self: Self, msg: Field) -> Self {
+        self.new_l2_to_l1_msgs = self.new_l2_to_l1_msgs.push(msg);
         self
     }
 }

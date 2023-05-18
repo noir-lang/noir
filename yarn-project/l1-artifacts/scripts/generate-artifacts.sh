@@ -16,6 +16,7 @@ CONTRACTS=(
   "l1-contracts:Outbox"
   "l1-contracts:Rollup"
   "l1-contracts:UnverifiedDataEmitter"
+  "l1-contracts:RollupNativeAsset"
 )
 
 

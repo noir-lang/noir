@@ -119,7 +119,7 @@ export const deployL1Contracts = async (
  * @param bytecode  - The ETH contract's bytecode.
  * @returns The ETH address the contract was deployed to.
  */
-async function deployL1Contract(
+export async function deployL1Contract(
   walletClient: WalletClient<HttpTransport, Chain, Account>,
   publicClient: PublicClient<HttpTransport, Chain>,
   abi: Narrow<Abi | readonly unknown[]>,
