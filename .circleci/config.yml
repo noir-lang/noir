@@ -396,6 +396,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_nested_contract.test.ts
 
+  e2e-l2-to-l1-messaging:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_rollup_native_asset_contract.test.ts
+
   integration-l1-publisher:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -479,16 +490,16 @@ workflows:
           <<: *circuits-wasm-test
       - circuits-x86_64-tests:
           <<: *circuits-x86_64-test
-        
+
       - circuits-end:
           requires:
-          - circuits-wasm-linux-clang
-          - circuits-wasm-linux-clang-assert
-          - circuits-x86_64-linux-clang-tidy
-          - circuits-x86_64-linux-clang
-          - circuits-x86_64-linux-clang-assert
-          - circuits-wasm-tests
-          - circuits-x86_64-tests
+            - circuits-wasm-linux-clang
+            - circuits-wasm-linux-clang-assert
+            - circuits-x86_64-linux-clang-tidy
+            - circuits-x86_64-linux-clang
+            - circuits-x86_64-linux-clang-assert
+            - circuits-wasm-tests
+            - circuits-x86_64-tests
           <<: *defaults
 
       - l1-contracts: *defaults
@@ -539,6 +550,7 @@ workflows:
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
       - e2e-public-token-contract: *e2e_test
+      - e2e-l2-to-l1-messaging: *e2e_test
       - integration-l1-publisher: *e2e_test
 
       - e2e-end:
@@ -548,5 +560,6 @@ workflows:
             - e2e-block-building
             - e2e-nested-contract
             - e2e-public-token-contract
+            - e2e-l2-to-l1-messaging
             - integration-l1-publisher
           <<: *defaults
