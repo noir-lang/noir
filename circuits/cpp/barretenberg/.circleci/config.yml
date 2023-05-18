@@ -315,6 +315,13 @@ bb_test: &bb_test
     - x86_64-linux-clang-assert
   <<: *defaults
 
+notmaster: &notmaster
+  filters:
+    branches:
+      ignore:
+        - master
+  <<: *defaults
+
 workflows:
   system:
     jobs:
@@ -341,13 +348,13 @@ workflows:
               only:
                 - master
           <<: *defaults
-      - circuits-wasm-linux-clang-builder-runner: *defaults
-      - circuits-x86_64-linux-clang-builder-runner: *defaults
+      - circuits-wasm-linux-clang-builder-runner: *notmaster
+      - circuits-x86_64-linux-clang-builder-runner:  *notmaster
       - circuits-wasm-tests:
           requires:
             - circuits-wasm-linux-clang-builder-runner
-          <<: *defaults
+          <<: *notmaster
       - circuits-x86_64-tests:
           requires:
             - circuits-x86_64-linux-clang-builder-runner
-          <<: *defaults
+          <<: *notmaster
