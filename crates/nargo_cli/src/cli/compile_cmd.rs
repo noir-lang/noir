@@ -92,8 +92,7 @@ fn setup_driver<B: Backend>(
     Resolver::resolve_root_manifest(
         program_dir,
         backend.np_language(),
-        #[allow(deprecated)]
-        Box::new(acvm::default_is_opcode_supported(backend.np_language())),
+        Box::new(backend.supports_opcode),
     )
 }
 

@@ -28,6 +28,7 @@ pub use program::CompiledProgram;
 pub struct Driver {
     context: Context,
     language: Language,
+    is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }
 
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
@@ -67,8 +68,15 @@ impl Default for CompileOptions {
 
 impl Driver {
     pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
-        let mut driver = Driver { context: Context::default(), language: language.clone() };
-        driver.context.def_interner.set_opcode_support(is_opcode_supported);
+        let mut driver =
+            Driver { context: Context::default(), language: language.clone(), is_opcode_supported };
+
+        // We cannot pass in the real version of `is_opcode_supported` here as we cannot clone the boxed closure.
+        // TODO(#1102): remove the requirement for the `NodeInterner` to know about which opcodes the backend supports.
+        #[allow(deprecated)]
+        let default_is_opcode_supported =
+            Box::new(acvm::default_is_opcode_supported(language.clone()));
+        driver.context.def_interner.set_opcode_support(default_is_opcode_supported);
         driver
     }
 
@@ -285,14 +293,12 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
-        // TODO: use proper `is_opcode_supported` implementation.
-        let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         let circuit_abi = if options.experimental_ssa {
             experimental_create_circuit(
                 program,
                 np_language,
-                is_opcode_supported,
+                &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )
@@ -300,7 +306,7 @@ impl Driver {
             create_circuit(
                 program,
                 np_language,
-                is_opcode_supported,
+                &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )

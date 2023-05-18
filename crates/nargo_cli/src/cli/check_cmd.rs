@@ -35,8 +35,7 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
     let mut driver = Resolver::resolve_root_manifest(
         p.as_ref(),
         backend.np_language(),
-        #[allow(deprecated)]
-        Box::new(acvm::default_is_opcode_supported(backend.np_language())),
+        Box::new(backend.supports_opcode),
     )?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;

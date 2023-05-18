@@ -36,7 +36,7 @@ pub fn optimize_into_acir(program: Program) -> Acir {
 pub fn experimental_create_circuit(
     _program: Program,
     _np_language: Language,
-    _is_opcode_supported: impl Fn(&AcirOpcode) -> bool,
+    _is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
