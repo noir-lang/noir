@@ -16,7 +16,7 @@
 #include <cassert>
 #define MSGPACK_ASSERT assert
 
-#else  // defined(MSGPACK_NO_BOOST)
+#else // defined(MSGPACK_NO_BOOST)
 
 #include <boost/assert.hpp>
 #define MSGPACK_ASSERT BOOST_ASSERT
@@ -25,15 +25,16 @@
 
 #ifdef __wasm__
 struct AbortStream {
-    void operator<< [[noreturn]] (const auto& error) {
-        info(error.what());
+    void operator<< [[noreturn]] (const auto& error)
+    {
+        (void)error; // TODO how to print this?
         std::abort();
     }
 };
 #define THROW AbortStream() <<
 #define try if (true)
 #define catch(...) if (false)
-#define RETHROW 
+#define RETHROW
 #else
 #define THROW throw
 #define RETHROW THROW
