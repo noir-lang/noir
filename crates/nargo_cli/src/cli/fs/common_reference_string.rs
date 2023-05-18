@@ -16,27 +16,40 @@ fn common_reference_string_location() -> PathBuf {
     cache_dir.join(BACKEND_IDENTIFIER).join(TRANSCRIPT_NAME)
 }
 
-pub(crate) fn get_common_reference_string<B: CommonReferenceString>(
+pub(crate) fn read_cached_common_reference_string() -> Vec<u8> {
+    let crs_path = common_reference_string_location();
+
+    // TODO: Implement checksum
+    match std::fs::read(crs_path) {
+        Ok(common_reference_string) => common_reference_string,
+        Err(_) => vec![],
+    }
+}
+
+pub(crate) fn update_common_reference_string<B: CommonReferenceString>(
     backend: &B,
+    common_reference_string: &[u8],
     circuit: &Circuit,
 ) -> Result<Vec<u8>, B::Error> {
     use tokio::runtime::Builder;
 
-    let crs_path = common_reference_string_location();
-
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
     // TODO: Implement retries
-    let crs = match std::fs::read(&crs_path) {
-        // If the read data is empty, we don't have a CRS and need to generate one
-        Ok(common_reference_string) if !common_reference_string.is_empty() => runtime
-            .block_on(backend.update_common_reference_string(common_reference_string, circuit))?,
-        Ok(_) | Err(_) => runtime.block_on(backend.generate_common_reference_string(circuit))?,
+    // If the read data is empty, we don't have a CRS and need to generate one
+    let fut = if common_reference_string.is_empty() {
+        backend.generate_common_reference_string(circuit)
+    } else {
+        backend.update_common_reference_string(common_reference_string.to_vec(), circuit)
     };
+
+    runtime.block_on(fut)
+}
+
+pub(crate) fn write_cached_common_reference_string(common_reference_string: &[u8]) {
+    let crs_path = common_reference_string_location();
 
     create_named_dir(crs_path.parent().unwrap(), "crs");
 
-    write_to_file(crs.as_slice(), &crs_path);
-
-    Ok(crs)
+    write_to_file(common_reference_string, &crs_path);
 }

@@ -11,7 +11,10 @@ use super::NargoConfig;
 use super::{
     compile_cmd::compile_circuit,
     fs::{
-        common_reference_string::get_common_reference_string,
+        common_reference_string::{
+            read_cached_common_reference_string, update_common_reference_string,
+            write_cached_common_reference_string,
+        },
         inputs::{read_inputs_from_file, write_inputs_to_file},
         program::read_program_from_file,
         proof::save_proof_to_dir,
@@ -73,22 +76,31 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     check_proof: bool,
     compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError<B>> {
+    let common_reference_string = read_cached_common_reference_string();
+
     let (common_reference_string, preprocessed_program) = match circuit_build_path {
         Some(circuit_build_path) => {
             let program = read_program_from_file(circuit_build_path)?;
-            let common_reference_string = get_common_reference_string(backend, &program.bytecode)
-                .map_err(CliError::CommonReferenceStringError)?;
+            let common_reference_string = update_common_reference_string(
+                backend,
+                &common_reference_string,
+                &program.bytecode,
+            )
+            .map_err(CliError::CommonReferenceStringError)?;
             (common_reference_string, program)
         }
         None => {
             let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-            let common_reference_string = get_common_reference_string(backend, &program.circuit)
-                .map_err(CliError::CommonReferenceStringError)?;
+            let common_reference_string =
+                update_common_reference_string(backend, &common_reference_string, &program.circuit)
+                    .map_err(CliError::CommonReferenceStringError)?;
             let program = preprocess_program(backend, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
             (common_reference_string, program)
         }
     };
+
+    write_cached_common_reference_string(&common_reference_string);
 
     let PreprocessedProgram { abi, bytecode, proving_key, verification_key, .. } =
         preprocessed_program;
