@@ -1,12 +1,16 @@
 //! This file contains the loop unrolling pass for the new SSA IR.
 //!
-//! This pass is divided into three steps:
-//! 1. Find a loop in the program (`find_next_loop`)
-//! 2. Unroll that loop into its "pre-header" block (`unroll_loop`)
-//! 3. Repeat until no more loops are found
+//! This pass is divided into a few steps:
+//! 1. Find all loops in the program (`find_all_loops`)
+//! 2. For each loop:
+//!    a. If the loop is in our list of loops that previously failed to unroll, skip it.
+//!    b. If we have previously modified any of the blocks in the loop,
+//!       restart from step 1 to refresh the context.
+//!    c. If not, try to unroll the loop. If successful, remember the modified
+//!       blocks. If not, remember that the loop failed to unroll and leave it
+//!       unmodified.
 //!
-//! Note that unrolling loops will fail if there are loops with non-constant
-//! indices. This pass also often creates superfluous jmp instructions in the
+//! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
@@ -26,40 +30,15 @@ use crate::ssa_refactor::{
     ssa_gen::Ssa,
 };
 
-/// Arbitrary maximum of 10k loops unrolled in a program to prevent looping forever
-/// if a bug causes us to continually unroll the same loop.
-const MAX_LOOPS_UNROLLED: u32 = 10_000;
-
 impl Ssa {
     /// Unroll all loops in each SSA function.
     /// Panics if any loop cannot be unrolled.
     pub(crate) fn unroll_loops(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            unroll_loops_in_function(function);
+            find_all_loops(function).unroll_each_loop(function);
         }
         self
     }
-}
-
-/// Unroll all loops within a given function.
-/// This will panic if the function has more than MAX_LOOPS_UNROLLED loops to unroll
-/// or if the function has loops that cannot be unrolled because it has non-constant indices.
-fn unroll_loops_in_function(function: &mut Function) {
-    for _ in 0..MAX_LOOPS_UNROLLED {
-        // Recompute the cfg & dom_tree after each loop in case we unrolled into another loop.
-        // TODO: Optimize: lazily recompute this only if the next loops' blocks have already been visited.
-        let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_function(function);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-
-        if let Some(loop_) = find_next_loop(function, &cfg, &dom_tree) {
-            unroll_loop(function, &cfg, loop_).ok();
-        } else {
-            return;
-        }
-    }
-
-    panic!("Did not finish unrolling all loops after the maximum of {MAX_LOOPS_UNROLLED} loops unrolled")
 }
 
 struct Loop {
@@ -75,17 +54,24 @@ struct Loop {
     blocks: HashSet<BasicBlockId>,
 }
 
+struct Loops {
+    /// The loops that failed to be unrolled so that we do not try to unroll them again.
+    /// Each loop is identified by its header block id.
+    failed_to_unroll: HashSet<BasicBlockId>,
+
+    yet_to_unroll: Vec<Loop>,
+    modified_blocks: HashSet<BasicBlockId>,
+    cfg: ControlFlowGraph,
+    dom_tree: DominatorTree,
+}
+
 /// Find a loop in the program by finding a node that dominates any predecessor node.
 /// The edge where this happens will be the back-edge of the loop.
-///
-/// We could change this to return all loops in the function instead, but we'd have to
-/// make sure to automatically refresh the list if any blocks within one loop were modified
-/// as a result of inlining another.
-fn find_next_loop(
-    function: &Function,
-    cfg: &ControlFlowGraph,
-    dom_tree: &DominatorTree,
-) -> Option<Loop> {
+fn find_all_loops(function: &Function) -> Loops {
+    let cfg = ControlFlowGraph::with_function(function);
+    let post_order = PostOrder::with_function(function);
+    let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+
     let mut loops = vec![];
 
     for (block, _) in function.dfg.basic_blocks_iter() {
@@ -94,16 +80,47 @@ fn find_next_loop(
             for predecessor in cfg.predecessors(block) {
                 if dom_tree.is_reachable(predecessor) && dom_tree.dominates(block, predecessor) {
                     // predecessor -> block is the back-edge of a loop
-                    loops.push(find_blocks_in_loop(block, predecessor, cfg));
+                    loops.push(find_blocks_in_loop(block, predecessor, &cfg));
                 }
             }
         }
     }
 
-    // Sort loops by block size so that we unroll the smaller, nested loops first as an
-    // optimization.
+    // Sort loops by block size so that we unroll the smaller, nested loops first as an optimization.
     loops.sort_by(|loop_a, loop_b| loop_b.blocks.len().cmp(&loop_a.blocks.len()));
-    loops.pop()
+
+    Loops {
+        failed_to_unroll: HashSet::new(),
+        yet_to_unroll: loops,
+        modified_blocks: HashSet::new(),
+        cfg,
+        dom_tree,
+    }
+}
+
+impl Loops {
+    /// Unroll all loops within a given function.
+    /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
+    fn unroll_each_loop(mut self, function: &mut Function) {
+        while let Some(next_loop) = self.yet_to_unroll.pop() {
+            // If we've previously modified a block in this loop we need to refresh the context.
+            // This happens any time we have nested loops.
+            if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
+                let mut new_context = find_all_loops(function);
+                new_context.failed_to_unroll = std::mem::take(&mut self.failed_to_unroll);
+                return new_context.unroll_each_loop(function);
+            }
+
+            // Don't try to unroll the loop again if it is known to fail
+            if !self.failed_to_unroll.contains(&next_loop.header) {
+                if unroll_loop(function, &self.cfg, &next_loop).is_ok() {
+                    self.modified_blocks.extend(next_loop.blocks);
+                } else {
+                    self.failed_to_unroll.insert(next_loop.header);
+                }
+            }
+        }
+    }
 }
 
 /// Return each block that is in a loop starting in the given header block.
@@ -138,11 +155,11 @@ fn find_blocks_in_loop(
 }
 
 /// Unroll a single loop in the function
-fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: Loop) -> Result<(), ()> {
-    let mut unroll_into = get_pre_header(cfg, &loop_);
+fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: &Loop) -> Result<(), ()> {
+    let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
-    while let Some(context) = unroll_loop_header(function, &loop_, unroll_into, jump_value) {
+    while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value) {
         let (last_block, last_value) = context.unroll_loop_iteration();
         unroll_into = last_block;
         jump_value = last_value;
@@ -192,28 +209,36 @@ fn unroll_loop_header<'a>(
     unroll_into: BasicBlockId,
     induction_value: ValueId,
 ) -> Option<LoopIteration<'a>> {
-    let mut context = LoopIteration::new(function, loop_, unroll_into, loop_.header);
+    // We insert into a fresh block first and move instructions into the unroll_into block later
+    // only once we verify the jmpif instruction has a constant condition. If it does not, we can
+    // just discard this fresh block and leave the loop unmodified.
+    let fresh_block = function.dfg.make_block();
+
+    let mut context = LoopIteration::new(function, loop_, fresh_block, loop_.header);
     let source_block = &context.function.dfg[context.source_block];
     assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header",);
 
+    // Insert the current value of the loop induction variable into our context.
     let first_param = source_block.parameters()[0];
     context.values.insert(first_param, induction_value);
     context.inline_instructions_from_block();
 
-    match context.function.dfg[unroll_into].unwrap_terminator() {
+    match context.function.dfg[fresh_block].unwrap_terminator() {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
             let next_blocks = context.handle_jmpif(*condition, *then_destination, *else_destination);
 
             // If there is only 1 next block the jmpif evaluated to a single known block.
             // This is the expected case and lets us know if we should loop again or not.
             if next_blocks.len() == 1 {
+                let mut instructions = std::mem::take(context.function.dfg[fresh_block].instructions_mut());
+                let terminator = context.function.dfg[fresh_block].take_terminator();
+                context.function.dfg[unroll_into].instructions_mut().append(&mut instructions);
+                context.function.dfg.set_block_terminator(unroll_into, terminator);
+
                 loop_.blocks.contains(&context.source_block).then_some(context)
             } else {
-                // Non-constant loop. We have to reset the then and else destination back to
-                // the original blocks here since we won't be unrolling into the new blocks.
-                context.function.dfg.get_block_terminator_mut(context.insert_block)
-                    .mutate_blocks(|block| context.original_blocks[&block]);
-
+                // If this case is reached the loop either uses non-constant indices or we need
+                // another pass, such as mem2reg to resolve them to constants.
                 None
             }
         }
