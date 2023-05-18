@@ -20,11 +20,12 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "noir:build": "yarn noir:build:test && yarn noir:build:parent && yarn noir:build:child && yarn noir:build:zk_token && yarn noir:build:pub_token && yarn noir:build:rollup_native_token",
+    "noir:build": "yarn noir:build:test && yarn noir:build:parent && yarn noir:build:child && yarn noir:build:zk_token && yarn noir:build:pub_token && yarn noir:build:l1_token && yarn noir:build:rollup_native_token",
     "noir:build:test": "(cd src/contracts/test_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts test",
     "noir:build:parent": "(cd src/contracts/parent_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts parent",
     "noir:build:child": "(cd src/contracts/child_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts child",
     "noir:build:zk_token": "(cd src/contracts/zk_token_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts zk_token",
+    "noir:build:l1_token": "(cd src/contracts/non_native_token_contract && nargo compile main --contracts && jq -c '.functions[] |= del(.proving_key, .verification_key)' target/main-NonNativeToken.json > temp.json && mv temp.json target/main-NonNativeToken.json ) && ts-node --esm src/scripts/copy_output.ts non_native_token",
     "noir:build:rollup_native_token": "(cd src/contracts/rollup_native_asset_contract && nargo compile main --contracts && jq -c '.functions[] |= del(.proving_key, .verification_key)' target/main-RollupNativeAsset.json > temp.json && mv temp.json target/main-RollupNativeAsset.json) && ts-node --esm src/scripts/copy_output.ts rollup_native_asset",
     "noir:build:pub_token": "(cd src/contracts/public_token_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts public_token"
   },

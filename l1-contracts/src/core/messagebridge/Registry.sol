@@ -6,8 +6,7 @@ import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 import {IRollup} from "@aztec/core/interfaces/IRollup.sol";
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
-
-import {DataStructures} from "../libraries/DataStructures.sol";
+import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
 
 /**
  * @title Registry

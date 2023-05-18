@@ -30,6 +30,11 @@ export interface ACIRCallback {
   storageRead(params: ACVMField[]): Promise<[ACVMField]>;
   storageWrite(params: ACVMField[]): Promise<[ACVMField]>;
   viewNotesPage(params: ACVMField[]): Promise<ACVMField[]>;
+  getL1ToL2Message(params: ACVMField[]): Promise<ACVMField[]>;
+  /**
+   * Logging utility for logging data.
+   */
+  debugLog: (params: ACVMField[]) => Promise<ACVMField[]>;
 }
 
 /**

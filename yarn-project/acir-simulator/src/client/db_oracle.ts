@@ -22,6 +22,25 @@ export interface NoteLoadOracleInputs {
 }
 
 /**
+ * The format that noir uses to get L1 to L2 Messages.
+ */
+export interface MessageLoadOracleInputs {
+  /**
+   * An collapsed array of fields containing all of the l1 to l2 message components.
+   * `l1ToL2Message.toFieldArray()` -\> [sender, chainId, recipient, version, contentHash, secretHash, deadline, fee]
+   */
+  message: Fr[];
+  /**
+   * The path in the merkle tree to the message.
+   */
+  siblingPath: Fr[];
+  /**
+   * The index of the message commitment in the merkle tree.
+   */
+  index: bigint;
+}
+
+/**
  * The database oracle interface.
  */
 export interface DBOracle {
@@ -39,4 +58,5 @@ export interface DBOracle {
   }>;
   getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi>;
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
+  getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs>;
 }

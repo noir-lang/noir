@@ -7,9 +7,8 @@ import { ChildAbi, ParentAbi } from '@aztec/noir-contracts/examples';
 import { mnemonicToAccount } from 'viem/accounts';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { deployL1Contracts } from './deploy_l1_contracts.js';
+import { MNEMONIC } from './fixtures.js';
 import { toBigInt } from '@aztec/foundation/serialize';
-
-const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const logger = createDebugLogger('aztec:e2e_nested_contract');
 

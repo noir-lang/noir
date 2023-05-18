@@ -12,8 +12,6 @@ import {Registry} from "@aztec/core/messagebridge/Registry.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
 
 contract InboxTest is Test {
-  Inbox inbox;
-
   event MessageAdded(
     bytes32 indexed entryKey,
     address indexed sender,
@@ -24,7 +22,10 @@ contract InboxTest is Test {
     uint64 fee,
     bytes32 content
   );
+
   event L1ToL2MessageCancelled(bytes32 indexed entryKey);
+
+  Inbox inbox;
 
   function setUp() public {
     address rollup = address(this);

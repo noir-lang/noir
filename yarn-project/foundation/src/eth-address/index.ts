@@ -160,7 +160,7 @@ export class EthAddress {
    * @returns A hex-encoded string representation of the Ethereum address.
    */
   public toString() {
-    return '0x' + this.buffer.toString('hex');
+    return `0x${this.buffer.toString('hex')}` as `0x${string}`;
   }
 
   /**

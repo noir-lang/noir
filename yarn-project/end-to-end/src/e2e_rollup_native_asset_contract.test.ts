@@ -24,8 +24,7 @@ import {
   Address,
 } from 'viem';
 import { foundry } from 'viem/chains';
-
-const MNEMONIC = 'test test test test test test test test test test test junk';
+import { MNEMONIC } from './fixtures.js';
 
 const logger = createDebugLogger('aztec:e2e_rollup_native_asset_contract');
 

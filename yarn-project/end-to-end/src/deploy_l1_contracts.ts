@@ -32,6 +32,44 @@ import { HDAccount, PrivateKeyAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
 /**
+ * Return type of the deployL1Contract function.
+ */
+type DeployL1Contracts = {
+  /**
+   * Wallet Client Type.
+   */
+  walletClient: WalletClient<HttpTransport, Chain, Account>;
+  /**
+   * Public Client Type.
+   */
+  publicClient: PublicClient<HttpTransport, Chain>;
+  /**
+   * Rollup Address.
+   */
+  rollupAddress: EthAddress;
+  /**
+   * Registry Address.
+   */
+  registryAddress: EthAddress;
+  /**
+   * Inbox Address.
+   */
+  inboxAddress: EthAddress;
+  /**
+   * Outbox Address.
+   */
+  outboxAddress: EthAddress;
+  /**
+   * Data Emitter Address.
+   */
+  unverifiedDataEmitterAddress: EthAddress;
+  /**
+   * Decoder Helper Address.
+   */
+  decoderHelperAddress?: EthAddress;
+};
+
+/**
  * Deploys the aztec L1 contracts; Rollup, Unverified Data Emitter & (optionally) Decoder Helper.
  * @param rpcUrl - URL of the ETH RPC to use for deployment.
  * @param account - Private Key or HD Account that will deploy the contracts.
@@ -44,7 +82,7 @@ export const deployL1Contracts = async (
   account: HDAccount | PrivateKeyAccount,
   logger: DebugLogger,
   deployDecoderHelper = false,
-) => {
+): Promise<DeployL1Contracts> => {
   logger('Deploying contracts...');
 
   const walletClient = createWalletClient({
@@ -102,6 +140,8 @@ export const deployL1Contracts = async (
   }
 
   return {
+    walletClient,
+    publicClient,
     rollupAddress,
     registryAddress,
     inboxAddress,
@@ -117,6 +157,7 @@ export const deployL1Contracts = async (
  * @param publicClient - A viem PublicClient.
  * @param abi - The ETH contract's ABI (as abitype's Abi).
  * @param bytecode  - The ETH contract's bytecode.
+ * @param args - Constructor arguments for the contract.
  * @returns The ETH address the contract was deployed to.
  */
 export async function deployL1Contract(
@@ -124,12 +165,12 @@ export async function deployL1Contract(
   publicClient: PublicClient<HttpTransport, Chain>,
   abi: Narrow<Abi | readonly unknown[]>,
   bytecode: Hex,
-  args: readonly unknown[] | undefined = undefined,
+  args: readonly unknown[] = [],
 ): Promise<EthAddress> {
   const hash = await walletClient.deployContract({
     abi,
     bytecode,
-    args: args,
+    args,
   });
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash });

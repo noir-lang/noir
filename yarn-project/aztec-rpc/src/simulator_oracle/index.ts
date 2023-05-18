@@ -1,10 +1,11 @@
-import { DBOracle } from '@aztec/acir-simulator';
+import { DBOracle, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { KeyPair } from '@aztec/key-store';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database } from '../database/index.js';
+import { L1ToL2Message } from '@aztec/types';
 
 /**
  * A data oracle that provides information needed for simulating a transaction.
@@ -84,5 +85,26 @@ export class SimulatorOracle implements DBOracle {
    */
   async getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress> {
     return await this.contractDataOracle.getPortalContractAddress(contractAddress);
+  }
+
+  // TODO: currently stubbed will be implemented in: https://github.com/AztecProtocol/aztec-packages/issues/529
+  /**
+   * Retreives the L1ToL2Message associated with a specific message key
+   *
+   * @param msgKey - The key of the message to be retreived
+   * @returns A promise that resolves to the message data, a sibling path and the
+   *          index of the message in the the l1ToL2MessagesTree
+   */
+  async getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs> {
+    void msgKey; // this line can be removed its to appease the linter on this stub
+    const message = L1ToL2Message.empty().toFieldArray();
+    // TODO: note index will be requested from the database, stubbed as 0 for the meantime
+    const index = 0n;
+    const siblingPath = await this.node.getL1ToL2MessagesTreePath(index);
+    return {
+      message,
+      siblingPath: siblingPath.data.map(node => Fr.fromBuffer(node)),
+      index,
+    };
   }
 }

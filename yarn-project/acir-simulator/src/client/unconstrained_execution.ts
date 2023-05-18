@@ -1,4 +1,4 @@
-import { ACVMField, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
+import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { CallContext, FunctionData } from '@aztec/circuits.js';
 import { frToAztecAddress, frToNumber } from '../acvm/deserialize.js';
 import { FunctionAbi } from '@aztec/foundation/abi';
@@ -55,6 +55,12 @@ export class UnconstrainedFunctionExecution {
           frToNumber(fromACVMField(acvmLimit)),
           frToNumber(fromACVMField(acvmOffset)),
         ),
+      debugLog: ([data]: ACVMField[]) => {
+        // eslint-disable-next-line
+        console.log(data);
+        return Promise.resolve([ZERO_ACVM_FIELD]);
+      },
+      getL1ToL2Message: ([msgKey]: ACVMField[]) => this.context.getL1ToL2Message(fromACVMField(msgKey)),
       enqueuePublicFunctionCall: notAvailable,
       notifyCreatedNote: notAvailable,
       notifyNullifiedNote: notAvailable,

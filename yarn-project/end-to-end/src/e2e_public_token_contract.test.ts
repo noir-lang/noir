@@ -10,8 +10,7 @@ import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { deployL1Contracts } from './deploy_l1_contracts.js';
-
-const MNEMONIC = 'test test test test test test test test test test test junk';
+import { MNEMONIC } from './fixtures.js';
 
 const logger = createDebugLogger('aztec:e2e_public_token_contract');
 

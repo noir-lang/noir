@@ -49,6 +49,9 @@ export class PublicExecutor {
       callPrivateFunction: notAvailable,
       enqueuePublicFunctionCall: notAvailable,
       viewNotesPage: notAvailable,
+      debugLog: notAvailable,
+      // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616
+      getL1ToL2Message: notAvailable,
       storageRead: async ([slot]) => {
         const storageSlot = fromACVMField(slot);
         const value = await storageActions.read(storageSlot);

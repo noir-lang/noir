@@ -264,3 +264,14 @@ export function computeCallStackItemHash(wasm: WasmWrapper, callStackItem: Publi
   const value = wasmSyncCall(wasm, 'abis__compute_call_stack_item_hash', callStackItem, 32);
   return Fr.fromBuffer(value);
 }
+
+/**
+ * Computes a secret message hash for sending secret l1 to l2 messages.
+ * @param secretMessage - The secret message.
+ * @returns
+ */
+export function computeSecretMessageHash(wasm: WasmWrapper, secretMessage: Fr) {
+  wasm.call('pedersen__init');
+  const value = wasmSyncCall(wasm, 'abis__compute_message_secret_hash', secretMessage, 32);
+  return Fr.fromBuffer(value);
+}

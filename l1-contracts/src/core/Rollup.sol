@@ -25,6 +25,7 @@ contract Rollup is Decoder {
 
   MockVerifier public immutable VERIFIER;
   IRegistry public immutable REGISTRY;
+
   bytes32 public rollupStateHash;
 
   constructor(IRegistry _registry) {

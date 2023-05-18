@@ -8,7 +8,7 @@ import {
   PrivateCircuitPublicInputs,
   PublicCallRequest,
 } from '@aztec/circuits.js';
-import { NoteLoadOracleInputs } from '../client/db_oracle.js';
+import { MessageLoadOracleInputs, NoteLoadOracleInputs } from '../client/db_oracle.js';
 import { Fr } from '@aztec/foundation/fields';
 
 // Utilities to write TS classes to ACVM Field arrays
@@ -130,6 +130,24 @@ export function toAcvmNoteLoadOracleInputs(
     toACVMField(noteLoadOracleInputs.index),
     ...noteLoadOracleInputs.siblingPath.map(f => toACVMField(f)),
     toACVMField(privateDataTreeRoot),
+  ];
+}
+
+/**
+ * Converts the result of loading messages to ACVM fields.
+ * @param messageLoadOracleInputs - The result of loading messages to convert.
+ * @param l1ToL2MessagesTreeRoot - The L1 to L2 messages tree root
+ * @returns The Message Oracle Fields.
+ */
+export function toAcvmMessageLoadOracleInputs(
+  messageLoadOracleInputs: MessageLoadOracleInputs,
+  l1ToL2MessagesTreeRoot: Fr,
+): ACVMField[] {
+  return [
+    ...messageLoadOracleInputs.message.map(f => toACVMField(f)),
+    toACVMField(messageLoadOracleInputs.index),
+    ...messageLoadOracleInputs.siblingPath.map(f => toACVMField(f)),
+    toACVMField(l1ToL2MessagesTreeRoot),
   ];
 }
 

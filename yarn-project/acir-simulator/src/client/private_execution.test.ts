@@ -2,9 +2,11 @@ import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   ARGS_LENGTH,
+  CircuitsWasm,
   CallContext,
   ContractDeploymentData,
   FunctionData,
+  L1_TO_L2_MESSAGES_TREE_HEIGHT,
   NEW_COMMITMENTS_LENGTH,
   PRIVATE_DATA_TREE_HEIGHT,
   PrivateHistoricTreeRoots,
@@ -17,7 +19,13 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
-import { ChildAbi, ParentAbi, TestContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
+import {
+  ChildAbi,
+  NonNativeTokenContractAbi,
+  ParentAbi,
+  TestContractAbi,
+  ZkTokenContractAbi,
+} from '@aztec/noir-contracts/examples';
 import { mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import { default as memdown, type MemDown } from 'memdown';
@@ -25,6 +33,10 @@ import { encodeArguments } from '../abi_coder/index.js';
 import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
+import { sha256 } from '@aztec/foundation/crypto';
+import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
+import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/types';
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -336,6 +348,98 @@ describe('Private Execution test suite', () => {
       expect(result.nestedExecutions).toHaveLength(1);
       expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(42n));
     });
+  });
+
+  describe('Consuming Messages', () => {
+    const contractDeploymentData = ContractDeploymentData.empty();
+    const txContext = new TxContext(false, false, false, contractDeploymentData);
+
+    let recipientPk: Buffer;
+    let recipient: NoirPoint;
+
+    const buildL1ToL2Message = async (content: Fr[], targetContract: AztecAddress, secret: Fr) => {
+      const wasm = await CircuitsWasm.get();
+
+      // Function selector: 0x1801fbe5 keccak256('mint(uint256,bytes32)')
+      const contentBuf = Buffer.concat([
+        Buffer.from([0x18, 0x01, 0xfb, 0xe5]),
+        ...content.map(field => field.toBuffer()),
+      ]);
+      const temp = toBigIntBE(sha256(contentBuf));
+      const contentHash = Fr.fromBuffer(toBufferBE(temp % Fr.MODULUS, 32));
+
+      const secretHash = computeSecretMessageHash(wasm, secret);
+
+      // Eventually the kernel will need to prove the kernel portal pair exists within the contract tree,
+      // EthAddress.random() will need to be replaced when this happens
+      return new L1ToL2Message(
+        new L1Actor(EthAddress.random(), 1),
+        new L2Actor(targetContract, 1),
+        contentHash,
+        secretHash,
+        0,
+        0,
+      );
+    };
+
+    beforeAll(() => {
+      recipientPk = Buffer.from('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec', 'hex');
+
+      const grumpkin = new Grumpkin(bbWasm);
+      recipient = toPublicKey(recipientPk, grumpkin);
+    });
+
+    it('Should be able to consume a dummy cross chain message', async () => {
+      const db = levelup(createMemDown());
+      const pedersen = new Pedersen(bbWasm);
+
+      const contractAddress = AztecAddress.random();
+      const bridgedAmount = 100n;
+      const abi = NonNativeTokenContractAbi.functions.find(f => f.name === 'mint')!;
+
+      const secret = new Fr(1n);
+      const preimage = await buildL1ToL2Message([new Fr(bridgedAmount), new Fr(recipient.x)], contractAddress, secret);
+
+      const messageKey = preimage.hash();
+
+      const tree: AppendOnlyTree = await newTree(
+        StandardTree,
+        db,
+        pedersen,
+        'l1ToL2Messages',
+        L1_TO_L2_MESSAGES_TREE_HEIGHT,
+      );
+
+      await tree.appendLeaves([messageKey.toBuffer()]);
+
+      const l1ToL2Root = Fr.fromBuffer(tree.getRoot(false));
+      const historicRoots = new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, l1ToL2Root, Fr.ZERO);
+
+      oracle.getL1ToL2Message.mockImplementation(async () => {
+        return Promise.resolve({
+          message: preimage.toFieldArray(),
+          index: 0n,
+          siblingPath: (await tree.getSiblingPath(0n, false)).data.map(buf => Fr.fromBuffer(buf)),
+        });
+      });
+
+      const txRequest = new TxRequest(
+        AztecAddress.random(),
+        contractAddress,
+        new FunctionData(Buffer.alloc(4), true, true),
+        // BUG: placing a fr in args will result in a fr wrapped in an fr:  https://github.com/AztecProtocol/aztec-packages/issues/611
+        encodeArguments(abi, [bridgedAmount, recipient, messageKey.value, secret.value]),
+        Fr.random(),
+        txContext,
+        Fr.ZERO,
+      );
+
+      const result = await acirSimulator.run(txRequest, abi, contractAddress, EthAddress.ZERO, historicRoots);
+
+      // Check a nullifier has been created
+      const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
+      expect(newNullifiers).toHaveLength(1);
+    }, 30_000);
   });
 
   describe('enqueued calls', () => {

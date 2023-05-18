@@ -189,6 +189,15 @@ export class AztecNode {
   }
 
   /**
+   * Returns the sibling path for a leaf in the committed l1 to l2 data tree.
+   * @param leafIndex - Index of the leaf in the tree.
+   * @returns The sibling path.
+   */
+  public getL1ToL2MessagesTreePath(leafIndex: bigint): Promise<SiblingPath> {
+    return this.merkleTreeDB.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, leafIndex, false);
+  }
+
+  /**
    * Gets the storage value at the given contract slot. Our version of eth_getStorageAt.
    * @param contract - Address of the contract to query.
    * @param slot - Slot to query.

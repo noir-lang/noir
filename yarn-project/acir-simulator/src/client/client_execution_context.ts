@@ -1,4 +1,11 @@
-import { ACVMField, toACVMField, fromACVMField, toAcvmNoteLoadOracleInputs, createDummyNote } from '../acvm/index.js';
+import {
+  ACVMField,
+  toACVMField,
+  fromACVMField,
+  toAcvmNoteLoadOracleInputs,
+  createDummyNote,
+  toAcvmMessageLoadOracleInputs,
+} from '../acvm/index.js';
 import { PrivateHistoricTreeRoots, TxRequest, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
 import { DBOracle } from './db_oracle.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -69,5 +76,15 @@ export class ClientTxExecutionContext {
       count,
       notes: notes.concat(dummyNotes),
     };
+  }
+
+  /**
+   * Fetches the a message from the db, given its key.
+   * @param msgKey - A buffer representing the message key.
+   * @returns The message data
+   */
+  public async getL1ToL2Message(msgKey: Fr): Promise<ACVMField[]> {
+    const messageInputs = await this.db.getL1ToL2Message(msgKey);
+    return toAcvmMessageLoadOracleInputs(messageInputs, this.historicRoots.l1ToL2MessagesTreeRoot);
   }
 }

@@ -3,6 +3,7 @@
 pragma solidity >=0.8.18;
 
 import {DataStructures} from "../../libraries/DataStructures.sol";
+import {IMessageBox} from "@aztec/core/interfaces/messagebridge/IMessageBox.sol";
 
 /**
  * @title IOutbox
@@ -10,7 +11,7 @@ import {DataStructures} from "../../libraries/DataStructures.sol";
  * @notice Lives on L1 and is used to consume L2 -> L1 messages. Messages are inserted by the rollup contract
  * and will be consumed by the portal contracts.
  */
-interface IOutbox {
+interface IOutbox is IMessageBox {
   // to make it easier for portal to know when to consume the message.
   event MessageAdded(bytes32 indexed entryKey);
 

@@ -6,8 +6,7 @@ import { deployL1Contracts } from './deploy_l1_contracts.js';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import times from 'lodash.times';
 import { createDebugLogger } from '@aztec/foundation/log';
-
-const MNEMONIC = 'test test test test test test test test test test test junk';
+import { MNEMONIC } from './fixtures.js';
 
 const logger = createDebugLogger('aztec:e2e_block_building');
 
