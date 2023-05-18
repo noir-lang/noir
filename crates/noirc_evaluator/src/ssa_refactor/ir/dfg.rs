@@ -123,6 +123,15 @@ impl DataFlowGraph {
         self.values.insert(value)
     }
 
+    /// Replaces the value specified by the given ValueId with a new Value.
+    ///
+    /// This is the preferred method to call for optimizations simplifying
+    /// values since other instructions referring to the same ValueId need
+    /// not be modified to refer to a new ValueId.
+    pub(crate) fn set_value(&mut self, value_id: ValueId, new_value: Value) {
+        self.values[value_id] = new_value;
+    }
+
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
     pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
         let new_value = self.values[new_value];
