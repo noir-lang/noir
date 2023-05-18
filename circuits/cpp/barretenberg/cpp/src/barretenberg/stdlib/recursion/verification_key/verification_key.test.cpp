@@ -64,7 +64,7 @@ TYPED_TEST(VerificationKeyFixture, vk_data_vs_recursion_compress_native)
 
     EXPECT_EQ(vk_data.compress_native(0), RecursVk::compress_native(native_vk, 0));
     // EXPECT_EQ(vk_data.compress_native(15), RecursVk::compress_native(native_vk, 15));
-    // ne hash indeces still lead to ne compressions
+    // // ne hash indeces still lead to ne compressions
     // EXPECT_NE(vk_data.compress_native(0), RecursVk::compress_native(native_vk, 15));
     // EXPECT_NE(vk_data.compress_native(14), RecursVk::compress_native(native_vk, 15));
 }
@@ -84,7 +84,7 @@ TYPED_TEST(VerificationKeyFixture, compress_vs_compress_native)
 
     EXPECT_EQ(recurs_vk->compress(0).get_value(), RecursVk::compress_native(native_vk, 0));
     // EXPECT_EQ(recurs_vk->compress(15).get_value(), RecursVk::compress_native(native_vk, 15));
-    // ne hash indeces still lead to ne compressions
+    // // ne hash indeces still lead to ne compressions
     // EXPECT_NE(recurs_vk->compress(0).get_value(), RecursVk::compress_native(native_vk, 15));
     // EXPECT_NE(recurs_vk->compress(14).get_value(), RecursVk::compress_native(native_vk, 15));
 }

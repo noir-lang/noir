@@ -339,7 +339,8 @@ template <typename Curve> struct verification_key {
         return compressed_key;
     }
 
-    static barretenberg::fr compress_native(const std::shared_ptr<plonk::verification_key>& key, const size_t = 0)
+    static barretenberg::fr compress_native(const std::shared_ptr<plonk::verification_key>& key,
+                                            const size_t hash_index = 0)
     {
         std::vector<uint8_t> preimage_data;
 
@@ -365,10 +366,10 @@ template <typename Curve> struct verification_key {
 
         barretenberg::fr compressed_key;
         if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            compressed_key =
-                from_buffer<barretenberg::fr>(crypto::pedersen_commitment::lookup::compress_native(preimage_data));
+            compressed_key = from_buffer<barretenberg::fr>(
+                crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index));
         } else {
-            compressed_key = crypto::pedersen_commitment::compress_native(preimage_data);
+            compressed_key = crypto::pedersen_commitment::compress_native(preimage_data, hash_index);
         }
         return compressed_key;
     }
