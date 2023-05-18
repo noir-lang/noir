@@ -29,6 +29,9 @@ pub use program::CompiledProgram;
 pub struct Driver {
     context: Context,
     language: Language,
+    // We retain this as we need to pass this into `create_circuit` once signature is updated to allow.
+    #[allow(dead_code)]
+    is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }
 
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
@@ -68,9 +71,7 @@ impl Default for CompileOptions {
 
 impl Driver {
     pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
-        let mut driver = Driver { context: Context::default(), language: language.clone() };
-        driver.context.def_interner.set_opcode_support(is_opcode_supported);
-        driver
+        Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
     }
 
     // This is here for backwards compatibility
