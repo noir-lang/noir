@@ -167,9 +167,7 @@ impl DataFlowGraph {
 
         // Get all of the types that this instruction produces
         // and append them as results.
-        let typs = self.instruction_result_types(instruction_id, ctrl_typevars);
-
-        for typ in typs {
+        for typ in self.instruction_result_types(instruction_id, ctrl_typevars) {
             self.append_result(instruction_id, typ);
         }
     }

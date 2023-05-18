@@ -110,9 +110,13 @@ impl BasicBlock {
         self.instructions.remove(index);
     }
 
-    /// Take ownership of this block's terminator, replacing it with an empty return terminator.
-    /// It is expected that this function is only called on blocks that are no longer reachable
-    /// as an optimization to copy over a terminator without cloning.
+    /// Take ownership of this block's terminator, replacing it with an empty return terminator
+    /// so that no clone is needed.
+    ///
+    /// It is expected that this function is used as an optimization on blocks that are no longer
+    /// reachable or will have their terminator overwritten afterwards. Using this on a reachable
+    /// block without setting the terminator afterward will result in the empty return terminator
+    /// being kept, which is likely unwanted.
     pub(crate) fn take_terminator(&mut self) -> TerminatorInstruction {
         let terminator = self.terminator.as_mut().expect("Expected block to have a terminator");
         std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
