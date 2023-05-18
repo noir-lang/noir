@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acvm::Language;
+use acvm::{acir::circuit::Opcode, Language};
 use nargo::manifest::{Dependency, PackageManifest};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType};
@@ -71,8 +71,9 @@ impl<'a> Resolver<'a> {
     pub(crate) fn resolve_root_manifest(
         dir_path: &std::path::Path,
         np_language: Language,
+        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
     ) -> Result<Driver, DependencyResolutionError> {
-        let mut driver = Driver::new(&np_language);
+        let mut driver = Driver::new(&np_language, is_opcode_supported);
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
         let manifest_path = super::find_package_manifest(dir_path)?;

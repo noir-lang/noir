@@ -9,6 +9,7 @@ use iter_extended::vecmap;
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
@@ -343,7 +344,8 @@ impl<'function> PerFunctionContext<'function> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
         let new_results = self.context.inline_function(ssa, function, &arguments);
-        Self::insert_new_instruction_results(&mut self.values, old_results, &new_results);
+        let new_results = InsertInstructionResult::Results(&new_results);
+        Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
 
     /// Push the given instruction from the source_function into the current block of the
@@ -365,11 +367,20 @@ impl<'function> PerFunctionContext<'function> {
     fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],
-        new_results: &[ValueId],
+        new_results: InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            values.insert(*old_result, *new_result);
+
+        match new_results {
+            InsertInstructionResult::SimplifiedTo(new_result) => {
+                values.insert(old_results[0], new_result);
+            }
+            InsertInstructionResult::Results(new_results) => {
+                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    values.insert(*old_result, *new_result);
+                }
+            }
+            InsertInstructionResult::InstructionRemoved => (),
         }
     }
 

@@ -80,7 +80,7 @@ mod tests {
             println!("Running test {test_name}");
 
             let verified = std::panic::catch_unwind(|| {
-                nargo_cli::cli::prove_and_verify("pp", test_program_dir, false)
+                nargo_cli::cli::prove_and_verify("pp", test_program_dir)
             });
 
             let r = match verified {
