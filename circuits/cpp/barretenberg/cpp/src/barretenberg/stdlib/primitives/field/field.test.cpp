@@ -975,6 +975,53 @@ template <typename Composer> class stdlib_field : public testing::Test {
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
     }
+
+    static void test_ranged_less_than()
+    {
+        Composer composer = Composer();
+
+        for (size_t i = 0; i < 10; ++i) {
+            int a_val = static_cast<int>(engine.get_random_uint8());
+            int b_val = 0;
+            switch (i) {
+            case 0: {
+                b_val = a_val;
+                break;
+            }
+            case 1: {
+                b_val = a_val + 1;
+                break;
+            }
+            case 2: {
+                b_val = a_val - 1;
+                break;
+            }
+            default: {
+                b_val = static_cast<int>(engine.get_random_uint8());
+                break;
+            }
+            }
+            if (b_val < 0) {
+                b_val = 255;
+            }
+            if (b_val > 255) {
+                b_val = 0;
+            }
+            field_ct a = witness_ct(&composer, static_cast<uint64_t>(a_val));
+            field_ct b = witness_ct(&composer, static_cast<uint64_t>(b_val));
+            a.create_range_constraint(8);
+            b.create_range_constraint(8);
+            bool_ct result = a.template ranged_less_than<8>(b);
+            bool expected = a_val < b_val;
+
+            EXPECT_EQ(result.get_value(), expected);
+        }
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        auto proof = prover.construct_proof();
+        bool proof_result = verifier.verify_proof(proof);
+        EXPECT_EQ(proof_result, true);
+    }
 };
 
 typedef testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer, honk::StandardHonkComposer>
@@ -1102,4 +1149,9 @@ TYPED_TEST(stdlib_field, test_copy_as_new_witness)
 {
     TestFixture::test_copy_as_new_witness();
 }
+TYPED_TEST(stdlib_field, test_ranged_less_than)
+{
+    TestFixture::test_ranged_less_than();
+}
+
 } // namespace test_stdlib_field

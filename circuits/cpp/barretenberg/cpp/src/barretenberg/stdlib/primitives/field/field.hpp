@@ -297,6 +297,41 @@ template <typename ComposerContext> class field_t {
                 return witness_t<ComposerContext>(ctx, val.get_bit(j));
             }) const;
 
+    /**
+     * @brief Return (a < b) as bool circuit type.
+     *        This method *assumes* that both a and b are < 2^{input_bits} - 1
+     *        i.e. it is not checked here, we assume this has been done previously
+     *
+     * @tparam Composer
+     * @tparam input_bits
+     * @param a
+     * @param b
+     * @return bool_t<Composer>
+     */
+    template <size_t num_bits> bool_t<ComposerContext> ranged_less_than(const field_t<ComposerContext>& other) const
+    {
+        const auto& a = (*this);
+        const auto& b = other;
+        auto* ctx = a.context ? a.context : b.context;
+        if (a.is_constant() && b.is_constant()) {
+            return uint256_t(a.get_value()) < uint256_t(b.get_value());
+        }
+
+        // a < b
+        // both a and b are < K where K = 2^{input_bits} - 1
+        // if a < b, this implies b - a - 1 < K
+        // if a >= b, this implies b - a + K - 1 < K
+        // i.e. (b - a - 1) * q + (b - a + K - 1) * (1 - q) = r < K
+        // q.(b - a - b + a) + b - a + K - 1 - (K - 1).q - q = r
+        // b - a + (K - 1) - (K).q = r
+        uint256_t range_constant = (uint256_t(1) << num_bits);
+        bool predicate_witness = uint256_t(a.get_value()) < uint256_t(b.get_value());
+        bool_t<ComposerContext> predicate(witness_t<ComposerContext>(ctx, predicate_witness));
+        field_t predicate_valid = b.add_two(-(a) + range_constant - 1, -field_t(predicate) * range_constant);
+        predicate_valid.create_range_constraint(num_bits);
+        return predicate;
+    }
+
     mutable ComposerContext* context = nullptr;
 
     /**

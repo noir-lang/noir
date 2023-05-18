@@ -190,7 +190,7 @@ field_t<Composer> keccak<Composer>::normalize_and_rotate(const field_ct& limb, f
  */
 template <typename Composer> void keccak<Composer>::compute_twisted_state(keccak_state& internal)
 {
-    for (size_t i = 0; i < 25; ++i) {
+    for (size_t i = 0; i < NUM_KECCAK_LANES; ++i) {
         internal.twisted_state[i] = ((internal.state[i] * 11) + internal.state_msb[i]).normalize();
     }
 }
@@ -378,7 +378,7 @@ template <typename Composer> void keccak<Composer>::theta(keccak_state& internal
  */
 template <typename Composer> void keccak<Composer>::rho(keccak_state& internal)
 {
-    constexpr_for<0, 25, 1>(
+    constexpr_for<0, NUM_KECCAK_LANES, 1>(
         [&]<size_t i>() { internal.state[i] = normalize_and_rotate<i>(internal.state[i], internal.state_msb[i]); });
 }
 
@@ -393,7 +393,7 @@ template <typename Composer> void keccak<Composer>::rho(keccak_state& internal)
  */
 template <typename Composer> void keccak<Composer>::pi(keccak_state& internal)
 {
-    std::array<field_ct, 25> B;
+    std::array<field_ct, NUM_KECCAK_LANES> B;
 
     for (size_t j = 0; j < 5; ++j) {
         for (size_t i = 0; i < 5; ++i) {
@@ -468,14 +468,14 @@ template <typename Composer> void keccak<Composer>::iota(keccak_state& internal,
     internal.state[0] = normalize_and_rotate<0>(xor_result, internal.state_msb[0]);
 
     // No need to add constraints to compute twisted repr if this is the last round
-    if (round != 23) {
+    if (round != NUM_KECCAK_ROUNDS - 1) {
         compute_twisted_state(internal);
     }
 }
 
 template <typename Composer> void keccak<Composer>::keccakf1600(keccak_state& internal)
 {
-    for (size_t i = 0; i < 24; ++i) {
+    for (size_t i = 0; i < NUM_KECCAK_ROUNDS; ++i) {
         theta(internal);
         rho(internal);
         pi(internal);
@@ -487,32 +487,49 @@ template <typename Composer> void keccak<Composer>::keccakf1600(keccak_state& in
 template <typename Composer>
 void keccak<Composer>::sponge_absorb(keccak_state& internal,
                                      const std::vector<field_ct>& input_buffer,
-                                     const std::vector<field_ct>& msb_buffer)
+                                     const std::vector<field_ct>& msb_buffer,
+                                     const field_ct& num_blocks_with_data)
 {
     const size_t l = input_buffer.size();
 
     const size_t num_blocks = l / (BLOCK_SIZE / 8);
 
     for (size_t i = 0; i < num_blocks; ++i) {
+        // create a copy of our keccak state in case we need to revert this hash block application
+        keccak_state previous = internal;
         if (i == 0) {
             for (size_t j = 0; j < LIMBS_PER_BLOCK; ++j) {
                 internal.state[j] = input_buffer[j];
                 internal.state_msb[j] = msb_buffer[j];
             }
-            for (size_t j = LIMBS_PER_BLOCK; j < 25; ++j) {
+            for (size_t j = LIMBS_PER_BLOCK; j < NUM_KECCAK_LANES; ++j) {
                 internal.state[j] = witness_ct::create_constant_witness(internal.context, 0);
                 internal.state_msb[j] = witness_ct::create_constant_witness(internal.context, 0);
             }
         } else {
             for (size_t j = 0; j < LIMBS_PER_BLOCK; ++j) {
                 internal.state[j] += input_buffer[i * LIMBS_PER_BLOCK + j];
-
                 internal.state[j] = normalize_and_rotate<0>(internal.state[j], internal.state_msb[j]);
             }
         }
 
         compute_twisted_state(internal);
         keccakf1600(internal);
+
+        // if `i >= num_blocks_with_data` then we want to revert the effects of this block and set `internal_state` to
+        // equal `previous`.
+        // This can happen for circuits where the input hash size is not known at circuit-compile time (only the maximum
+        // hash size).
+        // For example, a circuit that hashes up to 544 bytes (but maybe less depending on the witness assignment)
+        bool_ct block_predicate = field_ct(i).template ranged_less_than<8>(num_blocks_with_data);
+
+        for (size_t j = 0; j < NUM_KECCAK_LANES; ++j) {
+            internal.state[j] = field_ct::conditional_assign(block_predicate, internal.state[j], previous.state[j]);
+            internal.state_msb[j] =
+                field_ct::conditional_assign(block_predicate, internal.state_msb[j], previous.state_msb[j]);
+            internal.twisted_state[j] =
+                field_ct::conditional_assign(block_predicate, internal.twisted_state[j], previous.twisted_state[j]);
+        }
     }
 }
 
@@ -538,37 +555,53 @@ template <typename Composer> byte_array<Composer> keccak<Composer>::sponge_squee
     return result;
 }
 
-template <typename Composer> stdlib::byte_array<Composer> keccak<Composer>::hash(byte_array_ct& input)
+/**
+ * @brief Convert the input buffer into 8-bit keccak lanes in little-endian form.
+ *        Additionally, insert padding bytes if required,
+ *        and add the keccak terminating bytes 0x1/0x80
+ *        (0x1 inserted after the final byte of input data)
+ *        (0x80 inserted at the end of the final block)
+ *
+ * @tparam Composer
+ * @param input
+ * @param num_bytes
+ * @return std::vector<field_t<Composer>>
+ */
+template <typename Composer>
+std::vector<field_t<Composer>> keccak<Composer>::format_input_lanes(byte_array_ct& input, const uint32_ct& num_bytes)
 {
-    auto ctx = input.get_context();
+    auto* ctx = input.get_context();
 
-    if (ctx == nullptr) {
-        // if buffer is constant compute hash and return w/o creating constraints
-        byte_array_ct output(nullptr, 32);
-        const std::vector<uint8_t> result = hash_native(input.get_value());
-        for (size_t i = 0; i < 32; ++i) {
-            output.set_byte(i, result[i]);
-        }
-        return output;
-    }
-
+    // We require that `num_bytes` does not exceed the size of our input byte array.
+    // (can be less if the hash size is not known at circuit-compile time, only the maximum)
+    ASSERT(input.size() >= static_cast<size_t>(num_bytes.get_value()));
+    field_ct(num_bytes > uint32_ct(static_cast<uint32_t>(input.size()))).assert_equal(0);
     const size_t input_size = input.size();
-
-    // copy input into buffer and pad
-    const size_t blocks = input_size / BLOCK_SIZE;
-    const size_t blocks_length = (BLOCK_SIZE * (blocks + 1));
+    // max_blocks_length = maximum number of bytes to hash
+    const size_t max_blocks = (input_size + BLOCK_SIZE) / BLOCK_SIZE;
+    const size_t max_blocks_length = (BLOCK_SIZE * (max_blocks));
 
     byte_array_ct block_bytes(input);
 
-    const size_t byte_difference = blocks_length - input_size;
+    const size_t byte_difference = max_blocks_length - input_size;
     byte_array_ct padding_bytes(ctx, byte_difference);
     for (size_t i = 0; i < byte_difference; ++i) {
         padding_bytes.set_byte(i, witness_ct::create_constant_witness(ctx, 0));
     }
-
     block_bytes.write(padding_bytes);
-    block_bytes.set_byte(input_size, witness_ct::create_constant_witness(ctx, 0x1));
-    block_bytes.set_byte(block_bytes.size() - 1, witness_ct::create_constant_witness(ctx, 0x80));
+
+    uint32_ct num_real_blocks = (num_bytes + BLOCK_SIZE) / BLOCK_SIZE;
+    uint32_ct num_real_blocks_bytes = num_real_blocks * BLOCK_SIZE;
+
+    // Keccak requires that 0x1 is appended after the final byte of input data.
+    // Similarly, the final byte of the final padded block must be 0x80.
+    // If `num_bytes` is constant then we know where to write these values at circuit-compile time
+    if (num_bytes.is_constant()) {
+        const auto terminating_byte = static_cast<size_t>(num_bytes.get_value());
+        const auto terminating_block_byte = static_cast<size_t>(num_real_blocks_bytes.get_value()) - 1;
+        block_bytes.set_byte(terminating_byte, witness_ct::create_constant_witness(ctx, 0x1));
+        block_bytes.set_byte(terminating_block_byte, witness_ct::create_constant_witness(ctx, 0x80));
+    }
 
     // keccak lanes interpret memory as little-endian integers,
     // means we need to swap our byte ordering...
@@ -587,13 +620,11 @@ template <typename Composer> stdlib::byte_array<Composer> keccak<Composer>::hash
         block_bytes.set_byte(i + 7, temp[0]);
     }
     const size_t byte_size = block_bytes.size();
-    keccak_state internal;
-    internal.context = ctx;
 
     const size_t num_limbs = byte_size / WORD_SIZE;
-    std::vector<field_ct> converted_buffer(num_limbs);
-    std::vector<field_ct> msb_buffer(num_limbs);
+    std::vector<field_ct> sliced_buffer;
 
+    // populate a vector of 64-bit limbs from our byte array
     for (size_t i = 0; i < num_limbs; ++i) {
         field_ct sliced;
         if (i * WORD_SIZE + WORD_SIZE > byte_size) {
@@ -604,12 +635,119 @@ template <typename Composer> stdlib::byte_array<Composer> keccak<Composer>::hash
         } else {
             sliced = field_ct(block_bytes.slice(i * WORD_SIZE, WORD_SIZE));
         }
-        const auto accumulators = plookup_read::get_lookup_accumulators(KECCAK_FORMAT_INPUT, sliced);
+        sliced_buffer.emplace_back(sliced);
+    }
+
+    // If the input preimage size is known at circuit-compile time, nothing more to do.
+    if (num_bytes.is_constant()) {
+        return sliced_buffer;
+    }
+
+    // If we do *not* know the preimage size at circuit-compile time, we have several steps we must execute:
+    // 1. Validate that `input[num_bytes], input[num_bytes + 1], ..., input[input.size() - 1]` are all ZERO.
+    // 2. Insert the keccak input terminating byte `0x1` at `input[num_bytes]`
+    // 3. Insert the keccak block terminating byte `0x80` at `input[num_real_block_bytes - 1]`
+    // We do these steps after we have converted into 64 bit lanes as we have fewer elements to iterate over (is
+    // cheaper)
+    std::vector<field_ct> lanes = sliced_buffer;
+
+    // compute the lane index of the terminating input byte
+    field_ct num_bytes_as_field(num_bytes);
+    field_ct terminating_index = field_ct(uint32_ct((num_bytes) / WORD_SIZE));
+
+    // compute the value we must add to limbs[terminating_index] to insert 0x1 at the correct byte index (accounting for
+    // the previous little-endian conversion)
+    field_ct terminating_index_bytes_shift = (num_bytes_as_field) - (terminating_index * WORD_SIZE);
+    field_ct terminating_index_limb_addition = field_ct(256).pow(terminating_index_bytes_shift);
+
+    // compute the lane index of the terminating block byte
+    field_ct terminating_block_index = field_ct((num_real_blocks_bytes - 1) / WORD_SIZE);
+    field_ct terminating_block_bytes_shift =
+        field_ct(num_real_blocks_bytes - 1) - (terminating_block_index * WORD_SIZE);
+    // compute the value we must add to limbs[terminating_index] to insert 0x1 at the correct byte index (accounting for
+    // the previous little-endian conversion)
+    field_ct terminating_block_limb_addition = field_ct(0x80ULL) * field_ct(256).pow(terminating_block_bytes_shift);
+
+    // validate the number of lanes is less than the default plookup size (we use the default size to do a cheap `<`
+    // check later on. Should be fine as this translates to ~2MB of input data)
+    ASSERT(uint256_t(sliced_buffer.size()) < (uint256_t(1ULL) << Composer::DEFAULT_PLOOKUP_RANGE_BITNUM));
+
+    // If the terminating input byte index matches the terminating block byte index, we set the byte to 0x80.
+    // If we trigger this case, set `terminating_index_limb_addition` to 0 so that we do not write `0x01 + 0x80`
+    terminating_index_limb_addition = field_ct::conditional_assign(
+        field_ct(num_bytes) == field_ct(num_real_blocks_bytes) - 1, 0, terminating_index_limb_addition);
+    field_ct terminating_limb;
+
+    // iterate over our lanes to perform the above listed checks
+    for (size_t i = 0; i < sliced_buffer.size(); ++i) {
+        // If i > terminating_index, limb must be 0
+        bool_ct limb_must_be_zeroes =
+            terminating_index.template ranged_less_than<Composer::DEFAULT_PLOOKUP_RANGE_BITNUM>(field_ct(i));
+        // Is i == terminating_limb_index?
+        bool_ct is_terminating_limb = terminating_index == field_ct(i);
+
+        // Is i == terminating_block_limb?
+        bool_ct is_terminating_block_limb = terminating_block_index == field_ct(i);
+
+        (lanes[i] * limb_must_be_zeroes).assert_equal(0);
+
+        // If i == terminating_limb_index, *some* of the limb must be zero.
+        // Assign to `terminating_limb` that we will check later.
+        terminating_limb = lanes[i].madd(is_terminating_limb, terminating_limb);
+
+        // conditionally insert terminating_index_limb_addition and/or terminating_block_limb_addition into limb
+        // (addition is as good as "insertion" as we check the original byte value at this position is 0)
+        lanes[i] = terminating_index_limb_addition.madd(is_terminating_limb, lanes[i]);
+        lanes[i] = terminating_block_limb_addition.madd(is_terminating_block_limb, lanes[i]);
+    }
+
+    // check terminating_limb has correct number of zeroes
+    {
+        // we know terminating_limb < 2^64
+        // offset of first zero byte = (num_bytes % 8)
+        // i.e. in our 8-byte limb, bytes[(8 - offset), ..., 7] are zeroes in little-endian form
+        // i.e. we multiply the limb by the above, the result should still be < 2^64 (but only if excess bytes are 0)
+        field_ct limb_shift = field_ct(256).pow(field_ct(8) - terminating_index_bytes_shift);
+        field_ct to_constrain = terminating_limb * limb_shift;
+        to_constrain.create_range_constraint(WORD_SIZE * 8);
+    }
+    return lanes;
+}
+
+template <typename Composer>
+stdlib::byte_array<Composer> keccak<Composer>::hash(byte_array_ct& input, const uint32_ct& num_bytes)
+{
+    auto ctx = input.get_context();
+
+    ASSERT(uint256_t(num_bytes.get_value()) <= input.size());
+
+    if (ctx == nullptr) {
+        // if buffer is constant compute hash and return w/o creating constraints
+        byte_array_ct output(nullptr, 32);
+        const std::vector<uint8_t> result = hash_native(input.get_value());
+        for (size_t i = 0; i < 32; ++i) {
+            output.set_byte(i, result[i]);
+        }
+        return output;
+    }
+
+    // convert the input byte array into 64-bit keccak lanes (+ apply padding)
+    auto formatted_slices = format_input_lanes(input, num_bytes);
+
+    std::vector<field_ct> converted_buffer(formatted_slices.size());
+    std::vector<field_ct> msb_buffer(formatted_slices.size());
+
+    // populate keccak_state, convert our 64-bit lanes into an extended base-11 representation
+    keccak_state internal;
+    internal.context = ctx;
+    for (size_t i = 0; i < formatted_slices.size(); ++i) {
+        const auto accumulators = plookup_read::get_lookup_accumulators(KECCAK_FORMAT_INPUT, formatted_slices[i]);
         converted_buffer[i] = accumulators[ColumnIdx::C2][0];
         msb_buffer[i] = accumulators[ColumnIdx::C3][accumulators[ColumnIdx::C3].size() - 1];
     }
 
-    sponge_absorb(internal, converted_buffer, msb_buffer);
+    uint32_ct num_blocks_with_data = (num_bytes + BLOCK_SIZE) / BLOCK_SIZE;
+    sponge_absorb(internal, converted_buffer, msb_buffer, field_ct(num_blocks_with_data));
 
     auto result = sponge_squeeze(internal);
 
