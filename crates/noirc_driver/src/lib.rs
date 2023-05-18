@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use clap::Args;
 use contract::ContractFunction;
@@ -36,6 +37,10 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub show_ssa: bool,
 
+    /// Display the ACIR for compiled circuit
+    #[arg(short, long)]
+    pub print_acir: bool,
+
     /// Issue a warning for each unused variable instead of an error
     #[arg(short, long)]
     pub allow_warnings: bool,
@@ -51,14 +56,20 @@ pub struct CompileOptions {
 
 impl Default for CompileOptions {
     fn default() -> Self {
-        Self { show_ssa: false, allow_warnings: false, show_output: true, experimental_ssa: false }
+        Self {
+            show_ssa: false,
+            print_acir: false,
+            allow_warnings: false,
+            show_output: true,
+            experimental_ssa: false,
+        }
     }
 }
 
 impl Driver {
-    pub fn new(np_language: &Language) -> Self {
-        let mut driver = Driver { context: Context::default(), language: np_language.clone() };
-        driver.context.def_interner.set_language(np_language);
+    pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
+        let mut driver = Driver { context: Context::default(), language: language.clone() };
+        driver.context.def_interner.set_opcode_support(is_opcode_supported);
         driver
     }
 
@@ -66,9 +77,10 @@ impl Driver {
     // with the restricted version which only uses one file
     pub fn compile_file(
         root_file: PathBuf,
-        np_language: acvm::Language,
+        language: &Language,
+        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
     ) -> Result<CompiledProgram, ReportedError> {
-        let mut driver = Driver::new(&np_language);
+        let mut driver = Driver::new(language, is_opcode_supported);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.compile_main(&CompileOptions::default())
     }
@@ -188,7 +200,12 @@ impl Driver {
                 return Err(e);
             }
         };
-        self.compile_no_check(options, main)
+        let compiled_program = self.compile_no_check(options, main)?;
+        if options.print_acir {
+            println!("Compiled ACIR for main:");
+            println!("{}", compiled_program.circuit);
+        }
+        Ok(compiled_program)
     }
 
     /// Run the frontend to check the crate for errors then compile all contracts if there were none
@@ -198,7 +215,20 @@ impl Driver {
     ) -> Result<Vec<CompiledContract>, ReportedError> {
         self.check_crate(options)?;
         let contracts = self.get_all_contracts();
-        try_vecmap(contracts, |contract| self.compile_contract(contract, options))
+        let compiled_contracts =
+            try_vecmap(contracts, |contract| self.compile_contract(contract, options))?;
+        if options.print_acir {
+            for compiled_contract in &compiled_contracts {
+                for contract_function in &compiled_contract.functions {
+                    println!(
+                        "Compiled ACIR for {}::{}:",
+                        compiled_contract.name, contract_function.name
+                    );
+                    println!("{}", contract_function.bytecode);
+                }
+            }
+        }
+        Ok(compiled_contracts)
     }
 
     /// Compile all of the functions associated with a Noir contract.
@@ -256,6 +286,7 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
+        // TODO: use proper `is_opcode_supported` implementation.
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         let circuit_abi = if options.experimental_ssa {
@@ -318,6 +349,7 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new(&Language::R1CS)
+        #[allow(deprecated)]
+        Self::new(&Language::R1CS, Box::new(acvm::default_is_opcode_supported(Language::R1CS)))
     }
 }
