@@ -15,6 +15,7 @@ import {
   AppendOnlyTree,
   IndexedTree,
   LeafData,
+  LowLeafWitnessData,
   Pedersen,
   SiblingPath,
   SparseTree,
@@ -321,6 +322,29 @@ export class MerkleTrees implements MerkleTreeDb {
       throw new Error('Tree does not support `updateLeaf` method');
     }
     return await this.synchronise(() => tree.updateLeaf(leaf, index));
+  }
+
+  /**
+   * Batch insert multiple leaves into the tree.
+   * @param treeId - The ID of the tree.
+   * @param leaves - Leaves to insert into the tree.
+   * @param treeHeight - Height of the tree.
+   * @param subtreeHeight - Height of the subtree.
+   * @param includeUncommitted - If true, the uncommitted changes are included in the search.
+   * @returns The data for the leaves to be updated when inserting the new ones.
+   */
+  public async batchInsert(
+    treeId: MerkleTreeId,
+    leaves: Buffer[],
+    treeHeight: number,
+    subtreeHeight: number,
+    includeUncommitted: boolean,
+  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]> {
+    const tree = this.trees[treeId] as StandardIndexedTree;
+    if (!('batchInsert' in tree)) {
+      throw new Error('Tree does not support `batchInsert` method');
+    }
+    return await this.synchronise(() => tree.batchInsert(leaves, treeHeight, subtreeHeight, includeUncommitted));
   }
 
   /**

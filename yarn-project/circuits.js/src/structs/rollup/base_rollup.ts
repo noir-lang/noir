@@ -163,7 +163,7 @@ export class BaseRollupInputs {
 
     /**
      * The nullifiers which need to be udpated to perform the batch insertion of the new nullifiers.
-     * See `performBaseRollupBatchInsertionProofs` function for more details.
+     * See `StandardIndexedTree.batchInsert` function for more details.
      */
     public lowNullifierLeafPreimages: NullifierLeafPreimage[],
     /**

@@ -1,14 +1,52 @@
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { createLogger } from '@aztec/foundation/log';
 import { Hasher } from '../hasher.js';
 import { IndexedTree, LeafData } from '../interfaces/indexed_tree.js';
 import { TreeBase } from '../tree_base.js';
-import { createLogger } from '@aztec/foundation/log';
+import { SiblingPath } from '../index.js';
 
 const log = createLogger('aztec:standard-indexed-tree');
 
 const indexToKeyLeaf = (name: string, index: bigint) => {
   return `${name}:leaf:${index}`;
 };
+
+const zeroLeaf: LeafData = {
+  value: 0n,
+  nextValue: 0n,
+  nextIndex: 0n,
+};
+
+/**
+ * All of the data to be return during batch insertion.
+ */
+export interface LowLeafWitnessData {
+  /**
+   * Preimage of the low nullifier that proves non membership.
+   */
+  leafData: LeafData;
+  /**
+   * Sibling path to prove membership of low nullifier.
+   */
+  siblingPath: SiblingPath;
+  /**
+   * The index of low nullifier.
+   */
+  index: bigint;
+}
+
+/**
+ * Pre-compute empty witness.
+ * @param treeHeight - Height of tree for sibling path.
+ * @returns An empty witness.
+ */
+function getEmptyLowLeafWitness(treeHeight: number): LowLeafWitnessData {
+  return {
+    leafData: zeroLeaf,
+    index: 0n,
+    siblingPath: new SiblingPath(Array(treeHeight).fill(toBufferBE(0n, 32))),
+  };
+}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const encodeTreeValue = (leafData: LeafData) => {
@@ -304,5 +342,239 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     }
     this.cachedLeaves[Number(index)] = leaf;
     await this._updateLeaf(encodedLeaf, index);
+  }
+
+  /* eslint-disable jsdoc/require-description-complete-sentence */
+  /* The following doc block messes up with complete-sentence, so we just disable it */
+
+  /**
+   *
+   * Each base rollup needs to provide non membership / inclusion proofs for each of the nullifier.
+   * This method will return membership proofs and perform partial node updates that will
+   * allow the circuit to incrementally update the tree and perform a batch insertion.
+   *
+   * This offers massive circuit performance savings over doing incremental insertions.
+   *
+   * A description of the algorithm can be found here: https://colab.research.google.com/drive/1A0gizduSi4FIiIJZ8OylwIpO9-OTqV-R
+   *
+   * WARNING: This function has side effects, it will insert values into the tree.
+   *
+   * Assumptions:
+   * 1. There are 8 nullifiers provided and they are either unique or empty. (denoted as 0)
+   * 2. If kc 0 has 1 nullifier, and kc 1 has 3 nullifiers the layout will assume to be the sparse
+   *   nullifier layout: [kc0-0, 0, 0, 0, kc1-0, kc1-1, kc1-2, 0]
+   *
+   * Algorithm overview
+   *
+   * In general, if we want to batch insert items, we first to update their low nullifier to point to them,
+   * then batch insert all of the values as at once in the final step.
+   * To update a low nullifier, we provide an insertion proof that the low nullifier currently exists to the
+   * circuit, then update the low nullifier.
+   * Updating this low nullifier will in turn change the root of the tree. Therefore future low nullifier insertion proofs
+   * must be given against this new root.
+   * As a result, each low nullifier membership proof will be provided against an intermediate tree state, each with differing
+   * roots.
+   *
+   * This become tricky when two items that are being batch inserted need to update the same low nullifier, or need to use
+   * a value that is part of the same batch insertion as their low nullifier. In this case a zero low nullifier path is given
+   * to the circuit, and it must determine from the set of batch inserted values if the insertion is valid.
+   *
+   * The following example will illustrate attempting to insert 2,3,20,19 into a tree already containing 0,5,10,15
+   *
+   * The example will explore two cases. In each case the values low nullifier will exist within the batch insertion,
+   * One where the low nullifier comes before the item in the set (2,3), and one where it comes after (20,19).
+   *
+   * The original tree:                       Pending insertion subtree
+   *
+   *  index     0       2       3       4         -       -       -       -
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         -       -       -       -
+   *  nextIdx   1       2       3       0         -       -       -       -
+   *  nextVal   5      10      15       0         -       -       -       -
+   *
+   *
+   * Inserting 2: (happy path)
+   * 1. Find the low nullifier (0) - provide inclusion proof
+   * 2. Update its pointers
+   * 3. Insert 2 into the pending subtree
+   *
+   *  index     0       2       3       4         5       -       -       -
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         2       -       -       -
+   *  nextIdx   5       2       3       0         2       -       -       -
+   *  nextVal   2      10      15       0         5       -       -       -
+   *
+   * Inserting 3: The low nullifier exists within the insertion current subtree
+   * 1. When looking for the low nullifier for 3, we will receive 0 again as we have not inserted 2 into the main tree
+   *    This is problematic, as we cannot use either 0 or 2 as our inclusion proof.
+   *    Why cant we?
+   *      - Index 0 has a val 0 and nextVal of 2. This is NOT enough to prove non inclusion of 2.
+   *      - Our existing tree is in a state where we cannot prove non inclusion of 3.
+   *    We do not provide a non inclusion proof to out circuit, but prompt it to look within the insertion subtree.
+   * 2. Update pending insertion subtree
+   * 3. Insert 3 into pending subtree
+   *
+   * (no inclusion proof provided)
+   *  index     0       2       3       4         5       6       -       -
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         2       3       -       -
+   *  nextIdx   5       2       3       0         6       2       -       -
+   *  nextVal   2      10      15       0         3       5       -       -
+   *
+   * Inserting 20: (happy path)
+   * 1. Find the low nullifier (15) - provide inculsion proof
+   * 2. Update its pointers
+   * 3. Insert 20 into the pending subtree
+   *
+   *  index     0       2       3       4         5       6       7       -
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         2       3      20       -
+   *  nextIdx   5       2       3       7         6       2       0       -
+   *  nextVal   2      10      15      20         3       5       0       -
+   *
+   * Inserting 19:
+   * 1. In this case we can find a low nullifier, but we are updating a low nullifier that has already been updated
+   *    We can provide an inclusion proof of this intermediate tree state.
+   * 2. Update its pointers
+   * 3. Insert 19 into the pending subtree
+   *
+   *  index     0       2       3       4         5       6       7       8
+   *  -------------------------------------      ----------------------------
+   *  val       0       5      10      15         2       3      20       19
+   *  nextIdx   5       2       3       8         6       2       0       7
+   *  nextVal   2      10      15      19         3       5       0       20
+   *
+   * Perform subtree insertion
+   *
+   *  index     0       2       3       4       5       6       7       8
+   *  ---------------------------------------------------------------------
+   *  val       0       5      10      15       2       3      20       19
+   *  nextIdx   5       2       3       8       6       2       0       7
+   *  nextVal   2      10      15      19       3       5       0       20
+   *
+   * TODO: this implementation will change once the zero value is changed from h(0,0,0). Changes incoming over the next sprint
+   * @param leaves - Values to insert into the tree.
+   * @param treeHeight - Height of the tree.
+   * @param subtreeHeight - Height of the subtree.
+   * @param includeUncommitted - If true, the uncommitted changes are included in the search.
+   * @returns The data for the leaves to be updated when inserting the new ones.
+   */
+  public async batchInsert(
+    leaves: Buffer[],
+    treeHeight: number,
+    subtreeHeight: number,
+    includeUncommitted: boolean,
+  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]> {
+    // Keep track of touched low leaves
+    const touched = new Map<number, bigint[]>();
+
+    const emptyLowLeafWitness = getEmptyLowLeafWitness(treeHeight);
+    // Accumulators
+    const lowLeavesWitnesses: LowLeafWitnessData[] = [];
+    const pendingInsertionSubtree: LeafData[] = [];
+
+    // Start info
+    const startInsertionIndex = this.getNumLeaves(includeUncommitted);
+
+    // Get insertion path for each leaf
+    for (let i = 0; i < leaves.length; i++) {
+      const newValue = toBigIntBE(leaves[i]);
+
+      // Keep space and just insert zero values
+      if (newValue === 0n) {
+        pendingInsertionSubtree.push(zeroLeaf);
+        lowLeavesWitnesses.push(emptyLowLeafWitness);
+        continue;
+      }
+
+      const indexOfPrevious = this.findIndexOfPreviousValue(newValue, includeUncommitted);
+
+      // If a touched node has a value that is less greater than the current value
+      const prevNodes = touched.get(indexOfPrevious.index);
+      if (prevNodes && prevNodes.some(v => v < newValue)) {
+        // check the pending low nullifiers for a low nullifier that works
+        // This is the case where the next value is less than the pending
+        for (let j = 0; j < pendingInsertionSubtree.length; j++) {
+          if (pendingInsertionSubtree[j].value === 0n) continue;
+
+          if (
+            pendingInsertionSubtree[j].value < newValue &&
+            (pendingInsertionSubtree[j].nextValue > newValue || pendingInsertionSubtree[j].nextValue === 0n)
+          ) {
+            // add the new value to the pending low nullifiers
+            const currentLowLeaf: LeafData = {
+              value: newValue,
+              nextValue: pendingInsertionSubtree[j].nextValue,
+              nextIndex: pendingInsertionSubtree[j].nextIndex,
+            };
+
+            pendingInsertionSubtree.push(currentLowLeaf);
+
+            // Update the pending low leaf to point at the new value
+            pendingInsertionSubtree[j].nextValue = newValue;
+            pendingInsertionSubtree[j].nextIndex = startInsertionIndex + BigInt(i);
+
+            break;
+          }
+        }
+
+        // Any node updated in this space will need to calculate its low nullifier from a previously inserted value
+        lowLeavesWitnesses.push(emptyLowLeafWitness);
+      } else {
+        // Update the touched mapping
+        if (prevNodes) {
+          prevNodes.push(newValue);
+          touched.set(indexOfPrevious.index, prevNodes);
+        } else {
+          touched.set(indexOfPrevious.index, [newValue]);
+        }
+
+        // get the low leaf
+        const lowLeaf = this.getLatestLeafDataCopy(indexOfPrevious.index, includeUncommitted);
+        if (lowLeaf === undefined) {
+          return [undefined, await this.getSubtreeSiblingPath(subtreeHeight, includeUncommitted)];
+        }
+        const siblingPath = await this.getSiblingPath(BigInt(indexOfPrevious.index), includeUncommitted);
+
+        const witness: LowLeafWitnessData = {
+          leafData: { ...lowLeaf },
+          index: BigInt(indexOfPrevious.index),
+          siblingPath,
+        };
+
+        // Update the running paths
+        lowLeavesWitnesses.push(witness);
+
+        const currentLowLeaf: LeafData = {
+          value: newValue,
+          nextValue: lowLeaf.nextValue,
+          nextIndex: lowLeaf.nextIndex,
+        };
+
+        pendingInsertionSubtree.push(currentLowLeaf);
+
+        lowLeaf.nextValue = newValue;
+        lowLeaf.nextIndex = startInsertionIndex + BigInt(i);
+
+        await this.updateLeaf(lowLeaf, BigInt(indexOfPrevious.index));
+      }
+    }
+
+    const newSubtreeSiblingPath = await this.getSubtreeSiblingPath(subtreeHeight, includeUncommitted);
+
+    // Perform batch insertion of new pending values
+    for (let i = 0; i < pendingInsertionSubtree.length; i++) {
+      await this.updateLeaf(pendingInsertionSubtree[i], startInsertionIndex + BigInt(i));
+    }
+
+    return [lowLeavesWitnesses, newSubtreeSiblingPath];
+  }
+
+  async getSubtreeSiblingPath(subtreeHeight: number, includeUncommitted: boolean) {
+    const nextAvailableLeafIndex = this.getNumLeaves(includeUncommitted);
+    const fullSiblingPath = await this.getSiblingPath(nextAvailableLeafIndex, includeUncommitted);
+
+    // Drop the first subtreeHeight items since we only care about the path to the subtree root
+    return fullSiblingPath.data.slice(subtreeHeight);
   }
 }

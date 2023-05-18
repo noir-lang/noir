@@ -1,5 +1,5 @@
 import { createDebugLogger } from '@aztec/foundation/log';
-import { LeafData, SiblingPath } from '@aztec/merkle-tree';
+import { LeafData, SiblingPath, LowLeafWitnessData } from '@aztec/merkle-tree';
 import { MerkleTreeId } from '@aztec/types';
 
 export * from './merkle_trees.js';
@@ -143,6 +143,21 @@ export interface MerkleTreeOperations {
    * the current roots of the corresponding trees (CONTRACT_TREE, PRIVATE_DATA_TREE, L1_TO_L2_MESSAGES_TREE).
    */
   updateHistoricRootsTrees(): Promise<void>;
+
+  /**
+   * Batch insert multiple leaves into the tree.
+   * @param leaves - Leaves to insert into the tree.
+   * @param treeId - The tree on which to insert.
+   * @param treeHeight - Height of the tree.
+   * @param subtreeHeight - Height of the subtree.
+   * @returns The witness data for the leaves to be updated when inserting the new ones.
+   */
+  batchInsert(
+    treeId: MerkleTreeId,
+    leaves: Buffer[],
+    treeHeight: number,
+    subtreeHeight: number,
+  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]>;
 }
 
 /**

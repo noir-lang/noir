@@ -1,3 +1,4 @@
+import { LowLeafWitnessData } from '../index.js';
 import { AppendOnlyTree } from './append_only_tree.js';
 
 /**
@@ -57,4 +58,18 @@ export interface IndexedTree extends AppendOnlyTree {
    */
   // TODO: remove once the batch insertion functionality is moved to StandardIndexedTree from circuit_block_builder.ts
   updateLeaf(leaf: LeafData, index: bigint): Promise<void>;
+
+  /**
+   * Batch insert multiple leaves into the tree.
+   * @param leaves - Leaves to insert into the tree.
+   * @param treeHeight - Height of the tree.
+   * @param subtreeHeight - Height of the subtree.
+   * @param includeUncommitted - If true, the uncommitted changes are included in the search.
+   */
+  batchInsert(
+    leaves: Buffer[],
+    treeHeight: number,
+    subtreeHeight: number,
+    includeUncommitted: boolean,
+  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]>;
 }
