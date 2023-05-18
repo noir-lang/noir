@@ -123,6 +123,12 @@ impl DataFlowGraph {
         self.values.insert(value)
     }
 
+    /// Set the value of value_to_replace to refer to the value referred to by new_value.
+    pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
+        let new_value = self.values[new_value];
+        self.values[value_to_replace] = new_value;
+    }
+
     /// Creates a new constant value, or returns the Id to an existing one if
     /// one already exists.
     pub(crate) fn make_constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
