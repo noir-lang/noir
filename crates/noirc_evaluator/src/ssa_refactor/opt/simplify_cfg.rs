@@ -5,8 +5,10 @@
 //! 2. Inlines a block into its sole predecessor if that predecessor only has one successor.
 //! 3. Removes any block arguments for blocks with only a single predecessor.
 //! 4. Removes any blocks which have no instructions other than a single terminating jmp.
+//! 5. Replaces any jmpifs with constant conditions with jmps. If this causes the block to have
+//!    only 1 successor then (2) also will be applied.
 //!
-//! Currently, only 2 and 3 are implemented.
+//! Currently, 1 and 4 are unimplemented.
 use std::collections::HashSet;
 
 use crate::ssa_refactor::{
@@ -23,8 +25,10 @@ impl Ssa {
     /// 2. Inlining a block into its sole predecessor if that predecessor only has one successor.
     /// 3. Removing any block arguments for blocks with only a single predecessor.
     /// 4. Removing any blocks which have no instructions other than a single terminating jmp.
+    /// 5. Replacing any jmpifs with constant conditions with jmps. If this causes the block to have
+    ///    only 1 successor then (2) also will be applied.
     ///
-    /// Currently, only 2 and 3 are implemented.
+    /// Currently, 1 and 4 are unimplemented.
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
             simplify_function(function);
