@@ -6,7 +6,7 @@
 //! 3. Removes any block arguments for blocks with only a single predecessor.
 //! 4. Removes any blocks which have no instructions other than a single terminating jmp.
 //!
-//! Currently, only 2 is implemented.
+//! Currently, only 2 and 3 are implemented.
 use std::collections::HashSet;
 
 use crate::ssa_refactor::{
@@ -24,7 +24,7 @@ impl Ssa {
     /// 3. Removing any block arguments for blocks with only a single predecessor.
     /// 4. Removing any blocks which have no instructions other than a single terminating jmp.
     ///
-    /// Currently, only 2 is implemented.
+    /// Currently, only 2 and 3 are implemented.
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
             simplify_function(function);
@@ -51,9 +51,44 @@ fn simplify_function(function: &mut Function) {
             let predecessor = predecessors.next().expect("Already checked length of predecessors");
             drop(predecessors);
 
+            // If the block has only 1 predecessor, we can safely remove its block parameters
+            remove_block_parameters(function, block, predecessor);
+
+            // Note: this function relies on `remove_block_parameters` being called first.
+            // Otherwise the inlined block will refer to parameters that no longer exist.
             if try_inline_into_predecessor(function, &mut cfg, block, predecessor) {
                 continue;
             }
+        }
+    }
+}
+
+/// If the given block has block parameters, replace them with the jump arguments from the predecessor.
+///
+/// Currently, if this function is needed, `try_inline_into_predecessor` will also always apply,
+/// although in the future it is possible for only this function to apply if jmpif instructions
+/// with block arguments are ever added.
+fn remove_block_parameters(
+    function: &mut Function,
+    block: BasicBlockId,
+    predecessor: BasicBlockId,
+) {
+    let block = &mut function.dfg[block];
+
+    if !block.parameters().is_empty() {
+        let block_params = block.take_parameters();
+
+        let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
+            TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
+            TerminatorInstruction::JmpIf { .. } => unreachable!("If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"),
+            _ => unreachable!(
+                "Predecessor was already validated to have only a single jmp destination"
+            ),
+        };
+
+        assert_eq!(block_params.len(), jump_args.len());
+        for (param, arg) in block_params.iter().zip(jump_args) {
+            function.dfg.set_value_from_id(*param, arg);
         }
     }
 }
@@ -81,26 +116,9 @@ fn try_inline_into_predecessor(
         let predecessor = &mut function.dfg[predecessor_id];
         predecessor.instructions_mut().append(&mut instructions);
 
-        let jump_args = match predecessor.take_terminator() {
-            TerminatorInstruction::Jmp { arguments, .. } => arguments,
-            _ => unreachable!(
-                "Predecessor was already validated to have only a single jmp destination"
-            ),
-        };
-
         predecessor.set_terminator(terminator);
-
-        // Finally, replace any block parameters with their values, if there were any.
-        let block_params = function.dfg[block_id].take_parameters();
-        assert_eq!(block_params.len(), jump_args.len());
-
-        for (param, arg) in block_params.iter().zip(jump_args) {
-            function.dfg.set_value_from_id(*param, arg);
-        }
-
         cfg.recompute_block(function, block_id);
         cfg.recompute_block(function, predecessor_id);
-
         true
     } else {
         false

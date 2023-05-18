@@ -121,4 +121,11 @@ impl BasicBlock {
         let terminator = self.terminator.as_mut().expect("Expected block to have a terminator");
         std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
     }
+
+    /// Returns a mutable reference to the terminator of this block.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
+    pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
+        self.terminator.as_mut().expect("Expected block to have terminator instruction")
+    }
 }
