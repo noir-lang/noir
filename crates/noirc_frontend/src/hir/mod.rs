@@ -6,7 +6,7 @@ pub mod type_check;
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::node_interner::NodeInterner;
-use acvm::Language;
+use acvm::acir::circuit::Opcode;
 use def_map::CrateDefMap;
 use fm::FileManager;
 use std::collections::HashMap;
@@ -29,7 +29,11 @@ pub struct Context {
 pub type StorageSlot = u32;
 
 impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph, language: Language) -> Context {
+    pub fn new(
+        file_manager: FileManager,
+        crate_graph: CrateGraph,
+        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
+    ) -> Context {
         let mut ctx = Context {
             def_interner: NodeInterner::default(),
             def_maps: HashMap::new(),
@@ -37,7 +41,7 @@ impl Context {
             file_manager,
             storage_slots: HashMap::new(),
         };
-        ctx.def_interner.set_language(&language);
+        ctx.def_interner.set_opcode_support(is_opcode_supported);
         ctx
     }
 
