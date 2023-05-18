@@ -92,7 +92,7 @@ fn setup_driver<B: Backend>(
     Resolver::resolve_root_manifest(
         program_dir,
         backend.np_language(),
-        Box::new(backend.supports_opcode),
+        Box::new(|op| backend.supports_opcode(op)),
     )
 }
 
