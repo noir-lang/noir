@@ -116,10 +116,8 @@ impl BasicBlock {
 
     /// Removes the given instruction from this block if present or panics otherwise.
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
-        // Iterate in reverse here as an optimization since remove_instruction is most
-        // often called to remove instructions at the end of a block.
         let index =
-            self.instructions.iter().rev().position(|id| *id == instruction).unwrap_or_else(|| {
+            self.instructions.iter().position(|id| *id == instruction).unwrap_or_else(|| {
                 panic!("remove_instruction: No such instruction {instruction:?} in block")
             });
         self.instructions.remove(index);

@@ -4,4 +4,5 @@
 //! simpler form until the IR only has a single function remaining with 1 block within it.
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 mod inlining;
+mod mem2reg;
 mod unrolling;

@@ -922,7 +922,10 @@ impl Binary {
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(NodeEval::Const(lhs - rhs * (lhs / rhs), res_type));
+                    let lhs = res_type.field_to_type(lhs).to_u128();
+                    let rhs = res_type.field_to_type(rhs).to_u128();
+                    let result = lhs - rhs * (lhs / rhs);
+                    return Ok(NodeEval::Const(FieldElement::from(result), res_type));
                 }
             }
             BinaryOp::Srem(loc) => {
