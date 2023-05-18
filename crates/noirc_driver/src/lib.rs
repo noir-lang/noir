@@ -261,7 +261,7 @@ impl Driver {
             experimental_create_circuit(
                 program,
                 np_language,
-                Box::new(is_opcode_supported),
+                is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )
@@ -269,7 +269,7 @@ impl Driver {
             create_circuit(
                 program,
                 np_language,
-                Box::new(is_opcode_supported),
+                is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )

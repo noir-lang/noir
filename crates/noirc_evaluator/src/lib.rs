@@ -66,7 +66,7 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
-    is_opcode_supported: Box<dyn Fn(&AcirOpcode) -> bool>,
+    is_opcode_supported: impl Fn(&AcirOpcode) -> bool,
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {

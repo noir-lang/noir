@@ -8,7 +8,10 @@
 #![allow(dead_code)]
 
 use crate::errors::RuntimeError;
-use acvm::{acir::circuit::{Circuit, Opcode as AcirOpcode}, Language};
+use acvm::{
+    acir::circuit::{Circuit, Opcode as AcirOpcode},
+    Language,
+};
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
@@ -33,7 +36,7 @@ pub fn optimize_into_acir(program: Program) -> Acir {
 pub fn experimental_create_circuit(
     _program: Program,
     _np_language: Language,
-    _is_opcode_supported: Box<dyn Fn(&AcirOpcode) -> bool>,
+    _is_opcode_supported: impl Fn(&AcirOpcode) -> bool,
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
