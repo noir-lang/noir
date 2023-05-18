@@ -76,7 +76,8 @@ impl Opcode {
                     | BlackBoxFunc::Keccak256
                     | BlackBoxFunc::Blake2s
                     | BlackBoxFunc::Pedersen
-                    | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
+                    | BlackBoxFunc::FixedBaseScalarMul 
+                    | BlackBoxFunc::VerifyProof => BigUint::zero(),
                     // Verify returns zero or one
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
                     BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
@@ -115,6 +116,7 @@ impl Opcode {
                     }
                     BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
+                    BlackBoxFunc::VerifyProof => (16, ObjectType::native_field()),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unreachable!("ICE: these opcodes do not have Noir builtin functions")
                     }

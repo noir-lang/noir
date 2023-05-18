@@ -240,6 +240,19 @@ mod test {
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")
         }
+        fn verify_proof(
+            &self,
+            _initial_witness: &mut WitnessMap,
+            _key: &[FunctionInput],
+            _proof: &[FunctionInput],
+            _public_inputs: &[FunctionInput],
+            _key_hash: &FunctionInput,
+            _input_aggregation_object: &[FunctionInput],
+            _nested_aggregation_object: &[FunctionInput],
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
     }
 
     // Check that a random network constrains its output to be a permutation of any random input
