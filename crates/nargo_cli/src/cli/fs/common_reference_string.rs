@@ -9,7 +9,7 @@ const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 const TRANSCRIPT_NAME: &str = "common-reference-string.bin";
 
 fn common_reference_string_location() -> PathBuf {
-    let cache_dir = match env::var("BACKEND_CACHE_DIR") {
+    let cache_dir = match env::var("NARGO_BACKEND_CACHE_DIR") {
         Ok(cache_dir) => PathBuf::from(cache_dir),
         Err(_) => dirs::home_dir().unwrap().join(".nargo").join("backends"),
     };
