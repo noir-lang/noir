@@ -8,6 +8,14 @@ pub fn verify_proof<B: ProofSystemCompiler>(
     proof: &[u8],
     public_inputs: WitnessMap,
     verification_key: &[u8],
+    is_recursive: bool,
 ) -> Result<bool, B::Error> {
-    backend.verify_with_vk(common_reference_string, proof, public_inputs, circuit, verification_key)
+    backend.verify_with_vk(
+        common_reference_string,
+        proof,
+        public_inputs,
+        circuit,
+        verification_key,
+        is_recursive,
+    )
 }

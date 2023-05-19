@@ -13,7 +13,7 @@ pub mod ssa_refactor;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::{optimizers::simplify::CircuitSimplifier},
+    compiler::optimizers::simplify::CircuitSimplifier,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};

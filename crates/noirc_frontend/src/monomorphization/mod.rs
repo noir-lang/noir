@@ -722,6 +722,7 @@ impl<'interner> Monomorphizer<'interner> {
         arguments: &[node_interner::ExprId],
         result_type: &ast::Type,
     ) -> Option<ast::Expression> {
+        // dbg!(func.clone());
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
                 if opcode == "array_len" {
@@ -756,6 +757,20 @@ impl<'interner> Monomorphizer<'interner> {
                     return Some(self.modulus_array_literal(bytes, 8));
                 }
             }
+            // if let Definition::LowLevel(opcode) = &ident.definition {
+            //     dbg!(opcode.clone());
+            //     let array = self.interner.id_type(arguments[4]);
+            //     dbg!(array.clone());
+            //     let element = Self::convert_type(&array);
+            //     dbg!(element.clone());
+            //     match array {
+            //         crate::Type::Array(len, t) => {
+            //             dbg!(len);
+            //             dbg!(t);
+            //         }
+            //         _ => panic!("input agg obj must be an array")
+            //     }
+            // }
         }
         None
     }

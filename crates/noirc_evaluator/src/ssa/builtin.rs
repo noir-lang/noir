@@ -76,7 +76,7 @@ impl Opcode {
                     | BlackBoxFunc::Keccak256
                     | BlackBoxFunc::Blake2s
                     | BlackBoxFunc::Pedersen
-                    | BlackBoxFunc::FixedBaseScalarMul 
+                    | BlackBoxFunc::FixedBaseScalarMul
                     | BlackBoxFunc::VerifyProof => BigUint::zero(),
                     // Verify returns zero or one
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),

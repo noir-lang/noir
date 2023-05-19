@@ -18,3 +18,4 @@ result
 *.pk
 *.vk
 **/Verifier.toml
+**/target/

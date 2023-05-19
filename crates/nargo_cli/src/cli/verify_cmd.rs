@@ -26,6 +26,10 @@ pub(crate) struct VerifyCommand {
     /// The name of the circuit build files (ACIR, proving and verification keys)
     circuit_name: Option<String>,
 
+    /// Whether to generate this proof using the recursive prover
+    #[arg(short, long)]
+    recursive: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -47,6 +51,7 @@ pub(crate) fn run<B: Backend>(
         &config.program_dir,
         proof_path,
         circuit_build_path.as_ref(),
+        args.recursive,
         &args.compile_options,
     )
 }
@@ -56,6 +61,7 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
     program_dir: P,
     proof_path: PathBuf,
     circuit_build_path: Option<P>,
+    is_recursive: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let (common_reference_string, preprocessed_program) = match circuit_build_path {
@@ -92,6 +98,7 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
         &proof,
         public_inputs,
         &verification_key,
+        is_recursive,
     )
     .map_err(CliError::ProofSystemCompilerError)?;
 

@@ -36,6 +36,10 @@ pub(crate) struct ProveCommand {
     #[arg(short, long)]
     verify: bool,
 
+    /// Whether to generate this proof using the recursive prover
+    #[arg(short, long)]
+    recursive: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -58,6 +62,7 @@ pub(crate) fn run<B: Backend>(
         proof_dir,
         circuit_build_path,
         args.verify,
+        args.recursive,
         &args.compile_options,
     )?;
 
@@ -71,6 +76,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
     check_proof: bool,
+    is_recursive: bool,
     compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError<B>> {
     let (common_reference_string, preprocessed_program) = match circuit_build_path {
@@ -111,9 +117,15 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         Format::Toml,
     )?;
 
-    let proof =
-        prove_execution(backend, &common_reference_string, &bytecode, solved_witness, &proving_key)
-            .map_err(CliError::ProofSystemCompilerError)?;
+    let proof = prove_execution(
+        backend,
+        &common_reference_string,
+        &bytecode,
+        solved_witness,
+        &proving_key,
+        is_recursive,
+    )
+    .map_err(CliError::ProofSystemCompilerError)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
@@ -124,6 +136,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
             &proof,
             public_inputs,
             &verification_key,
+            is_recursive,
         )
         .map_err(CliError::ProofSystemCompilerError)?;
 

@@ -8,7 +8,10 @@
 #![allow(dead_code)]
 
 use crate::errors::RuntimeError;
-use acvm::{acir::circuit::{Circuit, Opcode as AcirOpcode}, Language};
+use acvm::{
+    acir::circuit::{Circuit, Opcode as AcirOpcode},
+    Language,
+};
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;

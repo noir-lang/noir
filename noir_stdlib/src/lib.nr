@@ -16,4 +16,4 @@ fn println<T>(_input : T) {}
 
 // TODO: have the compiler insert the key_hash and remove as param 
 #[foreign(verify_proof)]
-fn verify_proof(_verification_key : [Field], _proof : [Field], _public_input : Field, _key_hash : Field, _input_aggregation_object : [Field]) -> [Field] {}
+fn verify_proof(_verification_key : [Field], _proof : [Field], _public_inputs : [Field], _key_hash : Field, _input_aggregation_object : [Field]) -> [Field] {}

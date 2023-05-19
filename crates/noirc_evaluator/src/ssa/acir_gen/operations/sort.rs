@@ -246,9 +246,7 @@ mod test {
             _key: &[FunctionInput],
             _proof: &[FunctionInput],
             _public_inputs: &[FunctionInput],
-            _key_hash: &FunctionInput,
             _input_aggregation_object: &[FunctionInput],
-            _nested_aggregation_object: &[FunctionInput],
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")

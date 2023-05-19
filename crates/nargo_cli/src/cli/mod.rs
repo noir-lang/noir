@@ -17,6 +17,7 @@ mod gates_cmd;
 mod new_cmd;
 mod print_acir_cmd;
 mod prove_cmd;
+mod recursion_cmd;
 mod test_cmd;
 mod verify_cmd;
 
@@ -57,6 +58,7 @@ enum NargoCommand {
     Test(test_cmd::TestCommand),
     Gates(gates_cmd::GatesCommand),
     PrintAcir(print_acir_cmd::PrintAcirCommand),
+    Recursion(recursion_cmd::RecursionCommand),
 }
 
 pub fn start_cli() -> eyre::Result<()> {
@@ -80,6 +82,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::PrintAcir(args) => print_acir_cmd::run(&backend, args, config),
+        NargoCommand::Recursion(args) => recursion_cmd::run(&backend, args, config),
     }?;
 
     Ok(())
@@ -104,6 +107,7 @@ pub fn prove_and_verify(proof_name: &str, program_dir: &Path, show_ssa: bool) ->
         &proof_dir,
         None,
         true,
+        false,
         &compile_options,
     ) {
         Ok(_) => true,
