@@ -24,12 +24,16 @@
 namespace barretenberg {
 template <class Params> struct alignas(32) field {
   public:
-    // We don't initialize data by default since we'd lose a lot of time on pointless initializations.
+    // We don't initialize data in the default constructor since we'd lose a lot of time on huge array initializations.
     // Other alternatives have been noted, such as casting to get around constructors where they matter,
     // however it is felt that sanitizer tools (e.g. MSAN) can detect garbage well, whereas doing
     // hacky casts where needed would require rework to critical algos like MSM, FFT, Sumcheck.
-    // Instead, the recommended solution is use an explicit = 0 where initialization is important.
-    field() noexcept {}
+    // Instead, the recommended solution is use an explicit {} where initialization is important:
+    //  field f; // not initialized
+    //  field f{}; // zero-initialized
+    //  std::array<field, N> arr; // not initialized, good for huge N
+    //  std::array<field, N> arr {}; // zero-initialized, preferable for moderate N
+    field() = default;
 
     constexpr field(const uint256_t& input) noexcept
         : data{ input.data[0], input.data[1], input.data[2], input.data[3] }
