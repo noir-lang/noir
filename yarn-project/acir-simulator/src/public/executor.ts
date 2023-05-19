@@ -27,10 +27,10 @@ export class PublicExecutor {
    * @returns The result of the run plus all nested runs.
    */
   public async execute(execution: PublicExecution): Promise<PublicExecutionResult> {
-    const selectorHex = execution.functionData.functionSelector.toString('hex');
+    const selectorHex = execution.functionData.functionSelectorBuffer.toString('hex');
     this.log(`Executing public external function ${execution.contractAddress.toShortString()}:${selectorHex}`);
 
-    const selector = execution.functionData.functionSelector;
+    const selector = execution.functionData.functionSelectorBuffer;
     const acir = await this.contractsDb.getBytecode(execution.contractAddress, selector);
     if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toShortString()}:${selectorHex}`);
 

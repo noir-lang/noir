@@ -20,6 +20,8 @@ template <typename NCT> struct FunctionData {
     boolean is_private = false;
     boolean is_constructor = false;
 
+    MSGPACK_FIELDS(function_selector, is_private, is_constructor);
+
     boolean operator==(FunctionData<NCT> const& other) const
     {
         return function_selector == other.function_selector && is_private == other.is_private &&

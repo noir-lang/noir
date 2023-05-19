@@ -1,4 +1,5 @@
 #pragma once
+#include <aztec3/constants.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -23,6 +24,9 @@ template <typename NCT> struct ContractDeploymentData {
     fr function_tree_root = 0;
     fr contract_address_salt = 0;
     address portal_contract_address = 0;
+
+    // for serialization: update up with new fields
+    MSGPACK_FIELDS(constructor_vk_hash, function_tree_root, contract_address_salt, portal_contract_address);
 
     boolean operator==(ContractDeploymentData<NCT> const& other) const
     {

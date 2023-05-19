@@ -22,6 +22,13 @@ template <typename NCT> struct PrivateHistoricTreeRoots {
     fr l1_to_l2_messages_tree_root = 0;
     fr private_kernel_vk_tree_root = 0;  // TODO: future enhancement
 
+    // for serialization: update up with new fields
+    MSGPACK_FIELDS(private_data_tree_root,
+                   nullifier_tree_root,
+                   contract_tree_root,
+                   l1_to_l2_messages_tree_root,
+                   private_kernel_vk_tree_root);
+
     boolean operator==(PrivateHistoricTreeRoots<NCT> const& other) const
     {
         return private_data_tree_root == other.private_data_tree_root &&

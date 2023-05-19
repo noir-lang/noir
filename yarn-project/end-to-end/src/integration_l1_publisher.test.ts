@@ -10,6 +10,7 @@ import {
   PublicDataUpdateRequest,
   KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   range,
+  makeTuple,
 } from '@aztec/circuits.js';
 import { fr, makeNewContractData, makeProof } from '@aztec/circuits.js/factories';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -148,16 +149,18 @@ describe('L1Publisher integration', () => {
     const publicTx = makePublicTx(seed);
     const kernelOutput = KernelCircuitPublicInputs.empty();
     kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
-    kernelOutput.end.publicDataUpdateRequests = range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x500).map(
+    kernelOutput.end.publicDataUpdateRequests = makeTuple(
+      KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
       i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),
+      seed + 0x500,
     );
 
     const tx = await makeProcessedTx(publicTx, kernelOutput, makeProof());
 
-    tx.data.end.newCommitments = range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr);
-    tx.data.end.newNullifiers = range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr);
+    tx.data.end.newCommitments = makeTuple(KERNEL_NEW_COMMITMENTS_LENGTH, fr, seed + 0x100);
+    tx.data.end.newNullifiers = makeTuple(KERNEL_NEW_NULLIFIERS_LENGTH, fr, seed + 0x200);
     tx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = Fr.ZERO;
-    tx.data.end.newL2ToL1Msgs = range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x300).map(fr);
+    tx.data.end.newL2ToL1Msgs = makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x300);
     tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
 
     return tx;

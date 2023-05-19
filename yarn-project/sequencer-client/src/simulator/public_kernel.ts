@@ -26,7 +26,7 @@ export class WasmPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
    * @returns The public inputs as outputs of the simulation.
    */
   public publicKernelCircuitPrivateInput(input: PublicKernelInputs): Promise<PublicKernelPublicInputs> {
-    if (!input.previousKernel.publicInputs.isPrivateKernel) throw new Error(`Expected private kernel previous inputs`);
+    if (!input.previousKernel.publicInputs.isPrivate) throw new Error(`Expected private kernel previous inputs`);
     return simulatePublicKernelCircuit(input);
   }
 
@@ -36,7 +36,7 @@ export class WasmPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
    * @returns The public inputs as outputs of the simulation.
    */
   publicKernelCircuitNonFirstIteration(input: PublicKernelInputs): Promise<PublicKernelPublicInputs> {
-    if (input.previousKernel.publicInputs.isPrivateKernel) throw new Error(`Expected public kernel previous inputs`);
+    if (input.previousKernel.publicInputs.isPrivate) throw new Error(`Expected public kernel previous inputs`);
     return simulatePublicKernelCircuit(input);
   }
 }

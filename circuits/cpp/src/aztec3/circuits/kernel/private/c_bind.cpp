@@ -4,6 +4,7 @@
 #include "utils.hpp"
 
 #include "barretenberg/srs/reference_string/env_reference_string.hpp"
+#include <barretenberg/serialize/cbind.hpp>
 
 namespace {
 using Composer = plonk::UltraComposer;
@@ -20,9 +21,7 @@ using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
 
 }  // namespace
 
-#define WASM_EXPORT __attribute__((visibility("default")))
 // WASM Cbinds
-extern "C" {
 
 // TODO(dbanks12): might be able to get rid of proving key buffer
 WASM_EXPORT size_t private_kernel__init_proving_key(uint8_t const** pk_buf)
@@ -53,20 +52,7 @@ WASM_EXPORT size_t private_kernel__init_verification_key(uint8_t const* pk_buf, 
     return vk_vec.size();
 }
 
-WASM_EXPORT size_t private_kernel__dummy_previous_kernel(uint8_t const** previous_kernel_buf)
-{
-    PreviousKernelData<NT> const previous_kernel = dummy_previous_kernel();
-
-    std::vector<uint8_t> previous_kernel_vec;
-    write(previous_kernel_vec, previous_kernel);
-
-    auto* raw_buf = (uint8_t*)malloc(previous_kernel_vec.size());
-    memcpy(raw_buf, (void*)previous_kernel_vec.data(), previous_kernel_vec.size());
-
-    *previous_kernel_buf = raw_buf;
-
-    return previous_kernel_vec.size();
-}
+CBIND(private_kernel__dummy_previous_kernel, []() { return dummy_previous_kernel(); });
 
 // TODO(dbanks12): comment about how public_inputs is a confusing name
 // returns size of public inputs
@@ -192,5 +178,3 @@ WASM_EXPORT size_t private_kernel__verify_proof(uint8_t const* vk_buf, uint8_t c
     (void)length;  // unused
     return 1U;
 }
-
-}  // extern "C"

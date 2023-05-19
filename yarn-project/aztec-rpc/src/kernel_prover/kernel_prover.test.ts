@@ -1,7 +1,7 @@
 import { ExecutionResult, NewNoteData } from '@aztec/acir-simulator';
 import {
   EcdsaSignature,
-  MembershipWitness,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
   PRIVATE_CALL_STACK_LENGTH,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
@@ -10,6 +10,7 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
   makeEmptyProof,
+  MembershipWitness,
 } from '@aztec/circuits.js';
 import { makeTxRequest } from '@aztec/circuits.js/factories';
 import { mock } from 'jest-mock-extended';
@@ -18,6 +19,7 @@ import { ProofCreator } from './proof_creator.js';
 import { ProvingDataOracle } from './proving_data_oracle.js';
 import { Fr } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Tuple } from '@aztec/foundation/serialize';
 
 describe('Kernel Prover', () => {
   let txRequest: TxRequest;
@@ -57,7 +59,9 @@ describe('Kernel Prover', () => {
 
   const createProofOutput = (newNoteIndices: number[]) => {
     const publicInputs = KernelCircuitPublicInputs.empty();
-    publicInputs.end.newCommitments = newNoteIndices.map(idx => generateFakeSiloedCommitment(notes[idx]));
+    const commitments = newNoteIndices.map(idx => generateFakeSiloedCommitment(notes[idx]));
+    // TODO(AD) FIXME(AD) This cast is bad. Why is this not the correct length when this is called?
+    publicInputs.end.newCommitments = commitments as Tuple<Fr, typeof KERNEL_NEW_COMMITMENTS_LENGTH>;
     return {
       publicInputs,
       proof: makeEmptyProof(),

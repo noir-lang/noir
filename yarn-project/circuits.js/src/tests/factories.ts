@@ -1,83 +1,89 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fq, Fr } from '@aztec/foundation/fields';
-
+import { numToUInt32BE } from '@aztec/foundation/serialize';
 import { computeCallStackItemHash } from '../abis/abis.js';
 import {
-  BaseOrMergeRollupPublicInputs,
-  BaseRollupInputs,
-  CallContext,
-  CircuitsWasm,
-  CombinedAccumulatedData,
-  CombinedConstantData,
-  CombinedHistoricTreeRoots,
-  ConstantBaseRollupData,
-  ContractStorageRead,
-  ContractStorageUpdateRequest,
-  KernelCircuitPublicInputs,
-  MergeRollupInputs,
-  NewContractData,
-  NullifierLeafPreimage,
-  OptionallyRevealedData,
-  PreviousKernelData,
-  PreviousRollupData,
-  PrivateCallData,
-  PrivateCircuitPublicInputs,
+  TxContext,
+  ContractDeploymentData,
   PrivateHistoricTreeRoots,
-  PrivateKernelInputs,
-  PublicCallData,
-  PublicCircuitPublicInputs,
-  PublicDataRead,
+  CombinedHistoricTreeRoots,
+  CombinedConstantData,
   PublicDataUpdateRequest,
+  PublicDataRead,
+  ContractStorageUpdateRequest,
+  ContractStorageRead,
+  CombinedAccumulatedData,
+  range,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_NULLIFIERS_LENGTH,
+  KERNEL_PRIVATE_CALL_STACK_LENGTH,
+  Fr,
+  KERNEL_PUBLIC_CALL_STACK_LENGTH,
+  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
+  KERNEL_NEW_CONTRACTS_LENGTH,
+  KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+  KERNEL_PUBLIC_DATA_READS_LENGTH,
+  NewContractData,
+  OptionallyRevealedData,
+  FunctionData,
+  EMITTED_EVENTS_LENGTH,
+  AggregationObject,
+  G1AffineElement,
+  Fq,
+  CallContext,
+  PublicCircuitPublicInputs,
+  ARGS_LENGTH,
+  RETURN_VALUES_LENGTH,
+  PUBLIC_CALL_STACK_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
+  KernelCircuitPublicInputs,
+  PublicCallRequest,
+  MembershipWitness,
+  VerificationKey,
+  ComposerType,
+  PreviousKernelData,
+  Proof,
+  VK_TREE_HEIGHT,
+  PrivateKernelInputs,
+  PublicCallStackItem,
+  PublicCallData,
+  CircuitsWasm,
+  WitnessedPublicCallData,
+  PUBLIC_DATA_TREE_HEIGHT,
   PublicKernelInputs,
   PublicKernelInputsNoPreviousKernel,
-  RootRollupInputs,
-  RootRollupPublicInputs,
-  WitnessedPublicCallData,
-  PublicCallRequest,
-} from '../index.js';
-import { AggregationObject } from '../structs/aggregation_object.js';
-import { PrivateCallStackItem, PublicCallStackItem } from '../structs/call_stack_item.js';
-import {
-  ARGS_LENGTH,
-  CONTRACT_TREE_HEIGHT,
-  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
-  EMITTED_EVENTS_LENGTH,
-  FUNCTION_TREE_HEIGHT,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-  KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
-  KERNEL_PRIVATE_CALL_STACK_LENGTH,
-  KERNEL_PUBLIC_CALL_STACK_LENGTH,
-  KERNEL_PUBLIC_DATA_READS_LENGTH,
-  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
-  L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
-  L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
-  NEW_COMMITMENTS_LENGTH,
-  NEW_L2_TO_L1_MSGS_LENGTH,
-  NEW_NULLIFIERS_LENGTH,
-  NULLIFIER_TREE_HEIGHT,
-  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  SignedTxRequest,
+  TxRequest,
+  PrivateCallData,
   PRIVATE_CALL_STACK_LENGTH,
-  PRIVATE_DATA_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
-  PUBLIC_CALL_STACK_LENGTH,
-  PUBLIC_DATA_TREE_HEIGHT,
-  RETURN_VALUES_LENGTH,
+  FUNCTION_TREE_HEIGHT,
+  CONTRACT_TREE_HEIGHT,
+  PrivateCallStackItem,
+  PrivateCircuitPublicInputs,
+  NEW_COMMITMENTS_LENGTH,
+  NEW_NULLIFIERS_LENGTH,
+  ConstantBaseRollupData,
+  AppendOnlyTreeSnapshot,
+  EcdsaSignature,
+  BaseOrMergeRollupPublicInputs,
+  RollupTypes,
+  PreviousRollupData,
   ROLLUP_VK_TREE_HEIGHT,
-  VK_TREE_HEIGHT,
-} from '../structs/constants.js';
-import { FunctionData } from '../structs/function_data.js';
-import { MembershipWitness } from '../structs/membership_witness.js';
-import { AppendOnlyTreeSnapshot } from '../structs/rollup/append_only_tree_snapshot.js';
-import { AffineElement, ComposerType, EcdsaSignature, RollupTypes, UInt8Vector } from '../structs/shared.js';
-import { ContractDeploymentData, TxContext } from '../structs/tx_context.js';
-import { SignedTxRequest, TxRequest } from '../structs/tx_request.js';
-import { CommitmentMap, G1AffineElement, VerificationKey } from '../structs/verification_key.js';
-import { range } from '../utils/jsUtils.js';
-import { numToUInt32BE } from '../utils/serialize.js';
+  RootRollupInputs,
+  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
+  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
+  L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
+  RootRollupPublicInputs,
+  MergeRollupInputs,
+  BaseRollupInputs,
+  NullifierLeafPreimage,
+  NULLIFIER_TREE_HEIGHT,
+  PRIVATE_DATA_TREE_HEIGHT,
+  makeTuple,
+} from '../index.js';
 
 /**
  * Creates an arbitrary tx context with the given seed.
@@ -188,15 +194,15 @@ export function makeContractStorageRead(seed = 1): ContractStorageRead {
 export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
   return new CombinedAccumulatedData(
     makeAggregationObject(seed),
-    range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr),
-    range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr),
-    new Array(KERNEL_PRIVATE_CALL_STACK_LENGTH).fill(Fr.ZERO), // private call stack must be empty
-    range(KERNEL_PUBLIC_CALL_STACK_LENGTH, seed + 0x400).map(fr),
-    range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x500).map(fr),
-    range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
-    range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(makeOptionallyRevealedData),
-    range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x800).map(makeEmptyPublicDataUpdateRequest),
-    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x900).map(makeEmptyPublicDataRead),
+    makeTuple(KERNEL_NEW_COMMITMENTS_LENGTH, fr, seed + 0x100),
+    makeTuple(KERNEL_NEW_NULLIFIERS_LENGTH, fr, seed + 0x200),
+    makeTuple(KERNEL_PRIVATE_CALL_STACK_LENGTH, Fr.zero), // private call stack must be empty
+    makeTuple(KERNEL_PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x400),
+    makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x500),
+    makeTuple(KERNEL_NEW_CONTRACTS_LENGTH, makeNewContractData, seed + 0x600),
+    makeTuple(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, makeOptionallyRevealedData, seed + 0x700),
+    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeEmptyPublicDataUpdateRequest, seed + 0x800),
+    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeEmptyPublicDataRead, seed + 0x900),
   );
 }
 
@@ -208,15 +214,15 @@ export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
 export function makeAccumulatedData(seed = 1): CombinedAccumulatedData {
   return new CombinedAccumulatedData(
     makeAggregationObject(seed),
-    range(KERNEL_NEW_COMMITMENTS_LENGTH, seed + 0x100).map(fr),
-    range(KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x200).map(fr),
-    range(KERNEL_PRIVATE_CALL_STACK_LENGTH, seed + 0x300).map(fr),
-    range(KERNEL_PUBLIC_CALL_STACK_LENGTH, seed + 0x400).map(fr),
-    range(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x500).map(fr),
-    range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
-    range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(makeOptionallyRevealedData),
-    range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x800).map(makePublicDataUpdateRequest),
-    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x900).map(makePublicDataRead),
+    makeTuple(KERNEL_NEW_COMMITMENTS_LENGTH, fr, seed + 0x100),
+    makeTuple(KERNEL_NEW_NULLIFIERS_LENGTH, fr, seed + 0x200),
+    makeTuple(KERNEL_PRIVATE_CALL_STACK_LENGTH, fr, seed + 0x300),
+    makeTuple(KERNEL_PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x400),
+    makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x500),
+    makeTuple(KERNEL_NEW_CONTRACTS_LENGTH, makeNewContractData, seed + 0x600),
+    makeTuple(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, makeOptionallyRevealedData, seed + 0x700),
+    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makePublicDataUpdateRequest, seed + 0x800),
+    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makePublicDataRead, seed + 0x900),
   );
 }
 
@@ -238,7 +244,7 @@ export function makeOptionallyRevealedData(seed = 1): OptionallyRevealedData {
   return new OptionallyRevealedData(
     fr(seed),
     new FunctionData(makeSelector(seed + 1), true, true),
-    range(EMITTED_EVENTS_LENGTH, seed + 0x100).map(x => fr(x)),
+    makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x100),
     fr(seed + 2),
     makeEthAddress(seed + 3),
     true,
@@ -255,9 +261,9 @@ export function makeOptionallyRevealedData(seed = 1): OptionallyRevealedData {
  */
 export function makeAggregationObject(seed = 1): AggregationObject {
   return new AggregationObject(
-    new AffineElement(new Fq(BigInt(seed)), new Fq(BigInt(seed + 1))),
-    new AffineElement(new Fq(BigInt(seed + 0x100)), new Fq(BigInt(seed + 0x101))),
-    range(4, seed + 2).map(fr),
+    new G1AffineElement(new Fq(BigInt(seed)), new Fq(BigInt(seed + 1))),
+    new G1AffineElement(new Fq(BigInt(seed + 0x100)), new Fq(BigInt(seed + 0x101))),
+    makeTuple(4, fr, seed + 2),
     range(6, seed + 6),
   );
 }
@@ -282,14 +288,14 @@ export function makePublicCircuitPublicInputs(
   seed = 0,
   storageContractAddress?: AztecAddress,
 ): PublicCircuitPublicInputs {
-  const frArray = (num: number, seed: number) => range(num, seed).map(fr);
+  const frArray = (num: number, seed: number) => makeTuple(num, fr, seed);
   return new PublicCircuitPublicInputs(
     makeCallContext(seed, storageContractAddress),
     frArray(ARGS_LENGTH, seed + 0x100),
     frArray(RETURN_VALUES_LENGTH, seed + 0x200),
     frArray(EMITTED_EVENTS_LENGTH, seed + 0x300),
-    range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x400).map(makeContractStorageUpdateRequest),
-    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x500).map(makeContractStorageRead),
+    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeContractStorageUpdateRequest, seed + 0x400),
+    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeContractStorageRead, seed + 0x500),
     frArray(PUBLIC_CALL_STACK_LENGTH, seed + 0x600),
     frArray(NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x700),
     fr(seed + 0x800),
@@ -325,7 +331,7 @@ export function makePublicCallRequest(seed = 1): PublicCallRequest {
     makeAztecAddress(seed),
     new FunctionData(makeSelector(seed + 0x1), false, false),
     makeCallContext(seed + 0x2),
-    range(ARGS_LENGTH, seed + 0x10).map(fr),
+    makeTuple(ARGS_LENGTH, fr, seed + 0x10),
   );
 }
 
@@ -336,7 +342,7 @@ export function makePublicCallRequest(seed = 1): PublicCallRequest {
  * @returns A uint8 vector.
  */
 export function makeDynamicSizeBuffer(size: number, fill: number) {
-  return new UInt8Vector(Buffer.alloc(size, fill));
+  return new Proof(Buffer.alloc(size, fill));
 }
 
 /**
@@ -345,8 +351,8 @@ export function makeDynamicSizeBuffer(size: number, fill: number) {
  * @param start - The start of the membership witness.
  * @returns A membership witness.
  */
-export function makeMembershipWitness<N extends number>(size: number, start: number): MembershipWitness<N> {
-  return new MembershipWitness(size, BigInt(start), range(size, start).map(fr));
+export function makeMembershipWitness<N extends number>(size: N, start: number): MembershipWitness<N> {
+  return new MembershipWitness(size, BigInt(start), makeTuple(size, fr, start));
 }
 
 /**
@@ -358,9 +364,9 @@ export function makeVerificationKey(): VerificationKey {
     ComposerType.STANDARD,
     101, // arbitrary
     102, // arbitrary,
-    new CommitmentMap({
+    {
       A: new G1AffineElement(fr(0x200), fr(0x300)),
-    }),
+    },
     /* recursive proof */ true,
     range(5, 400),
   );
@@ -375,10 +381,10 @@ export function makeVerificationKey(): VerificationKey {
 export function makePreviousKernelData(seed = 1, kernelPublicInputs?: KernelCircuitPublicInputs): PreviousKernelData {
   return new PreviousKernelData(
     kernelPublicInputs ?? makeKernelPublicInputs(seed),
-    makeProof(seed + 0x80),
+    new Proof(Buffer.alloc(16, seed + 0x80)),
     makeVerificationKey(),
     0x42,
-    range(VK_TREE_HEIGHT, 0x1000).map(fr),
+    makeTuple(VK_TREE_HEIGHT, fr, 0x1000),
   );
 }
 
@@ -429,8 +435,8 @@ export function makePublicCallStackItem(seed = 1): PublicCallStackItem {
 export async function makePublicCallData(seed = 1): Promise<PublicCallData> {
   const publicCallData = new PublicCallData(
     makePublicCallStackItem(seed),
-    range(PUBLIC_CALL_STACK_LENGTH, seed + 0x300).map(makePublicCallStackItem),
-    makeProof(seed + 0x1000),
+    makeTuple(PUBLIC_CALL_STACK_LENGTH, makePublicCallStackItem, seed + 0x300),
+    makeProof(),
     fr(seed + 1),
     fr(seed + 2),
   );
@@ -471,7 +477,7 @@ export async function makeWitnessedPublicCallData(seed = 1): Promise<WitnessedPu
     range(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, seed + 0x100).map(x =>
       makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x),
     ),
-    range(KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x200).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x)),
+    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x), seed + 0x200),
     fr(seed + 0x300),
   );
 }
@@ -535,7 +541,7 @@ export function makeTxRequest(seed = 1): TxRequest {
     from: makeAztecAddress(seed),
     to: makeAztecAddress(seed + 0x10),
     functionData: new FunctionData(makeSelector(seed + 0x100), true, true),
-    args: range(ARGS_LENGTH, seed + 0x200).map(x => fr(x)),
+    args: makeTuple(ARGS_LENGTH, x => fr(x), seed + 0x200),
     nonce: fr(seed + 0x300),
     txContext: makeTxContext(seed + 0x400),
     chainId: fr(seed + 0x500),
@@ -550,8 +556,8 @@ export function makeTxRequest(seed = 1): TxRequest {
 export function makePrivateCallData(seed = 1): PrivateCallData {
   return PrivateCallData.from({
     callStackItem: makePrivateCallStackItem(seed),
-    privateCallStackPreimages: range(PRIVATE_CALL_STACK_LENGTH, seed + 0x10).map(makePrivateCallStackItem),
-    proof: makeDynamicSizeBuffer(16, seed + 0x50),
+    privateCallStackPreimages: makeTuple(PRIVATE_CALL_STACK_LENGTH, makePrivateCallStackItem, seed + 0x10),
+    proof: new Proof(Buffer.alloc(16).fill(seed + 0x50)),
     vk: makeVerificationKey(),
     functionLeafMembershipWitness: makeMembershipWitness(FUNCTION_TREE_HEIGHT, seed + 0x30),
     contractLeafMembershipWitness: makeMembershipWitness(CONTRACT_TREE_HEIGHT, seed + 0x20),
@@ -588,14 +594,14 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
       true,
       true,
     ),
-    args: range(ARGS_LENGTH, seed + 0x100).map(fr),
-    emittedEvents: range(EMITTED_EVENTS_LENGTH, seed + 0x200).map(fr), // TODO not in spec
-    returnValues: range(RETURN_VALUES_LENGTH, seed + 0x300).map(fr),
-    newCommitments: range(NEW_COMMITMENTS_LENGTH, seed + 0x400).map(fr),
-    newNullifiers: range(NEW_NULLIFIERS_LENGTH, seed + 0x500).map(fr),
-    privateCallStack: range(PRIVATE_CALL_STACK_LENGTH, seed + 0x600).map(fr),
-    publicCallStack: range(PUBLIC_CALL_STACK_LENGTH, seed + 0x700).map(fr),
-    newL2ToL1Msgs: range(NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x800).map(fr),
+    args: makeTuple(ARGS_LENGTH, fr, seed + 0x100),
+    emittedEvents: makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x200), // TODO not in spec
+    returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x300),
+    newCommitments: makeTuple(NEW_COMMITMENTS_LENGTH, fr, seed + 0x400),
+    newNullifiers: makeTuple(NEW_NULLIFIERS_LENGTH, fr, seed + 0x500),
+    privateCallStack: makeTuple(PRIVATE_CALL_STACK_LENGTH, fr, seed + 0x600),
+    publicCallStack: makeTuple(PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x700),
+    newL2ToL1Msgs: makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x800),
     historicContractTreeRoot: fr(seed + 0x900), // TODO not in spec
     historicPrivateDataTreeRoot: fr(seed + 0x1000),
     historicPrivateNullifierTreeRoot: fr(seed + 0x1100), // TODO not in spec
@@ -722,11 +728,11 @@ export function makePreviousRollupData(seed = 0): PreviousRollupData {
 export function makeRootRollupInputs(seed = 0): RootRollupInputs {
   return new RootRollupInputs(
     [makePreviousRollupData(seed), makePreviousRollupData(seed + 0x1000)],
-    range(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT, 0x2000).map(fr),
-    range(CONTRACT_TREE_ROOTS_TREE_HEIGHT, 0x2100).map(fr),
-    range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 0x2100).map(fr),
-    range(L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH, 0x2100).map(fr),
-    range(L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT, 0x2100).map(fr),
+    makeTuple(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT, fr, 0x2000),
+    makeTuple(CONTRACT_TREE_ROOTS_TREE_HEIGHT, fr, 0x2100),
+    makeTuple(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, fr, 0x2100),
+    makeTuple(L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH, fr, 0x2100),
+    makeTuple(L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT, fr, 0x2100),
     makeAppendOnlyTreeSnapshot(seed + 0x2200),
     makeAppendOnlyTreeSnapshot(seed + 0x2300),
   );
@@ -839,12 +845,12 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
 
   return BaseRollupInputs.from({
     kernelData,
+    lowNullifierMembershipWitness,
     startPrivateDataTreeSnapshot,
     startNullifierTreeSnapshot,
     startContractTreeSnapshot,
     startPublicDataTreeRoot,
     lowNullifierLeafPreimages,
-    lowNullifierMembershipWitness,
     newCommitmentsSubtreeSiblingPath,
     newNullifiersSubtreeSiblingPath,
     newContractsSubtreeSiblingPath,

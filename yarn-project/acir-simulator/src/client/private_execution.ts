@@ -115,7 +115,7 @@ export class PrivateFunctionExecution {
    * @returns The execution result.
    */
   public async run(): Promise<ExecutionResult> {
-    const selector = this.functionData.functionSelector.toString('hex');
+    const selector = this.functionData.functionSelectorBuffer.toString('hex');
     this.log(`Executing external function ${this.contractAddress.toShortString()}:${selector}`);
 
     const acir = Buffer.from(this.abi.bytecode, 'hex');

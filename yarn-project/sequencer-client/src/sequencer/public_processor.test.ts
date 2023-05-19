@@ -9,9 +9,11 @@ import {
   KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
+  Proof,
   PublicCallRequest,
   TxRequest,
   makeEmptyProof,
+  makeTuple,
 } from '@aztec/circuits.js';
 import {
   makeAztecAddress,
@@ -27,10 +29,10 @@ import { MockProxy, mock } from 'jest-mock-extended';
 import pick from 'lodash.pick';
 import times from 'lodash.times';
 import { makePrivateTx, makePublicTx } from '../index.js';
-import { Proof, PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { PublicProcessor } from './public_processor.js';
+import { PublicProver } from '../prover/index.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 
@@ -75,7 +77,7 @@ describe('public_processor', () => {
 
     it('skips non-public txs without public execution requests', async function () {
       const tx = makePrivateTx();
-      tx.data.end.publicCallStack = times(KERNEL_PUBLIC_CALL_STACK_LENGTH, Fr.zero);
+      tx.data.end.publicCallStack = makeTuple(KERNEL_PUBLIC_CALL_STACK_LENGTH, Fr.zero);
       const hash = await tx.getTxHash();
       const [processed, failed] = await processor.process([tx]);
 
@@ -138,7 +140,7 @@ describe('public_processor', () => {
         proof,
         txRequest: tx.txRequest,
         isEmpty: false,
-        data: expect.objectContaining({ isPrivateKernel: false }),
+        data: expect.objectContaining({ isPrivate: false }),
       });
 
     const expectedTxByHash = async (tx: Tx) =>
@@ -237,6 +239,7 @@ describe('public_processor', () => {
       const kernelOutput = makeKernelPublicInputs(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, KERNEL_PRIVATE_CALL_STACK_LENGTH);
+
       const tx = Tx.createPrivate(kernelOutput, proof, UnverifiedData.random(2), [], callRequests);
 
       publicExecutor.execute.mockImplementation(execution => {

@@ -1,12 +1,15 @@
 #include "c_bind.h"
+
 #include "function_leaf_preimage.hpp"
 #include "tx_request.hpp"
 
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/signed_tx_request.hpp"
+#include "aztec3/circuits/hash.hpp"
 
 #include <barretenberg/common/serialize.hpp>
 #include <barretenberg/numeric/random/engine.hpp>
+#include <barretenberg/serialize/test_helper.hpp>
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
 
 #include <gtest/gtest.h>
@@ -47,6 +50,13 @@ template <size_t NUM_BYTES> std::string bytes_to_hex_str(std::array<uint8_t, NUM
 
 namespace aztec3::circuits::abis {
 
+TEST(abi_tests, compute_contract_address)
+{
+    auto func = aztec3::circuits::compute_contract_address<NT>;
+    auto [actual, expected] =
+        call_func_and_wrapper(func, abis__compute_contract_address, NT::address(1), NT::fr(2), NT::fr(3), NT::fr(4));
+    EXPECT_EQ(actual, expected);
+}
 TEST(abi_tests, hash_tx_request)
 {
     // randomize function args for tx request
@@ -270,46 +280,6 @@ TEST(abi_tests, hash_constructor)
 
     // Confirm cbind output == expected hash
     EXPECT_EQ(got_hash, expected_hash);
-}
-
-TEST(abi_tests, compute_contract_address)
-{
-    // Randomize required values
-    NT::fr const deployer_address = NT::fr::random_element();
-    NT::fr const contract_address_salt = NT::fr::random_element();
-    NT::fr const function_tree_root = NT::fr::random_element();
-    NT::fr const constructor_hash = NT::fr::random_element();
-
-    // Serialize values to buffers
-    std::array<uint8_t, sizeof(NT::fr)> deployer_address_buf = { 0 };
-    std::array<uint8_t, sizeof(NT::fr)> contract_address_salt_buf = { 0 };
-    std::array<uint8_t, sizeof(NT::fr)> function_tree_root_buf = { 0 };
-    std::array<uint8_t, sizeof(NT::fr)> constructor_hash_buf = { 0 };
-    NT::fr::serialize_to_buffer(deployer_address, deployer_address_buf.data());
-    NT::fr::serialize_to_buffer(contract_address_salt, contract_address_salt_buf.data());
-    NT::fr::serialize_to_buffer(function_tree_root, function_tree_root_buf.data());
-    NT::fr::serialize_to_buffer(constructor_hash, constructor_hash_buf.data());
-
-    // create an output buffer for cbind contract address results
-    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
-
-    // Make the c_bind call to compute the contract address
-    abis__compute_contract_address(deployer_address_buf.data(),
-                                   contract_address_salt_buf.data(),
-                                   function_tree_root_buf.data(),
-                                   constructor_hash_buf.data(),
-                                   output.data());
-
-    // Convert buffer to `fr` for comparison to in-test calculated contract address
-    NT::fr const got_address = NT::fr::serialize_from_buffer(output.data());
-
-    // Calculate the expected contract address in-test
-    NT::fr const expected_address =
-        NT::compress({ deployer_address, contract_address_salt, function_tree_root, constructor_hash },
-                     aztec3::GeneratorIndex::CONTRACT_ADDRESS);
-
-    // Confirm cbind output == expected
-    EXPECT_EQ(got_address, expected_address);
 }
 
 TEST(abi_tests, compute_contract_leaf)

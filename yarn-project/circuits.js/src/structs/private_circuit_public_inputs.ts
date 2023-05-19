@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { assertLength, FieldsOf } from '../utils/jsUtils.js';
+import { assertMemberLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
 import {
@@ -78,14 +78,14 @@ export class PrivateCircuitPublicInputs {
      */
     public contractDeploymentData: ContractDeploymentData,
   ) {
-    assertLength(this, 'args', ARGS_LENGTH);
-    assertLength(this, 'returnValues', RETURN_VALUES_LENGTH);
-    assertLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
-    assertLength(this, 'newCommitments', NEW_COMMITMENTS_LENGTH);
-    assertLength(this, 'newNullifiers', NEW_NULLIFIERS_LENGTH);
-    assertLength(this, 'privateCallStack', PRIVATE_CALL_STACK_LENGTH);
-    assertLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
-    assertLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
+    assertMemberLength(this, 'args', ARGS_LENGTH);
+    assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
+    assertMemberLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
+    assertMemberLength(this, 'newCommitments', NEW_COMMITMENTS_LENGTH);
+    assertMemberLength(this, 'newNullifiers', NEW_NULLIFIERS_LENGTH);
+    assertMemberLength(this, 'privateCallStack', PRIVATE_CALL_STACK_LENGTH);
+    assertMemberLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
+    assertMemberLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
   }
   /**
    * Create PrivateCircuitPublicInputs from a fields dictionary.

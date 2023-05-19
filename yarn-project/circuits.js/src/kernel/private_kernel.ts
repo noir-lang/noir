@@ -13,21 +13,6 @@ import { BufferReader } from '@aztec/foundation/serialize';
 import { handleCircuitOutput } from '../utils/call_wasm.js';
 
 /**
- * Computes mostly empty previous kernel data which is used as the input to the first kernel in the chain of private kernels.
- * @param wasm - The circuits wasm instance.
- * @returns The previous kernel data.
- */
-export async function getDummyPreviousKernelData(wasm: CircuitsWasm): Promise<PreviousKernelData> {
-  wasm.call('pedersen__init');
-  const ptr = wasm.call('bbmalloc', 4);
-  const data = await wasm.asyncCall('private_kernel__dummy_previous_kernel', ptr);
-  const outputBufSize = uint8ArrayToNum(wasm.getMemorySlice(ptr, ptr + 4));
-  wasm.call('bbfree', ptr);
-  const result = Buffer.from(wasm.getMemorySlice(data, data + outputBufSize));
-  return PreviousKernelData.fromBuffer(result);
-}
-
-/**
  * Computes contract's function tree from the given leaves.
  * @param wasm - The circuits wasm instance.
  * @param leaves - The leaves of the function tree.

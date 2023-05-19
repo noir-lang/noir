@@ -1,3 +1,5 @@
+import { Tuple } from '@aztec/foundation/serialize';
+
 /**
  * Create an array over an integer range.
  * @param n - The number of integers.
@@ -13,12 +15,23 @@ export function range(n: number, offset = 0) {
 }
 
 /**
+ * Create an array over an integer range, filled with a function 'fn'.
+ * This is used over e.g. lodash because it resolved to a tuple type, needed for our fixed array type safety.
+ * @param n - The number of integers.
+ * @param fn - The generator function.
+ * @returns The array of numbers.
+ */
+export function makeTuple<T, N extends number>(length: N, fn: (i: number) => T, offset = 0) {
+  return Array.from({ length }, (v: any, i: number) => fn(i + offset)) as Tuple<T, N>;
+}
+
+/**
  * Assert a member of an object is a certain length.
  * @param obj - An object.
  * @param member - A member string.
  * @param length - The length.
  */
-export function assertLength<
+export function assertMemberLength<
   F extends string,
   T extends {
     [f in F]: {

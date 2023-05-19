@@ -34,7 +34,7 @@ export class UnconstrainedFunctionExecution {
    */
   public async run(): Promise<any[]> {
     this.log(
-      `Executing unconstrained function ${this.contractAddress.toShortString()}:${this.functionData.functionSelector.toString(
+      `Executing unconstrained function ${this.contractAddress.toShortString()}:${this.functionData.functionSelectorBuffer.toString(
         'hex',
       )}`,
     );

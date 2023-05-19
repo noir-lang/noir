@@ -19,6 +19,8 @@ template <typename NCT> struct PublicDataRead {
     fr leaf_index = 0;
     fr value = 0;
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(leaf_index, value);
     bool operator==(PublicDataRead<NCT> const&) const = default;
 
     template <typename Composer> PublicDataRead<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const

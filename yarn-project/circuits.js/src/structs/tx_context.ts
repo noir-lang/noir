@@ -1,7 +1,6 @@
-import { Fr } from '@aztec/foundation/fields';
-import { serializeToBuffer } from '../utils/serialize.js';
-import { EthAddress } from '@aztec/foundation/eth-address';
 import { BufferReader } from '@aztec/foundation/serialize';
+import { serializeToBuffer } from '../utils/serialize.js';
+import { EthAddress, Fr, AztecAddress } from './index.js';
 
 /**
  * Contract deployment data in a TxContext
@@ -10,6 +9,10 @@ import { BufferReader } from '@aztec/foundation/serialize';
  * Not to be confused with NewContractData.
  */
 export class ContractDeploymentData {
+  /**
+   * Ethereum address of the portal contract on L1.
+   */
+  public portalContractAddress: EthAddress;
   constructor(
     /**
      * Hash of the constuctor verification key.
@@ -25,9 +28,12 @@ export class ContractDeploymentData {
     public contractAddressSalt: Fr,
     /**
      * Ethereum address of the portal contract on L1.
+     * TODO(AD): union type kludge due to cbind compiler having special needs
      */
-    public portalContractAddress: EthAddress,
-  ) {}
+    portalContractAddress: EthAddress | AztecAddress,
+  ) {
+    this.portalContractAddress = new EthAddress(portalContractAddress.toBuffer());
+  }
 
   toBuffer() {
     return serializeToBuffer(
@@ -84,7 +90,7 @@ export class TxContext {
     /**
      * Whether this is a contract deployment tx.
      */
-    public isContractDeployment: boolean,
+    public isContractDeploymentTx: boolean,
     /**
      * Contract deployment data.
      */
@@ -99,7 +105,7 @@ export class TxContext {
     return serializeToBuffer(
       this.isFeePaymentTx,
       this.isRebatePaymentTx,
-      this.isContractDeployment,
+      this.isContractDeploymentTx,
       this.contractDeploymentData,
     );
   }

@@ -28,6 +28,7 @@
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/common/test.hpp>
+#include <barretenberg/serialize/test_helper.hpp>
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
 
 #include <gtest/gtest.h>
@@ -595,26 +596,16 @@ TEST(private_kernel_tests, circuit_create_proof_cbinds)
 /**
  * @brief Test this dummy cbind
  */
-TEST(private_kernel_tests, native_dummy_previous_kernel_cbind)
+TEST(private_kernel_tests, cbind_private_kernel__dummy_previous_kernel)
 {
-    uint8_t const* cbind_previous_kernel_buf = nullptr;
-    size_t const cbind_buf_size = private_kernel__dummy_previous_kernel(&cbind_previous_kernel_buf);
-
-    auto const& previous_kernel = utils::dummy_previous_kernel();
-    std::vector<uint8_t> expected_vec;
-    write(expected_vec, previous_kernel);
-
-    // Just compare the first 10 bytes of the serialized public outputs
-    // TODO this is not a good test as it only checks a few bytes
-    // would be best if we could just check struct equality or check
-    // equality of an entire memory region (same as other similar TODOs
-    // in other test files)
-    // TODO better equality check
-    // for (size_t i = 0; i < cbind_buf_size; i++) {
-    for (size_t i = 0; i < 10; i++) {
-        ASSERT_EQ(cbind_previous_kernel_buf[i], expected_vec[i]);
-    }
-    (void)cbind_buf_size;
+    auto func = [] { return aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel(); };
+    auto [actual, expected] = call_func_and_wrapper(func, private_kernel__dummy_previous_kernel);
+    // TODO(AD): investigate why direct operator== didn't work
+    std::stringstream actual_ss;
+    std::stringstream expected_ss;
+    actual_ss << actual;
+    expected_ss << expected;
+    EXPECT_EQ(actual_ss.str(), expected_ss.str());
 }
 
 /**

@@ -92,24 +92,25 @@ export class AsyncCallState {
     }
     this.state = { continuation: false };
     this.debugLastFuncName = name;
-    let result = this.callExport(name, ...args);
+    try {
+      let result = this.callExport(name, ...args);
 
-    while (this.asyncPromise) {
-      // Disable the instrumented "record stack unwinding" code path.
-      this.callExport('asyncify_stop_unwind');
-      // Wait for the async work to complete.
-      this.state.result = await this.asyncPromise;
-      this.state.continuation = true;
-      // Enable "stack rewinding" code path.
-      this.callExport('asyncify_start_rewind', this.asyncifyDataAddr);
-      // Call function again to rebuild the stack, and continue where we left off.
-      result = this.callExport(name, ...args);
+      while (this.asyncPromise) {
+        // Disable the instrumented "record stack unwinding" code path.
+        this.callExport('asyncify_stop_unwind');
+        // Wait for the async work to complete.
+        this.state.result = await this.asyncPromise;
+        this.state.continuation = true;
+        // Enable "stack rewinding" code path.
+        this.callExport('asyncify_start_rewind', this.asyncifyDataAddr);
+        // Call function again to rebuild the stack, and continue where we left off.
+        result = this.callExport(name, ...args);
+      }
+      return result;
+    } finally {
+      // Always cleanup - prevent interfering tests
+      this.state = undefined;
     }
-
-    // Cleanup
-    this.state = undefined;
-
-    return result;
   }
 
   /**

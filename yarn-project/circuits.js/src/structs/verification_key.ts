@@ -1,8 +1,8 @@
 import { BufferReader } from '@aztec/foundation/serialize';
 import { serializeToBuffer } from '../utils/serialize.js';
+import { Fq } from './index.js';
 import { ComposerType } from './shared.js';
 import times from 'lodash.times';
-import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Curve data.
@@ -11,15 +11,15 @@ export class G1AffineElement {
   /**
    * Element's x coordinate.
    */
-  public x: Fr;
+  public x: Fq;
   /**
    * Element's y coordinate.
    */
-  public y: Fr;
+  public y: Fq;
 
-  constructor(x: Fr | bigint, y: Fr | bigint) {
-    this.x = typeof x === 'bigint' ? new Fr(x) : x;
-    this.y = typeof y === 'bigint' ? new Fr(y) : y;
+  constructor(x: Fq | bigint, y: Fq | bigint) {
+    this.x = typeof x === 'bigint' ? new Fq(x) : x;
+    this.y = typeof y === 'bigint' ? new Fq(y) : y;
   }
   /**
    * Serialize as a buffer.
@@ -93,7 +93,7 @@ export class VerificationKey {
     /**
      * The commitments for this circuit.
      */
-    public commitments: CommitmentMap,
+    public commitments: Record<string, G1AffineElement>,
     /**
      * Contains a recursive proof?
      */
@@ -113,7 +113,7 @@ export class VerificationKey {
       this.composerType,
       this.circuitSize,
       this.numPublicInputs,
-      this.commitments,
+      new CommitmentMap(this.commitments),
       this.containsRecursiveProof,
       serializeToBuffer(this.recursiveProofPublicInputIndices.length, this.recursiveProofPublicInputIndices),
     );
@@ -130,7 +130,7 @@ export class VerificationKey {
       reader.readNumber(),
       reader.readNumber(),
       reader.readNumber(),
-      reader.readObject(CommitmentMap),
+      reader.readObject(CommitmentMap).record,
       reader.readBoolean(),
       reader.readNumberVector(),
     );
@@ -145,7 +145,7 @@ export class VerificationKey {
       ComposerType.TURBO,
       2048,
       116,
-      new CommitmentMap({
+      {
         Q_1: new G1AffineElement(
           0x09623eb3c25aa5b16a1a79fd558bac7a7ce62c4560a8c537c77ce80dd339128dn,
           0x1d37b6582ee9e6df9567efb64313471dfa18f520f9ce53161b50dbf7731bc5f9n,
@@ -206,7 +206,7 @@ export class VerificationKey {
           0x2d299e7928496ea2d37f10b43afd6a80c90a33b483090d18069ffa275eedb2fcn,
           0x2f82121e8de43dc036d99b478b6227ceef34248939987a19011f065d8b5cef5cn,
         ),
-      }),
+      },
       false,
       times(16, i => i),
     );

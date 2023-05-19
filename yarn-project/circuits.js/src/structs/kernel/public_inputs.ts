@@ -20,11 +20,11 @@ export class KernelCircuitPublicInputs {
     /**
      * Indicates whether the input is for a private or public kernel.
      */
-    public isPrivateKernel: boolean,
+    public isPrivate: boolean,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.end, this.constants, this.isPrivateKernel);
+    return serializeToBuffer(this.end, this.constants, this.isPrivate);
   }
 
   /**

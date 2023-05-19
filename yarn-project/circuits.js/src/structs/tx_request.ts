@@ -1,5 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { FieldsOf, assertLength } from '../utils/jsUtils.js';
+import { FieldsOf, assertMemberLength } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { FunctionData } from './function_data.js';
 import { EcdsaSignature } from './shared.js';
@@ -67,7 +67,7 @@ export class TxRequest {
      */
     public chainId: Fr,
   ) {
-    assertLength(this, 'args', ARGS_LENGTH);
+    assertMemberLength(this, 'args', ARGS_LENGTH);
   }
 
   static getFields(fields: FieldsOf<TxRequest>) {

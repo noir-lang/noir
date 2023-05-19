@@ -28,6 +28,16 @@ template <typename NCT> struct OptionallyRevealedData {
     boolean called_from_l1 = false;
     boolean called_from_public_l2 = false;
 
+    // for serialization: update up with new fields
+    MSGPACK_FIELDS(call_stack_item_hash,
+                   function_data,
+                   emitted_events,
+                   vk_hash,
+                   portal_contract_address,
+                   pay_fee_from_l1,
+                   pay_fee_from_public_l2,
+                   called_from_l1,
+                   called_from_public_l2);
     boolean operator==(OptionallyRevealedData<NCT> const& other) const
     {
         return call_stack_item_hash == other.call_stack_item_hash && function_data == other.function_data &&

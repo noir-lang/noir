@@ -1,8 +1,8 @@
 #pragma once
 
-#include "combined_historic_tree_roots.hpp"
 #include "tx_context.hpp"
 
+#include "aztec3/circuits/abis/combined_historic_tree_roots.hpp"
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -24,6 +24,8 @@ template <typename NCT> struct CombinedConstantData {
     CombinedHistoricTreeRoots<NCT> historic_tree_roots{};
     TxContext<NCT> tx_context{};
 
+    // for serialization: update up with new fields
+    MSGPACK_FIELDS(historic_tree_roots, tx_context);
     boolean operator==(CombinedConstantData<NCT> const& other) const
     {
         return historic_tree_roots == other.historic_tree_roots && tx_context == other.tx_context;

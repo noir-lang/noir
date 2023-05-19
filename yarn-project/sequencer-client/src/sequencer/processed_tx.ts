@@ -1,6 +1,5 @@
-import { CombinedHistoricTreeRoots, KernelCircuitPublicInputs, makeEmptyProof } from '@aztec/circuits.js';
-import { PrivateTx, Tx, TxHash, UnverifiedData } from '@aztec/types';
-import { Proof } from '../prover/index.js';
+import { KernelCircuitPublicInputs, Proof, CombinedHistoricTreeRoots, makeEmptyProof } from '@aztec/circuits.js';
+import { Tx, TxHash, PrivateTx, UnverifiedData } from '@aztec/types';
 
 /**
  * Represents a tx that has been processed by the sequencer public processor,

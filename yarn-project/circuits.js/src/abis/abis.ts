@@ -9,11 +9,12 @@ import {
   FunctionLeafPreimage,
   SignedTxRequest,
   PublicCallStackItem,
+  AztecAddress,
+  Fr,
 } from '../index.js';
 import { serializeToBuffer, serializeBufferArrayToVector } from '../utils/serialize.js';
 import { AsyncWasmWrapper, WasmWrapper } from '@aztec/foundation/wasm';
-import { Fr } from '@aztec/foundation/fields';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { abisComputeContractAddress } from '../cbind/circuits.gen.js';
 
 /**
  * Synchronously calls a wasm function.
@@ -218,15 +219,14 @@ export async function computeContractAddress(
   fnTreeRoot: Fr,
   constructorHash: Buffer,
 ): Promise<AztecAddress> {
-  const deployerAddrBuf = deployerAddr.toBuffer();
   wasm.call('pedersen__init');
-  const result = await inputBuffersToOutputBuffer(
+  return await abisComputeContractAddress(
     wasm,
-    'abis__compute_contract_address',
-    [deployerAddrBuf, contractAddrSalt.toBuffer(), fnTreeRoot.toBuffer(), constructorHash],
-    32,
+    deployerAddr,
+    contractAddrSalt,
+    fnTreeRoot,
+    Fr.fromBuffer(constructorHash),
   );
-  return AztecAddress.fromBuffer(result);
 }
 
 /**

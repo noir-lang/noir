@@ -1,10 +1,4 @@
-import {
-  CircuitsWasm,
-  KernelCircuitPublicInputs,
-  PublicCallRequest,
-  SignedTxRequest,
-  UInt8Vector,
-} from '@aztec/circuits.js';
+import { CircuitsWasm, KernelCircuitPublicInputs, Proof, PublicCallRequest, SignedTxRequest } from '@aztec/circuits.js';
 import { computeTxHash } from '@aztec/circuits.js/abis';
 
 import { TxHash } from './tx_hash.js';
@@ -63,7 +57,7 @@ export class Tx {
    */
   public static createPrivate(
     data: KernelCircuitPublicInputs,
-    proof: UInt8Vector,
+    proof: Proof,
     unverifiedData: UnverifiedData,
     newContractPublicFunctions: EncodedContractFunction[],
     enqueuedPublicFunctionCalls: PublicCallRequest[],
@@ -97,11 +91,28 @@ export class Tx {
    */
   public static createPrivatePublic(
     data: KernelCircuitPublicInputs,
-    proof: UInt8Vector,
+    proof: Proof,
     unverifiedData: UnverifiedData,
     txRequest: SignedTxRequest,
   ): PrivateTx & PublicTx {
     return new this(data, proof, unverifiedData, txRequest) as PrivateTx & PublicTx;
+  }
+
+  /**
+   * Creates a new transaction from the given tx request.
+   * @param data - Public inputs of the private kernel circuit.
+   * @param proof - Proof from the private kernel circuit.
+   * @param unverifiedData - Unverified data created by this tx.
+   * @param txRequest - The tx request defining the public call.
+   * @returns A new tx instance.
+   */
+  public static create(
+    data?: KernelCircuitPublicInputs,
+    proof?: Proof,
+    unverifiedData?: UnverifiedData,
+    txRequest?: SignedTxRequest,
+  ): Tx {
+    return new this(data, proof, unverifiedData, txRequest);
   }
 
   /**
@@ -128,7 +139,7 @@ export class Tx {
     /**
      * Proof from the private kernel circuit.
      */
-    public readonly proof?: UInt8Vector,
+    public readonly proof?: Proof,
     /**
      * Information not needed to verify the tx (e.g. Encrypted note pre-images etc.).
      */

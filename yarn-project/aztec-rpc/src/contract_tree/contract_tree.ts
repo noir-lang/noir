@@ -1,7 +1,11 @@
 import { AztecNode } from '@aztec/aztec-node';
 import {
+  AztecAddress,
   CONTRACT_TREE_HEIGHT,
+  CircuitsWasm,
+  EthAddress,
   FUNCTION_TREE_HEIGHT,
+  Fr,
   FunctionData,
   FunctionLeafPreimage,
   MembershipWitness,
@@ -16,13 +20,10 @@ import {
   hashConstructor,
   hashVK,
 } from '@aztec/circuits.js/abis';
-import { CircuitsWasm } from '@aztec/circuits.js/wasm';
-import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
-import { generateFunctionSelector } from '../abi_coder/index.js';
-import { ContractDao, ContractFunctionDao } from '../contract_database/index.js';
+import { FunctionType, ContractAbi } from '@aztec/foundation/abi';
+import { assertLength } from '@aztec/foundation/serialize';
+import { ContractFunctionDao, ContractDao } from '../contract_database/contract_dao.js';
+import { generateFunctionSelector } from '../index.js';
 import { computeFunctionTreeData } from './function_tree_data.js';
 
 /**
@@ -262,7 +263,10 @@ export class ContractTree {
       this.contractMembershipWitness = new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
         CONTRACT_TREE_HEIGHT,
         index,
-        siblingPath.data.map(x => Fr.fromBuffer(x)),
+        assertLength(
+          siblingPath.data.map(x => Fr.fromBuffer(x)),
+          CONTRACT_TREE_HEIGHT,
+        ),
       );
     }
     return this.contractMembershipWitness;
@@ -307,7 +311,7 @@ export class ContractTree {
     return new MembershipWitness<typeof FUNCTION_TREE_HEIGHT>(
       FUNCTION_TREE_HEIGHT,
       BigInt(functionIndex),
-      functionTreeData.siblingPath,
+      assertLength(functionTreeData.siblingPath, FUNCTION_TREE_HEIGHT),
     );
   }
 

@@ -90,6 +90,15 @@ export abstract class WasmWrapper {
   }
 
   /**
+   * Get memory as string.
+   * @param offset - The address to get null-terminated string data from.
+   * @returns JS string.
+   */
+  public getMemoryAsString(offset: number) {
+    return this.wasm.getMemoryAsString(offset);
+  }
+
+  /**
    * Calls into the WebAssembly.
    * @param name - The method name.
    * @param args - The arguments to the method.

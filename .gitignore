@@ -4,3 +4,5 @@ node_modules
 .pnp.cjs
 .pnp.loader.mjs
 build/
+.idea
+cmake-build-debug

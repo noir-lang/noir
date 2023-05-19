@@ -20,6 +20,8 @@ template <typename NCT> struct NewContractData {
     address contract_address = 0;
     address portal_contract_address = 0;
     fr function_tree_root = 0;
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(contract_address, portal_contract_address, function_tree_root);
 
     boolean operator==(NewContractData<NCT> const& other) const
     {
@@ -93,7 +95,7 @@ template <typename NCT> void read(uint8_t const*& it, NewContractData<NCT>& new_
     using serialize::read;
 
     read(it, new_contract_data.contract_address);
-    read(it, new_contract_data.portal_contract_address);
+    read(it, new_contract_data.portal_contract_address.address_);
     read(it, new_contract_data.function_tree_root);
 };
 
@@ -102,7 +104,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, NewContractData<NC
     using serialize::write;
 
     write(buf, new_contract_data.contract_address);
-    write(buf, new_contract_data.portal_contract_address);
+    write(buf, new_contract_data.portal_contract_address.address_);
     write(buf, new_contract_data.function_tree_root);
 };
 

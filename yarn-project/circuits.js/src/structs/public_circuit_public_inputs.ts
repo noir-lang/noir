@@ -1,5 +1,5 @@
 import times from 'lodash.times';
-import { FieldsOf, assertLength } from '../utils/jsUtils.js';
+import { FieldsOf, assertMemberLength } from '../utils/jsUtils.js';
 import { CallContext } from './call_context.js';
 import {
   ARGS_LENGTH,
@@ -176,13 +176,13 @@ export class PublicCircuitPublicInputs {
      */
     public proverAddress: AztecAddress,
   ) {
-    assertLength(this, 'args', ARGS_LENGTH);
-    assertLength(this, 'returnValues', RETURN_VALUES_LENGTH);
-    assertLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
-    assertLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
-    assertLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
-    assertLength(this, 'contractStorageUpdateRequests', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);
-    assertLength(this, 'contractStorageReads', KERNEL_PUBLIC_DATA_READS_LENGTH);
+    assertMemberLength(this, 'args', ARGS_LENGTH);
+    assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
+    assertMemberLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
+    assertMemberLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
+    assertMemberLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
+    assertMemberLength(this, 'contractStorageUpdateRequests', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);
+    assertMemberLength(this, 'contractStorageReads', KERNEL_PUBLIC_DATA_READS_LENGTH);
   }
 
   /**

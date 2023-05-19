@@ -17,8 +17,6 @@
 #include "rollup/root/root_rollup_public_inputs.hpp"
 
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
-#include "aztec3/circuits/abis/function_data.hpp"
-#include "aztec3/circuits/abis/function_leaf_preimage.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/signed_tx_request.hpp"
 #include "aztec3/circuits/abis/types.hpp"
@@ -31,6 +29,7 @@
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen_plookup.hpp"
 #include <barretenberg/crypto/keccak/keccak.hpp>
+#include <barretenberg/serialize/cbind.hpp>
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
 
 namespace {
@@ -116,10 +115,7 @@ template <typename T> static const char* as_serialized_output(uint8_t const* inp
     return bbmalloc_copy_string(reinterpret_cast<char*>(stream.data()), *size);
 }
 
-#define WASM_EXPORT __attribute__((visibility("default")))
 // WASM Cbinds
-extern "C" {
-
 /**
  * @brief Hashes a TX request. This is a WASM-export that can be called from Typescript.
  *
@@ -308,27 +304,8 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
  * @param constructor_hash_buf bytes buffer representing a field that is a hash of constructor info
  * @param output buffer that will contain the output contract address.
  */
-WASM_EXPORT void abis__compute_contract_address(uint8_t const* deployer_address_buf,
-                                                uint8_t const* contract_address_salt_buf,
-                                                uint8_t const* function_tree_root_buf,
-                                                uint8_t const* constructor_hash_buf,
-                                                uint8_t* output)
-{
-    NT::address deployer_address;
-    NT::fr contract_address_salt;
-    NT::fr function_tree_root;
-    NT::fr constructor_hash;
 
-    read(deployer_address_buf, deployer_address);
-    read(contract_address_salt_buf, contract_address_salt);
-    read(function_tree_root_buf, function_tree_root);
-    read(constructor_hash_buf, constructor_hash);
-
-    NT::address contract_address =
-        compute_contract_address<NT>(deployer_address, contract_address_salt, function_tree_root, constructor_hash);
-
-    NT::fr::serialize_to_buffer(contract_address, output);
-}
+CBIND(abis__compute_contract_address, compute_contract_address<NT>);
 
 /**
  * @brief Generates a function tree leaf from its preimage.
@@ -507,5 +484,3 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(ui
 {
     return as_string_output<aztec3::circuits::abis::FunctionLeafPreimage<NT>>(function_leaf_preimage_buf, size);
 }
-
-}  // extern "C"

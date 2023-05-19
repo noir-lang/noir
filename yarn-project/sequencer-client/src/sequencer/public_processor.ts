@@ -1,3 +1,4 @@
+import { PublicExecutor, PublicExecution, PublicExecutionResult, isPublicExecutionResult } from '@aztec/acir-simulator';
 import {
   ARGS_LENGTH,
   AztecAddress,
@@ -13,6 +14,7 @@ import {
   NEW_L2_TO_L1_MSGS_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
   PreviousKernelData,
+  Proof,
   PublicCallData,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
@@ -23,15 +25,13 @@ import {
   SignedTxRequest,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { ContractDataSource, MerkleTreeId, PrivateTx, PublicTx, Tx } from '@aztec/types';
-import { MerkleTreeOperations } from '@aztec/world-state';
-
-import { PublicExecution, PublicExecutionResult, PublicExecutor, isPublicExecutionResult } from '@aztec/acir-simulator';
 import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 import { isArrayEmpty, padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { ContractDataSource, MerkleTreeId, PrivateTx, PublicTx, Tx } from '@aztec/types';
+import { MerkleTreeOperations } from '@aztec/world-state';
 import { getVerificationKeys } from '../index.js';
-import { Proof, PublicProver } from '../prover/index.js';
+import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 import { getCombinedHistoricTreeRoots } from './utils.js';
@@ -124,7 +124,7 @@ export class PublicProcessor {
       const current = executionStack.pop()!;
       const isExecutionRequest = !isPublicExecutionResult(current);
       const result = isExecutionRequest ? await this.publicExecutor.execute(current) : current;
-      const functionSelector = result.execution.functionData.functionSelector.toString('hex');
+      const functionSelector = result.execution.functionData.functionSelectorBuffer.toString('hex');
       this.log(`Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`);
       executionStack.push(...result.nestedExecutions);
       const preimages = await this.getPublicCallStackPreimages(result);
@@ -152,7 +152,7 @@ export class PublicProcessor {
     previousOutput: KernelCircuitPublicInputs | undefined,
     previousProof: Proof | undefined,
   ): Promise<KernelCircuitPublicInputs> {
-    if (previousOutput?.isPrivateKernel && previousProof) {
+    if (previousOutput?.isPrivate && previousProof) {
       // Run the public kernel circuit with previous private kernel
       const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
       const inputs = new PublicKernelInputs(previousKernel, callData);

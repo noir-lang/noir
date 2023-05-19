@@ -1,14 +1,7 @@
-import { KERNEL_PUBLIC_CALL_STACK_LENGTH, KernelCircuitPublicInputs, UInt8Vector } from '@aztec/circuits.js';
+import { KernelCircuitPublicInputs, KERNEL_PUBLIC_CALL_STACK_LENGTH, makeEmptyProof } from '@aztec/circuits.js';
 import { makeKernelPublicInputs, makePublicCallRequest, makeSignedTxRequest } from '@aztec/circuits.js/factories';
-import { PrivateTx, PublicTx, Tx, UnverifiedData } from '@aztec/types';
+import { UnverifiedData, PrivateTx, Tx, PublicTx } from '@aztec/types';
 import times from 'lodash.times';
-
-/**
- * Creates an empty proof.
- */
-function makeEmptyProof() {
-  return new UInt8Vector(Buffer.alloc(0));
-}
 
 /**
  * Testing utility to create empty unverified data composed by a single empty chunk.

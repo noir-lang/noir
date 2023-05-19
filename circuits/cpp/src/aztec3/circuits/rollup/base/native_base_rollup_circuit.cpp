@@ -103,9 +103,6 @@ NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 
 NT::fr calculate_commitments_subtree(DummyComposer& composer, BaseRollupInputs const& baseRollupInputs)
 {
-    // Leaves that will be added to the new trees
-    std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH * 2> const commitment_leaves;
-
     MerkleTree commitments_tree = MerkleTree(PRIVATE_DATA_SUBTREE_DEPTH);
 
     for (size_t i = 0; i < 2; i++) {

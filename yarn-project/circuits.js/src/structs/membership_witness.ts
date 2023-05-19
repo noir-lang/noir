@@ -1,7 +1,8 @@
 import { Fr } from '@aztec/foundation/fields';
-import { assertLength, range } from '../utils/jsUtils.js';
+import { assertMemberLength, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { Tuple } from '@aztec/foundation/serialize';
 
 /**
  * Contains information which can be used to prove that a leaf is a member of a Merkle tree.
@@ -19,9 +20,9 @@ export class MembershipWitness<N extends number> {
     /**
      * Sibling path of the leaf in the Merkle tree.
      */
-    public siblingPath: Fr[],
+    public siblingPath: Tuple<Fr, N>,
   ) {
-    assertLength(this, 'siblingPath', pathSize);
+    assertMemberLength(this, 'siblingPath', pathSize);
   }
 
   toBuffer() {
@@ -47,7 +48,7 @@ export class MembershipWitness<N extends number> {
       0n,
       Array(pathSize)
         .fill(0)
-        .map(() => Fr.random()),
+        .map(() => Fr.random()) as Tuple<Fr, N>,
     );
   }
 
@@ -60,15 +61,15 @@ export class MembershipWitness<N extends number> {
   public static empty<N extends number>(pathSize: N, leafIndex: bigint): MembershipWitness<N> {
     const arr = Array(pathSize)
       .fill(0)
-      .map(() => Fr.ZERO);
+      .map(() => Fr.ZERO) as Tuple<Fr, N>;
     return new MembershipWitness<N>(pathSize, leafIndex, arr);
   }
 
-  static fromBufferArray(leafIndex: bigint, siblingPath: Buffer[]) {
-    return new MembershipWitness(
-      siblingPath.length,
+  static fromBufferArray<N extends number>(leafIndex: bigint, siblingPath: Tuple<Buffer, N>): MembershipWitness<N> {
+    return new MembershipWitness<N>(
+      siblingPath.length as N,
       leafIndex,
-      siblingPath.map(x => Fr.fromBuffer(x)),
+      siblingPath.map(x => Fr.fromBuffer(x)) as Tuple<Fr, N>,
     );
   }
 }

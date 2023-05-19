@@ -1,4 +1,4 @@
-import { BufferReader } from '@aztec/foundation/serialize';
+import { numToUInt32BE, deserializeUInt32, BufferReader } from '@aztec/foundation/serialize';
 import { serializeToBuffer } from '../utils/serialize.js';
 
 const FUNCTION_SELECTOR_LENGTH = 4;
@@ -8,11 +8,12 @@ const FUNCTION_SELECTOR_LENGTH = 4;
  * @see abis/function_data.hpp
  */
 export class FunctionData {
+  /**
+   * Function selector of the function being called.
+   */
+  public functionSelectorBuffer: Buffer;
   constructor(
-    /**
-     * Function selector of the function being called.
-     */
-    public functionSelector: Buffer,
+    functionSelector: Buffer | number,
     /**
      * Indicates whether the function is private or public.
      */
@@ -22,18 +23,30 @@ export class FunctionData {
      */
     public isConstructor = false,
   ) {
-    if (functionSelector.byteLength !== FUNCTION_SELECTOR_LENGTH) {
-      throw new Error(
-        `Function selector must be ${FUNCTION_SELECTOR_LENGTH} bytes long, got ${functionSelector.byteLength} bytes.`,
-      );
+    if (functionSelector instanceof Buffer) {
+      if (functionSelector.byteLength !== FUNCTION_SELECTOR_LENGTH) {
+        throw new Error(
+          `Function selector must be ${FUNCTION_SELECTOR_LENGTH} bytes long, got ${functionSelector.byteLength} bytes.`,
+        );
+      }
+      this.functionSelectorBuffer = functionSelector;
+    } else {
+      // create a new numeric buffer with 4 bytes
+      this.functionSelectorBuffer = numToUInt32BE(functionSelector);
     }
   }
+  // For serialization, must match function_selector name in C++ and return as number
+  // TODO(AD) somehow remove this cruft, probably by using a buffer selector in C++
+  get functionSelector(): number {
+    return deserializeUInt32(this.functionSelectorBuffer).elem;
+  }
+
   /**
    * Serialize this as a buffer.
    * @returns The buffer.
    */
   toBuffer(): Buffer {
-    return serializeToBuffer(this.functionSelector, this.isPrivate, this.isConstructor);
+    return serializeToBuffer(this.functionSelectorBuffer, this.isPrivate, this.isConstructor);
   }
 
   /**
@@ -41,7 +54,7 @@ export class FunctionData {
    * @returns True if the function selector is zero.
    */
   isEmpty() {
-    return this.functionSelector.equals(Buffer.alloc(FUNCTION_SELECTOR_LENGTH, 0));
+    return this.functionSelectorBuffer.equals(Buffer.alloc(FUNCTION_SELECTOR_LENGTH, 0));
   }
 
   /**

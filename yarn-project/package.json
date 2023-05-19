@@ -11,8 +11,8 @@
     "lint": "yarn eslint --cache --ignore-pattern l1-artifacts .",
     "format": "yarn prettier --cache -w .",
     "test": "yarn build && yarn workspaces foreach -v run test",
-    "build": "yarn workspace @aztec/l1-artifacts generate && tsc -b tsconfig.json",
-    "build:dev": "yarn workspace @aztec/l1-artifacts generate && tsc -b tsconfig.json --watch",
+    "build": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json",
+    "build:dev": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json --watch",
     "clean": "yarn workspaces foreach -v run clean"
   },
   "workspaces": [

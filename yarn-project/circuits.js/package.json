@@ -22,6 +22,7 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
+    "remake-bindings": "DEBUG=wasm ts-node-esm src/cbind/circuits.in.ts && prettier -w src/cbind/circuits.gen.ts",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
   "inherits": [
@@ -38,10 +39,15 @@
   "dependencies": {
     "@aztec/barretenberg.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@msgpack/msgpack": "^3.0.0-beta2",
+    "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.times": "^4.3.7",
     "cross-fetch": "^3.1.5",
     "detect-node": "^2.1.0",
     "eslint": "^8.35.0",
+    "lodash.capitalize": "^4.2.1",
+    "lodash.mapvalues": "^4.6.0",
+    "lodash.snakecase": "^4.1.1",
     "lodash.times": "^4.3.2",
     "tslib": "^2.4.0"
   },
@@ -50,6 +56,7 @@
     "@jest/globals": "^29.5.0",
     "@types/detect-node": "^2.0.0",
     "@types/jest": "^29.5.0",
+    "@types/lodash.mapvalues": "^4.6.7",
     "@types/node": "^18.7.23",
     "@typescript-eslint/eslint-plugin": "^5.54.1",
     "@typescript-eslint/parser": "^5.54.1",

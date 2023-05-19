@@ -2,12 +2,12 @@ import { pedersenCompressWithHashIndex } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   CircuitsWasm,
+  KernelCircuitPublicInputs,
   PreviousKernelData,
   PrivateCallData,
   PrivateCircuitPublicInputs,
-  KernelCircuitPublicInputs,
+  Proof,
   SignedTxRequest,
-  UInt8Vector,
   makeEmptyProof,
   privateKernelSim,
 } from '@aztec/circuits.js';
@@ -16,7 +16,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 
 /**
  * Represents the output of the proof creation process.
- * Contains the public inputs required for the kernel circuit and the generated proof as a UInt8Vector.
+ * Contains the public inputs required for the kernel circuit and the generated proof.
  */
 export interface ProofOutput {
   /**
@@ -26,7 +26,7 @@ export interface ProofOutput {
   /**
    * The zk-SNARK proof for the kernel execution.
    */
-  proof: UInt8Vector;
+  proof: Proof;
 }
 
 /**

@@ -2,17 +2,12 @@ import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
   MergeRollupInputs,
+  Proof,
   PublicCircuitPublicInputs,
   PublicKernelPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
-  UInt8Vector,
 } from '@aztec/circuits.js';
-
-/**
- * Type definition for a circuit proof.
- */
-export type Proof = UInt8Vector;
 
 /**
  * Generates proofs for the base, merge, and root rollup circuits.

@@ -1,14 +1,13 @@
-import { Fr } from '@aztec/foundation/fields';
-import times from 'lodash.times';
-import { CircuitsWasm, getDummyPreviousKernelData } from '../../index.js';
-import { assertLength } from '../../utils/jsUtils.js';
+import { Tuple, BufferReader } from '@aztec/foundation/serialize';
+import { privateKernelDummyPreviousKernel } from '../../cbind/circuits.gen.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { VK_TREE_HEIGHT } from '../constants.js';
-import { UInt32, UInt8Vector } from '../shared.js';
+import { Fr } from '../index.js';
+import { Proof, makeEmptyProof } from '../proof.js';
+import { UInt32 } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';
 import { KernelCircuitPublicInputs } from './public_inputs.js';
-import { makeEmptyProof } from './private_kernel.js';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { CircuitsWasm, assertMemberLength, makeTuple } from '../../index.js';
 
 /**
  * Data of the previous kernel iteration in the chain of kernels.
@@ -22,7 +21,7 @@ export class PreviousKernelData {
     /**
      * Proof of the previous kernel.
      */
-    public proof: UInt8Vector,
+    public proof: Proof,
     /**
      * Verification key of the previous kernel.
      */
@@ -34,9 +33,9 @@ export class PreviousKernelData {
     /**
      * Sibling path of the previous kernel's vk in a tree of vks.
      */
-    public vkSiblingPath: Fr[],
+    public vkPath: Tuple<Fr, typeof VK_TREE_HEIGHT>,
   ) {
-    assertLength(this, 'vkSiblingPath', VK_TREE_HEIGHT);
+    assertMemberLength(this, 'vkPath', VK_TREE_HEIGHT);
   }
 
   /**
@@ -44,7 +43,7 @@ export class PreviousKernelData {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
+    return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkPath);
   }
 
   /**
@@ -54,9 +53,9 @@ export class PreviousKernelData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): PreviousKernelData {
     const reader = BufferReader.asReader(buffer);
-    return new PreviousKernelData(
+    return new this(
       reader.readObject(KernelCircuitPublicInputs),
-      reader.readObject(UInt8Vector),
+      reader.readObject(Proof),
       reader.readObject(VerificationKey),
       reader.readNumber(),
       reader.readArray(VK_TREE_HEIGHT, Fr),
@@ -73,7 +72,7 @@ export class PreviousKernelData {
       makeEmptyProof(),
       VerificationKey.makeFake(),
       0,
-      times(VK_TREE_HEIGHT, Fr.zero),
+      makeTuple(VK_TREE_HEIGHT, Fr.zero),
     );
   }
 }
@@ -93,7 +92,7 @@ export class DummyPreviousKernelData {
    */
   public static async getDummyPreviousKernelData(wasm: CircuitsWasm): Promise<PreviousKernelData> {
     if (!DummyPreviousKernelData.instance) {
-      const data = await getDummyPreviousKernelData(wasm);
+      const data = await privateKernelDummyPreviousKernel(wasm);
       DummyPreviousKernelData.instance = new DummyPreviousKernelData(data);
     }
 
