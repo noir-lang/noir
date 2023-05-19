@@ -1,2 +1,2 @@
-mod l1_message;
-mod messaging_getter_data;
+mod l1_to_l2_message;
+mod l1_to_l2_message_getter_data;

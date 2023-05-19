@@ -6,31 +6,9 @@ use crate::abi::FunctionData;
 use crate::types::vec::BoundedVec;
 use crate::utils::arr_copy_slice;
 
-// 1 +
-// crate::abi::FUNCTION_DATA_SIZE +
-// crate::abi::CALL_CONTEXT_SIZE +
-// crate::abi::MAX_ARGS
-// = 1 + 3 + 6 + 8
-global ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE: comptime Field = 18;
+// oracles
+use crate::oracle::enqueue_public_function_call::enqueue_public_function_call_internal;
 
-#[oracle(enqueuePublicFunctionCall)]
-fn enqueue_public_function_call_oracle(
-    _contract_address: Field, 
-    _function_selector: Field, 
-    _args: [Field; crate::abi::MAX_ARGS]
-) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE] {}
-
-unconstrained fn enqueue_public_function_call_internal(
-    contract_address: Field, 
-    function_selector: Field,
-    args: [Field; crate::abi::MAX_ARGS]
-) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE] {
-    enqueue_public_function_call_oracle(
-        contract_address, 
-        function_selector, 
-        args,
-    )
-}
 
 struct PublicCallStackItem {
     contract_address: Field,

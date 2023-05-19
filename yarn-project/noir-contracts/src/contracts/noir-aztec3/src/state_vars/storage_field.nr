@@ -1,16 +1,9 @@
 use crate::notes::value_note::Note;
 use crate::types::point::Point;
 
-#[oracle(storageRead)]
-fn storage_read_oracle(
-    _storage_slot: Field,
-) -> Field {}
-
-#[oracle(storageWrite)]
-fn storage_write_oracle(
-    _storage_slot: Field,
-    _value: Field,
-) -> Field {}
+// oracle
+use crate::oracle::storage::storage_read_oracle;
+use crate::oracle::storage::storage_write_oracle;
 
 struct StorageField {
     storage_slot: Field,

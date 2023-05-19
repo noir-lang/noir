@@ -5,24 +5,8 @@ use crate::abi::PrivateCircuitPublicInputs;
 use crate::types::vec::BoundedVec;
 use crate::utils::arr_copy_slice;
 
-#[oracle(callPrivateFunction)]
-fn call_private_function_oracle(
-    _contract_address: Field, 
-    _function_selector: Field, 
-    _args: [Field; crate::abi::MAX_ARGS]
-) -> [Field; 53] {}
+use crate::oracle::call_private_function::call_private_function_internal;
 
-unconstrained fn call_private_function_internal(
-    contract_address: Field, 
-    function_selector: Field,
-    args: [Field; crate::abi::MAX_ARGS]
-) -> [Field; 53] {
-    call_private_function_oracle(
-        contract_address, 
-        function_selector, 
-        args,
-    )
-}
 
 struct FunctionData {
     function_selector: Field,

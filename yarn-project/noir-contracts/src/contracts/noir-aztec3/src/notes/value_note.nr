@@ -2,21 +2,11 @@
 
 use crate::types::point::Point;
 
+// oracle
+use crate::oracle::get_secret_key::get_secret_key;
+use crate::oracle::rand::rand;
+
 global NOTE_LEN = 6;
-
-#[oracle(getRandomField)]
-fn rand_oracle() -> Field {}
-
-unconstrained fn rand() -> Field {
-    rand_oracle()
-}
-
-#[oracle(getSecretKey)]
-fn get_secret_key_oracle(_owner: Point) -> Field {}
-
-unconstrained fn get_secret_key(owner: Point) -> Field {
-    get_secret_key_oracle(owner)
-}
 
 struct Note {
     value: Field,

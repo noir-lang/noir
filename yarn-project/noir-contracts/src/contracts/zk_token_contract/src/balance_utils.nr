@@ -3,21 +3,8 @@ use dep::aztec3::notes::value_note::NOTE_LEN;
 use dep::aztec3::types::point::Point;
 use dep::aztec3::utils::arr_copy_slice;
 
-global NOTES_PER_PAGE = 10;
-
-#[oracle(viewNotesPage)]
-fn view_notes_page_oracle(
-    _storage_slot: Field,
-    _limit: Field,
-    _offset: Field,
-) -> [Field; 61] {}
-
-unconstrained fn view_notes_page_internal(
-    storage_slot: Field,
-    offset: Field,
-) -> [Field; 61] {
-    view_notes_page_oracle(storage_slot, NOTES_PER_PAGE, offset)
-}
+use dep::aztec3::oracle::notes::view_notes_page_internal;
+use dep::aztec3::oracle::notes::NOTES_PER_PAGE;
 
 fn view_notes_page(
     storage_slot: Field,

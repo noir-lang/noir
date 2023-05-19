@@ -1,5 +1,5 @@
-use crate::messaging::l1_message::L1_TO_L2_MESSAGE_LEN;
-use crate::messaging::l1_message::L1ToL2Message;
+use crate::messaging::l1_to_l2_message::L1_TO_L2_MESSAGE_LEN;
+use crate::messaging::l1_to_l2_message::L1ToL2Message;
 use crate::utils::arr_copy_slice;
 
 struct L1ToL2MessageGetterData {

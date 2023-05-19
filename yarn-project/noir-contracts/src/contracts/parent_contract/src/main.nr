@@ -3,7 +3,7 @@ contract Parent {
     use dep::aztec3::abi::Inputs;
     use dep::aztec3::abi::CallContext;
     use dep::aztec3::context::PrivateFunctionContext;
-    use dep::aztec3::public_call;
+    use dep::aztec3::oracle::public_call;
     use dep::aztec3::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec3::public_call_stack_item::PublicCallStackItem;
     

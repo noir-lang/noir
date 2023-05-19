@@ -7,8 +7,7 @@ mod types;
 mod utils;
 mod private_call_stack_item;
 mod public_call_stack_item;
-mod public_call;
-mod debug_log;
+mod oracle;
 
 global Nonce = 1;
 global NoteHash = 2;

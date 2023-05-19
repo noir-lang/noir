@@ -1,37 +1,13 @@
 
 use crate::abi::Inputs;
 use crate::types::point::Point;
-use crate::messaging::messaging_getter_data::L1ToL2MessageGetterData;
-use crate::messaging::messaging_getter_data::make_l1_to_l2_message_getter_data;
+use crate::messaging::l1_to_l2_message_getter_data::L1ToL2MessageGetterData;
+use crate::messaging::l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
 use crate::context::PrivateFunctionContext;
 
 global L1_TO_L2_MESSAGE_LEN = 8; 
+
 global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 18; // 8 fields + 8 deep hash path + 1 root + 1 index
-
-// Checks is a msg is within the l1Msg tree
-#[oracle(getL1ToL2Message)]
-fn get_l1_to_l2_msg_oracle(_msg_key: Field) -> [Field; L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH] {}
-
-unconstrained fn get_l1_to_l2_message_call(msg_key: Field) -> [Field; L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH] {
-    get_l1_to_l2_msg_oracle(msg_key)
-}
-
-fn get_l1_to_l2_message(inputs: Inputs, msg_key: Field, secret: Field) -> L1ToL2MessageGetterData {
-    let returned_message = get_l1_to_l2_message_call(msg_key);
-    let l1_to_l2_message_data = make_l1_to_l2_message_getter_data(returned_message, 0, secret);
-
-    // Check tree roots against the inputs 
-    constrain l1_to_l2_message_data.root == inputs.old_l1_to_l2_messages_tree_root;
-
-    // Validate the message secret is correct
-    l1_to_l2_message_data.message.validate_message_secret();
-
-    // Validate this is the target contract
-    // TODO: this doesnt seem right in the delegate call context
-    constrain l1_to_l2_message_data.message.recipient == inputs.call_context.storage_contract_address;
-    
-    l1_to_l2_message_data
-}
 
 struct L1ToL2Message {
     sender: Field,
@@ -438,10 +414,5 @@ impl L1ToL2Message {
     fn compute_nullifier(self: Self) -> Field {
         let message_hash = self.message_hash();
         dep::std::hash::pedersen([crate::Nullifier, message_hash, self.secret, self.tree_index])[0]
-    }
-
-    fn consume(self, mut context: PrivateFunctionContext) -> PrivateFunctionContext {
-        let nullifier = self.compute_nullifier();
-        context.push_new_nullifier(nullifier)
     }
 }
