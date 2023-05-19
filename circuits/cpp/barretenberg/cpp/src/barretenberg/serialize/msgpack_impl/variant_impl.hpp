@@ -9,7 +9,7 @@ namespace msgpack::adaptor {
 template<typename... T>
 struct pack<std::variant< T...>> {
     auto &operator()(auto& o, std::variant<T...> const &variant) const {
-        std::visit([&o](auto &&arg) { msgpack::pack(o, arg); }, variant);
+        std::visit([&o](const auto& arg) { o.pack(arg); }, variant);
         return o;
     }
 };
