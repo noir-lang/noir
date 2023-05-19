@@ -3,7 +3,6 @@
 pragma solidity >=0.8.18;
 
 import {DataStructures} from "../../libraries/DataStructures.sol";
-import {IMessageBox} from "@aztec/core/interfaces/messagebridge/IMessageBox.sol";
 
 /**
  * @title IOutbox
@@ -11,7 +10,7 @@ import {IMessageBox} from "@aztec/core/interfaces/messagebridge/IMessageBox.sol"
  * @notice Lives on L1 and is used to consume L2 -> L1 messages. Messages are inserted by the rollup contract
  * and will be consumed by the portal contracts.
  */
-interface IOutbox is IMessageBox {
+interface IOutbox {
   // to make it easier for portal to know when to consume the message.
   event MessageAdded(bytes32 indexed entryKey);
 
@@ -39,4 +38,18 @@ interface IOutbox is IMessageBox {
    * @return entryKey - The key of the entry removed
    */
   function consume(DataStructures.L2ToL1Msg memory _message) external returns (bytes32 entryKey);
+
+  /**
+   * @notice Fetch an entry
+   * @param _entryKey - The key to lookup
+   * @return The entry matching the provided key
+   */
+  function get(bytes32 _entryKey) external view returns (DataStructures.Entry memory);
+
+  /**
+   * @notice Check if entry exists
+   * @param _entryKey - The key to lookup
+   * @return True if entry exists, false otherwise
+   */
+  function contains(bytes32 _entryKey) external view returns (bool);
 }

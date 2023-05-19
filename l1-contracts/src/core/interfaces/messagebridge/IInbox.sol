@@ -3,14 +3,13 @@
 pragma solidity >=0.8.18;
 
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
-import {IMessageBox} from "@aztec/core/interfaces/messagebridge/IMessageBox.sol";
 
 /**
  * @title Inbox
  * @author Aztec Labs
  * @notice Lives on L1 and is used to pass messages into the rollup, e.g., L1 -> L2 messages.
  */
-interface IInbox is IMessageBox {
+interface IInbox {
   event MessageAdded(
     bytes32 indexed entryKey,
     address indexed sender,
@@ -70,4 +69,18 @@ interface IInbox is IMessageBox {
    * @notice Withdraws fees accrued by the sequencer
    */
   function withdrawFees() external;
+
+  /**
+   * @notice Fetch an entry
+   * @param _entryKey - The key to lookup
+   * @return The entry matching the provided key
+   */
+  function get(bytes32 _entryKey) external view returns (DataStructures.Entry memory);
+
+  /**
+   * @notice Check if entry exists
+   * @param _entryKey - The key to lookup
+   * @return True if entry exists, false otherwise
+   */
+  function contains(bytes32 _entryKey) external view returns (bool);
 }

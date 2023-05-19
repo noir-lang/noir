@@ -3,25 +3,33 @@
 pragma solidity >=0.8.18;
 
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
+import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
-import {MessageBox} from "./MessageBox.sol";
+import {MessageBox} from "@aztec/core/libraries/MessageBox.sol";
+import {Errors} from "@aztec/core/libraries/Errors.sol";
+import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 
 /**
  * @title Inbox
  * @author Aztec Labs
  * @notice Lives on L1 and is used to pass messages into the rollup, e.g., L1 -> L2 messages.
  */
-contract Inbox is MessageBox, IInbox {
-  error Inbox__DeadlineBeforeNow();
-  error Inbox__FeeTooHigh();
-  error Inbox__NotPastDeadline();
-  error Inbox__PastDeadline();
-  error Inbox__Unauthorized();
-  error Inbox__FailedToWithdrawFees();
+contract Inbox is IInbox {
+  using MessageBox for mapping(bytes32 entryKey => DataStructures.Entry entry);
 
+  IRegistry immutable REGISTRY;
+
+  mapping(bytes32 entryKey => DataStructures.Entry entry) internal entries;
   mapping(address account => uint256 balance) public feesAccrued;
 
-  constructor(address _registry) MessageBox(_registry) {}
+  modifier onlyRollup() {
+    if (msg.sender != address(REGISTRY.getRollup())) revert Errors.Inbox__Unauthorized();
+    _;
+  }
+
+  constructor(address _registry) {
+    REGISTRY = IRegistry(_registry);
+  }
 
   /**
    * @notice Given a message, computes an entry key for the Inbox
@@ -41,7 +49,7 @@ contract Inbox is MessageBox, IInbox {
             _message.fee
           )
         )
-      ) % P // TODO: Replace mod P later on when we have a better idea of how to handle Fields.
+      ) % Constants.P
     );
   }
 
@@ -62,10 +70,10 @@ contract Inbox is MessageBox, IInbox {
     bytes32 _content,
     bytes32 _secretHash
   ) external payable returns (bytes32) {
-    if (_deadline <= block.timestamp) revert Inbox__DeadlineBeforeNow();
+    if (_deadline <= block.timestamp) revert Errors.Inbox__DeadlineBeforeNow();
     // `fee` is uint64 for slot packing of the Entry struct. uint64 caps at ~18.4 ETH which should be enough.
     // we revert here to safely cast msg.value into uint64.
-    if (msg.value > type(uint64).max) revert Inbox__FeeTooHigh();
+    if (msg.value > type(uint64).max) revert Errors.Inbox__FeeTooHigh();
     uint64 fee = uint64(msg.value);
     DataStructures.L1ToL2Msg memory message = DataStructures.L1ToL2Msg({
       sender: DataStructures.L1Actor(msg.sender, block.chainid),
@@ -77,7 +85,7 @@ contract Inbox is MessageBox, IInbox {
     });
 
     bytes32 key = computeEntryKey(message);
-    _insert(key, fee, _deadline);
+    entries.insert(key, fee, _deadline, _errIncompatibleEntryArguments);
 
     emit MessageAdded(
       key,
@@ -106,10 +114,10 @@ contract Inbox is MessageBox, IInbox {
     external
     returns (bytes32 entryKey)
   {
-    if (msg.sender != _message.sender.actor) revert Inbox__Unauthorized();
-    if (block.timestamp <= _message.deadline) revert Inbox__NotPastDeadline();
+    if (msg.sender != _message.sender.actor) revert Errors.Inbox__Unauthorized();
+    if (block.timestamp <= _message.deadline) revert Errors.Inbox__NotPastDeadline();
     entryKey = computeEntryKey(_message);
-    _consume(entryKey);
+    entries.consume(entryKey, _errNothingToConsume);
     feesAccrued[_feeCollector] += _message.fee;
     emit L1ToL2MessageCancelled(entryKey);
   }
@@ -127,8 +135,8 @@ contract Inbox is MessageBox, IInbox {
       if (_entryKeys[i] == bytes32(0)) continue;
       DataStructures.Entry memory entry = get(_entryKeys[i]);
       // cant consume if we are already past deadline.
-      if (block.timestamp > entry.deadline) revert Inbox__PastDeadline();
-      _consume(_entryKeys[i]);
+      if (block.timestamp > entry.deadline) revert Errors.Inbox__PastDeadline();
+      entries.consume(_entryKeys[i], _errNothingToConsume);
       totalFee += entry.fee;
     }
     if (totalFee > 0) {
@@ -143,6 +151,54 @@ contract Inbox is MessageBox, IInbox {
     uint256 balance = feesAccrued[msg.sender];
     feesAccrued[msg.sender] = 0;
     (bool success,) = msg.sender.call{value: balance}("");
-    if (!success) revert Inbox__FailedToWithdrawFees();
+    if (!success) revert Errors.Inbox__FailedToWithdrawFees();
+  }
+
+  /**
+   * @notice Fetch an entry
+   * @param _entryKey - The key to lookup
+   * @return The entry matching the provided key
+   */
+  function get(bytes32 _entryKey) public view returns (DataStructures.Entry memory) {
+    return entries.get(_entryKey, _errNothingToConsume);
+  }
+
+  /**
+   * @notice Check if entry exists
+   * @param _entryKey - The key to lookup
+   * @return True if entry exists, false otherwise
+   */
+  function contains(bytes32 _entryKey) public view returns (bool) {
+    return entries.contains(_entryKey);
+  }
+
+  /**
+   * @notice Error function passed in cases where there might be nothing to consume
+   * @dev Used to have message box library throw `Inbox__` prefixed errors
+   * @param _entryKey - The key to lookup
+   */
+  function _errNothingToConsume(bytes32 _entryKey) internal pure {
+    revert Errors.Inbox__NothingToConsume(_entryKey);
+  }
+
+  /**
+   * @notice Error function passed in cases where insertions can fail
+   * @dev Used to have message box library throw `Inbox__` prefixed errors
+   * @param _entryKey - The key to lookup
+   * @param _storedFee - The fee stored in the entry
+   * @param _feePassed - The fee passed into the insertion
+   * @param _storedDeadline - The deadline stored in the entry
+   * @param _deadlinePassed - The deadline passed into the insertion
+   */
+  function _errIncompatibleEntryArguments(
+    bytes32 _entryKey,
+    uint64 _storedFee,
+    uint64 _feePassed,
+    uint32 _storedDeadline,
+    uint32 _deadlinePassed
+  ) internal pure {
+    revert Errors.Inbox__IncompatibleEntryArguments(
+      _entryKey, _storedFee, _feePassed, _storedDeadline, _deadlinePassed
+    );
   }
 }

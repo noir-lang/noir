@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 // Rollup Proccessor
 import {Rollup} from "@aztec/core/Rollup.sol";
 import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
-import {IMessageBox} from "@aztec/core/interfaces/messagebridge/IMessageBox.sol";
 import {Registry} from "@aztec/core/messagebridge/Registry.sol";
 import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";

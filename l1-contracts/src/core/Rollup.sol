@@ -5,6 +5,7 @@ pragma solidity >=0.8.18;
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
+import {Errors} from "@aztec/core/libraries/Errors.sol";
 
 import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
 import {Decoder} from "./Decoder.sol";
@@ -18,9 +19,6 @@ import {Decoder} from "./Decoder.sol";
  * Work in progress
  */
 contract Rollup is Decoder {
-  error InvalidStateHash(bytes32 expected, bytes32 actual);
-  error InvalidProof();
-
   event L2BlockProcessed(uint256 indexed blockNum);
 
   MockVerifier public immutable VERIFIER;
@@ -50,14 +48,14 @@ contract Rollup is Decoder {
 
     // @todo @LHerskind Proper genesis state. If the state is empty, we allow anything for now.
     if (rollupStateHash != bytes32(0) && rollupStateHash != oldStateHash) {
-      revert InvalidStateHash(rollupStateHash, oldStateHash);
+      revert Errors.Rollup__InvalidStateHash(rollupStateHash, oldStateHash);
     }
 
     bytes32[] memory publicInputs = new bytes32[](1);
     publicInputs[0] = publicInputHash;
 
     if (!VERIFIER.verify(_proof, publicInputs)) {
-      revert InvalidProof();
+      revert Errors.Rollup__InvalidProof();
     }
 
     rollupStateHash = newStateHash;

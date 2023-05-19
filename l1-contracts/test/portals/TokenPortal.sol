@@ -6,7 +6,6 @@ import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 // Messaging
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
-import {IMessageBox} from "@aztec/core/interfaces/messagebridge/IMessageBox.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
 import {Constants} from "@aztec/core/libraries/Constants.sol";
 

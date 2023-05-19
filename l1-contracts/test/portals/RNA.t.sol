@@ -8,7 +8,7 @@ import {Rollup} from "@aztec/core/Rollup.sol";
 import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
 import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
 import {Registry} from "@aztec/core/messagebridge/Registry.sol";
-
+import {Errors} from "@aztec/core/libraries/Errors.sol";
 import {RollupNativeAsset} from "./RollupNativeAsset.sol";
 
 contract RNATest is Test {
@@ -61,7 +61,7 @@ contract RNATest is Test {
     assertEq(rna.balanceOf(address(0xdead)), 654);
 
     // Should not be able to withdraw again
-    vm.expectRevert(abi.encodeWithSignature("MessageBox__NothingToConsume(bytes32)", entryKey));
+    vm.expectRevert(abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKey));
     rna.withdraw(654, address(0xdead));
   }
 }
