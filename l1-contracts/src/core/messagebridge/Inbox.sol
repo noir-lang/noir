@@ -3,8 +3,8 @@
 pragma solidity >=0.8.18;
 
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
-import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
+import {Hash} from "@aztec/core/libraries/Hash.sol";
 import {MessageBox} from "@aztec/core/libraries/MessageBox.sol";
 import {Errors} from "@aztec/core/libraries/Errors.sol";
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
@@ -16,6 +16,7 @@ import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
  */
 contract Inbox is IInbox {
   using MessageBox for mapping(bytes32 entryKey => DataStructures.Entry entry);
+  using Hash for DataStructures.L1ToL2Msg;
 
   IRegistry immutable REGISTRY;
 
@@ -37,20 +38,7 @@ contract Inbox is IInbox {
    * @return The hash of the message (used as the key of the entry in the set)
    */
   function computeEntryKey(DataStructures.L1ToL2Msg memory _message) public pure returns (bytes32) {
-    return bytes32(
-      uint256(
-        sha256(
-          abi.encode(
-            _message.sender,
-            _message.recipient,
-            _message.content,
-            _message.secretHash,
-            _message.deadline,
-            _message.fee
-          )
-        )
-      ) % Constants.P
-    );
+    return _message.sha256ToField();
   }
 
   /**
@@ -58,7 +46,7 @@ contract Inbox is IInbox {
    * @dev Will emit `MessageAdded` with data for easy access by the sequencer
    * @dev msg.value - The fee provided to sequencer for including the entry
    * @param _recipient - The recipient of the entry
-   * @param _deadline - The deadline to consume a message. Only after it, can a message be cancalled.
+   * @param _deadline - The deadline to consume a message. Only after it, can a message be cancelled.
    * it is uint32 to for slot packing of the Entry struct. Should work until Feb 2106.
    * @param _content - The content of the entry (application specific)
    * @param _secretHash - The secret hash of the entry (make it possible to hide when a specific entry is consumed on L2)

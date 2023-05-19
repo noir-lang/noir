@@ -3,8 +3,8 @@
 pragma solidity >=0.8.18;
 
 import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
-import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
+import {Hash} from "@aztec/core/libraries/Hash.sol";
 import {Errors} from "@aztec/core/libraries/Errors.sol";
 import {MessageBox} from "@aztec/core/libraries/MessageBox.sol";
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
@@ -17,6 +17,7 @@ import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
  */
 contract Outbox is IOutbox {
   using MessageBox for mapping(bytes32 entryKey => DataStructures.Entry entry);
+  using Hash for DataStructures.L2ToL1Msg;
 
   IRegistry immutable REGISTRY;
 
@@ -37,11 +38,7 @@ contract Outbox is IOutbox {
    * @return The key of the entry in the set
    */
   function computeEntryKey(DataStructures.L2ToL1Msg memory _message) public pure returns (bytes32) {
-    // TODO: Replace mod P later on when we have a better idea of how to handle Fields.
-    return bytes32(
-      uint256(sha256(abi.encode(_message.sender, _message.recipient, _message.content)))
-        % Constants.P
-    );
+    return _message.sha256ToField();
   }
 
   /**
