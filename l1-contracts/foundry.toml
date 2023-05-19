@@ -14,7 +14,8 @@ remappings = [
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
 
-eth_rpc_url="https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c"
+# Set chain_id to one for messaging tests
+chain_id = 1
 
 [fmt]
 line_length = 100
