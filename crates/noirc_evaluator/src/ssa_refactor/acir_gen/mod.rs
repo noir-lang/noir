@@ -1,10 +1,7 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
-mod acir_variable;
-mod errors;
-pub(crate) mod generated_acir;
-
-use self::generated_acir::GeneratedAcir;
+mod acir_ir;
+pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
 use super::{
     abi_gen::parse_abi::ProcessedAbiParam,

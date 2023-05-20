@@ -13,7 +13,7 @@ use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
 
-use self::acir_gen::generated_acir::GeneratedAcir;
+use self::acir_gen::GeneratedAcir;
 
 mod abi_gen;
 
