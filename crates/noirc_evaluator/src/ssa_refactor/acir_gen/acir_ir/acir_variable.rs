@@ -1,4 +1,6 @@
-use super::{errors::AcirGenError, GeneratedAcir};
+use super::memory::Memory;
+use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
+use acvm::acir::BlackBoxFunc;
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -10,10 +12,13 @@ struct AcirContext {
     data: HashMap<AcirVar, AcirVarData>,
     data_reverse_map: HashMap<AcirVarData, AcirVar>,
 
+    memory: Memory,
+
     acir_ir: GeneratedAcir,
 }
 
 impl AcirContext {
+    /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
 
@@ -24,6 +29,8 @@ impl AcirContext {
         self.add_data(constant_data)
     }
 
+    /// Adds a Variable to the context, whose exact value is resolved at
+    /// runtime.
     pub(crate) fn add_variable(&mut self) -> AcirVar {
         let var_index = self.acir_ir.next_witness_index();
 
@@ -31,7 +38,13 @@ impl AcirContext {
 
         self.add_data(var_data)
     }
-
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the negation of `var`.
+    ///
+    /// Note: `Variables` are immutable.
+    ///
+    /// TODO: We can rollback this decision and make Variables
+    /// mutable, by mapping the variable to a different witness index.
     pub(crate) fn neg_var(&mut self, var: AcirVar) -> AcirVar {
         let var_data = &self.data[&var];
         match var_data {
@@ -45,7 +58,16 @@ impl AcirContext {
             AcirVarData::Const(constant) => self.add_data(AcirVarData::Const(-*constant)),
         }
     }
+    /// Calls a Blackbox function on the given inputs and returns a given set of outputs
+    /// to represent the result of the blackbox function.
+    ///
+    /// TODO: We want to return a Result here incase the
+    pub(crate) fn intrinsics(&mut self, name: BlackBoxFunc, inputs: Vec<AcirVar>) -> Vec<AcirVar> {
+        todo!()
+    }
 
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the inverse of `var`.
     pub(crate) fn inv_var(&mut self, var: AcirVar) -> AcirVar {
         let var_data = &self.data[&var];
         let inverted_witness = match var_data {
@@ -66,7 +88,11 @@ impl AcirContext {
 
         inverted_var
     }
-    // TODO: All of these should return a Result
+
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be true iff lhs >= rhs and false otherwise.
+    ///
+    // TODO: All of these methods should return a Result
     pub(crate) fn more_than_eq(
         &mut self,
         lhs: AcirVar,
@@ -83,10 +109,14 @@ impl AcirContext {
             _ => todo!("more than eq, not implemented"),
         }
     }
-    pub(crate) fn assert_eq_one(&mut self, lhs: AcirVar) {
+
+    /// Constrains the lhs to be equal to the constant value `1`
+    pub(crate) fn assert_eq_one(&mut self, var: AcirVar) {
         let one_var = self.add_constant(FieldElement::one());
-        self.assert_eq_var(lhs, one_var)
+        self.assert_eq_var(var, one_var)
     }
+
+    /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
         // TODO: could use sub_var and then assert_eq_zero
         let lhs_data = &self.data[&lhs];
@@ -122,11 +152,15 @@ impl AcirContext {
         }
     }
 
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the division of `lhs` and `rhs`
     pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let inv_rhs = self.inv_var(rhs);
         self.mul_var(lhs, inv_rhs)
     }
 
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the multiplication of `lhs` and `rhs`
     pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let lhs_data = &self.data[&lhs];
         let rhs_data = &self.data[&rhs];
@@ -171,11 +205,15 @@ impl AcirContext {
         }
     }
 
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the subtraction of `lhs` and `rhs`
     pub(crate) fn sub_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let neg_rhs = self.neg_var(rhs);
         self.add_var(lhs, neg_rhs)
     }
 
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the addition of `lhs` and `rhs`
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let lhs_data = &self.data[&lhs];
         let rhs_data = &self.data[&rhs];
@@ -205,6 +243,11 @@ impl AcirContext {
         }
     }
 
+    /// Adds `Data` into the context and assigns it a Variable.
+    ///
+    /// Variable can be seen as an index into the context.
+    /// We use a two-way map so that it is efficient to lookup
+    /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
         assert_eq!(self.data.len(), self.data_reverse_map.len());
 
@@ -241,4 +284,4 @@ impl AcirVarData {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct AcirVar(usize);
+pub(crate) struct AcirVar(usize);
