@@ -482,17 +482,9 @@ impl<'f> LoopIteration<'f> {
 #[cfg(test)]
 mod tests {
     use crate::ssa_refactor::{
-        ir::{dom::DominatorTree, instruction::BinaryOp, map::Id, types::Type},
+        ir::{instruction::BinaryOp, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
-        ssa_gen::Ssa,
     };
-
-    // basic_blocks_iter iterates over unreachable blocks as well, so we must filter those out.
-    fn count_reachable_blocks_in_main(ssa: &Ssa) -> usize {
-        let function = ssa.main();
-        let dom_tree = DominatorTree::with_function(function);
-        function.dfg.basic_blocks_iter().filter(|(block, _)| dom_tree.is_reachable(*block)).count()
-    }
 
     #[test]
     fn unroll_nested_loops() {
@@ -582,7 +574,7 @@ mod tests {
         builder.terminate_with_jmp(b1, vec![v7]);
 
         let ssa = builder.finish();
-        assert_eq!(count_reachable_blocks_in_main(&ssa), 7);
+        assert_eq!(ssa.main().reachable_blocks().len(), 7);
 
         // Expected output:
         //
@@ -613,7 +605,7 @@ mod tests {
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
         let ssa = ssa.unroll_loops();
-        assert_eq!(count_reachable_blocks_in_main(&ssa), 5);
+        assert_eq!(ssa.main().reachable_blocks().len(), 5);
     }
 
     // Test that the pass can still be run on loops which fail to unroll properly
@@ -658,10 +650,10 @@ mod tests {
         builder.terminate_with_return(vec![zero]);
 
         let ssa = builder.finish();
-        assert_eq!(count_reachable_blocks_in_main(&ssa), 4);
+        assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected ssa is unchanged
         let ssa = ssa.unroll_loops();
-        assert_eq!(count_reachable_blocks_in_main(&ssa), 4);
+        assert_eq!(ssa.main().reachable_blocks().len(), 4);
     }
 }
