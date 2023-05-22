@@ -30,7 +30,7 @@ impl Ssa {
         for function in self.functions.values_mut() {
             for block in function.reachable_blocks() {
                 let mut context = PerBlockContext::new(block);
-                context.eliminate_store_load(&mut function.dfg);
+                context.eliminate_known_stores(&mut function.dfg);
                 first_context = Some(context);
             }
         }
@@ -79,12 +79,9 @@ impl PerBlockContext {
         }
     }
 
-    // Attempts to remove redundant load & store instructions for constant addresses.
-    //
-    // This method assumes the entire program is now represented in a single block (minus any
-    // intrinsic function calls). Therefore we needn't be concerned with store instructions having
-    // an effect beyond the scope of this block.
-    fn eliminate_store_load(&mut self, dfg: &mut DataFlowGraph) {
+    // Attempts to remove store instructions for which the result is already known from previous
+    // store instructions to the same address in the same block.
+    fn eliminate_known_stores(&mut self, dfg: &mut DataFlowGraph) {
         let mut loads_to_substitute = Vec::new();
         let block = &dfg[self.block_id];
 
