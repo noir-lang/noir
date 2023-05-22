@@ -27,7 +27,7 @@ export interface NoteLoadOracleInputs {
 export interface MessageLoadOracleInputs {
   /**
    * An collapsed array of fields containing all of the l1 to l2 message components.
-   * `l1ToL2Message.toFieldArray()` -\> [sender, chainId, recipient, version, contentHash, secretHash, deadline, fee]
+   * `l1ToL2Message.toFieldArray()` -\> [sender, chainId, recipient, version, content, secretHash, deadline, fee]
    */
   message: Fr[];
   /**

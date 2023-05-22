@@ -79,7 +79,7 @@ impl PrivateFunctionContext {
 
     // Inputs must be temporarily passed in to prevent too many unknowns
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
-    fn consume_l1_to_l2_message(mut self: Self, inputs: abi::Inputs, msg_key: Field, content_hash: Field, secret: Field) -> PrivateFunctionContext {
+    fn consume_l1_to_l2_message(mut self: Self, inputs: abi::Inputs, msg_key: Field, content: Field, secret: Field) -> PrivateFunctionContext {
         let returned_message = get_l1_to_l2_message_call(msg_key);
         let l1_to_l2_message_data = make_l1_to_l2_message_getter_data(returned_message, 0, secret);
 
@@ -90,7 +90,7 @@ impl PrivateFunctionContext {
         constrain l1_to_l2_message_data.message.recipient == inputs.call_context.storage_contract_address;
 
         // Validate the message hash is correct
-        constrain l1_to_l2_message_data.message.content_hash == content_hash;
+        constrain l1_to_l2_message_data.message.content == content;
 
         // Validate the message secret is correct
         l1_to_l2_message_data.message.validate_message_secret();

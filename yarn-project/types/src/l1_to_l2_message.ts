@@ -19,9 +19,9 @@ export class L1ToL2Message {
      */
     public readonly recipient: L2Actor,
     /**
-     * The hash of the message content.
+     * The message content.
      */
-    public readonly contentHash: Fr,
+    public readonly content: Fr,
     /**
      * The hash of the spending secret.
      */
@@ -51,7 +51,7 @@ export class L1ToL2Message {
     return [
       ...this.sender.toFieldArray(),
       ...this.recipient.toFieldArray(),
-      this.contentHash,
+      this.content,
       this.secretHash,
       new Fr(BigInt(this.deadline)),
       new Fr(BigInt(this.fee)),
@@ -59,7 +59,7 @@ export class L1ToL2Message {
   }
 
   toBuffer(): Buffer {
-    return serializeToBuffer(this.sender, this.recipient, this.contentHash, this.secretHash, this.deadline, this.fee);
+    return serializeToBuffer(this.sender, this.recipient, this.content, this.secretHash, this.deadline, this.fee);
   }
 
   static empty(): L1ToL2Message {
