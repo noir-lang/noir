@@ -30,7 +30,7 @@ impl Ssa {
         for function in self.functions.values_mut() {
             for block in function.reachable_blocks() {
                 let mut context = PerBlockContext::new(block);
-                context.eliminate_known_stores(&mut function.dfg);
+                context.eliminate_known_loads(&mut function.dfg);
                 first_context = Some(context);
             }
         }
@@ -81,7 +81,7 @@ impl PerBlockContext {
 
     // Attempts to remove store instructions for which the result is already known from previous
     // store instructions to the same address in the same block.
-    fn eliminate_known_stores(&mut self, dfg: &mut DataFlowGraph) {
+    fn eliminate_known_loads(&mut self, dfg: &mut DataFlowGraph) {
         let mut loads_to_substitute = Vec::new();
         let block = &dfg[self.block_id];
 
