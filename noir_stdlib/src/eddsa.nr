@@ -10,8 +10,8 @@ fn lt_bytes32(x: Field, y: Field) -> bool {
     let mut done = false;
     for i in 0..32 {
         if (!done) {
-            let x_byte = x_bytes[31 - i];
-            let y_byte = y_bytes[31 - i];
+            let x_byte = x_bytes[31 - i] as u8;
+            let y_byte = y_bytes[31 - i] as u8;
             let bytes_match = x_byte == y_byte;
             if !bytes_match {
                 x_is_lt = x_byte < y_byte;
