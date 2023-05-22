@@ -56,9 +56,11 @@ fn simplify_function(function: &mut Function) {
 
             // Note: this function relies on `remove_block_parameters` being called first.
             // Otherwise the inlined block will refer to parameters that no longer exist.
-            if try_inline_into_predecessor(function, &mut cfg, block, predecessor) {
-                continue;
-            }
+            //
+            // If successful, `block` will be empty and unreachable after this call, so any
+            // optimizations performed after this point on the same block should check if
+            // the inlining here was successful before continuing.
+            try_inline_into_predecessor(function, &mut cfg, block, predecessor);
         }
     }
 }
