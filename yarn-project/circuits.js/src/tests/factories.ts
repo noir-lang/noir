@@ -818,10 +818,10 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const newPublicDataUpdateRequestsSiblingPaths = range(
     2 * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
     seed + 0x6000,
-  ).map(x => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x));
+  ).map(x => range(PUBLIC_DATA_TREE_HEIGHT, x).map(fr));
 
   const newPublicDataReadsSiblingPaths = range(2 * KERNEL_PUBLIC_DATA_READS_LENGTH, seed + 0x6000).map(x =>
-    makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, x),
+    range(PUBLIC_DATA_TREE_HEIGHT, x).map(fr),
   );
 
   const historicPrivateDataTreeRootMembershipWitnesses: BaseRollupInputs['historicPrivateDataTreeRootMembershipWitnesses'] =

@@ -185,10 +185,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
             }
             auto leaf_index = uint256_t(public_data_read.leaf_index);
             baseRollupInputs.new_public_data_reads_sibling_paths[i * KERNEL_PUBLIC_DATA_READS_LENGTH + j] =
-                MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>{
-                    .leaf_index = public_data_read.leaf_index,
-                    .sibling_path = get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index),
-                };
+                get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index);
         }
 
         for (size_t j = 0; j < KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH; j++) {
@@ -200,10 +197,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
             public_data_tree.update_element(leaf_index, public_data_update_request.new_value);
             baseRollupInputs
                 .new_public_data_update_requests_sibling_paths[i * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH + j] =
-                MembershipWitness<NT, PUBLIC_DATA_TREE_HEIGHT>{
-                    .leaf_index = public_data_update_request.leaf_index,
-                    .sibling_path = get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index),
-                };
+                get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index);
         }
     }
 

@@ -43,7 +43,32 @@ export function assertMemberLength<
   },
 >(obj: T, member: F, length: number) {
   if (obj[member].length !== length) {
-    throw new Error(`Expected ${member} to have length ${length}! Was: ${obj[member].length}`);
+    throw new Error(`Expected ${member} to have length ${length} but was ${obj[member].length}`);
+  }
+}
+
+/**
+ * Assert all subarrays in a member of an object are a certain length.
+ * @param obj - An object.
+ * @param member - A member string.
+ * @param length - The expected length for each subarray.
+ */
+export function assertItemsLength<
+  F extends string,
+  T extends {
+    [f in F]: {
+      /**
+       * A property which the tested member of the object T has to have.
+       */
+      length: number;
+    }[];
+  },
+>(obj: T, member: F, length: number) {
+  const arrs = obj[member];
+  for (let i = 0; i < arrs.length; i++) {
+    if (arrs[i].length !== length) {
+      throw new Error(`Expected ${member}[${i}] to have length ${length} but was ${arrs[i].length}`);
+    }
   }
 }
 

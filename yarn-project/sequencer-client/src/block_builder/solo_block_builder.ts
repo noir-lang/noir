@@ -13,7 +13,6 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NullifierLeafPreimage,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
-  PUBLIC_DATA_TREE_HEIGHT,
   PreviousKernelData,
   PreviousRollupData,
   Proof,
@@ -26,7 +25,7 @@ import {
   makeTuple,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
-import { MerkleTreeId, ContractData, L2Block, PublicDataWrite } from '@aztec/types';
+import { ContractData, L2Block, MerkleTreeId, PublicDataWrite } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
@@ -34,14 +33,14 @@ import { VerificationKeys } from '../mocks/verification_keys.js';
 import { RollupProver } from '../prover/index.js';
 import { RollupSimulator } from '../simulator/index.js';
 
-import { ProcessedTx } from '../sequencer/processed_tx.js';
-import { BlockBuilder } from './index.js';
+import { toFriendlyJSON } from '@aztec/circuits.js/utils';
+import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { toFriendlyJSON } from '@aztec/circuits.js/utils';
-import { AllowedTreeNames, OutputWithTreeSnapshot } from './types.js';
 import { assertLength } from '@aztec/foundation/serialize';
+import { ProcessedTx } from '../sequencer/processed_tx.js';
+import { BlockBuilder } from './index.js';
+import { AllowedTreeNames, OutputWithTreeSnapshot } from './types.js';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
 const bigintToFr = (num: bigint) => new Fr(num);
@@ -571,32 +570,22 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   protected async processPublicDataUpdateRequests(tx: ProcessedTx) {
-    const newPublicDataUpdateRequestsSiblingPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[] = [];
+    const newPublicDataUpdateRequestsSiblingPaths: Fr[][] = [];
     for (const publicDataUpdateRequest of tx.data.end.publicDataUpdateRequests) {
       const index = publicDataUpdateRequest.leafIndex.value;
       const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, index);
       await this.db.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, publicDataUpdateRequest.newValue.toBuffer(), index);
-      const witness = new MembershipWitness(
-        PUBLIC_DATA_TREE_HEIGHT,
-        index,
-        assertLength(path.data.map(Fr.fromBuffer), PUBLIC_DATA_TREE_HEIGHT),
-      );
-      newPublicDataUpdateRequestsSiblingPaths.push(witness);
+      newPublicDataUpdateRequestsSiblingPaths.push(path.data.map(Fr.fromBuffer));
     }
     return newPublicDataUpdateRequestsSiblingPaths;
   }
 
   protected async getPublicDataReadsSiblingPaths(tx: ProcessedTx) {
-    const newPublicDataReadsSiblingPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[] = [];
+    const newPublicDataReadsSiblingPaths: Fr[][] = [];
     for (const publicDataRead of tx.data.end.publicDataReads) {
       const index = publicDataRead.leafIndex.value;
       const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, index);
-      const witness = new MembershipWitness(
-        PUBLIC_DATA_TREE_HEIGHT,
-        index,
-        assertLength(path.data.map(Fr.fromBuffer), PUBLIC_DATA_TREE_HEIGHT),
-      );
-      newPublicDataReadsSiblingPaths.push(witness);
+      newPublicDataReadsSiblingPaths.push(path.data.map(Fr.fromBuffer));
     }
     return newPublicDataReadsSiblingPaths;
   }
