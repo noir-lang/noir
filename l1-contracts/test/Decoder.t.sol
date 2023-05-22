@@ -5,7 +5,7 @@ pragma solidity >=0.8.18;
 import {Test} from "forge-std/Test.sol";
 
 import {Decoder} from "@aztec/core/Decoder.sol";
-import {Constants} from "@aztec/core/libraries/Constants.sol";
+import {Hash} from "@aztec/core/libraries/Hash.sol";
 import {DecoderHelper} from "./DecoderHelper.sol";
 
 /**
@@ -144,12 +144,9 @@ contract DecoderTest is Test {
 
     // Note: First 32 bytes are 0 because those correspond to the hash of previous iteration and there was no previous
     //       iteration.
-    bytes32 referenceLogsHash = bytes32(
-      uint256(
-        sha256(
-          hex"0000000000000000000000000000000000000000000000000000000000000000aafdc7aa93e78a70"
-        )
-      ) % Constants.P
+
+    bytes32 referenceLogsHash = Hash.sha256ToField(
+      hex"0000000000000000000000000000000000000000000000000000000000000000aafdc7aa93e78a70"
     );
 
     assertEq(bytesAdvanced, emptyKernelData.length, "Advanced by an incorrect number of bytes");
@@ -167,22 +164,12 @@ contract DecoderTest is Test {
       hex"0000002400000008aafdc7aa93e78a700000001497aee30906a86173c86c6d3f108eefc36e7fb014";
     (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(emptyKernelData);
 
-    bytes32 referenceLogsHashFromIteration1 = bytes32(
-      uint256(
-        sha256(
-          hex"0000000000000000000000000000000000000000000000000000000000000000aafdc7aa93e78a70"
-        )
-      ) % Constants.P
+    bytes32 referenceLogsHashFromIteration1 = Hash.sha256ToField(
+      hex"0000000000000000000000000000000000000000000000000000000000000000aafdc7aa93e78a70"
     );
 
-    bytes32 referenceLogsHashFromIteration2 = bytes32(
-      uint256(
-        sha256(
-          bytes.concat(
-            referenceLogsHashFromIteration1, hex"97aee30906a86173c86c6d3f108eefc36e7fb014"
-          )
-        )
-      ) % Constants.P
+    bytes32 referenceLogsHashFromIteration2 = Hash.sha256ToField(
+      bytes.concat(referenceLogsHashFromIteration1, hex"97aee30906a86173c86c6d3f108eefc36e7fb014")
     );
 
     assertEq(bytesAdvanced, emptyKernelData.length, "Advanced by an incorrect number of bytes");

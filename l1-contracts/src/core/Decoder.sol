@@ -2,6 +2,8 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+import {Hash} from "@aztec/core/libraries/Hash.sol";
+
 /**
  * @title Decoder
  * @author Aztec Labs
@@ -108,10 +110,6 @@ contract Decoder {
   uint256 internal constant CONTRACTS_PER_KERNEL = 1;
   uint256 internal constant L1_TO_L2_MSGS_PER_ROLLUP = 16;
 
-  // Prime field order
-  uint256 internal constant P =
-    21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
   /**
    * @notice Decodes the inputs and computes values to check state against
    * @param _l2Block - The L2 block calldata.
@@ -167,7 +165,7 @@ contract Decoder {
       mstore(add(temp, add(0x20, endOfTreesData)), _diffRoot)
       mstore(add(temp, add(0x40, endOfTreesData)), _l1ToL2MsgsHash)
     }
-    return bytes32(uint256(sha256(temp)) % P);
+    return Hash.sha256ToField(temp);
   }
 
   /**
@@ -504,7 +502,7 @@ contract Decoder {
 
       // Compute current iteration's logs hash and truncate the hash to field
       // See: https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426/2
-      logsHash = bytes32(uint256(sha256(temp)) % P);
+      logsHash = Hash.sha256ToField(temp);
     }
 
     return (logsHash, offset);
