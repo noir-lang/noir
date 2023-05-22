@@ -359,28 +359,26 @@ impl Binary {
             }
             BinaryOp::Mod => {
                 if rhs_is_one {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
-                    return SimplifyResult::SimplifiedTo(
-                        dfg.make_constant(FieldElement::one(), Type::bool()),
-                    );
+                    let one = dfg.make_constant(FieldElement::one(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(one);
                 }
             }
             BinaryOp::Lt => {
                 if self.lhs == self.rhs {
-                    return SimplifyResult::SimplifiedTo(
-                        dfg.make_constant(FieldElement::zero(), Type::bool()),
-                    );
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::And => {
                 if lhs_is_zero || rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(
-                        dfg.make_constant(FieldElement::zero(), operand_type),
-                    );
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::Or => {
@@ -391,7 +389,12 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
-            BinaryOp::Xor => (),
+            BinaryOp::Xor => {
+                if self.lhs == self.rhs {
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
             BinaryOp::Shl => {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);

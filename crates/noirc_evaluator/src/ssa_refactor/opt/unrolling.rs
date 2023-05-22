@@ -32,7 +32,7 @@ use crate::ssa_refactor::{
 
 impl Ssa {
     /// Unroll all loops in each SSA function.
-    /// Panics if any loop cannot be unrolled.
+    /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     pub(crate) fn unroll_loops(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             find_all_loops(function).unroll_each_loop(function);
@@ -188,7 +188,11 @@ fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
 fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, ()> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, .. }) => {
-            assert_eq!(arguments.len(), 1);
+            // This assumption will no longer be valid if e.g. mutable variables are represented as
+            // block parameters. If that becomes the case we'll need to figure out which variable
+            // is generally constant and increasing to guess which parameter is the induction
+            // variable.
+            assert_eq!(arguments.len(), 1, "It is expected that a loop's induction variable is the only block parameter of the loop header");
             let value = arguments[0];
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
@@ -242,7 +246,7 @@ fn unroll_loop_header<'a>(
                 None
             }
         }
-        other => panic!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
+        other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
     }
 }
 
