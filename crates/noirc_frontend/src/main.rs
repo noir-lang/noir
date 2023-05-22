@@ -27,12 +27,7 @@ fn main() {
     let crate_id = crate_graph.add_crate_root(CrateType::Library, root_file_id);
 
     // initiate context with file manager and crate graph
-    let mut context = Context::new(
-        fm,
-        crate_graph,
-        #[allow(deprecated)]
-        Box::new(acvm::default_is_opcode_supported(acvm::Language::R1CS)),
-    );
+    let mut context = Context::new(fm, crate_graph);
 
     // Now create the CrateDefMap
     // This is preamble for analysis

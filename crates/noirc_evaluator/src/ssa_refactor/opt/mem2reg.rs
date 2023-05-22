@@ -19,20 +19,28 @@ impl Ssa {
     /// scope, and attempts to remove store that are subsequently redundant, as long as they are
     /// not stores on memory that will be passed into a function call.
     ///
-    /// This pass assumes that the whole program has been inlined into a single block, such that
-    /// we can be sure that store instructions cannot have side effects outside of this block
-    /// (apart from intrinsic function calls).
-    ///
     /// This pass also assumes that constant folding has been run, such that all addresses given
     /// as input to store/load instructions are represented as one of:
     /// - a value that directly resolves to an allocate instruction
     /// - a value that directly resolves to a binary add instruction which has a allocate
     /// instruction and a numeric constant as its operands
-    pub(crate) fn mem2reg_final(mut self) -> Ssa {
-        let func = self.main_mut();
-        assert_eq!(func.dfg.basic_blocks_iter().count(), 1);
-        let block_id = func.entry_block();
-        PerBlockContext::new(&mut func.dfg, block_id).eliminate_store_load();
+    pub(crate) fn mem2reg(mut self) -> Ssa {
+        let mut first_context = None;
+
+        for function in self.functions.values_mut() {
+            for block in function.reachable_blocks() {
+                let mut context = PerBlockContext::new(block);
+                context.eliminate_known_loads(&mut function.dfg);
+                first_context = Some(context);
+            }
+        }
+
+        // If there is only one block in total, remove any unused stores as well since we
+        // know there is no other block they can impact.
+        if self.functions.len() == 1 && self.main().dfg.basic_blocks_iter().len() == 1 {
+            first_context.unwrap().remove_unused_stores(&mut self.main_mut().dfg);
+        }
+
         self
     }
 }
@@ -52,59 +60,58 @@ impl Address {
     }
 }
 
-struct PerBlockContext<'dfg> {
-    dfg: &'dfg mut DataFlowGraph,
+struct PerBlockContext {
     block_id: BasicBlockId,
+    last_stores: BTreeMap<Address, ValueId>,
+    store_ids: Vec<InstructionId>,
+    failed_substitutes: BTreeSet<Address>,
+    alloc_ids_in_calls: BTreeSet<InstructionId>,
 }
 
-impl<'dfg> PerBlockContext<'dfg> {
-    fn new(dfg: &'dfg mut DataFlowGraph, block_id: BasicBlockId) -> Self {
-        PerBlockContext { dfg, block_id }
+impl PerBlockContext {
+    fn new(block_id: BasicBlockId) -> Self {
+        PerBlockContext {
+            block_id,
+            last_stores: BTreeMap::new(),
+            store_ids: Vec::new(),
+            failed_substitutes: BTreeSet::new(),
+            alloc_ids_in_calls: BTreeSet::new(),
+        }
     }
 
-    // Attempts to remove redundant load & store instructions for constant addresses. Returns the
-    // count of remaining store instructions.
-    //
-    // This method assumes the entire program is now represented in a single block (minus any
-    // intrinsic function calls). Therefore we needn't be concerned with store instructions having
-    // an effect beyond the scope of this block.
-    fn eliminate_store_load(&mut self) -> u32 {
-        let mut store_count: u32 = 0;
-        let mut last_stores: BTreeMap<Address, ValueId> = BTreeMap::new();
-        let mut loads_to_substitute: Vec<(InstructionId, Value)> = Vec::new();
-        let mut store_ids: Vec<InstructionId> = Vec::new();
-        let mut failed_substitutes: BTreeSet<Address> = BTreeSet::new();
-        let mut alloc_ids_in_calls: BTreeSet<InstructionId> = BTreeSet::new();
+    // Attempts to remove load instructions for which the result is already known from previous
+    // store instructions to the same address in the same block.
+    fn eliminate_known_loads(&mut self, dfg: &mut DataFlowGraph) {
+        let mut loads_to_substitute = Vec::new();
+        let block = &dfg[self.block_id];
 
-        let block = &self.dfg[self.block_id];
         for instruction_id in block.instructions() {
-            match &self.dfg[*instruction_id] {
+            match &dfg[*instruction_id] {
                 Instruction::Store { address, value } => {
-                    store_count += 1;
-                    if let Some(address) = self.try_const_address(*address) {
+                    if let Some(address) = self.try_const_address(*address, dfg) {
                         // We can only track the address if it is a constant offset from an
                         // allocation. A previous constant folding pass should make such addresses
                         // possible to identify.
-                        last_stores.insert(address, *value);
+                        self.last_stores.insert(address, *value);
                     }
                     // TODO: Consider if it's worth falling back to storing addresses by their
                     // value id such we can shallowly check for dynamic address reuse.
-                    store_ids.push(*instruction_id);
+                    self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { address } => {
-                    if let Some(address) = self.try_const_address(*address) {
-                        if let Some(last_value) = last_stores.get(&address) {
-                            let last_value = self.dfg[*last_value];
+                    if let Some(address) = self.try_const_address(*address, dfg) {
+                        if let Some(last_value) = self.last_stores.get(&address) {
+                            let last_value = dfg[*last_value];
                             loads_to_substitute.push((*instruction_id, last_value));
                         } else {
-                            failed_substitutes.insert(address);
+                            self.failed_substitutes.insert(address);
                         }
                     }
                 }
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
-                        if let Some(address) = self.try_const_address(*arg) {
-                            alloc_ids_in_calls.insert(address.alloc_id());
+                        if let Some(address) = self.try_const_address(*arg, dfg) {
+                            self.alloc_ids_in_calls.insert(address.alloc_id());
                         }
                     }
                 }
@@ -116,74 +123,78 @@ impl<'dfg> PerBlockContext<'dfg> {
 
         // Substitute load result values
         for (instruction_id, new_value) in &loads_to_substitute {
-            let result_value = *self
-                .dfg
+            let result_value = *dfg
                 .instruction_results(*instruction_id)
                 .first()
                 .expect("ICE: Load instructions should have single result");
-            self.dfg.set_value(result_value, *new_value);
+            dfg.set_value(result_value, *new_value);
         }
 
         // Delete load instructions
         // TODO: should we let DCE do this instead?
-        let block = &mut self.dfg[self.block_id];
+        let block = &mut dfg[self.block_id];
         for (instruction_id, _) in loads_to_substitute {
             block.remove_instruction(instruction_id);
         }
+    }
 
+    fn remove_unused_stores(self, dfg: &mut DataFlowGraph) {
         // Scan for unused stores
         let mut stores_to_remove: Vec<InstructionId> = Vec::new();
-        for instruction_id in store_ids {
-            let address = match &self.dfg[instruction_id] {
+        for instruction_id in &self.store_ids {
+            let address = match &dfg[*instruction_id] {
                 Instruction::Store { address, .. } => *address,
                 _ => unreachable!("store_ids should contain only store instructions"),
             };
-            if let Some(address) = self.try_const_address(address) {
-                if !failed_substitutes.contains(&address)
-                    && !alloc_ids_in_calls.contains(&address.alloc_id())
+
+            if let Some(address) = self.try_const_address(address, dfg) {
+                if !self.failed_substitutes.contains(&address)
+                    && !self.alloc_ids_in_calls.contains(&address.alloc_id())
                 {
-                    stores_to_remove.push(instruction_id);
+                    stores_to_remove.push(*instruction_id);
                 }
             }
         }
 
         // Delete unused stores
-        let block = &mut self.dfg[self.block_id];
+        let block = &mut dfg[self.block_id];
         for instruction_id in stores_to_remove {
-            store_count -= 1;
             block.remove_instruction(instruction_id);
         }
-
-        store_count
     }
 
     // Attempts to normalize the given value into a const address
-    fn try_const_address(&self, value_id: ValueId) -> Option<Address> {
-        let value = &self.dfg[value_id];
+    fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
+        let value = &dfg[value_id];
         let instruction_id = match value {
             Value::Instruction { instruction, .. } => *instruction,
             _ => return None,
         };
-        let instruction = &self.dfg[instruction_id];
+        let instruction = &dfg[instruction_id];
         match instruction {
             Instruction::Allocate { .. } => Some(Address::Zeroth(instruction_id)),
             Instruction::Binary(binary) => {
                 if binary.operator != BinaryOp::Add {
                     return None;
                 }
-                let lhs = &self.dfg[binary.lhs];
-                let rhs = &self.dfg[binary.rhs];
-                self.try_const_address_offset(lhs, rhs)
-                    .or_else(|| self.try_const_address_offset(rhs, lhs))
+                let lhs = &dfg[binary.lhs];
+                let rhs = &dfg[binary.rhs];
+                self.try_const_address_offset(lhs, rhs, dfg)
+                    .or_else(|| self.try_const_address_offset(rhs, lhs, dfg))
             }
             _ => None,
         }
     }
 
     // Tries val1 as an allocation instruction id and val2 as a constant offset
-    fn try_const_address_offset(&self, val1: &Value, val2: &Value) -> Option<Address> {
+    fn try_const_address_offset(
+        &self,
+        val1: &Value,
+        val2: &Value,
+        dfg: &DataFlowGraph,
+    ) -> Option<Address> {
         let alloc_id = match val1 {
-            Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
+            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::Allocate { .. } => *instruction,
                 _ => return None,
             },
@@ -203,6 +214,8 @@ mod tests {
 
     use crate::ssa_refactor::{
         ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -210,18 +223,17 @@ mod tests {
         ssa_builder::FunctionBuilder,
     };
 
-    use super::PerBlockContext;
-
     #[test]
     fn test_simple() {
-        // func() {
-        //   block0():
+        // fn func() {
+        //   b0():
         //     v0 = alloc 2
         //     v1 = add v0, Field 1
         //     store v1, Field 1
         //     v2 = add v0, Field 1
         //     v3 = load v1
         //     return v3
+        // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
@@ -233,32 +245,15 @@ mod tests {
         let v3 = builder.insert_load(v0, const_one, Type::field());
         builder.terminate_with_return(vec![v3]);
 
-        let mut ssa = builder.finish();
+        let ssa = builder.finish().mem2reg();
 
-        let mut func = ssa.functions.remove(&func_id).unwrap();
+        let func = ssa.main();
         let block_id = func.entry_block();
 
-        let mut mem2reg_context = PerBlockContext::new(&mut func.dfg, block_id);
-        let remaining_stores = mem2reg_context.eliminate_store_load();
+        assert_eq!(count_loads(block_id, &func.dfg), 0);
+        assert_eq!(count_stores(block_id, &func.dfg), 0);
 
-        assert_eq!(remaining_stores, 0);
-
-        let block = &func.dfg[block_id];
-        let load_count = block
-            .instructions()
-            .iter()
-            .filter(|instruction_id| matches!(func.dfg[**instruction_id], Instruction::Load { .. }))
-            .count();
-        assert_eq!(load_count, 0);
-        let store_count = block
-            .instructions()
-            .iter()
-            .filter(|instruction_id| {
-                matches!(func.dfg[**instruction_id], Instruction::Store { .. })
-            })
-            .count();
-        assert_eq!(store_count, 0);
-        let ret_val_id = match block.terminator().unwrap() {
+        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
             TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
@@ -267,8 +262,8 @@ mod tests {
 
     #[test]
     fn test_simple_with_call() {
-        // func() {
-        //   block0():
+        // fn func {
+        //   b0():
         //     v0 = alloc 2
         //     v1 = add v0, Field 1
         //     store v1, Field 1
@@ -276,6 +271,7 @@ mod tests {
         //     v3 = load v1
         //     v4 = call f0, v0
         //     return v3
+        // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
@@ -289,38 +285,110 @@ mod tests {
         builder.insert_call(f0, vec![v0], vec![Type::Unit]);
         builder.terminate_with_return(vec![v3]);
 
-        let mut ssa = builder.finish();
+        let ssa = builder.finish().mem2reg();
 
-        let mut func = ssa.functions.remove(&func_id).unwrap();
+        let func = ssa.main();
         let block_id = func.entry_block();
 
-        let mut mem2reg_context = PerBlockContext::new(&mut func.dfg, block_id);
-        let remaining_stores = mem2reg_context.eliminate_store_load();
+        assert_eq!(count_loads(block_id, &func.dfg), 0);
+        assert_eq!(count_stores(block_id, &func.dfg), 1);
 
-        assert_eq!(
-            remaining_stores, 1,
-            "Store cannot be removed as it affects intrinsic function call"
-        );
-
-        let block = &func.dfg[block_id];
-        let load_count = block
-            .instructions()
-            .iter()
-            .filter(|instruction_id| matches!(func.dfg[**instruction_id], Instruction::Load { .. }))
-            .count();
-        assert_eq!(load_count, 0);
-        let store_count = block
-            .instructions()
-            .iter()
-            .filter(|instruction_id| {
-                matches!(func.dfg[**instruction_id], Instruction::Store { .. })
-            })
-            .count();
-        assert_eq!(store_count, 1);
-        let ret_val_id = match block.terminator().unwrap() {
+        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
             TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[const_one]);
+    }
+
+    fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+        dfg[block]
+            .instructions()
+            .iter()
+            .filter(|instruction_id| matches!(dfg[**instruction_id], Instruction::Store { .. }))
+            .count()
+    }
+
+    fn count_loads(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+        dfg[block]
+            .instructions()
+            .iter()
+            .filter(|instruction_id| matches!(dfg[**instruction_id], Instruction::Load { .. }))
+            .count()
+    }
+
+    // Test that loads across multiple blocks are not removed
+    #[test]
+    fn multiple_blocks() {
+        // fn main {
+        //   b0():
+        //     v0 = alloc 1
+        //     store v0, Field 5
+        //     v1 = load v0
+        //     jmp b1(v1):
+        //   b1(v2: Field):
+        //     v3 = load v0
+        //     store v0, Field 6
+        //     v4 = load v0
+        //     return v2, v3, v4
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.insert_allocate(1);
+
+        let five = builder.field_constant(5u128);
+        builder.insert_store(v0, five);
+
+        let zero = builder.field_constant(0u128);
+        let v1 = builder.insert_load(v0, zero, Type::field());
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![v1]);
+
+        builder.switch_to_block(b1);
+        let v2 = builder.add_block_parameter(b1, Type::field());
+        let v3 = builder.insert_load(v0, zero, Type::field());
+
+        let six = builder.field_constant(6u128);
+        builder.insert_store(v0, six);
+        let v4 = builder.insert_load(v0, zero, Type::field());
+
+        builder.terminate_with_return(vec![v2, v3, v4]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.main().reachable_blocks().len(), 2);
+
+        // Expected result:
+        // fn main {
+        //   b0():
+        //     v0 = alloc 1
+        //     store v0, Field 5
+        //     jmp b1(Field 5):  // Optimized to constant 5
+        //   b1(v2: Field):
+        //     v3 = load v0      // kept in program
+        //     store v0, Field 6
+        //     return v2, v3, Field 6 // Optimized to constant 6
+        // }
+        let ssa = ssa.mem2reg();
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 2);
+
+        // Only the load from the entry block should be removed
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_loads(b1, &main.dfg), 1);
+
+        // All stores should be kept
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
+        assert_eq!(count_stores(b1, &main.dfg), 1);
+
+        // The jmp to b1 should also be a constant 5 now
+        match main.dfg[main.entry_block()].terminator() {
+            Some(TerminatorInstruction::Jmp { arguments, .. }) => {
+                assert_eq!(arguments.len(), 1);
+                let argument =
+                    main.dfg.get_numeric_constant(arguments[0]).expect("Expected constant value");
+                assert_eq!(argument.to_u128(), 5);
+            }
+            _ => unreachable!(),
+        };
     }
 }
