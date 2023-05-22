@@ -79,7 +79,7 @@ impl PerBlockContext {
         }
     }
 
-    // Attempts to remove store instructions for which the result is already known from previous
+    // Attempts to remove load instructions for which the result is already known from previous
     // store instructions to the same address in the same block.
     fn eliminate_known_loads(&mut self, dfg: &mut DataFlowGraph) {
         let mut loads_to_substitute = Vec::new();
@@ -366,7 +366,7 @@ mod tests {
         //   b1(v2: Field):
         //     v3 = load v0      // kept in program
         //     store v0, Field 6
-        //     return v2, v3, Field 6
+        //     return v2, v3, Field 6 // Optimized to constant 6
         // }
         let ssa = ssa.mem2reg();
         let main = ssa.main();
