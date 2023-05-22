@@ -5,6 +5,7 @@ pragma solidity >=0.8.18;
 import {Test} from "forge-std/Test.sol";
 
 import {Decoder} from "@aztec/core/Decoder.sol";
+import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {DecoderHelper} from "./DecoderHelper.sol";
 
 /**
@@ -122,5 +123,71 @@ contract DecoderTest is Test {
     for (uint256 i = 0; i < l1ToL2Msgs.length; i++) {
       assertEq(l1ToL2Msgs[i], bytes32(uint256(0x401 + i)), "Invalid l1ToL2Msgs");
     }
+  }
+
+  function testComputeKernelLogsHashNoLogs() public {
+    bytes memory emptyKernelData = hex"00000000"; // 4 empty bytes indicating that length of kernel logs is 0
+
+    (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(emptyKernelData);
+
+    assertEq(bytesAdvanced, emptyKernelData.length, "Advanced by an incorrect number of bytes");
+    assertEq(logsHash, bytes32(0), "Logs hash should be 0 when there are no logs");
+  }
+
+  function testComputeKernelLogs1Iteration() public {
+    // || K_LOGS_LEN | I1_LOGS_LEN | I1_LOGS ||
+    // K_LOGS_LEN = 4 + 8 = 12 (hex"0000000c")
+    // I1_LOGS_LEN = 8 (hex"00000008")
+    // I1_LOGS = 8 random bytes (hex"aafdc7aa93e78a70")
+    bytes memory emptyKernelData = hex"0000000c00000008aafdc7aa93e78a70";
+    (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(emptyKernelData);
+
+    // Note: First 32 bytes are 0 because those correspond to the hash of previous iteration and there was no previous
+    //       iteration.
+    bytes32 referenceLogsHash = bytes32(
+      uint256(
+        sha256(
+          hex"0000000000000000000000000000000000000000000000000000000000000000aafdc7aa93e78a70"
+        )
+      ) % Constants.P
+    );
+
+    assertEq(bytesAdvanced, emptyKernelData.length, "Advanced by an incorrect number of bytes");
+    assertEq(logsHash, referenceLogsHash, "Logs hash should be 0 when there are no logs");
+  }
+
+  function testComputeKernelLogs2Iterations() public {
+    // || K_LOGS_LEN | I1_LOGS_LEN | I1_LOGS | I2_LOGS_LEN | I2_LOGS ||
+    // K_LOGS_LEN = 4 + 8 + 4 + 20 = 36 (hex"00000024")
+    // I1_LOGS_LEN = 8 (hex"00000008")
+    // I1_LOGS = 8 random bytes (hex"aafdc7aa93e78a70")
+    // I2_LOGS_LEN = 20 (hex"00000014")
+    // I2_LOGS = 20 random bytes (hex"97aee30906a86173c86c6d3f108eefc36e7fb014")
+    bytes memory emptyKernelData =
+      hex"0000002400000008aafdc7aa93e78a700000001497aee30906a86173c86c6d3f108eefc36e7fb014";
+    (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(emptyKernelData);
+
+    bytes32 referenceLogsHashFromIteration1 = bytes32(
+      uint256(
+        sha256(
+          hex"0000000000000000000000000000000000000000000000000000000000000000aafdc7aa93e78a70"
+        )
+      ) % Constants.P
+    );
+
+    bytes32 referenceLogsHashFromIteration2 = bytes32(
+      uint256(
+        sha256(
+          bytes.concat(
+            referenceLogsHashFromIteration1, hex"97aee30906a86173c86c6d3f108eefc36e7fb014"
+          )
+        )
+      ) % Constants.P
+    );
+
+    assertEq(bytesAdvanced, emptyKernelData.length, "Advanced by an incorrect number of bytes");
+    assertEq(
+      logsHash, referenceLogsHashFromIteration2, "Logs hash should be 0 when there are no logs"
+    );
   }
 }

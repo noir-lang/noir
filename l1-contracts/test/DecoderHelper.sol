@@ -22,4 +22,20 @@ contract DecoderHelper is Decoder {
     (bytes32 diffRoot, bytes32 l1ToL2MessagesHash,,) = _computeConsumables(_l2Block);
     return (diffRoot, l1ToL2MessagesHash);
   }
+
+  function computeKernelLogsHash(bytes calldata _kernelLogs)
+    external
+    pure
+    returns (bytes32, uint256)
+  {
+    uint256 offsetInCalldata;
+    assembly {
+      offsetInCalldata := _kernelLogs.offset
+    }
+
+    (bytes32 logsHash, uint256 offset) = _computeKernelLogsHash(offsetInCalldata, _kernelLogs);
+    uint256 bytesAdvanced = offset - offsetInCalldata;
+
+    return (logsHash, bytesAdvanced);
+  }
 }
