@@ -2,9 +2,9 @@
 #include <stdint.h>
 
 // To be provided by the environment.
-// Outputs from a trusted setup "Common reference string" model: https://en.wikipedia.org/wiki/Common_reference_string_model
-// For a WASM build, this is provided by the JavaScript environment.
-// For a native build, this is provided in this module.
+// Outputs from a trusted setup "Common reference string" model:
+// https://en.wikipedia.org/wiki/Common_reference_string_model For a WASM build, this is provided by the JavaScript
+// environment. For a native build, this is provided in this module.
 
 /**
  * @brief In WASM, loads the verifier reference string.

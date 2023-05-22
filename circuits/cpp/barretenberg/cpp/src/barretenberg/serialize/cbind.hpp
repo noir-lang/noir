@@ -47,12 +47,11 @@ template <typename T> constexpr auto param_tuple()
 
 // This function is intended to bind a function to a MessagePack-formatted input data,
 // perform the function with the unpacked data, then pack the result back into MessagePack format.
-inline void msgpack_cbind_impl(
-    auto func,                  // The function to be applied
-    const uint8_t* input_in,    // The input data in MessagePack format
-    size_t input_len_in,        // The length of the input data
-    uint8_t** output_out,       // The output data in MessagePack format
-    size_t* output_len_out)     // The length of the output data
+inline void msgpack_cbind_impl(auto func,               // The function to be applied
+                               const uint8_t* input_in, // The input data in MessagePack format
+                               size_t input_len_in,     // The length of the input data
+                               uint8_t** output_out,    // The output data in MessagePack format
+                               size_t* output_len_out)  // The length of the output data
 {
     // Get the parameter types of the function as a tuple.
     auto params = param_tuple<decltype(func)>();

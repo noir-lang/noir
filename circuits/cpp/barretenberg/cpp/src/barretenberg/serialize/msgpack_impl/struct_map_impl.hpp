@@ -27,9 +27,11 @@ template <typename... Args> auto drop_keys(std::tuple<Args...>&& tuple)
 } // namespace msgpack
 
 namespace msgpack {
-template <typename T, typename... Args>
-concept MsgpackConstructible = requires(T object, Args... args) { T{ args... }; };
-}
+template <typename T, typename... Args> concept MsgpackConstructible = requires(T object, Args... args)
+{
+    T{ args... };
+};
+} // namespace msgpack
 
 namespace msgpack::adaptor {
 // reads structs with msgpack() method from a JSON-like dictionary

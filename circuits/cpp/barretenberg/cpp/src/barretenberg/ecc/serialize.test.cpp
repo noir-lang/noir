@@ -4,6 +4,6 @@
 
 TEST(msgpack_tests, msgpack_field)
 {
-    auto [actual, expected] = msgpack_roundtrip(barretenberg::fr{1ull, 2ull, 3ull, 4ull});
+    auto [actual, expected] = msgpack_roundtrip(barretenberg::fr{ 1ull, 2ull, 3ull, 4ull });
     EXPECT_EQ(actual, expected);
 }

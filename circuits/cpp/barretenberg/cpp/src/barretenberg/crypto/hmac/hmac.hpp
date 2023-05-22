@@ -93,8 +93,8 @@ std::array<uint8_t, Hash::OUTPUT_SIZE> hmac(const MessageContainer& message, con
  * @return Fr output field element as uint512_t( H(10...0 || HMAC(k,m)) || H(00...0 || HMAC(k,m)) ) % r
  */
 template <typename Hash, typename Fr, typename MessageContainer, typename KeyContainer>
-Fr get_unbiased_field_from_hmac(const MessageContainer& message, const KeyContainer& key)
-    requires(Hash::OUTPUT_SIZE == 32)
+Fr get_unbiased_field_from_hmac(const MessageContainer& message,
+                                const KeyContainer& key) requires(Hash::OUTPUT_SIZE == 32)
 {
     // Strong assumption that works for now with our suite of Hashers
     static_assert(Hash::BLOCK_SIZE > Hash::OUTPUT_SIZE);

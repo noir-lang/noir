@@ -6,11 +6,11 @@
 
 namespace msgpack::adaptor {
 // writes std::variant to msgpack format (TODO should we read std::variant?)
-template<typename... T>
-struct pack<std::variant< T...>> {
-    auto &operator()(auto& o, std::variant<T...> const &variant) const {
+template <typename... T> struct pack<std::variant<T...>> {
+    auto& operator()(auto& o, std::variant<T...> const& variant) const
+    {
         std::visit([&o](const auto& arg) { o.pack(arg); }, variant);
         return o;
     }
 };
-}
+} // namespace msgpack::adaptor

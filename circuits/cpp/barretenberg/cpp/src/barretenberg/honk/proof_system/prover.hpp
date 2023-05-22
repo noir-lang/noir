@@ -15,8 +15,7 @@ namespace proof_system::honk {
 
 // We won't compile this class with honk::flavor::Ultra, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
-template <typename T>
-concept StandardFlavor = IsAnyOf<T, honk::flavor::Standard>;
+template <typename T> concept StandardFlavor = IsAnyOf<T, honk::flavor::Standard>;
 
 template <StandardFlavor Flavor> class StandardProver_ {
 

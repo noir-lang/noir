@@ -58,9 +58,11 @@ inline void _schema_pack_map_content(MsgpackSchemaPacker&)
 }
 
 namespace msgpack_concepts {
-template <typename T>
-concept SchemaPackable = requires(T value, MsgpackSchemaPacker packer) { msgpack_schema_pack(packer, value); };
-}
+template <typename T> concept SchemaPackable = requires(T value, MsgpackSchemaPacker packer)
+{
+    msgpack_schema_pack(packer, value);
+};
+} // namespace msgpack_concepts
 
 // Helper for packing (key, value, key, value, ...) arguments
 template <typename Value, typename... Rest>
@@ -80,8 +82,8 @@ inline void _schema_pack_map_content(MsgpackSchemaPacker& packer, std::string ke
  * @param packer the schema packer.
  */
 template <typename T>
-    requires(!msgpack_concepts::HasMsgPack<T> && !msgpack_concepts::HasMsgPackPack<T>)
-inline void msgpack_schema_pack(MsgpackSchemaPacker& packer, T const&)
+requires(!msgpack_concepts::HasMsgPack<T> &&
+         !msgpack_concepts::HasMsgPackPack<T>) inline void msgpack_schema_pack(MsgpackSchemaPacker& packer, T const&)
 {
     packer.pack(msgpack_schema_name(T{}));
 }
