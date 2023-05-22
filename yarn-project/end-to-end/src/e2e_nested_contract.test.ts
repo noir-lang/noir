@@ -57,10 +57,6 @@ describe('e2e_nested_contract', () => {
     return contract;
   };
 
-  const addressToField = (address: AztecAddress): bigint => {
-    return Fr.fromBuffer(address.toBuffer()).value;
-  };
-
   const getChildStoredValue = (child: { address: AztecAddress }) =>
     node.getStorageAt(child.address, 1n).then(x => toBigInt(x!));
 
@@ -69,7 +65,7 @@ describe('e2e_nested_contract', () => {
    */
   it('should mine transactions that perform nested calls', async () => {
     const tx = parentContract.methods
-      .entryPoint(addressToField(childContract.address), Fr.fromBuffer(childContract.methods.value.selector).value)
+      .entryPoint(childContract.address, Fr.fromBuffer(childContract.methods.value.selector))
       .send({ from: accounts[0] });
 
     await tx.isMined(0, 0.1);
@@ -80,11 +76,7 @@ describe('e2e_nested_contract', () => {
 
   it('should mine transactions that perform public nested calls', async () => {
     const tx = parentContract.methods
-      .pubEntryPoint(
-        addressToField(childContract.address),
-        Fr.fromBuffer(childContract.methods.pubValue.selector).value,
-        42n,
-      )
+      .pubEntryPoint(childContract.address, Fr.fromBuffer(childContract.methods.pubValue.selector), 42n)
       .send({ from: accounts[0] });
 
     await tx.isMined(0, 0.1);
@@ -95,11 +87,7 @@ describe('e2e_nested_contract', () => {
 
   it('should mine transactions that enqueue public calls', async () => {
     const tx = parentContract.methods
-      .enqueueCallToChild(
-        addressToField(childContract.address),
-        Fr.fromBuffer(childContract.methods.pubStoreValue.selector).value,
-        42n,
-      )
+      .enqueueCallToChild(childContract.address, Fr.fromBuffer(childContract.methods.pubStoreValue.selector), 42n)
       .send({ from: accounts[0] });
 
     await tx.isMined(0, 0.1);
@@ -112,8 +100,8 @@ describe('e2e_nested_contract', () => {
   it('should mine transactions that enqueue a public call with nested public calls', async () => {
     const tx = parentContract.methods
       .enqueueCallToPubEntryPoint(
-        addressToField(childContract.address),
-        Fr.fromBuffer(childContract.methods.pubStoreValue.selector).value,
+        childContract.address,
+        Fr.fromBuffer(childContract.methods.pubStoreValue.selector),
         42n,
       )
       .send({ from: accounts[0] });
@@ -128,8 +116,8 @@ describe('e2e_nested_contract', () => {
   it.skip('should mine transactions that enqueue multiple public calls with nested public calls', async () => {
     const tx = parentContract.methods
       .enqueueCallsToPubEntryPoint(
-        addressToField(childContract.address),
-        Fr.fromBuffer(childContract.methods.pubStoreValue.selector).value,
+        childContract.address,
+        Fr.fromBuffer(childContract.methods.pubStoreValue.selector),
         42n,
       )
       .send({ from: accounts[0] });

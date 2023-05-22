@@ -19,7 +19,17 @@ class ArgumentEncoder {
   private encodeArgument(abiType: ABIType, arg: any) {
     switch (abiType.kind) {
       case 'field':
-        this.flattened.push(new Fr(arg));
+        if (typeof arg === 'number') {
+          this.flattened.push(new Fr(BigInt(arg)));
+        } else if (typeof arg === 'bigint') {
+          this.flattened.push(new Fr(arg));
+        } else if (typeof arg === 'object') {
+          if (typeof arg.toField === 'function') {
+            this.flattened.push(arg.toField());
+          } else {
+            this.flattened.push(arg);
+          }
+        }
         break;
       case 'boolean':
         this.flattened.push(new Fr(arg ? 1n : 0n));

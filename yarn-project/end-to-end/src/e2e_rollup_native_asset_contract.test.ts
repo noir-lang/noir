@@ -158,11 +158,7 @@ describe('e2e_rollup_native_asset_contract', () => {
     const ethOutAddress = EthAddress.fromString('0x000000000000000000000000000000000000dead');
 
     const tx = contract.methods
-      .withdraw(
-        withdrawAmount,
-        pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)),
-        ethOutAddress.toField().value,
-      )
+      .withdraw(withdrawAmount, pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)), ethOutAddress)
       .send({ from: accounts[0] });
 
     await tx.isMined(0, 0.1);
