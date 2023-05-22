@@ -81,7 +81,7 @@ function makeL2BlockProcessedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
     blockNumber: l1BlockNum,
     args: { blockNum: l2BlockNum },
     transactionHash: `0x${l2BlockNum}`,
-  } as unknown as Log<bigint, number, undefined, typeof RollupAbi, 'L2BlockProcessed'>;
+  } as Log<bigint, number, undefined, typeof RollupAbi, 'L2BlockProcessed'>;
 }
 
 /**
@@ -95,11 +95,11 @@ function makeUnverifiedDataEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
     blockNumber: l1BlockNum,
     args: {
       l2BlockNum,
-      sender: EthAddress.random(),
+      sender: EthAddress.random().toString(),
       data: '0x' + createRandomUnverifiedData(16).toString('hex'),
     },
     transactionHash: `0x${l2BlockNum}`,
-  } as unknown as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>;
+  } as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>;
 }
 
 /**
@@ -126,7 +126,7 @@ function makeContractDeployedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
       acir: '0x' + acir,
     },
     transactionHash: `0x${l2BlockNum}`,
-  } as unknown as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployed'>;
+  } as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployment'>;
 }
 
 /**
