@@ -40,6 +40,11 @@ impl BasicBlock {
         &self.parameters
     }
 
+    /// Removes all the parameters of this block
+    pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
+        std::mem::take(&mut self.parameters)
+    }
+
     /// Adds a parameter to this BasicBlock.
     /// Expects that the ValueId given should refer to a Value::Param
     /// instance with its position equal to self.parameters.len().
@@ -101,5 +106,24 @@ impl BasicBlock {
                 panic!("remove_instruction: No such instruction {instruction:?} in block")
             });
         self.instructions.remove(index);
+    }
+
+    /// Take ownership of this block's terminator, replacing it with an empty return terminator
+    /// so that no clone is needed.
+    ///
+    /// It is expected that this function is used as an optimization on blocks that are no longer
+    /// reachable or will have their terminator overwritten afterwards. Using this on a reachable
+    /// block without setting the terminator afterward will result in the empty return terminator
+    /// being kept, which is likely unwanted.
+    pub(crate) fn take_terminator(&mut self) -> TerminatorInstruction {
+        let terminator = self.terminator.as_mut().expect("Expected block to have a terminator");
+        std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
+    }
+
+    /// Returns a mutable reference to the terminator of this block.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
+    pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
+        self.terminator.as_mut().expect("Expected block to have terminator instruction")
     }
 }
