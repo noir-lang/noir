@@ -285,14 +285,6 @@ impl DataFlowGraph {
         self.blocks[block].set_terminator(terminator);
     }
 
-    /// Sets the terminator instruction for the given basic block
-    pub(crate) fn get_block_terminator_mut(
-        &mut self,
-        block: BasicBlockId,
-    ) -> &mut TerminatorInstruction {
-        self.blocks[block].unwrap_terminator_mut()
-    }
-
     /// Replaces the value specified by the given ValueId with a new Value.
     ///
     /// This is the preferred method to call for optimizations simplifying
@@ -300,6 +292,20 @@ impl DataFlowGraph {
     /// not be modified to refer to a new ValueId.
     pub(crate) fn set_value(&mut self, value_id: ValueId, new_value: Value) {
         self.values[value_id] = new_value;
+    }
+
+    /// Moves the entirety of the given block's contents into the destination block.
+    /// The source block afterward will be left in a valid but emptied state. The
+    /// destination block will also have its terminator overwritten with that of the
+    /// source block.
+    pub(crate) fn inline_block(&mut self, source: BasicBlockId, destination: BasicBlockId) {
+        let source = &mut self.blocks[source];
+        let mut instructions = std::mem::take(source.instructions_mut());
+        let terminator = source.take_terminator();
+
+        let destination = &mut self.blocks[destination];
+        destination.instructions_mut().append(&mut instructions);
+        destination.set_terminator(terminator);
     }
 }
 

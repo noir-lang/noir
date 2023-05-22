@@ -107,7 +107,7 @@ impl Loops {
             // This happens any time we have nested loops.
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
                 let mut new_context = find_all_loops(function);
-                new_context.failed_to_unroll = std::mem::take(&mut self.failed_to_unroll);
+                new_context.failed_to_unroll = self.failed_to_unroll;
                 return new_context.unroll_each_loop(function);
             }
 
@@ -154,7 +154,8 @@ fn find_blocks_in_loop(
     Loop { header, back_edge_start, blocks }
 }
 
-/// Unroll a single loop in the function
+/// Unroll a single loop in the function.
+/// Returns Err(()) if it failed to unroll and Ok(()) otherwise.
 fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: &Loop) -> Result<(), ()> {
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
@@ -220,7 +221,7 @@ fn unroll_loop_header<'a>(
 
     let mut context = LoopIteration::new(function, loop_, fresh_block, loop_.header);
     let source_block = &context.function.dfg[context.source_block];
-    assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header",);
+    assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
 
     // Insert the current value of the loop induction variable into our context.
     let first_param = source_block.parameters()[0];
@@ -234,10 +235,11 @@ fn unroll_loop_header<'a>(
             // If there is only 1 next block the jmpif evaluated to a single known block.
             // This is the expected case and lets us know if we should loop again or not.
             if next_blocks.len() == 1 {
-                let mut instructions = std::mem::take(context.function.dfg[fresh_block].instructions_mut());
-                let terminator = context.function.dfg[fresh_block].take_terminator();
-                context.function.dfg[unroll_into].instructions_mut().append(&mut instructions);
-                context.function.dfg.set_block_terminator(unroll_into, terminator);
+                context.function.dfg.inline_block(fresh_block, unroll_into);
+
+                // The fresh block is gone now so we're committing to insert into the original
+                // unroll_into block from now on.
+                context.insert_block = unroll_into;
 
                 loop_.blocks.contains(&context.source_block).then_some(context)
             } else {
@@ -255,7 +257,14 @@ fn unroll_loop_header<'a>(
 struct LoopIteration<'f> {
     function: &'f mut Function,
     loop_: &'f Loop,
+
+    /// Maps pre-unrolled ValueIds to unrolled ValueIds.
+    /// These will often be the exact same as before, unless the ValueId was
+    /// dependent on the loop induction variable which is changing on each iteration.
     values: HashMap<ValueId, ValueId>,
+
+    /// Maps pre-unrolled block ids from within the loop to new block ids of each loop
+    /// block for each loop iteration.
     blocks: HashMap<BasicBlockId, BasicBlockId>,
 
     /// Maps unrolled block ids back to the original source block ids
@@ -267,6 +276,8 @@ struct LoopIteration<'f> {
 
     /// The induction value (and the block it was found in) is the new value for
     /// the variable traditionally called `i` on each iteration of the loop.
+    /// This is None until we visit the block which jumps back to the start of the
+    /// loop, at which point we record its value and the block it was found in.
     induction_value: Option<(BasicBlockId, ValueId)>,
 }
 
@@ -360,6 +371,7 @@ impl<'f> LoopIteration<'f> {
                     if constant.is_zero() { else_destination } else { then_destination };
 
                 self.source_block = self.get_original_block(destination);
+
                 let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
                 self.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
@@ -368,6 +380,11 @@ impl<'f> LoopIteration<'f> {
         }
     }
 
+    /// Map a ValueId in the original pre-unrolled ssa to its new id in the unrolled SSA.
+    /// This is often the same ValueId as most values don't change while unrolling. The main
+    /// exception is instructions referencing the induction variable (or the variable itself)
+    /// which may have been simplified to another form. Block parameters or values outside the
+    /// loop shouldn't change at all and won't be present inside self.values.
     fn get_value(&self, value: ValueId) -> ValueId {
         self.values.get(&value).copied().unwrap_or(value)
     }
@@ -470,6 +487,13 @@ mod tests {
         ssa_gen::Ssa,
     };
 
+    // basic_blocks_iter iterates over unreachable blocks as well, so we must filter those out.
+    fn count_reachable_blocks_in_main(ssa: &Ssa) -> usize {
+        let function = ssa.main();
+        let dom_tree = DominatorTree::with_function(function);
+        function.dfg.basic_blocks_iter().filter(|(block, _)| dom_tree.is_reachable(*block)).count()
+    }
+
     #[test]
     fn unroll_nested_loops() {
         // fn main() {
@@ -557,23 +581,87 @@ mod tests {
         let v7 = builder.insert_binary(v0, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v7]);
 
-        // basic_blocks_iter iterates over unreachable blocks as well, so we must filter those out.
-        let count_reachable_blocks = |ssa: &Ssa| {
-            let function = ssa.main();
-            let dom_tree = DominatorTree::with_function(function);
-            function
-                .dfg
-                .basic_blocks_iter()
-                .filter(|(block, _)| dom_tree.is_reachable(*block))
-                .count()
-        };
-
         let ssa = builder.finish();
-        assert_eq!(count_reachable_blocks(&ssa), 7);
+        assert_eq!(count_reachable_blocks_in_main(&ssa), 7);
 
-        // The final block count is not 1 because the block creates some unnecessary jmps.
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0():
+        //     constrain Field 0
+        //     constrain Field 0
+        //     constrain Field 0
+        //     constrain Field 0
+        //     jmp b23()
+        //   b23():
+        //     constrain Field 0
+        //     constrain Field 0
+        //     constrain Field 0
+        //     constrain Field 0
+        //     jmp b27()
+        //   b27():
+        //     constrain Field 0
+        //     constrain Field 0
+        //     constrain Field 0
+        //     constrain Field 0
+        //     jmp b31()
+        //   b31():
+        //     jmp b3()
+        //   b3():
+        //     return Field 0
+        // }
+        // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
         let ssa = ssa.unroll_loops();
-        assert_eq!(count_reachable_blocks(&ssa), 5);
+        assert_eq!(count_reachable_blocks_in_main(&ssa), 5);
+    }
+
+    // Test that the pass can still be run on loops which fail to unroll properly
+    #[test]
+    fn fail_to_unroll_loop() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     jmp b1(v0)
+        //   b1(v1: Field):
+        //     v2 = lt v1, 5
+        //     jmpif v2, then: b2, else: b3
+        //   b2():
+        //     v3 = add v1, Field 1
+        //     jmp b1(v3)
+        //   b3():
+        //     return Field 0
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+
+        let v0 = builder.add_parameter(Type::field());
+        let v1 = builder.add_block_parameter(b1, Type::field());
+
+        builder.terminate_with_jmp(b1, vec![v0]);
+
+        builder.switch_to_block(b1);
+        let five = builder.field_constant(5u128);
+        let v2 = builder.insert_binary(v1, BinaryOp::Lt, five);
+        builder.terminate_with_jmpif(v2, b2, b3);
+
+        builder.switch_to_block(b2);
+        let one = builder.field_constant(1u128);
+        let v3 = builder.insert_binary(v1, BinaryOp::Add, one);
+        builder.terminate_with_jmp(b1, vec![v3]);
+
+        builder.switch_to_block(b3);
+        let zero = builder.field_constant(0u128);
+        builder.terminate_with_return(vec![zero]);
+
+        let ssa = builder.finish();
+        assert_eq!(count_reachable_blocks_in_main(&ssa), 4);
+
+        // Expected ssa is unchanged
+        let ssa = ssa.unroll_loops();
+        assert_eq!(count_reachable_blocks_in_main(&ssa), 4);
     }
 }
