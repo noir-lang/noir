@@ -105,7 +105,6 @@ fn top_level_statement(
         struct_definition(),
         implementation(),
         type_alias_definition().then_ignore(force(just(Token::Semicolon))),
-        submodule(module_parser),
         submodule(module_parser.clone()),
         contract(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),

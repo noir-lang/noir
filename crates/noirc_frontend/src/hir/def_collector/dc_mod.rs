@@ -202,8 +202,7 @@ impl<'a> ModCollector<'a> {
             let ty_alias_id = TyAliasId(ModuleId { krate, local_id: self.module_id });
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .scope
-                .define_type_alias_def(name, ty_alias_id);
+                .declare_type_alias(name, ty_alias_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
