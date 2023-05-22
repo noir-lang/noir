@@ -11,6 +11,218 @@ use noirc_errors::Span;
 
 use crate::{node_interner::StructId, Ident, Signedness};
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum Type {
+    /// A primitive Field type, and whether or not it is known at compile-time.
+    FieldElement(CompTime),
+
+    /// Array(N, E) is an array of N elements of type E. It is expected that N
+    /// is either a type variable of some kind or a Type::Constant.
+    Array(Box<Type>, Box<Type>),
+
+    /// A primitive integer type with the given sign, bit count, and whether it is known at compile-time.
+    /// E.g. `u32` would be `Integer(CompTime::No(None), Unsigned, 32)`
+    Integer(CompTime, Signedness, u32),
+
+    /// The primitive `bool` type. Like other primitive types, whether booleans are known at CompTime
+    /// is also tracked. Unlike the other primitives however, it isn't as useful since it is
+    /// primarily only used when converting between a bool and an integer type for indexing arrays.
+    Bool(CompTime),
+
+    /// String(N) is an array of characters of length N. It is expected that N
+    /// is either a type variable of some kind or a Type::Constant.
+    String(Box<Type>),
+
+    /// The unit type `()`.
+    Unit,
+
+    /// A user-defined struct type. The `Shared<StructType>` field here refers to
+    /// the shared definition for each instance of this struct type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this struct type.
+    Struct(Shared<StructType>, Vec<Type>),
+
+    /// A tuple type with the given list of fields in the order they appear in source code.
+    Tuple(Vec<Type>),
+
+    /// TypeVariables are stand-in variables for some type which is not yet known.
+    /// They are not to be confused with NamedGenerics. While the later mostly works
+    /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
+    /// will be automatically rebound as necessary to satisfy any calls to unify
+    /// and make_subtype_of.
+    ///
+    /// TypeVariables are often created when a generic function is instantiated. This
+    /// is a process that replaces each NamedGeneric in a generic function with a TypeVariable.
+    /// Doing this at each call site of a generic function is how they can be called with
+    /// different argument types each time.
+    TypeVariable(TypeVariable),
+
+    /// A generic integer or field type. This is a more specific kind of TypeVariable
+    /// that can only be bound to Type::Field, Type::Integer, or other PolymorphicIntegers.
+    /// This is the type of undecorated integer literals like `46`. Typing them in this way
+    /// allows them to be polymorphic over the actual integer/field type used without requiring
+    /// type annotations on each integer literal.
+    PolymorphicInteger(CompTime, TypeVariable),
+
+    /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
+    /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
+    NamedGeneric(TypeVariable, Rc<String>),
+
+    /// A functions with arguments, and a return type.
+    Function(Vec<Type>, Box<Type>),
+
+    /// A variable-sized Vector type.
+    /// Unlike arrays, this type can have a dynamic size and can grow/shrink dynamically via .push,
+    /// .pop, and similar methods.
+    Vec(Box<Type>),
+
+    /// A type generic over the given type variables.
+    /// Storing both the TypeVariableId and TypeVariable isn't necessary
+    /// but it makes handling them both easier. The TypeVariableId should
+    /// never be bound over during type checking, but during monomorphization it
+    /// will be and thus needs the full TypeVariable link.
+    Forall(Generics, Box<Type>),
+
+    /// A type-level integer. Included to let an Array's size type variable
+    /// bind to an integer without special checks to bind it to a non-type.
+    Constant(u64),
+
+    /// The result of some type error. Remembering type errors as their own type variant lets
+    /// us avoid issuing repeat type errors for the same item. For example, a lambda with
+    /// an invalid type would otherwise issue a new error each time it is called
+    /// if not for this variant.
+    Error,
+}
+
+/// A list of TypeVariableIds to bind to a type. Storing the
+/// TypeVariable in addition to the matching TypeVariableId allows
+/// the binding to later be undone if needed.
+pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Type)>;
+
+/// Represents a struct type in the type system. Each instance of this
+/// rust struct will be shared across all Type::Struct variants that represent
+/// the same struct type.
+#[derive(Debug, Eq)]
+pub struct StructType {
+    /// A unique id representing this struct type. Used to check if two
+    /// struct types are equal.
+    pub id: StructId,
+
+    pub name: Ident,
+
+    /// Fields are ordered and private, they should only
+    /// be accessed through get_field(), get_fields(), or instantiate()
+    /// since these will handle applying generic arguments to fields as well.
+    fields: BTreeMap<Ident, Type>,
+
+    pub generics: Generics,
+    pub span: Span,
+}
+
+/// Corresponds to generic lists such as `<T, U>` in the source
+/// program. The `TypeVariableId` portion is used to match two
+/// type variables to check for equality, while the `TypeVariable` is
+/// the actual part that can be mutated to bind it to another type.
+pub type Generics = Vec<(TypeVariableId, TypeVariable)>;
+
+impl std::hash::Hash for StructType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for StructType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl StructType {
+    pub fn new(
+        id: StructId,
+        name: Ident,
+        span: Span,
+        fields: BTreeMap<Ident, Type>,
+        generics: Generics,
+    ) -> StructType {
+        StructType { id, fields, name, span, generics }
+    }
+
+    /// To account for cyclic references between structs, a struct's
+    /// fields are resolved strictly after the struct itself is initially
+    /// created. Therefore, this method is used to set the fields once they
+    /// become known.
+    pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {
+        assert!(self.fields.is_empty());
+        self.fields = fields;
+    }
+
+    pub fn num_fields(&self) -> usize {
+        self.fields.len()
+    }
+
+    /// Returns the field matching the given field name, as well as its field index.
+    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<(Type, usize)> {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        self.fields.iter().enumerate().find(|(_, (name, _))| name.0.contents == field_name).map(
+            |(i, (_, typ))| {
+                let substitutions = self
+                    .generics
+                    .iter()
+                    .zip(generic_args)
+                    .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+                    .collect();
+
+                (typ.substitute(&substitutions), i)
+            },
+        )
+    }
+
+    /// Returns all the fields of this type, after being applied to the given generic arguments.
+    pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        let substitutions = self
+            .generics
+            .iter()
+            .zip(generic_args)
+            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .collect();
+
+        self.fields
+            .iter()
+            .map(|(name, typ)| {
+                let name = name.0.contents.clone();
+                (name, typ.substitute(&substitutions))
+            })
+            .collect()
+    }
+
+    pub fn field_names(&self) -> BTreeSet<Ident> {
+        self.fields.keys().cloned().collect()
+    }
+
+    /// True if the given index is the same index as a generic type of this struct
+    /// which is expected to be a numeric generic.
+    /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
+    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
+        let target_id = self.generics[index_of_generic].0;
+        self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
+    }
+
+    /// Instantiate this struct type, returning a Vec of the new generic args (in
+    /// the same order as self.generics)
+    pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
+        vecmap(&self.generics, |_| interner.next_type_variable())
+    }
+}
+
+impl std::fmt::Display for StructType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 /// A shared, mutable reference to some T.
 /// Wrapper is required for Hash impl of RefCell.
 #[derive(Debug, Eq, PartialOrd, Ord)]
@@ -18,7 +230,7 @@ pub struct Shared<T>(Rc<RefCell<T>>);
 
 impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.borrow().hash(state)
+        self.0.borrow().hash(state);
     }
 }
 
@@ -56,147 +268,6 @@ impl<T> Shared<T> {
     }
 }
 
-/// A list of TypeVariableIds to bind to a type. Storing the
-/// TypeVariable in addition to the matching TypeVariableId allows
-/// the binding to later be undone if needed.
-pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Type)>;
-
-#[derive(Debug, Eq)]
-pub struct StructType {
-    pub id: StructId,
-    pub name: Ident,
-
-    /// Fields are ordered and private, they should only
-    /// be accessed through get_field(), get_fields(), or instantiate()
-    /// since these will handle applying generic arguments to fields as well.
-    fields: BTreeMap<Ident, Type>,
-
-    pub generics: Generics,
-    pub span: Span,
-}
-
-pub type Generics = Vec<(TypeVariableId, TypeVariable)>;
-
-impl std::hash::Hash for StructType {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
-    }
-}
-
-impl PartialEq for StructType {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl StructType {
-    pub fn new(
-        id: StructId,
-        name: Ident,
-        span: Span,
-        fields: BTreeMap<Ident, Type>,
-        generics: Generics,
-    ) -> StructType {
-        StructType { id, fields, name, span, generics }
-    }
-
-    pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {
-        assert!(self.fields.is_empty());
-        self.fields = fields;
-    }
-
-    pub fn num_fields(&self) -> usize {
-        self.fields.len()
-    }
-
-    /// Returns the field matching the given field name, as well as its field index.
-    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<(Type, usize)> {
-        assert_eq!(self.generics.len(), generic_args.len());
-
-        self.fields.iter().enumerate().find(|(_, (name, _))| name.0.contents == field_name).map(
-            |(i, (_, typ))| {
-                let substitutions = self
-                    .generics
-                    .iter()
-                    .zip(generic_args)
-                    .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
-                    .collect();
-
-                (typ.substitute(&substitutions), i)
-            },
-        )
-    }
-
-    pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
-        assert_eq!(self.generics.len(), generic_args.len());
-
-        let substitutions = self
-            .generics
-            .iter()
-            .zip(generic_args)
-            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
-            .collect();
-
-        self.fields
-            .iter()
-            .map(|(name, typ)| {
-                let name = name.0.contents.clone();
-                (name, typ.substitute(&substitutions))
-            })
-            .collect()
-    }
-
-    pub fn field_names(&self) -> BTreeSet<Ident> {
-        self.fields.keys().cloned().collect()
-    }
-
-    /// Instantiate this struct type, returning a Vec of the new generic args (in
-    /// the same order as self.generics)
-    pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
-        vecmap(&self.generics, |_| interner.next_type_variable())
-    }
-}
-
-impl std::fmt::Display for StructType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum Type {
-    FieldElement(CompTime),
-    Array(Box<Type>, Box<Type>),        // Array(4, Field) = [Field; 4]
-    Integer(CompTime, Signedness, u32), // u32 = Integer(unsigned, 32)
-    PolymorphicInteger(CompTime, TypeVariable),
-    Bool(CompTime),
-    String(Box<Type>),
-    Unit,
-    Struct(Shared<StructType>, Vec<Type>),
-    Tuple(Vec<Type>),
-    TypeVariable(TypeVariable),
-
-    /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
-    /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
-    NamedGeneric(TypeVariable, Rc<String>),
-
-    /// A functions with arguments, and a return type.
-    Function(Vec<Type>, Box<Type>),
-
-    /// A type generic over the given type variables.
-    /// Storing both the TypeVariableId and TypeVariable isn't necessary
-    /// but it makes handling them both easier. The TypeVariableId should
-    /// never be bound over during type checking, but during monomorphization it
-    /// will be and thus needs the full TypeVariable link.
-    Forall(Generics, Box<Type>),
-
-    /// A type-level integer. Included to let an Array's size type variable
-    /// bind to an integer without special checks to bind it to a non-type.
-    Constant(u64),
-
-    Error,
-}
-
 /// A restricted subset of binary operators useable on
 /// type level integers for use in the array length positions of types.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -208,8 +279,12 @@ pub enum BinaryTypeOperator {
     Modulo,
 }
 
+/// A TypeVariable is a mutable reference that is either
+/// bound to some type, or unbound with a given TypeVariableId.
 pub type TypeVariable = Shared<TypeBinding>;
 
+/// TypeBindings are the mutable insides of a TypeVariable.
+/// They are either bound to some type, or are unbound.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeBinding {
     Bound(Type),
@@ -222,16 +297,31 @@ impl TypeBinding {
     }
 }
 
+/// A unique ID used to differentiate different type variables
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVariableId(pub usize);
 
+/// Noir's type system keeps track of whether or not every primitive type's value
+/// is known at compile-time. This is exposed through users through the `comptime`
+/// keyword in noir which can be prefixed before primitive types. A usage like
+/// `t: comptime Field` would correspond to a Field type with a CompTime::Yes(None)
+/// variant of this enum
+///
+/// Note that whether or not a variable is comptime can also be inferred based on its use.
+/// A value passed to a function that expects a `comptime Field` must be CompTime::Yes,
+/// likewise a parameter of the current function that is just a `Field` can only be CompTime::No.
+/// There is also the case of integer literals which are typed as CompTime::Maybe. These are
+/// polymorphically comptime because they can be used in both contexts.
 #[derive(Debug, Clone, Eq)]
 pub enum CompTime {
     // Yes and No variants have optional spans representing the location in the source code
     // which caused them to be compile time.
     Yes(Option<Span>),
     No(Option<Span>),
-    Maybe(TypeVariableId, Rc<RefCell<Option<CompTime>>>),
+
+    /// Maybe has an id and shared inner reference that can be rebound later to
+    /// another specific CompTime variant.
+    Maybe(TypeVariableId, Shared<Option<CompTime>>),
 }
 
 impl std::hash::Hash for CompTime {
@@ -278,9 +368,11 @@ pub enum SpanKind {
 impl CompTime {
     pub fn new(interner: &mut NodeInterner) -> Self {
         let id = interner.next_type_variable_id();
-        Self::Maybe(id, Rc::new(RefCell::new(None)))
+        Self::Maybe(id, Shared::new(None))
     }
 
+    /// Set the Span on this CompTime (if it has one) to keep track of
+    /// when it was last changed to give better error messages.
     fn set_span(&mut self, new_span: Span) {
         match self {
             CompTime::Yes(span) | CompTime::No(span) => *span = Some(new_span),
@@ -453,6 +545,58 @@ impl Type {
     pub fn is_field(&self) -> bool {
         matches!(self.follow_bindings(), Type::FieldElement(_))
     }
+
+    fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
+        // True if the given type is a NamedGeneric with the target_id
+        let named_generic_id_matches_target = |typ: &Type| {
+            if let Type::NamedGeneric(type_variable, _) = typ {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(_) => {
+                        unreachable!("Named generics should not be bound until monomorphization")
+                    }
+                    TypeBinding::Unbound(id) => target_id == *id,
+                }
+            } else {
+                false
+            }
+        };
+
+        match self {
+            Type::FieldElement(_)
+            | Type::Integer(_, _, _)
+            | Type::Bool(_)
+            | Type::String(_)
+            | Type::Unit
+            | Type::Error
+            | Type::TypeVariable(_)
+            | Type::PolymorphicInteger(_, _)
+            | Type::Constant(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Forall(_, _) => false,
+
+            Type::Array(length, elem) => {
+                elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
+            }
+
+            Type::Tuple(fields) => {
+                fields.iter().any(|field| field.contains_numeric_typevar(target_id))
+            }
+            Type::Function(parameters, return_type) => {
+                parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
+                    || return_type.contains_numeric_typevar(target_id)
+            }
+            Type::Struct(struct_type, generics) => {
+                generics.iter().enumerate().any(|(i, generic)| {
+                    if named_generic_id_matches_target(generic) {
+                        struct_type.borrow().generic_is_numeric(i)
+                    } else {
+                        generic.contains_numeric_typevar(target_id)
+                    }
+                })
+            }
+            Type::Vec(element) => element.contains_numeric_typevar(target_id),
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -507,6 +651,9 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
+            Type::Vec(element) => {
+                write!(f, "Vec<{element}>")
+            }
         }
     }
 }
@@ -558,7 +705,7 @@ impl Type {
     pub fn set_comp_time_span(&mut self, new_span: Span) {
         match self {
             Type::FieldElement(comptime) | Type::Integer(comptime, _, _) => {
-                comptime.set_span(new_span)
+                comptime.set_span(new_span);
             }
             Type::PolymorphicInteger(span, binding) => {
                 if let TypeBinding::Bound(binding) = &mut *binding.borrow_mut() {
@@ -718,7 +865,7 @@ impl Type {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(err_span) = self.try_unify(expected, span) {
-            Self::issue_errors(expected, err_span, errors, make_error)
+            Self::issue_errors(expected, err_span, errors, make_error);
         }
     }
 
@@ -837,6 +984,8 @@ impl Type {
                 }
             }
 
+            (Vec(elem_a), Vec(elem_b)) => elem_a.try_unify(elem_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -857,7 +1006,7 @@ impl Type {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(err_span) = self.is_subtype_of(expected, span) {
-            Self::issue_errors(expected, err_span, errors, make_error)
+            Self::issue_errors(expected, err_span, errors, make_error);
         }
     }
 
@@ -968,6 +1117,8 @@ impl Type {
                 }
             }
 
+            (Vec(elem_a), Vec(elem_b)) => elem_a.is_subtype_of(elem_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -978,6 +1129,8 @@ impl Type {
         }
     }
 
+    /// If this type is a Type::Constant (used in array lengths), or is bound
+    /// to a Type::Constant, return the constant as a u64.
     pub fn evaluate_to_u64(&self) -> Option<u64> {
         match self {
             Type::PolymorphicInteger(_, binding)
@@ -1036,6 +1189,7 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
+            Type::Vec(_) => unreachable!("Vecs cannot be used in the abi"),
         }
     }
 
@@ -1149,6 +1303,7 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
+            Type::Vec(element) => Type::Vec(Box::new(element.substitute(type_bindings))),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1159,8 +1314,7 @@ impl Type {
         }
     }
 
-    /// True if the given TypeVariableId is free anywhere
-    /// within self
+    /// True if the given TypeVariableId is free anywhere within self
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
@@ -1179,6 +1333,7 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
+            Type::Vec(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1220,6 +1375,7 @@ impl Type {
                 let ret = Box::new(ret.follow_bindings());
                 Function(args, ret)
             }
+            Vec(element) => Vec(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),

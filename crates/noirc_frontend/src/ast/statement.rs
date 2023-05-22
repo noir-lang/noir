@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::lexer::token::SpannedToken;
-use crate::parser::ParserError;
+use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 use crate::{Expression, ExpressionKind, IndexExpression, MemberAccessExpression, UnresolvedType};
 use iter_extended::vecmap;
@@ -13,6 +13,112 @@ use noirc_errors::{Span, Spanned};
 /// should also check for this ident to avoid issuing multiple errors
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
+
+/// Ast node for statements in noir. Statements are always within a block { }
+/// of some kind and are terminated via a Semicolon, except if the statement
+/// ends in a block, such as a Statement::Expression containing an if expression.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Statement {
+    Let(LetStatement),
+    Constrain(ConstrainStatement),
+    Expression(Expression),
+    Assign(AssignStatement),
+    // This is an expression with a trailing semi-colon
+    Semi(Expression),
+    // This statement is the result of a recovered parse error.
+    // To avoid issuing multiple errors in later steps, it should
+    // be skipped in any future analysis if possible.
+    Error,
+}
+
+impl Recoverable for Statement {
+    fn error(_: Span) -> Self {
+        Statement::Error
+    }
+}
+
+impl Statement {
+    pub fn new_let(
+        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+    ) -> Statement {
+        Statement::Let(LetStatement { pattern, r#type, expression })
+    }
+
+    pub fn add_semicolon(
+        self,
+        semi: Option<Token>,
+        span: Span,
+        last_statement_in_block: bool,
+        emit_error: &mut dyn FnMut(ParserError),
+    ) -> Statement {
+        let missing_semicolon =
+            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
+        match self {
+            Statement::Let(_)
+            | Statement::Constrain(_)
+            | Statement::Assign(_)
+            | Statement::Semi(_)
+            | Statement::Error => {
+                // To match rust, statements always require a semicolon, even at the end of a block
+                if semi.is_none() {
+                    emit_error(missing_semicolon);
+                }
+                self
+            }
+
+            Statement::Expression(expr) => {
+                match (&expr.kind, semi, last_statement_in_block) {
+                    // Semicolons are optional for these expressions
+                    (ExpressionKind::Block(_), semi, _)
+                    | (ExpressionKind::For(_), semi, _)
+                    | (ExpressionKind::If(_), semi, _) => {
+                        if semi.is_some() {
+                            Statement::Semi(expr)
+                        } else {
+                            Statement::Expression(expr)
+                        }
+                    }
+
+                    // Don't wrap expressions that are not the last expression in
+                    // a block in a Semi so that we can report errors in the type checker
+                    // for unneeded expressions like { 1 + 2; 3 }
+                    (_, Some(_), false) => Statement::Expression(expr),
+                    (_, None, false) => {
+                        emit_error(missing_semicolon);
+                        Statement::Expression(expr)
+                    }
+
+                    (_, Some(_), true) => Statement::Semi(expr),
+                    (_, None, true) => Statement::Expression(expr),
+                }
+            }
+        }
+    }
+
+    /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
+    pub fn assign(
+        lvalue: LValue,
+        operator: Token,
+        mut expression: Expression,
+        span: Span,
+    ) -> Statement {
+        // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
+        // which is currently enforced by the restricted syntax of LValues.
+        if operator != Token::Assign {
+            let lvalue_expr = lvalue.as_expression(span);
+            let error_msg = "Token passed to Statement::assign is not a binary operator";
+
+            let infix = crate::InfixExpression {
+                lhs: lvalue_expr,
+                operator: operator.try_into_binary_op(span).expect(error_msg),
+                rhs: expression,
+            };
+            expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
+        }
+
+        Statement::Assign(AssignStatement { lvalue, expression })
+    }
+}
 
 #[derive(Eq, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
@@ -117,111 +223,6 @@ impl<T> Recoverable for Vec<T> {
 /// to return an Error node of the appropriate type.
 pub trait Recoverable {
     fn error(span: Span) -> Self;
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Statement {
-    Let(LetStatement),
-    Constrain(ConstrainStatement),
-    Expression(Expression),
-    Assign(AssignStatement),
-    // This is an expression with a trailing semi-colon
-    // terminology Taken from rustc
-    Semi(Expression),
-
-    // This statement is the result of a recovered parse error.
-    // To avoid issuing multiple errors in later steps, it should
-    // be skipped in any future analysis if possible.
-    Error,
-}
-
-impl Recoverable for Statement {
-    fn error(_: Span) -> Self {
-        Statement::Error
-    }
-}
-
-impl Statement {
-    pub fn new_let(
-        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
-    ) -> Statement {
-        Statement::Let(LetStatement { pattern, r#type, expression })
-    }
-
-    pub fn add_semicolon(
-        self,
-        semi: Option<Token>,
-        span: Span,
-        last_statement_in_block: bool,
-        emit_error: &mut dyn FnMut(ParserError),
-    ) -> Statement {
-        match self {
-            Statement::Let(_)
-            | Statement::Constrain(_)
-            | Statement::Assign(_)
-            | Statement::Semi(_)
-            | Statement::Error => {
-                // To match rust, statements always require a semicolon, even at the end of a block
-                if semi.is_none() {
-                    let reason = "Expected a ; separating these two statements".to_string();
-                    emit_error(ParserError::with_reason(reason, span));
-                }
-                self
-            }
-
-            Statement::Expression(expr) => {
-                match (&expr.kind, semi, last_statement_in_block) {
-                    // Semicolons are optional for these expressions
-                    (ExpressionKind::Block(_), semi, _)
-                    | (ExpressionKind::For(_), semi, _)
-                    | (ExpressionKind::If(_), semi, _) => {
-                        if semi.is_some() {
-                            Statement::Semi(expr)
-                        } else {
-                            Statement::Expression(expr)
-                        }
-                    }
-
-                    // Don't wrap expressions that are not the last expression in
-                    // a block in a Semi so that we can report errors in the type checker
-                    // for unneeded expressions like { 1 + 2; 3 }
-                    (_, Some(_), false) => Statement::Expression(expr),
-                    (_, None, false) => {
-                        let reason = "Expected a ; separating these two statements".to_string();
-                        emit_error(ParserError::with_reason(reason, span));
-                        Statement::Expression(expr)
-                    }
-
-                    (_, Some(_), true) => Statement::Semi(expr),
-                    (_, None, true) => Statement::Expression(expr),
-                }
-            }
-        }
-    }
-
-    /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
-    pub fn assign(
-        lvalue: LValue,
-        operator: Token,
-        mut expression: Expression,
-        span: Span,
-    ) -> Statement {
-        // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-        // which is currently enforced by the restricted syntax of LValues.
-        if operator != Token::Assign {
-            let lvalue_expr = lvalue.as_expression(span);
-            let error_msg = "Token passed to Statement::assign is not a binary operator";
-
-            let infix = crate::InfixExpression {
-                lhs: lvalue_expr,
-                operator: operator.try_into_binary_op(span).expect(error_msg),
-                rhs: expression,
-            };
-            expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
-        }
-
-        Statement::Assign(AssignStatement { lvalue, expression })
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

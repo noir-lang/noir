@@ -13,40 +13,40 @@ use std::collections::{HashMap, HashSet, VecDeque};
 const MAX_SHORT_CIRCUIT_LEN: usize = 4;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum BlockType {
+pub(crate) enum BlockType {
     Normal,
     ForJoin,
     IfJoin,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct BlockId(pub arena::Index);
+pub(crate) struct BlockId(pub(super) arena::Index);
 
 impl BlockId {
-    pub fn dummy() -> BlockId {
+    pub(super) fn dummy() -> BlockId {
         BlockId(SsaContext::dummy_id())
     }
-    pub fn is_dummy(&self) -> bool {
+    pub(super) fn is_dummy(&self) -> bool {
         *self == BlockId::dummy()
     }
 }
 
 #[derive(Debug)]
-pub struct BasicBlock {
-    pub id: BlockId,
-    pub kind: BlockType,
-    pub dominator: Option<BlockId>, //direct dominator
-    pub dominated: Vec<BlockId>,    //dominated sons
-    pub predecessor: Vec<BlockId>,  //for computing the dominator tree
-    pub left: Option<BlockId>,      //sequential successor
-    pub right: Option<BlockId>,     //jump successor
-    pub instructions: Vec<NodeId>,
-    pub value_map: HashMap<NodeId, NodeId>, //for generating the ssa form
-    pub assumption: AssumptionId,
+pub(crate) struct BasicBlock {
+    pub(crate) id: BlockId,
+    pub(crate) kind: BlockType,
+    pub(crate) dominator: Option<BlockId>, //direct dominator
+    pub(crate) dominated: Vec<BlockId>,    //dominated sons
+    pub(crate) predecessor: Vec<BlockId>,  //for computing the dominator tree
+    pub(crate) left: Option<BlockId>,      //sequential successor
+    pub(crate) right: Option<BlockId>,     //jump successor
+    pub(crate) instructions: Vec<NodeId>,
+    pub(crate) value_map: HashMap<NodeId, NodeId>, //for generating the ssa form
+    pub(crate) assumption: AssumptionId,
 }
 
 impl BasicBlock {
-    pub fn new(prev: BlockId, kind: BlockType) -> BasicBlock {
+    pub(crate) fn new(prev: BlockId, kind: BlockType) -> BasicBlock {
         BasicBlock {
             id: BlockId(SsaContext::dummy_id()),
             predecessor: vec![prev],
@@ -61,26 +61,26 @@ impl BasicBlock {
         }
     }
 
-    pub fn get_current_value(&self, id: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_current_value(&self, id: NodeId) -> Option<NodeId> {
         self.value_map.get(&id).copied()
     }
 
     //When generating a new instance of a variable because of ssa, we update the value array
     //to link the two variables
-    pub fn update_variable(&mut self, old_value: NodeId, new_value: NodeId) {
+    pub(crate) fn update_variable(&mut self, old_value: NodeId, new_value: NodeId) {
         self.value_map.insert(old_value, new_value);
     }
 
-    pub fn get_first_instruction(&self) -> NodeId {
+    pub(crate) fn get_first_instruction(&self) -> NodeId {
         self.instructions[0]
     }
 
-    pub fn is_join(&self) -> bool {
+    pub(crate) fn is_join(&self) -> bool {
         self.kind == BlockType::ForJoin
     }
 
     //Create the first block for a CFG
-    pub fn create_cfg(ctx: &mut SsaContext) -> BlockId {
+    pub(crate) fn create_cfg(ctx: &mut SsaContext) -> BlockId {
         let root_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
         let root_block = ctx.insert_block(root_block);
         root_block.predecessor = Vec::new();
@@ -91,7 +91,7 @@ impl BasicBlock {
         root_id
     }
 
-    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<ArrayId> {
+    pub(crate) fn written_arrays(&self, ctx: &SsaContext) -> HashSet<ArrayId> {
         let mut result = HashSet::new();
         for i in &self.instructions {
             if let Some(node::Instruction {
@@ -108,7 +108,7 @@ impl BasicBlock {
                         result.insert(*a);
                     }
                     node::Operation::Intrinsic(..) => {
-                        if let node::ObjectType::Pointer(a) = ins.res_type {
+                        if let node::ObjectType::ArrayPointer(a) = ins.res_type {
                             result.insert(a);
                         }
                     }
@@ -118,7 +118,7 @@ impl BasicBlock {
                         }
                         if let Some(f) = ctx.try_get_ssa_func(*func) {
                             for typ in &f.result_types {
-                                if let node::ObjectType::Pointer(a) = typ {
+                                if let node::ObjectType::ArrayPointer(a) = typ {
                                     result.insert(*a);
                                 }
                             }
@@ -164,14 +164,14 @@ impl BasicBlock {
     }
 }
 
-pub fn create_first_block(ctx: &mut SsaContext) {
+pub(crate) fn create_first_block(ctx: &mut SsaContext) {
     ctx.first_block = BasicBlock::create_cfg(ctx);
 }
 
 //Creates a new sealed block (i.e whose predecessors are known)
 //It is not suitable for the first block because it uses the current block.
 //if left is true, the new block is left to the current block
-pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
+pub(crate) fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
     let current_block = ctx.current_block;
     let new_block = BasicBlock::new(ctx.current_block, kind);
     let new_block = ctx.insert_block(new_block);
@@ -191,7 +191,7 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> Bl
 }
 
 //if left is true, the new block is left to the current block
-pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
+pub(crate) fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
     let current_block = ctx.current_block;
     let new_block = create_block(ctx, kind);
     new_block.dominator = Some(current_block);
@@ -211,13 +211,13 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
 }
 
 //create a block and sets its id, but do not update current block, and do not add dummy instruction!
-pub fn create_block(ctx: &mut SsaContext, kind: BlockType) -> &mut BasicBlock {
+pub(crate) fn create_block(ctx: &mut SsaContext, kind: BlockType) -> &mut BasicBlock {
     let new_block = BasicBlock::new(ctx.current_block, kind);
     ctx.insert_block(new_block)
 }
 
 //link the current block to the target block so that current block becomes its target
-pub fn link_with_target(
+pub(crate) fn link_with_target(
     ctx: &mut SsaContext,
     target: BlockId,
     left: Option<BlockId>,
@@ -236,7 +236,7 @@ pub fn link_with_target(
     }
 }
 
-pub fn compute_dom(ctx: &mut SsaContext) {
+pub(crate) fn compute_dom(ctx: &mut SsaContext) {
     let mut dominator_link = HashMap::new();
 
     for block in ctx.iter_blocks() {
@@ -254,7 +254,7 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     }
 }
 
-pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
+pub(crate) fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
     let mut dominator_link = HashMap::new();
 
     for &block_id in blocks {
@@ -272,7 +272,7 @@ pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
 }
 
 //breadth-first traversal of the CFG, from start, until we reach stop
-pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<BlockId> {
+pub(crate) fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<BlockId> {
     let mut result = vec![start]; //list of blocks in the visited subgraph
     let mut queue = VecDeque::new(); //Queue of elements to visit
     queue.push_back(start);
@@ -300,7 +300,7 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
 }
 
 //Find the exit (i.e join) block from a IF (i.e split) block
-pub fn find_join(ctx: &SsaContext, block_id: BlockId) -> BlockId {
+pub(crate) fn find_join(ctx: &SsaContext, block_id: BlockId) -> BlockId {
     let mut processed = HashMap::new();
     find_join_helper(ctx, block_id, &mut processed)
 }
@@ -337,7 +337,7 @@ fn find_join_helper(
 
 // Find the LCA of x and y
 // n.b. this is a naive implementation which assumes there is no cycle in the graph, so it should be used after loop flattening
-pub fn lca(ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
+pub(super) fn lca(ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
     if x == y {
         return x;
     }
@@ -396,7 +396,7 @@ fn get_only_descendant(
 
 //Set left as the left block of block_id
 //Set block_id as the only parent of left
-pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId) {
+pub(super) fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId) {
     let block = &mut ctx[block_id];
     if let Some(old_left) = block.left {
         if left != old_left {
@@ -415,7 +415,7 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
 }
 
 //replace all instructions by a false constraint, except for return instruction which is kept and zeroed
-pub fn short_circuit_instructions(
+pub(super) fn short_circuit_instructions(
     ctx: &mut SsaContext,
     target: BlockId,
     instructions: &[NodeId],
@@ -430,7 +430,7 @@ pub fn short_circuit_instructions(
         Some(target),
     ));
     let nop = instructions[0];
-    debug_assert_eq!(ctx.get_instruction(nop).operation, node::Operation::Nop);
+    debug_assert_eq!(ctx.instruction(nop).operation, node::Operation::Nop);
     let mut stack = vec![nop, unreachable_ins];
     //return:
     for &i in instructions.iter() {
@@ -446,30 +446,34 @@ pub fn short_circuit_instructions(
 }
 
 //replace all instructions in the target block by a false constraint, except for return instruction
-pub fn short_circuit_inline(ctx: &mut SsaContext, target: BlockId) {
+pub(super) fn short_circuit_inline(ctx: &mut SsaContext, target: BlockId) {
     let instructions = ctx[target].instructions.clone();
     let stack = short_circuit_instructions(ctx, target, &instructions);
     ctx[target].instructions = stack;
 }
 
 //Delete all instructions in the block
-pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
+pub(super) fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
     let instructions = ctx[block_id].instructions.clone();
     zero_instructions(ctx, &instructions, None);
 }
 
 //Delete instructions and replace them with zeros, except for return instruction which is kept with zeroed return values, and the avoid instruction
-pub fn zero_instructions(ctx: &mut SsaContext, instructions: &[NodeId], avoid: Option<&NodeId>) {
+pub(super) fn zero_instructions(
+    ctx: &mut SsaContext,
+    instructions: &[NodeId],
+    avoid: Option<&NodeId>,
+) {
     let mut zeros = HashMap::new();
     let mut zero_keys = Vec::new();
     for i in instructions {
-        let ins = ctx.get_instruction(*i);
+        let ins = ctx.instruction(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             zeros.insert(ins.res_type, ctx.zero_with_type(ins.res_type));
         } else if let node::Operation::Return(ret) = &ins.operation {
             for i in ret {
                 if *i != NodeId::dummy() {
-                    let typ = ctx.get_object_type(*i);
+                    let typ = ctx.object_type(*i);
                     assert_ne!(typ, node::ObjectType::NotAnObject);
                     zero_keys.push(typ);
                 } else {
@@ -488,7 +492,7 @@ pub fn zero_instructions(ctx: &mut SsaContext, instructions: &[NodeId], avoid: O
     }
 
     for i in instructions.iter().filter(|x| Some(*x) != avoid) {
-        let ins = ctx.get_mut_instruction(*i);
+        let ins = ctx.instruction_mut(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
         } else if ins.operation.opcode() != Opcode::Nop {
@@ -503,7 +507,7 @@ pub fn zero_instructions(ctx: &mut SsaContext, instructions: &[NodeId], avoid: O
 }
 
 //merge subgraph from start to end in one block, excluding end
-pub fn merge_path(
+pub(super) fn merge_path(
     ctx: &mut SsaContext,
     start: BlockId,
     end: BlockId,
@@ -524,7 +528,18 @@ pub fn merge_path(
             removed_blocks.push_back(next);
 
             if short_circuit.is_dummy() {
-                instructions.extend(&block.instructions);
+                if instructions.is_empty() {
+                    instructions.extend(&block.instructions);
+                } else {
+                    let nonop = block.instructions.iter().filter(|&i| {
+                        if let Some(ins) = ctx.try_get_instruction(*i) {
+                            ins.operation.opcode() != Opcode::Nop
+                        } else {
+                            true
+                        }
+                    });
+                    instructions.extend(nonop);
+                }
             }
 
             if short_circuit.is_dummy() && block.is_short_circuit(ctx, assumption) {
@@ -566,7 +581,7 @@ pub fn merge_path(
 }
 
 // retrieve written arrays along the CFG until we reach stop
-pub fn written_along(
+pub(super) fn written_along(
     ctx: &SsaContext,
     block_id: BlockId,
     stop: BlockId,
@@ -592,7 +607,7 @@ pub fn written_along(
 }
 
 // compute the exit block of a graph
-pub fn exit(ctx: &SsaContext, block_id: BlockId) -> BlockId {
+pub(super) fn exit(ctx: &SsaContext, block_id: BlockId) -> BlockId {
     let block = &ctx[block_id];
     if let Some(left) = block.left {
         if left != BlockId::dummy() {

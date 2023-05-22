@@ -16,7 +16,7 @@ use std::{
 };
 
 //Returns the maximum bit size of short integers
-pub fn short_integer_max_bit_size() -> u32 {
+pub(super) fn short_integer_max_bit_size() -> u32 {
     //TODO: it should be FieldElement::max_num_bits()/2, but for now we do not support more than 128 bits as well
     //This allows us to do use u128 to represent integer constant values
     u32::min(FieldElement::max_num_bits() / 2, 128)
@@ -48,13 +48,14 @@ fn get_instruction_max_operand(
     value_map: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     match &ins.operation {
-        Operation::Load { array_id, index } => {
+        Operation::Load { array_id, index, .. } => {
             get_load_max(ctx, *index, max_map, value_map, *array_id)
         }
         Operation::Binary(node::Binary { operator, lhs, rhs, .. }) => {
             if let BinaryOp::Sub { .. } = operator {
                 //TODO uses interval analysis instead
-                if matches!(ins.res_type, ObjectType::Unsigned(_)) {
+                // Note that a boolean is also handled as an unsigned integer
+                if ins.res_type.is_unsigned_integer() {
                     if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
                         let lhs_big = BigUint::from_bytes_be(&lhs_const.to_be_bytes());
                         if max_map[rhs] <= lhs_big {
@@ -97,7 +98,7 @@ fn get_obj_max_value(
     let obj = &ctx[id];
 
     let result = match obj {
-        NodeObject::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
+        NodeObject::Variable(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObject::Instr(i) => get_instruction_max(ctx, i, max_map, value_map),
         NodeObject::Const(c) => c.value.clone(), //TODO panic for string constants
         NodeObject::Function(..) => BigUint::zero(),
@@ -202,7 +203,7 @@ fn process_to_truncate(
 }
 
 //Add required truncate instructions on all blocks
-pub fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
+pub(super) fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     let mut max_map: HashMap<NodeId, BigUint> = HashMap::new();
     let mut memory_map = HashMap::new();
     tree_overflow(ctx, ctx.first_block, &mut max_map, &mut memory_map)
@@ -266,14 +267,14 @@ fn block_overflow(
         let ins_max_bits = get_instruction_max(ctx, &ins, max_map, &value_map).bits();
         let res_type = ins.res_type;
 
-        let too_many_bits = ins_max_bits > FieldElement::max_num_bits() as u64
-            && res_type != ObjectType::NativeField;
+        let too_many_bits =
+            ins_max_bits > FieldElement::max_num_bits() as u64 && !res_type.is_native_field();
 
         ins.operation.for_each_id(|id| {
             get_obj_max_value(ctx, id, max_map, &value_map);
             let arg = ctx.try_get_node(id);
             let should_truncate_arg =
-                should_truncate_ins && arg.is_some() && get_type(arg) != ObjectType::NativeField;
+                should_truncate_ins && arg.is_some() && !get_type(arg).is_native_field();
 
             if should_truncate_arg || too_many_bits {
                 add_to_truncate(ctx, id, get_size_in_bits(arg), &mut truncate_map, max_map);
@@ -281,17 +282,21 @@ fn block_overflow(
         });
 
         match ins.operation {
-            Operation::Load { array_id, index } => {
+            Operation::Load { array_id, index, .. } => {
                 if let Some(val) = ctx.get_indexed_value(array_id, index) {
                     //optimize static load
                     ins.mark = Mark::ReplaceWith(*val);
                 }
             }
-            Operation::Store { array_id, index, value } => {
+            Operation::Store { array_id, index, value, predicate, .. } => {
                 if let Some(idx) = Memory::to_u32(ctx, index) {
-                    let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
-                    //optimize static store
-                    memory_map.insert(absolute_adr, value);
+                    if ctx.is_one(crate::ssa::conditional::DecisionTree::unwrap_predicate(
+                        ctx, &predicate,
+                    )) {
+                        let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
+                        //optimize static store
+                        memory_map.insert(absolute_adr, value);
+                    }
                 }
             }
             Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs, .. }) => {
@@ -307,21 +312,21 @@ fn block_overflow(
                     });
                 }
             }
-            Operation::Binary(node::Binary { operator: BinaryOp::Shr, lhs, rhs, .. }) => {
-                if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
+            Operation::Binary(node::Binary { operator: BinaryOp::Shr(loc), lhs, rhs, .. }) => {
+                if !ins.res_type.is_unsigned_integer() {
                     todo!("Right shift is only implemented for unsigned integers");
                 }
                 if let Some(r_const) = ctx.get_as_constant(rhs) {
                     let r_type = ctx[rhs].get_type();
                     if r_const.to_u128() > r_type.bits() as u128 {
-                        ins.mark = Mark::ReplaceWith(ctx.zero_with_type(ins.res_type))
+                        ins.mark = Mark::ReplaceWith(ctx.zero_with_type(ins.res_type));
                     } else {
                         let rhs = ctx
                             .get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
                         ins.operation = Operation::Binary(node::Binary {
                             lhs,
                             rhs,
-                            operator: BinaryOp::Udiv,
+                            operator: BinaryOp::Udiv(loc),
                             predicate: None,
                         });
                     }
@@ -416,7 +421,7 @@ fn update_value_array(
 }
 
 //Get current value using the provided value map
-pub fn get_value_from_map(id: NodeId, value_map: &HashMap<NodeId, NodeId>) -> NodeId {
+fn get_value_from_map(id: NodeId, value_map: &HashMap<NodeId, NodeId>) -> NodeId {
     *value_map.get(&id).unwrap_or(&id)
 }
 
@@ -490,7 +495,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Intrinsic(opcode, _) => opcode.get_max_value(),
     };
 
-    if ins.res_type == ObjectType::NativeField {
+    if ins.res_type.is_native_field() {
         let field_max = BigUint::from_bytes_be(&FieldElement::one().neg().to_be_bytes());
 
         //Native Field operations cannot overflow so they will not be truncated
@@ -524,11 +529,11 @@ fn get_binary_max_value(
         BinaryOp::SafeSub { .. } => todo!(),
         BinaryOp::Mul => lhs_max * rhs_max,
         BinaryOp::SafeMul => todo!(),
-        BinaryOp::Udiv => lhs_max.clone(),
-        BinaryOp::Sdiv => todo!(),
-        BinaryOp::Urem => rhs_max - BigUint::one(),
-        BinaryOp::Srem => todo!(),
-        BinaryOp::Div => FieldElement::modulus() - BigUint::one(),
+        BinaryOp::Udiv(_) => lhs_max.clone(),
+        BinaryOp::Sdiv(_) => todo!(),
+        BinaryOp::Urem(_) => rhs_max - BigUint::one(),
+        BinaryOp::Srem(_) => todo!(),
+        BinaryOp::Div(_) => FieldElement::modulus() - BigUint::one(),
         BinaryOp::Eq => BigUint::one(),
         BinaryOp::Ne => BigUint::one(),
         BinaryOp::Ult => BigUint::one(),
@@ -550,7 +555,7 @@ fn get_binary_max_value(
             BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
             res_type.max_size(),
         ),
-        BinaryOp::Shr => {
+        BinaryOp::Shr(_) => {
             if lhs_max.bits() >= 1 {
                 BigUint::from(2_u32).pow((lhs_max.bits() - 1) as u32) - BigUint::one()
             } else {

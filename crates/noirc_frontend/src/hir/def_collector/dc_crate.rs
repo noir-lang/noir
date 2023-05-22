@@ -1,6 +1,6 @@
 use super::dc_mod::collect_defs;
 use super::errors::DefCollectorErrorKind;
-use crate::graph::CrateId;
+use crate::graph::{CrateId, LOCAL_CRATE};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::resolver::Resolver;
@@ -8,12 +8,11 @@ use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
     path_resolver::StandardPathResolver,
 };
-use crate::hir::type_check::type_check;
-use crate::hir::type_check::type_check_func;
+use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TyAliasId};
 use crate::{
-    Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTyAlias, ParsedModule, Shared,
+    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Shared,
     Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
@@ -31,7 +30,7 @@ pub struct UnresolvedFunctions {
 
 impl UnresolvedFunctions {
     pub fn push_fn(&mut self, mod_id: LocalModuleId, func_id: FuncId, func: NoirFunction) {
-        self.functions.push((mod_id, func_id, func))
+        self.functions.push((mod_id, func_id, func));
     }
 }
 
@@ -130,16 +129,16 @@ impl DefCollector {
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // Resolve unresolved imports collected from the crate
-        let (unresolved, resolved) =
+        let (resolved, unresolved_imports) =
             resolve_imports(crate_id, def_collector.collected_imports, &context.def_maps);
 
         let current_def_map = context.def_maps.get(&crate_id).unwrap();
-        for unresolved_import in unresolved.into_iter() {
-            // File if that the import was declared
-            let file_id = current_def_map.modules[unresolved_import.module_id.0].origin.file_id();
-            let error = DefCollectorErrorKind::UnresolvedImport { import: unresolved_import };
-            errors.push(error.into_file_diagnostic(file_id));
-        }
+
+        errors.extend(vecmap(unresolved_imports, |(error, module_id)| {
+            let file_id = current_def_map.modules[module_id.0].origin.file_id();
+            let error = DefCollectorErrorKind::PathResolutionError(error);
+            error.into_file_diagnostic(file_id)
+        }));
 
         // Populate module namespaces according to the imports used
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
@@ -147,8 +146,7 @@ impl DefCollector {
             let name = resolved_import.name;
             for ns in resolved_import.resolved_namespace.iter_defs() {
                 let result = current_def_map.modules[resolved_import.module_scope.0]
-                    .scope
-                    .add_item_to_namespace(name.clone(), ns);
+                    .import(name.clone(), ns);
 
                 if let Err((first_def, second_def)) = result {
                     let err = DefCollectorErrorKind::DuplicateImport { first_def, second_def };
@@ -159,11 +157,24 @@ impl DefCollector {
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id);
+        //
+        // Additionally, we must resolve integer globals before structs since structs may refer to
+        // the values of integer globals as numeric generics.
+        let (integer_globals, other_globals) =
+            filter_integer_globals(def_collector.collected_globals);
 
+        let mut file_global_ids = resolve_globals(context, integer_globals, crate_id, errors);
+
+        // Must resolve structs before we resolve globals.
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id);
+
+        // We must wait to resolve non-integer globals until after we resolve structs since structs
+        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        let mut more_global_ids = resolve_globals(context, other_globals, crate_id, errors);
+
+        file_global_ids.append(&mut more_global_ids);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -190,6 +201,7 @@ impl DefCollector {
         );
 
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
+
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
@@ -221,14 +233,13 @@ fn collect_impls(
             extend_errors(errors, unresolved.file_id, resolver.take_errors());
 
             if let Some(type_module) = get_local_id_from_type(&typ) {
-                // Grab the scope defined by the struct type. Note that impls are a case
-                // where the scope the methods are added to is not the same as the scope
+                // Grab the module defined by the struct type. Note that impls are a case
+                // where the module the methods are added to is not the same as the module
                 // they are resolved in.
-                let scope = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0].scope;
+                let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
 
-                // .define_func_def(name, func_id);
                 for (_, method_id, method) in &unresolved.functions {
-                    let result = scope.define_func_def(method.name_ident().clone(), *method_id);
+                    let result = module.declare_function(method.name_ident().clone(), *method_id);
 
                     if let Err((first_def, second_def)) = result {
                         let err =
@@ -236,10 +247,13 @@ fn collect_impls(
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }
-            } else if typ != Type::Error {
+            // Prohibit defining impls for primitive types if we're in the local crate.
+            // We should really prevent it for all crates that aren't the noir stdlib but
+            // there is no way of checking if the current crate is the stdlib currently.
+            } else if typ != Type::Error && crate_id == LOCAL_CRATE {
                 let span = *span;
                 let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
-                errors.push(error.into_file_diagnostic(unresolved.file_id))
+                errors.push(error.into_file_diagnostic(unresolved.file_id));
             }
         }
     }
@@ -257,19 +271,29 @@ where
     Errs: IntoIterator<Item = Err>,
     Err: Into<CustomDiagnostic>,
 {
-    errors.extend(new_errors.into_iter().map(|err| err.into().in_file(file)))
+    errors.extend(new_errors.into_iter().map(|err| err.into().in_file(file)));
+}
+
+/// Separate the globals Vec into two. The first element in the tuple will be the
+/// integer literal globals, and the second will be all other globals.
+fn filter_integer_globals(
+    globals: Vec<UnresolvedGlobal>,
+) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
+    globals
+        .into_iter()
+        .partition(|global| matches!(&global.stmt_def.expression.kind, ExpressionKind::Literal(_)))
 }
 
 fn resolve_globals(
     context: &mut Context,
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, StmtId)> {
-    let mut global_ids = Vec::new();
-
-    for global in globals {
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: global.module_id, krate: crate_id });
+    vecmap(globals, |global| {
+        let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
+        let path_resolver = StandardPathResolver::new(module_id);
+        let storage_slot = context.next_storage_slot(module_id);
 
         let mut resolver = Resolver::new(
             &mut context.def_interner,
@@ -281,14 +305,14 @@ fn resolve_globals(
         let name = global.stmt_def.pattern.name_ident().clone();
 
         let hir_stmt = resolver.resolve_global_let(global.stmt_def);
+        extend_errors(errors, global.file_id, resolver.take_errors());
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name.clone(), global.module_id);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
 
-        global_ids.push((global.file_id, global.stmt_id));
-    }
-    global_ids
+        (global.file_id, global.stmt_id)
+    })
 }
 
 fn type_check_globals(
@@ -297,8 +321,7 @@ fn type_check_globals(
     all_errors: &mut Vec<FileDiagnostic>,
 ) {
     for (file_id, stmt_id) in global_ids {
-        let mut errors = vec![];
-        type_check(interner, &stmt_id, &mut errors);
+        let errors = TypeChecker::check_global(&stmt_id, interner);
         extend_errors(all_errors, file_id, errors);
     }
 }
@@ -482,6 +505,6 @@ fn type_check_functions(
     errors: &mut Vec<FileDiagnostic>,
 ) {
     for (file, func) in file_func_ids {
-        extend_errors(errors, file, type_check_func(interner, func))
+        extend_errors(errors, file, type_check_func(interner, func));
     }
 }

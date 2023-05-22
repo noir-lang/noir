@@ -1,4 +1,13 @@
+//! The parser is the second pass of the noir compiler.
+//! The parser's job is to take the output of the lexer (a stream of tokens)
+//! and parse it into a valid Abstract Syntax Tree (Ast). During this, the parser
+//! validates the grammar of the program and returns parsing errors for any syntactically
+//! invalid constructs (such as `fn fn fn`).
+//!
+//! This file is mostly helper functions and types for the parser. For the parser itself,
+//! see parser.rs. The definition of the abstract syntax tree can be found in the `ast` folder.
 mod errors;
+mod labels;
 #[allow(clippy::module_inception)]
 mod parser;
 
@@ -7,8 +16,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct, NoirTyAlias};
 use crate::{
-    BlockExpression, CallExpression, ExpressionKind, ForExpression, Ident, IndexExpression,
-    LetStatement, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
+    BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
+    MethodCallExpression, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
     UnresolvedType,
 };
 
@@ -16,6 +25,7 @@ use acvm::FieldElement;
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
 pub use errors::ParserError;
+pub use errors::ParserErrorReason;
 use noirc_errors::Span;
 pub use parser::parse_program;
 
@@ -169,7 +179,7 @@ where
         .try_map(move |peek, span| {
             if too_far.get_iter().any(|t| t == peek) {
                 // This error will never be shown to the user
-                Err(ParserError::with_reason(String::new(), span))
+                Err(ParserError::empty(Token::EOF, span))
             } else {
                 Ok(Recoverable::error(span))
             }
@@ -205,6 +215,7 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
+/// A ParsedModule contains an entire Ast for one file.
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
@@ -212,15 +223,22 @@ pub struct ParsedModule {
     pub types: Vec<NoirStruct>,
     pub impls: Vec<NoirImpl>,
     pub type_aliases: Vec<NoirTyAlias>,
-    pub module_decls: Vec<Ident>,
-    pub submodules: Vec<SubModule>,
     pub globals: Vec<LetStatement>,
+
+    /// Module declarations like `mod foo;`
+    pub module_decls: Vec<Ident>,
+
+    /// Full submodules as in `mod foo { ... definitions ... }`
+    pub submodules: Vec<SubModule>,
 }
 
+/// A submodule defined via `mod name { contents }` in some larger file.
+/// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
 pub struct SubModule {
     pub name: Ident,
     pub contents: ParsedModule,
+    pub is_contract: bool,
 }
 
 impl ParsedModule {
@@ -253,7 +271,7 @@ impl ParsedModule {
     }
 
     fn push_global(&mut self, global: LetStatement) {
-        self.globals.push(global)
+        self.globals.push(global);
     }
 }
 
@@ -377,19 +395,15 @@ impl ForRange {
                     expression: array,
                 });
 
-                let ident = |name: &str| Ident::new(name.to_string(), array_span);
-
-                // std::array::len(array)
+                // array.len()
                 let segments = vec![array_ident];
                 let array_ident =
                     ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
 
-                let segments = vec![ident("std"), ident("array"), ident("len")];
-                let func_ident = ExpressionKind::Variable(Path { segments, kind: PathKind::Dep });
-
-                let end_range = ExpressionKind::Call(Box::new(CallExpression {
-                    func: Box::new(Expression::new(func_ident, array_span)),
-                    arguments: vec![Expression::new(array_ident.clone(), array_span)],
+                let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: Expression::new(array_ident.clone(), array_span),
+                    method_name: Ident::new("len".to_string(), array_span),
+                    arguments: vec![],
                 }));
                 let end_range = Expression::new(end_range, array_span);
 

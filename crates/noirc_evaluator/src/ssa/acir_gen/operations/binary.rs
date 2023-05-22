@@ -1,8 +1,7 @@
 use crate::{
     ssa::{
         acir_gen::{
-            constraints, internal_var_cache::InternalVarCache, memory_map::MemoryMap, operations,
-            InternalVar,
+            constraints, internal_var_cache::InternalVarCache, operations, Acir, InternalVar,
         },
         context::SsaContext,
         node::{self, BinaryOp, Node, ObjectType},
@@ -29,8 +28,7 @@ fn get_predicate(
 pub(crate) fn evaluate(
     binary: &node::Binary,
     res_type: ObjectType,
-    var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    acir_gen: &mut Acir,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
 ) -> Option<InternalVar> {
@@ -43,8 +41,8 @@ pub(crate) fn evaluate(
 
     let binary_output = match &binary.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 InternalVar::from(constraints::add(
                     l_c.expression(),
                     FieldElement::one(),
@@ -52,9 +50,9 @@ pub(crate) fn evaluate(
                 ))
             },
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                if res_type == ObjectType::NativeField {
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                if res_type == ObjectType::native_field() {
                     InternalVar::from(constraints::subtract(
                         l_c.expression(),
                         FieldElement::one(),
@@ -63,8 +61,7 @@ pub(crate) fn evaluate(
                 } else {
                     //we need the type of rhs and its max value, then:
                     //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                    // TODO: what is this code doing?
-                    let bit_size = r_size;
+                    let bit_size = ctx[binary.rhs].get_type().bits();
                     let r_big = BigUint::one() << bit_size;
                     let mut k = max_rhs_value / &r_big;
                     if max_rhs_value % &r_big != BigUint::zero() {
@@ -93,18 +90,18 @@ pub(crate) fn evaluate(
                 }
             }
             BinaryOp::Mul | BinaryOp::SafeMul => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 InternalVar::from(constraints::mul_with_witness(
                 evaluator,
                 l_c.expression(),
                 r_c.expression(),
             ))
             },
-            BinaryOp::Udiv => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                let predicate = get_predicate(var_cache,binary, evaluator, ctx);
+            BinaryOp::Udiv(_) => {
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let predicate = get_predicate(&mut acir_gen.var_cache,binary, evaluator, ctx);
                 let (q_wit, _) = constraints::evaluate_udiv(
                     l_c.expression(),
                     r_c.expression(),
@@ -114,17 +111,17 @@ pub(crate) fn evaluate(
                 );
                 InternalVar::from(q_wit)
             }
-            BinaryOp::Sdiv => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+            BinaryOp::Sdiv(_) => {
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 InternalVar::from(
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).0,
             )
         },
-            BinaryOp::Urem => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                let predicate = get_predicate(var_cache,binary, evaluator, ctx);
+            BinaryOp::Urem(_) => {
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let predicate = get_predicate(&mut acir_gen.var_cache,binary, evaluator, ctx);
                 let (_, r_wit) = constraints::evaluate_udiv(
                     l_c.expression(),
                     r_c.expression(),
@@ -134,44 +131,51 @@ pub(crate) fn evaluate(
                 );
                 InternalVar::from(r_wit)
             }
-            BinaryOp::Srem => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+            BinaryOp::Srem(_) => {
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 InternalVar::from(
                 // TODO: we should use variable naming here instead of .1
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).1,
             )},
-            BinaryOp::Div => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let mut r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                let predicate = get_predicate(var_cache,binary, evaluator, ctx).expression().clone();
-                //TODO avoid creating witnesses here.
-                let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); 
-
-                let inverse = Expression::from(&constraints::evaluate_inverse(
-                    x_witness, &predicate, evaluator,
-                ));
-                InternalVar::from(constraints::mul_with_witness(
-                    evaluator,
-                    l_c.expression(),
-                    &inverse,
-                ))
+            BinaryOp::Div(_) => {
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let predicate = get_predicate(&mut acir_gen.var_cache,binary, evaluator, ctx).expression().clone();
+                if let Some(r_value) = r_c.to_const() {
+                    if r_value.is_zero() {
+                        panic!("Panic - division by zero");
+                    } else {
+                        (l_c.expression() * r_value.inverse()).into()
+                    }
+                } else {
+                    //TODO avoid creating witnesses here.
+                    let x_witness = acir_gen.var_cache.get_or_compute_witness(r_c, evaluator).expect("unexpected constant expression"); 
+                    let inverse = Expression::from(constraints::evaluate_inverse(
+                        x_witness, &predicate, evaluator,
+                    ));
+                    InternalVar::from(constraints::mul_with_witness(
+                        evaluator,
+                        l_c.expression(),
+                        &inverse,
+                    ))
+                }
             }
             BinaryOp::Eq => {
-                let l_c = var_cache.get_or_compute_internal_var(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var(binary.rhs, evaluator, ctx);
                 InternalVar::from(
-                operations::cmp::evaluate_eq(memory_map,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
+                operations::cmp::evaluate_eq(acir_gen,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             )},
             BinaryOp::Ne => {
-                let l_c = var_cache.get_or_compute_internal_var(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var(binary.rhs, evaluator, ctx);
                 InternalVar::from(
-                operations::cmp::evaluate_neq(memory_map,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
+                operations::cmp::evaluate_neq(acir_gen,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             )},
             BinaryOp::Ult => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let size = ctx[binary.lhs].get_type().bits();
                 constraints::evaluate_cmp(
                     l_c.expression(),
@@ -183,8 +187,8 @@ pub(crate) fn evaluate(
                 .into()
             }
             BinaryOp::Ule => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let size = ctx[binary.lhs].get_type().bits();
                 let e = constraints::evaluate_cmp(
                     r_c.expression(),
@@ -196,15 +200,15 @@ pub(crate) fn evaluate(
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Slt => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let s = ctx[binary.lhs].get_type().bits();
                 constraints::evaluate_cmp(l_c.expression(), r_c.expression(), s, true, evaluator)
                     .into()
             }
             BinaryOp::Sle => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let s = ctx[binary.lhs].get_type().bits();
                 let e = constraints::evaluate_cmp(
                     r_c.expression(),
@@ -224,17 +228,17 @@ pub(crate) fn evaluate(
             )
             }
             BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
-                let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
-                let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
+                let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let bit_size = res_type.bits();
                 let opcode = binary.operator.clone();
                 let bitwise_result = match operations::bitwise::simplify_bitwise(&l_c, &r_c, bit_size, &opcode) {
                     Some(simplified_internal_var) => simplified_internal_var.expression().clone(),
-                    None => operations::bitwise::evaluate_bitwise(l_c, r_c, bit_size, evaluator, opcode),
+                    None => operations::bitwise::evaluate_bitwise(l_c, r_c, bit_size, evaluator, &mut acir_gen.var_cache, ctx, opcode),
                 };
                 InternalVar::from(bitwise_result)
             }
-            BinaryOp::Shl | BinaryOp::Shr => unreachable!("ICE: ShiftLeft and ShiftRight are replaced by multiplications and divisions in optimization pass."),
+            BinaryOp::Shl | BinaryOp::Shr(_) => todo!("ShiftLeft and ShiftRight operations with shifts which are only known at runtime are not yet implemented."),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         };
     Some(binary_output)

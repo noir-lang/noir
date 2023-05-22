@@ -1,3 +1,10 @@
+//! The noir compiler is separated into the following passes which are listed
+//! in order in square brackets. The inputs and outputs of each pass are also given:
+//!
+//! Source file -[Lexing]-> Tokens -[Parsing]-> Ast -[Name Resolution]-> Hir -[Type Checking]-> Hir -[Monomorphization]-> Monomorphized Ast
+//!
+//! After the monomorphized ast is created, it is passed to the noirc_evaluator crate to convert it to SSA form,
+//! perform optimizations, convert to ACIR and eventually prove/verify the program.
 use std::path::PathBuf;
 
 use fm::{FileManager, FileType};
@@ -8,7 +15,7 @@ use noirc_frontend::hir::{self, def_map::ModuleDefId};
 // XXX: This is another sandbox test
 fn main() {
     // File Manager
-    let mut fm = FileManager::new();
+    let mut fm = FileManager::default();
     //
     // Add root file to file manager
     let dir_path: PathBuf = PathBuf::from("example_project/lib.nr");
@@ -20,7 +27,7 @@ fn main() {
     let crate_id = crate_graph.add_crate_root(CrateType::Library, root_file_id);
 
     // initiate context with file manager and crate graph
-    let mut context = Context::new(fm, crate_graph, acvm::Language::R1CS);
+    let mut context = Context::new(fm, crate_graph);
 
     // Now create the CrateDefMap
     // This is preamble for analysis
@@ -34,18 +41,15 @@ fn main() {
     // Get root module
     let root = def_map.root();
     let module = def_map.modules().get(root.0).unwrap();
-    for (name, (def_id, vis)) in module.scope.values() {
-        println!("func name is {:?}", name);
+    for def_id in module.value_definitions() {
         let func_id = match def_id {
             ModuleDefId::FunctionId(func_id) => func_id,
             _ => unreachable!(),
         };
 
         // Get the HirFunction for that Id
-        let hir = context.def_interner.function(func_id);
-
+        let hir = context.def_interner.function(&func_id);
         println!("func hir is {:?}", hir);
-        println!("func vis is {:?}", vis);
     }
     //
 

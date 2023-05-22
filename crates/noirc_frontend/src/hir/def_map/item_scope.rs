@@ -1,8 +1,5 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
-use crate::{
-    node_interner::{FuncId, StmtId, StructId, TyAliasId},
-    Ident,
-};
+use crate::{node_interner::FuncId, Ident};
 use std::collections::{hash_map::Entry, HashMap};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -56,38 +53,6 @@ impl ItemScope {
         }
     }
 
-    pub fn define_module_def(
-        &mut self,
-        name: Ident,
-        mod_id: ModuleId,
-    ) -> Result<(), (Ident, Ident)> {
-        self.add_definition(name, mod_id.into())
-    }
-
-    pub fn define_func_def(&mut self, name: Ident, local_id: FuncId) -> Result<(), (Ident, Ident)> {
-        self.add_definition(name, local_id.into())
-    }
-
-    pub fn define_struct_def(
-        &mut self,
-        name: Ident,
-        local_id: StructId,
-    ) -> Result<(), (Ident, Ident)> {
-        self.add_definition(name, ModuleDefId::TypeId(local_id))
-    }
-
-    pub fn define_type_alias_def(
-        &mut self,
-        name: Ident,
-        local_id: TyAliasId,
-    ) -> Result<(), (Ident, Ident)> {
-        self.add_definition(name, local_id.into())
-    }
-
-    pub fn define_global(&mut self, name: Ident, stmt_id: StmtId) -> Result<(), (Ident, Ident)> {
-        self.add_definition(name, ModuleDefId::GlobalId(stmt_id))
-    }
-
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
         let (module_def, _) = self.types.get(mod_name)?;
         match module_def {
@@ -95,6 +60,7 @@ impl ItemScope {
             _ => None,
         }
     }
+
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
         let (module_def, _) = self.values.get(func_name)?;
         match module_def {
@@ -102,6 +68,7 @@ impl ItemScope {
             _ => None,
         }
     }
+
     pub fn find_name(&self, name: &Ident) -> PerNs {
         PerNs { types: self.types.get(name).cloned(), values: self.values.get(name).cloned() }
     }
@@ -109,9 +76,11 @@ impl ItemScope {
     pub fn definitions(&self) -> Vec<ModuleDefId> {
         self.defs.clone()
     }
+
     pub fn types(&self) -> &HashMap<Ident, (ModuleDefId, Visibility)> {
         &self.types
     }
+
     pub fn values(&self) -> &HashMap<Ident, (ModuleDefId, Visibility)> {
         &self.values
     }

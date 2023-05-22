@@ -5,19 +5,17 @@
 // and the hashpath proves this
 // Currently we assume that it is a binary tree, so depth k implies a width of 2^k
 // XXX: In the future we can add an arity parameter
-#[foreign(merkle_membership)]
-fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
-
-
-#[alternative(merkle_membership)]
-fn check_membership_in_noir(root : Field, leaf : Field, index : Field, hash_path: [Field]) -> Field {
-    (compute_root_from_leaf(leaf, index, hash_path) == root) as Field
+fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {
+    (compute_merkle_root(_leaf, _index, _hash_path) == _root) as Field
 }
+
+#[foreign(compute_merkle_root)]
+fn compute_merkle_root(_leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
 
 // Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
 fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
-    let n = crate::array::len(hash_path);
-    let index_bits = crate::field::to_le_bits(index, n as u32);
+    let n = hash_path.len();
+    let index_bits = index.to_le_bits(n as u32);
     let mut current = leaf;
     for i in 0..n {
         let path_bit = index_bits[i] as bool;

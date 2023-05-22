@@ -37,7 +37,7 @@ fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, phi: N
     }
 }
 
-pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId, entry_block: BlockId) {
+pub(super) fn seal_block(ctx: &mut SsaContext, block_id: BlockId, entry_block: BlockId) {
     let block = &ctx[block_id];
     let pred = block.predecessor.clone();
     let instructions = block.instructions.clone();
@@ -66,8 +66,13 @@ fn add_dummy_store(ctx: &mut SsaContext, entry: BlockId, join: BlockId) {
 
     //add dummy store
     for a in modified {
-        let store =
-            node::Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+        let store = node::Operation::Store {
+            array_id: a,
+            index: NodeId::dummy(),
+            value: NodeId::dummy(),
+            predicate: None,
+            location: None,
+        };
         let i = node::Instruction::new(store, node::ObjectType::NotAnObject, Some(join));
         ctx.insert_instruction_after_phi(i, join);
     }
@@ -102,12 +107,12 @@ fn get_block_value(ctx: &mut SsaContext, root: NodeId, block_id: BlockId) -> Nod
 }
 
 //Returns the current SSA value of a variable in a (filled) block.
-pub fn get_current_value_in_block(
+pub(super) fn get_current_value_in_block(
     ctx: &mut SsaContext,
     var_id: NodeId,
     block_id: BlockId,
 ) -> NodeId {
-    let root = ctx.get_root_value(var_id);
+    let root = ctx.root_value(var_id);
 
     ctx[block_id]
         .get_current_value(root) //Local value numbering
@@ -115,6 +120,6 @@ pub fn get_current_value_in_block(
 }
 
 //Returns the current SSA value of a variable, recursively
-pub fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
+pub(super) fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
     get_current_value_in_block(ctx, var_id, ctx.current_block)
 }

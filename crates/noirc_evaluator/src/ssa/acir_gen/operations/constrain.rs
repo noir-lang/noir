@@ -11,7 +11,7 @@ use crate::{
     Evaluator,
 };
 
-pub fn evaluate(
+pub(crate) fn evaluate(
     value: &NodeId,
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
@@ -20,6 +20,6 @@ pub fn evaluate(
     let value = var_cache.get_or_compute_internal_var_unwrap(*value, evaluator, ctx);
     let subtract =
         constraints::subtract(&Expression::one(), FieldElement::one(), value.expression());
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract));
+    evaluator.push_opcode(AcirOpcode::Arithmetic(subtract));
     Some(value)
 }

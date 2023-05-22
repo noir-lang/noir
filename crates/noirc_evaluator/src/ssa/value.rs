@@ -4,7 +4,7 @@ use noirc_frontend::monomorphization::ast::Type;
 
 /// `Value` is used only to construct the SSA IR.
 #[derive(Debug, Clone)]
-pub enum Value {
+pub(crate) enum Value {
     Node(NodeId),
     Tuple(Vec<Value>),
 }
@@ -12,7 +12,7 @@ pub enum Value {
 impl Value {
     /// Returns a single NodeId.
     /// Panics: If `Value` holds multiple Values
-    pub fn unwrap_id(&self) -> NodeId {
+    pub(crate) fn unwrap_id(&self) -> NodeId {
         match self {
             Value::Node(id) => *id,
             Value::Tuple(_) => panic!("Tried to unwrap a struct/tuple into a NodeId"),
@@ -21,13 +21,13 @@ impl Value {
 
     /// Returns a placeholder NodeId that can
     /// be used to represent the absence of a value.
-    pub fn dummy() -> Value {
+    pub(crate) fn dummy() -> Value {
         Value::Node(NodeId::dummy())
     }
 
     /// Checks if the `Value` corresponds to
     /// `Option::None` or no value.
-    pub fn is_dummy(&self) -> bool {
+    pub(crate) fn is_dummy(&self) -> bool {
         match self {
             Value::Node(id) => *id == NodeId::dummy(),
             _ => false,
@@ -35,7 +35,7 @@ impl Value {
     }
 
     /// Converts `Value` into a vector of NodeId's
-    pub fn to_node_ids(&self) -> Vec<NodeId> {
+    pub(crate) fn to_node_ids(&self) -> Vec<NodeId> {
         match self {
             Value::Node(id) => vec![*id],
             Value::Tuple(v) => v.iter().flat_map(|i| i.to_node_ids()).collect(),
@@ -45,7 +45,7 @@ impl Value {
     /// Calls the function `f` on `self` and the given `Value`
     /// Panics: If `self` and the given value are not the same
     /// enum variant
-    pub fn zip<F>(&self, rhs_value: &Value, f: &mut F) -> Value
+    pub(crate) fn zip<F>(&self, rhs_value: &Value, f: &mut F) -> Value
     where
         F: FnMut(NodeId, NodeId) -> NodeId,
     {
@@ -69,7 +69,7 @@ impl Value {
     /// Returns the `Value` at position `field_index` in the
     /// Tuple Variant.
     /// Panics: If the `self` is not the `Tuple` Variant.
-    pub fn into_field_member(self, field_index: usize) -> Value {
+    pub(crate) fn into_field_member(self, field_index: usize) -> Value {
         match self {
             Value::Node(_) => {
                 unreachable!("Runtime type error, expected struct/tuple but found a NodeId")
@@ -77,7 +77,7 @@ impl Value {
             Value::Tuple(mut fields) => fields.remove(field_index),
         }
     }
-    pub fn get_field_member(&self, field_index: usize) -> &Value {
+    pub(crate) fn get_field_member(&self, field_index: usize) -> &Value {
         match self {
             Value::Node(_) => {
                 unreachable!("Runtime type error, expected struct but found a NodeId")
@@ -96,6 +96,7 @@ impl Value {
             Type::Unit
             | Type::Function(..)
             | Type::Array(..)
+            | Type::Vec(..)
             | Type::String(..)
             | Type::Integer(..)
             | Type::Bool

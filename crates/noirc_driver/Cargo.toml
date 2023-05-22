@@ -7,6 +7,8 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap.workspace = true
+iter-extended.workspace = true
 noirc_errors.workspace = true
 noirc_frontend.workspace = true
 noirc_evaluator.workspace = true
@@ -14,4 +16,3 @@ noirc_abi.workspace = true
 acvm.workspace = true
 fm.workspace = true
 serde.workspace = true
-dirs.workspace = true

@@ -2,6 +2,7 @@ use crate::node_interner::{FuncId, StmtId, StructId, TyAliasId};
 
 use super::ModuleId;
 
+/// A generic ID that references either a module, function, type, or global
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ModuleDefId {
     ModuleId(ModuleId),

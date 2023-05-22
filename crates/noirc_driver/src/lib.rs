@@ -1,44 +1,89 @@
-use acvm::acir::circuit::Circuit;
+#![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
+use clap::Args;
+use contract::ContractFunction;
 use fm::FileType;
-use noirc_abi::Abi;
+use iter_extended::try_vecmap;
+use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
-use noirc_frontend::hir::def_map::CrateDefMap;
+use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+mod contract;
+mod program;
+
+pub use contract::{CompiledContract, ContractFunctionType};
+pub use program::CompiledProgram;
+
 pub struct Driver {
     context: Context,
+    language: Language,
+    // We retain this as we need to pass this into `create_circuit` once signature is updated to allow.
+    #[allow(dead_code)]
+    is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CompiledProgram {
-    pub circuit: Circuit,
-    pub abi: Option<noirc_abi::Abi>,
+#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+pub struct CompileOptions {
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    pub show_ssa: bool,
+
+    /// Display the ACIR for compiled circuit
+    #[arg(short, long)]
+    pub print_acir: bool,
+
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    pub allow_warnings: bool,
+
+    /// Display output of `println` statements
+    #[arg(long)]
+    pub show_output: bool,
+
+    /// Compile and optimize using the new experimental SSA pass
+    #[arg(long)]
+    pub experimental_ssa: bool,
+}
+
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            show_ssa: false,
+            print_acir: false,
+            allow_warnings: false,
+            show_output: true,
+            experimental_ssa: false,
+        }
+    }
 }
 
 impl Driver {
-    pub fn new(np_language: &acvm::Language) -> Self {
-        let mut driver = Driver { context: Context::default() };
-        driver.context.def_interner.set_language(np_language);
-        driver
+    pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
+        Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
     }
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
-    pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
-        let mut driver = Driver::new(&np_language);
+    pub fn compile_file(
+        root_file: PathBuf,
+        language: &Language,
+        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
+    ) -> Result<CompiledProgram, ReportedError> {
+        let mut driver = Driver::new(language, is_opcode_supported);
         driver.create_local_crate(root_file, CrateType::Binary);
-
-        driver
-            .into_compiled_program(np_language, false, false)
-            .unwrap_or_else(|_| std::process::exit(1))
+        driver.compile_main(&CompileOptions::default())
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -125,75 +170,152 @@ impl Driver {
 
     /// Run the lexing, parsing, name resolution, and type checking passes,
     /// returning Err(FrontendError) and printing any errors that were found.
-    pub fn check_crate(&mut self, allow_warnings: bool) -> Result<(), ReportedError> {
+    pub fn check_crate(&mut self, options: &CompileOptions) -> Result<(), ReportedError> {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        let error_count = reporter::report_all(&self.context.file_manager, &errs, allow_warnings);
+        let error_count =
+            reporter::report_all(&self.context.file_manager, &errs, options.allow_warnings);
         reporter::finish_report(error_count)
     }
 
-    pub fn compute_abi(&self) -> Option<Abi> {
+    pub fn compute_function_signature(&self) -> Option<FunctionSignature> {
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
 
-        let abi = func_meta.into_abi(&self.context.def_interner);
-        Some(abi)
+        Some(func_meta.into_function_signature(&self.context.def_interner))
     }
 
-    pub fn into_compiled_program(
-        mut self,
-        np_language: acvm::Language,
-        show_ssa: bool,
-        allow_warnings: bool,
+    /// Run the frontend to check the crate for errors then compile the main function if there were none
+    pub fn compile_main(
+        &mut self,
+        options: &CompileOptions,
     ) -> Result<CompiledProgram, ReportedError> {
-        self.check_crate(allow_warnings)?;
-        self.compile_no_check(np_language, show_ssa, allow_warnings, None)
+        self.check_crate(options)?;
+        let main = match self.main_function() {
+            Ok(m) => m,
+            Err(e) => {
+                println!("cannot compile a program with no main function");
+                return Err(e);
+            }
+        };
+        let compiled_program = self.compile_no_check(options, main)?;
+        if options.print_acir {
+            println!("Compiled ACIR for main:");
+            println!("{}", compiled_program.circuit);
+        }
+        Ok(compiled_program)
+    }
+
+    /// Run the frontend to check the crate for errors then compile all contracts if there were none
+    pub fn compile_contracts(
+        &mut self,
+        options: &CompileOptions,
+    ) -> Result<Vec<CompiledContract>, ReportedError> {
+        self.check_crate(options)?;
+        let contracts = self.get_all_contracts();
+        let compiled_contracts =
+            try_vecmap(contracts, |contract| self.compile_contract(contract, options))?;
+        if options.print_acir {
+            for compiled_contract in &compiled_contracts {
+                for contract_function in &compiled_contract.functions {
+                    println!(
+                        "Compiled ACIR for {}::{}:",
+                        compiled_contract.name, contract_function.name
+                    );
+                    println!("{}", contract_function.bytecode);
+                }
+            }
+        }
+        Ok(compiled_contracts)
+    }
+
+    /// Compile all of the functions associated with a Noir contract.
+    fn compile_contract(
+        &self,
+        contract: Contract,
+        options: &CompileOptions,
+    ) -> Result<CompiledContract, ReportedError> {
+        let functions = try_vecmap(&contract.functions, |function_id| {
+            let name = self.function_name(*function_id).to_owned();
+            let function = self.compile_no_check(options, *function_id)?;
+            let func_meta = self.context.def_interner.function_meta(function_id);
+            let func_type = func_meta
+                .contract_function_type
+                .expect("Expected contract function to have a contract visibility");
+
+            let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+
+            Ok(ContractFunction {
+                name,
+                function_type,
+                abi: function.abi,
+                bytecode: function.circuit,
+            })
+        })?;
+
+        Ok(CompiledContract { name: contract.name, functions })
+    }
+
+    /// Returns the FuncId of the 'main' function.
+    /// - Expects check_crate to be called beforehand
+    /// - Panics if no main function is found
+    pub fn main_function(&self) -> Result<FuncId, ReportedError> {
+        // Find the local crate, one should always be present
+        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
+
+        // Check the crate type
+        // We don't panic here to allow users to `evaluate` libraries which will do nothing
+        if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
+            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
+            return Err(ReportedError);
+        };
+
+        // All Binaries should have a main function
+        local_crate.main_function().ok_or(ReportedError)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
     #[allow(deprecated)]
     pub fn compile_no_check(
         &self,
-        np_language: acvm::Language,
-        show_ssa: bool,
-        allow_warnings: bool,
-        // Optional override to provide a different `main` function to start execution
-        main_function: Option<FuncId>,
+        options: &CompileOptions,
+        main_function: FuncId,
     ) -> Result<CompiledProgram, ReportedError> {
-        // Find the local crate, one should always be present
-        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
-
-        // If no override for the `main` function has been provided, attempt to find it.
-        let main_function = main_function.unwrap_or_else(|| {
-            // Check the crate type
-            // We don't panic here to allow users to `evaluate` libraries which will do nothing
-            if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
-                println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
-                std::process::exit(1);
-            };
-
-            // All Binaries should have a main function
-            local_crate.main_function().expect("cannot compile a program with no main function")
-        });
-
-        // Create ABI for main function
-        let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.into_abi(&self.context.def_interner);
-
         let program = monomorphize(main_function, &self.context.def_interner);
 
-        let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
-        match create_circuit(program, np_language, blackbox_supported, show_ssa) {
-            Ok(circuit) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
+        let np_language = self.language.clone();
+        // TODO: use proper `is_opcode_supported` implementation.
+        let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
+
+        let circuit_abi = if options.experimental_ssa {
+            experimental_create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        } else {
+            create_circuit(
+                program,
+                np_language,
+                is_opcode_supported,
+                options.show_ssa,
+                options.show_output,
+            )
+        };
+
+        match circuit_abi {
+            Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the call site without a stacktrace
                 let file = err.location.map(|loc| loc.file);
                 let files = &self.context.file_manager;
-                let error = reporter::report(files, &err.into(), file, allow_warnings);
+                let error = reporter::report(files, &err.into(), file, options.allow_warnings);
                 reporter::finish_report(error as u32)?;
                 Err(ReportedError)
             }
@@ -213,6 +335,14 @@ impl Driver {
             .collect()
     }
 
+    /// Return a Vec of all `contract` declarations in the source code and the functions they contain
+    pub fn get_all_contracts(&self) -> Vec<Contract> {
+        self.context
+            .def_map(LOCAL_CRATE)
+            .expect("The local crate should be analyzed already")
+            .get_all_contracts()
+    }
+
     pub fn function_name(&self, id: FuncId) -> &str {
         self.context.def_interner.function_name(&id)
     }
@@ -220,6 +350,7 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new(&Language::R1CS)
+        #[allow(deprecated)]
+        Self::new(&Language::R1CS, Box::new(acvm::default_is_opcode_supported(Language::R1CS)))
     }
 }

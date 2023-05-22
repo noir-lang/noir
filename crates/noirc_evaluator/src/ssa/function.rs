@@ -5,7 +5,7 @@ use crate::ssa::{
     context::SsaContext,
     mem::ArrayId,
     node::{Node, NodeId, ObjectType, Opcode, Operation},
-    ssa_gen::IRGenerator,
+    ssa_gen::IrGenerator,
     {block, builtin, node, ssa_form},
 };
 use iter_extended::try_vecmap;
@@ -13,37 +13,37 @@ use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, T
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
-pub struct FuncIndex(pub usize);
+pub(crate) struct FuncIndex(pub(crate) usize);
 
 impl FuncIndex {
-    pub fn new(idx: usize) -> FuncIndex {
+    pub(crate) fn new(idx: usize) -> FuncIndex {
         FuncIndex(idx)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct SSAFunction {
-    pub entry_block: BlockId,
-    pub id: FuncId,
-    pub idx: FuncIndex,
-    pub node_id: NodeId,
+pub(crate) struct SsaFunction {
+    pub(crate) entry_block: BlockId,
+    pub(crate) id: FuncId,
+    pub(crate) idx: FuncIndex,
+    pub(crate) node_id: NodeId,
 
     //signature:
-    pub name: String,
-    pub arguments: Vec<(NodeId, bool)>,
-    pub result_types: Vec<ObjectType>,
-    pub decision: DecisionTree,
+    pub(crate) name: String,
+    pub(crate) arguments: Vec<(NodeId, bool)>,
+    pub(crate) result_types: Vec<ObjectType>,
+    pub(crate) decision: DecisionTree,
 }
 
-impl SSAFunction {
-    pub fn new(
+impl SsaFunction {
+    pub(crate) fn new(
         id: FuncId,
         name: &str,
         block_id: BlockId,
         idx: FuncIndex,
         ctx: &mut SsaContext,
-    ) -> SSAFunction {
-        SSAFunction {
+    ) -> SsaFunction {
+        SsaFunction {
             entry_block: block_id,
             id,
             node_id: ctx.push_function_id(id, name),
@@ -55,7 +55,7 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, ir_gen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
+    pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
@@ -68,7 +68,7 @@ impl SSAFunction {
         let mut decision = DecisionTree::new(&ir_gen.context);
         let mut builder = TreeBuilder::new(self.entry_block);
         for (arg, _) in &self.arguments {
-            if let ObjectType::Pointer(a) = ir_gen.context.get_object_type(*arg) {
+            if let ObjectType::ArrayPointer(a) = ir_gen.context.object_type(*arg) {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
@@ -88,7 +88,7 @@ impl SSAFunction {
             );
             if self.entry_block != exit {
                 for i in &stack {
-                    ir_gen.context.get_mut_instruction(*i).parent_block = self.entry_block;
+                    ir_gen.context.instruction_mut(*i).parent_block = self.entry_block;
                 }
             }
 
@@ -114,7 +114,7 @@ impl SSAFunction {
         Ok(decision)
     }
 
-    pub fn get_mapped_value(
+    pub(crate) fn get_mapped_value(
         var: Option<&NodeId>,
         ctx: &mut SsaContext,
         inline_map: &HashMap<NodeId, NodeId>,
@@ -137,9 +137,9 @@ impl SSAFunction {
     }
 }
 
-impl IRGenerator {
+impl IrGenerator {
     /// Creates an ssa function and returns its type upon success
-    pub fn create_function(
+    pub(crate) fn create_function(
         &mut self,
         func_id: FuncId,
         index: FuncIndex,
@@ -150,7 +150,7 @@ impl IRGenerator {
 
         let function = &mut self.program[func_id];
         let mut func =
-            SSAFunction::new(func_id, &function.name, func_block, index, &mut self.context);
+            SsaFunction::new(func_id, &function.name, func_block, index, &mut self.context);
 
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
@@ -164,7 +164,7 @@ impl IRGenerator {
         for typ in return_types {
             func.result_types.push(match typ {
                 Type::Unit => ObjectType::NotAnObject,
-                Type::Array(_, _) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
+                Type::Array(_, _) => ObjectType::ArrayPointer(crate::ssa::mem::ArrayId::dummy()),
                 _ => self.context.convert_type(&typ),
             });
         }
@@ -194,7 +194,7 @@ impl IRGenerator {
                         parent_block: self.context.current_block,
                     };
                     let b_id = self.context.add_variable(new_var, None);
-                    let b_id1 = self.context.handle_assign(b_id, None, return_id)?;
+                    let b_id1 = self.context.handle_assign(b_id, None, return_id, None)?;
                     return_id = ssa_form::get_current_value(&mut self.context, b_id1);
                 }
             }
@@ -226,11 +226,11 @@ impl IRGenerator {
     }
 
     //generates an instruction for calling the function
-    pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
+    pub(super) fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
         let arguments = self.ssa_gen_expression_list(&call.arguments);
 
-        if let Some(opcode) = self.context.get_builtin_opcode(func) {
+        if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
             return self.call_low_level(opcode, arguments);
         }
 
@@ -249,7 +249,7 @@ impl IRGenerator {
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
         if let Some(id) = self.context.try_get_func_id(func) {
-            let callee = self.context.get_ssa_func(id).unwrap().idx;
+            let callee = self.context.ssa_func(id).unwrap().idx;
             if let Some(caller) = self.function_context {
                 update_call_graph(&mut self.context.call_graph, caller, callee);
             }
@@ -269,7 +269,7 @@ impl IRGenerator {
                     *i.1,
                 )?);
             }
-            let ssa_func = self.context.get_ssa_func(func_id).unwrap();
+            let ssa_func = self.context.ssa_func(func_id).unwrap();
             let func_arguments = ssa_func.arguments.clone();
             for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
                 let mut is_array_result = false;
@@ -281,7 +281,7 @@ impl IRGenerator {
                         super::mem::Memory::deref(&self.context, func_arg.0).is_some();
                 }
                 if is_array_result {
-                    self.context.handle_assign(func_arg.0, None, *caller_arg)?;
+                    self.context.handle_assign(func_arg.0, None, *caller_arg, None)?;
                 }
             }
 
@@ -299,7 +299,7 @@ impl IRGenerator {
 
         // Fixup the returned_arrays, they will be incorrectly tracked for higher order functions
         // otherwise.
-        self.context.get_mut_instruction(call_instruction).operation = call_op;
+        self.context.instruction_mut(call_instruction).operation = call_op;
         result_ids
     }
 
@@ -318,7 +318,7 @@ impl IRGenerator {
                     let elem_type = self.context.convert_type(&elem_type);
                     let array_id = self.context.new_array("", elem_type, len as u32, None).1;
                     returned_arrays.push((array_id, i as u32));
-                    ObjectType::Pointer(array_id)
+                    ObjectType::ArrayPointer(array_id)
                 }
                 other => self.context.convert_type(&other),
             };
@@ -328,21 +328,20 @@ impl IRGenerator {
     }
 
     //Low-level functions with no more than 2 arguments
-    pub fn call_low_level(
+    fn call_low_level(
         &mut self,
         op: builtin::Opcode,
         args: Vec<NodeId>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
-        let (len, elem_type) = op.get_result_type();
+        let (len, elem_type) = op.get_result_type(&args, &self.context);
 
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
             let result_index = self.new_array(&format!("{op}_result"), elem_type, len, None).1;
-            node::ObjectType::Pointer(result_index)
+            node::ObjectType::ArrayPointer(result_index)
         } else {
             elem_type
         };
-
         //when the function returns an array, we use ins.res_type(array)
         //else we map ins.id to the returned witness
         let id = self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)?;
@@ -350,7 +349,7 @@ impl IRGenerator {
     }
 }
 
-pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
+fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
     while call_graph.len() < size {
         call_graph.push(vec![0; size]);
     }
@@ -390,7 +389,7 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
 }
 
 //inline all functions of the call graph such that every inlining operates with a fully flattened function
-pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
+pub(super) fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();
     let mut processed = Vec::new();

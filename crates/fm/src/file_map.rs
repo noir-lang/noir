@@ -51,16 +51,12 @@ impl FileId {
 pub struct File<'input>(&'input SimpleFile<PathString, String>);
 
 impl<'input> File<'input> {
-    pub fn get_source(self) -> &'input str {
+    pub fn source(self) -> &'input str {
         self.0.source()
     }
 }
 
 impl FileMap {
-    pub fn new() -> Self {
-        FileMap(SimpleFiles::new())
-    }
-
     pub fn add_file(&mut self, file_name: PathString, code: String) -> FileId {
         let file_id = self.0.add(file_name, code);
         FileId(file_id)
@@ -72,7 +68,7 @@ impl FileMap {
 
 impl Default for FileMap {
     fn default() -> Self {
-        Self::new()
+        FileMap(SimpleFiles::new())
     }
 }
 

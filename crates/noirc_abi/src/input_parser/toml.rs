@@ -1,5 +1,5 @@
-use super::InputValue;
-use crate::{errors::InputParserError, Abi, AbiType};
+use super::{parse_str_to_field, InputValue};
+use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
 use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
 use serde::{Deserialize, Serialize};
@@ -7,38 +7,42 @@ use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
     input_string: &str,
-    abi: Abi,
+    abi: &Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     // Parse input.toml into a BTreeMap.
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)?;
 
-    // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
-    // When parsing the toml map we recursively go through each field to enable struct inputs.
-    // To match this map with the correct abi type we reorganize our abi by parameter name in a BTreeMap, while the struct fields
-    // in the abi are already stored in a BTreeMap.
-    let abi_map = abi.to_btree_map();
-
     // Convert arguments to field elements.
-    try_btree_map(data, |(key, value)| {
-        InputValue::try_from_toml(value, &abi_map[&key]).map(|input_value| (key, input_value))
-    })
+    let mut parsed_inputs = try_btree_map(abi.to_btree_map(), |(arg_name, abi_type)| {
+        // Check that toml contains a value for each argument in the ABI.
+        let value = data
+            .get(&arg_name)
+            .ok_or_else(|| InputParserError::MissingArgument(arg_name.clone()))?;
+
+        InputValue::try_from_toml(value.clone(), &abi_type, &arg_name)
+            .map(|input_value| (arg_name, input_value))
+    })?;
+
+    // If the toml file also includes a return value then we parse it as well.
+    // This isn't required as the prover calculates the return value itself.
+    if let (Some(return_type), Some(toml_return_value)) =
+        (&abi.return_type, data.get(MAIN_RETURN_NAME))
+    {
+        let return_value =
+            InputValue::try_from_toml(toml_return_value.clone(), return_type, MAIN_RETURN_NAME)?;
+        parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+    }
+
+    Ok(parsed_inputs)
 }
 
 pub(crate) fn serialize_to_toml(
     w_map: &BTreeMap<String, InputValue>,
 ) -> Result<String, InputParserError> {
-    // Toml requires that values be emitted before tables. Thus, we must reorder our map in case a TomlTypes::Table comes before any other values in the toml map
-    // BTreeMap orders by key and we need the name of the input as our key, so we must split our maps in case a table type has a name that is alphanumerically less
-    // than any other value type
-    let (tables_map, to_map): (BTreeMap<String, TomlTypes>, BTreeMap<String, TomlTypes>) = w_map
-        .iter()
-        .map(|(key, value)| (key.to_owned(), TomlTypes::from(value.clone())))
-        .partition(|(_, v)| matches!(v, TomlTypes::Table(_)));
+    let to_map: BTreeMap<_, _> =
+        w_map.iter().map(|(key, value)| (key, TomlTypes::from(value.clone()))).collect();
 
-    let mut toml_string = toml::to_string(&to_map)?;
-    let toml_string_tables = toml::to_string(&tables_map)?;
-
-    toml_string.push_str(&toml_string_tables);
+    let toml_string = toml::to_string(&to_map)?;
 
     Ok(toml_string)
 }
@@ -49,7 +53,8 @@ enum TomlTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
-    // Just a regular integer, that can fit in 128 bits
+    // Just a regular integer, that can fit in 64 bits
+    // Note that the toml spec specifies that all numbers are represented as `i64`s.
     Integer(u64),
     // Simple boolean flag
     Bool(bool),
@@ -57,6 +62,8 @@ enum TomlTypes {
     ArrayNum(Vec<u64>),
     // Array of hexadecimal integers
     ArrayString(Vec<String>),
+    // Array of booleans
+    ArrayBool(Vec<bool>),
     // Struct of TomlTypes
     Table(BTreeMap<String, TomlTypes>),
 }
@@ -78,7 +85,6 @@ impl From<InputValue> for TomlTypes {
                     btree_map(map, |(key, value)| (key, TomlTypes::from(value)));
                 TomlTypes::Table(map_with_toml_types)
             }
-            InputValue::Undefined => unreachable!(),
         }
     }
 }
@@ -87,29 +93,25 @@ impl InputValue {
     fn try_from_toml(
         value: TomlTypes,
         param_type: &AbiType,
+        arg_name: &str,
     ) -> Result<InputValue, InputParserError> {
         let input_value = match value {
             TomlTypes::String(string) => match param_type {
                 AbiType::String { .. } => InputValue::String(string),
-                AbiType::Field | AbiType::Integer { .. } => {
-                    if string.is_empty() {
-                        InputValue::Undefined
-                    } else {
-                        InputValue::Field(parse_str_to_field(&string)?)
-                    }
+                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
+                    InputValue::Field(parse_str_to_field(&string)?)
                 }
-                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+
+                AbiType::Array { .. } | AbiType::Struct { .. } => {
+                    return Err(InputParserError::AbiTypeMismatch(param_type.clone()))
+                }
             },
             TomlTypes::Integer(integer) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
             }
-            TomlTypes::Bool(boolean) => {
-                let new_value = if boolean { FieldElement::one() } else { FieldElement::zero() };
-
-                InputValue::Field(new_value)
-            }
+            TomlTypes::Bool(boolean) => InputValue::Field(boolean.into()),
             TomlTypes::ArrayNum(arr_num) => {
                 let array_elements =
                     vecmap(arr_num, |elem_num| FieldElement::from(i128::from(elem_num)));
@@ -121,31 +123,30 @@ impl InputValue {
 
                 InputValue::Vec(array_elements)
             }
-            TomlTypes::Table(table) => {
-                let fields = match param_type {
-                    AbiType::Struct { fields } => fields,
-                    _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
-                };
-                let native_table = try_btree_map(table, |(key, value)| {
-                    InputValue::try_from_toml(value, &fields[&key])
-                        .map(|input_value| (key, input_value))
-                })?;
+            TomlTypes::ArrayBool(arr_bool) => {
+                let array_elements = vecmap(arr_bool, FieldElement::from);
 
-                InputValue::Struct(native_table)
+                InputValue::Vec(array_elements)
             }
+
+            TomlTypes::Table(table) => match param_type {
+                AbiType::Struct { fields } => {
+                    let native_table = try_btree_map(fields, |(field_name, abi_type)| {
+                        // Check that toml contains a value for each field of the struct.
+                        let field_id = format!("{arg_name}.{field_name}");
+                        let value = table
+                            .get(field_name)
+                            .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
+                        InputValue::try_from_toml(value.clone(), abi_type, &field_id)
+                            .map(|input_value| (field_name.to_string(), input_value))
+                    })?;
+
+                    InputValue::Struct(native_table)
+                }
+                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+            },
         };
 
         Ok(input_value)
-    }
-}
-
-fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
-    if value.starts_with("0x") {
-        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
-    } else {
-        value
-            .parse::<i128>()
-            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
-            .map(FieldElement::from)
     }
 }

@@ -1,0 +1,6 @@
+x = "0"
+y = "1"
+salt = "42"
+
+out_x = "0x11831f49876c313f2a9ec6d8d521c7ce0b6311c852117e340bfe27fd1ac096ef"
+out_y = "0x0ecf9d98be4597a88c46a7e0fa8836b57a7dcb41ee30f8d8787b11cc259c83fa"

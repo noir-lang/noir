@@ -1,29 +1,47 @@
-use acvm::acir::circuit::Circuit;
+#![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+
 use gloo_utils::format::JsValueSerdeExt;
-use std::path::PathBuf;
+use log::Level;
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 
-// Returns a compiled program which is the ACIR circuit along with the ABI
-#[wasm_bindgen]
-pub fn compile(src: String) -> JsValue {
-    console_error_panic_hook::set_once();
-    // For now we default to plonk width = 3, though we can add it as a parameter
-    let language = acvm::Language::PLONKCSat { width: 3 };
-    let path = PathBuf::from(src);
-    let compiled_program = noirc_driver::Driver::compile_file(path, language);
-    <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
-}
-// Deserializes bytes into ACIR structure
-#[wasm_bindgen]
-pub fn acir_from_bytes(bytes: Vec<u8>) -> JsValue {
-    console_error_panic_hook::set_once();
-    let circuit = Circuit::from_bytes(&bytes);
-    <JsValue as JsValueSerdeExt>::from_serde(&circuit).unwrap()
+mod circuit;
+mod compile;
+
+pub use circuit::{acir_read_bytes, acir_write_bytes};
+pub use compile::{compile, WASMCompileOptions};
+
+#[derive(Serialize, Deserialize)]
+pub struct BuildInfo {
+    git_hash: &'static str,
+    version: &'static str,
+    dirty: &'static str,
 }
 
 #[wasm_bindgen]
-pub fn acir_to_bytes(acir: JsValue) -> Vec<u8> {
+pub fn init_log_level(level: String) {
+    // Set the static variable from Rust
+    use std::sync::Once;
+
+    let log_level = Level::from_str(&level).unwrap_or(Level::Error);
+    static SET_HOOK: Once = Once::new();
+    SET_HOOK.call_once(|| {
+        wasm_logger::init(wasm_logger::Config::new(log_level));
+    });
+}
+
+const BUILD_INFO: BuildInfo = BuildInfo {
+    git_hash: env!("GIT_COMMIT"),
+    version: env!("CARGO_PKG_VERSION"),
+    dirty: env!("GIT_DIRTY"),
+};
+
+#[wasm_bindgen]
+pub fn build_info() -> JsValue {
     console_error_panic_hook::set_once();
-    let circuit: Circuit = JsValueSerdeExt::into_serde(&acir).unwrap();
-    circuit.to_bytes()
+    <JsValue as JsValueSerdeExt>::from_serde(&BUILD_INFO).unwrap()
 }

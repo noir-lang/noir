@@ -16,4 +16,10 @@ iter-extended.workspace = true
 chumsky.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
+serde.workspace = true
 rustc-hash = "1.1.0"
+small-ord-set = "0.1.3"
+
+[dev-dependencies]
+strum = "0.24"
+strum_macros = "0.24"

@@ -17,6 +17,10 @@ mod module_data;
 pub use module_data::*;
 mod namespace;
 pub use namespace::*;
+
+/// The name that is used for a non-contract program's entry-point function.
+pub const MAIN_FUNCTION: &str = "main";
+
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
@@ -35,6 +39,15 @@ pub struct ModuleId {
     pub local_id: LocalModuleId,
 }
 
+impl ModuleId {
+    pub fn module(self, def_maps: &HashMap<CrateId, CrateDefMap>) -> &ModuleData {
+        &def_maps[&self.krate].modules()[self.local_id.0]
+    }
+}
+
+/// Map of all modules and scopes defined within a crate.
+///
+/// The definitions of the crate are accessible indirectly via the scopes of each module.
 #[derive(Debug)]
 pub struct CrateDefMap {
     pub(crate) root: LocalModuleId,
@@ -68,10 +81,8 @@ impl CrateDefMap {
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
-        let root = modules.insert(ModuleData::default());
-
-        // Set the origin of the root module
-        modules[root].origin = ModuleOrigin::CrateRoot(root_file_id);
+        let origin = ModuleOrigin::CrateRoot(root_file_id);
+        let root = modules.insert(ModuleData::new(None, origin, false));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -96,13 +107,11 @@ impl CrateDefMap {
 
     /// Find the main function for this crate
     pub fn main_function(&self) -> Option<FuncId> {
-        const MAIN_FUNCTION: &str = "main";
-
         let root_module = &self.modules()[self.root.0];
 
         // This function accepts an Ident, so we attach a dummy span to
         // "main". Equality is implemented only on the contents.
-        root_module.scope.find_func_with_name(&MAIN_FUNCTION.into())
+        root_module.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
     pub fn root_file_id(&self) -> FileId {
@@ -121,10 +130,61 @@ impl CrateDefMap {
         interner: &'a NodeInterner,
     ) -> impl Iterator<Item = FuncId> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
-            let functions = module.scope.values().values().filter_map(|(id, _)| id.as_function());
-            functions.filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
+            module
+                .value_definitions()
+                .filter_map(|id| id.as_function())
+                .filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
         })
     }
+
+    /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
+    /// and collect them all into a Vec.
+    pub fn get_all_contracts(&self) -> Vec<Contract> {
+        self.modules
+            .iter()
+            .filter_map(|(id, module)| {
+                if module.is_contract {
+                    let functions =
+                        module.value_definitions().filter_map(|id| id.as_function()).collect();
+                    let name = self.get_module_path(id, module.parent);
+                    Some(Contract { name, functions })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Find a child module's name by inspecting its parent.
+    /// Currently required as modules do not store their own names.
+    fn get_module_path(&self, child_id: Index, parent: Option<LocalModuleId>) -> String {
+        if let Some(id) = parent {
+            let parent = &self.modules[id.0];
+            let name = parent
+                .children
+                .iter()
+                .find(|(_, id)| id.0 == child_id)
+                .map(|(name, _)| &name.0.contents)
+                .expect("Child module was not a child of the given parent module");
+
+            let parent_name = self.get_module_path(id.0, parent.parent);
+            if parent_name.is_empty() {
+                name.to_string()
+            } else {
+                format!("{parent_name}.{name}")
+            }
+        } else {
+            String::new()
+        }
+    }
+}
+
+/// A 'contract' in Noir source code with the given name and functions.
+/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+pub struct Contract {
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    pub name: String,
+    pub functions: Vec<FuncId>,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
@@ -134,7 +194,7 @@ pub fn parse_file(
     all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.get_source());
+    let (program, errors) = parse_program(file.source());
     all_errors.extend(errors.into_iter().map(|error| error.in_file(file_id)));
     program
 }
