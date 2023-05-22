@@ -1,4 +1,12 @@
-use super::fs::{create_named_dir, program::read_program_from_file, write_to_file};
+use super::fs::{
+    common_reference_string::{
+        read_cached_common_reference_string, update_common_reference_string,
+        write_cached_common_reference_string,
+    },
+    create_named_dir,
+    program::read_program_from_file,
+    write_to_file,
+};
 use super::NargoConfig;
 use crate::{
     cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, constants::TARGET_DIR,
@@ -29,18 +37,36 @@ pub(crate) fn run<B: Backend>(
         .circuit_name
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
-    let preprocessed_program = match circuit_build_path {
-        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
+    let common_reference_string = read_cached_common_reference_string();
+
+    let (common_reference_string, preprocessed_program) = match circuit_build_path {
+        Some(circuit_build_path) => {
+            let program = read_program_from_file(circuit_build_path)?;
+            let common_reference_string = update_common_reference_string(
+                backend,
+                &common_reference_string,
+                &program.bytecode,
+            )
+            .map_err(CliError::CommonReferenceStringError)?;
+            (common_reference_string, program)
+        }
         None => {
-            let compiled_program =
+            let program =
                 compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
-            preprocess_program(backend, compiled_program)
-                .map_err(CliError::ProofSystemCompilerError)?
+            let common_reference_string =
+                update_common_reference_string(backend, &common_reference_string, &program.circuit)
+                    .map_err(CliError::CommonReferenceStringError)?;
+            let program = preprocess_program(backend, &common_reference_string, program)
+                .map_err(CliError::ProofSystemCompilerError)?;
+            (common_reference_string, program)
         }
     };
 
-    let smart_contract_string = codegen_verifier(backend, &preprocessed_program.verification_key)
-        .map_err(CliError::SmartContractError)?;
+    let smart_contract_string =
+        codegen_verifier(backend, &common_reference_string, &preprocessed_program.verification_key)
+            .map_err(CliError::SmartContractError)?;
+
+    write_cached_common_reference_string(&common_reference_string);
 
     let contract_dir = config.program_dir.join(CONTRACT_DIR);
     create_named_dir(&contract_dir, "contract");
