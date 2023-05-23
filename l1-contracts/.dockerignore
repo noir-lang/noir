@@ -3,3 +3,4 @@ README.md
 .github
 lib/
 out/
+node_modules/

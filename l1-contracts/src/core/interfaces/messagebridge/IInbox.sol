@@ -24,9 +24,6 @@ interface IInbox {
 
   event L1ToL2MessageCancelled(bytes32 indexed entryKey);
 
-  /// @notice Given a message, computes an entry key for the Inbox
-  function computeEntryKey(DataStructures.L1ToL2Msg memory message) external pure returns (bytes32);
-
   /**
    * @notice Inserts an entry into the Inbox
    * @dev Will emit `MessageAdded` with data for easy access by the sequencer
@@ -61,10 +58,10 @@ interface IInbox {
    * @notice Batch consumes entries from the Inbox
    * @dev Only callable by the rollup contract
    * @dev Will revert if the message is already past deadline
-   * @param entryKeys - Array of entry keys (hash of the messages)
+   * @param _entryKeys - Array of entry keys (hash of the messages)
    * @param _feeCollector - The address to receive the "fee"
    */
-  function batchConsume(bytes32[] memory entryKeys, address _feeCollector) external;
+  function batchConsume(bytes32[] memory _entryKeys, address _feeCollector) external;
 
   /**
    * @notice Withdraws fees accrued by the sequencer
@@ -84,4 +81,10 @@ interface IInbox {
    * @return True if entry exists, false otherwise
    */
   function contains(bytes32 _entryKey) external view returns (bool);
+
+  /// @notice Given a message, computes an entry key for the Inbox
+  function computeEntryKey(DataStructures.L1ToL2Msg memory _message)
+    external
+    pure
+    returns (bytes32);
 }

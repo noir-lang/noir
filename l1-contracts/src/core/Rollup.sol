@@ -2,25 +2,26 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
+// Interfaces
+import {IRollup} from "@aztec/core/interfaces/IRollup.sol";
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
+import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 
-import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
+// Libraries
+import {Errors} from "@aztec/core/libraries/Errors.sol";
 import {Decoder} from "./Decoder.sol";
+
+// Contracts
+import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
 
 /**
  * @title Rollup
  * @author Aztec Labs
  * @notice Rollup contract that are concerned about readability and velocity of development
  * not giving a damn about gas costs.
- *
- * Work in progress
  */
-contract Rollup is Decoder {
-  event L2BlockProcessed(uint256 indexed blockNum);
-
+contract Rollup is IRollup, Decoder {
   MockVerifier public immutable VERIFIER;
   IRegistry public immutable REGISTRY;
 
@@ -36,7 +37,7 @@ contract Rollup is Decoder {
    * @param _proof - The proof of correct execution
    * @param _l2Block - The L2Block data, formatted as outlined in `Decoder.sol`
    */
-  function process(bytes memory _proof, bytes calldata _l2Block) external {
+  function process(bytes memory _proof, bytes calldata _l2Block) external override(IRollup) {
     (
       uint256 l2BlockNumber,
       bytes32 oldStateHash,

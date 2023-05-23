@@ -2,13 +2,15 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+// Libraries
 import {Constants} from "./Constants.sol";
 import {DataStructures} from "./DataStructures.sol";
 
 /**
  * @title Hash library
- * @author Aztec
- * @notice A small library of functions to compute hashes for data structures and convert to field elements
+ * @author Aztec Labs
+ * @notice Library that contains helper functions to compute hashes for data structures and convert to field elements
+ * Using sha256 as the hash function since it hits a good balance between gas cost and circuit size.
  */
 library Hash {
   /**

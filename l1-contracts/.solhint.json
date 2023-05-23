@@ -18,6 +18,7 @@
     "custom-error-over-require": ["error"],
     "strict-override": ["error"],
     "strict-import": ["error"],
-    "ordering": ["error"]
+    "ordering": ["error"],
+    "comprehensive-interface": ["error"]
   }
 }

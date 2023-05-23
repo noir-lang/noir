@@ -2,6 +2,13 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+/**
+ * @title Errors Library
+ * @author Aztec Labs
+ * @notice Library that contains errors used throughout the Aztec protocol
+ * Errors are prefixed with the contract name to make it easy to identify where the error originated
+ * when there are multiple contracts that could have thrown the error.
+ */
 library Errors {
   // Inbox
   error Inbox__DeadlineBeforeNow();

@@ -2,6 +2,11 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+/**
+ * @title Data Structures Library
+ * @author Aztec Labs
+ * @notice Library that contains data structures used throughout the Aztec protocol
+ */
 library DataStructures {
   /**
    * @notice Entry struct - Done as struct to easily support extensions if needed

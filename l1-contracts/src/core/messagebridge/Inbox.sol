@@ -2,12 +2,15 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+// Interfaces
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
+import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
+
+// Libraries
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
+import {Errors} from "@aztec/core/libraries/Errors.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
 import {MessageBox} from "@aztec/core/libraries/MessageBox.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
-import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 
 /**
  * @title Inbox
@@ -18,7 +21,7 @@ contract Inbox is IInbox {
   using MessageBox for mapping(bytes32 entryKey => DataStructures.Entry entry);
   using Hash for DataStructures.L1ToL2Msg;
 
-  IRegistry immutable REGISTRY;
+  IRegistry public immutable REGISTRY;
 
   mapping(bytes32 entryKey => DataStructures.Entry entry) internal entries;
   mapping(address account => uint256 balance) public feesAccrued;
@@ -31,15 +34,6 @@ contract Inbox is IInbox {
 
   constructor(address _registry) {
     REGISTRY = IRegistry(_registry);
-  }
-
-  /**
-   * @notice Given a message, computes an entry key for the Inbox
-   * @param _message - The L1 to L2 message
-   * @return The hash of the message (used as the key of the entry in the set)
-   */
-  function computeEntryKey(DataStructures.L1ToL2Msg memory _message) public pure returns (bytes32) {
-    return _message.sha256ToField();
   }
 
   /**
@@ -58,7 +52,7 @@ contract Inbox is IInbox {
     uint32 _deadline,
     bytes32 _content,
     bytes32 _secretHash
-  ) external payable returns (bytes32) {
+  ) external payable override(IInbox) returns (bytes32) {
     if (_deadline <= block.timestamp) revert Errors.Inbox__DeadlineBeforeNow();
     // `fee` is uint64 for slot packing of the Entry struct. uint64 caps at ~18.4 ETH which should be enough.
     // we revert here to safely cast msg.value into uint64.
@@ -102,6 +96,7 @@ contract Inbox is IInbox {
    */
   function cancelL2Message(DataStructures.L1ToL2Msg memory _message, address _feeCollector)
     external
+    override(IInbox)
     returns (bytes32 entryKey)
   {
     if (msg.sender != _message.sender.actor) revert Errors.Inbox__Unauthorized();
@@ -119,7 +114,11 @@ contract Inbox is IInbox {
    * @param _entryKeys - Array of entry keys (hash of the messages)
    * @param _feeCollector - The address to receive the "fee"
    */
-  function batchConsume(bytes32[] memory _entryKeys, address _feeCollector) external onlyRollup {
+  function batchConsume(bytes32[] memory _entryKeys, address _feeCollector)
+    external
+    override(IInbox)
+    onlyRollup
+  {
     uint256 totalFee = 0;
     for (uint256 i = 0; i < _entryKeys.length; i++) {
       if (_entryKeys[i] == bytes32(0)) continue;
@@ -137,7 +136,7 @@ contract Inbox is IInbox {
   /**
    * @notice Withdraws fees accrued by the sequencer
    */
-  function withdrawFees() external {
+  function withdrawFees() external override(IInbox) {
     uint256 balance = feesAccrued[msg.sender];
     feesAccrued[msg.sender] = 0;
     (bool success,) = msg.sender.call{value: balance}("");
@@ -149,7 +148,12 @@ contract Inbox is IInbox {
    * @param _entryKey - The key to lookup
    * @return The entry matching the provided key
    */
-  function get(bytes32 _entryKey) public view returns (DataStructures.Entry memory) {
+  function get(bytes32 _entryKey)
+    public
+    view
+    override(IInbox)
+    returns (DataStructures.Entry memory)
+  {
     return entries.get(_entryKey, _errNothingToConsume);
   }
 
@@ -158,8 +162,22 @@ contract Inbox is IInbox {
    * @param _entryKey - The key to lookup
    * @return True if entry exists, false otherwise
    */
-  function contains(bytes32 _entryKey) public view returns (bool) {
+  function contains(bytes32 _entryKey) public view override(IInbox) returns (bool) {
     return entries.contains(_entryKey);
+  }
+
+  /**
+   * @notice Given a message, computes an entry key for the Inbox
+   * @param _message - The L1 to L2 message
+   * @return The hash of the message (used as the key of the entry in the set)
+   */
+  function computeEntryKey(DataStructures.L1ToL2Msg memory _message)
+    public
+    pure
+    override(IInbox)
+    returns (bytes32)
+  {
+    return _message.sha256ToField();
   }
 
   /**

@@ -2,6 +2,8 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+// Libraries
+import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
 
 /**
@@ -102,13 +104,6 @@ contract Decoder {
     bytes32 unencryptedLogsHashKernel1;
     bytes32 unencryptedLogsHashKernel2;
   }
-
-  uint256 internal constant COMMITMENTS_PER_KERNEL = 4;
-  uint256 internal constant NULLIFIERS_PER_KERNEL = 4;
-  uint256 internal constant PUBLIC_DATA_WRITES_PER_KERNEL = 4;
-  uint256 internal constant L2_TO_L1_MSGS_PER_KERNEL = 2;
-  uint256 internal constant CONTRACTS_PER_KERNEL = 1;
-  uint256 internal constant L1_TO_L2_MSGS_PER_ROLLUP = 16;
 
   /**
    * @notice Decodes the inputs and computes values to check state against
@@ -261,7 +256,7 @@ contract Decoder {
 
     ConsumablesVars memory vars;
     vars.baseLeaves = new bytes32[](
-            lengths.commitmentCount / (COMMITMENTS_PER_KERNEL * 2)
+            lengths.commitmentCount / (Constants.COMMITMENTS_PER_KERNEL * 2)
         );
     vars.l2ToL1Msgs = new bytes32[](
             lengths.l2ToL1MsgsCount
@@ -296,7 +291,7 @@ contract Decoder {
       vars.baseLeaf = new bytes(0x540);
 
       for (uint256 i = 0; i < vars.baseLeaves.length; i++) {
-        /**
+        /*
          * Compute the leaf to insert.
          * Leaf_i = (
          *    newCommitmentsKernel1,
@@ -399,10 +394,10 @@ contract Decoder {
           // mstore(dstPtr, mload(add(vars, 0xc0))) // `unencryptedLogsHashKernel2` starts at 0xc0 in `vars`
         }
 
-        offsets.commitmentOffset += 2 * COMMITMENTS_PER_KERNEL * 0x20;
-        offsets.nullifierOffset += 2 * NULLIFIERS_PER_KERNEL * 0x20;
-        offsets.publicDataOffset += 2 * PUBLIC_DATA_WRITES_PER_KERNEL * 0x40;
-        offsets.l2ToL1MsgsOffset += 2 * L2_TO_L1_MSGS_PER_KERNEL * 0x20;
+        offsets.commitmentOffset += 2 * Constants.COMMITMENTS_PER_KERNEL * 0x20;
+        offsets.nullifierOffset += 2 * Constants.NULLIFIERS_PER_KERNEL * 0x20;
+        offsets.publicDataOffset += 2 * Constants.PUBLIC_DATA_WRITES_PER_KERNEL * 0x40;
+        offsets.l2ToL1MsgsOffset += 2 * Constants.L2_TO_L1_MSGS_PER_KERNEL * 0x20;
         offsets.contractOffset += 2 * 0x20;
         offsets.contractDataOffset += 2 * 0x34;
 
@@ -414,8 +409,8 @@ contract Decoder {
     bytes32[] memory l1ToL2Msgs;
     bytes32 l1ToL2MsgsHash;
     {
-      uint256 l1ToL2MsgsHashPreimageSize = 0x20 * L1_TO_L2_MSGS_PER_ROLLUP;
-      l1ToL2Msgs = new bytes32[](L1_TO_L2_MSGS_PER_ROLLUP);
+      uint256 l1ToL2MsgsHashPreimageSize = 0x20 * Constants.L1_TO_L2_MSGS_PER_ROLLUP;
+      l1ToL2Msgs = new bytes32[](Constants.L1_TO_L2_MSGS_PER_ROLLUP);
       assembly {
         calldatacopy(
           add(l1ToL2Msgs, 0x20),

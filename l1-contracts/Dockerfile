@@ -1,3 +1,9 @@
+FROM node:18-alpine
+RUN apk update && apk add --no-cache build-base git python3 curl bash jq
+
+COPY . .
+RUN yarn && yarn lint
+
 FROM ghcr.io/foundry-rs/foundry:nightly-c331b5eeee1b4151ef7354a081667e2d770b37f5 as builder
 
 # Required for foundry
