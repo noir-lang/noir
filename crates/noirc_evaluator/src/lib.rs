@@ -227,11 +227,37 @@ impl Evaluator {
                 self.generate_struct_witnesses(&mut struct_witnesses, &new_fields)?;
 
                 ir_gen.abi_struct(name, Some(def), fields, &struct_witnesses);
+
+                // This is a dirty hack and should be removed in future.
+                //
+                // `struct_witnesses` is a flat map where structs are represented by multiple entries
+                // i.e. a struct `foo` with fields `bar` and `baz` is stored under the keys
+                // `foo.bar` and `foo.baz` each holding the witnesses for fields `bar` and `baz` respectively.
+                //
+                // We've then lost the information on ordering of these fields. To reconstruct this we iterate
+                // over `fields` recursively to calculate the proper ordering of this `BTreeMap`s keys.
+                //
+                // Ideally we wouldn't lose this information in the first place.
+                fn get_field_ordering(prefix: String, fields: &[(String, AbiType)]) -> Vec<String> {
+                    fields
+                        .into_iter()
+                        .flat_map(|(field_name, field_type)| {
+                            let flattened_name = format!("{prefix}.{field_name}");
+                            if let AbiType::Struct { fields } = field_type {
+                                get_field_ordering(flattened_name, fields)
+                            } else {
+                                vec![flattened_name]
+                            }
+                        })
+                        .collect()
+                }
+                let field_ordering = get_field_ordering(name.to_owned(), fields);
+
                 // We concatenate the witness vectors in the order of the struct's fields.
-                // This ensures that struct fields are mapped to the correct witness indices during abi encoding.
-                new_fields
+                // This ensures that struct fields are mapped to the correct witness indices during ABI encoding.
+                field_ordering
                     .iter()
-                    .flat_map(|(field_name, _)| {
+                    .flat_map(|field_name| {
                         struct_witnesses.remove(field_name).unwrap_or_else(|| {
                             unreachable!(
                                 "Expected a field named '{field_name}' in the struct pattern"
