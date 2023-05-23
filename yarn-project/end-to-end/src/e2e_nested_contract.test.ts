@@ -57,6 +57,8 @@ describe('e2e_nested_contract', () => {
     return contract;
   };
 
+  const addressToField = (address: AztecAddress): bigint => Fr.fromBuffer(address.toBuffer()).value;
+
   const getChildStoredValue = (child: { address: AztecAddress }) =>
     node.getStorageAt(child.address, 1n).then(x => toBigInt(x!));
 
