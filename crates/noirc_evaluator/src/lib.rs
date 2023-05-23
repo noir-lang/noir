@@ -240,7 +240,7 @@ impl Evaluator {
                 // Ideally we wouldn't lose this information in the first place.
                 fn get_field_ordering(prefix: String, fields: &[(String, AbiType)]) -> Vec<String> {
                     fields
-                        .into_iter()
+                        .iter()
                         .flat_map(|(field_name, field_type)| {
                             let flattened_name = format!("{prefix}.{field_name}");
                             if let AbiType::Struct { fields } = field_type {
