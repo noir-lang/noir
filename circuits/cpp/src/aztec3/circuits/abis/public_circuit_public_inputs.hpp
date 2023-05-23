@@ -5,9 +5,11 @@
 #include "contract_storage_update_request.hpp"
 #include "../../constants.hpp"
 
-#include <aztec3/utils/array.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/array.hpp"
+#include "aztec3/utils/msgpack_derived_equals.hpp"
+#include "aztec3/utils/msgpack_derived_output.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
@@ -41,16 +43,21 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
     address prover_address;
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(call_context,
+                   args,
+                   return_values,
+                   emitted_events,
+                   contract_storage_update_requests,
+                   contract_storage_reads,
+                   public_call_stack,
+                   new_l2_to_l1_msgs,
+                   historic_public_data_tree_root,
+                   prover_address);
     boolean operator==(PublicCircuitPublicInputs<NCT> const& other) const
     {
-        return call_context == other.call_context && args == other.args && return_values == other.return_values &&
-               emitted_events == other.emitted_events &&
-               contract_storage_update_requests == other.contract_storage_update_requests &&
-               contract_storage_reads == other.contract_storage_reads && public_call_stack == other.public_call_stack &&
-               new_l2_to_l1_msgs == other.new_l2_to_l1_msgs &&
-               historic_public_data_tree_root == other.historic_public_data_tree_root &&
-               prover_address == other.prover_address;
-    };
+        return msgpack_derived_equals<boolean>(*this, other);
+    }
 
     template <typename Composer>
     PublicCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -164,20 +171,7 @@ template <typename NCT>
 std::ostream& operator<<(std::ostream& os, PublicCircuitPublicInputs<NCT> const& public_circuit_public_inputs)
 
 {
-    PublicCircuitPublicInputs<NCT> const& pis = public_circuit_public_inputs;
-    return os << "call_context: " << pis.call_context << "\n"
-              << "args: " << pis.args << "\n"
-              << "return_values: " << pis.return_values << "\n"
-              << "emitted_events: " << pis.emitted_events << "\n"
-
-              << "contract_storage_update_requests: " << pis.contract_storage_update_requests << "\n"
-              << "contract_storage_reads: " << pis.contract_storage_reads << "\n"
-
-              << "public_call_stack: " << pis.public_call_stack << "\n"
-              << "new_l2_to_l1_msgs: " << pis.new_l2_to_l1_msgs << "\n"
-
-              << "historic_public_data_tree_root: " << pis.historic_public_data_tree_root << "\n"
-
-              << "prover_address: " << pis.prover_address << "\n";
+    utils::msgpack_derived_output(os, public_circuit_public_inputs);
+    return os;
 }
 }  // namespace aztec3::circuits::abis

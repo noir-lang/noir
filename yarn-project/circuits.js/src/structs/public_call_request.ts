@@ -1,6 +1,8 @@
+import { Tuple } from '@aztec/foundation/serialize';
 import { FieldsOf } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import {
+  ARGS_LENGTH,
   AztecAddress,
   CallContext,
   Fr,
@@ -30,7 +32,7 @@ export class PublicCallRequest {
     /**
      * Function arguments.
      */
-    public args: Fr[],
+    public args: Tuple<Fr, typeof ARGS_LENGTH>,
   ) {}
 
   /**

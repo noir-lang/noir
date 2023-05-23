@@ -8,6 +8,7 @@
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
+#include <barretenberg/serialize/msgpack.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis::public_kernel {
@@ -23,6 +24,8 @@ template <typename NCT> struct PublicKernelInputs {
     PreviousKernelData<NCT> previous_kernel{};
     PublicCallData<NCT> public_call{};
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(previous_kernel, public_call);
     boolean operator==(PublicKernelInputs<NCT> const& other) const
     {
         return previous_kernel == other.previous_kernel && public_call == other.public_call;

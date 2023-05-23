@@ -1,10 +1,15 @@
 #pragma once
 #include "aztec3/utils/types/circuit_types.hpp"
 
+#include <barretenberg/serialize/msgpack.hpp>
+
+#include <variant>
+
 namespace aztec3::utils {
 
 enum CircuitErrorCode : uint16_t {
     NO_ERROR = 0,
+    UNINITIALIZED_RESULT = 1,  // Default for CircuitResult
     // Private kernel related errors
     PRIVATE_KERNEL_CIRCUIT_FAILED = 2000,
     PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH = 2001,
@@ -76,21 +81,39 @@ enum CircuitErrorCode : uint16_t {
 };
 
 struct CircuitError {
-    CircuitErrorCode code = CircuitErrorCode::NO_ERROR;
+    // using int for easy serialization
+    uint16_t code = CircuitErrorCode::NO_ERROR;
     std::string message;
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(code, message);
     static CircuitError no_error() { return { CircuitErrorCode::NO_ERROR, "" }; }
 };
 
-inline uint16_t as_uint16_t(CircuitErrorCode const value)
+// Define CircuitResult<T> as a std::variant T + error union type
+// We do not use std::variant directly as we need default-constructible types for msgpack
+template <typename T> struct CircuitResult {
+    CircuitResult() : result(CircuitError{ UNINITIALIZED_RESULT, "" }) {}
+    explicit CircuitResult(const T& value) : result(value) {}
+    explicit CircuitResult(const CircuitError& value) : result(value) {}
+    std::variant<CircuitError, T> result;
+
+    // for serialization: delegate to msgpack std::variant support
+    void msgpack_pack(auto& packer) const { packer.pack(result); }
+    void msgpack_unpack(auto obj) { result = obj; }
+};
+
+// help our msgpack schema compiler with this struct
+// Alias CircuitResult as std::variant<CircuitError, T>
+template <typename T> inline void msgpack_schema_pack(auto& packer, CircuitResult<T> const& result)
 {
-    return static_cast<typename std::underlying_type<CircuitErrorCode>::type>(value);
+    msgpack_schema_pack(packer, result.result);
 }
 
 inline void read(uint8_t const*& it, CircuitError& obj)
 {
     using serialize::read;
-    read(it, reinterpret_cast<uint16_t&>(obj.code));
+    read(it, obj.code);
     read(it, obj.message);
 };
 
@@ -98,13 +121,13 @@ inline void write(std::vector<uint8_t>& buf, CircuitError const& obj)
 {
     using serialize::write;
 
-    write(buf, as_uint16_t(obj.code));
+    write(buf, obj.code);
     write(buf, obj.message);
 };
 
 inline std::ostream& operator<<(std::ostream& os, CircuitError const& obj)
 {
-    return os << "code: " << as_uint16_t(obj.code) << "\n"
+    return os << "code: " << obj.code << "\n"
               << "message: " << obj.message << "\n";
 }
 }  // namespace aztec3::utils

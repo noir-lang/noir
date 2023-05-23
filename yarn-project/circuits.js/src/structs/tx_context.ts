@@ -32,7 +32,7 @@ export class ContractDeploymentData {
      */
     portalContractAddress: EthAddress | AztecAddress,
   ) {
-    this.portalContractAddress = new EthAddress(portalContractAddress.toBuffer());
+    this.portalContractAddress = EthAddress.fromField(portalContractAddress.toField());
   }
 
   toBuffer() {

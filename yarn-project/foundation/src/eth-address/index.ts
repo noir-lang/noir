@@ -208,6 +208,15 @@ export class EthAddress {
   }
 
   /**
+   * Converts a field to a eth address.
+   * @param fr - The field to convert.
+   * @returns The eth address.
+   */
+  static fromField(fr: Fr): EthAddress {
+    return new EthAddress(fr.toBuffer().slice(-EthAddress.SIZE_IN_BYTES));
+  }
+
+  /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
    * @returns The EthAdress.

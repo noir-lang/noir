@@ -1,11 +1,14 @@
 #pragma once
 
 #include <aztec3/constants.hpp>
+#include <aztec3/utils/msgpack_derived_equals.hpp>
+#include <aztec3/utils/msgpack_derived_output.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
 #include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/serialize/msgpack.hpp>
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
@@ -27,11 +30,17 @@ template <typename NCT> struct CallContext {
     boolean is_static_call = false;
     boolean is_contract_deployment = false;
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(msg_sender,
+                   storage_contract_address,
+                   portal_contract_address,
+                   is_delegate_call,
+                   is_static_call,
+                   is_contract_deployment);
     boolean operator==(CallContext<NCT> const& other) const
     {
-        return msg_sender == other.msg_sender && storage_contract_address == other.storage_contract_address &&
-               portal_contract_address == other.portal_contract_address && is_delegate_call == other.is_delegate_call &&
-               is_static_call == other.is_static_call && is_contract_deployment == other.is_contract_deployment;
+        // we can't use =default with a custom boolean, but we can use a msgpack-derived utility
+        return utils::msgpack_derived_equals<boolean>(*this, other);
     };
 
     template <typename Composer> CallContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -124,12 +133,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, CallContext<NCT> c
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, CallContext<NCT> const& call_context)
 {
-    return os << "msg_sender: " << call_context.msg_sender << "\n"
-              << "storage_contract_address: " << call_context.storage_contract_address << "\n"
-              << "portal_contract_address: " << call_context.portal_contract_address << "\n"
-              << "is_delegate_call: " << call_context.is_delegate_call << "\n"
-              << "is_static_call: " << call_context.is_static_call << "\n"
-              << "is_contract_deployment: " << call_context.is_contract_deployment << "\n";
+    utils::msgpack_derived_output(os, call_context);
+    return os;
 }
 
 }  // namespace aztec3::circuits::abis

@@ -2,12 +2,17 @@ import { serializeToBuffer } from '../utils/serialize.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { FieldsOf } from '../utils/jsUtils.js';
+import { Fr } from './index.js';
 
 /**
  * Call context.
  * @see abis/call_context.hpp
  */
 export class CallContext {
+  /**
+   * Address of the portal contract to the storage contract.
+   */
+  public portalContractAddress: EthAddress;
   constructor(
     /**
      * Address of the account which represents the entity who invoked the call.
@@ -21,8 +26,9 @@ export class CallContext {
     public storageContractAddress: AztecAddress,
     /**
      * Address of the portal contract to the storage contract.
+     * Union type is a kludge until C++ has an eth address type.
      */
-    public portalContractAddress: EthAddress,
+    portalContractAddress: EthAddress | Fr,
     /**
      * Determines whether the call is a delegate call (see Ethereum's delegate call opcode for more information).
      */
@@ -35,14 +41,17 @@ export class CallContext {
      * Determines whether the call is a contract deployment.
      */
     public isContractDeployment: boolean,
-  ) {}
+  ) {
+    this.portalContractAddress =
+      portalContractAddress instanceof EthAddress ? portalContractAddress : EthAddress.fromField(portalContractAddress);
+  }
 
   /**
    * Returns a new instance of CallContext with zero msg sender, storage contract address and portal contract address.
    * @returns A new instance of CallContext with zero msg sender, storage contract address and portal contract address.
    */
   public static empty(): CallContext {
-    return new CallContext(AztecAddress.ZERO, AztecAddress.ZERO, EthAddress.ZERO, false, false, false);
+    return new CallContext(AztecAddress.ZERO, AztecAddress.ZERO, Fr.ZERO, false, false, false);
   }
 
   isEmpty() {

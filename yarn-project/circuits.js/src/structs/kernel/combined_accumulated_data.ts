@@ -122,7 +122,7 @@ export class OptionallyRevealedData {
   ) {
     assertMemberLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
     // Handle circuits emitting this as an AztecAddress
-    this.portalContractAddress = new EthAddress(portalContractAddress.toBuffer());
+    this.portalContractAddress = EthAddress.fromField(portalContractAddress.toField());
   }
 
   toBuffer() {

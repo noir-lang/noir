@@ -9,6 +9,7 @@
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
+#include <barretenberg/serialize/msgpack.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
@@ -35,6 +36,8 @@ template <typename NCT, template <class> typename PrivatePublic> struct CallStac
     // fulfilled execution. Used when enqueuing calls from private to public functions.
     boolean is_execution_request = false;
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(contract_address, function_data, public_inputs, is_execution_request);
     boolean operator==(CallContext<NCT> const& other) const
     {
         return contract_address == other.contract_address && function_data == other.function_data &&

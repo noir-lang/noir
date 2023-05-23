@@ -10,8 +10,9 @@
 #include <aztec3/constants.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
-#include "barretenberg/common/serialize.hpp"
-#include "barretenberg/srs/reference_string/env_reference_string.hpp"
+#include <barretenberg/common/serialize.hpp>
+#include <barretenberg/serialize/cbind.hpp>
+#include <barretenberg/srs/reference_string/env_reference_string.hpp>
 
 namespace {
 using Composer = plonk::UltraComposer;
@@ -25,9 +26,7 @@ using aztec3::circuits::kernel::public_kernel::native_public_kernel_circuit_priv
 using aztec3::circuits::kernel::public_kernel::native_public_kernel_circuit_public_previous_kernel;
 }  // namespace
 
-#define WASM_EXPORT __attribute__((visibility("default")))
 // WASM Cbinds
-extern "C" {
 
 WASM_EXPORT size_t public_kernel__init_proving_key(uint8_t const** pk_buf)
 {
@@ -53,30 +52,14 @@ WASM_EXPORT size_t public_kernel__init_verification_key(uint8_t const* pk_buf, u
     return vk_vec.size();
 }
 
-WASM_EXPORT uint8_t* public_kernel__sim(uint8_t const* public_kernel_inputs_buf,
-                                        size_t* public_kernel_public_inputs_size_out,
-                                        uint8_t const** public_kernel_public_inputs_buf)
-{
+CBIND(public_kernel__sim, [](PublicKernelInputs<NT> public_kernel_inputs) {
     DummyComposer composer = DummyComposer("public_kernel__sim");
-
-    PublicKernelInputs<NT> public_kernel_inputs;
-    read(public_kernel_inputs_buf, public_kernel_inputs);
-
-    KernelCircuitPublicInputs<NT> const public_inputs =
+    KernelCircuitPublicInputs<NT> const result =
         public_kernel_inputs.previous_kernel.public_inputs.is_private
             ? native_public_kernel_circuit_private_previous_kernel(composer, public_kernel_inputs)
             : native_public_kernel_circuit_public_previous_kernel(composer, public_kernel_inputs);
-
-    // serialize public inputs to bytes vec
-    std::vector<uint8_t> public_inputs_vec;
-    write(public_inputs_vec, public_inputs);
-    // copy public inputs to output buffer
-    auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
-    memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
-    *public_kernel_public_inputs_buf = raw_public_inputs_buf;
-    *public_kernel_public_inputs_size_out = public_inputs_vec.size();
-    return composer.alloc_and_serialize_first_failure();
-}
+    return composer.result_or_error(result);
+});
 
 WASM_EXPORT uint8_t* public_kernel_no_previous_kernel__sim(uint8_t const* public_kernel_inputs_buf,
                                                            size_t* public_kernel_public_inputs_size_out,
@@ -100,5 +83,3 @@ WASM_EXPORT uint8_t* public_kernel_no_previous_kernel__sim(uint8_t const* public
     *public_kernel_public_inputs_size_out = public_inputs_vec.size();
     return composer.alloc_and_serialize_first_failure();
 }
-
-}  // extern "C"

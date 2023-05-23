@@ -1,9 +1,11 @@
 #pragma once
 
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/msgpack_derived_equals.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 
+#include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 namespace aztec3::circuits::abis {
 
@@ -25,8 +27,8 @@ template <typename NCT> struct NewContractData {
 
     boolean operator==(NewContractData<NCT> const& other) const
     {
-        return contract_address == other.contract_address && portal_contract_address == other.portal_contract_address &&
-               function_tree_root == other.function_tree_root;
+        // we can't use =default with a custom boolean, but we can use a msgpack-derived utility
+        return utils::msgpack_derived_equals<boolean>(*this, other);
     };
 
     template <typename Composer> NewContractData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const

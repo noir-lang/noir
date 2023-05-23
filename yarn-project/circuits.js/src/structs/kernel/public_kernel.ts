@@ -13,6 +13,7 @@ import { SignedTxRequest } from '../tx_request.js';
 import { PreviousKernelData } from './previous_kernel_data.js';
 import { CombinedHistoricTreeRoots } from './combined_constant_data.js';
 import { Proof } from '../proof.js';
+import { Tuple } from '@aztec/foundation/serialize';
 
 /**
  * Inputs to the public kernel circuit.
@@ -27,11 +28,11 @@ export class PublicKernelInputs {
     /**
      * Public calldata assembled from the execution result and proof.
      */
-    public readonly publicCallData: PublicCallData,
+    public readonly publicCall: PublicCallData,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.previousKernel, this.publicCallData);
+    return serializeToBuffer(this.previousKernel, this.publicCall);
   }
 }
 /**
@@ -112,7 +113,7 @@ export class PublicCallData {
     /**
      * Children call stack items.
      */
-    public readonly publicCallStackPreimages: PublicCallStackItem[],
+    public readonly publicCallStackPreimages: Tuple<PublicCallStackItem, typeof PUBLIC_CALL_STACK_LENGTH>,
     /**
      * Proof of the call stack item execution.
      */

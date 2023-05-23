@@ -73,6 +73,18 @@ export interface TypeInfo {
    */
   arraySubtype?: TypeInfo;
   /**
+   * Indicates if the schama represents a variant.
+   * If so, stores the variant's subtype elements.
+   */
+  variantSubtypes?: TypeInfo[];
+  /**
+   * Was this used in a variant type?
+   * Typically a variant in C++ will have an easy to distinguish type as
+   * one of two structs e.g. [Error, T]. In that case, a isError method would be imported. Only if a third type was
+   * added would we need to distinguish T as well.
+   */
+  usedInDiscriminatedVariant?: boolean;
+  /**
    * Key-value pair of types that represent the keys and values in a map schema.
    */
   mapSubtypes?: [TypeInfo, TypeInfo];
@@ -121,6 +133,18 @@ function msgpackConverterExpr(typeInfo: TypeInfo, value: string): string {
     } else {
       return `${value}.map(${convFn})`;
     }
+  } else if (typeInfo.variantSubtypes) {
+    const { variantSubtypes } = typeInfo;
+    // Handle the last variant type: just assume it is this type...
+    let expr = msgpackConverterExpr(variantSubtypes[variantSubtypes.length - 1], 'v');
+    // ... because we check every other type:
+    for (let i = 0; i < variantSubtypes.length - 1; i++) {
+      // mark this as needing an import
+      variantSubtypes[i].usedInDiscriminatedVariant = true;
+      // make the expr a compound expression with a discriminator
+      expr = `(is${variantSubtypes[i].typeName}(v) ? ${msgpackConverterExpr(variantSubtypes[i], 'v')} : ${expr})`;
+    }
+    return `((v: ${typeInfo.msgpackTypeName}) => ${expr})(${value})`;
   } else if (typeInfo.mapSubtypes) {
     const { typeName, msgpackTypeName } = typeInfo.mapSubtypes[1];
     const convFn = `(v: ${msgpackTypeName || typeName}) => ${msgpackConverterExpr(typeInfo.mapSubtypes[1], 'v')}`;
@@ -160,6 +184,8 @@ function classConverterExpr(typeInfo: TypeInfo, value: string): string {
     } else {
       return `${value}.map(${convFn})`;
     }
+  } else if (typeInfo.variantSubtypes) {
+    throw new Error('TODO - variant parameters to C++ not yet supported');
   } else if (typeInfo.mapSubtypes) {
     const { typeName } = typeInfo.mapSubtypes[1];
     const convFn = `(v: ${typeName}) => ${classConverterExpr(typeInfo.mapSubtypes[1], 'v')}`;
@@ -209,6 +235,16 @@ export class CbindCompiler {
           isTuple: true,
           arraySubtype: this.getTypeInfo(subtype),
         };
+      } else if (type[0] === 'variant') {
+        // fixed-size array case
+        const [_array, variantSchemas] = type;
+        const typeName = variantSchemas.map(vs => this.getTypeName(vs)).join(' | ');
+        const msgpackTypeName = variantSchemas.map(vs => this.getMsgpackTypename(vs)).join(' | ');
+        return {
+          typeName,
+          msgpackTypeName,
+          variantSubtypes: variantSchemas.map(vs => this.getTypeInfo(vs)),
+        };
       } else if (type[0] === 'vector') {
         // vector case
         const [_vector, [subtype]] = type;
@@ -228,7 +264,7 @@ export class CbindCompiler {
         let msgpackTypeName: string;
         if (msgpackName.startsWith('bin')) {
           msgpackTypeName = 'Buffer';
-        } else if (msgpackName === 'int' || msgpackName === 'unsigned int') {
+        } else if (msgpackName === 'int' || msgpackName === 'unsigned int' || msgpackName === 'unsigned short') {
           msgpackTypeName = 'number';
         } else {
           throw new Error('Unsupported alias type ' + msgpackName);
@@ -259,6 +295,7 @@ export class CbindCompiler {
           return { typeName: 'boolean' };
         case 'int':
         case 'unsigned int':
+        case 'unsigned short':
           return { typeName: 'number' };
         case 'string':
           return { typeName: 'string' };
@@ -308,7 +345,7 @@ export class CbindCompiler {
    */
   private generateInterface(name: string, type: ObjectSchema) {
     // Raw object, used as return value of fromType() generated functions.
-    let result = `export interface Msgpack${name} {\n`;
+    let result = `interface Msgpack${name} {\n`;
     for (const [key, value] of Object.entries(type)) {
       if (key === '__typename') continue;
       result += `  ${key}: ${this.getMsgpackTypename(value)};\n`;
@@ -451,6 +488,9 @@ import { CircuitsWasm } from '../wasm/index.js';
     for (const typeInfo of Object.values(this.typeInfos)) {
       if (typeInfo.isImport) {
         imports.push(typeInfo.typeName);
+      }
+      if (typeInfo.usedInDiscriminatedVariant) {
+        imports.push(`is${typeInfo.typeName}`);
       }
       if (typeInfo.declaration) {
         outputs.push(typeInfo.declaration);

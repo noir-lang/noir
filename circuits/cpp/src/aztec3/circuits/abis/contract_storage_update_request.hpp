@@ -1,8 +1,10 @@
 #pragma once
+#include <aztec3/utils/msgpack_derived_output.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
+#include <barretenberg/serialize/msgpack.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 
 namespace aztec3::circuits::abis {
@@ -19,8 +21,9 @@ template <typename NCT> struct ContractStorageUpdateRequest {
     fr old_value = 0;
     fr new_value = 0;
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(storage_slot, old_value, new_value);
     bool operator==(ContractStorageUpdateRequest<NCT> const&) const = default;
-
     template <typename Composer>
     ContractStorageUpdateRequest<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
@@ -97,9 +100,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, ContractStorageUpd
 template <typename NCT>
 std::ostream& operator<<(std::ostream& os, ContractStorageUpdateRequest<NCT> const& update_request)
 {
-    return os << "storage_slot: " << update_request.storage_slot << "\n"
-              << "old_value: " << update_request.old_value << "\n"
-              << "new_value: " << update_request.new_value << "\n";
+    utils::msgpack_derived_output(os, update_request);
+    return os;
 }
 
 }  // namespace aztec3::circuits::abis

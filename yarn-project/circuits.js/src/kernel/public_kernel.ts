@@ -1,4 +1,6 @@
+import { publicKernelSim } from '../cbind/circuits.gen.js';
 import {
+  CircuitError,
   CircuitsWasm,
   KernelCircuitPublicInputs,
   PublicKernelInputs,
@@ -12,7 +14,11 @@ import { callAsyncWasm } from '../utils/call_wasm.js';
  * @returns The public inputs.
  */
 export async function simulatePublicKernelCircuit(input: PublicKernelInputs): Promise<KernelCircuitPublicInputs> {
-  return callAsyncWasm(await CircuitsWasm.get(), 'public_kernel__sim', input, KernelCircuitPublicInputs);
+  const result = await publicKernelSim(await CircuitsWasm.get(), input);
+  if (result instanceof CircuitError) {
+    throw new CircuitError(result.code, result.message);
+  }
+  return result;
 }
 
 /**

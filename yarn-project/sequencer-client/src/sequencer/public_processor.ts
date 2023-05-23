@@ -38,6 +38,7 @@ import { getPublicExecutor } from '../simulator/public_executor.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 import { getCombinedHistoricTreeRoots } from './utils.js';
+import { Tuple, mapTuple } from '@aztec/foundation/serialize';
 
 /**
  * Creates new instances of PublicProcessor given the provided merkle tree db and contract data source.
@@ -208,7 +209,7 @@ export class PublicProcessor {
     const historicPublicDataTreeRoot = Fr.fromBuffer(publicDataTreeInfo.root);
     const callStackPreimages = await this.getPublicCallStackPreimages(result);
     const wasm = await CircuitsWasm.get();
-    const publicCallStack = callStackPreimages.map(item =>
+    const publicCallStack = mapTuple(callStackPreimages, item =>
       item.isEmpty() ? Fr.zero() : computeCallStackItemHash(wasm, item),
     );
 
@@ -271,7 +272,7 @@ export class PublicProcessor {
    */
   protected async getPublicCallData(
     result: PublicExecutionResult,
-    preimages: PublicCallStackItem[],
+    preimages: Tuple<PublicCallStackItem, typeof PUBLIC_CALL_STACK_LENGTH>,
     isExecutionRequest = false,
   ) {
     const bytecodeHash = await this.getBytecodeHash(result);

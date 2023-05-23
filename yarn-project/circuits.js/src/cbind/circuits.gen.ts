@@ -24,11 +24,20 @@ import {
   Proof,
   VerificationKeyData,
   PreviousKernelData,
+  CallContext,
+  ContractStorageUpdateRequest,
+  ContractStorageRead,
+  PublicCircuitPublicInputs,
+  PublicCallStackItem,
+  PublicCallData,
+  PublicKernelInputs,
+  CircuitError,
+  isCircuitError,
   ProverBasePtr,
 } from './types.js';
 import { Tuple, mapTuple } from '@aztec/foundation/serialize';
 import mapValues from 'lodash.mapvalues';
-export interface MsgpackG1AffineElement {
+interface MsgpackG1AffineElement {
   x: Buffer;
   y: Buffer;
 }
@@ -56,7 +65,7 @@ export function fromG1AffineElement(o: G1AffineElement): MsgpackG1AffineElement 
   };
 }
 
-export interface MsgpackNativeAggregationState {
+interface MsgpackNativeAggregationState {
   P0: MsgpackG1AffineElement;
   P1: MsgpackG1AffineElement;
   public_inputs: Buffer[];
@@ -114,7 +123,7 @@ export function fromNativeAggregationState(o: NativeAggregationState): MsgpackNa
   };
 }
 
-export interface MsgpackNewContractData {
+interface MsgpackNewContractData {
   contract_address: Buffer;
   portal_contract_address: Buffer;
   function_tree_root: Buffer;
@@ -154,7 +163,7 @@ export function fromNewContractData(o: NewContractData): MsgpackNewContractData 
   };
 }
 
-export interface MsgpackFunctionData {
+interface MsgpackFunctionData {
   function_selector: number;
   is_private: boolean;
   is_constructor: boolean;
@@ -190,7 +199,7 @@ export function fromFunctionData(o: FunctionData): MsgpackFunctionData {
   };
 }
 
-export interface MsgpackOptionallyRevealedData {
+interface MsgpackOptionallyRevealedData {
   call_stack_item_hash: Buffer;
   function_data: MsgpackFunctionData;
   emitted_events: Tuple<Buffer, 4>;
@@ -284,7 +293,7 @@ export function fromOptionallyRevealedData(o: OptionallyRevealedData): MsgpackOp
   };
 }
 
-export interface MsgpackPublicDataUpdateRequest {
+interface MsgpackPublicDataUpdateRequest {
   leaf_index: Buffer;
   old_value: Buffer;
   new_value: Buffer;
@@ -324,7 +333,7 @@ export function fromPublicDataUpdateRequest(o: PublicDataUpdateRequest): Msgpack
   };
 }
 
-export interface MsgpackPublicDataRead {
+interface MsgpackPublicDataRead {
   leaf_index: Buffer;
   value: Buffer;
 }
@@ -352,7 +361,7 @@ export function fromPublicDataRead(o: PublicDataRead): MsgpackPublicDataRead {
   };
 }
 
-export interface MsgpackCombinedAccumulatedData {
+interface MsgpackCombinedAccumulatedData {
   aggregation_object: MsgpackNativeAggregationState;
   new_commitments: Tuple<Buffer, 4>;
   new_nullifiers: Tuple<Buffer, 4>;
@@ -459,7 +468,7 @@ export function fromCombinedAccumulatedData(o: CombinedAccumulatedData): Msgpack
   };
 }
 
-export interface MsgpackPrivateHistoricTreeRoots {
+interface MsgpackPrivateHistoricTreeRoots {
   private_data_tree_root: Buffer;
   nullifier_tree_root: Buffer;
   contract_tree_root: Buffer;
@@ -517,7 +526,7 @@ export function fromPrivateHistoricTreeRoots(o: PrivateHistoricTreeRoots): Msgpa
   };
 }
 
-export interface MsgpackCombinedHistoricTreeRoots {
+interface MsgpackCombinedHistoricTreeRoots {
   private_historic_tree_roots: MsgpackPrivateHistoricTreeRoots;
 }
 
@@ -537,7 +546,7 @@ export function fromCombinedHistoricTreeRoots(o: CombinedHistoricTreeRoots): Msg
   };
 }
 
-export interface MsgpackContractDeploymentData {
+interface MsgpackContractDeploymentData {
   constructor_vk_hash: Buffer;
   function_tree_root: Buffer;
   contract_address_salt: Buffer;
@@ -586,7 +595,7 @@ export function fromContractDeploymentData(o: ContractDeploymentData): MsgpackCo
   };
 }
 
-export interface MsgpackTxContext {
+interface MsgpackTxContext {
   is_fee_payment_tx: boolean;
   is_rebate_payment_tx: boolean;
   is_contract_deployment_tx: boolean;
@@ -635,7 +644,7 @@ export function fromTxContext(o: TxContext): MsgpackTxContext {
   };
 }
 
-export interface MsgpackCombinedConstantData {
+interface MsgpackCombinedConstantData {
   historic_tree_roots: MsgpackCombinedHistoricTreeRoots;
   tx_context: MsgpackTxContext;
 }
@@ -663,7 +672,7 @@ export function fromCombinedConstantData(o: CombinedConstantData): MsgpackCombin
   };
 }
 
-export interface MsgpackKernelCircuitPublicInputs {
+interface MsgpackKernelCircuitPublicInputs {
   end: MsgpackCombinedAccumulatedData;
   constants: MsgpackCombinedConstantData;
   is_private: boolean;
@@ -703,7 +712,7 @@ export function fromKernelCircuitPublicInputs(o: KernelCircuitPublicInputs): Msg
   };
 }
 
-export interface MsgpackVerificationKeyData {
+interface MsgpackVerificationKeyData {
   composer_type: number;
   circuit_size: number;
   num_public_inputs: number;
@@ -770,7 +779,7 @@ export function fromVerificationKeyData(o: VerificationKeyData): MsgpackVerifica
   };
 }
 
-export interface MsgpackPreviousKernelData {
+interface MsgpackPreviousKernelData {
   public_inputs: MsgpackKernelCircuitPublicInputs;
   proof: Buffer;
   vk: MsgpackVerificationKeyData;
@@ -828,6 +837,413 @@ export function fromPreviousKernelData(o: PreviousKernelData): MsgpackPreviousKe
   };
 }
 
+interface MsgpackCallContext {
+  msg_sender: Buffer;
+  storage_contract_address: Buffer;
+  portal_contract_address: Buffer;
+  is_delegate_call: boolean;
+  is_static_call: boolean;
+  is_contract_deployment: boolean;
+}
+
+export function toCallContext(o: MsgpackCallContext): CallContext {
+  if (o.msg_sender === undefined) {
+    throw new Error('Expected msg_sender in CallContext deserialization');
+  }
+  if (o.storage_contract_address === undefined) {
+    throw new Error('Expected storage_contract_address in CallContext deserialization');
+  }
+  if (o.portal_contract_address === undefined) {
+    throw new Error('Expected portal_contract_address in CallContext deserialization');
+  }
+  if (o.is_delegate_call === undefined) {
+    throw new Error('Expected is_delegate_call in CallContext deserialization');
+  }
+  if (o.is_static_call === undefined) {
+    throw new Error('Expected is_static_call in CallContext deserialization');
+  }
+  if (o.is_contract_deployment === undefined) {
+    throw new Error('Expected is_contract_deployment in CallContext deserialization');
+  }
+  return new CallContext(
+    Address.fromBuffer(o.msg_sender),
+    Address.fromBuffer(o.storage_contract_address),
+    Fr.fromBuffer(o.portal_contract_address),
+    o.is_delegate_call,
+    o.is_static_call,
+    o.is_contract_deployment,
+  );
+}
+
+export function fromCallContext(o: CallContext): MsgpackCallContext {
+  if (o.msgSender === undefined) {
+    throw new Error('Expected msgSender in CallContext serialization');
+  }
+  if (o.storageContractAddress === undefined) {
+    throw new Error('Expected storageContractAddress in CallContext serialization');
+  }
+  if (o.portalContractAddress === undefined) {
+    throw new Error('Expected portalContractAddress in CallContext serialization');
+  }
+  if (o.isDelegateCall === undefined) {
+    throw new Error('Expected isDelegateCall in CallContext serialization');
+  }
+  if (o.isStaticCall === undefined) {
+    throw new Error('Expected isStaticCall in CallContext serialization');
+  }
+  if (o.isContractDeployment === undefined) {
+    throw new Error('Expected isContractDeployment in CallContext serialization');
+  }
+  return {
+    msg_sender: o.msgSender.toBuffer(),
+    storage_contract_address: o.storageContractAddress.toBuffer(),
+    portal_contract_address: o.portalContractAddress.toBuffer(),
+    is_delegate_call: o.isDelegateCall,
+    is_static_call: o.isStaticCall,
+    is_contract_deployment: o.isContractDeployment,
+  };
+}
+
+interface MsgpackContractStorageUpdateRequest {
+  storage_slot: Buffer;
+  old_value: Buffer;
+  new_value: Buffer;
+}
+
+export function toContractStorageUpdateRequest(o: MsgpackContractStorageUpdateRequest): ContractStorageUpdateRequest {
+  if (o.storage_slot === undefined) {
+    throw new Error('Expected storage_slot in ContractStorageUpdateRequest deserialization');
+  }
+  if (o.old_value === undefined) {
+    throw new Error('Expected old_value in ContractStorageUpdateRequest deserialization');
+  }
+  if (o.new_value === undefined) {
+    throw new Error('Expected new_value in ContractStorageUpdateRequest deserialization');
+  }
+  return new ContractStorageUpdateRequest(
+    Fr.fromBuffer(o.storage_slot),
+    Fr.fromBuffer(o.old_value),
+    Fr.fromBuffer(o.new_value),
+  );
+}
+
+export function fromContractStorageUpdateRequest(o: ContractStorageUpdateRequest): MsgpackContractStorageUpdateRequest {
+  if (o.storageSlot === undefined) {
+    throw new Error('Expected storageSlot in ContractStorageUpdateRequest serialization');
+  }
+  if (o.oldValue === undefined) {
+    throw new Error('Expected oldValue in ContractStorageUpdateRequest serialization');
+  }
+  if (o.newValue === undefined) {
+    throw new Error('Expected newValue in ContractStorageUpdateRequest serialization');
+  }
+  return {
+    storage_slot: o.storageSlot.toBuffer(),
+    old_value: o.oldValue.toBuffer(),
+    new_value: o.newValue.toBuffer(),
+  };
+}
+
+interface MsgpackContractStorageRead {
+  storage_slot: Buffer;
+  current_value: Buffer;
+}
+
+export function toContractStorageRead(o: MsgpackContractStorageRead): ContractStorageRead {
+  if (o.storage_slot === undefined) {
+    throw new Error('Expected storage_slot in ContractStorageRead deserialization');
+  }
+  if (o.current_value === undefined) {
+    throw new Error('Expected current_value in ContractStorageRead deserialization');
+  }
+  return new ContractStorageRead(Fr.fromBuffer(o.storage_slot), Fr.fromBuffer(o.current_value));
+}
+
+export function fromContractStorageRead(o: ContractStorageRead): MsgpackContractStorageRead {
+  if (o.storageSlot === undefined) {
+    throw new Error('Expected storageSlot in ContractStorageRead serialization');
+  }
+  if (o.currentValue === undefined) {
+    throw new Error('Expected currentValue in ContractStorageRead serialization');
+  }
+  return {
+    storage_slot: o.storageSlot.toBuffer(),
+    current_value: o.currentValue.toBuffer(),
+  };
+}
+
+interface MsgpackPublicCircuitPublicInputs {
+  call_context: MsgpackCallContext;
+  args: Tuple<Buffer, 8>;
+  return_values: Tuple<Buffer, 4>;
+  emitted_events: Tuple<Buffer, 4>;
+  contract_storage_update_requests: Tuple<MsgpackContractStorageUpdateRequest, 4>;
+  contract_storage_reads: Tuple<MsgpackContractStorageRead, 4>;
+  public_call_stack: Tuple<Buffer, 4>;
+  new_l2_to_l1_msgs: Tuple<Buffer, 2>;
+  historic_public_data_tree_root: Buffer;
+  prover_address: Buffer;
+}
+
+export function toPublicCircuitPublicInputs(o: MsgpackPublicCircuitPublicInputs): PublicCircuitPublicInputs {
+  if (o.call_context === undefined) {
+    throw new Error('Expected call_context in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.args === undefined) {
+    throw new Error('Expected args in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.return_values === undefined) {
+    throw new Error('Expected return_values in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.emitted_events === undefined) {
+    throw new Error('Expected emitted_events in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.contract_storage_update_requests === undefined) {
+    throw new Error('Expected contract_storage_update_requests in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.contract_storage_reads === undefined) {
+    throw new Error('Expected contract_storage_reads in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.public_call_stack === undefined) {
+    throw new Error('Expected public_call_stack in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.new_l2_to_l1_msgs === undefined) {
+    throw new Error('Expected new_l2_to_l1_msgs in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.historic_public_data_tree_root === undefined) {
+    throw new Error('Expected historic_public_data_tree_root in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.prover_address === undefined) {
+    throw new Error('Expected prover_address in PublicCircuitPublicInputs deserialization');
+  }
+  return new PublicCircuitPublicInputs(
+    toCallContext(o.call_context),
+    mapTuple(o.args, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.return_values, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.emitted_events, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.contract_storage_update_requests, (v: MsgpackContractStorageUpdateRequest) =>
+      toContractStorageUpdateRequest(v),
+    ),
+    mapTuple(o.contract_storage_reads, (v: MsgpackContractStorageRead) => toContractStorageRead(v)),
+    mapTuple(o.public_call_stack, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.new_l2_to_l1_msgs, (v: Buffer) => Fr.fromBuffer(v)),
+    Fr.fromBuffer(o.historic_public_data_tree_root),
+    Address.fromBuffer(o.prover_address),
+  );
+}
+
+export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): MsgpackPublicCircuitPublicInputs {
+  if (o.callContext === undefined) {
+    throw new Error('Expected callContext in PublicCircuitPublicInputs serialization');
+  }
+  if (o.args === undefined) {
+    throw new Error('Expected args in PublicCircuitPublicInputs serialization');
+  }
+  if (o.returnValues === undefined) {
+    throw new Error('Expected returnValues in PublicCircuitPublicInputs serialization');
+  }
+  if (o.emittedEvents === undefined) {
+    throw new Error('Expected emittedEvents in PublicCircuitPublicInputs serialization');
+  }
+  if (o.contractStorageUpdateRequests === undefined) {
+    throw new Error('Expected contractStorageUpdateRequests in PublicCircuitPublicInputs serialization');
+  }
+  if (o.contractStorageReads === undefined) {
+    throw new Error('Expected contractStorageReads in PublicCircuitPublicInputs serialization');
+  }
+  if (o.publicCallStack === undefined) {
+    throw new Error('Expected publicCallStack in PublicCircuitPublicInputs serialization');
+  }
+  if (o.newL2ToL1Msgs === undefined) {
+    throw new Error('Expected newL2ToL1Msgs in PublicCircuitPublicInputs serialization');
+  }
+  if (o.historicPublicDataTreeRoot === undefined) {
+    throw new Error('Expected historicPublicDataTreeRoot in PublicCircuitPublicInputs serialization');
+  }
+  if (o.proverAddress === undefined) {
+    throw new Error('Expected proverAddress in PublicCircuitPublicInputs serialization');
+  }
+  return {
+    call_context: fromCallContext(o.callContext),
+    args: mapTuple(o.args, (v: Fr) => v.toBuffer()),
+    return_values: mapTuple(o.returnValues, (v: Fr) => v.toBuffer()),
+    emitted_events: mapTuple(o.emittedEvents, (v: Fr) => v.toBuffer()),
+    contract_storage_update_requests: mapTuple(o.contractStorageUpdateRequests, (v: ContractStorageUpdateRequest) =>
+      fromContractStorageUpdateRequest(v),
+    ),
+    contract_storage_reads: mapTuple(o.contractStorageReads, (v: ContractStorageRead) => fromContractStorageRead(v)),
+    public_call_stack: mapTuple(o.publicCallStack, (v: Fr) => v.toBuffer()),
+    new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => v.toBuffer()),
+    historic_public_data_tree_root: o.historicPublicDataTreeRoot.toBuffer(),
+    prover_address: o.proverAddress.toBuffer(),
+  };
+}
+
+interface MsgpackPublicCallStackItem {
+  contract_address: Buffer;
+  function_data: MsgpackFunctionData;
+  public_inputs: MsgpackPublicCircuitPublicInputs;
+  is_execution_request: boolean;
+}
+
+export function toPublicCallStackItem(o: MsgpackPublicCallStackItem): PublicCallStackItem {
+  if (o.contract_address === undefined) {
+    throw new Error('Expected contract_address in PublicCallStackItem deserialization');
+  }
+  if (o.function_data === undefined) {
+    throw new Error('Expected function_data in PublicCallStackItem deserialization');
+  }
+  if (o.public_inputs === undefined) {
+    throw new Error('Expected public_inputs in PublicCallStackItem deserialization');
+  }
+  if (o.is_execution_request === undefined) {
+    throw new Error('Expected is_execution_request in PublicCallStackItem deserialization');
+  }
+  return new PublicCallStackItem(
+    Address.fromBuffer(o.contract_address),
+    toFunctionData(o.function_data),
+    toPublicCircuitPublicInputs(o.public_inputs),
+    o.is_execution_request,
+  );
+}
+
+export function fromPublicCallStackItem(o: PublicCallStackItem): MsgpackPublicCallStackItem {
+  if (o.contractAddress === undefined) {
+    throw new Error('Expected contractAddress in PublicCallStackItem serialization');
+  }
+  if (o.functionData === undefined) {
+    throw new Error('Expected functionData in PublicCallStackItem serialization');
+  }
+  if (o.publicInputs === undefined) {
+    throw new Error('Expected publicInputs in PublicCallStackItem serialization');
+  }
+  if (o.isExecutionRequest === undefined) {
+    throw new Error('Expected isExecutionRequest in PublicCallStackItem serialization');
+  }
+  return {
+    contract_address: o.contractAddress.toBuffer(),
+    function_data: fromFunctionData(o.functionData),
+    public_inputs: fromPublicCircuitPublicInputs(o.publicInputs),
+    is_execution_request: o.isExecutionRequest,
+  };
+}
+
+interface MsgpackPublicCallData {
+  call_stack_item: MsgpackPublicCallStackItem;
+  public_call_stack_preimages: Tuple<MsgpackPublicCallStackItem, 4>;
+  proof: Buffer;
+  portal_contract_address: Buffer;
+  bytecode_hash: Buffer;
+}
+
+export function toPublicCallData(o: MsgpackPublicCallData): PublicCallData {
+  if (o.call_stack_item === undefined) {
+    throw new Error('Expected call_stack_item in PublicCallData deserialization');
+  }
+  if (o.public_call_stack_preimages === undefined) {
+    throw new Error('Expected public_call_stack_preimages in PublicCallData deserialization');
+  }
+  if (o.proof === undefined) {
+    throw new Error('Expected proof in PublicCallData deserialization');
+  }
+  if (o.portal_contract_address === undefined) {
+    throw new Error('Expected portal_contract_address in PublicCallData deserialization');
+  }
+  if (o.bytecode_hash === undefined) {
+    throw new Error('Expected bytecode_hash in PublicCallData deserialization');
+  }
+  return new PublicCallData(
+    toPublicCallStackItem(o.call_stack_item),
+    mapTuple(o.public_call_stack_preimages, (v: MsgpackPublicCallStackItem) => toPublicCallStackItem(v)),
+    Proof.fromMsgpackBuffer(o.proof),
+    Fr.fromBuffer(o.portal_contract_address),
+    Fr.fromBuffer(o.bytecode_hash),
+  );
+}
+
+export function fromPublicCallData(o: PublicCallData): MsgpackPublicCallData {
+  if (o.callStackItem === undefined) {
+    throw new Error('Expected callStackItem in PublicCallData serialization');
+  }
+  if (o.publicCallStackPreimages === undefined) {
+    throw new Error('Expected publicCallStackPreimages in PublicCallData serialization');
+  }
+  if (o.proof === undefined) {
+    throw new Error('Expected proof in PublicCallData serialization');
+  }
+  if (o.portalContractAddress === undefined) {
+    throw new Error('Expected portalContractAddress in PublicCallData serialization');
+  }
+  if (o.bytecodeHash === undefined) {
+    throw new Error('Expected bytecodeHash in PublicCallData serialization');
+  }
+  return {
+    call_stack_item: fromPublicCallStackItem(o.callStackItem),
+    public_call_stack_preimages: mapTuple(o.publicCallStackPreimages, (v: PublicCallStackItem) =>
+      fromPublicCallStackItem(v),
+    ),
+    proof: o.proof.toMsgpackBuffer(),
+    portal_contract_address: o.portalContractAddress.toBuffer(),
+    bytecode_hash: o.bytecodeHash.toBuffer(),
+  };
+}
+
+interface MsgpackPublicKernelInputs {
+  previous_kernel: MsgpackPreviousKernelData;
+  public_call: MsgpackPublicCallData;
+}
+
+export function toPublicKernelInputs(o: MsgpackPublicKernelInputs): PublicKernelInputs {
+  if (o.previous_kernel === undefined) {
+    throw new Error('Expected previous_kernel in PublicKernelInputs deserialization');
+  }
+  if (o.public_call === undefined) {
+    throw new Error('Expected public_call in PublicKernelInputs deserialization');
+  }
+  return new PublicKernelInputs(toPreviousKernelData(o.previous_kernel), toPublicCallData(o.public_call));
+}
+
+export function fromPublicKernelInputs(o: PublicKernelInputs): MsgpackPublicKernelInputs {
+  if (o.previousKernel === undefined) {
+    throw new Error('Expected previousKernel in PublicKernelInputs serialization');
+  }
+  if (o.publicCall === undefined) {
+    throw new Error('Expected publicCall in PublicKernelInputs serialization');
+  }
+  return {
+    previous_kernel: fromPreviousKernelData(o.previousKernel),
+    public_call: fromPublicCallData(o.publicCall),
+  };
+}
+
+interface MsgpackCircuitError {
+  code: number;
+  message: string;
+}
+
+export function toCircuitError(o: MsgpackCircuitError): CircuitError {
+  if (o.code === undefined) {
+    throw new Error('Expected code in CircuitError deserialization');
+  }
+  if (o.message === undefined) {
+    throw new Error('Expected message in CircuitError deserialization');
+  }
+  return new CircuitError(o.code, o.message);
+}
+
+export function fromCircuitError(o: CircuitError): MsgpackCircuitError {
+  if (o.code === undefined) {
+    throw new Error('Expected code in CircuitError serialization');
+  }
+  if (o.message === undefined) {
+    throw new Error('Expected message in CircuitError serialization');
+  }
+  return {
+    code: o.code,
+    message: o.message,
+  };
+}
+
 export async function abisComputeContractAddress(
   wasm: CircuitsWasm,
   arg0: Address,
@@ -846,6 +1262,15 @@ export async function abisComputeContractAddress(
 }
 export async function privateKernelDummyPreviousKernel(wasm: CircuitsWasm): Promise<PreviousKernelData> {
   return toPreviousKernelData(await callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));
+}
+export async function publicKernelSim(
+  wasm: CircuitsWasm,
+  arg0: PublicKernelInputs,
+): Promise<CircuitError | KernelCircuitPublicInputs> {
+  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
+    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
+    await callCbind(wasm, 'public_kernel__sim', [fromPublicKernelInputs(arg0)]),
+  );
 }
 export async function proverProcessQueue2(wasm: CircuitsWasm, arg0: ProverBasePtr): Promise<number> {
   return await callCbind(wasm, 'prover_process_queue2', [arg0]);

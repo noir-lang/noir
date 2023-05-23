@@ -1,5 +1,4 @@
-import times from 'lodash.times';
-import { FieldsOf, assertMemberLength } from '../utils/jsUtils.js';
+import { FieldsOf, assertMemberLength, makeTuple } from '../utils/jsUtils.js';
 import { CallContext } from './call_context.js';
 import {
   ARGS_LENGTH,
@@ -12,7 +11,7 @@ import {
 } from './constants.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { isArrayEmpty } from '@aztec/foundation/collection';
 
@@ -31,7 +30,7 @@ export class ContractStorageRead {
     /**
      * Value read from the storage slot.
      */
-    public readonly value: Fr,
+    public readonly currentValue: Fr,
   ) {}
 
   static from(args: {
@@ -42,13 +41,13 @@ export class ContractStorageRead {
     /**
      * Value read from the storage slot.
      */
-    value: Fr;
+    currentValue: Fr;
   }) {
-    return new ContractStorageRead(args.storageSlot, args.value);
+    return new ContractStorageRead(args.storageSlot, args.currentValue);
   }
 
   toBuffer() {
-    return serializeToBuffer(this.storageSlot, this.value);
+    return serializeToBuffer(this.storageSlot, this.currentValue);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
@@ -61,11 +60,11 @@ export class ContractStorageRead {
   }
 
   isEmpty() {
-    return this.storageSlot.isZero() && this.value.isZero();
+    return this.storageSlot.isZero() && this.currentValue.isZero();
   }
 
   toFriendlyJSON() {
-    return `Slot=${this.storageSlot.toFriendlyJSON()}: ${this.value.toFriendlyJSON()}`;
+    return `Slot=${this.storageSlot.toFriendlyJSON()}: ${this.currentValue.toFriendlyJSON()}`;
   }
 }
 
@@ -142,31 +141,34 @@ export class PublicCircuitPublicInputs {
     /**
      * Arguments of the call.
      */
-    public args: Fr[],
+    public args: Tuple<Fr, typeof ARGS_LENGTH>,
     /**
      * Return values of the call.
      */
-    public returnValues: Fr[],
+    public returnValues: Tuple<Fr, typeof RETURN_VALUES_LENGTH>,
     /**
      * Events emitted during the call.
      */
-    public emittedEvents: Fr[],
+    public emittedEvents: Tuple<Fr, typeof EMITTED_EVENTS_LENGTH>,
     /**
      * Contract storage update requests executed during the call.
      */
-    public contractStorageUpdateRequests: ContractStorageUpdateRequest[],
+    public contractStorageUpdateRequests: Tuple<
+      ContractStorageUpdateRequest,
+      typeof KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH
+    >,
     /**
      * Contract storage reads executed during the call.
      */
-    public contractStorageReads: ContractStorageRead[],
+    public contractStorageReads: Tuple<ContractStorageRead, typeof KERNEL_PUBLIC_DATA_READS_LENGTH>,
     /**
      * Public call stack of the current kernel iteration.
      */
-    public publicCallStack: Fr[],
+    public publicCallStack: Tuple<Fr, typeof PUBLIC_CALL_STACK_LENGTH>,
     /**
      * New L2 to L1 messages generated during the call.
      */
-    public newL2ToL1Msgs: Fr[],
+    public newL2ToL1Msgs: Tuple<Fr, typeof NEW_L2_TO_L1_MSGS_LENGTH>,
     /**
      * Root of the public data tree when the call started.
      */
@@ -199,16 +201,15 @@ export class PublicCircuitPublicInputs {
    * @returns An empty instance.
    */
   public static empty() {
-    const frArray = (num: number) => times(num, () => Fr.ZERO);
     return new PublicCircuitPublicInputs(
       CallContext.empty(),
-      frArray(ARGS_LENGTH),
-      frArray(RETURN_VALUES_LENGTH),
-      frArray(EMITTED_EVENTS_LENGTH),
-      times(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, ContractStorageUpdateRequest.empty),
-      times(KERNEL_PUBLIC_DATA_READS_LENGTH, ContractStorageRead.empty),
-      frArray(PUBLIC_CALL_STACK_LENGTH),
-      frArray(NEW_L2_TO_L1_MSGS_LENGTH),
+      makeTuple(ARGS_LENGTH, Fr.zero),
+      makeTuple(RETURN_VALUES_LENGTH, Fr.zero),
+      makeTuple(EMITTED_EVENTS_LENGTH, Fr.zero),
+      makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, ContractStorageUpdateRequest.empty),
+      makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, ContractStorageRead.empty),
+      makeTuple(PUBLIC_CALL_STACK_LENGTH, Fr.zero),
+      makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, Fr.zero),
       Fr.ZERO,
       AztecAddress.ZERO,
     );

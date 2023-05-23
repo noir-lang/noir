@@ -289,22 +289,6 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
     NT::fr::serialize_to_buffer(constructor_hash, output);
 }
 
-/**
- * @brief Generates a contract address from its components.
- * This is a WASM-export that can be called from Typescript.
- *
- * @details hash the inputs to generate a deterministic contract address:
- * hash(contract_address, contract_address_salt, function_tree_root, constructor_hash)
- * Return the serialized results in the `output` buffer.
- *
- * @param contract_address_salt_buf bytes buffer representing a field that lets a deployer have
- * some control over contract address
- * @param function_tree_root_buf bytes buffer representing a field that is the root of the
- * contract's function tree
- * @param constructor_hash_buf bytes buffer representing a field that is a hash of constructor info
- * @param output buffer that will contain the output contract address.
- */
-
 CBIND(abis__compute_contract_address, compute_contract_address<NT>);
 
 /**

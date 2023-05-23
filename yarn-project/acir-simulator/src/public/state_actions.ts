@@ -10,7 +10,7 @@ import { PublicStateDB } from './db.js';
  */
 export class ContractStorageActionsCollector {
   // Map from slot to first read value
-  private readonly contractStorageReads: Map<bigint, { /** The value read. */ value: Fr }> = new Map();
+  private readonly contractStorageReads: Map<bigint, { /** The value read. */ currentValue: Fr }> = new Map();
 
   // Map from slot to first read value and latest updated value
   private readonly contractStorageUpdateRequests: Map<
@@ -32,9 +32,9 @@ export class ContractStorageActionsCollector {
     const updateRequest = this.contractStorageUpdateRequests.get(slot);
     if (updateRequest) return updateRequest.newValue;
     const read = this.contractStorageReads.get(slot);
-    if (read) return read.value;
+    if (read) return read.currentValue;
     const value = await this.db.storageRead(this.address, storageSlot);
-    this.contractStorageReads.set(slot, { value });
+    this.contractStorageReads.set(slot, { currentValue: value });
     return value;
   }
 
@@ -55,7 +55,7 @@ export class ContractStorageActionsCollector {
     const read = this.contractStorageReads.get(slot);
     if (read) {
       this.contractStorageReads.delete(slot);
-      this.contractStorageUpdateRequests.set(slot, { oldValue: read.value, newValue });
+      this.contractStorageUpdateRequests.set(slot, { oldValue: read.currentValue, newValue });
       return;
     }
 

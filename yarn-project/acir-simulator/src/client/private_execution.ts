@@ -1,4 +1,5 @@
 import {
+  ARGS_LENGTH,
   CallContext,
   CircuitsWasm,
   FunctionData,
@@ -26,6 +27,7 @@ import {
 } from '../acvm/index.js';
 import { sizeOfType } from '../index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
+import { Tuple, assertLength } from '@aztec/foundation/serialize';
 
 /**
  * The contents of a new note.
@@ -174,7 +176,10 @@ export class PrivateFunctionExecution {
         const enqueuedRequest = await this.enqueuePublicFunctionCall(
           frToAztecAddress(fromACVMField(acvmContractAddress)),
           frToSelector(fromACVMField(acvmFunctionSelector)),
-          acvmArgs.map(f => fromACVMField(f)),
+          assertLength(
+            acvmArgs.map(f => fromACVMField(f)),
+            ARGS_LENGTH,
+          ),
           this.callContext,
         );
 
@@ -292,7 +297,7 @@ export class PrivateFunctionExecution {
   private async enqueuePublicFunctionCall(
     targetContractAddress: AztecAddress,
     targetFunctionSelector: Buffer,
-    targetArgs: Fr[],
+    targetArgs: Tuple<Fr, typeof ARGS_LENGTH>,
     callerContext: CallContext,
   ): Promise<PublicCallRequest> {
     const derivedCallContext = await this.deriveCallContext(callerContext, targetContractAddress, false, false);

@@ -34,6 +34,8 @@ template <typename NCT> struct PublicCallData {
     fr portal_contract_address = 0;  // an ETH address
     fr bytecode_hash = 0;
 
+    // for serialization, update with new fields
+    MSGPACK_FIELDS(call_stack_item, public_call_stack_preimages, proof, portal_contract_address, bytecode_hash);
     boolean operator==(PublicCallData<NCT> const& other) const
     {
         // WARNING: proof skipped!
@@ -108,3 +110,11 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicCallDat
 }
 
 }  // namespace aztec3::circuits::abis::public_kernel
+
+// specialize the name in msgpack schema generation
+// consumed by the typescript schema compiler, helps disambiguate templates
+template <typename NCT> inline std::string msgpack_schema_name(
+    aztec3::circuits::abis::CallStackItem<NCT, aztec3::circuits::abis::PublicTypes> const&) // NOLINT
+{
+    return "PublicCallStackItem";
+}

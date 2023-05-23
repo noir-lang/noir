@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace aztec3::utils {
@@ -34,6 +35,22 @@ class DummyComposer {
             return failure_msgs[0];
         }
         return CircuitError::no_error();
+    }
+
+    /**
+     * Returns 'value' as a CircuitResult<T>, unless there was an error.
+     * If there was an error, return it instead.
+     * @tparam T the value type.
+     * @param value the value.
+     * @return the value, or last error if it exists.
+     */
+    template <typename T> CircuitResult<T> result_or_error(const T& value)
+    {
+        CircuitError const failure = get_first_failure();
+        if (failure.code != CircuitErrorCode::NO_ERROR) {
+            return CircuitResult<T>{ failure };
+        }
+        return CircuitResult<T>{ value };
     }
 
     uint8_t* alloc_and_serialize_first_failure()

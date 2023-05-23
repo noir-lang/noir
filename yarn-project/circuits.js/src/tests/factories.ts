@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { numToUInt32BE } from '@aztec/foundation/serialize';
+import { mapTuple, numToUInt32BE } from '@aztec/foundation/serialize';
 import { computeCallStackItemHash } from '../abis/abis.js';
 import {
   TxContext,
@@ -288,16 +288,15 @@ export function makePublicCircuitPublicInputs(
   seed = 0,
   storageContractAddress?: AztecAddress,
 ): PublicCircuitPublicInputs {
-  const frArray = (num: number, seed: number) => makeTuple(num, fr, seed);
   return new PublicCircuitPublicInputs(
     makeCallContext(seed, storageContractAddress),
-    frArray(ARGS_LENGTH, seed + 0x100),
-    frArray(RETURN_VALUES_LENGTH, seed + 0x200),
-    frArray(EMITTED_EVENTS_LENGTH, seed + 0x300),
+    makeTuple(ARGS_LENGTH, fr, seed + 0x100),
+    makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
+    makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x300),
     makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeContractStorageUpdateRequest, seed + 0x400),
     makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeContractStorageRead, seed + 0x500),
-    frArray(PUBLIC_CALL_STACK_LENGTH, seed + 0x600),
-    frArray(NEW_L2_TO_L1_MSGS_LENGTH, seed + 0x700),
+    makeTuple(PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x600),
+    makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x700),
     fr(seed + 0x800),
     makeAztecAddress(seed + 0x801),
   );
@@ -442,10 +441,10 @@ export async function makePublicCallData(seed = 1): Promise<PublicCallData> {
   );
   // publicCallStack should be a hash of the preimages:
   const wasm = await CircuitsWasm.get();
-  publicCallData.callStackItem.publicInputs.publicCallStack = [];
-  publicCallData.publicCallStackPreimages.forEach(preimage => {
-    publicCallData.callStackItem.publicInputs.publicCallStack.push(computeCallStackItemHash(wasm!, preimage));
-  });
+  publicCallData.callStackItem.publicInputs.publicCallStack = mapTuple(
+    publicCallData.publicCallStackPreimages,
+    preimage => computeCallStackItemHash(wasm!, preimage),
+  );
 
   // one kernel circuit call can have several methods in call stack. But all of them should have the same msg.sender - set these correctly in the preimages!
   for (let i = 0; i < publicCallData.publicCallStackPreimages.length; i++) {
@@ -505,7 +504,7 @@ export async function makePublicKernelInputsWithEmptyOutput(seed = 1): Promise<P
   //Set the call stack item for this circuit iteration at the top of the call stack
   const wasm = await CircuitsWasm.get();
   publicKernelInputs.previousKernel.publicInputs.end.publicCallStack[KERNEL_PUBLIC_CALL_STACK_LENGTH - 1] =
-    computeCallStackItemHash(wasm, publicKernelInputs.publicCallData.callStackItem);
+    computeCallStackItemHash(wasm, publicKernelInputs.publicCall.callStackItem);
   return publicKernelInputs;
 }
 
