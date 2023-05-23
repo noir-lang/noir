@@ -15,7 +15,7 @@ Resolves <!-- Link to GitHub Issue -->
 
 This PR sets out to
 
-## Example\*
+### Example
 
 <!-- Code / step-by-step example(s) to demonstrate the effect of this PR. -->
 
