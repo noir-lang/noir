@@ -29,15 +29,15 @@ jobs:
         id: set_workflow_id
         run: |
           if [[ "${{ github.event.action }}" == "labeled" ]]; then
-            echo "workflowId=new-migrated-issue.yml" >> $GITHUB_ENV
+            echo "::set-output name=workflowId::new-migrated-issue.yml"
           else
-            echo "workflowId=delete-migrated-issue.yml" >> $GITHUB_ENV
+            echo "::set-output name=workflowId::delete-migrated-issue.yml"
           fi
 
       - name: Dispatch
         uses: benc-uk/workflow-dispatch@v1 
         with: 
-          workflow: ${{ env.workflowId }}
+          workflow: ${{ steps.set_workflow_id.outputs.workflowId }}
           repo: noir-lang/docs
           ref: master 
           token: ${{ secrets.GITHUB_TOKEN }} 
