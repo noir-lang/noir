@@ -1,6 +1,6 @@
 # Noir contracts
 
-This package contains the source code and the Aztec ABIs for the example contracts used in the e2e tests.
+This package contains the source code and the Aztec ABIs for the example contracts used in tests.
 
 ## Building the contracts
 
@@ -12,15 +12,17 @@ This package contains the source code and the Aztec ABIs for the example contrac
   ```
   noirup --branch aztec3-hacky
   ```
-- Move to the circuit you want to build
+- Use the `noir:build:all` script to compile the contracts you want and prepare the ABI for consumption
   ```
-  cd src/contracts/test_contract
-  ```
-- Build using nargo
-  ```
-  nargo compile main --contracts
+  yarn noir:build:all
   ```
 
-### Examples folder
+Alternatively you can run `yarn noir:build CONTRACT1 CONTRACT2...` to build a subset of contracts:
+```
+yarn noir:build zk_token public_token
+```
 
-The examples folder has friendly ABIs to be consumed from aztec3-client. They can be generated from the nargo build output using the `scripts/copy_output.ts`.
+To view compilation output, including errors, run with the `VERBOSE=1` flag:
+```
+VERBOSE=1 yarn noir:build zk_token public_token
+```
