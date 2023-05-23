@@ -1,0 +1,11 @@
+{
+  "name": "@aztec/l1-contracts",
+  "version": "0.0.1",
+  "description": "Aztec contracts for the Ethereum mainnet and testnets",
+  "devDependencies": {
+    "solhint": "https://github.com/LHerskind/solhint#master"
+  },
+  "scripts": {
+    "lint": "solhint --config ./.solhint.json --fix \"src/**/*.sol\""
+  }
+}

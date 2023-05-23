@@ -49,3 +49,17 @@ Currently not running any proofs *nor* access control so blocks can be submitted
 Job: Share unverified data on chain.
 
 For now, this include bytecode for contract deployment, but over time this will be verified for public functions.
+
+
+---
+
+# Linter
+
+We use an extended version of solhint (https://github.com/LHerskind/solhint) to include custom rules. These custom rules relate to how errors should be named, using custom errors instead of reverts etc, see `.solhint.json` for more specifics about the rules.
+
+The linter is the only node module we need which is the reason behind not going full yarn-project on it. It is not part of the docker image, but can be run once in a while to make sure we are on track.
+
+To run the linter, simply run:
+```bash
+yarn lint
+```
