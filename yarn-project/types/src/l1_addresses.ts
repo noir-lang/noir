@@ -10,6 +10,11 @@ export interface L1Addresses {
   rollupContract: EthAddress;
 
   /**
+   * Inbox contract address.
+   */
+  inboxContract: EthAddress;
+
+  /**
    * UnverifiedDataEmitter contract address.
    */
   unverifiedDataEmitterContract: EthAddress;

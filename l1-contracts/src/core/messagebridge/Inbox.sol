@@ -84,7 +84,8 @@ contract Inbox is IInbox {
       message.recipient.version,
       message.deadline,
       message.fee,
-      message.content
+      message.content,
+      message.secretHash
     );
 
     return key;

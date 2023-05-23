@@ -137,6 +137,7 @@ describe('L1Publisher integration', () => {
       chainId: config.chainId,
       requiredConfirmations: 1,
       rollupContract: EthAddress.fromString(rollupAddress),
+      inboxContract: EthAddress.fromString(inboxAddress),
       unverifiedDataEmitterContract: EthAddress.fromString(unverifiedDataEmitterAddress),
       publisherPrivateKey: hexStringToBuffer(sequencerPK),
       retryIntervalMs: 100,

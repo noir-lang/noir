@@ -1,4 +1,4 @@
-import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
+import { InboxAbi, RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
 import { ContractData, ContractPublicData, EncodedContractFunction, L2Block } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
@@ -12,6 +12,7 @@ import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';
+  const inboxAddress = '0x0000000000000000000000000000000000000000';
   const unverifiedDataEmitterAddress = '0x0000000000000000000000000000000000000001';
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
   let archiverStore: ArchiverDataStore;
@@ -25,6 +26,7 @@ describe('Archiver', () => {
     const archiver = new Archiver(
       publicClient,
       EthAddress.fromString(rollupAddress),
+      EthAddress.fromString(inboxAddress),
       EthAddress.fromString(unverifiedDataEmitterAddress),
       archiverStore,
       1000,
@@ -38,13 +40,16 @@ describe('Archiver', () => {
     const rollupTxs = [1, 2, 3].map(makeRollupTx);
 
     publicClient.getBlockNumber.mockResolvedValue(2500n);
+    // logs should be created in order of how archiver syncs.
     publicClient.getLogs
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(100n, 1n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(102n, 1n)])
       .mockResolvedValueOnce([makeContractDeployedEvent(104n, 1n)])
+      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(101n)])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(1100n, 2n), makeL2BlockProcessedEvent(1150n, 3n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(1100n, 2n)])
       .mockResolvedValueOnce([makeContractDeployedEvent(1102n, 2n)])
+      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(1101n)])
       .mockResolvedValue([]);
     rollupTxs.forEach(tx => publicClient.getTransaction.mockResolvedValueOnce(tx));
 
@@ -65,6 +70,9 @@ describe('Archiver', () => {
     }
     latestUnverifiedDataBlockNum = await archiver.getLatestUnverifiedDataBlockNum();
     expect(latestUnverifiedDataBlockNum).toEqual(2);
+
+    // there are only 2 l1ToL2 messages in the store
+    expect((await archiver.getPendingL1ToL2Messages(10)).length).toEqual(2);
 
     await archiver.stop();
   }, 10_000);
@@ -127,6 +135,29 @@ function makeContractDeployedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
     },
     transactionHash: `0x${l2BlockNum}`,
   } as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployment'>;
+}
+
+/**
+ * Makes a fake L1ToL2 MessageAdded event for testing purposes.
+ * @param l1BlockNum - L1 block number.
+ * @returns An L2BlockProcessed event log.
+ */
+function makeL1ToL2MessageAddedEvent(l1BlockNum: bigint) {
+  return {
+    blockNumber: l1BlockNum,
+    args: {
+      sender: EthAddress.random().toString(),
+      senderChainId: 1n,
+      recipient: AztecAddress.random().toString(),
+      recipientVersion: 1n,
+      content: '0x' + randomBytes(32).toString('hex'),
+      secretHash: '0x' + randomBytes(32).toString('hex'),
+      deadline: 100,
+      fee: 1n,
+      entryKey: '0x' + randomBytes(32).toString('hex'),
+    },
+    transactionHash: `0x${l1BlockNum}`,
+  } as Log<bigint, number, undefined, typeof InboxAbi, 'MessageAdded'>;
 }
 
 /**

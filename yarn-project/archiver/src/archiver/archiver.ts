@@ -2,7 +2,7 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { INITIAL_L2_BLOCK_NUM } from '@aztec/types';
+import { INITIAL_L2_BLOCK_NUM, L1ToL2Message, L1ToL2MessageSource } from '@aztec/types';
 import {
   ContractData,
   ContractPublicData,
@@ -16,7 +16,12 @@ import {
 import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 import { ArchiverConfig } from './config.js';
-import { retrieveBlocks, retrieveNewContractData, retrieveUnverifiedData } from './data_retrieval.js';
+import {
+  retrieveBlocks,
+  retrieveNewContractData,
+  retrieveUnverifiedData,
+  retrieveNewPendingL1ToL2Messages,
+} from './data_retrieval.js';
 import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
 
 /**
@@ -24,7 +29,7 @@ import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
  * Responsible for handling robust L1 polling so that other components do not need to
  * concern themselves with it.
  */
-export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDataSource {
+export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDataSource, L1ToL2MessageSource {
   /**
    * A promise in which we will be continually fetching new L2 blocks.
    */
@@ -39,6 +44,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    * Creates a new instance of the Archiver.
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
+   * @param inboxAddress - Ethereum address of the inbox contract.
    * @param unverifiedDataEmitterAddress - Ethereum address of the unverifiedDataEmitter contract.
    * @param pollingIntervalMs - The interval for polling for rollup logs (in milliseconds).
    * @param store - An archiver data store for storage & retrieval of blocks, unverified data & contract data.
@@ -47,6 +53,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   constructor(
     private readonly publicClient: PublicClient<HttpTransport, Chain>,
     private readonly rollupAddress: EthAddress,
+    private readonly inboxAddress: EthAddress,
     private readonly unverifiedDataEmitterAddress: EthAddress,
     private readonly store: ArchiverDataStore,
     private readonly pollingIntervalMs = 10_000,
@@ -68,6 +75,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     const archiver = new Archiver(
       publicClient,
       config.rollupContract,
+      config.inboxContract,
       config.unverifiedDataEmitterContract,
       archiverStore,
       config.archiverPollingInterval,
@@ -130,6 +138,13 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
       currentBlockNumber,
       this.nextL2BlockFromBlock,
     );
+    const retrievedPendingL1ToL2Messages = await retrieveNewPendingL1ToL2Messages(
+      this.publicClient,
+      this.inboxAddress,
+      blockUntilSynced,
+      currentBlockNumber,
+      this.nextL2BlockFromBlock,
+    );
 
     if (retrievedBlocks.retrievedData.length === 0) {
       return;
@@ -150,6 +165,9 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
         await this.store.addL2ContractPublicData(contracts, l2BlockNum);
       }
     });
+
+    // store l1 to l2 messages for which we have retrieved rollups
+    await this.store.addPendingL1ToL2Messages(retrievedPendingL1ToL2Messages.retrievedData);
 
     // store retrieved rollup blocks
     await this.store.addL2Blocks(retrievedBlocks.retrievedData);
@@ -258,5 +276,14 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    */
   public getLatestUnverifiedDataBlockNum(): Promise<number> {
     return this.store.getLatestUnverifiedDataBlockNum();
+  }
+
+  /**
+   * Gets the `take` amount of pending L1 to L2 messages.
+   * @param take - The number of messages to return.
+   * @returns The requested L1 to L2 messages.
+   */
+  getPendingL1ToL2Messages(take: number): Promise<L1ToL2Message[]> {
+    return this.store.getPendingL1ToL2Messages(take);
   }
 }

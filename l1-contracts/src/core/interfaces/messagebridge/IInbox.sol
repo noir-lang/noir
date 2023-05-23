@@ -18,7 +18,8 @@ interface IInbox {
     uint256 recipientVersion,
     uint32 deadline,
     uint64 fee,
-    bytes32 content
+    bytes32 content,
+    bytes32 secretHash
   );
 
   event L1ToL2MessageCancelled(bytes32 indexed entryKey);

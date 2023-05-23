@@ -27,7 +27,8 @@ contract TokenPortalTest is Test {
     uint256 recipientVersion,
     uint32 deadline,
     uint64 fee,
-    bytes32 content
+    bytes32 content,
+    bytes32 secretHash
   );
 
   Registry internal registry;
@@ -89,7 +90,8 @@ contract TokenPortalTest is Test {
       expectedMessage.recipient.version,
       expectedMessage.deadline,
       expectedMessage.fee,
-      expectedMessage.content
+      expectedMessage.content,
+      expectedMessage.secretHash
     );
 
     // Perform op
