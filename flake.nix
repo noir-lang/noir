@@ -153,16 +153,16 @@
         inherit cargoArtifacts;
       });
 
-      wasm-bindgen-cli = pkgs.rustPlatform.buildRustPackage rec {
-        pname = "wasm-bindgen-cli";
-        version = "0.2.74";
-        src = wasm-bindgen-cli-src;
-        cargoSha256 = "0000000000000000000000000000000000000000000000000000";
+      # wasm-bindgen-cli = pkgs.rustPlatform.buildRustPackage rec {
+      #   pname = "wasm-bindgen-cli";
+      #   version = "0.2.74";
+      #   src = wasm-bindgen-cli-src;
+      #   cargoSha256 = "0000000000000000000000000000000000000000000000000000";
 
-        postInstall = ''
-          ln -s $out/bin/wasm-bindgen $out/bin/wasm-bindgen-cli
-        '';
-      };
+      #   postInstall = ''
+      #     ln -s $out/bin/wasm-bindgen $out/bin/wasm-bindgen-cli
+      #   '';
+      # };
     in
     rec {
       checks = {
