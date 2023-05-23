@@ -32,7 +32,12 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
     p: P,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
+    let mut driver = Resolver::resolve_root_manifest(
+        p.as_ref(),
+        backend.np_language(),
+        #[allow(deprecated)]
+        Box::new(acvm::default_is_opcode_supported(backend.np_language())),
+    )?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
@@ -192,7 +197,7 @@ d2 = ["", "", ""]
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
         let backend = crate::backends::ConcreteBackend::default();
-        let config = CompileOptions { allow_warnings: true, ..Default::default() };
+        let config = CompileOptions { deny_warnings: false, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
