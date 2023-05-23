@@ -88,7 +88,7 @@ export interface MerkleTreeOperations {
    * @param treeId - The tree to be queried for a sibling path.
    * @param index - The index of the leaf for which a sibling path should be returned.
    */
-  getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath>;
+  getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<number>>;
 
   /**
    * Returns the previous index for a given value in an indexed tree.
@@ -157,7 +157,7 @@ export interface MerkleTreeOperations {
     leaves: Buffer[],
     treeHeight: number,
     subtreeHeight: number,
-  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]>;
+  ): Promise<[LowLeafWitnessData<number>[], SiblingPath<number>] | [undefined, SiblingPath<number>]>;
 }
 
 /**

@@ -34,7 +34,7 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * @param index - The index of the leaf for which a sibling path is required.
    * @returns A promise with the sibling path of the specified leaf index.
    */
-  getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath> {
+  getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<number>> {
     return this.trees.getSiblingPath(treeId, index, this.includeUncommitted);
   }
 
@@ -126,7 +126,7 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
     leaves: Buffer[],
     treeHeight: number,
     subtreeHeight: number,
-  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]> {
+  ): Promise<[LowLeafWitnessData<number>[], SiblingPath<number>] | [undefined, SiblingPath<number>]> {
     return this.trees.batchInsert(treeId, leaves, treeHeight, subtreeHeight, this.includeUncommitted);
   }
 }

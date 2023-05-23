@@ -56,7 +56,7 @@ export class SimulatorOracle implements DBOracle {
           const path = await this.node.getDataTreePath(noteDao.index);
           return {
             preimage: noteDao.notePreimage.items,
-            siblingPath: path.data.map(buf => Fr.fromBuffer(buf)),
+            siblingPath: path.toFieldArray(),
             index: noteDao.index,
           };
         }),
@@ -103,7 +103,7 @@ export class SimulatorOracle implements DBOracle {
     const siblingPath = await this.node.getL1ToL2MessagesTreePath(index);
     return {
       message,
-      siblingPath: siblingPath.data.map(node => Fr.fromBuffer(node)),
+      siblingPath: siblingPath.toFieldArray(),
       index,
     };
   }

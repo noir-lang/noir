@@ -1,4 +1,4 @@
-import { LowLeafWitnessData } from '../index.js';
+import { LowLeafWitnessData, SiblingPath } from '../index.js';
 import { AppendOnlyTree } from './append_only_tree.js';
 
 /**
@@ -66,10 +66,13 @@ export interface IndexedTree extends AppendOnlyTree {
    * @param subtreeHeight - Height of the subtree.
    * @param includeUncommitted - If true, the uncommitted changes are included in the search.
    */
-  batchInsert(
+  batchInsert<TreeHeight extends number, SubtreeHeight extends number, SubtreeSiblingPathHeight extends number>(
     leaves: Buffer[],
-    treeHeight: number,
-    subtreeHeight: number,
+    treeHeight: TreeHeight,
+    subtreeHeight: SubtreeHeight,
     includeUncommitted: boolean,
-  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]>;
+  ): Promise<
+    | [LowLeafWitnessData<TreeHeight>[], SiblingPath<SubtreeSiblingPathHeight>]
+    | [undefined, SiblingPath<SubtreeSiblingPathHeight>]
+  >;
 }

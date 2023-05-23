@@ -20,7 +20,7 @@ const zeroLeaf: LeafData = {
 /**
  * All of the data to be return during batch insertion.
  */
-export interface LowLeafWitnessData {
+export interface LowLeafWitnessData<N extends number> {
   /**
    * Preimage of the low nullifier that proves non membership.
    */
@@ -28,7 +28,7 @@ export interface LowLeafWitnessData {
   /**
    * Sibling path to prove membership of low nullifier.
    */
-  siblingPath: SiblingPath;
+  siblingPath: SiblingPath<N>;
   /**
    * The index of low nullifier.
    */
@@ -40,11 +40,11 @@ export interface LowLeafWitnessData {
  * @param treeHeight - Height of tree for sibling path.
  * @returns An empty witness.
  */
-function getEmptyLowLeafWitness(treeHeight: number): LowLeafWitnessData {
+function getEmptyLowLeafWitness<N extends number>(treeHeight: N): LowLeafWitnessData<N> {
   return {
     leafData: zeroLeaf,
     index: 0n,
-    siblingPath: new SiblingPath(Array(treeHeight).fill(toBufferBE(0n, 32))),
+    siblingPath: new SiblingPath(treeHeight, Array(treeHeight).fill(toBufferBE(0n, 32))),
   };
 }
 
@@ -459,18 +459,25 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    * @param includeUncommitted - If true, the uncommitted changes are included in the search.
    * @returns The data for the leaves to be updated when inserting the new ones.
    */
-  public async batchInsert(
+  public async batchInsert<
+    TreeHeight extends number,
+    SubtreeHeight extends number,
+    SubtreeSiblingPathHeight extends number,
+  >(
     leaves: Buffer[],
-    treeHeight: number,
-    subtreeHeight: number,
+    treeHeight: TreeHeight,
+    subtreeHeight: SubtreeHeight,
     includeUncommitted: boolean,
-  ): Promise<[LowLeafWitnessData[], Buffer[]] | [undefined, Buffer[]]> {
+  ): Promise<
+    | [LowLeafWitnessData<TreeHeight>[], SiblingPath<SubtreeSiblingPathHeight>]
+    | [undefined, SiblingPath<SubtreeSiblingPathHeight>]
+  > {
     // Keep track of touched low leaves
     const touched = new Map<number, bigint[]>();
 
     const emptyLowLeafWitness = getEmptyLowLeafWitness(treeHeight);
     // Accumulators
-    const lowLeavesWitnesses: LowLeafWitnessData[] = [];
+    const lowLeavesWitnesses: LowLeafWitnessData<TreeHeight>[] = [];
     const pendingInsertionSubtree: LeafData[] = [];
 
     // Start info
@@ -534,9 +541,9 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
         if (lowLeaf === undefined) {
           return [undefined, await this.getSubtreeSiblingPath(subtreeHeight, includeUncommitted)];
         }
-        const siblingPath = await this.getSiblingPath(BigInt(indexOfPrevious.index), includeUncommitted);
+        const siblingPath = await this.getSiblingPath<TreeHeight>(BigInt(indexOfPrevious.index), includeUncommitted);
 
-        const witness: LowLeafWitnessData = {
+        const witness: LowLeafWitnessData<TreeHeight> = {
           leafData: { ...lowLeaf },
           index: BigInt(indexOfPrevious.index),
           siblingPath,
@@ -560,7 +567,10 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
       }
     }
 
-    const newSubtreeSiblingPath = await this.getSubtreeSiblingPath(subtreeHeight, includeUncommitted);
+    const newSubtreeSiblingPath = await this.getSubtreeSiblingPath<SubtreeHeight, SubtreeSiblingPathHeight>(
+      subtreeHeight,
+      includeUncommitted,
+    );
 
     // Perform batch insertion of new pending values
     for (let i = 0; i < pendingInsertionSubtree.length; i++) {
@@ -570,11 +580,14 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     return [lowLeavesWitnesses, newSubtreeSiblingPath];
   }
 
-  async getSubtreeSiblingPath(subtreeHeight: number, includeUncommitted: boolean) {
+  async getSubtreeSiblingPath<SubtreeHeight extends number, SubtreeSiblingPathHeight extends number>(
+    subtreeHeight: SubtreeHeight,
+    includeUncommitted: boolean,
+  ): Promise<SiblingPath<SubtreeSiblingPathHeight>> {
     const nextAvailableLeafIndex = this.getNumLeaves(includeUncommitted);
     const fullSiblingPath = await this.getSiblingPath(nextAvailableLeafIndex, includeUncommitted);
 
     // Drop the first subtreeHeight items since we only care about the path to the subtree root
-    return fullSiblingPath.data.slice(subtreeHeight);
+    return fullSiblingPath.getSubtreeSiblingPath(subtreeHeight);
   }
 }

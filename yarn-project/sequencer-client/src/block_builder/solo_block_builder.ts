@@ -393,7 +393,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       const { size } = await this.db.getTreeInfo(treeId);
       // TODO: Check for off-by-one errors
       const path = await this.db.getSiblingPath(treeId, size);
-      return path.data.map(b => Fr.fromBuffer(b));
+      return path.toFieldArray();
     };
 
     const newHistoricContractDataTreeRootSiblingPath = await getRootTreeSiblingPath(
@@ -469,22 +469,14 @@ export class SoloBlockBuilder implements BlockBuilder {
     height: N,
   ): Promise<MembershipWitness<N>> {
     // If this is an empty tx, then just return zeroes
-    if (value.value === 0n) return this.makeEmptyMembershipWitness(height);
+    if (value.isZero()) return this.makeEmptyMembershipWitness(height);
 
     const index = await this.db.findLeafIndex(treeId, value.toBuffer());
     if (index === undefined) {
       throw new Error(`Leaf with value ${value} not found in tree ${treeId}`);
     }
     const path = await this.db.getSiblingPath(treeId, index);
-    // TODO: Check conversion from bigint to number
-    return new MembershipWitness(
-      height,
-      index,
-      assertLength(
-        path.data.map(b => Fr.fromBuffer(b)),
-        height,
-      ),
-    );
+    return new MembershipWitness(height, index, assertLength(path.toFieldArray(), height));
   }
 
   protected getContractMembershipWitnessFor(tx: ProcessedTx) {
@@ -553,10 +545,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       witness: new MembershipWitness(
         NULLIFIER_TREE_HEIGHT,
         BigInt(prevValueIndex.index),
-        assertLength(
-          prevValueSiblingPath.data.map(b => Fr.fromBuffer(b)),
-          NULLIFIER_TREE_HEIGHT,
-        ),
+        assertLength(prevValueSiblingPath.toFieldArray(), NULLIFIER_TREE_HEIGHT),
       ),
     };
   }
@@ -566,7 +555,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const fullSiblingPath = await this.db.getSiblingPath(treeId, nextAvailableLeafIndex);
 
     // Drop the first subtreeHeight items since we only care about the path to the subtree root
-    return fullSiblingPath.data.slice(subtreeHeight).map(b => Fr.fromBuffer(b));
+    return fullSiblingPath.getSubtreeSiblingPath(subtreeHeight).toFieldArray();
   }
 
   protected async processPublicDataUpdateRequests(tx: ProcessedTx) {
@@ -575,7 +564,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       const index = publicDataUpdateRequest.leafIndex.value;
       const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, index);
       await this.db.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, publicDataUpdateRequest.newValue.toBuffer(), index);
-      newPublicDataUpdateRequestsSiblingPaths.push(path.data.map(Fr.fromBuffer));
+      newPublicDataUpdateRequestsSiblingPaths.push(path.toFieldArray());
     }
     return newPublicDataUpdateRequestsSiblingPaths;
   }
@@ -585,7 +574,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     for (const publicDataRead of tx.data.end.publicDataReads) {
       const index = publicDataRead.leafIndex.value;
       const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, index);
-      newPublicDataReadsSiblingPaths.push(path.data.map(Fr.fromBuffer));
+      newPublicDataReadsSiblingPaths.push(path.toFieldArray());
     }
     return newPublicDataReadsSiblingPaths;
   }
@@ -656,7 +645,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Extract witness objects from returned data
     const lowNullifierMembershipWitnesses: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>[] =
       nullifierWitnessLeaves.map(l =>
-        MembershipWitness.fromBufferArray(l.index, assertLength(l.siblingPath.data, NULLIFIER_TREE_HEIGHT)),
+        MembershipWitness.fromBufferArray(l.index, assertLength(l.siblingPath.toBufferArray(), NULLIFIER_TREE_HEIGHT)),
       );
 
     return BaseRollupInputs.from({
@@ -667,7 +656,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       startPublicDataTreeRoot: startPublicDataTreeSnapshot.root,
       newCommitmentsSubtreeSiblingPath,
       newContractsSubtreeSiblingPath,
-      newNullifiersSubtreeSiblingPath: newNullifiersSubtreeSiblingPath.map(b => Fr.fromBuffer(b)),
+      newNullifiersSubtreeSiblingPath: newNullifiersSubtreeSiblingPath.toFieldArray(),
       newPublicDataUpdateRequestsSiblingPaths,
       newPublicDataReadsSiblingPaths,
       lowNullifierLeafPreimages: nullifierWitnessLeaves.map(
@@ -695,7 +684,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     return new MembershipWitness(
       height,
       0n,
-      makeTuple(height, () => new Fr(0n)),
+      makeTuple(height, () => Fr.ZERO),
     );
   }
 }

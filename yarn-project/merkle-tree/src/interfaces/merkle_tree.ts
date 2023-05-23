@@ -9,7 +9,7 @@ export interface SiblingPathSource {
    * @param index - The index of the leaf for which a sibling path is required.
    * @param includeUncommitted - Set to true to include uncommitted updates in the sibling path.
    */
-  getSiblingPath(index: bigint, includeUncommitted: boolean): Promise<SiblingPath>;
+  getSiblingPath<N extends number>(index: bigint, includeUncommitted: boolean): Promise<SiblingPath<N>>;
 }
 
 /**

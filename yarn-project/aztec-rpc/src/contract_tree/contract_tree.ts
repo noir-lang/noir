@@ -263,10 +263,7 @@ export class ContractTree {
       this.contractMembershipWitness = new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
         CONTRACT_TREE_HEIGHT,
         index,
-        assertLength(
-          siblingPath.data.map(x => Fr.fromBuffer(x)),
-          CONTRACT_TREE_HEIGHT,
-        ),
+        assertLength(siblingPath.toFieldArray(), CONTRACT_TREE_HEIGHT),
       );
     }
     return this.contractMembershipWitness;

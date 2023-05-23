@@ -96,21 +96,21 @@ export abstract class TreeBase implements MerkleTree {
   /**
    * Returns a sibling path for the element at the given index.
    * @param index - The index of the element.
-   * @param includeUncommitted - Indicates whether to get a sibling path incorporating uncomitted changes.
+   * @param includeUncommitted - Indicates whether to get a sibling path incorporating uncommitted changes.
    * @returns A sibling path for the element at the given index.
    * Note: The sibling path is an array of sibling hashes, with the lowest hash (leaf hash) first, and the highest hash last.
    */
-  public async getSiblingPath(index: bigint, includeUncommitted: boolean) {
-    const path = new SiblingPath();
+  public async getSiblingPath<N extends number>(index: bigint, includeUncommitted: boolean): Promise<SiblingPath<N>> {
+    const path: Buffer[] = [];
     let level = this.depth;
     while (level > 0) {
       const isRight = index & 0x01n;
       const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, includeUncommitted);
-      path.data.push(sibling);
+      path.push(sibling);
       level -= 1;
       index >>= 1n;
     }
-    return path;
+    return new SiblingPath<N>(this.depth as N, path);
   }
 
   /**

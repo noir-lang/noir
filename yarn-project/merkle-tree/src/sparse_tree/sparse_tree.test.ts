@@ -28,6 +28,8 @@ const createFromName = async (levelUp: levelup.LevelUp, hasher: Hasher, name: st
   return await loadTree(SparseTree, levelUp, hasher, name);
 };
 
+const TEST_TREE_DEPTH = 3;
+
 treeTestSuite('SparseTree', createDb, createFromName);
 standardBasedTreeTestSuite('SparseTree', createDb);
 
@@ -108,7 +110,7 @@ describe('SparseTreeSpecific', () => {
       const root = pedersen.compress(level1LeftHash, level1ZeroHash);
       expect(tree.getRoot(true)).toEqual(root);
       expect(await tree.getSiblingPath(3n, true)).toEqual(
-        new SiblingPath([INITIAL_LEAF, level2ZeroHash, level1ZeroHash]),
+        new SiblingPath(TEST_TREE_DEPTH, [INITIAL_LEAF, level2ZeroHash, level1ZeroHash]),
       );
     }
 
@@ -123,7 +125,7 @@ describe('SparseTreeSpecific', () => {
       const root = pedersen.compress(level1LeftHash, level1RightHash);
       expect(tree.getRoot(true)).toEqual(root);
       expect(await tree.getSiblingPath(6n, true)).toEqual(
-        new SiblingPath([INITIAL_LEAF, level2ZeroHash, level1LeftHash]),
+        new SiblingPath(TEST_TREE_DEPTH, [INITIAL_LEAF, level2ZeroHash, level1LeftHash]),
       );
     }
 
@@ -137,7 +139,7 @@ describe('SparseTreeSpecific', () => {
       const root = pedersen.compress(level1LeftHash, level1RightHash);
       expect(tree.getRoot(true)).toEqual(root);
       expect(await tree.getSiblingPath(2n, true)).toEqual(
-        new SiblingPath([leafAtIndex3, level2ZeroHash, level1RightHash]),
+        new SiblingPath(TEST_TREE_DEPTH, [leafAtIndex3, level2ZeroHash, level1RightHash]),
       );
     }
 
@@ -151,7 +153,7 @@ describe('SparseTreeSpecific', () => {
       const root = pedersen.compress(level1LeftHash, level1RightHash);
       expect(tree.getRoot(true)).toEqual(root);
       expect(await tree.getSiblingPath(3n, true)).toEqual(
-        new SiblingPath([leafAtIndex2, level2ZeroHash, level1RightHash]),
+        new SiblingPath(TEST_TREE_DEPTH, [leafAtIndex2, level2ZeroHash, level1RightHash]),
       );
     }
   });

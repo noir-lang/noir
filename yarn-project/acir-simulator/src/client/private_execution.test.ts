@@ -186,7 +186,7 @@ describe('Private Execution test suite', () => {
           notes: await Promise.all(
             preimages.map(async (preimage, index) => ({
               preimage,
-              siblingPath: (await tree.getSiblingPath(BigInt(index), false)).data.map(buf => Fr.fromBuffer(buf)),
+              siblingPath: (await tree.getSiblingPath(BigInt(index), false)).toFieldArray(),
               index: BigInt(index),
             })),
           ),
@@ -261,7 +261,7 @@ describe('Private Execution test suite', () => {
           notes: await Promise.all(
             preimages.map(async (preimage, index) => ({
               preimage,
-              siblingPath: (await tree.getSiblingPath(BigInt(index), false)).data.map(buf => Fr.fromBuffer(buf)),
+              siblingPath: (await tree.getSiblingPath(BigInt(index), false)).toFieldArray(),
               index: BigInt(index),
             })),
           ),
@@ -419,7 +419,7 @@ describe('Private Execution test suite', () => {
         return Promise.resolve({
           message: preimage.toFieldArray(),
           index: 0n,
-          siblingPath: (await tree.getSiblingPath(0n, false)).data.map(buf => Fr.fromBuffer(buf)),
+          siblingPath: (await tree.getSiblingPath(0n, false)).toFieldArray(),
         });
       });
 

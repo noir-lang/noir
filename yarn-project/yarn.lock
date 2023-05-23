@@ -213,6 +213,7 @@ __metadata:
   dependencies:
     "@aztec/barretenberg.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/merkle-tree": "workspace:^"
     "@aztec/yarn-project-base": "workspace:^"
     "@jest/globals": ^29.5.0
     "@msgpack/msgpack": ^3.0.0-beta2
