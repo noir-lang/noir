@@ -409,6 +409,8 @@ impl<'function> PerFunctionContext<'function> {
             }) => {
                 let condition = self.translate_value(*condition);
 
+                // See if the value of the condition is known, and if so only inline the reachable
+                // branch. This lets us inline some recursive functions without recurring forever.
                 let dfg = &mut self.context.builder.current_function.dfg;
                 match dfg.get_numeric_constant(condition) {
                     Some(constant) => {
