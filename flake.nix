@@ -49,7 +49,12 @@
   };
 
   outputs =
-    { self, nixpkgs, crane, flake-utils, rust-overlay, barretenberg, ... }:
+    { self, nixpkgs, crane, flake-utils, rust-overlay, barretenberg, ... }: let
+      wasm-bindgen-cli-src = builtins.fetchGit {
+        url = "https://github.com/rustwasm/wasm-bindgen.git";
+        rev = "4caa98165c65984e3eba3dd7825f3bf44955d127";
+      };
+    in
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs {
@@ -147,6 +152,17 @@
       noir = craneLib.buildPackage (commonArgs // {
         inherit cargoArtifacts;
       });
+
+      wasm-bindgen-cli = pkgs.rustPlatform.buildRustPackage rec {
+        pname = "wasm-bindgen-cli";
+        version = "0.2.74";
+        src = wasm-bindgen-cli-src;
+        cargoSha256 = "0000000000000000000000000000000000000000000000000000";
+
+        postInstall = ''
+          ln -s $out/bin/wasm-bindgen $out/bin/wasm-bindgen-cli
+        '';
+      };
     in
     rec {
       checks = {
@@ -225,8 +241,8 @@
         ];
 
         buildPhaseCargoCommand = ''
-          echo About to Wasm-Pack
-          echo $(which wasm-bindgen)
+          echo "wasm-bindgen version: $(wasm-bindgen --version)"
+          echo "==========="
           RUST_LOG="debug"
           wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
         '';
