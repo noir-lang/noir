@@ -197,7 +197,7 @@ d2 = ["", "", ""]
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
         let backend = crate::backends::ConcreteBackend::default();
-        let config = CompileOptions { allow_warnings: true, ..Default::default() };
+        let config = CompileOptions { deny_warnings: false, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
