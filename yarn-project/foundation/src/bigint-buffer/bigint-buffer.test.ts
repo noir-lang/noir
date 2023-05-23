@@ -13,5 +13,9 @@ describe('bigint-buffer', () => {
     it('pads zero to even length', () => {
       expect(toHex(0n)).toEqual('0x00');
     });
+
+    it('pads zero to 32 bytes', () => {
+      expect(toHex(0n, true)).toEqual('0x0000000000000000000000000000000000000000000000000000000000000000');
+    });
   });
 });

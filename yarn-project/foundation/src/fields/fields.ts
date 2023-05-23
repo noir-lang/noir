@@ -89,10 +89,11 @@ export class Fr {
    * The resulting string is prefixed with '0x' and represents the bigint value
    * in base 16.
    *
+   * @param padTo32 - Whether to pad the string to 32 bytes.
    * @returns A hex-encoded string representing the value of the class instance.
    */
-  toString(): `0x${string}` {
-    return toHex(this.value);
+  toString(padTo32 = false): `0x${string}` {
+    return toHex(this.value, padTo32);
   }
 
   /**

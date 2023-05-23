@@ -69,7 +69,7 @@ contract TokenPortalTest is Test {
 
     // Check for the expected message
     DataStructures.L1ToL2Msg memory expectedMessage = DataStructures.L1ToL2Msg({
-      sender: DataStructures.L1Actor(address(tokenPortal), 1),
+      sender: DataStructures.L1Actor(address(tokenPortal), block.chainid),
       recipient: DataStructures.L2Actor(l2TokenAddress, 1),
       content: Hash.sha256ToField(abi.encodeWithSignature("mint(uint256,bytes32)", amount, to)),
       secretHash: secretHash,

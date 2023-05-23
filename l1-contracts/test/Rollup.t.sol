@@ -20,21 +20,6 @@ import {Rollup} from "@aztec/core/Rollup.sol";
  * Main use of these test is shorter cycles when updating the decoder contract.
  */
 contract RollupTest is DecoderTest {
-  Registry internal registry;
-  Inbox internal inbox;
-  Outbox internal outbox;
-  Rollup internal rollup;
-
-  function setUp() public override(DecoderTest) {
-    super.setUp();
-    registry = new Registry();
-    inbox = new Inbox(address(registry));
-    outbox = new Outbox(address(registry));
-    rollup = new Rollup(registry);
-
-    registry.upgrade(address(rollup), address(inbox), address(outbox));
-  }
-
   function testEmptyBlock() public override(DecoderTest) {
     (,, bytes32 endStateHash,, bytes32[] memory l2ToL1Msgs, bytes32[] memory l1ToL2Msgs) =
       helper.decode(block_empty_1);
@@ -64,8 +49,9 @@ contract RollupTest is DecoderTest {
     (,, bytes32 endStateHash,, bytes32[] memory l2ToL1Msgs, bytes32[] memory l1ToL2Msgs) =
       helper.decode(block_mixed_1);
 
+    bytes32[] memory expectedL1ToL2Msgs = _populateInbox();
+
     for (uint256 i = 0; i < l1ToL2Msgs.length; i++) {
-      _insertInboxEntry(l1ToL2Msgs[i]);
       assertTrue(inbox.contains(l1ToL2Msgs[i]), "msg not in inbox");
     }
 
@@ -86,17 +72,10 @@ contract RollupTest is DecoderTest {
     }
 
     for (uint256 i = 0; i < l1ToL2Msgs.length; i++) {
-      assertEq(l1ToL2Msgs[i], bytes32(uint256(0x401 + i)), "Invalid l1ToL2Msgs");
+      assertEq(l1ToL2Msgs[i], expectedL1ToL2Msgs[i], "Invalid l1ToL2Msgs");
       assertFalse(inbox.contains(l1ToL2Msgs[i]), "msg not consumed");
     }
 
     assertEq(rollup.rollupStateHash(), endStateHash, "Invalid rollup state hash");
-  }
-
-  function _insertInboxEntry(bytes32 _entryHash) internal {
-    // Compute where exactly we need to shove the entry
-    bytes32 slot = keccak256(abi.encodePacked(_entryHash, uint256(0)));
-    uint256 value = uint256(1) | uint256(type(uint32).max) << 128;
-    vm.store(address(inbox), slot, bytes32(value));
   }
 }

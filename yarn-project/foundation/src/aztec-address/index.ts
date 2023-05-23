@@ -81,8 +81,8 @@ export class AztecAddress {
    *
    * @returns A hexadecimal string representation of the AztecAddress.
    */
-  toString() {
-    return '0x' + this.buffer.toString('hex');
+  toString(): `0x${string}` {
+    return `0x${this.buffer.toString('hex')}`;
   }
 
   /**

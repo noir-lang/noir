@@ -14,9 +14,6 @@ remappings = [
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
 
-# Set chain_id to one for messaging tests
-chain_id = 1
-
 [fmt]
 line_length = 100
 tab_width = 2
