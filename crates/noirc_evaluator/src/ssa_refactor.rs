@@ -9,7 +9,7 @@
 
 use crate::errors::RuntimeError;
 use acvm::{
-    acir::circuit::{Circuit, Opcode},
+    acir::circuit::{Circuit, Opcode as AcirOpcode},
     Language,
 };
 use noirc_abi::Abi;
@@ -36,7 +36,7 @@ pub fn optimize_into_acir(program: Program) -> Acir {
 pub fn experimental_create_circuit(
     _program: Program,
     _np_language: Language,
-    _is_opcode_supported: fn(&Opcode) -> bool,
+    _is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
