@@ -12,7 +12,6 @@ import {Registry} from "@aztec/core/messagebridge/Registry.sol";
 import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
 import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
 
-import {Decoder} from "@aztec/core/Decoder.sol";
 import {Rollup} from "@aztec/core/Rollup.sol";
 
 /**

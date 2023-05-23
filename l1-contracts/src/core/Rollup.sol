@@ -9,8 +9,8 @@ import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 
 // Libraries
+import {Decoder} from "@aztec/core/libraries/Decoder.sol";
 import {Errors} from "@aztec/core/libraries/Errors.sol";
-import {Decoder} from "./Decoder.sol";
 
 // Contracts
 import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
@@ -21,7 +21,7 @@ import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
  * @notice Rollup contract that are concerned about readability and velocity of development
  * not giving a damn about gas costs.
  */
-contract Rollup is IRollup, Decoder {
+contract Rollup is IRollup {
   MockVerifier public immutable VERIFIER;
   IRegistry public immutable REGISTRY;
 
@@ -45,7 +45,7 @@ contract Rollup is IRollup, Decoder {
       bytes32 publicInputHash,
       bytes32[] memory l2ToL1Msgs,
       bytes32[] memory l1ToL2Msgs
-    ) = _decode(_l2Block);
+    ) = Decoder.decode(_l2Block);
 
     // @todo @LHerskind Proper genesis state. If the state is empty, we allow anything for now.
     if (rollupStateHash != bytes32(0) && rollupStateHash != oldStateHash) {

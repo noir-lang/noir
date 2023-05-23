@@ -7,7 +7,7 @@ import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
 
 /**
- * @title Decoder
+ * @title Decoder Library
  * @author Aztec Labs
  * @notice Decoding a L2 block, concerned with readability and velocity of development
  * not giving a damn about gas costs.
@@ -70,7 +70,7 @@ import {Hash} from "@aztec/core/libraries/Hash.sol";
  *  | K + f * 0x20 + 0x04 + g + 0x04                       | h          | newUnencryptedLogs
  *  |---                                                   |---         | ---
  */
-contract Decoder {
+library Decoder {
   struct ArrayLengths {
     uint256 commitmentCount;
     uint256 nullifierCount;
@@ -115,7 +115,7 @@ contract Decoder {
    * @return l2ToL1Msgs - The L2 to L1 messages
    * @return l1ToL2Msgs - The L1 to L2 messages
    */
-  function _decode(bytes calldata _l2Block)
+  function decode(bytes calldata _l2Block)
     internal
     pure
     returns (
@@ -127,16 +127,16 @@ contract Decoder {
       bytes32[] memory l1ToL2Msgs
     )
   {
-    l2BlockNumber = _getL2BlockNumber(_l2Block);
+    l2BlockNumber = getL2BlockNumber(_l2Block);
     // Note, for startStateHash to match the storage, the l2 block number must be new - 1.
     // Only jumping 1 block at a time.
-    startStateHash = _computeStateHash(l2BlockNumber - 1, 0x4, _l2Block);
-    endStateHash = _computeStateHash(l2BlockNumber, 0x120, _l2Block);
+    startStateHash = computeStateHash(l2BlockNumber - 1, 0x4, _l2Block);
+    endStateHash = computeStateHash(l2BlockNumber, 0x120, _l2Block);
 
     bytes32 diffRoot;
     bytes32 l1ToL2MsgsHash;
-    (diffRoot, l1ToL2MsgsHash, l2ToL1Msgs, l1ToL2Msgs) = _computeConsumables(_l2Block);
-    publicInputHash = _computePublicInputHash(_l2Block, diffRoot, l1ToL2MsgsHash);
+    (diffRoot, l1ToL2MsgsHash, l2ToL1Msgs, l1ToL2Msgs) = computeConsumables(_l2Block);
+    publicInputHash = computePublicInputHash(_l2Block, diffRoot, l1ToL2MsgsHash);
   }
 
   /**
@@ -147,7 +147,7 @@ contract Decoder {
    * @param _l1ToL2MsgsHash - The hash of the L1 to L2 messages
    * @return publicInputHash - The hash of the public inputs (sha256 to field)
    */
-  function _computePublicInputHash(
+  function computePublicInputHash(
     bytes calldata _l2Block,
     bytes32 _diffRoot,
     bytes32 _l1ToL2MsgsHash
@@ -168,7 +168,7 @@ contract Decoder {
    * @param _l2Block - The L2 block calldata
    * @return l2BlockNumber - The L2 block number
    */
-  function _getL2BlockNumber(bytes calldata _l2Block) internal pure returns (uint256 l2BlockNumber) {
+  function getL2BlockNumber(bytes calldata _l2Block) internal pure returns (uint256 l2BlockNumber) {
     assembly {
       l2BlockNumber := and(shr(224, calldataload(_l2Block.offset)), 0xffffffff)
     }
@@ -184,7 +184,7 @@ contract Decoder {
    *      the block number, snapshots of all the trees and the root of the public data tree. This function
    *      copies all of these to memory and then hashes them.
    */
-  function _computeStateHash(uint256 _l2BlockNumber, uint256 _offset, bytes calldata _l2Block)
+  function computeStateHash(uint256 _l2BlockNumber, uint256 _offset, bytes calldata _l2Block)
     internal
     pure
     returns (bytes32)
@@ -214,7 +214,7 @@ contract Decoder {
    * @return l2ToL1Msgs - The L2 to L1 messages of the block
    * @return l1ToL2Msgs - The L1 to L2 messages of the block
    */
-  function _computeConsumables(bytes calldata _l2Block)
+  function computeConsumables(bytes calldata _l2Block)
     internal
     pure
     returns (bytes32, bytes32, bytes32[] memory, bytes32[] memory)
@@ -405,7 +405,7 @@ contract Decoder {
       }
     }
 
-    bytes32 diffRoot = _computeRoot(vars.baseLeaves);
+    bytes32 diffRoot = computeRoot(vars.baseLeaves);
     bytes32[] memory l1ToL2Msgs;
     bytes32 l1ToL2MsgsHash;
     {
@@ -451,7 +451,7 @@ contract Decoder {
    * @dev Link to a relevant discussion:
    *      https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426/9
    */
-  function _computeKernelLogsHash(uint256 _offset, bytes calldata /* _l2Block */ )
+  function computeKernelLogsHash(uint256 _offset, bytes calldata /* _l2Block */ )
     internal
     pure
     returns (bytes32, uint256)
@@ -509,7 +509,7 @@ contract Decoder {
    * @param _leafs - The 32 bytes leafs to build the tree of.
    * @return The root of the Merkle tree.
    */
-  function _computeRoot(bytes32[] memory _leafs) internal pure returns (bytes32) {
+  function computeRoot(bytes32[] memory _leafs) internal pure returns (bytes32) {
     // @todo Must pad the tree
     uint256 treeDepth = 0;
     while (2 ** treeDepth < _leafs.length) {
