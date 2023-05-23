@@ -66,24 +66,8 @@ body:
     attributes:
       value: |
         ## Using TypeScript?
-  - type: input
-    id: noir_wasm-version
-    attributes:
-      label: "@noir-lang/noir_wasm Version"
-      description: What is the version number? e.g. version in yarn.lock
-      placeholder: "0.2.0-ca986a4"
-  - type: input
-    id: barretenberg-version
-    attributes:
-      label: "@noir-lang/barretenberg Version"
-      description: What is the version number? e.g. version in yarn.lock
-      placeholder: "2.19.0"
-  - type: input
-    id: aztec_backend-version
-    attributes:
-      label: "@noir-lang/aztec_backend Version"
-      description: What is the version number? e.g. version in yarn.lock
-      placeholder: "0.12.0"
+        Please await for our new set of packages.
+        You can find our target release timeframe on the [Noir Roadmap](https://github.com/orgs/noir-lang/projects/1/views/16).
   - type: markdown
     attributes:
       value: |
