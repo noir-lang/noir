@@ -6,6 +6,8 @@ on:
       - reopened
       - edited
       - synchronize
+      - labeled
+      - unlabeled
 
 permissions:
   pull-requests: write
@@ -22,3 +24,21 @@ jobs:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           configuration-path: .github/labeler.yml
           enable-versioned-regex: 0
+
+      - name: Set workflowId environment variable
+        id: set_workflow_id
+        run: |
+          if [[ "${{ github.event.action }}" == "labeled" ]]; then
+            echo "workflowId=new-migrated-issue.yml" >> $GITHUB_ENV
+          else
+            echo "workflowId=delete-migrated-issue.yml" >> $GITHUB_ENV
+          fi
+
+      - name: Dispatch
+        uses: benc-uk/workflow-dispatch@v1 
+        with: 
+          workflow: ${{ env.workflowId }}
+          repo: noir-lang/docs
+          ref: master 
+          token: ${{ secrets.GITHUB_TOKEN }} 
+          inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }'
