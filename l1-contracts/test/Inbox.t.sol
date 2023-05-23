@@ -31,7 +31,7 @@ contract InboxTest is Test {
     address rollup = address(this);
     Registry registry = new Registry();
     inbox = new Inbox(address(registry));
-    registry.setAddresses(rollup, address(inbox), address(0x0));
+    registry.upgrade(rollup, address(inbox), address(0x0));
   }
 
   function _fakeMessage() internal view returns (DataStructures.L1ToL2Msg memory) {

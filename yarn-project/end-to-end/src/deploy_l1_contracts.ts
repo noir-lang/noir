@@ -120,7 +120,7 @@ export const deployL1Contracts = async (
     publicClient,
     walletClient,
   });
-  await registryContract.write.setAddresses(
+  await registryContract.write.upgrade(
     [getAddress(rollupAddress.toString()), getAddress(inboxAddress.toString()), getAddress(outboxAddress.toString())],
     { account },
   );

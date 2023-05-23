@@ -20,7 +20,7 @@ contract OutboxTest is Test {
     address rollup = address(this);
     Registry registry = new Registry();
     outbox = new Outbox(address(registry));
-    registry.setAddresses(rollup, address(0x0), address(outbox));
+    registry.upgrade(rollup, address(0x0), address(outbox));
   }
 
   function _fakeMessage() internal view returns (DataStructures.L2ToL1Msg memory) {

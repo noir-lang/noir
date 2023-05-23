@@ -27,6 +27,7 @@ contract RollupNativeAsset is ERC20 {
         )
     });
 
+    // @todo: (issue #624) handle different versions
     bytes32 entryKey = registry.getOutbox().consume(message);
 
     _mint(_recipient, _amount);

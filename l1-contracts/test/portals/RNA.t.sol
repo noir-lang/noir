@@ -34,7 +34,7 @@ contract RNATest is Test {
     inbox = new Inbox(address(registry));
     rollup = new Rollup(registry);
 
-    registry.setAddresses(address(rollup), address(inbox), address(outbox));
+    registry.upgrade(address(rollup), address(inbox), address(outbox));
 
     rna = new RollupNativeAsset();
     // Essentially deploying the rna contract on the 0xbeef address to make matching entry easy.

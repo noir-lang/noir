@@ -65,14 +65,16 @@ library DataStructures {
   }
 
   /**
-   * @notice Struct for storing address of cross communication components
+   * @notice Struct for storing address of cross communication components and the block number when it was updated
    * @param rollup - The address of the rollup contract
    * @param inbox - The address of the inbox contract
    * @param outbox - The address of the outbox contract
+   * @param blockNumber - The block number of the snapshot
    */
-  struct L1L2Addresses {
+  struct RegistrySnapshot {
     address rollup;
     address inbox;
     address outbox;
+    uint256 blockNumber;
   }
 }

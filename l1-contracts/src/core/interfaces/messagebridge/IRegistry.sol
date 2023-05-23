@@ -7,11 +7,16 @@ import {IInbox} from "./IInbox.sol";
 import {IOutbox} from "./IOutbox.sol";
 
 interface IRegistry {
-  function getL1L2Addresses() external view returns (DataStructures.L1L2Addresses memory);
-
   function getRollup() external view returns (IRollup);
 
   function getInbox() external view returns (IInbox);
 
   function getOutbox() external view returns (IOutbox);
+
+  function getSnapshot(uint256 _version)
+    external
+    view
+    returns (DataStructures.RegistrySnapshot memory);
+
+  function getCurrentSnapshot() external view returns (DataStructures.RegistrySnapshot memory);
 }

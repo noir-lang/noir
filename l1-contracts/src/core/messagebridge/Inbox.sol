@@ -24,6 +24,7 @@ contract Inbox is IInbox {
   mapping(address account => uint256 balance) public feesAccrued;
 
   modifier onlyRollup() {
+    // @todo: (issue #624) handle different versions
     if (msg.sender != address(REGISTRY.getRollup())) revert Errors.Inbox__Unauthorized();
     _;
   }

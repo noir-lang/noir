@@ -32,7 +32,7 @@ contract RollupTest is DecoderTest {
     outbox = new Outbox(address(registry));
     rollup = new Rollup(registry);
 
-    registry.setAddresses(address(rollup), address(inbox), address(outbox));
+    registry.upgrade(address(rollup), address(inbox), address(outbox));
   }
 
   function testEmptyBlock() public override(DecoderTest) {

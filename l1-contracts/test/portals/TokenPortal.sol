@@ -36,6 +36,7 @@ contract TokenPortal {
     returns (bytes32)
   {
     // Preamble
+    // @todo: (issue #624) handle different versions
     IInbox inbox = registry.getInbox();
     DataStructures.L2Actor memory actor = DataStructures.L2Actor(l2TokenAddress, 1);
 
