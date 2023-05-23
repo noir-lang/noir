@@ -1,7 +1,4 @@
 #include "sumcheck_round.hpp"
-#include "relations/arithmetic_relation.hpp"
-#include "relations/grand_product_computation_relation.hpp"
-#include "relations/grand_product_initialization_relation.hpp"
 #include "polynomials/univariate.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
@@ -25,7 +22,7 @@ using namespace proof_system::honk::sumcheck;
 using Flavor = flavor::Standard;
 using FF = typename Flavor::FF;
 using ProverPolynomials = typename Flavor::ProverPolynomials;
-using PurportedEvaluations = typename Flavor::PurportedEvaluations;
+using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 const size_t max_relation_length = 5;
@@ -80,12 +77,9 @@ static Univariate<FF, max_relation_length> compute_round_univariate(
     const FF alpha)
 {
     size_t round_size = 1;
-    auto relations = std::tuple(
-        ArithmeticRelation<FF>(), GrandProductComputationRelation<FF>(), GrandProductInitializationRelation<FF>());
+
     // Improvement(Cody): This is ugly? Maye supply some/all of this data through "flavor" class?
-    auto round =
-        SumcheckRound<Flavor, ArithmeticRelation, GrandProductComputationRelation, GrandProductInitializationRelation>(
-            round_size, relations);
+    auto round = SumcheckRound<Flavor>(round_size);
     auto w_l = input_polynomials[0];
     auto w_r = input_polynomials[1];
     auto w_o = input_polynomials[2];
@@ -187,7 +181,7 @@ static FF compute_full_purported_value(std::array<FF, NUM_POLYNOMIALS>& input_va
                                        const RelationParameters<FF>& relation_parameters,
                                        const FF alpha)
 {
-    PurportedEvaluations purported_evaluations;
+    ClaimedEvaluations purported_evaluations;
     purported_evaluations.w_l = input_values[0];
     purported_evaluations.w_r = input_values[1];
     purported_evaluations.w_o = input_values[2];
@@ -206,11 +200,8 @@ static FF compute_full_purported_value(std::array<FF, NUM_POLYNOMIALS>& input_va
     purported_evaluations.id_3 = input_values[15];
     purported_evaluations.lagrange_first = input_values[16];
     purported_evaluations.lagrange_last = input_values[17];
-    auto relations = std::tuple(
-        ArithmeticRelation<FF>(), GrandProductComputationRelation<FF>(), GrandProductInitializationRelation<FF>());
-    auto round =
-        SumcheckRound<Flavor, ArithmeticRelation, GrandProductComputationRelation, GrandProductInitializationRelation>(
-            relations);
+
+    auto round = SumcheckRound<Flavor>();
     PowUnivariate<FF> pow_univariate(1);
     FF full_purported_value = round.compute_full_honk_relation_purported_value(
         purported_evaluations, relation_parameters, pow_univariate, alpha);

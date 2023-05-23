@@ -4,9 +4,6 @@
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
-#include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::honk::sumcheck;
@@ -111,11 +108,7 @@ template <typename Flavor> bool StandardVerifier_<Flavor>::verify_proof(const pl
     commitments.z_perm = transcript.template receive_from_prover<Commitment>(commitment_labels.z_perm);
 
     // Execute Sumcheck Verifier
-    auto sumcheck = Sumcheck<Flavor,
-                             VerifierTranscript<FF>,
-                             honk::sumcheck::ArithmeticRelation,
-                             honk::sumcheck::GrandProductComputationRelation,
-                             honk::sumcheck::GrandProductInitializationRelation>(circuit_size, transcript);
+    auto sumcheck = Sumcheck<Flavor, VerifierTranscript<FF>>(circuit_size, transcript);
     std::optional sumcheck_output = sumcheck.execute_verifier(relation_parameters);
 
     // If Sumcheck does not return an output, sumcheck verification has failed

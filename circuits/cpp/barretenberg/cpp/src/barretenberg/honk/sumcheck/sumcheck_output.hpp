@@ -10,16 +10,16 @@ namespace proof_system::honk::sumcheck {
  */
 template <typename Flavor> struct SumcheckOutput {
     using FF = typename Flavor::FF;
-    using PurportedEvaluations = typename Flavor::PurportedEvaluations;
+    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
     // u = (u_0, ..., u_{d-1})
     std::vector<FF> challenge_point;
     // Evaluations in `u` of the polynomials used in Sumcheck
-    PurportedEvaluations purported_evaluations;
+    ClaimedEvaluations purported_evaluations;
 
     SumcheckOutput()
         : purported_evaluations(std::array<FF, Flavor::NUM_ALL_ENTITIES>()){};
 
-    SumcheckOutput(const std::vector<FF>& _challenge_point, const PurportedEvaluations& _purported_evaluations)
+    SumcheckOutput(const std::vector<FF>& _challenge_point, const ClaimedEvaluations& _purported_evaluations)
         : challenge_point(_challenge_point)
         , purported_evaluations(_purported_evaluations){};
 

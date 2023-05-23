@@ -3,9 +3,6 @@
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
-#include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
 
 namespace proof_system::honk {
@@ -130,11 +127,7 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_grand_pro
  * */
 template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_relation_check_rounds()
 {
-    using Sumcheck = sumcheck::Sumcheck<Flavor,
-                                        ProverTranscript<FF>,
-                                        sumcheck::ArithmeticRelation,
-                                        sumcheck::GrandProductComputationRelation,
-                                        sumcheck::GrandProductInitializationRelation>;
+    using Sumcheck = sumcheck::Sumcheck<Flavor, ProverTranscript<FF>>;
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
 

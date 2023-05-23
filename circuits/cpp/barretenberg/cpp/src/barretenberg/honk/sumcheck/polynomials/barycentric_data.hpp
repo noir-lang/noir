@@ -6,12 +6,10 @@
 /* IMPROVEMENT(Cody): This could or should be improved in various ways. In no particular order:
    1) Edge cases are not considered. One non-use case situation (I forget which) leads to a segfault.
 
-   2) This could all be constexpr.
-
-   3) Precomputing for all possible size pairs is probably feasible and might be a better solution than instantiating
+   2) Precomputing for all possible size pairs is probably feasible and might be a better solution than instantiating
    many instances separately. Then perhaps we could infer input type to `extend`.
 
-   4) There should be more thorough testing of this class in isolation.
+   3) There should be more thorough testing of this class in isolation.
  */
 namespace proof_system::honk::sumcheck {
 
@@ -23,53 +21,76 @@ namespace proof_system::honk::sumcheck {
 template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData {
   public:
     static constexpr size_t big_domain_size = std::max(domain_size, num_evals);
-    // TODO(#224)(Cody): these should be static, also constexpr, but arrays are not constexpr
-    std::array<Fr, big_domain_size> big_domain;
-    std::array<Fr, domain_size> lagrange_denominators;
-    std::array<Fr, domain_size * num_evals> precomputed_denominator_inverses;
-    std::array<Fr, num_evals> full_numerator_values;
 
-    constexpr BarycentricData()
+    /**
+     * Static constexpr methods for computing arrays of precomputable data used for barycentric extension and evaluation
+     */
+
+    // build big_domain, currently the set of x_i in {0, 1, ..., t-1}
+    static constexpr std::array<Fr, big_domain_size> construct_big_domain()
     {
-        // build big_domain, currently the set of x_i in {0, 1, ..., t-1}
-        for (size_t i = 0; i != big_domain_size; ++i) {
-            big_domain[i] = i;
+        std::array<Fr, big_domain_size> result;
+        for (size_t i = 0; i < big_domain_size; ++i) {
+            result[i] = static_cast<Fr>(i);
         }
+        return result;
+    }
 
-        // build set of lagrange_denominators d_i = \prod_{j!=i} x_i - x_j
+    // build set of lagrange_denominators d_i = \prod_{j!=i} x_i - x_j
+    static constexpr std::array<Fr, domain_size> construct_lagrange_denominators(const auto& big_domain)
+    {
+        std::array<Fr, domain_size> result;
         for (size_t i = 0; i != domain_size; ++i) {
-            lagrange_denominators[i] = 1;
+            result[i] = 1;
             for (size_t j = 0; j != domain_size; ++j) {
                 if (j != i) {
-                    lagrange_denominators[i] *= big_domain[i] - big_domain[j];
+                    result[i] *= big_domain[i] - big_domain[j];
                 }
             }
         }
+        return result;
+    }
 
-        // for each x_k in the big domain, build set of domain size-many denominator inverses
-        // 1/(d_i*(x_k - x_j)). will multiply against each of these (rather than to divide by something)
-        // for each barycentric evaluation
-        for (size_t k = domain_size; k != num_evals; ++k) {
-            for (size_t j = 0; j != domain_size; ++j) {
+    // for each x_k in the big domain, build set of domain size-many denominator inverses
+    // 1/(d_i*(x_k - x_j)). will multiply against each of these (rather than to divide by something)
+    // for each barycentric evaluation
+    static constexpr std::array<Fr, domain_size * num_evals> construct_denominator_inverses(
+        const auto& big_domain, const auto& lagrange_denominators)
+    {
+        std::array<Fr, domain_size * num_evals> result{}; // default init to 0 since below does not init all elements
+        for (size_t k = domain_size; k < num_evals; ++k) {
+            for (size_t j = 0; j < domain_size; ++j) {
                 Fr inv = lagrange_denominators[j];
                 inv *= (big_domain[k] - big_domain[j]);
                 inv = Fr(1) / inv; // prob have self_inverse method; should be part of Field concept
-                precomputed_denominator_inverses[k * domain_size + j] = inv;
+                result[k * domain_size + j] = inv;
             }
         }
+        return result;
+    }
 
-        // get full numerator values
-        // full numerator is M(x) = \prod_{i} (x-x_i)
-        // these will be zero for i < domain_size, but that's ok because
-        // at such entries we will already have the evaluations of the polynomial
+    // get full numerator values
+    // full numerator is M(x) = \prod_{i} (x-x_i)
+    // these will be zero for i < domain_size, but that's ok because
+    // at such entries we will already have the evaluations of the polynomial
+    static constexpr std::array<Fr, num_evals> construct_full_numerator_values(const auto& big_domain)
+    {
+        std::array<Fr, num_evals> result;
         for (size_t i = 0; i != num_evals; ++i) {
-            full_numerator_values[i] = 1;
+            result[i] = 1;
             Fr v_i = i;
             for (size_t j = 0; j != domain_size; ++j) {
-                full_numerator_values[i] *= v_i - big_domain[j];
+                result[i] *= v_i - big_domain[j];
             }
         }
+        return result;
     }
+
+    static constexpr auto big_domain = construct_big_domain();
+    static constexpr auto lagrange_denominators = construct_lagrange_denominators(big_domain);
+    static constexpr auto precomputed_denominator_inverses =
+        construct_denominator_inverses(big_domain, lagrange_denominators);
+    static constexpr auto full_numerator_values = construct_full_numerator_values(big_domain);
 
     /**
      * @brief Given A univariate f represented by {f(0), ..., f(t-1)}, compute {f(t), ..., f(u-1)}

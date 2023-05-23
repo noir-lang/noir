@@ -57,7 +57,6 @@
  * empty slots. This is a conscious choice to limit complexity. Note that there is very little memory cost here since
  * the DataType size in that case is small.
  *
- * @todo TODO(#394): Folded polynomials should use polynomial class.
  * @todo TODO(#395): Getters should return arrays?
  * @todo TODO(#396): Access specifiers?
  * @todo TODO(#397): Use more handle types?
@@ -68,9 +67,11 @@
 #include <array>
 #include <concepts>
 #include <vector>
+#include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
 #include "barretenberg/srs/reference_string/reference_string.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
+#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 
 namespace proof_system::honk::flavor {
 
@@ -213,6 +214,52 @@ class AllEntities_ : public Entities_<DataType, DataType, NUM_ALL_ENTITIES> {
         return result;
     };
 };
+
+/**
+ * @brief Recursive utility function to find max RELATION_LENGTH over tuple of Relations
+ *
+ */
+template <typename Tuple, std::size_t Index = 0> static constexpr size_t get_max_relation_length()
+{
+    if constexpr (Index >= std::tuple_size<Tuple>::value) {
+        return 0; // Return 0 when reach end of the tuple
+    } else {
+        constexpr size_t current_length = std::tuple_element<Index, Tuple>::type::RELATION_LENGTH;
+        constexpr size_t next_length = get_max_relation_length<Tuple, Index + 1>();
+        return (current_length > next_length) ? current_length : next_length;
+    }
+}
+
+/**
+ * @brief Recursive utility function to construct tuple of Univariates of length RELATION_LENGTH
+ *
+ */
+template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto create_univariate_tuple()
+{
+    if constexpr (Index >= std::tuple_size<Tuple>::value) {
+        return std::tuple<>{}; // Return empty when reach end of the tuple
+    } else {
+        using UnivariateType = sumcheck::Univariate<FF, std::tuple_element_t<Index, Tuple>::RELATION_LENGTH>;
+        return std::tuple_cat(std::tuple<UnivariateType>{}, create_univariate_tuple<FF, Tuple, Index + 1>());
+    }
+}
+
+/**
+ * @brief Recursive helper function to construct BarycentricData to extend each Relation in a tuple
+ *
+ */
+template <class FF, typename Tuple, size_t ExtendedLength, std::size_t Index = 0>
+static constexpr auto create_barycentric_utils()
+{
+    if constexpr (Index >= std::tuple_size<Tuple>::value) {
+        return std::tuple<>{}; // Return empty when reach end of the tuple
+    } else {
+        constexpr size_t relation_length = std::tuple_element_t<Index, Tuple>::RELATION_LENGTH;
+        using BarycentricType = sumcheck::BarycentricData<FF, relation_length, ExtendedLength>;
+        return std::tuple_cat(std::tuple<BarycentricType>{},
+                              create_barycentric_utils<FF, Tuple, ExtendedLength, Index + 1>());
+    }
+}
 
 } // namespace proof_system::honk::flavor
 

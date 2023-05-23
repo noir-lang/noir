@@ -42,7 +42,7 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
     using Flavor = honk::flavor::Standard;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
-    using PurportedEvaluations = typename Flavor::PurportedEvaluations;
+    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
     // Create a composer and a dummy circuit with a few gates
     auto composer = StandardHonkComposer();
@@ -115,7 +115,7 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
     for (size_t i = 0; i < prover.key->circuit_size; i++) {
         // Compute an array containing all the evaluations at a given row i
 
-        PurportedEvaluations evaluations_at_index_i;
+        ClaimedEvaluations evaluations_at_index_i;
         size_t poly_idx = 0;
         for (auto& polynomial : prover_polynomials) {
             evaluations_at_index_i[poly_idx] = polynomial[i];
@@ -154,7 +154,7 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
     using Flavor = honk::flavor::Ultra;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
-    using PurportedEvaluations = typename Flavor::PurportedEvaluations;
+    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
     // by each relation are non-trivially exercised.
@@ -379,7 +379,7 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
     fr result = 0;
     for (size_t i = 0; i < prover.key->circuit_size; i++) {
         // Compute an array containing all the evaluations at a given row i
-        PurportedEvaluations evaluations_at_index_i;
+        ClaimedEvaluations evaluations_at_index_i;
         size_t poly_idx = 0;
         for (auto& polynomial : prover_polynomials) {
             evaluations_at_index_i[poly_idx] = polynomial[i];
