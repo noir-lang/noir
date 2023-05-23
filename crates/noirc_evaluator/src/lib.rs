@@ -5,6 +5,7 @@
 
 mod errors;
 mod ssa;
+mod brillig;
 
 // SSA code to create the SSA based IR
 // for functions and execute different optimizations.

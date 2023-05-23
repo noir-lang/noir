@@ -11,7 +11,7 @@ use super::value::ValueId;
 /// To reference external functions its FunctionId can be used but this
 /// cannot be checked for correctness until inlining is performed.
 #[derive(Debug)]
-pub(crate) struct Function {
+pub struct Function {
     /// The first basic block in the function
     entry_block: BasicBlockId,
 

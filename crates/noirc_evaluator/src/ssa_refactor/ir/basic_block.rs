@@ -11,7 +11,7 @@ use super::{
 /// This means that if one instruction is executed in a basic
 /// block, then all instructions are executed. ie single-entry single-exit.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub(crate) struct BasicBlock {
+pub struct BasicBlock {
     /// Parameters to the basic block.
     parameters: Vec<ValueId>,
 

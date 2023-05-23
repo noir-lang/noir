@@ -25,6 +25,10 @@ impl<T> Id<T> {
         Self { index, _marker: std::marker::PhantomData }
     }
 
+    pub fn as_usize(&self) -> usize {
+        self.index
+    }
+
     /// Creates a test Id with the given index.
     /// The name of this function makes it apparent it should only
     /// be used for testing. Obtaining Ids in this way should be avoided
