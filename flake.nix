@@ -144,10 +144,10 @@
         # which avoids exposing the entire Nix store to the static server it starts
         # The static server is moved to the background and killed after checks are completed
         #
-        # We also set the BACKEND_CACHE_DIR environment variable to the $TMP directory so we can successfully cache
+        # We also set the NARGO_BACKEND_CACHE_DIR environment variable to the $TMP directory so we can successfully cache
         # the transcript; which isn't possible with the default path because the Nix sandbox disabled $HOME
         preCheck = ''
-          export BACKEND_CACHE_DIR=$TMP
+          export NARGO_BACKEND_CACHE_DIR=$TMP
           cp ${pkgs.barretenberg-transcript00} .
           echo "Starting simple static server"
           ${pkgs.simple-http-server}/bin/simple-http-server --port ${toString port} --silent &

@@ -68,16 +68,7 @@ impl Default for CompileOptions {
 
 impl Driver {
     pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
-        let mut driver =
-            Driver { context: Context::default(), language: language.clone(), is_opcode_supported };
-
-        // We cannot pass in the real version of `is_opcode_supported` here as we cannot clone the boxed closure.
-        // TODO(#1102): remove the requirement for the `NodeInterner` to know about which opcodes the backend supports.
-        #[allow(deprecated)]
-        let default_is_opcode_supported =
-            Box::new(acvm::default_is_opcode_supported(language.clone()));
-        driver.context.def_interner.set_opcode_support(default_is_opcode_supported);
-        driver
+        Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
     }
 
     // This is here for backwards compatibility

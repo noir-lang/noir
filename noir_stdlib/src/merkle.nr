@@ -13,7 +13,6 @@ fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [F
 fn compute_merkle_root(_leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
 
 // Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
-#[alternative(compute_merkle_root)]
 fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
     let n = hash_path.len();
     let index_bits = index.to_le_bits(n as u32);

@@ -1149,23 +1149,7 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         let id = self.resolve_path(path)?;
 
-        if let Some(mut function) = TryFromModuleDefId::try_from(id) {
-            // Check if this is an unsupported low level opcode. If so, replace it with
-            // an alternative in the stdlib.
-            if let Some(meta) = self.interner.try_function_meta(&function) {
-                if meta.kind == crate::FunctionKind::LowLevel {
-                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode = attribute.foreign().expect(
-                        "ice: function marked as foreign, but attribute kind does not match this",
-                    );
-                    if !self.interner.foreign(&opcode) {
-                        if let Some(new_id) = self.interner.get_alt(opcode) {
-                            function = new_id;
-                        }
-                    }
-                }
-            }
-
+        if let Some(function) = TryFromModuleDefId::try_from(id) {
             return Ok(self.interner.function_definition_id(function));
         }
 

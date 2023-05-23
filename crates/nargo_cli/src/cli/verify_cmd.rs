@@ -1,7 +1,12 @@
 use super::compile_cmd::compile_circuit;
 use super::fs::{
-    common_reference_string::get_common_reference_string, inputs::read_inputs_from_file,
-    load_hex_data, program::read_program_from_file,
+    common_reference_string::{
+        read_cached_common_reference_string, update_common_reference_string,
+        write_cached_common_reference_string,
+    },
+    inputs::read_inputs_from_file,
+    load_hex_data,
+    program::read_program_from_file,
 };
 use super::NargoConfig;
 use crate::{
@@ -58,22 +63,31 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
     circuit_build_path: Option<P>,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
+    let common_reference_string = read_cached_common_reference_string();
+
     let (common_reference_string, preprocessed_program) = match circuit_build_path {
         Some(circuit_build_path) => {
             let program = read_program_from_file(circuit_build_path)?;
-            let common_reference_string = get_common_reference_string(backend, &program.bytecode)
-                .map_err(CliError::CommonReferenceStringError)?;
+            let common_reference_string = update_common_reference_string(
+                backend,
+                &common_reference_string,
+                &program.bytecode,
+            )
+            .map_err(CliError::CommonReferenceStringError)?;
             (common_reference_string, program)
         }
         None => {
             let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-            let common_reference_string = get_common_reference_string(backend, &program.circuit)
-                .map_err(CliError::CommonReferenceStringError)?;
+            let common_reference_string =
+                update_common_reference_string(backend, &common_reference_string, &program.circuit)
+                    .map_err(CliError::CommonReferenceStringError)?;
             let program = preprocess_program(backend, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
             (common_reference_string, program)
         }
     };
+
+    write_cached_common_reference_string(&common_reference_string);
 
     let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
 

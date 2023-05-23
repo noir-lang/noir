@@ -50,8 +50,9 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.1.2"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=4358d3b9e8cd98d88a78dda3337e80e90668378e#4358d3b9e8cd98d88a78dda3337e80e90668378e"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa434008757491ec90e630796056de6f76114a04f533dd03c1a748c204503a31"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -62,6 +63,7 @@ dependencies = [
  "reqwest",
  "rust-embed",
  "serde",
+ "serde-big-array",
  "thiserror",
  "wasmer",
 ]
@@ -2746,6 +2748,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2113ab51b87a539ae008b5c6c02dc020ffa39afd2d83cffcb3f4eb2722cebec2"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
