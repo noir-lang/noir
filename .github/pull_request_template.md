@@ -43,7 +43,7 @@ After:
 
   - [ ] I will request for and support Dev Rel's help in documenting this PR.
 
-  <!-- List / describe what needs to be documented. -->
+  <!-- List / highlight what should be documented. -->
   <!-- Dev Rel will reach out for clarifications when needed. Thank you! -->
 
 ## Additional Context
