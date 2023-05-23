@@ -1,21 +1,18 @@
-FROM ubuntu:focal as builder
+FROM ghcr.io/foundry-rs/foundry:nightly-c331b5eeee1b4151ef7354a081667e2d770b37f5 as builder
 
 # Required for foundry
-RUN apt-get update && apt install -y git curl
+RUN apk update && apk add git
 
 WORKDIR /usr/src/l1-contracts
 
 # Install foundry
-RUN git init
 COPY . .
-RUN ./scripts/install_foundry.sh
-ENV PATH="/usr/src/l1-contracts/.foundry/bin:${PATH}"
+RUN git init
 
 # Install deps
 RUN forge install --no-commit \
   https://github.com/foundry-rs/forge-std \
   https://github.com/openzeppelin/openzeppelin-contracts
-ENV MAINNET_RPC_URL='https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c'
 
 # Run build and tests
 RUN forge clean && forge fmt --check && forge build && forge test
