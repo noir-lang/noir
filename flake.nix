@@ -190,10 +190,12 @@
           nil
           nixpkgs-fmt
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
+          wasm-bindgen-cli
           wasm-pack
         ];
 
         shellHook = ''
+          echo which wasm-bindgen $(which wasm-bindgen)
           eval "$(starship init bash)"
         '';
       });
@@ -226,7 +228,7 @@
           echo About to Wasm-Pack
           echo $(which wasm-bindgen)
           RUST_LOG="debug"
-          wasm-pack build crates/wasm --mode normal --scope noir-lang --target web --out-dir pkg/web --release
+          wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
         '';
 
         installPhase = ''
