@@ -62,6 +62,7 @@ export class PublicExecutor {
         const storageSlot = fromACVMField(slot);
         const newValue = fromACVMField(value);
         await storageActions.write(storageSlot, newValue);
+        await this.stateDb.storageWrite(execution.contractAddress, storageSlot, newValue);
         this.log(`Oracle storage write: slot=${storageSlot.toShortString()} value=${value.toString()}`);
         return [toACVMField(newValue)];
       },

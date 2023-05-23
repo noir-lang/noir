@@ -42,6 +42,14 @@ contract Parent {
         public_call::call_public_function(targetContract, targetSelector, args)[0]
     }
 
+    // Same as pubEntryPoint, but calls the target contract twice, using the return value from the first invocation as the argument for the second.
+    open fn pubEntryPointTwice(_call_context: CallContext, targetContract: Field, targetSelector: Field, initValue: Field, _padding: [Field; dep::aztec3::abi::MAX_ARGS - 3]) -> pub Field {
+        let mut args = [0; dep::aztec3::abi::MAX_ARGS];
+        args[0] = initValue;
+        args[0] = public_call::call_public_function(targetContract, targetSelector, args)[0];
+        public_call::call_public_function(targetContract, targetSelector, args)[0]
+    }
+
     // Private function to enqueue a call to the targetCcontract address using the selector and argument provided
     fn enqueueCallToChild(
         inputs: pub Inputs,
@@ -57,6 +65,25 @@ contract Parent {
         let (_callStackItem, mut context) = PublicCallStackItem::call(targetContract, targetSelector, args, initialContext);
 
         context.finish(inputs)
+    }
+
+    // Private function to enqueue a call to the targetCcontract address using the selector and argument provided
+    fn enqueueCallToChildTwice(
+        inputs: pub Inputs,
+        targetContract: pub Field,
+        targetSelector: pub Field,
+        targetValue: pub Field,
+    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        let mut context0 = PrivateFunctionContext::new();
+        context0.args = context0.args.push_array([targetContract, targetSelector, targetValue]);
+
+        let mut args = [0; dep::aztec3::abi::MAX_ARGS];
+        args[0] = targetValue;
+        let (callStackItem1, context1) = PublicCallStackItem::call(targetContract, targetSelector, args, context0);
+        args[0] = callStackItem1.public_inputs.return_values[0];
+        let (_callStackItem2, context2) = PublicCallStackItem::call(targetContract, targetSelector, args, context1);
+
+        context2.finish(inputs)
     }
 
     // Private function to enqueue a call to the pubEntryPoint function of this same contract, passing the target arguments provided

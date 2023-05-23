@@ -31,6 +31,8 @@ class ContractsDataSourcePublicDB implements PublicContractsDB {
  * Implements the PublicStateDB using a world-state database.
  */
 class WorldStatePublicDB implements PublicStateDB {
+  private writeCache: Map<bigint, Fr> = new Map();
+
   constructor(private db: MerkleTreeOperations) {}
 
   /**
@@ -41,7 +43,20 @@ class WorldStatePublicDB implements PublicStateDB {
    */
   public async storageRead(contract: AztecAddress, slot: Fr): Promise<Fr> {
     const index = computePublicDataTreeLeafIndex(contract, slot, await BarretenbergWasm.get());
+    const cached = this.writeCache.get(index);
+    if (cached !== undefined) return cached;
     const value = await this.db.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, index);
     return value ? Fr.fromBuffer(value) : Fr.ZERO;
+  }
+
+  /**
+   * Records a write to public storage.
+   * @param contract - Owner of the storage.
+   * @param slot - Slot to read in the contract storage.
+   * @param newValue - The new value to store.
+   */
+  public async storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void> {
+    const index = computePublicDataTreeLeafIndex(contract, slot, await BarretenbergWasm.get());
+    this.writeCache.set(index, newValue);
   }
 }

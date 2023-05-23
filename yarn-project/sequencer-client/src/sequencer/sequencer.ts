@@ -1,14 +1,18 @@
+import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { Fr } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { RunningPromise } from '@aztec/foundation/running-promise';
 import { P2P } from '@aztec/p2p';
 import {
-  MerkleTreeId,
   ContractData,
   ContractPublicData,
+  L2Block,
+  MerkleTreeId,
   PrivateTx,
   PublicTx,
   Tx,
   UnverifiedData,
   isPrivateTx,
-  L2Block,
 } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import times from 'lodash.times';
@@ -17,11 +21,7 @@ import { L1Publisher } from '../publisher/l1-publisher.js';
 import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
-import { PublicProcessor } from './public_processor.js';
-import { RunningPromise } from '@aztec/foundation/running-promise';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { Fr } from '@aztec/foundation/fields';
-import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { PublicProcessorFactory } from './public_processor.js';
 
 /**
  * Sequencer client
@@ -44,7 +44,7 @@ export class Sequencer {
     private p2pClient: P2P,
     private worldState: WorldStateSynchroniser,
     private blockBuilder: BlockBuilder,
-    private publicProcessor: PublicProcessor,
+    private publicProcessorFactory: PublicProcessorFactory,
     config?: SequencerConfig,
     private log = createDebugLogger('aztec:sequencer'),
   ) {
@@ -131,7 +131,9 @@ export class Sequencer {
       this.state = SequencerState.CREATING_BLOCK;
 
       // Process public txs and drop the ones that fail processing
-      const [processedTxs, failedTxs] = await this.publicProcessor.process(validTxs);
+      // We create a fresh processor each time to reset any cached state (eg storage writes)
+      const processor = this.publicProcessorFactory.create();
+      const [processedTxs, failedTxs] = await processor.process(validTxs);
       if (failedTxs.length > 0) {
         this.log(`Dropping failed txs ${(await Tx.getHashes(failedTxs)).join(', ')}`);
         await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxs));
@@ -149,7 +151,8 @@ export class Sequencer {
 
       // Build the new block by running the rollup circuits
       this.log(`Assembling block with txs ${processedTxs.map(tx => tx.hash).join(', ')}`);
-      const block = await this.buildBlock(processedTxs, l1ToL2Messages);
+      const emptyTx = await processor.makeEmptyProcessedTx();
+      const block = await this.buildBlock(processedTxs, l1ToL2Messages, emptyTx);
       this.log(`Assembled block ${block.number}`);
 
       await this.publishUnverifiedData(validTxs, block);
@@ -267,17 +270,15 @@ export class Sequencer {
    * Pads the set of txs to a power of two and assembles a block by calling the block builder.
    * @param txs - Processed txs to include in the next block.
    * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
+   * @param emptyTx - Empty tx to repeat at the end of the block to pad to a power of two.
    * @returns The new block.
    */
-  protected async buildBlock(txs: ProcessedTx[], newL1ToL2Messages: Fr[]) {
+  protected async buildBlock(txs: ProcessedTx[], newL1ToL2Messages: Fr[], emptyTx: ProcessedTx) {
     // Pad the txs array with empty txs to be a power of two, at least 4
     const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 4);
     const emptyTxCount = txsTargetSize - txs.length;
 
-    const allTxs = [
-      ...txs,
-      ...(await Promise.all(times(emptyTxCount, () => this.publicProcessor.makeEmptyProcessedTx()))),
-    ];
+    const allTxs = [...txs, ...times(emptyTxCount, () => emptyTx)];
     const [block] = await this.blockBuilder.buildL2Block(this.lastBlockNumber + 1, allTxs, newL1ToL2Messages);
     return block;
   }
