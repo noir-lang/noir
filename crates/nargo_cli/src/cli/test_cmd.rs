@@ -40,7 +40,8 @@ fn run_tests<B: Backend>(
     let mut driver = Resolver::resolve_root_manifest(
         program_dir,
         backend.np_language(),
-        Box::new(|op| backend.supports_opcode(op)),
+        // TODO: Remove need for driver to be aware of backend.
+        Box::new(|op| B::default().supports_opcode(op)),
     )?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
