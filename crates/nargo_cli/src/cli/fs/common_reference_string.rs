@@ -4,7 +4,7 @@ use acvm::{acir::circuit::Circuit, CommonReferenceString};
 
 use super::{create_named_dir, write_to_file};
 
-// TODO: pull this from backend.
+// TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 const TRANSCRIPT_NAME: &str = "common-reference-string.bin";
 
@@ -19,7 +19,7 @@ fn common_reference_string_location() -> PathBuf {
 pub(crate) fn read_cached_common_reference_string() -> Vec<u8> {
     let crs_path = common_reference_string_location();
 
-    // TODO: Implement checksum
+    // TODO(#1390): Implement checksum
     match std::fs::read(crs_path) {
         Ok(common_reference_string) => common_reference_string,
         Err(_) => vec![],
@@ -35,7 +35,7 @@ pub(crate) fn update_common_reference_string<B: CommonReferenceString>(
 
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
-    // TODO: Implement retries
+    // TODO(#1391): Implement retries
     // If the read data is empty, we don't have a CRS and need to generate one
     let fut = if common_reference_string.is_empty() {
         backend.generate_common_reference_string(circuit)

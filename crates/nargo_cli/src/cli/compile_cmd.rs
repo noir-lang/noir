@@ -20,7 +20,7 @@ use super::fs::{
 };
 use super::NargoConfig;
 
-// TODO: pull this from backend.
+// TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -53,7 +53,7 @@ pub(crate) fn run<B: Backend>(
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
 
-        // TODO: I wonder if it is incorrect for nargo-core to know anything about contracts.
+        // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
         // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
         // are compiled via nargo-core and then the PreprocessedContract is constructed here.
         // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.

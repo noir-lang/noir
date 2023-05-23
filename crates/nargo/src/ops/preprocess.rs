@@ -3,7 +3,7 @@ use noirc_driver::{CompiledProgram, ContractFunction};
 
 use crate::artifacts::{contract::PreprocessedContractFunction, program::PreprocessedProgram};
 
-// TODO: pull this from backend.
+// TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 pub fn preprocess_program<B: ProofSystemCompiler>(
