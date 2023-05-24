@@ -23,6 +23,7 @@ mod program;
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
+#[derive(Default)]
 pub struct Driver {
     context: Context,
 }
@@ -64,7 +65,7 @@ impl Default for CompileOptions {
 
 impl Driver {
     pub fn new() -> Self {
-        Driver { context: Context::default() }
+        Driver::default()
     }
 
     // This is here for backwards compatibility
@@ -318,11 +319,5 @@ impl Driver {
 
     pub fn function_name(&self, id: FuncId) -> &str {
         self.context.def_interner.function_name(&id)
-    }
-}
-
-impl Default for Driver {
-    fn default() -> Self {
-        Self::new()
     }
 }
