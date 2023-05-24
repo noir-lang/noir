@@ -215,6 +215,7 @@
 
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
+        PKG_PATH = "crates/wasm/pkg";
 
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
@@ -229,27 +230,33 @@
 
         buildPhaseCargoCommand = ''
           RUST_LOG="debug"
-          PKG_PATH="crates/wasm/pkg"
           
-          if [ -d $PKG_PATH ]; then
-              rm -rf $PKG_PATH
+          if [ -d ${PKG_PATH} ]; then
+              rm -rf ${PKG_PATH}
           fi
 
-          # wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
-          # echo "NodeJS build complete. Directory contents:"
-          # ls -la $PKG_PATH/web
+          wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
+          echo "NodeJS build complete. Directory contents:"
+          ls -la ${PKG_PATH}/web
 
-          # wasm-pack build crates/wasm --mode no-install --scope noir-lang --target nodejs --out-dir pkg/nodejs --release
-          # echo "Web build complete. Directory contents:"
-          # ls -la $PKG_PATH/nodejs
+          wasm-pack build crates/wasm --mode no-install --scope noir-lang --target nodejs --out-dir pkg/nodejs --release
+          echo "Web build complete. Directory contents:"
+          ls -la ${PKG_PATH}/nodejs
 
-          if [ -n $COMMIT_SHORT ]; then
-              VERSION_APPENDIX="-$COMMIT_SHORT"
+          if [ -n ${COMMIT_SHORT} ]; then
+              VERSION_APPENDIX="-${COMMIT_SHORT}"
           else
               VERSION_APPENDIX="-NOGIT"
           fi
 
+          # NOTE: This is not working
           echo "VERSION_APPENDIX = ${VERSION_APPENDIX}"
+
+          jq -s '.[0] * .[1]' ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"${VERSION_APPENDIX}\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types | .peerDependencies = { "@noir-lang/noir-source-resolver": "1.1.2" }' | tee ${PKG_PATH}/package.json
+
+          rm ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/nodejs/.gitignore
+          rm ${PKG_PATH}/web/package.json ${PKG_PATH}/web/.gitignore
+          cat ${PKG_PATH}/package.json
         '';
 
         installPhase = ''
