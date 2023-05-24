@@ -1,4 +1,7 @@
-use acvm::{Backend, ProofSystemCompiler, SmartContract};
+use acvm::{
+    acir::native_types::WitnessMapError, Backend, CommonReferenceString, ProofSystemCompiler,
+    SmartContract,
+};
 use hex::FromHexError;
 use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
@@ -21,6 +24,10 @@ pub(crate) enum FilesystemError {
     /// Input parsing error
     #[error(transparent)]
     InputParserError(#[from] InputParserError),
+
+    /// WitnessMap serialization error
+    #[error(transparent)]
+    WitnessMapSerialization(#[from] WitnessMapError),
 }
 
 #[derive(Debug, Error)]
@@ -59,4 +66,8 @@ pub(crate) enum CliError<B: Backend> {
     /// Backend error caused by a function on the ProofSystemCompiler trait
     #[error(transparent)]
     ProofSystemCompilerError(<B as ProofSystemCompiler>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
+
+    /// Backend error caused by a function on the CommonReferenceString trait
+    #[error(transparent)]
+    CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
 }

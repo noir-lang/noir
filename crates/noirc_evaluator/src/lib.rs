@@ -13,7 +13,7 @@ pub mod ssa_refactor;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::transformers::IsOpcodeSupported,
+    compiler::optimizers::simplify::CircuitSimplifier,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
@@ -66,7 +66,7 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
-    is_opcode_supported: IsOpcodeSupported,
+    is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
@@ -83,6 +83,7 @@ pub fn create_circuit(
         opcodes,
         ..
     } = evaluator;
+    let simplifier = CircuitSimplifier::new(current_witness_index);
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index,
@@ -92,6 +93,7 @@ pub fn create_circuit(
         },
         np_language,
         is_opcode_supported,
+        &simplifier,
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 

@@ -6,7 +6,6 @@
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use clap::Args;
-use contract::ContractFunction;
 use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
@@ -23,14 +22,12 @@ use std::path::{Path, PathBuf};
 mod contract;
 mod program;
 
-pub use contract::{CompiledContract, ContractFunctionType};
+pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
 pub struct Driver {
     context: Context,
     language: Language,
-    // We retain this as we need to pass this into `create_circuit` once signature is updated to allow.
-    #[allow(dead_code)]
     is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }
 
@@ -287,14 +284,12 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
-        // TODO: use proper `is_opcode_supported` implementation.
-        let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         let circuit_abi = if options.experimental_ssa {
             experimental_create_circuit(
                 program,
                 np_language,
-                is_opcode_supported,
+                &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )
@@ -302,7 +297,7 @@ impl Driver {
             create_circuit(
                 program,
                 np_language,
-                is_opcode_supported,
+                &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )
