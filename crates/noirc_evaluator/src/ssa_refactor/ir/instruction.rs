@@ -108,6 +108,11 @@ pub(crate) enum Instruction {
 }
 
 impl Instruction {
+    /// Returns a binary instruction with the given operator, lhs, and rhs
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+        Instruction::Binary(Binary { lhs, operator, rhs })
+    }
+
     /// Returns the type that this instruction will return.
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
@@ -304,6 +309,9 @@ impl Binary {
                 }
                 if rhs_is_one {
                     return Some(self.lhs);
+                }
+                if lhs_is_zero || rhs_is_zero {
+                    return Some(dfg.make_constant(FieldElement::zero(), operand_type));
                 }
             }
             BinaryOp::Div => {

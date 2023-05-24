@@ -13,7 +13,7 @@ use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
 
-use self::acir_gen::Acir;
+use self::{acir_gen::Acir, ssa_gen::Ssa};
 
 mod acir_gen;
 mod ir;
@@ -25,7 +25,12 @@ pub mod ssa_gen;
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
 pub fn optimize_into_acir(program: Program) -> Acir {
-    ssa_gen::generate_ssa(program).inline_functions().into_acir()
+    ssa_gen::generate_ssa(program)
+        .inline_functions()
+        .print("Before flattening")
+        .flatten_cfg()
+        .print("After flattening")
+        .into_acir()
 }
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 /// This is analogous to `ssa:create_circuit` and this method is called when one wants
@@ -37,5 +42,13 @@ pub fn experimental_create_circuit(
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
+    optimize_into_acir(_program);
     todo!("this is a stub function for the new SSA refactor module")
+}
+
+impl Ssa {
+    fn print(self, text: &str) -> Self {
+        println!("{text}:\n{self}");
+        self
+    }
 }

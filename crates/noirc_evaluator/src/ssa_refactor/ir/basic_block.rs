@@ -120,10 +120,27 @@ impl BasicBlock {
         std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
     }
 
+    /// Returns a reference to the terminator of this block.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
+    pub(crate) fn unwrap_terminator(&self) -> &TerminatorInstruction {
+        self.terminator.as_ref().expect("Expected block to have terminator instruction")
+    }
+
     /// Returns a mutable reference to the terminator of this block.
     ///
     /// Once this block has finished construction, this is expected to always be Some.
     pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
         self.terminator.as_mut().expect("Expected block to have terminator instruction")
+    }
+
+    /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
+    ///
+    /// If this block has no terminator, or a Return terminator this will be empty.
+    pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
+        match &self.terminator {
+            Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
+            _ => &[],
+        }
     }
 }
