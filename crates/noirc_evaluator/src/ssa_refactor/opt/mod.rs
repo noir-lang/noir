@@ -6,3 +6,4 @@
 mod inlining;
 mod mem2reg;
 mod simplify_cfg;
+mod unrolling;

@@ -395,25 +395,21 @@ impl<'function> PerFunctionContext<'function> {
         block_id: BasicBlockId,
         block_queue: &mut Vec<BasicBlockId>,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
-        match self.source_function.dfg[block_id].terminator() {
-            Some(TerminatorInstruction::Jmp { destination, arguments }) => {
+        match self.source_function.dfg[block_id].unwrap_terminator() {
+            TerminatorInstruction::Jmp { destination, arguments } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
                 self.context.builder.terminate_with_jmp(destination, arguments);
                 None
             }
-            Some(TerminatorInstruction::JmpIf {
-                condition,
-                then_destination,
-                else_destination,
-            }) => {
+            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.translate_value(*condition);
                 let then_block = self.translate_block(*then_destination, block_queue);
                 let else_block = self.translate_block(*else_destination, block_queue);
                 self.context.builder.terminate_with_jmpif(condition, then_block, else_block);
                 None
             }
-            Some(TerminatorInstruction::Return { return_values }) => {
+            TerminatorInstruction::Return { return_values } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
                 if self.inlining_main {
                     self.context.builder.terminate_with_return(return_values.clone());
@@ -421,7 +417,6 @@ impl<'function> PerFunctionContext<'function> {
                 let block_id = self.translate_block(block_id, block_queue);
                 Some((block_id, return_values))
             }
-            None => unreachable!("Block has no terminator instruction"),
         }
     }
 }

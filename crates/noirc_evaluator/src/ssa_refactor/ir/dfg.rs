@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::ssa_refactor::ir::instruction::SimplifyResult;
+
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
@@ -13,6 +15,7 @@ use super::{
 };
 
 use acvm::FieldElement;
+use iter_extended::vecmap;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -65,7 +68,27 @@ impl DataFlowGraph {
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
     pub(crate) fn make_block(&mut self) -> BasicBlockId {
-        self.blocks.insert(BasicBlock::new(Vec::new()))
+        self.blocks.insert(BasicBlock::new())
+    }
+
+    /// Create a new block with the same parameter count and parameter
+    /// types from the given block.
+    /// This is a somewhat niche operation used in loop unrolling but is included
+    /// here as doing it outside the DataFlowGraph would require cloning the parameters.
+    pub(crate) fn make_block_with_parameters_from_block(
+        &mut self,
+        block: BasicBlockId,
+    ) -> BasicBlockId {
+        let new_block = self.make_block();
+        let parameters = self.blocks[block].parameters();
+
+        let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
+            let typ = self.values[*param].get_type();
+            self.values.insert(Value::Param { block: new_block, position, typ })
+        });
+
+        self.blocks[new_block].set_parameters(parameters);
+        new_block
     }
 
     /// Get an iterator over references to each basic block within the dfg, paired with the basic
@@ -101,17 +124,19 @@ impl DataFlowGraph {
     }
 
     /// Inserts a new instruction at the end of the given block and returns its results
-    pub(crate) fn insert_instruction(
+    pub(crate) fn insert_instruction_and_results(
         &mut self,
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
+        use InsertInstructionResult::*;
         match instruction.simplify(self) {
-            Some(simplification) => InsertInstructionResult::SimplifiedTo(simplification),
-            None => {
+            SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
+            SimplifyResult::Remove => InstructionRemoved,
+            SimplifyResult::None => {
                 let id = self.make_instruction(instruction, ctrl_typevars);
-                self.insert_instruction_in_block(block, id);
+                self.blocks[block].insert_instruction(id);
                 InsertInstructionResult::Results(self.instruction_results(id))
             }
         }
@@ -246,16 +271,6 @@ impl DataFlowGraph {
         parameter
     }
 
-    /// Insert an instruction at the end of a given block.
-    /// If the block already has a terminator, the instruction is inserted before the terminator.
-    pub(crate) fn insert_instruction_in_block(
-        &mut self,
-        block: BasicBlockId,
-        instruction: InstructionId,
-    ) {
-        self.blocks[block].insert_instruction(instruction);
-    }
-
     /// Returns the field element represented by this value if it is a numeric constant.
     /// Returns None if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
@@ -281,6 +296,20 @@ impl DataFlowGraph {
         terminator: TerminatorInstruction,
     ) {
         self.blocks[block].set_terminator(terminator);
+    }
+
+    /// Moves the entirety of the given block's contents into the destination block.
+    /// The source block afterward will be left in a valid but emptied state. The
+    /// destination block will also have its terminator overwritten with that of the
+    /// source block.
+    pub(crate) fn inline_block(&mut self, source: BasicBlockId, destination: BasicBlockId) {
+        let source = &mut self.blocks[source];
+        let mut instructions = std::mem::take(source.instructions_mut());
+        let terminator = source.take_terminator();
+
+        let destination = &mut self.blocks[destination];
+        destination.instructions_mut().append(&mut instructions);
+        destination.set_terminator(terminator);
     }
 }
 

@@ -110,7 +110,11 @@ impl FunctionBuilder {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
-        self.current_function.dfg.insert_instruction(instruction, self.current_block, ctrl_typevars)
+        self.current_function.dfg.insert_instruction_and_results(
+            instruction,
+            self.current_block,
+            ctrl_typevars,
+        )
     }
 
     /// Switch to inserting instructions in the given block.
