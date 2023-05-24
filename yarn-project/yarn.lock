@@ -263,6 +263,7 @@ __metadata:
     "@aztec/sequencer-client": "workspace:^"
     "@aztec/world-state": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@noble/curves": ^1.0.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/levelup": ^5.1.2
@@ -1586,6 +1587,15 @@ __metadata:
   dependencies:
     "@noble/hashes": 1.3.0
   checksum: c927b3591bb604e6020efef0d0f17c844a8744a7dd22fa276e6d14cf4394fee2060597a19ad3663baed82c031a97249f6ca669723f3743a08e3946bd1015abd9
+  languageName: node
+  linkType: hard
+
+"@noble/curves@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@noble/curves@npm:1.0.0"
+  dependencies:
+    "@noble/hashes": 1.3.0
+  checksum: 6bcef44d626c640dc8961819d68dd67dffb907e3b973b7c27efe0ecdd9a5c6ce62c7b9e3dfc930c66605dced7f1ec0514d191c09a2ce98d6d52b66e3315ffa79
   languageName: node
   linkType: hard
 

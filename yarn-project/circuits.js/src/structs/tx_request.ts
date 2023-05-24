@@ -1,11 +1,12 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { keccak224 } from '@aztec/foundation/crypto';
+import { Fr } from '@aztec/foundation/fields';
 import { FieldsOf, assertMemberLength } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
+import { ARGS_LENGTH } from './constants.js';
 import { FunctionData } from './function_data.js';
 import { EcdsaSignature } from './shared.js';
 import { TxContext } from './tx_context.js';
-import { Fr } from '@aztec/foundation/fields';
-import { ARGS_LENGTH } from './constants.js';
 
 /**
  * Signed transaction request.
@@ -37,6 +38,12 @@ export class SignedTxRequest {
  * @see cpp/src/aztec3/circuits/abis/tx_request.hpp.
  */
 export class TxRequest {
+  /**
+   * Map from args index to list of fields. If an arg index is set here, then the corresponding arg
+   * should be the hash of the unpacked args in this map. Used to bypass the MAX_ARGS limit.
+   */
+  private packedArgs: Map<number, Fr[]> = new Map();
+
   constructor(
     /**
      * Sender.
@@ -68,6 +75,25 @@ export class TxRequest {
     public chainId: Fr,
   ) {
     assertMemberLength(this, 'args', ARGS_LENGTH);
+  }
+
+  setPackedArg(index: number, unpackedArgs: Fr[]) {
+    // TODO: What hash flavor to use here? Who'll need to validate it?
+    const hashed = Fr.fromBuffer(keccak224(Buffer.concat(unpackedArgs.map(fr => fr.toBuffer()))));
+    this.args[index] = hashed;
+    this.packedArgs.set(index, unpackedArgs);
+  }
+
+  getExpandedArgs(): Fr[] {
+    const args = [];
+    for (let i = 0; i < this.args.length; i++) {
+      if (this.packedArgs.has(i)) {
+        args.push(...this.packedArgs.get(i)!);
+      } else {
+        args.push(this.args[i]);
+      }
+    }
+    return args;
   }
 
   static getFields(fields: FieldsOf<TxRequest>) {

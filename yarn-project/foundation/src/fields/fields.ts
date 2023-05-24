@@ -13,15 +13,13 @@ export class Fr {
   static MAX_VALUE = Fr.MODULUS - 1n;
   static SIZE_IN_BYTES = 32;
 
-  constructor(
-    /**
-     * The numeric value of the field element as a bigint.
-     */
-    /**
-     * The numeric value of the field element as a bigint.
-     */
-    public readonly value: bigint,
-  ) {
+  /**
+   * The numeric value of the field element as a bigint.
+   */
+  public readonly value;
+
+  constructor(value: bigint | number) {
+    this.value = BigInt(value);
     // if (value > Fr.MAX_VALUE) {
     //   throw new Error(`Fr out of range ${value}.`);
     // }
