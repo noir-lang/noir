@@ -269,7 +269,7 @@ mod test {
                 output.push(w.into());
             }
             //generate constraints for the inputs
-            let w = evaluate_permutation(&input, &output, &mut eval);
+            let w = evaluate_permutation(&input, &output, &mut eval).unwrap();
             //checks that it generate the same witness
             let (w1, _) = permutation_layer(&input, &w, false, &mut eval);
             assert_eq!(w, w1);
