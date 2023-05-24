@@ -92,6 +92,12 @@ use crate::ssa_refactor::{
 };
 
 impl Ssa {
+    /// Flattens the control flow graph of each function such that the function is left with a
+    /// single block containing all instructions and no more control-flow.
+    ///
+    /// This pass will modify side-effectful instructions in the particular, often multiplying
+    /// them by jump conditions to maintain correctness even when all branches of a jmpif are inlined.
+    /// For more information, see the module-level comment at the top of this file.
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             flatten_function_cfg(function);
@@ -109,7 +115,17 @@ struct Context<'f> {
     /// Maps start of branch -> end of branch
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
 
+    /// A stack of each jmpif condition that was taken to reach a particular point in the program.
+    /// When two branches are merged back into one, this consitutes a join point, and is analogous
+    /// to the rest of the program after an if statement. When such a join point / end block is
+    /// found, the top of this conditions stack is popped since we are no longer under that
+    /// condition. If we are under multiple conditions (a nested if), the topmost condition is
+    /// the most recent condition combined with all previous condtions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
+
+    /// A map of values from the unmodified function to their values given from this pass.
+    /// In particular, this pass will remove all block arguments except for function parameters.
+    /// Each value in the function's entry block is also left unchanged.
     values: HashMap<ValueId, ValueId>,
 }
 
@@ -133,75 +149,8 @@ impl<'f> Context<'f> {
         self.handle_terminator(self.function.entry_block());
     }
 
-    fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        match self.function.dfg[block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
-                let old_condition = *condition;
-                let new_condition = self.translate_value(old_condition);
-                let then_destination = *then_destination;
-                let else_destination = *else_destination;
-
-                let one = FieldElement::one();
-                let last_then_block =
-                    self.inline_branch(block, then_destination, old_condition, new_condition, one);
-
-                let else_condition = self.insert_instruction(Instruction::Not(new_condition));
-                let zero = FieldElement::zero();
-
-                let last_else_block = self.inline_branch(
-                    block,
-                    else_destination,
-                    old_condition,
-                    else_condition,
-                    zero,
-                );
-
-                // While there is a condition on the stack we don't compile outside the condition
-                // until it is popped. This ensures we inline the full then and else branches
-                // before continuing from the end of the loop here.
-                let end = self.branch_ends[&block];
-                self.inline_branch_end(end, new_condition, last_then_block, last_else_block)
-            }
-            TerminatorInstruction::Jmp { destination, arguments } => {
-                if let Some((end_block, _)) = self.conditions.last() {
-                    if destination == end_block {
-                        return block;
-                    }
-                }
-                let arguments = vecmap(arguments, |value| self.translate_value(*value));
-                self.inline_block(*destination, &arguments)
-            }
-            TerminatorInstruction::Return { return_values } => {
-                let return_values = vecmap(return_values, |value| self.translate_value(*value));
-                let entry = self.function.entry_block();
-                let new_return = TerminatorInstruction::Return { return_values };
-                self.function.dfg.set_block_terminator(entry, new_return);
-                block
-            }
-        }
-    }
-
-    fn translate_value(&self, value: ValueId) -> ValueId {
-        self.values.get(&value).copied().unwrap_or(value)
-    }
-
-    fn push_condition(&mut self, block: BasicBlockId, condition: ValueId) {
-        let block = self.branch_ends[&block];
-
-        if let Some((_, previous_conditon)) = self.conditions.last() {
-            let and = Instruction::binary(BinaryOp::And, *previous_conditon, condition);
-            let new_condition = self.insert_instruction(and);
-            self.conditions.push((block, new_condition));
-        } else {
-            self.conditions.push((block, condition));
-        }
-    }
-
-    fn insert_instruction(&mut self, instruction: Instruction) -> ValueId {
-        let block = self.function.entry_block();
-        self.function.dfg.insert_instruction_and_results(instruction, block, None).first()
-    }
-
+    /// Visits every block in the current function to find all blocks with a jmpif instruction and
+    /// all blocks which terminate the jmpif by having each of its branches as a predecessor.
     fn analyze_function(&mut self) {
         let post_order = PostOrder::with_function(self.function);
         let dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &post_order);
@@ -246,6 +195,97 @@ impl<'f> Context<'f> {
         }
     }
 
+    /// Check the terminator of the given block and recursively inline any blocks reachable from
+    /// it. Since each block from a jmpif terminator is inlined successively, we must handle
+    /// side-effectful instructions like constrain and store specially to preserve correctness.
+    /// For these instructions we must keep track of what the current condition is and modify
+    /// the instructions according to the module-level comment at the top of this file. Note that
+    /// the current condition is all the jmpif conditions required to reach the current block,
+    /// combined via `And` instructions.
+    ///
+    /// Returns the last block to be inlined. This is either the return block of the function or,
+    /// if self.conditions is not empty, the end block of the most recent condition.
+    fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
+        match self.function.dfg[block].unwrap_terminator() {
+            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+                let old_condition = *condition;
+                let new_condition = self.translate_value(old_condition);
+                let then_destination = *then_destination;
+                let else_destination = *else_destination;
+
+                let one = FieldElement::one();
+                let last_then_block =
+                    self.inline_branch(block, then_destination, old_condition, new_condition, one);
+
+                let else_condition = self.insert_instruction(Instruction::Not(new_condition));
+                let zero = FieldElement::zero();
+
+                let last_else_block = self.inline_branch(
+                    block,
+                    else_destination,
+                    old_condition,
+                    else_condition,
+                    zero,
+                );
+
+                // While there is a condition on the stack we don't compile outside the condition
+                // until it is popped. This ensures we inline the full then and else branches
+                // before continuing from the end of the loop here where they can be merged properly.
+                let end = self.branch_ends[&block];
+                self.inline_branch_end(end, new_condition, last_then_block, last_else_block)
+            }
+            TerminatorInstruction::Jmp { destination, arguments } => {
+                if let Some((end_block, _)) = self.conditions.last() {
+                    if destination == end_block {
+                        return block;
+                    }
+                }
+                let arguments = vecmap(arguments, |value| self.translate_value(*value));
+                self.inline_block(*destination, &arguments)
+            }
+            TerminatorInstruction::Return { return_values } => {
+                let return_values = vecmap(return_values, |value| self.translate_value(*value));
+                let entry = self.function.entry_block();
+                let new_return = TerminatorInstruction::Return { return_values };
+                self.function.dfg.set_block_terminator(entry, new_return);
+                block
+            }
+        }
+    }
+
+    /// Translate a value id from before the function was modified to one from after it has been
+    /// flattened. In particular, all block parameters should be removed, having been mapped to
+    /// their (merged) arguments, and all values from the entry block are unchanged.
+    fn translate_value(&self, value: ValueId) -> ValueId {
+        self.values.get(&value).copied().unwrap_or(value)
+    }
+
+    /// Push a condition to the stack of conditions.
+    ///
+    /// This condition should be present while we're inlining each block reachable from the 'then'
+    /// branch of a jmpif instruction, until the branches eventually join back together. Likewise,
+    /// !condition should be present while we're inlining each block reachable from the 'else'
+    /// branch of a jmpif instruction until the join block.
+    fn push_condition(&mut self, start_block: BasicBlockId, condition: ValueId) {
+        let end_block = self.branch_ends[&start_block];
+
+        if let Some((_, previous_conditon)) = self.conditions.last() {
+            let and = Instruction::binary(BinaryOp::And, *previous_conditon, condition);
+            let new_condition = self.insert_instruction(and);
+            self.conditions.push((end_block, new_condition));
+        } else {
+            self.conditions.push((end_block, condition));
+        }
+    }
+
+    /// Insert a new instruction into the function's entry block.
+    ///
+    /// Note that this does not modify self.values.
+    fn insert_instruction(&mut self, instruction: Instruction) -> ValueId {
+        let block = self.function.entry_block();
+        self.function.dfg.insert_instruction_and_results(instruction, block, None).first()
+    }
+
     /// Merge two values a and b from separate basic blocks to a single value. This
     /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
     fn merge_values(
@@ -268,6 +308,15 @@ impl<'f> Context<'f> {
         self.function.dfg.insert_instruction_and_results(add, block, None).first()
     }
 
+    /// Inline one branch of a jmpif instruction.
+    ///
+    /// This will continue inlining recursively until the next end block is reached where each branch
+    /// of the jmpif instruction is joined back into a single block.
+    ///
+    /// Within a branch of a jmpif instruction, we can assume the condition of the jmpif to be
+    /// always true or false, depending on which branch we're in.
+    ///
+    /// Returns the ending block / join block of this branch.
     fn inline_branch(
         &mut self,
         jmpif_block: BasicBlockId,
@@ -289,6 +338,15 @@ impl<'f> Context<'f> {
         final_block
     }
 
+    /// Inline the ending block of a branch, the point where all blocks from a jmpif instruction
+    /// join back together. In particular this function must handle merging block arguments from
+    /// all of the join point's predecessors, and it must handle any differing side effects from
+    /// each branch.
+    ///
+    /// Afterwards, continues inlining recursively until it finds the next end block or finds the
+    /// end of the function.
+    ///
+    /// Returns the final block that was inlined.
     fn inline_branch_end(
         &mut self,
         destination: BasicBlockId,
@@ -317,6 +375,14 @@ impl<'f> Context<'f> {
         self.inline_block(destination, &args)
     }
 
+    /// Inline all instructions from the given destination block into the entry block.
+    /// Afterwards, check the block's terminator and continue inlining recursively.
+    ///
+    /// Returns the final block that was inlined.
+    ///
+    /// Expects that the `arguments` given are already translated via self.translate_value.
+    /// If they are not, it is possible some values which no longer exist, such as block
+    /// parameters, will be kept in the program.
     fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId]) -> BasicBlockId {
         let parameters = self.function.dfg.block_parameters(destination);
         Self::insert_new_instruction_results(
@@ -342,7 +408,8 @@ impl<'f> Context<'f> {
             .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
 
         let block = self.function.entry_block();
-        let new_results = self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars);
+        let new_results =
+            self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 

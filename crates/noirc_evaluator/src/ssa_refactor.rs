@@ -37,7 +37,9 @@ pub fn optimize_into_acir(program: Program) {
         .simplify_cfg()
         .print("After Simplifying:")
         .flatten_cfg()
-        .print("After Flattening:");
+        .print("After Flattening:")
+        .mem2reg()
+        .print("After Mem2Reg:");
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
@@ -56,8 +58,8 @@ pub fn experimental_create_circuit(
 }
 
 impl Ssa {
-    fn print(self, text: &str) -> Self {
-        println!("{text}:\n{self}");
+    fn print(self, msg: &str) -> Ssa {
+        println!("{msg}\n{self}");
         self
     }
 }
