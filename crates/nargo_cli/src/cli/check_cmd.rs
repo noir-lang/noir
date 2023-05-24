@@ -1,4 +1,4 @@
-use crate::{errors::CliError, resolver::Resolver};
+use crate::errors::CliError;
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
@@ -6,8 +6,8 @@ use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
-use super::fs::write_to_file;
 use super::NargoConfig;
+use super::{compile_cmd::setup_driver, fs::write_to_file};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
@@ -29,15 +29,10 @@ pub(crate) fn run<B: Backend>(
 
 fn check_from_path<B: Backend, P: AsRef<Path>>(
     backend: &B,
-    p: P,
+    program_dir: P,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = Resolver::resolve_root_manifest(
-        p.as_ref(),
-        backend.np_language(),
-        // TODO: Remove need for driver to be aware of backend.
-        Box::new(|op| B::default().supports_opcode(op)),
-    )?;
+    let mut driver = setup_driver(backend, program_dir.as_ref())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
@@ -47,7 +42,7 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
         // For now it is hard-coded to be toml.
         //
         // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(p.as_ref());
+        let path_to_root = PathBuf::from(program_dir.as_ref());
         let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
         let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
