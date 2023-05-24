@@ -186,7 +186,6 @@ impl<'f> Context<'f> {
     }
 
     fn push_condition(&mut self, block: BasicBlockId, condition: ValueId) {
-        println!("Pushing condition from branch start {block}");
         let block = self.branch_ends[&block];
 
         if let Some((_, previous_conditon)) = self.conditions.last() {
@@ -224,21 +223,9 @@ impl<'f> Context<'f> {
                     continue;
                 }
 
-                //      A
-                //     / \
-                //    B   C
-                //   / \  |
-                //  D   E |
-                //   \ /  |
-                //    F   |
-                //     \ /
-                //      G
-                //
-                // A dominates all
-                //
-                // G: {A} dominates F&C,
-                // F: {B, A} dominates D&E
-
+                // We expect the merging of two branches to be ordered such that only the most
+                // recent jmpif is a candidate for being the start of the two branches merged by
+                // a block with 2 predecessors.
                 let branch_beginning =
                     branch_beginnings.pop().expect("Expected the beginning of a branch");
 
@@ -246,7 +233,6 @@ impl<'f> Context<'f> {
                     assert!(dom_tree.dominates(branch_beginning, predecessor));
                 }
 
-                println!("Found branch {} -> {}", branch_beginning, block_id);
                 self.branch_ends.insert(branch_beginning, block_id);
             }
 

@@ -196,7 +196,6 @@ mod test {
         // }
         let ssa = ssa.simplify_cfg();
         let main = ssa.main();
-        println!("{}", main);
         assert_eq!(main.reachable_blocks().len(), 1);
 
         match main.dfg[main.entry_block()].terminator() {
@@ -253,7 +252,6 @@ mod test {
         // }
         let ssa = ssa.simplify_cfg();
         let main = ssa.main();
-        println!("{}", main);
         assert_eq!(main.reachable_blocks().len(), 1);
 
         match main.dfg[main.entry_block()].terminator() {
