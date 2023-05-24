@@ -89,7 +89,7 @@ pub fn prove_and_verify(proof_name: &str, program_dir: &Path) -> bool {
     let compile_options = CompileOptions {
         show_ssa: false,
         print_acir: false,
-        allow_warnings: false,
+        deny_warnings: false,
         show_output: false,
         experimental_ssa: false,
     };
