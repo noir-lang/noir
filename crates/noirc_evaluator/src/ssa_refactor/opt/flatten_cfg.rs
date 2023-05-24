@@ -200,7 +200,7 @@ impl<'f> Context<'f> {
 
     fn insert_instruction(&mut self, instruction: Instruction) -> ValueId {
         let block = self.function.entry_block();
-        self.function.dfg.insert_instruction(instruction, block, None).first()
+        self.function.dfg.insert_instruction_and_results(instruction, block, None).first()
     }
 
     fn analyze_function(&mut self) {
@@ -270,16 +270,16 @@ impl<'f> Context<'f> {
     ) -> ValueId {
         let block = self.function.entry_block();
         let mul = Instruction::binary(BinaryOp::Mul, condition, then_value);
-        let then_value = self.function.dfg.insert_instruction(mul, block, None).first();
+        let then_value = self.function.dfg.insert_instruction_and_results(mul, block, None).first();
 
         let not = Instruction::Not(condition);
-        let not = self.function.dfg.insert_instruction(not, block, None).first();
+        let not = self.function.dfg.insert_instruction_and_results(not, block, None).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, not, else_value);
-        let else_value = self.function.dfg.insert_instruction(mul, block, None).first();
+        let else_value = self.function.dfg.insert_instruction_and_results(mul, block, None).first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        self.function.dfg.insert_instruction(add, block, None).first()
+        self.function.dfg.insert_instruction_and_results(add, block, None).first()
     }
 
     fn inline_branch(
@@ -356,7 +356,7 @@ impl<'f> Context<'f> {
             .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
 
         let block = self.function.entry_block();
-        let new_results = self.function.dfg.insert_instruction(instruction, block, ctrl_typevars);
+        let new_results = self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 

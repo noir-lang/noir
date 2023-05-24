@@ -29,10 +29,10 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    /// Create a new BasicBlock with the given instructions.
+    /// Create a new BasicBlock with the given parameters.
     /// Parameters can also be added later via BasicBlock::add_parameter
-    pub(crate) fn new(instructions: Vec<InstructionId>) -> Self {
-        Self { parameters: Vec::new(), instructions, terminator: None }
+    pub(crate) fn new() -> Self {
+        Self { parameters: Vec::new(), instructions: Vec::new(), terminator: None }
     }
 
     /// Returns the parameters of this block
@@ -50,6 +50,12 @@ impl BasicBlock {
     /// instance with its position equal to self.parameters.len().
     pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
         self.parameters.push(parameter);
+    }
+
+    /// Replace this block's current parameters with that of the given Vec.
+    /// This does not perform any checks that any previous parameters were unused.
+    pub(crate) fn set_parameters(&mut self, parameters: Vec<ValueId>) {
+        self.parameters = parameters;
     }
 
     /// Insert an instruction at the end of this block
@@ -83,6 +89,42 @@ impl BasicBlock {
         self.terminator.as_ref()
     }
 
+    /// Returns the terminator of this block, panics if there is None.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
+    pub(crate) fn unwrap_terminator(&self) -> &TerminatorInstruction {
+        self.terminator().expect("Expected block to have terminator instruction")
+    }
+
+    /// Returns a mutable reference to the terminator of this block.
+    ///
+    /// Once this block has finished construction, this is expected to always be Some.
+    pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
+        self.terminator.as_mut().expect("Expected block to have terminator instruction")
+    }
+
+    /// Take ownership of this block's terminator, replacing it with an empty return terminator
+    /// so that no clone is needed.
+    ///
+    /// It is expected that this function is used as an optimization on blocks that are no longer
+    /// reachable or will have their terminator overwritten afterwards. Using this on a reachable
+    /// block without setting the terminator afterward will result in the empty return terminator
+    /// being kept, which is likely unwanted.
+    pub(crate) fn take_terminator(&mut self) -> TerminatorInstruction {
+        let terminator = self.terminator.as_mut().expect("Expected block to have a terminator");
+        std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
+    }
+
+    /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
+    ///
+    /// If this block has no terminator, or a Return terminator this will be empty.
+    pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
+        match &self.terminator {
+            Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
+            _ => &[],
+        }
+    }
+
     /// Iterate over all the successors of the currently block, as determined by
     /// the blocks jumped to in the terminator instruction. If there is no terminator
     /// instruction yet, this will iterate 0 times.
@@ -106,41 +148,5 @@ impl BasicBlock {
                 panic!("remove_instruction: No such instruction {instruction:?} in block")
             });
         self.instructions.remove(index);
-    }
-
-    /// Take ownership of this block's terminator, replacing it with an empty return terminator
-    /// so that no clone is needed.
-    ///
-    /// It is expected that this function is used as an optimization on blocks that are no longer
-    /// reachable or will have their terminator overwritten afterwards. Using this on a reachable
-    /// block without setting the terminator afterward will result in the empty return terminator
-    /// being kept, which is likely unwanted.
-    pub(crate) fn take_terminator(&mut self) -> TerminatorInstruction {
-        let terminator = self.terminator.as_mut().expect("Expected block to have a terminator");
-        std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
-    }
-
-    /// Returns a reference to the terminator of this block.
-    ///
-    /// Once this block has finished construction, this is expected to always be Some.
-    pub(crate) fn unwrap_terminator(&self) -> &TerminatorInstruction {
-        self.terminator.as_ref().expect("Expected block to have terminator instruction")
-    }
-
-    /// Returns a mutable reference to the terminator of this block.
-    ///
-    /// Once this block has finished construction, this is expected to always be Some.
-    pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
-        self.terminator.as_mut().expect("Expected block to have terminator instruction")
-    }
-
-    /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
-    ///
-    /// If this block has no terminator, or a Return terminator this will be empty.
-    pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
-        match &self.terminator {
-            Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
-            _ => &[],
-        }
     }
 }

@@ -7,7 +7,7 @@ use crate::{
         },
         builtin,
         context::SsaContext,
-        mem::{ArrayId, Memory},
+        mem::Memory,
         node::{self, Instruction, Node, NodeId, ObjectType},
     },
     Evaluator,
@@ -19,6 +19,7 @@ use acvm::{
             opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         },
         native_types::{Expression, Witness},
+        BlackBoxFunc,
     },
     FieldElement,
 };
@@ -79,15 +80,70 @@ pub(crate) fn evaluate(
             }
         }
         Opcode::LowLevel(op) => {
-            let inputs = prepare_inputs(acir_gen, args, ctx, evaluator);
-            let output_count = op.definition().output_size.0 as u32;
-            outputs =
-                prepare_outputs(&mut acir_gen.memory, instruction_id, output_count, ctx, evaluator);
-
-            let func_call = BlackBoxFuncCall {
-                name: op,
-                inputs,                   //witness + bit size
-                outputs: outputs.clone(), //witness
+            outputs = match op {
+                BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 32, ctx, evaluator)
+                }
+                BlackBoxFunc::Keccak256 => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 32, ctx, evaluator)
+                }
+                BlackBoxFunc::Pedersen | BlackBoxFunc::FixedBaseScalarMul => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 2, ctx, evaluator)
+                }
+                BlackBoxFunc::SchnorrVerify
+                | BlackBoxFunc::EcdsaSecp256k1
+                | BlackBoxFunc::ComputeMerkleRoot
+                | BlackBoxFunc::HashToField128Security => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 1, ctx, evaluator)
+                }
+                _ => panic!("Unsupported low level function {:?}", op),
+            };
+            let func_call = match op {
+                BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    outputs: outputs.to_vec(),
+                },
+                BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    outputs: outputs.to_vec(),
+                },
+                BlackBoxFunc::Keccak256 => BlackBoxFuncCall::Keccak256 {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    outputs: outputs.to_vec(),
+                },
+                BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    outputs: outputs.to_vec(),
+                },
+                BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
+                    input: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
+                    outputs: outputs.to_vec(),
+                },
+                BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
+                    public_key_x: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
+                    public_key_y: resolve_variable(&args[1], acir_gen, ctx, evaluator).unwrap(),
+                    signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    message: resolve_array(&args[3], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
+                    public_key_x: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
+                    signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::ComputeMerkleRoot => BlackBoxFuncCall::ComputeMerkleRoot {
+                    leaf: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
+                    index: resolve_variable(&args[1], acir_gen, ctx, evaluator).unwrap(),
+                    hash_path: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                _ => panic!("Unsupported low level function {:?}", op),
             };
             evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
         }
@@ -139,64 +195,45 @@ pub(crate) fn evaluate(
     (outputs.len() == 1).then(|| InternalVar::from(outputs[0]))
 }
 
-// Transform the arguments of intrinsic functions into witnesses
-fn prepare_inputs(
-    acir_gen: &mut Acir,
-    arguments: &[NodeId],
-    cfg: &SsaContext,
-    evaluator: &mut Evaluator,
-) -> Vec<FunctionInput> {
-    let mut inputs: Vec<FunctionInput> = Vec::new();
-
-    for argument in arguments {
-        inputs.extend(resolve_node_id(argument, acir_gen, cfg, evaluator));
-    }
-    inputs
-}
-
-fn resolve_node_id(
+fn resolve_variable(
     node_id: &NodeId,
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
-) -> Vec<FunctionInput> {
+) -> Option<FunctionInput> {
     let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
     match node_object {
         node::NodeObject::Variable(v) => {
-            let node_obj_type = node_object.get_type();
-            match node_obj_type {
-                // If the `Variable` represents a Pointer
-                // Then we know that it is an `Array`
-                node::ObjectType::ArrayPointer(a) => resolve_array(a, acir_gen, cfg, evaluator),
-                // If it is not a pointer, we attempt to fetch the witness associated with it
-                _ => match v.witness {
-                    Some(w) => {
-                        vec![FunctionInput { witness: w, num_bits: v.size_in_bits() }]
-                    }
-                    None => todo!("generate a witness"),
-                },
-            }
+            Some(FunctionInput { witness: v.witness?, num_bits: v.size_in_bits() })
         }
         _ => {
             // Upon the case that the `NodeObject` is not a `Variable`,
             // we attempt to fetch an associated `InternalVar`.
             // Otherwise, this is a internal compiler error.
             let internal_var = acir_gen.var_cache.get(node_id).expect("invalid input").clone();
-            let witness = acir_gen
-                .var_cache
-                .get_or_compute_witness(internal_var, evaluator)
-                .expect("unexpected constant expression");
-            vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
+            let witness = acir_gen.var_cache.get_or_compute_witness(internal_var, evaluator)?;
+            Some(FunctionInput { witness, num_bits: node_object.size_in_bits() })
         }
     }
 }
 
 fn resolve_array(
-    array_id: ArrayId,
+    node_id: &NodeId,
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
+    let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
+    let array_id = match node_object {
+        node::NodeObject::Variable(_) => {
+            let node_obj_type = node_object.get_type();
+            match node_obj_type {
+                node::ObjectType::ArrayPointer(a) => a,
+                _ => unreachable!(),
+            }
+        }
+        _ => todo!("generate a witness"),
+    };
     let mut inputs = Vec::new();
 
     let array = &cfg.mem[array_id];

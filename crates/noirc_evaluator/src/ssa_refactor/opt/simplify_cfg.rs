@@ -130,25 +130,16 @@ fn remove_block_parameters(
 fn try_inline_into_predecessor(
     function: &mut Function,
     cfg: &mut ControlFlowGraph,
-    block_id: BasicBlockId,
-    predecessor_id: BasicBlockId,
+    block: BasicBlockId,
+    predecessor: BasicBlockId,
 ) -> bool {
-    let mut successors = cfg.successors(predecessor_id);
-    if successors.len() == 1 && successors.next() == Some(block_id) {
+    let mut successors = cfg.successors(predecessor);
+    if successors.len() == 1 && successors.next() == Some(block) {
         drop(successors);
+        function.dfg.inline_block(block, predecessor);
 
-        // First remove all the instructions and terminator from the block we're removing
-        let block = &mut function.dfg[block_id];
-        let mut instructions = std::mem::take(block.instructions_mut());
-        let terminator = block.take_terminator();
-
-        // Then append each to the predecessor
-        let predecessor = &mut function.dfg[predecessor_id];
-        predecessor.instructions_mut().append(&mut instructions);
-
-        predecessor.set_terminator(terminator);
-        cfg.recompute_block(function, block_id);
-        cfg.recompute_block(function, predecessor_id);
+        cfg.recompute_block(function, block);
+        cfg.recompute_block(function, predecessor);
         true
     } else {
         false

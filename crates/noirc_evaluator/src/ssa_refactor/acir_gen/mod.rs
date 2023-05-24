@@ -6,7 +6,7 @@ use super::ssa_gen::Ssa;
 struct Context {}
 
 /// The output of the Acir-gen pass
-pub struct Acir {}
+pub(crate) struct Acir {}
 
 impl Ssa {
     pub(crate) fn into_acir(self) -> Acir {
