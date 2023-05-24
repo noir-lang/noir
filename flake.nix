@@ -152,17 +152,6 @@
       noir = craneLib.buildPackage (commonArgs // {
         inherit cargoArtifacts;
       });
-
-      # wasm-bindgen-cli = pkgs.rustPlatform.buildRustPackage rec {
-      #   pname = "wasm-bindgen-cli";
-      #   version = "0.2.74";
-      #   src = wasm-bindgen-cli-src;
-      #   cargoSha256 = "0000000000000000000000000000000000000000000000000000";
-
-      #   postInstall = ''
-      #     ln -s $out/bin/wasm-bindgen $out/bin/wasm-bindgen-cli
-      #   '';
-      # };
     in
     rec {
       checks = {
@@ -216,10 +205,6 @@
         '';
       });
 
-      # throws failed to get '"acvm" as a dependency of package noirc_evaluator v0.4.1'
-      # packages.wasm = pkgs.stdenv.mkDerivation rec {
-
-      # throws "error: failed to build archive: section too large"
       packages.wasm = craneLib.mkCargoDerivation rec {
         pname = "noir_wasm";
         version = "1.0.0";
@@ -228,7 +213,9 @@
         inherit GIT_COMMIT;
         inherit GIT_DIRTY;
 
-        # src = ./.;
+        COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
+        VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
+
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
         nativeBuildInputs = with pkgs; [
@@ -241,10 +228,28 @@
         ];
 
         buildPhaseCargoCommand = ''
-          echo "wasm-bindgen version: $(wasm-bindgen --version)"
-          echo "==========="
           RUST_LOG="debug"
-          wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
+          PKG_PATH="crates/wasm/pkg"
+          
+          if [ -d $PKG_PATH ]; then
+              rm -rf $PKG_PATH
+          fi
+
+          # wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
+          # echo "NodeJS build complete. Directory contents:"
+          # ls -la $PKG_PATH/web
+
+          # wasm-pack build crates/wasm --mode no-install --scope noir-lang --target nodejs --out-dir pkg/nodejs --release
+          # echo "Web build complete. Directory contents:"
+          # ls -la $PKG_PATH/nodejs
+
+          if [ -n "$COMMIT_SHORT" ]; then
+              VERSION_APPENDIX="-$COMMIT_SHORT"
+          else
+              VERSION_APPENDIX="-NOGIT"
+          fi
+
+          echo "VERSION_APPENDIX = ${VERSION_APPENDIX}"
         '';
 
         installPhase = ''
