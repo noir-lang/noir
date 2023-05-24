@@ -27,11 +27,12 @@ jobs:
           ls -la
 
       - name: Copy wasm build result
-        working-directory: ./crates/wasm
-        run: cp -r ./pkg ./result
+        run: |
+          mkdir -p ./pkg
+          cp -r ./result/* ./pkg
 
       - name: Output results
-        run: ls -la ./pkg
+        run: ls -la ./result
 
       # - name: Checkout noir-wasm-testing
       #   uses: actions/checkout@v3
