@@ -52,7 +52,7 @@ fn execute_with_path<B: Backend>(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
-    let CompiledProgram { abi, circuit } = compile_circuit(backend, program_dir, compile_options)?;
+    let CompiledProgram { abi, circuit } = compile_circuit(program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =

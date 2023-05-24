@@ -8,10 +8,7 @@
 #![allow(dead_code)]
 
 use crate::errors::{RuntimeError, RuntimeErrorKind};
-use acvm::{
-    acir::circuit::{Circuit, Opcode as AcirOpcode},
-    Language,
-};
+use acvm::acir::circuit::Circuit;
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
@@ -41,8 +38,6 @@ pub fn optimize_into_acir(program: Program) {
 /// to use the new ssa module to process Noir code.
 pub fn experimental_create_circuit(
     _program: Program,
-    _np_language: Language,
-    _is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {

@@ -77,7 +77,9 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
             (common_reference_string, program)
         }
         None => {
-            let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+            let program = compile_circuit(program_dir.as_ref(), compile_options)?;
+            // TODO: optimize circuit before we update common reference string.
+            // Circuit size will be different to the value used here.
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;

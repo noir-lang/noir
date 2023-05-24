@@ -37,7 +37,7 @@ fn run_tests<B: Backend>(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir)?;
+    let mut driver = setup_driver(program_dir)?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 

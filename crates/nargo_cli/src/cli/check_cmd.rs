@@ -28,11 +28,11 @@ pub(crate) fn run<B: Backend>(
 }
 
 fn check_from_path<B: Backend, P: AsRef<Path>>(
-    backend: &B,
+    _backend: &B,
     program_dir: P,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir.as_ref())?;
+    let mut driver = setup_driver(program_dir.as_ref())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 

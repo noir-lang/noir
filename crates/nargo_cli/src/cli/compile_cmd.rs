@@ -48,7 +48,7 @@ pub(crate) fn run<B: Backend>(
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let mut driver = setup_driver(backend, &config.program_dir)?;
+        let mut driver = setup_driver(&config.program_dir)?;
         let compiled_contracts = driver
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
@@ -85,7 +85,9 @@ pub(crate) fn run<B: Backend>(
             );
         }
     } else {
-        let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+        let program = compile_circuit(&config.program_dir, &args.compile_options)?;
+        // TODO: optimize circuit before we update common reference string.
+        // Circuit size will be different to the value used here.
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
@@ -100,23 +102,14 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-pub(super) fn setup_driver<B: Backend>(
-    backend: &B,
-    program_dir: &Path,
-) -> Result<Driver, DependencyResolutionError> {
-    Resolver::resolve_root_manifest(
-        program_dir,
-        backend.np_language(),
-        // TODO(#1102): Remove need for driver to be aware of backend.
-        Box::new(|op| B::default().supports_opcode(op)),
-    )
+pub(super) fn setup_driver(program_dir: &Path) -> Result<Driver, DependencyResolutionError> {
+    Resolver::resolve_root_manifest(program_dir)
 }
 
 pub(crate) fn compile_circuit<B: Backend>(
-    backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir)?;
+    let mut driver = setup_driver(program_dir)?;
     driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
 }

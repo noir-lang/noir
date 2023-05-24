@@ -51,8 +51,9 @@ pub(crate) fn run<B: Backend>(
             (common_reference_string, program)
         }
         None => {
-            let program =
-                compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
+            let program = compile_circuit(config.program_dir.as_ref(), &args.compile_options)?;
+            // TODO: optimize circuit before we update common reference string.
+            // Circuit size will be different to the value used here.
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;

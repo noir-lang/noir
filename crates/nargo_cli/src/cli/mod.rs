@@ -126,11 +126,7 @@ mod tests {
     ///
     /// This is used for tests.
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new(
-            &acvm::Language::R1CS,
-            #[allow(deprecated)]
-            Box::new(acvm::default_is_opcode_supported(acvm::Language::R1CS)),
-        );
+        let mut driver = Driver::new();
         driver.create_local_crate(&root_file, CrateType::Binary);
         crate::resolver::add_std_lib(&mut driver);
         driver.file_compiles()

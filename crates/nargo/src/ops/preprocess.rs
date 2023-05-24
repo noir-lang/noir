@@ -1,7 +1,12 @@
-use acvm::ProofSystemCompiler;
+use acvm::{
+    acir::circuit::Circuit, compiler::optimizers::simplify::CircuitSimplifier, ProofSystemCompiler,
+};
 use noirc_driver::{CompiledProgram, ContractFunction};
 
-use crate::artifacts::{contract::PreprocessedContractFunction, program::PreprocessedProgram};
+use crate::{
+    artifacts::{contract::PreprocessedContractFunction, program::PreprocessedProgram},
+    NargoError,
+};
 
 // TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
@@ -11,9 +16,7 @@ pub fn preprocess_program<B: ProofSystemCompiler>(
     common_reference_string: &[u8],
     compiled_program: CompiledProgram,
 ) -> Result<PreprocessedProgram, B::Error> {
-    // TODO: currently `compiled_program`'s bytecode is already optimized for the backend.
-    // In future we'll need to apply those optimizations here.
-    let optimized_bytecode = compiled_program.circuit;
+    let optimized_bytecode = optimize_circuit(backend, compiled_program.circuit).unwrap();
     let (proving_key, verification_key) =
         backend.preprocess(common_reference_string, &optimized_bytecode)?;
 
@@ -31,9 +34,7 @@ pub fn preprocess_contract_function<B: ProofSystemCompiler>(
     common_reference_string: &[u8],
     func: ContractFunction,
 ) -> Result<PreprocessedContractFunction, B::Error> {
-    // TODO: currently `func`'s bytecode is already optimized for the backend.
-    // In future we'll need to apply those optimizations here.
-    let optimized_bytecode = func.bytecode;
+    let optimized_bytecode = optimize_circuit(backend, func.bytecode).unwrap();
     let (proving_key, verification_key) =
         backend.preprocess(common_reference_string, &optimized_bytecode)?;
 
@@ -46,4 +47,20 @@ pub fn preprocess_contract_function<B: ProofSystemCompiler>(
         proving_key,
         verification_key,
     })
+}
+
+fn optimize_circuit(
+    backend: &impl ProofSystemCompiler,
+    circuit: Circuit,
+) -> Result<Circuit, NargoError> {
+    let simplifier = CircuitSimplifier::new(circuit.current_witness_index);
+    let optimized_circuit = acvm::compiler::compile(
+        circuit,
+        backend.np_language(),
+        |opcode| backend.supports_opcode(opcode),
+        &simplifier,
+    )
+    .unwrap();
+
+    Ok(optimized_circuit)
 }

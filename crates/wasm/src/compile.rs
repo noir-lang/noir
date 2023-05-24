@@ -74,13 +74,7 @@ pub fn compile(args: JsValue) -> JsValue {
 
     debug!("Compiler configuration {:?}", &options);
 
-    // For now we default to plonk width = 3, though we can add it as a parameter
-    let language = acvm::Language::PLONKCSat { width: 3 };
-    let mut driver = noirc_driver::Driver::new(
-        &language,
-        #[allow(deprecated)]
-        Box::new(acvm::default_is_opcode_supported(language.clone())),
-    );
+    let mut driver = noirc_driver::Driver::new();
 
     let path = PathBuf::from(&options.entry_point);
     driver.create_local_crate(path, CrateType::Binary);
@@ -99,6 +93,7 @@ pub fn compile(args: JsValue) -> JsValue {
             .compile_contracts(&options.compile_options)
             .unwrap_or_else(|_| panic!("Contract compilation failed"));
 
+        // TODO: optimize circuits
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_contracts).unwrap()
     } else {
         let main =
@@ -107,6 +102,7 @@ pub fn compile(args: JsValue) -> JsValue {
             .compile_no_check(&options.compile_options, main)
             .unwrap_or_else(|_| panic!("Compilation failed"));
 
+        // TODO: optimize circuit
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
     }
 }

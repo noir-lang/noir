@@ -3,8 +3,6 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use acvm::acir::circuit::Opcode;
-use acvm::Language;
 use clap::Args;
 use fm::FileType;
 use iter_extended::try_vecmap;
@@ -27,8 +25,6 @@ pub use program::CompiledProgram;
 
 pub struct Driver {
     context: Context,
-    language: Language,
-    is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }
 
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
@@ -67,18 +63,14 @@ impl Default for CompileOptions {
 }
 
 impl Driver {
-    pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
-        Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
+    pub fn new() -> Self {
+        Driver { context: Context::default() }
     }
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
-    pub fn compile_file(
-        root_file: PathBuf,
-        language: &Language,
-        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
-    ) -> Result<CompiledProgram, ReportedError> {
-        let mut driver = Driver::new(language, is_opcode_supported);
+    pub fn compile_file(root_file: PathBuf) -> Result<CompiledProgram, ReportedError> {
+        let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.compile_main(&CompileOptions::default())
     }
@@ -283,24 +275,10 @@ impl Driver {
     ) -> Result<CompiledProgram, ReportedError> {
         let program = monomorphize(main_function, &self.context.def_interner);
 
-        let np_language = self.language.clone();
-
         let circuit_abi = if options.experimental_ssa {
-            experimental_create_circuit(
-                program,
-                np_language,
-                &self.is_opcode_supported,
-                options.show_ssa,
-                options.show_output,
-            )
+            experimental_create_circuit(program, options.show_ssa, options.show_output)
         } else {
-            create_circuit(
-                program,
-                np_language,
-                &self.is_opcode_supported,
-                options.show_ssa,
-                options.show_output,
-            )
+            create_circuit(program, options.show_ssa, options.show_output)
         };
 
         match circuit_abi {
@@ -345,7 +323,6 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        #[allow(deprecated)]
-        Self::new(&Language::R1CS, Box::new(acvm::default_is_opcode_supported(Language::R1CS)))
+        Self::new()
     }
 }
