@@ -22,14 +22,16 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build wasm package
-        run: nix build -L .#wasm --extra-experimental-features nix-command --extra-experimental-features flakes
+        run: |
+          nix build -L .#wasm --extra-experimental-features nix-command --extra-experimental-features flakes
+          ls -la
 
       - name: Copy wasm build result
         working-directory: ./crates/wasm
-        run: cp -r ./result ./pkg
+        run: cp -r ./pkg ./result
 
       - name: Output results
-        run: ls -la ./result
+        run: ls -la ./pkg
 
       # - name: Checkout noir-wasm-testing
       #   uses: actions/checkout@v3
