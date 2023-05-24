@@ -6,7 +6,7 @@ use std::path::Path;
 
 use clap::Args;
 
-use nargo::ops::{preprocess_contract_function, preprocess_program};
+use nargo::ops::{optimize_circuit, preprocess_contract_function, preprocess_program};
 
 use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
@@ -86,8 +86,10 @@ pub(crate) fn run<B: Backend>(
         }
     } else {
         let program = compile_circuit(&config.program_dir, &args.compile_options)?;
-        // TODO: optimize circuit before we update common reference string.
-        // Circuit size will be different to the value used here.
+        // TODO: clean this up
+        let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
+        let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };
+
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;

@@ -17,9 +17,9 @@ use crate::{
 use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
-use nargo::ops::{preprocess_program, verify_proof};
+use nargo::ops::{optimize_circuit, preprocess_program, verify_proof};
 use noirc_abi::input_parser::Format;
-use noirc_driver::CompileOptions;
+use noirc_driver::{CompileOptions, CompiledProgram};
 use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid
@@ -78,8 +78,10 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
         }
         None => {
             let program = compile_circuit(program_dir.as_ref(), compile_options)?;
-            // TODO: optimize circuit before we update common reference string.
-            // Circuit size will be different to the value used here.
+            // TODO: clean this up
+            let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
+            let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };
+
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;

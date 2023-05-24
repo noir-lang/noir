@@ -16,14 +16,13 @@ pub fn preprocess_program<B: ProofSystemCompiler>(
     common_reference_string: &[u8],
     compiled_program: CompiledProgram,
 ) -> Result<PreprocessedProgram, B::Error> {
-    let optimized_bytecode = optimize_circuit(backend, compiled_program.circuit).unwrap();
     let (proving_key, verification_key) =
-        backend.preprocess(common_reference_string, &optimized_bytecode)?;
+        backend.preprocess(common_reference_string, &compiled_program.circuit)?;
 
     Ok(PreprocessedProgram {
         backend: String::from(BACKEND_IDENTIFIER),
         abi: compiled_program.abi,
-        bytecode: optimized_bytecode,
+        bytecode: compiled_program.circuit,
         proving_key,
         verification_key,
     })
@@ -34,22 +33,21 @@ pub fn preprocess_contract_function<B: ProofSystemCompiler>(
     common_reference_string: &[u8],
     func: ContractFunction,
 ) -> Result<PreprocessedContractFunction, B::Error> {
-    let optimized_bytecode = optimize_circuit(backend, func.bytecode).unwrap();
     let (proving_key, verification_key) =
-        backend.preprocess(common_reference_string, &optimized_bytecode)?;
+        backend.preprocess(common_reference_string, &func.bytecode)?;
 
     Ok(PreprocessedContractFunction {
         name: func.name,
         function_type: func.function_type,
         abi: func.abi,
 
-        bytecode: optimized_bytecode,
+        bytecode: func.bytecode,
         proving_key,
         verification_key,
     })
 }
 
-fn optimize_circuit(
+pub fn optimize_circuit(
     backend: &impl ProofSystemCompiler,
     circuit: Circuit,
 ) -> Result<Circuit, NargoError> {

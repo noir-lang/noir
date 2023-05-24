@@ -14,8 +14,8 @@ use crate::{
 };
 use acvm::Backend;
 use clap::Args;
-use nargo::ops::{codegen_verifier, preprocess_program};
-use noirc_driver::CompileOptions;
+use nargo::ops::{codegen_verifier, optimize_circuit, preprocess_program};
+use noirc_driver::{CompileOptions, CompiledProgram};
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
@@ -52,8 +52,10 @@ pub(crate) fn run<B: Backend>(
         }
         None => {
             let program = compile_circuit(config.program_dir.as_ref(), &args.compile_options)?;
-            // TODO: optimize circuit before we update common reference string.
-            // Circuit size will be different to the value used here.
+            // TODO: clean this up
+            let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
+            let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };
+
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
