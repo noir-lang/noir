@@ -243,7 +243,7 @@
           # echo "Web build complete. Directory contents:"
           # ls -la $PKG_PATH/nodejs
 
-          if [ -n "$COMMIT_SHORT" ]; then
+          if [ -n $COMMIT_SHORT ]; then
               VERSION_APPENDIX="-$COMMIT_SHORT"
           else
               VERSION_APPENDIX="-NOGIT"
