@@ -3,9 +3,9 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use clap::Args;
-use contract::ContractFunction;
 use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
@@ -22,12 +22,13 @@ use std::path::{Path, PathBuf};
 mod contract;
 mod program;
 
-pub use contract::{CompiledContract, ContractFunctionType};
+pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
 pub struct Driver {
     context: Context,
     language: Language,
+    is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }
 
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
@@ -40,9 +41,9 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub print_acir: bool,
 
-    /// Issue a warning for each unused variable instead of an error
+    /// Treat all warnings as errors
     #[arg(short, long)]
-    pub allow_warnings: bool,
+    pub deny_warnings: bool,
 
     /// Display output of `println` statements
     #[arg(long)]
@@ -58,7 +59,7 @@ impl Default for CompileOptions {
         Self {
             show_ssa: false,
             print_acir: false,
-            allow_warnings: false,
+            deny_warnings: false,
             show_output: true,
             experimental_ssa: false,
         }
@@ -66,19 +67,18 @@ impl Default for CompileOptions {
 }
 
 impl Driver {
-    pub fn new(np_language: &Language) -> Self {
-        let mut driver = Driver { context: Context::default(), language: np_language.clone() };
-        driver.context.def_interner.set_language(np_language);
-        driver
+    pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
+        Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
     }
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
     pub fn compile_file(
         root_file: PathBuf,
-        np_language: acvm::Language,
+        language: &Language,
+        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
     ) -> Result<CompiledProgram, ReportedError> {
-        let mut driver = Driver::new(&np_language);
+        let mut driver = Driver::new(language, is_opcode_supported);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.compile_main(&CompileOptions::default())
     }
@@ -171,7 +171,7 @@ impl Driver {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let error_count =
-            reporter::report_all(&self.context.file_manager, &errs, options.allow_warnings);
+            reporter::report_all(&self.context.file_manager, &errs, options.deny_warnings);
         reporter::finish_report(error_count)
     }
 
@@ -284,13 +284,12 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
-        let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         let circuit_abi = if options.experimental_ssa {
             experimental_create_circuit(
                 program,
                 np_language,
-                is_opcode_supported,
+                &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )
@@ -298,7 +297,7 @@ impl Driver {
             create_circuit(
                 program,
                 np_language,
-                is_opcode_supported,
+                &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
             )
@@ -311,7 +310,7 @@ impl Driver {
                 // Errors will be shown at the call site without a stacktrace
                 let file = err.location.map(|loc| loc.file);
                 let files = &self.context.file_manager;
-                let error = reporter::report(files, &err.into(), file, options.allow_warnings);
+                let error = reporter::report(files, &err.into(), file, options.deny_warnings);
                 reporter::finish_report(error as u32)?;
                 Err(ReportedError)
             }
@@ -346,6 +345,7 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new(&Language::R1CS)
+        #[allow(deprecated)]
+        Self::new(&Language::R1CS, Box::new(acvm::default_is_opcode_supported(Language::R1CS)))
     }
 }

@@ -6,7 +6,6 @@ pub mod type_check;
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::node_interner::NodeInterner;
-use acvm::Language;
 use def_map::CrateDefMap;
 use fm::FileManager;
 use std::collections::HashMap;
@@ -29,16 +28,14 @@ pub struct Context {
 pub type StorageSlot = u32;
 
 impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph, language: Language) -> Context {
-        let mut ctx = Context {
+    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+        Context {
             def_interner: NodeInterner::default(),
             def_maps: HashMap::new(),
             crate_graph,
             file_manager,
             storage_slots: HashMap::new(),
-        };
-        ctx.def_interner.set_language(&language);
-        ctx
+        }
     }
 
     /// Returns the CrateDefMap for a given CrateId.

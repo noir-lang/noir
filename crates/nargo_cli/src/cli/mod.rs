@@ -89,7 +89,7 @@ pub fn prove_and_verify(proof_name: &str, program_dir: &Path) -> bool {
     let compile_options = CompileOptions {
         show_ssa: false,
         print_acir: false,
-        allow_warnings: false,
+        deny_warnings: false,
         show_output: false,
         experimental_ssa: false,
     };
@@ -126,7 +126,11 @@ mod tests {
     ///
     /// This is used for tests.
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new(&acvm::Language::R1CS);
+        let mut driver = Driver::new(
+            &acvm::Language::R1CS,
+            #[allow(deprecated)]
+            Box::new(acvm::default_is_opcode_supported(acvm::Language::R1CS)),
+        );
         driver.create_local_crate(&root_file, CrateType::Binary);
         crate::resolver::add_std_lib(&mut driver);
         driver.file_compiles()

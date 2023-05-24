@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use acvm::acir::circuit::Circuit;
+use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::Backend;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{Abi, InputMap, WitnessMap};
+use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};

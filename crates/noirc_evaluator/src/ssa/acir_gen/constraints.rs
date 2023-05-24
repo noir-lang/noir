@@ -283,10 +283,8 @@ pub(crate) fn range_constraint(
         let my_constraint = add(&res, -FieldElement::one(), &witness.into());
         evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint))?;
     } else {
-        let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
-            name: acvm::acir::BlackBoxFunc::RANGE,
-            inputs: vec![FunctionInput { witness, num_bits }],
-            outputs: vec![],
+        let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput { witness, num_bits },
         });
         evaluator.push_opcode(gate)?;
     }
@@ -435,7 +433,7 @@ pub(crate) fn to_radix_base(
         assert!(min < FieldElement::modulus());
 
         let max_bits = max.bits() as u32;
-        let a = evaluate_constant_modulo(lhs, radix, max_bits, evaluator)
+        let a = evaluate_constant_modulo(lhs, radix, max_bits, evaluator)?
             .to_witness()
             .expect("Constant expressions should already be simplified");
         let y = subtract(lhs, FieldElement::one(), &Expression::from(a));
@@ -558,7 +556,7 @@ pub(crate) fn evaluate_constant_modulo(
     rhs: u32,
     max_bits: u32,
     evaluator: &mut Evaluator,
-) -> Expression {
+) -> Result<Expression, RuntimeError> {
     let modulus = FieldElement::from(rhs as i128);
     let modulus_exp = Expression::from_field(modulus);
     assert_ne!(rhs, 0);
@@ -568,26 +566,26 @@ pub(crate) fn evaluate_constant_modulo(
     if let Some(a_c) = lhs.to_const() {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         a_big %= BigUint::from_bytes_be(&modulus.to_be_bytes());
-        return Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+        return Ok(Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be())));
     }
 
     //1. Generate witnesses b,c
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
+    evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
         a: lhs.clone(),
         b: modulus_exp.clone(),
         q: c_witness,
         r: b_witness,
         predicate: None,
-    }));
+    })))?;
     bound_constraint_with_offset(
         &Expression::from(b_witness),
         &modulus_exp,
         &Expression::one(),
         modulus_bits,
         evaluator,
-    );
+    )?;
     //if rhs is a power of 2, then we avoid this range check as it is redundant with the previous one.
     if rhs & (rhs - 1) != 0 {
         try_range_constraint(b_witness, modulus_bits, evaluator);
@@ -600,9 +598,9 @@ pub(crate) fn evaluate_constant_modulo(
     let c_arith = c_witness.into();
     let res = add(&b_arith, modulus, &c_arith);
     let my_constraint = add(&res, -FieldElement::one(), lhs);
-    evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint));
+    evaluator.push_opcode(AcirOpcode::Arithmetic(my_constraint))?;
 
-    Expression::from(b_witness)
+    Ok(Expression::from(b_witness))
 }
 
 pub(crate) fn evaluate_udiv(

@@ -1,8 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
 
-use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
-use acvm::acir::circuit::Opcode;
-use acvm::Language;
 use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
@@ -68,9 +65,6 @@ pub struct NodeInterner {
     globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
 
     next_type_variable_id: usize,
-
-    //used for fallback mechanism
-    language: Language,
 
     delayed_type_checks: Vec<TypeCheckFn>,
 
@@ -258,7 +252,6 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
-            language: Language::R1CS,
             delayed_type_checks: vec![],
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
@@ -393,17 +386,6 @@ impl NodeInterner {
     /// See ModCollector for it's usage.
     pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
         self.func_meta.insert(func_id, func_data);
-    }
-
-    pub fn get_alt(&self, opcode: String) -> Option<FuncId> {
-        for (func_id, meta) in &self.func_meta {
-            if let Some(crate::token::Attribute::Alternative(name)) = &meta.attributes {
-                if *name == opcode {
-                    return Some(*func_id);
-                }
-            }
-        }
-        None
     }
 
     pub fn push_definition(
@@ -577,24 +559,6 @@ impl NodeInterner {
 
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
         self.function_definition_ids[&function]
-    }
-
-    pub fn set_language(&mut self, language: &Language) {
-        self.language = language.clone();
-    }
-
-    #[allow(deprecated)]
-    pub fn foreign(&self, opcode: &str) -> bool {
-        let is_supported = acvm::default_is_opcode_supported(self.language.clone());
-        let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
-            Some(black_box_func) => black_box_func,
-            None => return false,
-        };
-        is_supported(&Opcode::BlackBoxFuncCall(BlackBoxFuncCall {
-            name: black_box_func,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-        }))
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
