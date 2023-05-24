@@ -9,11 +9,8 @@ fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [F
     (compute_merkle_root(_leaf, _index, _hash_path) == _root) as Field
 }
 
-#[foreign(compute_merkle_root)]
-fn compute_merkle_root(_leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
-
 // Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
-fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
+fn compute_merkle_root(leaf: Field, index: Field, hash_path: [Field]) -> Field {
     let n = hash_path.len();
     let index_bits = index.to_le_bits(n as u32);
     let mut current = leaf;
@@ -28,4 +25,11 @@ fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Fi
       current = crate::hash::pedersen([hash_left, hash_right])[0];
     };
     current
+}
+
+// Deprecated function.
+// Previously this was the fallback implementation of `compute_merkle_root` however the Noir
+// implementation is more efficient than the black box version so we removed it.
+fn compute_root_from_leaf(leaf: Field, index: Field, hash_path: [Field]) -> Field {
+   compute_merkle_root(leaf, index, hash_path)
 }

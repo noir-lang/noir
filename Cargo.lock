@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c831802bad8d6810bfdb57cd00913157dfe710a185dc360c9a94eecd043bbf12"
+source = "git+https://github.com/noir-lang/acvm?rev=9f9fc216a6d09ca97352ffd365bfd347e94ad8eb#9f9fc216a6d09ca97352ffd365bfd347e94ad8eb"
 dependencies = [
  "acir_field",
  "flate2",
@@ -18,8 +17,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d455746f51b4421548e42d34e2ce46b6db637cb048095d78766612d26bf526db"
+source = "git+https://github.com/noir-lang/acvm?rev=9f9fc216a6d09ca97352ffd365bfd347e94ad8eb#9f9fc216a6d09ca97352ffd365bfd347e94ad8eb"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -32,8 +30,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd8e75cf737b52195a8c109e0ee776e468e1c2ec42f0f88aa4465cd76a09b4ed"
+source = "git+https://github.com/noir-lang/acvm?rev=9f9fc216a6d09ca97352ffd365bfd347e94ad8eb#9f9fc216a6d09ca97352ffd365bfd347e94ad8eb"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -51,8 +48,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa434008757491ec90e630796056de6f76114a04f533dd03c1a748c204503a31"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=86b99c8c30aeab74da3dbe6d93234963ea21beb0#86b99c8c30aeab74da3dbe6d93234963ea21beb0"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -71,8 +67,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2e87549b987593eeb1902990006443f2fe5817db927035f081008e4b8a46a49"
+source = "git+https://github.com/noir-lang/acvm?rev=9f9fc216a6d09ca97352ffd365bfd347e94ad8eb#9f9fc216a6d09ca97352ffd365bfd347e94ad8eb"
 dependencies = [
  "acir",
 ]
@@ -1252,8 +1247,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if 1.0.0",
+ "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -3429,6 +3426,7 @@ dependencies = [
  "wasmer-engine-universal",
  "wasmer-types",
  "wasmer-vm",
+ "wasmparser",
  "wat",
  "winapi",
 ]

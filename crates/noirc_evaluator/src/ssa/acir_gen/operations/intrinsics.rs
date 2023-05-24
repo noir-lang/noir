@@ -92,7 +92,6 @@ pub(crate) fn evaluate(
                 }
                 BlackBoxFunc::SchnorrVerify
                 | BlackBoxFunc::EcdsaSecp256k1
-                | BlackBoxFunc::ComputeMerkleRoot
                 | BlackBoxFunc::HashToField128Security => {
                     prepare_outputs(&mut acir_gen.memory, instruction_id, 1, ctx, evaluator)
                 }
@@ -131,12 +130,6 @@ pub(crate) fn evaluate(
                     public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
                     signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
                     hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
-                    output: outputs[0],
-                },
-                BlackBoxFunc::ComputeMerkleRoot => BlackBoxFuncCall::ComputeMerkleRoot {
-                    leaf: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
-                    index: resolve_variable(&args[1], acir_gen, ctx, evaluator).unwrap(),
-                    hash_path: resolve_array(&args[2], acir_gen, ctx, evaluator),
                     output: outputs[0],
                 },
                 BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {

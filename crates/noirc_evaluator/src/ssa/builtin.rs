@@ -79,9 +79,7 @@ impl Opcode {
                     | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
                     // Verify returns zero or one
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
-                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
-                        ObjectType::native_field().max_size()
-                    }
+                    BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
                     BlackBoxFunc::AES => {
                         todo!("ICE: AES is unimplemented")
                     }
@@ -106,9 +104,7 @@ impl Opcode {
                     BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Keccak256 => {
                         (32, ObjectType::unsigned_integer(8))
                     }
-                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
-                        (1, ObjectType::native_field())
-                    }
+                    BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
                     // See issue #775 on changing this to return a boolean
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => {
                         (1, ObjectType::native_field())

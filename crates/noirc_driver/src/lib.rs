@@ -346,6 +346,6 @@ impl Driver {
 impl Default for Driver {
     fn default() -> Self {
         #[allow(deprecated)]
-        Self::new(&Language::R1CS, Box::new(acvm::default_is_opcode_supported(Language::R1CS)))
+        Self::new(&Language::R1CS, Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)))
     }
 }
