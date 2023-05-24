@@ -25,7 +25,7 @@ jobs:
           configuration-path: .github/labeler.yml
           enable-versioned-regex: 0
 
-      - name: Set workflowId environment variable
+      - name: Set workflowId
         id: set_workflow_id
         run: |
           if [[ "${{ github.event.action }}" == "labeled" ]]; then
