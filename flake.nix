@@ -239,9 +239,9 @@
           echo "NodeJS build complete. Directory contents:"
           ls -la ${PKG_PATH}/web
 
-          wasm-pack build crates/wasm --mode no-install --scope noir-lang --target nodejs --out-dir pkg/nodejs --release
-          echo "Web build complete. Directory contents:"
-          ls -la ${PKG_PATH}/nodejs
+          # wasm-pack build crates/wasm --mode no-install --scope noir-lang --target nodejs --out-dir pkg/nodejs --release
+          # echo "Web build complete. Directory contents:"
+          # ls -la ${PKG_PATH}/nodejs
 
           if [ -n ${COMMIT_SHORT} ]; then
               VERSION_APPENDIX="-${COMMIT_SHORT}"

@@ -29,6 +29,7 @@ jobs:
       - name: Copy wasm build result
         run: |
           mkdir -p ./pkg
+          ls -la
           cp -r ./result/* ./pkg
 
       - name: Output results
