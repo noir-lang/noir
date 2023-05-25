@@ -14,7 +14,6 @@ use acvm::{
         },
         native_types::{Expression, Witness},
     },
-    compiler::transformers::IsOpcodeSupported,
     FieldElement,
 };
 
@@ -134,7 +133,7 @@ impl ArrayHeap {
         evaluator: &mut Evaluator,
         array_id: ArrayId,
         array_len: u32,
-        is_opcode_supported: IsOpcodeSupported,
+        is_opcode_supported: OpcodeSupported,
     ) {
         let dummy = MemoryBlock { id: AcirBlockId(0), len: 0, trace: Vec::new() };
 
