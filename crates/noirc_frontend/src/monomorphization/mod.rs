@@ -228,10 +228,18 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirPattern::Struct(_, fields, _) => {
                 let struct_field_types = unwrap_struct_type(typ);
+                assert_eq!(struct_field_types.len(), fields.len());
 
-                for (name, field) in fields {
-                    let typ = &struct_field_types[&name.0.contents];
-                    self.parameter(field, typ, new_params);
+                let mut fields = btree_map(fields, |(name, field)| (name.0.contents, field));
+
+                // Iterate over `struct_field_types` since `unwrap_struct_type` will always
+                // return the fields in the order defined by the struct type.
+                for (field_name, field_type) in struct_field_types {
+                    let field = fields.remove(&field_name).unwrap_or_else(|| {
+                        unreachable!("Expected a field named '{field_name}' in the struct pattern")
+                    });
+
+                    self.parameter(field, &field_type, new_params);
                 }
             }
         }
@@ -461,6 +469,8 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(id);
         let field_types = unwrap_struct_type(&typ);
 
+        let field_type_map = btree_map(&field_types, |x| x.clone());
+
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
         let mut field_vars = BTreeMap::new();
@@ -468,7 +478,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         for (field_name, expr_id) in constructor.fields {
             let new_id = self.next_local_id();
-            let field_type = field_types.get(&field_name.0.contents).unwrap();
+            let field_type = field_type_map.get(&field_name.0.contents).unwrap();
             let typ = Self::convert_type(field_type);
 
             field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
@@ -482,14 +492,21 @@ impl<'interner> Monomorphizer<'interner> {
             }));
         }
 
-        let sorted_fields = vecmap(field_vars, |(name, (id, typ))| {
+        // We must ensure the tuple created from the variables here matches the order
+        // of the fields as defined in the type. To do this, we iterate over field_types,
+        // rather than field_type_map which is a sorted BTreeMap.
+        let field_idents = vecmap(field_types, |(name, _)| {
+            let (id, typ) = field_vars.remove(&name).unwrap_or_else(|| {
+                unreachable!("Expected field {name} to be present in constructor for {typ}")
+            });
+
             let definition = Definition::Local(id);
             let mutable = false;
             ast::Expression::Ident(ast::Ident { definition, mutable, location: None, name, typ })
         });
 
         // Finally we can return the created Tuple from the new block
-        new_exprs.push(ast::Expression::Tuple(sorted_fields));
+        new_exprs.push(ast::Expression::Tuple(field_idents));
         ast::Expression::Block(new_exprs)
     }
 
@@ -523,13 +540,18 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirPattern::Struct(_, patterns, _) => {
                 let fields = unwrap_struct_type(typ);
-                // We map each pattern to its respective field in a BTreeMap
-                // Fields in struct types are ordered, and doing this map guarantees we extract the correct field index
-                let patterns_map = btree_map(patterns, |(ident, pattern)| {
-                    let typ = fields[&ident.0.contents].clone();
-                    (ident.0.contents, (pattern, typ))
+                assert_eq!(patterns.len(), fields.len());
+
+                let mut patterns =
+                    btree_map(patterns, |(name, pattern)| (name.0.contents, pattern));
+
+                // We iterate through the type's fields to match the order defined in the struct type
+                let patterns_iter = fields.into_iter().map(|(field_name, field_type)| {
+                    let pattern = patterns.remove(&field_name).unwrap();
+                    (pattern, field_type)
                 });
-                self.unpack_tuple_pattern(value, patterns_map.into_values())
+
+                self.unpack_tuple_pattern(value, patterns_iter)
             }
         }
     }
@@ -999,7 +1021,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     }
 }
 
-fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
+fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
     match typ {
         HirType::Struct(def, args) => def.borrow().get_fields(args),
         HirType::TypeVariable(binding) => match &*binding.borrow() {

@@ -100,7 +100,7 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, path::PathBuf};
+    use std::path::PathBuf;
 
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
@@ -123,13 +123,13 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
-                    fields: BTreeMap::from([
+                    fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (
                             String::from("d2"),
                             AbiType::Array { length: 3, typ: Box::new(AbiType::Field) },
                         ),
-                    ]),
+                    ],
                 },
             ),
             typed_param("e", AbiType::Boolean),
