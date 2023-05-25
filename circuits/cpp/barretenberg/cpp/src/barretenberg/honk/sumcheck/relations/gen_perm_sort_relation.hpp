@@ -3,7 +3,7 @@
 #include <tuple>
 
 #include "../polynomials/univariate.hpp"
-#include "relation.hpp"
+#include "relation_parameters.hpp"
 
 namespace proof_system::honk::sumcheck {
 
@@ -11,6 +11,15 @@ template <typename FF> class GenPermSortRelation {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6; // degree(q_sort * D(D - 1)(D - 2)(D - 3)) = 5
+
+    static constexpr size_t NUM_CONSTRAINTS = 4;
+    static constexpr std::array<size_t, NUM_CONSTRAINTS> CONSTRAINT_LENGTH = { 6, 6, 6, 6 };
+
+    using RelationUnivariates = std::tuple<Univariate<FF, CONSTRAINT_LENGTH[0]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[1]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[2]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[3]>>;
+    using RelationValues = std::array<FF, NUM_CONSTRAINTS>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -27,7 +36,7 @@ template <typename FF> class GenPermSortRelation {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    void add_edge_contribution(Univariate<FF, RELATION_LENGTH>& evals,
+    void add_edge_contribution(RelationUnivariates& evals,
                                const auto& extended_edges,
                                const RelationParameters<FF>&,
                                const FF& scaling_factor) const
@@ -46,53 +55,57 @@ template <typename FF> class GenPermSortRelation {
         static const FF minus_two = FF(-2);
         static const FF minus_three = FF(-3);
 
-        // TODO(#427): Eventually this would be based on real alpha but this is not a full solution
-        // since utilizing powers of alpha internal to a relation results in incorrect powers
-        // being used in the ultimate univariate batching. i.e we'd wind up reusing the same power
-        // of alpha in multiple relations.
-        static const FF fake_alpha_1 = FF(1);
-        static const FF fake_alpha_2 = fake_alpha_1 * fake_alpha_1;
-        static const FF fake_alpha_3 = fake_alpha_2 * fake_alpha_1;
-        static const FF fake_alpha_4 = fake_alpha_3 * fake_alpha_1;
-
         // Compute wire differences
         auto delta_1 = w_2 - w_1;
         auto delta_2 = w_3 - w_2;
         auto delta_3 = w_4 - w_3;
         auto delta_4 = w_1_shift - w_4;
 
+        // Contribution (1)
         auto tmp_1 = delta_1;
         tmp_1 *= (delta_1 + minus_one);
         tmp_1 *= (delta_1 + minus_two);
         tmp_1 *= (delta_1 + minus_three);
-        tmp_1 *= fake_alpha_1; // 1
+        tmp_1 *= q_sort;
+        tmp_1 *= scaling_factor;
+        std::get<0>(evals) += tmp_1;
 
+        // Contribution (2)
         auto tmp_2 = delta_2;
         tmp_2 *= (delta_2 + minus_one);
         tmp_2 *= (delta_2 + minus_two);
         tmp_2 *= (delta_2 + minus_three);
-        tmp_2 *= fake_alpha_2; // alpha
+        tmp_2 *= q_sort;
+        tmp_2 *= scaling_factor;
+        std::get<1>(evals) += tmp_2;
 
+        // Contribution (3)
         auto tmp_3 = delta_3;
         tmp_3 *= (delta_3 + minus_one);
         tmp_3 *= (delta_3 + minus_two);
         tmp_3 *= (delta_3 + minus_three);
-        tmp_3 *= fake_alpha_3; // alpha^2
+        tmp_3 *= q_sort;
+        tmp_3 *= scaling_factor;
+        std::get<2>(evals) += tmp_3;
 
+        // Contribution (4)
         auto tmp_4 = delta_4;
         tmp_4 *= (delta_4 + minus_one);
         tmp_4 *= (delta_4 + minus_two);
         tmp_4 *= (delta_4 + minus_three);
-        tmp_4 *= fake_alpha_4; // alpha^3
-
-        auto tmp = tmp_1 + tmp_2 + tmp_3 + tmp_4;
-        tmp *= q_sort;
-        tmp *= scaling_factor;
-
-        evals += tmp;
+        tmp_4 *= q_sort;
+        tmp_4 *= scaling_factor;
+        std::get<3>(evals) += tmp_4;
     };
 
-    void add_full_relation_value_contribution(FF& full_honk_relation_value,
+    /**
+     * @brief Add the result of each identity in this relation evaluated at the multivariate evaluations produced by the
+     * Sumcheck Prover.
+     *
+     * @param full_honk_relation_value
+     * @param purported_evaluations
+     */
+    void add_full_relation_value_contribution(RelationValues& full_honk_relation_value,
                                               const auto& purported_evaluations,
                                               const RelationParameters<FF>&) const
     {
@@ -107,15 +120,6 @@ template <typename FF> class GenPermSortRelation {
         static const FF minus_two = FF(-2);
         static const FF minus_three = FF(-3);
 
-        // TODO(#427): Eventually this would be based on real alpha but this is not a full solution
-        // since utilizing powers of alpha internal to a relation results in incorrect powers
-        // being used in the ultimate univariate batching. i.e we'd wind up reusing the same power
-        // of alpha in multiple relations.
-        static const FF fake_alpha_1 = FF(1);
-        static const FF fake_alpha_2 = fake_alpha_1 * fake_alpha_1;
-        static const FF fake_alpha_3 = fake_alpha_2 * fake_alpha_1;
-        static const FF fake_alpha_4 = fake_alpha_3 * fake_alpha_1;
-
         // Compute wire differences
         auto delta_1 = w_2 - w_1;
         auto delta_2 = w_3 - w_2;
@@ -126,30 +130,29 @@ template <typename FF> class GenPermSortRelation {
         tmp_1 *= (delta_1 + minus_one);
         tmp_1 *= (delta_1 + minus_two);
         tmp_1 *= (delta_1 + minus_three);
-        tmp_1 *= fake_alpha_1; // 1
+        tmp_1 *= q_sort;
+        std::get<0>(full_honk_relation_value) += tmp_1;
 
         auto tmp_2 = delta_2;
         tmp_2 *= (delta_2 + minus_one);
         tmp_2 *= (delta_2 + minus_two);
         tmp_2 *= (delta_2 + minus_three);
-        tmp_2 *= fake_alpha_2; // alpha
+        tmp_2 *= q_sort;
+        std::get<1>(full_honk_relation_value) += tmp_2;
 
         auto tmp_3 = delta_3;
         tmp_3 *= (delta_3 + minus_one);
         tmp_3 *= (delta_3 + minus_two);
         tmp_3 *= (delta_3 + minus_three);
-        tmp_3 *= fake_alpha_3; // alpha^2
+        tmp_3 *= q_sort;
+        std::get<2>(full_honk_relation_value) += tmp_3;
 
         auto tmp_4 = delta_4;
         tmp_4 *= (delta_4 + minus_one);
         tmp_4 *= (delta_4 + minus_two);
         tmp_4 *= (delta_4 + minus_three);
-        tmp_4 *= fake_alpha_4; // alpha^3
-
-        auto tmp = tmp_1 + tmp_2 + tmp_3 + tmp_4;
-        tmp *= q_sort;
-
-        full_honk_relation_value += tmp;
+        tmp_4 *= q_sort;
+        std::get<3>(full_honk_relation_value) += tmp_4;
     };
 };
 } // namespace proof_system::honk::sumcheck

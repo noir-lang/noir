@@ -6,7 +6,7 @@
 #include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 
 namespace proof_system::honk {

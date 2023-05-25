@@ -6,8 +6,9 @@
 #include "polynomials/barycentric_data.hpp"
 #include "polynomials/univariate.hpp"
 #include "polynomials/pow.hpp"
-#include "relations/relation.hpp"
-#include "barretenberg/honk/flavor/ultra.hpp" // WORKTOO
+#include "relations/relation_parameters.hpp"
+#include "barretenberg/honk/flavor/ultra.hpp"
+#include <functional>
 
 namespace proof_system::honk::sumcheck {
 
@@ -56,8 +57,8 @@ namespace proof_system::honk::sumcheck {
 template <typename Flavor> class SumcheckRound {
 
     using Relations = typename Flavor::Relations;
-    using UnivariateTuple = typename Flavor::UnivariateTuple;
-    using BarycentricUtils = typename Flavor::BarycentricUtils;
+    using RelationUnivariates = typename Flavor::RelationUnivariates;
+    using RelationEvaluations = typename Flavor::RelationValues;
 
   public:
     using FF = typename Flavor::FF;
@@ -74,79 +75,46 @@ template <typename Flavor> class SumcheckRound {
 
     FF target_total_sum = 0;
 
-    // TODO(#224)(Cody): this barycentric stuff should be more built-in?
-    BarycentricUtils barycentric_utils;
-    UnivariateTuple univariate_accumulators;
-    std::array<FF, NUM_RELATIONS> relation_evaluations;
-    ExtendedEdges<MAX_RELATION_LENGTH> extended_edges;
-    std::array<Univariate<FF, MAX_RELATION_LENGTH>, NUM_RELATIONS> extended_univariates;
+    RelationUnivariates univariate_accumulators;
+    RelationEvaluations relation_evaluations;
 
-    // TODO(#224)(Cody): this should go away and we should use constexpr method to extend
+    ExtendedEdges<MAX_RELATION_LENGTH> extended_edges;
+
+    // TODO(#224)(Cody): this should go away
     BarycentricData<FF, 2, MAX_RELATION_LENGTH> barycentric_2_to_max = BarycentricData<FF, 2, MAX_RELATION_LENGTH>();
 
     // Prover constructor
     SumcheckRound(size_t initial_round_size)
         : round_size(initial_round_size)
-    {}
+    {
+        // Initialize univariate accumulators to 0
+        zero_univariates(univariate_accumulators);
+    }
 
     // Verifier constructor
-    explicit SumcheckRound()
-    {
-        // FF's default constructor may not initialize to zero (e.g., barretenberg::fr), hence we can't rely on
-        // aggregate initialization of the evaluations array.
-        std::fill(relation_evaluations.begin(), relation_evaluations.end(), FF(0));
-    };
-
-    /**
-     * @brief After computing the round univariate, it is necessary to zero-out the accumulators used to compute it.
-     */
-    template <size_t idx = 0> void reset_accumulators()
-    {
-        auto& univariate = std::get<idx>(univariate_accumulators);
-        std::fill(univariate.evaluations.begin(), univariate.evaluations.end(), FF(0));
-
-        if constexpr (idx + 1 < NUM_RELATIONS) {
-            reset_accumulators<idx + 1>();
-        }
-    };
-    // IMPROVEMENT(Cody): This is kind of ugly. There should be a one-liner with folding
-    // or std::apply or something.
-
-    /**
-     * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_RELATIONS-1}) and a challenge α,
-     * modify the tuple in place to (t_0, αt_1, ..., α^{NUM_RELATIONS-1}t_{NUM_RELATIONS-1}).
-     */
-    template <size_t idx = 0> void scale_tuple(auto& tuple, FF challenge, FF running_challenge)
-    {
-        std::get<idx>(tuple) *= running_challenge;
-        running_challenge *= challenge;
-        if constexpr (idx + 1 < NUM_RELATIONS) {
-            scale_tuple<idx + 1>(tuple, challenge, running_challenge);
-        }
-    };
+    explicit SumcheckRound() { zero_elements(relation_evaluations); };
 
     /**
      * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_RELATIONS-1}) and a challenge α,
      * return t_0 + αt_1 + ... + α^{NUM_RELATIONS-1}t_{NUM_RELATIONS-1}).
      *
-     * @tparam T : In practice, this is an FF or a Univariate<FF, MAX_NUM_RELATIONS>.
+     * @tparam T : In practice, this is a Univariate<FF, MAX_NUM_RELATIONS>.
      */
-    template <typename T> T batch_over_relations(FF challenge)
+    Univariate<FF, MAX_RELATION_LENGTH> batch_over_relations(FF challenge)
     {
         FF running_challenge = 1;
-        scale_tuple<>(univariate_accumulators, challenge, running_challenge);
-        extend_univariate_accumulators<>();
-        auto result = T();
-        for (size_t i = 0; i < NUM_RELATIONS; ++i) {
-            result += extended_univariates[i];
-        }
+        scale_univariates(univariate_accumulators, challenge, running_challenge);
+
+        auto result = Univariate<FF, MAX_RELATION_LENGTH>();
+        extend_and_batch_univariates(univariate_accumulators, result);
+
+        // Reset all univariate accumulators to 0 before beginning accumulation in the next round
+        zero_univariates(univariate_accumulators);
         return result;
     }
 
     /**
-     * @brief Evaluate some relations by evaluating each edge in the edge group at
-     * Univariate::length-many values. Store each value separately in the corresponding
-     * entry of relation_evals.
+     * @brief Extend each edge in the edge group at to max-relation-length-many values.
      *
      * @details Should only be called externally with relation_idx equal to 0.
      * In practice, multivariates is one of ProverPolynomials or FoldedPolynomials.
@@ -159,23 +127,6 @@ template <typename Flavor> class SumcheckRound {
             auto edge = Univariate<FF, 2>({ poly[edge_idx], poly[edge_idx + 1] });
             extended_edges[univariate_idx] = barycentric_2_to_max.extend(edge);
             ++univariate_idx;
-        }
-    }
-
-    /**
-     * @brief After executing each widget on each edge, producing a tuple of univariates of differing lenghths,
-     * extend all univariates to the max of the lenghths required by the largest relation.
-     *
-     * @tparam relation_idx
-     */
-    template <size_t relation_idx = 0> void extend_univariate_accumulators()
-    {
-        extended_univariates[relation_idx] =
-            std::get<relation_idx>(barycentric_utils).extend(std::get<relation_idx>(univariate_accumulators));
-
-        // Repeat for the next relation.
-        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
-            extend_univariate_accumulators<relation_idx + 1>();
         }
     }
 
@@ -203,11 +154,7 @@ template <typename Flavor> class SumcheckRound {
             pow_challenge *= pow_univariate.zeta_pow_sqr;
         }
 
-        auto result = batch_over_relations<Univariate<FF, MAX_RELATION_LENGTH>>(alpha);
-
-        reset_accumulators<>();
-
-        return result;
+        return batch_over_relations(alpha);
     }
 
     /**
@@ -225,13 +172,10 @@ template <typename Flavor> class SumcheckRound {
     {
         accumulate_relation_evaluations<>(purported_evaluations, relation_parameters);
 
-        // IMPROVEMENT(Cody): Reuse functions from univariate_accumulators batching?
-        FF running_challenge = 1;
-        FF output = 0;
-        for (auto& evals : relation_evaluations) {
-            output += evals * running_challenge;
-            running_challenge *= alpha;
-        }
+        auto running_challenge = FF(1);
+        auto output = FF(0);
+        scale_and_batch_elements(relation_evaluations, alpha, running_challenge, output);
+
         output *= pow_univariate.partial_evaluation_constant;
 
         return output;
@@ -320,11 +264,141 @@ template <typename Flavor> class SumcheckRound {
                                          const RelationParameters<FF>& relation_parameters)
     {
         std::get<relation_idx>(relations).add_full_relation_value_contribution(
-            relation_evaluations[relation_idx], purported_evaluations, relation_parameters);
+            std::get<relation_idx>(relation_evaluations), purported_evaluations, relation_parameters);
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {
             accumulate_relation_evaluations<relation_idx + 1>(purported_evaluations, relation_parameters);
+        }
+    }
+
+  public:
+    /**
+     * Utility methods for tuple of tuples of Univariates
+     */
+
+    /**
+     * @brief Extend Univariates to specified size then sum them
+     *
+     * @tparam extended_size Size after extension
+     * @param tuple A tuple of tuples of Univariates
+     * @param result A Univariate of length extended_size
+     */
+    template <size_t extended_size>
+    static void extend_and_batch_univariates(auto& tuple, Univariate<FF, extended_size>& result)
+    {
+        auto extend_and_sum = [&](auto& element) {
+            using Element = std::remove_reference_t<decltype(element)>;
+            // TODO(#224)(Cody): this barycentric stuff should be more built-in?
+            BarycentricData<FF, Element::LENGTH, extended_size> barycentric_utils;
+            result += barycentric_utils.extend(element);
+        };
+        apply_to_tuple_of_tuples(tuple, extend_and_sum);
+    }
+
+    /**
+     * @brief Set all coefficients of Univariates to zero
+     *
+     * @details After computing the round univariate, it is necessary to zero-out the accumulators used to compute it.
+     */
+    static void zero_univariates(auto& tuple)
+    {
+        auto set_to_zero = [](auto& element) {
+            std::fill(element.evaluations.begin(), element.evaluations.end(), FF(0));
+        };
+        apply_to_tuple_of_tuples(tuple, set_to_zero);
+    }
+
+    /**
+     * @brief Scale Univaraites by consecutive powers of the provided challenge
+     *
+     * @param tuple Tuple of tuples of Univariates
+     * @param challenge
+     * @param current_scalar power of the challenge
+     */
+    static void scale_univariates(auto& tuple, const FF& challenge, FF current_scalar)
+    {
+        auto scale_by_consecutive_powers_of_challenge = [&](auto& element) {
+            element *= current_scalar;
+            current_scalar *= challenge;
+        };
+        apply_to_tuple_of_tuples(tuple, scale_by_consecutive_powers_of_challenge);
+    }
+
+    /**
+     * @brief General purpose method for applying an operation to a tuple of tuples of Univariates
+     *
+     * @tparam Operation Any operation valid on Univariates
+     * @tparam outer_idx Index into the outer tuple
+     * @tparam inner_idx Index into the inner tuple
+     * @param tuple A Tuple of tuples of Univariates
+     * @param operation Operation to apply to Univariates
+     */
+    template <typename Operation, size_t outer_idx = 0, size_t inner_idx = 0>
+    static void apply_to_tuple_of_tuples(auto& tuple, Operation&& operation)
+    {
+        auto& inner_tuple = std::get<outer_idx>(tuple);
+        auto& univariate = std::get<inner_idx>(inner_tuple);
+
+        // Apply the specified operation to each Univariate
+        std::invoke(std::forward<Operation>(operation), univariate);
+
+        const size_t inner_size = std::tuple_size_v<std::decay_t<decltype(std::get<outer_idx>(tuple))>>;
+        const size_t outer_size = std::tuple_size_v<std::decay_t<decltype(tuple)>>;
+
+        // Recurse over inner and outer tuples
+        if constexpr (inner_idx + 1 < inner_size) {
+            apply_to_tuple_of_tuples<Operation, outer_idx, inner_idx + 1>(tuple, std::forward<Operation>(operation));
+        } else if constexpr (outer_idx + 1 < outer_size) {
+            apply_to_tuple_of_tuples<Operation, outer_idx + 1, 0>(tuple, std::forward<Operation>(operation));
+        }
+    }
+
+    /**
+     * Utility methods for tuple of arrays
+     */
+
+    /**
+     * @brief Set each element in a tuple of arrays to zero.
+     * @details FF's default constructor may not initialize to zero (e.g., barretenberg::fr), hence we can't rely on
+     * aggregate initialization of the evaluations array.
+     */
+    template <size_t idx = 0> static void zero_elements(auto& tuple)
+    {
+        auto set_to_zero = [](auto& element) { std::fill(element.begin(), element.end(), FF(0)); };
+        apply_to_tuple_of_arrays(set_to_zero, tuple);
+    };
+
+    /**
+     * @brief Scale elements by consecutive powers of the challenge then sum
+     * @param result Batched result
+     */
+    static void scale_and_batch_elements(auto& tuple, const FF& challenge, FF current_scalar, FF& result)
+    {
+        auto scale_by_challenge_and_accumulate = [&](auto& element) {
+            for (auto& entry : element) {
+                result += entry * current_scalar;
+                current_scalar *= challenge;
+            }
+        };
+        apply_to_tuple_of_arrays(scale_by_challenge_and_accumulate, tuple);
+    }
+
+    /**
+     * @brief General purpose method for applying a tuple of arrays (of FFs)
+     *
+     * @tparam Operation Any operation valid on elements of the inner arrays (FFs)
+     * @param tuple Tuple of arrays (of FFs)
+     */
+    template <typename Operation, size_t idx = 0, typename... Ts>
+    static void apply_to_tuple_of_arrays(Operation&& operation, std::tuple<Ts...>& tuple)
+    {
+        auto& element = std::get<idx>(tuple);
+
+        std::invoke(std::forward<Operation>(operation), element);
+
+        if constexpr (idx + 1 < sizeof...(Ts)) {
+            apply_to_tuple_of_arrays<Operation, idx + 1>(operation, tuple);
         }
     }
 };

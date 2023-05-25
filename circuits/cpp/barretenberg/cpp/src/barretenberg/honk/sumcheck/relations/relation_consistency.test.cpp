@@ -1,11 +1,9 @@
-#include "barretenberg/honk/sumcheck/relations/lookup_grand_product_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation_secondary.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
-#include "relation.hpp"
+#include "relation_parameters.hpp"
 #include "arithmetic_relation.hpp"
-#include "grand_product_initialization_relation.hpp"
-#include "grand_product_computation_relation.hpp"
+#include "permutation_relation.hpp"
 #include "../polynomials/univariate.hpp"
 #include "../polynomials/barycentric_data.hpp"
 
@@ -16,14 +14,14 @@
 #include <gtest/gtest.h>
 using namespace proof_system::honk::sumcheck;
 /**
- * We want to test if all three relations (namely, ArithmeticRelation, GrandProductComputationRelation,
- * GrandProductInitializationRelation) provide correct contributions by manually computing their
- * contributions with deterministic and random inputs. The relations are supposed to work with
- * univariates (edges) of degree one (length 2) and spit out polynomials of corresponding degrees. We have
- * MAX_RELATION_LENGTH = 5, meaning the output of a relation can atmost be a degree 5 polynomial. Hence,
- * we use a method compute_mock_extended_edges() which starts with degree one input polynomial (two evaluation
- points),
- * extends them (using barycentric formula) to six evaluation points, and stores them to an array of polynomials.
+ * The purpose of this test suite is to show that the identity arithmetic implemented in the Relations is equivalent to
+ * a simpler unoptimized version implemented in the tests themselves. This is useful 1) as documentation since the
+ * simple implementations here should make the underlying arithmetic easier to see, and 2) as a check that optimizations
+ * introduced into the Relations have not changed the result.
+ *
+ * For this purpose, we simply feed (the same) random inputs into each of the two implementations and confirm that
+ * the outputs match. This does not confirm the correctness of the identity arithmetic (the identities will not be
+ * satisfied in general by random inputs) only that the two implementations are equivalent.
  */
 static const size_t INPUT_UNIVARIATE_LENGTH = 2;
 
@@ -38,9 +36,9 @@ class StandardRelationConsistency : public testing::Test {
 
     template <size_t t> using ExtendedEdges = typename Flavor::template ExtendedEdges<t>;
 
-    // TODO(#225)(Adrian): Accept FULL_RELATION_LENGTH as a template parameter for this function only, so that the test
-    // can decide to which degree the polynomials must be extended. Possible accept an existing list of "edges" and
-    // extend them to the degree.
+    // TODO(#225)(Adrian): Accept FULL_RELATION_LENGTH as a template parameter for this function only, so that the
+    // test can decide to which degree the polynomials must be extended. Possible accept an existing list of
+    // "edges" and extend them to the degree.
     template <size_t FULL_RELATION_LENGTH, size_t NUM_POLYNOMIALS>
     static void compute_mock_extended_edges(
         ExtendedEdges<FULL_RELATION_LENGTH>& extended_edges,
@@ -107,34 +105,76 @@ class StandardRelationConsistency : public testing::Test {
      * @param relation_parameters
      */
     template <size_t FULL_RELATION_LENGTH>
-    static void validate_evaluations(const Univariate<FF, FULL_RELATION_LENGTH>& expected_evals,
+    static void validate_evaluations(const auto& expected_full_length_univariates, /* array of Univariates*/
                                      const auto relation,
                                      const ExtendedEdges<FULL_RELATION_LENGTH>& extended_edges,
                                      const RelationParameters<FF>& relation_parameters)
     {
+        // First check that the verifier's computation on individual evaluations is correct.
+        // Note: since add_full_relation_value_contribution computes the identities at a single evaluation of the
+        // multivariates, we need only pass in one evaluation point from the extended edges. Which one we choose is
+        // arbitrary so we choose the 0th.
 
-        // Compute the expression index-by-index
-        Univariate<FF, FULL_RELATION_LENGTH> expected_evals_index{ 0 };
-        for (size_t i = 0; i < FULL_RELATION_LENGTH; ++i) {
-            // Get an array of the same size as `extended_edges` with only the i-th element of each extended edge.
-            ClaimedEvaluations evals_i = transposed_univariate_array_at(extended_edges, i);
-            // Evaluate the relation
-            relation.add_full_relation_value_contribution(
-                expected_evals_index.value_at(i), evals_i, relation_parameters);
+        // Extract the RelationValues type for the given relation
+        using RelationValues = typename decltype(relation)::RelationValues;
+        RelationValues relation_evals;
+        RelationValues expected_relation_evals;
+
+        ASSERT_EQ(expected_relation_evals.size(), expected_full_length_univariates.size());
+        // Initialize expected_evals to 0th coefficient of expected full length univariates
+        for (size_t idx = 0; idx < relation_evals.size(); ++idx) {
+            relation_evals[idx] = FF(0); // initialize to 0
+            expected_relation_evals[idx] = expected_full_length_univariates[idx].value_at(0);
         }
-        EXPECT_EQ(expected_evals, expected_evals_index);
 
-        // Compute the expression using the class, that converts the extended edges to UnivariateView
-        auto expected_evals_view = Univariate<FF, relation.RELATION_LENGTH>(0);
-        // The scaling factor is essentially 1 since we are working with degree 1 univariates
-        relation.add_edge_contribution(expected_evals_view, extended_edges, relation_parameters, 1);
+        // Extract 0th evaluation from extended edges
+        ClaimedEvaluations edge_evaluations = transposed_univariate_array_at(extended_edges, 0);
 
-        // Tiny hack to reduce `expected_evals` to be of size `relation.RELATION_LENGTH`
-        Univariate<FF, relation.RELATION_LENGTH> expected_evals_restricted{
-            UnivariateView<FF, relation.RELATION_LENGTH>(expected_evals)
-        };
-        EXPECT_EQ(expected_evals_restricted, expected_evals_view);
+        // Evaluate the relation using the verifier functionality
+        relation.add_full_relation_value_contribution(relation_evals, edge_evaluations, relation_parameters);
+
+        EXPECT_EQ(relation_evals, expected_relation_evals);
+
+        // Next, check that the prover's computation on Univariates is correct
+
+        using RelationUnivariates = typename decltype(relation)::RelationUnivariates;
+        RelationUnivariates relation_univariates;
+        zero_univariates<>(relation_univariates);
+
+        constexpr std::size_t num_univariates = std::tuple_size<RelationUnivariates>::value;
+
+        // Compute the relatiion univariates via the sumcheck prover functionality, then extend
+        // them to full length for easy comparison with the expected result.
+        relation.add_edge_contribution(relation_univariates, extended_edges, relation_parameters, 1);
+
+        auto full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, num_univariates>();
+        extend_tuple_of_arrays<FULL_RELATION_LENGTH>(relation_univariates, full_length_univariates);
+
+        EXPECT_EQ(full_length_univariates, expected_full_length_univariates);
     };
+
+    template <size_t idx = 0, typename... Ts> static void zero_univariates(std::tuple<Ts...>& tuple)
+    {
+        auto& element = std::get<idx>(tuple);
+        std::fill(element.evaluations.begin(), element.evaluations.end(), FF(0));
+
+        if constexpr (idx + 1 < sizeof...(Ts)) {
+            zero_univariates<idx + 1>(tuple);
+        }
+    }
+
+    template <size_t extended_size, size_t idx = 0, typename... Ts>
+    static void extend_tuple_of_arrays(std::tuple<Ts...>& tuple, auto& result_univariates)
+    {
+        auto& element = std::get<idx>(tuple);
+        using Element = std::remove_reference_t<decltype(element)>;
+        BarycentricData<FF, Element::LENGTH, extended_size> barycentric_utils;
+        result_univariates[idx] = barycentric_utils.extend(element);
+
+        if constexpr (idx + 1 < sizeof...(Ts)) {
+            extend_tuple_of_arrays<extended_size, idx + 1>(tuple, result_univariates);
+        }
+    }
 };
 
 TEST_F(StandardRelationConsistency, ArithmeticRelation)
@@ -174,17 +214,19 @@ TEST_F(StandardRelationConsistency, ArithmeticRelation)
         const auto& q_o = extended_edges.q_o;
         const auto& q_c = extended_edges.q_c;
 
-        // We first compute the evaluations using UnivariateViews, with the provided hard-coded formula.
-        // Ensure that expression changes are detected.
-        // expected_evals, length 4, extends to { { 5, 22, 57, 116, 205} } for input polynomial {1, 2}
-        auto expected_evals = (q_m * w_r * w_l) + (q_r * w_r) + (q_l * w_l) + (q_o * w_o) + (q_c);
-        validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+        // Compute expected full length Univariates using straight forward expressions.
+        // Note: expect { { 5, 22, 57, 116, 205} } for input polynomial {1, 2}
+        constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+        auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+
+        expected_full_length_univariates[0] = (q_m * w_r * w_l) + (q_r * w_r) + (q_l * w_l) + (q_o * w_o) + (q_c);
+        validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
     };
     run_test(/* is_random_input=*/true);
     run_test(/* is_random_input=*/false);
 };
 
-TEST_F(StandardRelationConsistency, GrandProductComputationRelation)
+TEST_F(StandardRelationConsistency, PermutationRelation)
 {
     using Flavor = honk::flavor::Standard;
     using FF = typename Flavor::FF;
@@ -210,16 +252,11 @@ TEST_F(StandardRelationConsistency, GrandProductComputationRelation)
             }
             compute_mock_extended_edges<FULL_RELATION_LENGTH>(extended_edges, input_polynomials);
         };
-        auto relation = GrandProductComputationRelation<FF>();
+        auto relation = PermutationRelation<FF>();
 
         const auto& beta = relation_parameters.beta;
         const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
-        // TODO(#225)(luke): Write a test that illustrates the following?
-        // Note: the below z_perm_shift = X^2 will fail because it results in a relation of degree 2*1*1*1 = 5 which
-        // cannot be represented by 5 points. Therefore when we do the calculation then barycentrically extend, we are
-        // effectively exprapolating a 4th degree polynomial instead of the correct 5th degree poly
-        // auto z_perm_shift = Univariate<FF, 5>({ 1, 4, 9, 16, 25 }); // X^2
 
         // Manually compute the expected edge contribution
         const auto& w_1 = extended_edges.w_l;
@@ -236,55 +273,19 @@ TEST_F(StandardRelationConsistency, GrandProductComputationRelation)
         const auto& lagrange_first = extended_edges.lagrange_first;
         const auto& lagrange_last = extended_edges.lagrange_last;
 
-        // We first compute the evaluations using UnivariateViews, with the provided hard-coded formula.
-        // Ensure that expression changes are detected.
-        // expected_evals in the below step { { 27, 250, 1029, 2916, 6655 } } - { { 27, 125, 343, 729, 1331 } }
-        auto expected_evals = (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
-                                  (w_3 + id_3 * beta + gamma) -
-                              (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
-                                  (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
+        // Compute expected full length Univariates using straight forward expressions
+        constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+        auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
 
-        validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
-    };
-    run_test(/* is_random_input=*/true);
-    run_test(/* is_random_input=*/false);
-};
+        expected_full_length_univariates[0] = (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) *
+                                                  (w_2 + id_2 * beta + gamma) * (w_3 + id_3 * beta + gamma) -
+                                              (z_perm_shift + lagrange_last * public_input_delta) *
+                                                  (w_1 + sigma_1 * beta + gamma) * (w_2 + sigma_2 * beta + gamma) *
+                                                  (w_3 + sigma_3 * beta + gamma);
 
-TEST_F(StandardRelationConsistency, GrandProductInitializationRelation)
-{
-    using Flavor = honk::flavor::Standard;
-    using FF = typename Flavor::FF;
-    static constexpr size_t FULL_RELATION_LENGTH = 5;
-    using ExtendedEdges = typename Flavor::template ExtendedEdges<FULL_RELATION_LENGTH>;
-    static const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
+        expected_full_length_univariates[1] = z_perm_shift * lagrange_last;
 
-    const auto relation_parameters = compute_mock_relation_parameters();
-    auto run_test = [&relation_parameters](bool is_random_input) {
-        ExtendedEdges extended_edges;
-        std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
-        if (!is_random_input) {
-            // evaluation form, i.e. input_univariate(0) = 1, input_univariate(1) = 2,.. The polynomial is x+1.
-            for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-                input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ 1, 2 });
-            }
-            compute_mock_extended_edges<FULL_RELATION_LENGTH>(extended_edges, input_polynomials);
-        } else {
-            // input_univariates are random polynomials of degree one
-            for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-                input_polynomials[i] =
-                    Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
-            }
-            compute_mock_extended_edges<FULL_RELATION_LENGTH>(extended_edges, input_polynomials);
-        };
-        auto relation = GrandProductInitializationRelation<FF>();
-        const auto& z_perm_shift = extended_edges.z_perm_shift;
-        const auto& lagrange_last = extended_edges.lagrange_last;
-        // We first compute the evaluations using UnivariateViews, with the provided hard-coded formula.
-        // Ensure that expression changes are detected.
-        // expected_evals, lenght 3 (coeff form = x^2 + x), extends to { { 0, 2, 6, 12, 20 } }
-        auto expected_evals = z_perm_shift * lagrange_last;
-
-        validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+        validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
     };
     run_test(/* is_random_input=*/true);
     run_test(/* is_random_input=*/false);

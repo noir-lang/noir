@@ -4,26 +4,61 @@
 
 #include "../polynomials/univariate.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "relation.hpp"
+#include "relation_parameters.hpp"
 
 namespace proof_system::honk::sumcheck {
 
 template <typename FF> class AuxiliaryRelation {
   public:
     // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 6; // degree() = WORKTODO
+    static constexpr size_t RELATION_LENGTH = 6;
+
+    static constexpr size_t NUM_CONSTRAINTS = 6;
+    static constexpr std::array<size_t, NUM_CONSTRAINTS> CONSTRAINT_LENGTH = { 6, 6, 6, 6, 6, 6 }; // Each has degree 5
+
+    using RelationUnivariates = std::tuple<Univariate<FF, CONSTRAINT_LENGTH[0]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[1]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[2]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[3]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[4]>,
+                                           Univariate<FF, CONSTRAINT_LENGTH[5]>>;
+    using RelationValues = std::array<FF, NUM_CONSTRAINTS>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
-     * @details The relation is defined as C(extended_edges(X)...) =
-     *    //WORKTODO
+     * @details The following explanation is reproduced from the Plonk analog 'plookup_auxiliary_widget':
+     * Adds contributions for identities associated with several custom gates:
+     *  * RAM/ROM read-write consistency check
+     *  * RAM timestamp difference consistency check
+     *  * RAM/ROM index difference consistency check
+     *  * Bigfield product evaluation (3 in total)
+     *  * Bigfield limb accumulation (2 in total)
+     *
+     * Multiple selectors are used to 'switch' aux gates on/off according to the following pattern:
+     *
+     * | gate type                    | q_aux | q_1 | q_2 | q_3 | q_4 | q_m | q_c | q_arith |
+     * | ---------------------------- | ----- | --- | --- | --- | --- | --- | --- | ------  |
+     * | Bigfield Limb Accumulation 1 | 1     | 0   | 0   | 1   | 1   | 0   | --- | 0       |
+     * | Bigfield Limb Accumulation 2 | 1     | 0   | 0   | 1   | 0   | 1   | --- | 0       |
+     * | Bigfield Product 1           | 1     | 0   | 1   | 1   | 0   | 0   | --- | 0       |
+     * | Bigfield Product 2           | 1     | 0   | 1   | 0   | 1   | 0   | --- | 0       |
+     * | Bigfield Product 3           | 1     | 0   | 1   | 0   | 0   | 1   | --- | 0       |
+     * | RAM/ROM access gate          | 1     | 1   | 0   | 0   | 0   | 1   | --- | 0       |
+     * | RAM timestamp check          | 1     | 1   | 0   | 0   | 1   | 0   | --- | 0       |
+     * | ROM consistency check        | 1     | 1   | 1   | 0   | 0   | 0   | --- | 0       |
+     * | RAM consistency check        | 1     | 0   | 0   | 0   | 0   | 0   | 0   | 1       |
+     *
+     * N.B. The RAM consistency check identity is degree 3. To keep the overall quotient degree at <=5, only 2 selectors
+     * can be used to select it.
+     *
+     * N.B.2 The q_c selector is used to store circuit-specific values in the RAM/ROM access gate
      *
      * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
      * @param extended_edges an std::array containing the fully extended Univariate edges.
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    void add_edge_contribution(Univariate<FF, RELATION_LENGTH>& evals,
+    void add_edge_contribution(RelationUnivariates& evals,
                                const auto& extended_edges,
                                const RelationParameters<FF>& relation_parameters,
                                const FF& scaling_factor) const
@@ -32,7 +67,6 @@ template <typename FF> class AuxiliaryRelation {
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
 
         const auto& eta = relation_parameters.eta;
-        const auto fake_alpha = FF(1);
 
         auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_l);
         auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_r);
@@ -177,11 +211,9 @@ template <typename FF> class AuxiliaryRelation {
 
         auto adjacent_values_match_if_adjacent_indices_match = (index_delta * FF(-1) + FF(1)) * record_delta;
 
-        auto ROM_consistency_check_identity = adjacent_values_match_if_adjacent_indices_match;
-        ROM_consistency_check_identity *= fake_alpha;
-        ROM_consistency_check_identity += index_is_monotonically_increasing;
-        ROM_consistency_check_identity *= fake_alpha;
-        ROM_consistency_check_identity += memory_record_check;
+        std::get<1>(evals) += adjacent_values_match_if_adjacent_indices_match * (q_1 * q_2) * (q_aux * scaling_factor);
+        std::get<2>(evals) += index_is_monotonically_increasing * (q_1 * q_2) * (q_aux * scaling_factor);
+        auto ROM_consistency_check_identity = memory_record_check * (q_1 * q_2);
 
         /**
          * RAM Consistency Check
@@ -224,14 +256,11 @@ template <typename FF> class AuxiliaryRelation {
         auto next_gate_access_type_is_boolean = next_gate_access_type * next_gate_access_type - next_gate_access_type;
 
         // Putting it all together...
-        auto RAM_consistency_check_identity =
-            adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation;
-        RAM_consistency_check_identity *= fake_alpha;
-        RAM_consistency_check_identity += index_is_monotonically_increasing;
-        RAM_consistency_check_identity *= fake_alpha;
-        RAM_consistency_check_identity += next_gate_access_type_is_boolean;
-        RAM_consistency_check_identity *= fake_alpha;
-        RAM_consistency_check_identity += access_check;
+        std::get<3>(evals) += adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation *
+                              (q_arith) * (q_aux * scaling_factor);
+        std::get<4>(evals) += index_is_monotonically_increasing * (q_arith) * (q_aux * scaling_factor);
+        std::get<5>(evals) += next_gate_access_type_is_boolean * (q_arith) * (q_aux * scaling_factor);
+        auto RAM_consistency_check_identity = access_check * (q_arith);
 
         /**
          * RAM Timestamp Consistency Check
@@ -251,25 +280,28 @@ template <typename FF> class AuxiliaryRelation {
          * The complete RAM/ROM memory identity
          *
          */
-        auto memory_identity = ROM_consistency_check_identity * q_2;
-        memory_identity += RAM_timestamp_check_identity * q_4;
-        memory_identity += memory_record_check * q_m;
-        memory_identity *= q_1;
-        memory_identity += (RAM_consistency_check_identity * q_arith);
+        auto memory_identity = ROM_consistency_check_identity;
+        memory_identity += RAM_timestamp_check_identity * (q_4 * q_1);
+        memory_identity += memory_record_check * (q_m * q_1);
+        memory_identity += RAM_consistency_check_identity;
 
         auto auxiliary_identity = memory_identity + non_native_field_identity + limb_accumulator_identity;
-        auxiliary_identity *= q_aux;
-        auxiliary_identity *= scaling_factor;
-
-        evals += auxiliary_identity;
+        auxiliary_identity *= (q_aux * scaling_factor);
+        std::get<0>(evals) += auxiliary_identity;
     };
 
-    void add_full_relation_value_contribution(FF& full_honk_relation_value,
+    /**
+     * @brief Add the result of each identity in this relation evaluated at the multivariate evaluations produced by the
+     * Sumcheck Prover.
+     *
+     * @param full_honk_relation_value
+     * @param purported_evaluations
+     */
+    void add_full_relation_value_contribution(RelationValues& full_honk_relation_value,
                                               const auto& purported_evaluations,
                                               const RelationParameters<FF>& relation_parameters) const
     {
         const auto& eta = relation_parameters.eta;
-        const auto fake_alpha = FF(1);
 
         auto w_1 = purported_evaluations.w_l;
         auto w_2 = purported_evaluations.w_r;
@@ -417,11 +449,9 @@ template <typename FF> class AuxiliaryRelation {
 
         auto adjacent_values_match_if_adjacent_indices_match = (FF(1) - index_delta) * record_delta;
 
-        auto ROM_consistency_check_identity = adjacent_values_match_if_adjacent_indices_match;
-        ROM_consistency_check_identity *= fake_alpha;
-        ROM_consistency_check_identity += index_is_monotonically_increasing;
-        ROM_consistency_check_identity *= fake_alpha;
-        ROM_consistency_check_identity += memory_record_check;
+        std::get<1>(full_honk_relation_value) += adjacent_values_match_if_adjacent_indices_match * (q_1 * q_2) * q_aux;
+        std::get<2>(full_honk_relation_value) += index_is_monotonically_increasing * (q_1 * q_2) * q_aux;
+        auto ROM_consistency_check_identity = memory_record_check * (q_1 * q_2);
 
         /**
          * RAM Consistency Check
@@ -465,14 +495,11 @@ template <typename FF> class AuxiliaryRelation {
         auto next_gate_access_type_is_boolean = next_gate_access_type.sqr() - next_gate_access_type;
 
         // Putting it all together...
-        auto RAM_consistency_check_identity =
-            adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation;
-        RAM_consistency_check_identity *= fake_alpha;
-        RAM_consistency_check_identity += index_is_monotonically_increasing;
-        RAM_consistency_check_identity *= fake_alpha;
-        RAM_consistency_check_identity += next_gate_access_type_is_boolean;
-        RAM_consistency_check_identity *= fake_alpha;
-        RAM_consistency_check_identity += access_check;
+        std::get<3>(full_honk_relation_value) +=
+            adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation * (q_arith)*q_aux;
+        std::get<4>(full_honk_relation_value) += index_is_monotonically_increasing * (q_arith)*q_aux;
+        std::get<5>(full_honk_relation_value) += next_gate_access_type_is_boolean * (q_arith)*q_aux;
+        auto RAM_consistency_check_identity = access_check * (q_arith);
 
         /**
          * RAM Timestamp Consistency Check
@@ -492,17 +519,15 @@ template <typename FF> class AuxiliaryRelation {
          * The complete RAM/ROM memory identity
          *
          */
-        auto memory_identity = ROM_consistency_check_identity * q_2;
-        memory_identity += RAM_timestamp_check_identity * q_4;
-        memory_identity += memory_record_check * q_m;
-        memory_identity *= q_1;
-        memory_identity += (RAM_consistency_check_identity * q_arith);
+        auto memory_identity = ROM_consistency_check_identity;
+        memory_identity += RAM_timestamp_check_identity * q_1 * q_4;
+        memory_identity += memory_record_check * q_1 * q_m;
+        memory_identity += RAM_consistency_check_identity;
 
         // auto auxiliary_identity = limb_accumulator_identity;
         auto auxiliary_identity = memory_identity + non_native_field_identity + limb_accumulator_identity;
         auxiliary_identity *= q_aux;
-
-        full_honk_relation_value += auxiliary_identity;
+        std::get<0>(full_honk_relation_value) += auxiliary_identity;
     };
 };
 } // namespace proof_system::honk::sumcheck

@@ -1,14 +1,13 @@
 #include "ultra_honk_composer.hpp"
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include <cstddef>
 #include <cstdint>
 #include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
 
@@ -649,7 +648,6 @@ TEST(UltraHonkComposer, non_native_field_multiplication)
 
     fq a = fq::random_element();
     fq b = fq::random_element();
-
     uint256_t modulus = fq::modulus;
 
     uint1024_t a_big = uint512_t(uint256_t(a));

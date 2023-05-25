@@ -1,14 +1,13 @@
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation_secondary.hpp"
-#include "barretenberg/honk/sumcheck/relations/lookup_grand_product_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
-#include "relation.hpp"
+#include "relation_parameters.hpp"
 #include "arithmetic_relation.hpp"
-#include "grand_product_initialization_relation.hpp"
-#include "grand_product_computation_relation.hpp"
+#include "permutation_relation.hpp"
 #include "../polynomials/univariate.hpp"
 #include "../polynomials/barycentric_data.hpp"
 
@@ -17,16 +16,18 @@
 
 #include <cstddef>
 #include <gtest/gtest.h>
+// TODO(luke): This testing infrastructure was duplicated between here and relation_consistency.test.cpp with the
+// orignal Flavor PR. Find a way to recombine these test suites or at least share this functionality.
 using namespace proof_system::honk::sumcheck;
 /**
- * We want to test if all three relations (namely, ArithmeticRelation, GrandProductComputationRelation,
- * GrandProductInitializationRelation) provide correct contributions by manually computing their
- * contributions with deterministic and random inputs. The relations are supposed to work with
- * univariates (edges) of degree one (length 2) and spit out polynomials of corresponding degrees. We have
- * MAX_RELATION_LENGTH = 5, meaning the output of a relation can atmost be a degree 5 polynomial. Hence,
- * we use a method compute_mock_extended_edges() which starts with degree one input polynomial (two evaluation
- points),
- * extends them (using barycentric formula) to six evaluation points, and stores them to an array of polynomials.
+ * The purpose of this test suite is to show that the identity arithmetic implemented in the Relations is equivalent to
+ * a simpler unoptimized version implemented in the tests themselves. This is useful 1) as documentation since the
+ * simple implementations here should make the underlying arithmetic easier to see, and 2) as a check that optimizations
+ * introduced into the Relations have not changed the result.
+ *
+ * For this purpose, we simply feed (the same) random inputs into each of the two implementations and confirm that
+ * the outputs match. This does not confirm the correctness of the identity arithmetic (the identities will not be
+ * satisfied in general by random inputs) only that the two implementations are equivalent.
  */
 static const size_t INPUT_UNIVARIATE_LENGTH = 2;
 
@@ -63,9 +64,11 @@ class UltraRelationConsistency : public testing::Test {
      */
     RelationParameters<FF> compute_mock_relation_parameters()
     {
-        return { .beta = FF::random_element(),
+        return { .eta = FF::random_element(),
+                 .beta = FF::random_element(),
                  .gamma = FF::random_element(),
-                 .public_input_delta = FF::random_element() };
+                 .public_input_delta = FF::random_element(),
+                 .lookup_grand_product_delta = FF::random_element() };
     }
 
     /**
@@ -108,34 +111,76 @@ class UltraRelationConsistency : public testing::Test {
      * @param relation_parameters
      */
     template <size_t FULL_RELATION_LENGTH>
-    static void validate_evaluations(const Univariate<FF, FULL_RELATION_LENGTH>& expected_evals,
+    static void validate_evaluations(const auto& expected_full_length_univariates, /* array of Univariates*/
                                      const auto relation,
                                      const ExtendedEdges<FULL_RELATION_LENGTH>& extended_edges,
                                      const RelationParameters<FF>& relation_parameters)
     {
+        // First check that the verifier's computation on individual evaluations is correct.
+        // Note: since add_full_relation_value_contribution computes the identities at a single evaluation of the
+        // multivariates, we need only pass in one evaluation point from the extended edges. Which one we choose is
+        // arbitrary so we choose the 0th.
 
-        // Compute the expression index-by-index
-        Univariate<FF, FULL_RELATION_LENGTH> expected_evals_index{ 0 };
-        for (size_t i = 0; i < FULL_RELATION_LENGTH; ++i) {
-            // Get an array of the same size as `extended_edges` with only the i-th element of each extended edge.
-            ClaimedEvaluations evals_i = transposed_univariate_array_at(extended_edges, i);
-            // Evaluate the relation
-            relation.add_full_relation_value_contribution(
-                expected_evals_index.value_at(i), evals_i, relation_parameters);
+        // Extract the RelationValues type for the given relation
+        using RelationValues = typename decltype(relation)::RelationValues;
+        RelationValues relation_evals;
+        RelationValues expected_relation_evals;
+
+        ASSERT_EQ(expected_relation_evals.size(), expected_full_length_univariates.size());
+        // Initialize expected_evals to 0th coefficient of expected full length univariates
+        for (size_t idx = 0; idx < relation_evals.size(); ++idx) {
+            relation_evals[idx] = FF(0); // initialize to 0
+            expected_relation_evals[idx] = expected_full_length_univariates[idx].value_at(0);
         }
-        EXPECT_EQ(expected_evals, expected_evals_index);
 
-        // Compute the expression using the class, that converts the extended edges to UnivariateView
-        auto expected_evals_view = Univariate<FF, relation.RELATION_LENGTH>(0);
-        // The scaling factor is essentially 1 since we are working with degree 1 univariates
-        relation.add_edge_contribution(expected_evals_view, extended_edges, relation_parameters, 1);
+        // Extract 0th evaluation from extended edges
+        ClaimedEvaluations edge_evaluations = transposed_univariate_array_at(extended_edges, 0);
 
-        // Tiny hack to reduce `expected_evals` to be of size `relation.RELATION_LENGTH`
-        Univariate<FF, relation.RELATION_LENGTH> expected_evals_restricted{
-            UnivariateView<FF, relation.RELATION_LENGTH>(expected_evals)
-        };
-        EXPECT_EQ(expected_evals_restricted, expected_evals_view);
+        // Evaluate the relation using the verifier functionality
+        relation.add_full_relation_value_contribution(relation_evals, edge_evaluations, relation_parameters);
+
+        EXPECT_EQ(relation_evals, expected_relation_evals);
+
+        // Next, check that the prover's computation on Univariates is correct
+
+        using RelationUnivariates = typename decltype(relation)::RelationUnivariates;
+        RelationUnivariates relation_univariates;
+        zero_univariates<>(relation_univariates);
+
+        constexpr std::size_t num_univariates = std::tuple_size<RelationUnivariates>::value;
+
+        // Compute the relatiion univariates via the sumcheck prover functionality, then extend
+        // them to full length for easy comparison with the expected result.
+        relation.add_edge_contribution(relation_univariates, extended_edges, relation_parameters, 1);
+
+        auto full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, num_univariates>();
+        extend_tuple_of_arrays<FULL_RELATION_LENGTH>(relation_univariates, full_length_univariates);
+
+        EXPECT_EQ(full_length_univariates, expected_full_length_univariates);
     };
+
+    template <size_t idx = 0, typename... Ts> static void zero_univariates(std::tuple<Ts...>& tuple)
+    {
+        auto& element = std::get<idx>(tuple);
+        std::fill(element.evaluations.begin(), element.evaluations.end(), FF(0));
+
+        if constexpr (idx + 1 < sizeof...(Ts)) {
+            zero_univariates<idx + 1>(tuple);
+        }
+    }
+
+    template <size_t extended_size, size_t idx = 0, typename... Ts>
+    static void extend_tuple_of_arrays(std::tuple<Ts...>& tuple, auto& result_univariates)
+    {
+        auto& element = std::get<idx>(tuple);
+        using Element = std::remove_reference_t<decltype(element)>;
+        BarycentricData<FF, Element::LENGTH, extended_size> barycentric_utils;
+        result_univariates[idx] = barycentric_utils.extend(element);
+
+        if constexpr (idx + 1 < sizeof...(Ts)) {
+            extend_tuple_of_arrays<extended_size, idx + 1>(tuple, result_univariates);
+        }
+    }
 };
 
 TEST_F(UltraRelationConsistency, UltraArithmeticRelation)
@@ -160,6 +205,7 @@ TEST_F(UltraRelationConsistency, UltraArithmeticRelation)
 
     // Extract the extended edges for manual computation of relation contribution
     const auto& w_1 = extended_edges.w_l;
+    const auto& w_1_shift = extended_edges.w_l_shift;
     const auto& w_2 = extended_edges.w_r;
     const auto& w_3 = extended_edges.w_o;
     const auto& w_4 = extended_edges.w_4;
@@ -174,78 +220,25 @@ TEST_F(UltraRelationConsistency, UltraArithmeticRelation)
 
     static const FF neg_half = FF(-2).invert();
 
-    auto expected_evals = (q_arith - 3) * (q_m * w_2 * w_1) * neg_half;
-    expected_evals += (q_l * w_1) + (q_r * w_2) + (q_o * w_3) + (q_4 * w_4) + q_c;
-    expected_evals += (q_arith - 1) * w_4_shift;
-    expected_evals *= q_arith;
+    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
 
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+    // Contribution 1
+    auto contribution_1 = (q_arith - 3) * (q_m * w_2 * w_1) * neg_half;
+    contribution_1 += (q_l * w_1) + (q_r * w_2) + (q_o * w_3) + (q_4 * w_4) + q_c;
+    contribution_1 += (q_arith - 1) * w_4_shift;
+    contribution_1 *= q_arith;
+    expected_full_length_univariates[0] = contribution_1;
+
+    // Contribution 2
+    auto contribution_2 = (w_1 + w_4 - w_1_shift + q_m);
+    contribution_2 *= (q_arith - 2) * (q_arith - 1) * q_arith;
+    expected_full_length_univariates[1] = contribution_2;
+
+    validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
 };
 
-TEST_F(UltraRelationConsistency, UltraArithmeticRelationSecondary)
-{
-    using Flavor = honk::flavor::Ultra;
-    using FF = typename Flavor::FF;
-    static constexpr size_t FULL_RELATION_LENGTH = 6;
-    using ExtendedEdges = typename Flavor::template ExtendedEdges<FULL_RELATION_LENGTH>;
-    static const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
-
-    const auto relation_parameters = compute_mock_relation_parameters();
-    ExtendedEdges extended_edges;
-    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
-
-    // input_univariates are random polynomials of degree one
-    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
-    }
-    compute_mock_extended_edges<FULL_RELATION_LENGTH>(extended_edges, input_polynomials);
-
-    auto relation = UltraArithmeticRelationSecondary<FF>();
-
-    // Extract the extended edges for manual computation of relation contribution
-    const auto& w_1 = extended_edges.w_l;
-    const auto& w_4 = extended_edges.w_4;
-    const auto& w_l_shift = extended_edges.w_l_shift;
-    const auto& q_m = extended_edges.q_m;
-    const auto& q_arith = extended_edges.q_arith;
-
-    auto expected_evals = (w_1 + w_4 - w_l_shift + q_m);
-    expected_evals *= (q_arith - 2) * (q_arith - 1) * q_arith;
-
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
-};
-
-TEST_F(UltraRelationConsistency, UltraGrandProductInitializationRelation)
-{
-    using Flavor = honk::flavor::Ultra;
-    using FF = typename Flavor::FF;
-    using Flavor = honk::flavor::Ultra;
-    static constexpr size_t FULL_RELATION_LENGTH = 6;
-    using ExtendedEdges = typename Flavor::ExtendedEdges<FULL_RELATION_LENGTH>;
-    static const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
-    auto relation_parameters = compute_mock_relation_parameters();
-    ExtendedEdges extended_edges;
-    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
-
-    // input_univariates are random polynomials of degree one
-    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
-    }
-    compute_mock_extended_edges(extended_edges, input_polynomials);
-
-    auto relation = UltraGrandProductInitializationRelation<FF>();
-
-    // Extract the extended edges for manual computation of relation contribution
-    const auto& z_perm_shift = extended_edges.z_perm_shift;
-    const auto& lagrange_last = extended_edges.lagrange_last;
-
-    // Compute the expected result using a simple to read version of the relation expression
-    auto expected_evals = z_perm_shift * lagrange_last;
-
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
-};
-
-TEST_F(UltraRelationConsistency, UltraGrandProductComputationRelation)
+TEST_F(UltraRelationConsistency, UltraPermutationRelation)
 {
     using Flavor = honk::flavor::Ultra;
     using FF = typename Flavor::FF;
@@ -263,7 +256,7 @@ TEST_F(UltraRelationConsistency, UltraGrandProductComputationRelation)
     }
     compute_mock_extended_edges(extended_edges, input_polynomials);
 
-    auto relation = UltraGrandProductComputationRelation<FF>();
+    auto relation = UltraPermutationRelation<FF>();
 
     const auto& beta = relation_parameters.beta;
     const auto& gamma = relation_parameters.gamma;
@@ -287,17 +280,27 @@ TEST_F(UltraRelationConsistency, UltraGrandProductComputationRelation)
     const auto& lagrange_first = extended_edges.lagrange_first;
     const auto& lagrange_last = extended_edges.lagrange_last;
 
+    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+
     // Compute the expected result using a simple to read version of the relation expression
-    auto expected_evals = (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
+
+    // Contribution 1
+    auto contribution_1 = (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
                               (w_3 + id_3 * beta + gamma) * (w_4 + id_4 * beta + gamma) -
                           (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
                               (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma) *
                               (w_4 + sigma_4 * beta + gamma);
+    expected_full_length_univariates[0] = contribution_1;
 
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+    // Contribution 2
+    auto contribution_2 = z_perm_shift * lagrange_last;
+    expected_full_length_univariates[1] = contribution_2;
+
+    validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
 };
 
-TEST_F(UltraRelationConsistency, LookupGrandProductComputationRelation)
+TEST_F(UltraRelationConsistency, LookupRelation)
 {
     using Flavor = honk::flavor::Ultra;
     using FF = typename Flavor::FF;
@@ -315,7 +318,7 @@ TEST_F(UltraRelationConsistency, LookupGrandProductComputationRelation)
     }
     compute_mock_extended_edges(extended_edges, input_polynomials);
 
-    auto relation = LookupGrandProductComputationRelation<FF>();
+    auto relation = LookupRelation<FF>();
 
     const auto eta = relation_parameters.eta;
     const auto beta = relation_parameters.beta;
@@ -366,43 +369,23 @@ TEST_F(UltraRelationConsistency, LookupGrandProductComputationRelation)
     auto table_accum = table_1 + table_2 * eta + table_3 * eta_sqr + table_4 * eta_cube;
     auto table_accum_shift = table_1_shift + table_2_shift * eta + table_3_shift * eta_sqr + table_4_shift * eta_cube;
 
+    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+
     // Compute the expected result using a simple to read version of the relation expression
-    auto expected_evals = (z_lookup + lagrange_first) * (q_lookup * wire_accum + gamma) *
+
+    // Contribution 1
+    auto contribution_1 = (z_lookup + lagrange_first) * (q_lookup * wire_accum + gamma) *
                           (table_accum + table_accum_shift * beta + gamma_by_one_plus_beta) * one_plus_beta;
-    expected_evals -= (z_lookup_shift + lagrange_last * grand_product_delta) *
+    contribution_1 -= (z_lookup_shift + lagrange_last * grand_product_delta) *
                       (s_accum + s_accum_shift * beta + gamma_by_one_plus_beta);
+    expected_full_length_univariates[0] = contribution_1;
 
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
-};
+    // Contribution 2
+    auto contribution_2 = z_lookup_shift * lagrange_last;
+    expected_full_length_univariates[1] = contribution_2;
 
-TEST_F(UltraRelationConsistency, LookupGrandProductInitializationRelation)
-{
-    using Flavor = honk::flavor::Ultra;
-    using FF = typename Flavor::FF;
-    using Flavor = honk::flavor::Ultra;
-    static constexpr size_t FULL_RELATION_LENGTH = 6;
-    using ExtendedEdges = typename Flavor::ExtendedEdges<FULL_RELATION_LENGTH>;
-    static const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
-    auto relation_parameters = compute_mock_relation_parameters();
-    ExtendedEdges extended_edges;
-    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
-
-    // input_univariates are random polynomials of degree one
-    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
-    }
-    compute_mock_extended_edges(extended_edges, input_polynomials);
-
-    auto relation = LookupGrandProductInitializationRelation<FF>();
-
-    // Extract the extended edges for manual computation of relation contribution
-    const auto& z_lookup_shift = extended_edges.z_lookup_shift;
-    const auto& lagrange_last = extended_edges.lagrange_last;
-
-    // Compute the expected result using a simple to read version of the relation expression
-    auto expected_evals = z_lookup_shift * lagrange_last;
-
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+    validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
 };
 
 TEST_F(UltraRelationConsistency, GenPermSortRelation)
@@ -436,25 +419,27 @@ TEST_F(UltraRelationConsistency, GenPermSortRelation)
     const auto& w_1_shift = extended_edges.w_l_shift;
     const auto& q_sort = extended_edges.q_sort;
 
-    static const FF fake_alpha_1 = FF(1);
-    static const FF fake_alpha_2 = fake_alpha_1 * fake_alpha_1;
-    static const FF fake_alpha_3 = fake_alpha_2 * fake_alpha_1;
-    static const FF fake_alpha_4 = fake_alpha_3 * fake_alpha_1;
-
     // Compute wire differences
     auto delta_1 = w_2 - w_1;
     auto delta_2 = w_3 - w_2;
     auto delta_3 = w_4 - w_3;
     auto delta_4 = w_1_shift - w_4;
 
-    // Compute the expected result using a simple to read version of the relation expression
-    auto expected_evals = delta_1 * (delta_1 - 1) * (delta_1 - 2) * (delta_1 - 3) * fake_alpha_1;
-    expected_evals += delta_2 * (delta_2 - 1) * (delta_2 - 2) * (delta_2 - 3) * fake_alpha_2;
-    expected_evals += delta_3 * (delta_3 - 1) * (delta_3 - 2) * (delta_3 - 3) * fake_alpha_3;
-    expected_evals += delta_4 * (delta_4 - 1) * (delta_4 - 2) * (delta_4 - 3) * fake_alpha_4;
-    expected_evals *= q_sort;
+    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
 
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+    // Compute the expected result using a simple to read version of the relation expression
+    auto contribution_1 = delta_1 * (delta_1 - 1) * (delta_1 - 2) * (delta_1 - 3);
+    auto contribution_2 = delta_2 * (delta_2 - 1) * (delta_2 - 2) * (delta_2 - 3);
+    auto contribution_3 = delta_3 * (delta_3 - 1) * (delta_3 - 2) * (delta_3 - 3);
+    auto contribution_4 = delta_4 * (delta_4 - 1) * (delta_4 - 2) * (delta_4 - 3);
+
+    expected_full_length_univariates[0] = contribution_1 * q_sort;
+    expected_full_length_univariates[1] = contribution_2 * q_sort;
+    expected_full_length_univariates[2] = contribution_3 * q_sort;
+    expected_full_length_univariates[3] = contribution_4 * q_sort;
+
+    validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
 };
 
 TEST_F(UltraRelationConsistency, EllipticRelation)
@@ -491,23 +476,26 @@ TEST_F(UltraRelationConsistency, EllipticRelation)
     const auto& q_beta_sqr = extended_edges.q_4;
     const auto& q_elliptic = extended_edges.q_elliptic;
 
-    static const FF fake_alpha_1 = FF(1);
-    static const FF fake_alpha_2 = fake_alpha_1 * fake_alpha_1;
+    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
 
     // Compute x/y coordinate identities
+
+    // Contribution 1
     auto x_identity = q_sign * (y_1 * y_2 * 2);
     x_identity += q_beta * (x_1 * x_2 * x_3 * 2 + x_1 * x_1 * x_2) * FF(-1);
     x_identity += q_beta_sqr * (x_2 * x_2 * x_3 - x_1 * x_2 * x_2);
     x_identity += (x_1 * x_1 * x_3 - y_2 * y_2 - y_1 * y_1 + x_2 * x_2 * x_2 + x_1 * x_1 * x_1);
 
+    // Contribution 2
     auto y_identity = q_sign * (y_2 * x_3 - y_2 * x_1);
     y_identity += q_beta * (x_2 * y_3 + y_1 * x_2);
     y_identity += (x_1 * y_1 - x_1 * y_3 - y_1 * x_3 - x_1 * y_1);
 
-    auto expected_evals = x_identity * fake_alpha_1 + y_identity * fake_alpha_2;
-    expected_evals *= q_elliptic;
+    expected_full_length_univariates[0] = x_identity * q_elliptic;
+    expected_full_length_univariates[1] = y_identity * q_elliptic;
 
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+    validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
 };
 
 TEST_F(UltraRelationConsistency, AuxiliaryRelation)
@@ -531,7 +519,6 @@ TEST_F(UltraRelationConsistency, AuxiliaryRelation)
     auto relation = AuxiliaryRelation<FF>();
 
     const auto& eta = relation_parameters.eta;
-    const auto fake_alpha = FF(1);
 
     // Extract the extended edges for manual computation of relation contribution
     const auto& w_1 = extended_edges.w_l;
@@ -551,6 +538,9 @@ TEST_F(UltraRelationConsistency, AuxiliaryRelation)
     const auto& q_c = extended_edges.q_c;
     const auto& q_arith = extended_edges.q_arith;
     const auto& q_aux = extended_edges.q_aux;
+
+    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
 
     constexpr FF LIMB_SIZE(uint256_t(1) << 68);
     constexpr FF SUBLIMB_SHIFT(uint256_t(1) << 14);
@@ -572,32 +562,28 @@ TEST_F(UltraRelationConsistency, AuxiliaryRelation)
     non_native_field_gate_2 *= LIMB_SIZE;
     non_native_field_gate_2 -= w_4_shift;
     non_native_field_gate_2 += limb_subproduct;
-    non_native_field_gate_2 *= q_4;
 
     limb_subproduct *= LIMB_SIZE;
     limb_subproduct += (w_1_shift * w_2_shift);
     auto non_native_field_gate_1 = limb_subproduct;
     non_native_field_gate_1 -= (w_3 + w_4);
-    non_native_field_gate_1 *= q_3;
 
     auto non_native_field_gate_3 = limb_subproduct;
     non_native_field_gate_3 += w_4;
     non_native_field_gate_3 -= (w_3_shift + w_4_shift);
-    non_native_field_gate_3 *= q_m;
 
-    auto non_native_field_identity = non_native_field_gate_1 + non_native_field_gate_2 + non_native_field_gate_3;
-    non_native_field_identity *= q_2;
+    auto non_native_field_identity = q_2 * q_3 * non_native_field_gate_1;
+    non_native_field_identity += q_2 * q_4 * non_native_field_gate_2;
+    non_native_field_identity += q_2 * q_m * non_native_field_gate_3;
 
     auto limb_accumulator_1 = w_1 + w_2 * SUBLIMB_SHIFT + w_3 * SUBLIMB_SHIFT_2 + w_1_shift * SUBLIMB_SHIFT_3 +
                               w_2_shift * SUBLIMB_SHIFT_4 - w_4;
-    limb_accumulator_1 *= q_4;
 
     auto limb_accumulator_2 = w_3 + w_4 * SUBLIMB_SHIFT + w_1_shift * SUBLIMB_SHIFT_2 + w_2_shift * SUBLIMB_SHIFT_3 +
                               w_3_shift * SUBLIMB_SHIFT_4 - w_4_shift;
-    limb_accumulator_2 *= q_m;
 
-    auto limb_accumulator_identity = limb_accumulator_1 + limb_accumulator_2;
-    limb_accumulator_identity *= q_3;
+    auto limb_accumulator_identity = q_3 * q_4 * limb_accumulator_1;
+    limb_accumulator_identity += q_3 * q_m * limb_accumulator_2;
 
     /**
      * MEMORY
@@ -627,11 +613,9 @@ TEST_F(UltraRelationConsistency, AuxiliaryRelation)
     // auto adjacent_values_match_if_adjacent_indices_match = (FF(1) - index_delta) * record_delta;
     auto adjacent_values_match_if_adjacent_indices_match = (index_delta * FF(-1) + FF(1)) * record_delta;
 
-    auto ROM_consistency_check_identity = adjacent_values_match_if_adjacent_indices_match;
-    ROM_consistency_check_identity *= fake_alpha;
-    ROM_consistency_check_identity += index_is_monotonically_increasing;
-    ROM_consistency_check_identity *= fake_alpha;
-    ROM_consistency_check_identity += memory_record_check;
+    expected_full_length_univariates[1] = adjacent_values_match_if_adjacent_indices_match * (q_1 * q_2);
+    expected_full_length_univariates[2] = index_is_monotonically_increasing * (q_1 * q_2);
+    auto ROM_consistency_check_identity = memory_record_check * (q_1 * q_2);
 
     /**
      * RAM Consistency Check
@@ -659,34 +643,42 @@ TEST_F(UltraRelationConsistency, AuxiliaryRelation)
     auto next_gate_access_type_is_boolean = next_gate_access_type * next_gate_access_type - next_gate_access_type;
 
     // Putting it all together...
-    auto RAM_consistency_check_identity =
-        adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation;
-    RAM_consistency_check_identity *= fake_alpha;
-    RAM_consistency_check_identity += index_is_monotonically_increasing;
-    RAM_consistency_check_identity *= fake_alpha;
-    RAM_consistency_check_identity += next_gate_access_type_is_boolean;
-    RAM_consistency_check_identity *= fake_alpha;
-    RAM_consistency_check_identity += access_check;
+    expected_full_length_univariates[3] =
+        adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation * (q_arith);
+    expected_full_length_univariates[4] = index_is_monotonically_increasing * (q_arith);
+    expected_full_length_univariates[5] = next_gate_access_type_is_boolean * (q_arith);
+    auto RAM_consistency_check_identity = access_check * (q_arith);
+
+    /**
+     * RAM/ROM access check gate
+     */
+    memory_record_check *= (q_1 * q_m);
 
     /**
      * RAM Timestamp Consistency Check
      */
     auto timestamp_delta = w_2_shift - w_2;
     auto RAM_timestamp_check_identity = (index_delta * FF(-1) + FF(1)) * timestamp_delta - w_3;
+    RAM_timestamp_check_identity *= (q_1 * q_4);
 
     /**
      * The complete RAM/ROM memory identity
      */
-    auto memory_identity = ROM_consistency_check_identity * q_2;
-    memory_identity += RAM_timestamp_check_identity * q_4;
-    memory_identity += memory_record_check * q_m;
-    memory_identity *= q_1;
-    memory_identity += (RAM_consistency_check_identity * q_arith);
+    auto memory_identity = ROM_consistency_check_identity;
+    memory_identity += RAM_timestamp_check_identity;
+    memory_identity += memory_record_check;
+    memory_identity += RAM_consistency_check_identity;
 
-    auto expected_evals = memory_identity + non_native_field_identity + limb_accumulator_identity;
-    expected_evals *= q_aux;
+    expected_full_length_univariates[0] = memory_identity + non_native_field_identity + limb_accumulator_identity;
 
-    validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+    expected_full_length_univariates[0] *= q_aux;
+    expected_full_length_univariates[1] *= q_aux;
+    expected_full_length_univariates[2] *= q_aux;
+    expected_full_length_univariates[3] *= q_aux;
+    expected_full_length_univariates[4] *= q_aux;
+    expected_full_length_univariates[5] *= q_aux;
+
+    validate_evaluations(expected_full_length_univariates, relation, extended_edges, relation_parameters);
 };
 
 } // namespace proof_system::honk_relation_tests

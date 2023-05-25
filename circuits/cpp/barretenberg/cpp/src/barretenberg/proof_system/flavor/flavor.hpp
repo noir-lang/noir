@@ -231,16 +231,53 @@ template <typename Tuple, std::size_t Index = 0> static constexpr size_t get_max
 }
 
 /**
- * @brief Recursive utility function to construct tuple of Univariates of length RELATION_LENGTH
- *
+ * @brief Recursive utility function to construct tuple of tuple of Univariates
+ * @details This is the container for storing the univariate contributions from each identity in each relation. Each
+ * Relation contributes a tuple with num-identities many Univariates and there are num-relations many tuples in the
+ * outer tuple.
  */
-template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto create_univariate_tuple()
+template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto create_relation_univariates_container()
 {
     if constexpr (Index >= std::tuple_size<Tuple>::value) {
         return std::tuple<>{}; // Return empty when reach end of the tuple
     } else {
-        using UnivariateType = sumcheck::Univariate<FF, std::tuple_element_t<Index, Tuple>::RELATION_LENGTH>;
-        return std::tuple_cat(std::tuple<UnivariateType>{}, create_univariate_tuple<FF, Tuple, Index + 1>());
+        using UnivariateTuple = typename std::tuple_element_t<Index, Tuple>::RelationUnivariates;
+        return std::tuple_cat(std::tuple<UnivariateTuple>{},
+                              create_relation_univariates_container<FF, Tuple, Index + 1>());
+    }
+}
+
+/**
+ * @brief Recursive utility function to construct tuple of arrays
+ * @details Container for storing value of each identity in each relation. Each Relation contributes an array of
+ * length num-identities.
+ */
+template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto create_relation_values_container()
+{
+    if constexpr (Index >= std::tuple_size<Tuple>::value) {
+        return std::tuple<>{}; // Return empty when reach end of the tuple
+    } else {
+        using ValuesArray = typename std::tuple_element_t<Index, Tuple>::RelationValues;
+        return std::tuple_cat(std::tuple<ValuesArray>{}, create_relation_values_container<FF, Tuple, Index + 1>());
+    }
+}
+
+/**
+ * @brief Recursive helper function to instantiate BarycentricData to extend each Relation in a tuple
+ * @details Instantiate with lengths 2, 3, ... ExtendedLength
+ * @note The purpose of this function is simply to instantiate some BarycentricData so that the static member
+ * arrays are computed at compile time. It thus does not need a return value. It's awkward however to make
+ * void functions execute at compile time so we make it return true upon completion and wrap the call in a
+ * static_assert to ensure it has executed correctly.
+ */
+template <class FF, size_t ExtendedLength, std::size_t Length = 2> static constexpr bool instantiate_barycentric_utils()
+{
+    if constexpr (Length > ExtendedLength) { // include ExtendedLength
+        return true;                         // Return true when finished
+    } else {
+        // We dont need to keep the result, we just want to ensure compile time computation of static members
+        [[maybe_unused]] auto barycentric_data = sumcheck::BarycentricData<FF, Length, ExtendedLength>{};
+        return instantiate_barycentric_utils<FF, ExtendedLength, Length + 1>();
     }
 }
 

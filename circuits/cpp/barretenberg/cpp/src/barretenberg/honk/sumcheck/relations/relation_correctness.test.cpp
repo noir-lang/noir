@@ -3,13 +3,11 @@
 #include "barretenberg/honk/composer/ultra_honk_composer.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation_secondary.hpp"
-#include "barretenberg/honk/sumcheck/relations/lookup_grand_product_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
@@ -28,6 +26,40 @@ void ensure_non_zero(auto& polynomial)
 }
 
 /**
+ * @brief Check that a given relation is satified for a set of polynomials
+ *
+ * @tparam relation_idx Index into a tuple of provided relations
+ * @tparam Flavor
+ */
+template <typename Flavor> void check_relation(auto relation, auto circuit_size, auto polynomials, auto params)
+{
+    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
+    for (size_t i = 0; i < circuit_size; i++) {
+
+        // Extract an array containing all the polynomial evaluations at a given row i
+        ClaimedEvaluations evaluations_at_index_i;
+        size_t poly_idx = 0;
+        for (auto& poly : polynomials) {
+            evaluations_at_index_i[poly_idx] = poly[i];
+            ++poly_idx;
+        }
+
+        // Define the appropriate RelationValues type for this relation and initialize to zero
+        using RelationValues = typename decltype(relation)::RelationValues;
+        RelationValues result;
+        for (auto& element : result) {
+            element = 0;
+        }
+
+        // Evaluate each constraint in the relation and check that each is satisfied
+        relation.add_full_relation_value_contribution(result, evaluations_at_index_i, params);
+        for (auto& element : result) {
+            ASSERT_EQ(element, 0);
+        }
+    }
+}
+
+/**
  * @brief Test the correctness of the Standard Honk relations
  *
  * @details Check that the constraints encoded by the relations are satisfied by the polynomials produced by the
@@ -42,7 +74,7 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
     using Flavor = honk::flavor::Standard;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
-    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
+    // using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
     // Create a composer and a dummy circuit with a few gates
     auto composer = StandardHonkComposer();
@@ -61,6 +93,7 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
     }
     // Create a prover (it will compute proving key and witness)
     auto prover = composer.create_prover();
+    auto circuit_size = prover.key->circuit_size;
 
     // Generate beta and gamma
     fr beta = fr::random_element();
@@ -107,34 +140,11 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
     prover_polynomials.lagrange_last = prover.key->lagrange_last;
 
     // Construct the round for applying sumcheck relations and results for storing computed results
-    auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<FF>(),
-                                honk::sumcheck::GrandProductComputationRelation<FF>(),
-                                honk::sumcheck::GrandProductInitializationRelation<FF>());
+    auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<FF>(), honk::sumcheck::PermutationRelation<FF>());
 
-    fr result = 0;
-    for (size_t i = 0; i < prover.key->circuit_size; i++) {
-        // Compute an array containing all the evaluations at a given row i
-
-        ClaimedEvaluations evaluations_at_index_i;
-        size_t poly_idx = 0;
-        for (auto& polynomial : prover_polynomials) {
-            evaluations_at_index_i[poly_idx] = polynomial[i];
-            ++poly_idx;
-        }
-
-        // For each relation, call the `accumulate_relation_evaluation` over all witness/selector values at the
-        // i-th row/vertex of the hypercube.
-        // We use ASSERT_EQ instead of EXPECT_EQ so that the tests stops at the first index at which the result is not
-        // 0, since result = 0 + C(transposed), which we expect will equal 0.
-        std::get<0>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<1>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<2>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-    }
+    // Check that each relation is satisfied across each row of the prover polynomials
+    check_relation<Flavor>(std::get<0>(relations), circuit_size, prover_polynomials, params);
+    check_relation<Flavor>(std::get<1>(relations), circuit_size, prover_polynomials, params);
 }
 
 /**
@@ -154,7 +164,7 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
     using Flavor = honk::flavor::Ultra;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
-    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
+    // using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
     // by each relation are non-trivially exercised.
@@ -275,6 +285,7 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
 
     // Create a prover (it will compute proving key and witness)
     auto prover = composer.create_prover();
+    auto circuit_size = prover.key->circuit_size;
 
     // Generate eta, beta and gamma
     fr eta = fr::random_element();
@@ -308,10 +319,6 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
     // Compute lookup grand product polynomial
     prover.key->z_lookup = prover_library::compute_lookup_grand_product<Flavor>(prover.key, eta, beta, gamma);
 
-    // Create an array of spans to the underlying polynomials to more easily
-    // get the transposition.
-    // Ex: polynomial_spans[3][i] returns the i-th coefficient of the third polynomial
-    // in the list below
     ProverPolynomials prover_polynomials;
 
     prover_polynomials.w_l = prover.key->w_l;
@@ -367,56 +374,19 @@ TEST(RelationCorrectness, UltraRelationCorrectness)
 
     // Construct the round for applying sumcheck relations and results for storing computed results
     auto relations = std::tuple(honk::sumcheck::UltraArithmeticRelation<FF>(),
-                                honk::sumcheck::UltraArithmeticRelationSecondary<FF>(),
-                                honk::sumcheck::UltraGrandProductInitializationRelation<FF>(),
-                                honk::sumcheck::UltraGrandProductComputationRelation<FF>(),
-                                honk::sumcheck::LookupGrandProductComputationRelation<FF>(),
-                                honk::sumcheck::LookupGrandProductInitializationRelation<FF>(),
+                                honk::sumcheck::UltraPermutationRelation<FF>(),
+                                honk::sumcheck::LookupRelation<FF>(),
                                 honk::sumcheck::GenPermSortRelation<FF>(),
                                 honk::sumcheck::EllipticRelation<FF>(),
                                 honk::sumcheck::AuxiliaryRelation<FF>());
 
-    fr result = 0;
-    for (size_t i = 0; i < prover.key->circuit_size; i++) {
-        // Compute an array containing all the evaluations at a given row i
-        ClaimedEvaluations evaluations_at_index_i;
-        size_t poly_idx = 0;
-        for (auto& polynomial : prover_polynomials) {
-            evaluations_at_index_i[poly_idx] = polynomial[i];
-            ++poly_idx;
-        }
-
-        // For each relation, call the `accumulate_relation_evaluation` over all witness/selector values at the
-        // i-th row/vertex of the hypercube. We use ASSERT_EQ instead of EXPECT_EQ so that the tests stops at
-        // the first index at which the result is not 0, since result = 0 + C(transposed), which we expect will
-        // equal 0.
-        std::get<0>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<1>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<2>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<3>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<4>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<5>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<6>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<7>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-
-        std::get<8>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
-        ASSERT_EQ(result, 0);
-    }
+    // Check that each relation is satisfied across each row of the prover polynomials
+    check_relation<Flavor>(std::get<0>(relations), circuit_size, prover_polynomials, params);
+    check_relation<Flavor>(std::get<1>(relations), circuit_size, prover_polynomials, params);
+    check_relation<Flavor>(std::get<2>(relations), circuit_size, prover_polynomials, params);
+    check_relation<Flavor>(std::get<3>(relations), circuit_size, prover_polynomials, params);
+    check_relation<Flavor>(std::get<4>(relations), circuit_size, prover_polynomials, params);
+    check_relation<Flavor>(std::get<5>(relations), circuit_size, prover_polynomials, params);
 }
 
 } // namespace test_honk_relations

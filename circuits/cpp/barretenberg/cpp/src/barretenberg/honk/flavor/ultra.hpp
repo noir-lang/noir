@@ -17,10 +17,8 @@
 #include "barretenberg/srs/reference_string/reference_string.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation_secondary.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/lookup_grand_product_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
@@ -52,11 +50,8 @@ class Ultra {
 
     // define the tuple of Relations that comprise the Sumcheck relation
     using Relations = std::tuple<sumcheck::UltraArithmeticRelation<FF>,
-                                 sumcheck::UltraArithmeticRelationSecondary<FF>,
-                                 sumcheck::UltraGrandProductComputationRelation<FF>,
-                                 sumcheck::UltraGrandProductInitializationRelation<FF>,
-                                 sumcheck::LookupGrandProductComputationRelation<FF>,
-                                 sumcheck::LookupGrandProductInitializationRelation<FF>,
+                                 sumcheck::UltraPermutationRelation<FF>,
+                                 sumcheck::LookupRelation<FF>,
                                  sumcheck::GenPermSortRelation<FF>,
                                  sumcheck::EllipticRelation<FF>,
                                  sumcheck::AuxiliaryRelation<FF>>;
@@ -64,10 +59,12 @@ class Ultra {
     static constexpr size_t MAX_RELATION_LENGTH = get_max_relation_length<Relations>();
     static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
 
+    // Instantiate the BarycentricData needed to extend each Relation Univariate
+    static_assert(instantiate_barycentric_utils<FF, MAX_RELATION_LENGTH>());
+
     // define the container for storing the univariate contribution from each relation in Sumcheck
-    using UnivariateTuple = decltype(create_univariate_tuple<FF, Relations>());
-    // define utilities to extend univarates from RELATION_LENGTH to MAX_RELATION_LENGTH for each Relation
-    using BarycentricUtils = decltype(create_barycentric_utils<FF, Relations, MAX_RELATION_LENGTH>());
+    using RelationUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
+    using RelationValues = decltype(create_relation_values_container<FF, Relations>());
 
   private:
     template <typename DataType, typename HandleType>

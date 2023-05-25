@@ -29,46 +29,6 @@ const size_t max_relation_length = 5;
 const size_t input_polynomial_length = 2;
 
 namespace test_sumcheck_round {
-template <class FF, size_t N>
-void construct_full_polynomials(ProverPolynomials& full_polynomials,
-                                std::array<FF, N>& w_l,
-                                std::array<FF, N>& w_r,
-                                std::array<FF, N>& w_o,
-                                std::array<FF, N>& z_perm,
-                                std::array<FF, N>& z_perm_shift,
-                                std::array<FF, N>& q_m,
-                                std::array<FF, N>& q_l,
-                                std::array<FF, N>& q_r,
-                                std::array<FF, N>& q_o,
-                                std::array<FF, N>& q_c,
-                                std::array<FF, N>& sigma_1,
-                                std::array<FF, N>& sigma_2,
-                                std::array<FF, N>& sigma_3,
-                                std::array<FF, N>& id_1,
-                                std::array<FF, N>& id_2,
-                                std::array<FF, N>& id_3,
-                                std::array<FF, N>& lagrange_first,
-                                std::array<FF, N>& lagrange_last)
-{
-    full_polynomials.w_l = w_l;
-    full_polynomials.w_r = w_r;
-    full_polynomials.w_o = w_o;
-    full_polynomials.z_perm = z_perm;
-    full_polynomials.z_perm_shift = z_perm_shift;
-    full_polynomials.q_m = q_m;
-    full_polynomials.q_l = q_l;
-    full_polynomials.q_r = q_r;
-    full_polynomials.q_o = q_o;
-    full_polynomials.q_c = q_c;
-    full_polynomials.sigma_1 = sigma_1;
-    full_polynomials.sigma_2 = sigma_2;
-    full_polynomials.sigma_3 = sigma_3;
-    full_polynomials.id_1 = id_1;
-    full_polynomials.id_2 = id_2;
-    full_polynomials.id_3 = id_3;
-    full_polynomials.lagrange_first = lagrange_first;
-    full_polynomials.lagrange_last = lagrange_last;
-}
 
 // The below two methods are used in the test ComputeUnivariateProver
 static Univariate<FF, max_relation_length> compute_round_univariate(
@@ -77,48 +37,29 @@ static Univariate<FF, max_relation_length> compute_round_univariate(
     const FF alpha)
 {
     size_t round_size = 1;
-
     // Improvement(Cody): This is ugly? Maye supply some/all of this data through "flavor" class?
     auto round = SumcheckRound<Flavor>(round_size);
-    auto w_l = input_polynomials[0];
-    auto w_r = input_polynomials[1];
-    auto w_o = input_polynomials[2];
-    auto z_perm = input_polynomials[3];
-    auto z_perm_shift = input_polynomials[4];
-    auto q_m = input_polynomials[5];
-    auto q_l = input_polynomials[6];
-    auto q_r = input_polynomials[7];
-    auto q_o = input_polynomials[8];
-    auto q_c = input_polynomials[9];
-    auto sigma_1 = input_polynomials[10];
-    auto sigma_2 = input_polynomials[11];
-    auto sigma_3 = input_polynomials[12];
-    auto id_1 = input_polynomials[13];
-    auto id_2 = input_polynomials[14];
-    auto id_3 = input_polynomials[15];
-    auto lagrange_first = input_polynomials[16];
-    auto lagrange_last = input_polynomials[17];
 
     ProverPolynomials full_polynomials;
-    construct_full_polynomials(full_polynomials,
-                               w_l,
-                               w_r,
-                               w_o,
-                               z_perm,
-                               z_perm_shift,
-                               q_m,
-                               q_l,
-                               q_r,
-                               q_o,
-                               q_c,
-                               sigma_1,
-                               sigma_2,
-                               sigma_3,
-                               id_1,
-                               id_2,
-                               id_3,
-                               lagrange_first,
-                               lagrange_last);
+    full_polynomials.w_l = input_polynomials[0];
+    full_polynomials.w_r = input_polynomials[1];
+    full_polynomials.w_o = input_polynomials[2];
+    full_polynomials.z_perm = input_polynomials[3];
+    full_polynomials.z_perm_shift = input_polynomials[4];
+    full_polynomials.q_m = input_polynomials[5];
+    full_polynomials.q_l = input_polynomials[6];
+    full_polynomials.q_r = input_polynomials[7];
+    full_polynomials.q_o = input_polynomials[8];
+    full_polynomials.q_c = input_polynomials[9];
+    full_polynomials.sigma_1 = input_polynomials[10];
+    full_polynomials.sigma_2 = input_polynomials[11];
+    full_polynomials.sigma_3 = input_polynomials[12];
+    full_polynomials.id_1 = input_polynomials[13];
+    full_polynomials.id_2 = input_polynomials[14];
+    full_polynomials.id_3 = input_polynomials[15];
+    full_polynomials.lagrange_first = input_polynomials[16];
+    full_polynomials.lagrange_last = input_polynomials[17];
+
     PowUnivariate<FF> pow_zeta(1);
     Univariate<FF, max_relation_length> round_univariate =
         round.compute_univariate(full_polynomials, relation_parameters, pow_zeta, alpha);
@@ -329,6 +270,95 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
     };
     run_test(/* is_random_input=*/false);
     run_test(/* is_random_input=*/true);
+}
+
+/**
+ * @brief Test utility functions for applying operations to tuple of tuple of Univariates
+ *
+ */
+TEST(SumcheckRound, TupleOfTuplesOfUnivariates)
+{
+    using Flavor = proof_system::honk::flavor::Standard;
+    using FF = typename Flavor::FF;
+
+    // Define three linear univariates of different sizes
+    Univariate<FF, 3> univariate_1({ 1, 2, 3 });
+    Univariate<FF, 2> univariate_2({ 2, 4 });
+    Univariate<FF, 5> univariate_3({ 3, 4, 5, 6, 7 });
+    const size_t MAX_LENGTH = 5;
+
+    // Instantiate some barycentric extension utility classes
+    auto barycentric_util_1 = BarycentricData<FF, 3, MAX_LENGTH>();
+    auto barycentric_util_2 = BarycentricData<FF, 2, MAX_LENGTH>();
+    auto barycentric_util_3 = BarycentricData<FF, 5, MAX_LENGTH>();
+
+    // Construct a tuple of tuples of the form { {univariate_1}, {univariate_2, univariate_3} }
+    auto tuple_of_tuples = std::make_tuple(std::make_tuple(univariate_1), std::make_tuple(univariate_2, univariate_3));
+
+    // Use scale_univariate_accumulators to scale by challenge powers
+    FF challenge = 5;
+    FF running_challenge = 1;
+    SumcheckRound<Flavor>::scale_univariates(tuple_of_tuples, challenge, running_challenge);
+
+    // Use extend_and_batch_univariates to extend to MAX_LENGTH then accumulate
+    auto result = Univariate<FF, MAX_LENGTH>();
+    SumcheckRound<Flavor>::extend_and_batch_univariates(tuple_of_tuples, result);
+
+    // Repeat the batching process manually
+    auto result_expected = barycentric_util_1.extend(univariate_1) * 1 +
+                           barycentric_util_2.extend(univariate_2) * challenge +
+                           barycentric_util_3.extend(univariate_3) * challenge * challenge;
+
+    // Compare final batched univarites
+    EXPECT_EQ(result, result_expected);
+
+    // Reinitialize univariate accumulators to zero
+    SumcheckRound<Flavor>::zero_univariates(tuple_of_tuples);
+
+    // Check that reinitialization was successful
+    Univariate<FF, 3> expected_1({ 0, 0, 0 });
+    Univariate<FF, 2> expected_2({ 0, 0 });
+    Univariate<FF, 5> expected_3({ 0, 0, 0, 0, 0 });
+    EXPECT_EQ(std::get<0>(std::get<0>(tuple_of_tuples)), expected_1);
+    EXPECT_EQ(std::get<0>(std::get<1>(tuple_of_tuples)), expected_2);
+    EXPECT_EQ(std::get<1>(std::get<1>(tuple_of_tuples)), expected_3);
+}
+
+/**
+ * @brief Test utility functions for applying operations to tuple of std::arrays of field elements
+ *
+ */
+TEST(SumcheckRound, TuplesOfEvaluationArrays)
+{
+    using Flavor = proof_system::honk::flavor::Standard;
+    using FF = typename Flavor::FF;
+
+    // Define two arrays of arbitrary elements
+    std::array<FF, 1> evaluations_1 = { 4 };
+    std::array<FF, 2> evaluations_2 = { 6, 2 };
+
+    // Construct a tuple
+    auto tuple_of_arrays = std::make_tuple(evaluations_1, evaluations_2);
+
+    // Use scale_and_batch_elements to scale by challenge powers
+    FF challenge = 5;
+    FF running_challenge = 1;
+    FF result = 0;
+    SumcheckRound<Flavor>::scale_and_batch_elements(tuple_of_arrays, challenge, running_challenge, result);
+
+    // Repeat the batching process manually
+    auto result_expected =
+        evaluations_1[0] * 1 + evaluations_2[0] * challenge + evaluations_2[1] * challenge * challenge;
+
+    // Compare batched result
+    EXPECT_EQ(result, result_expected);
+
+    // Reinitialize univariate accumulators to zero
+    SumcheckRound<Flavor>::zero_elements(tuple_of_arrays);
+
+    EXPECT_EQ(std::get<0>(tuple_of_arrays)[0], 0);
+    EXPECT_EQ(std::get<1>(tuple_of_arrays)[0], 0);
+    EXPECT_EQ(std::get<1>(tuple_of_arrays)[1], 0);
 }
 
 } // namespace test_sumcheck_round
