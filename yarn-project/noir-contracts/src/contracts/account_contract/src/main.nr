@@ -18,8 +18,7 @@ contract Account {
     fn entrypoint(
         inputs: pub Inputs,
         payload: pub EntrypointPayload,
-        signature: pub [u8;64],
-        payload_hash: pub [u8;32]
+        signature: pub [u8;64]
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
 
@@ -28,7 +27,9 @@ contract Account {
         context.args = context.args.push(payload.hash());
 
         // Verify payload signature using ethereum's signing scheme
-        // TODO: calculate payload hash here instead of receiving it as an argument
+        // TODO: Switch to keccak when available in Noir
+        let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
+        let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
         let verification = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, payload_hash);
         constrain verification == 1;
 

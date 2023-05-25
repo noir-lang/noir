@@ -15,14 +15,14 @@ import { AccountContractAbi, ChildAbi } from '@aztec/noir-contracts/examples';
 
 import { ARGS_LENGTH, ContractDeploymentData, FunctionData, TxContext, TxRequest } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
+import { sha256 } from '@aztec/foundation/crypto';
+import { toBigInt } from '@aztec/foundation/serialize';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import times from 'lodash.times';
 import { mnemonicToAccount } from 'viem/accounts';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { deployL1Contracts } from './deploy_l1_contracts.js';
 import { MNEMONIC } from './fixtures.js';
-import { toBigInt } from '@aztec/foundation/serialize';
-import { keccak } from '@aztec/foundation/crypto';
-import { secp256k1 } from '@noble/curves/secp256k1';
 
 const logger = createDebugLogger('aztec:e2e_account_contract');
 
@@ -104,6 +104,8 @@ describe('e2e_account_contract', () => {
     return [...payload.flattened_args, ...payload.flattened_selectors, ...payload.flattened_targets, payload.nonce];
   };
 
+  const toFrArray = (buf: Buffer) => Array.from(buf).map(byte => new Fr(byte));
+
   const buildPayload = (privateCalls: FunctionCall[], publicCalls: FunctionCall[]): EntrypointPayload => {
     const nonce = Fr.random();
     const emptyCall = { args: times(ARGS_LENGTH, Fr.zero), selector: Buffer.alloc(32), target: AztecAddress.ZERO };
@@ -134,7 +136,8 @@ describe('e2e_account_contract', () => {
     );
 
     // Hash the payload object, so we sign over it
-    const payloadHash = keccak(Buffer.concat(flattenPayload(payload).map(fr => fr.toBuffer())));
+    // TODO: Switch to keccak when avaiable in Noir
+    const payloadHash = sha256(Buffer.concat(flattenPayload(payload).map(fr => fr.toBuffer())));
     logger(`Payload hash: ${payloadHash.toString('hex')} (${payloadHash.length} bytes)`);
 
     // Sign using the private key that matches account contract's pubkey by default
@@ -145,17 +148,15 @@ describe('e2e_account_contract', () => {
     logger(`Signature: ${signature.toString('hex')} (${signature.length} bytes)`);
 
     // Set packed args for the call
-    const toFrArray = (buf: Buffer) => Array.from(buf).map(byte => new Fr(byte));
     txRequest.setPackedArg(0, flattenPayload(payload));
     txRequest.setPackedArg(1, toFrArray(signature));
-    txRequest.setPackedArg(2, toFrArray(payloadHash));
 
     // Create the method call using the actual args to send into Noir
     return new ContractFunctionInteractionFromTxRequest(
       aztecRpcServer,
       account.address,
       'entrypoint',
-      [...flattenPayload(payload), ...toFrArray(signature), ...toFrArray(payloadHash)],
+      [...flattenPayload(payload), ...toFrArray(signature)],
       FunctionType.SECRET,
     ).withTxRequest(txRequest);
   };
@@ -171,7 +172,7 @@ describe('e2e_account_contract', () => {
     expect(receipt.status).toBe(TxStatus.MINED);
   });
 
-  it.only('calls a public function', async () => {
+  it('calls a public function', async () => {
     const payload = buildPayload([], [callChildPubStoreValue(42)]);
     const call = buildCall(payload);
     const tx = call.send({ from: accounts[0] });
