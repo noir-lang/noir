@@ -5,7 +5,7 @@ use noirc_abi::{Abi, AbiParameter, FunctionSignature};
 
 /// Traverses the parameters to the program to infer the lengths of any arrays that occur.
 ///
-/// This is needed for for the acir_gen pass, because while the SSA representation of the program
+/// This is needed for the acir_gen pass, because while the SSA representation of the program
 /// knows the positions at which any arrays occur in the parameters to main, it does not know the
 /// lengths of said arrays.
 ///
