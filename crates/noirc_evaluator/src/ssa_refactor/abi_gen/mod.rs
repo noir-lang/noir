@@ -30,16 +30,13 @@ pub(crate) fn gen_abi(func_sig: FunctionSignature, return_witnesses: Vec<Witness
 fn param_witnesses_from_abi_param(
     abi_params: &Vec<AbiParameter>,
 ) -> BTreeMap<String, Vec<Witness>> {
-    let mut param_witnesses = BTreeMap::new();
     let mut offset = 0;
-    for param in abi_params {
-        let name = param.name.clone();
-        let idx_start = offset;
+    btree_map(abi_params, |param| {
         let num_field_elements_needed = param.typ.field_count();
+        let idx_start = offset;
         let idx_end = idx_start + num_field_elements_needed;
-        let witnesses = (idx_start..idx_end).into_iter().map(Witness).collect();
-        param_witnesses.insert(name, witnesses);
+        let witnesses = vecmap(idx_start..idx_end, Witness);
         offset += num_field_elements_needed;
-    }
-    param_witnesses
+        (param.name.clone(), witnesses)
+    })
 }
