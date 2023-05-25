@@ -57,7 +57,7 @@ pub enum ResolverError {
     #[error("Incorrect amount of arguments to generic type constructor")]
     IncorrectGenericCount { span: Span, struct_type: String, actual: usize, expected: usize },
     #[error("{0}")]
-    ParserError(ParserError),
+    ParserError(Box<ParserError>),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
     ContractFunctionTypeInNormalFunction { span: Span },
 }
@@ -252,7 +252,7 @@ impl From<ResolverError> for Diagnostic {
                     span,
                 )
             }
-            ResolverError::ParserError(error) => error.into(),
+            ResolverError::ParserError(error) => (*error).into(),
             ResolverError::ContractFunctionTypeInNormalFunction { span } => Diagnostic::simple_error(
                 "Only functions defined within contracts can set their contract function type".into(),
                 "Non-contract functions cannot be 'open'".into(),

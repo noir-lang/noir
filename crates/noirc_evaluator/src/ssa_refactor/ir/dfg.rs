@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::ssa_refactor::ir::instruction::SimplifyResult;
+
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     constant::{NumericConstant, NumericConstantId},
@@ -66,23 +68,27 @@ impl DataFlowGraph {
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
     pub(crate) fn make_block(&mut self) -> BasicBlockId {
-        self.blocks.insert(BasicBlock::new(Vec::new()))
+        self.blocks.insert(BasicBlock::new())
     }
 
-    /// Creates a new basic block with the given parameters.
-    /// After being created, the block is unreachable in the current function
-    /// until another block is made to jump to it.
-    pub(crate) fn make_block_with_parameters(
+    /// Create a new block with the same parameter count and parameter
+    /// types from the given block.
+    /// This is a somewhat niche operation used in loop unrolling but is included
+    /// here as doing it outside the DataFlowGraph would require cloning the parameters.
+    pub(crate) fn make_block_with_parameters_from_block(
         &mut self,
-        parameter_types: impl Iterator<Item = Type>,
+        block: BasicBlockId,
     ) -> BasicBlockId {
-        self.blocks.insert_with_id(|entry_block| {
-            let parameters = vecmap(parameter_types.enumerate(), |(position, typ)| {
-                self.values.insert(Value::Param { block: entry_block, position, typ })
-            });
+        let new_block = self.make_block();
+        let parameters = self.blocks[block].parameters();
 
-            BasicBlock::new(parameters)
-        })
+        let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
+            let typ = self.values[*param].get_type();
+            self.values.insert(Value::Param { block: new_block, position, typ })
+        });
+
+        self.blocks[new_block].set_parameters(parameters);
+        new_block
     }
 
     /// Get an iterator over references to each basic block within the dfg, paired with the basic
@@ -95,6 +101,7 @@ impl DataFlowGraph {
         self.blocks.iter()
     }
 
+    /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()
     }
@@ -116,21 +123,44 @@ impl DataFlowGraph {
         id
     }
 
-    /// Replace an instruction id with another.
-    ///
-    /// This function should generally be avoided if possible in favor of inserting new
-    /// instructions since it does not check whether the instruction results of the removed
-    /// instruction are still in use. Users of this function thus need to ensure the old
-    /// instruction's results are no longer in use or are otherwise compatible with the
-    /// new instruction's result count and types.
-    pub(crate) fn replace_instruction(&mut self, id: Id<Instruction>, instruction: Instruction) {
-        self.instructions[id] = instruction;
+    /// Inserts a new instruction at the end of the given block and returns its results
+    pub(crate) fn insert_instruction_and_results(
+        &mut self,
+        instruction: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InsertInstructionResult {
+        use InsertInstructionResult::*;
+        match instruction.simplify(self) {
+            SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
+            SimplifyResult::Remove => InstructionRemoved,
+            SimplifyResult::None => {
+                let id = self.make_instruction(instruction, ctrl_typevars);
+                self.blocks[block].insert_instruction(id);
+                InsertInstructionResult::Results(self.instruction_results(id))
+            }
+        }
     }
 
     /// Insert a value into the dfg's storage and return an id to reference it.
     /// Until the value is used in an instruction it is unreachable.
     pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
         self.values.insert(value)
+    }
+
+    /// Replaces the value specified by the given ValueId with a new Value.
+    ///
+    /// This is the preferred method to call for optimizations simplifying
+    /// values since other instructions referring to the same ValueId need
+    /// not be modified to refer to a new ValueId.
+    pub(crate) fn set_value(&mut self, value_id: ValueId, new_value: Value) {
+        self.values[value_id] = new_value;
+    }
+
+    /// Set the value of value_to_replace to refer to the value referred to by new_value.
+    pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
+        let new_value = self.values[new_value];
+        self.values[value_to_replace] = new_value;
     }
 
     /// Creates a new constant value, or returns the Id to an existing one if
@@ -171,9 +201,7 @@ impl DataFlowGraph {
 
         // Get all of the types that this instruction produces
         // and append them as results.
-        let typs = self.instruction_result_types(instruction_id, ctrl_typevars);
-
-        for typ in typs {
+        for typ in self.instruction_result_types(instruction_id, ctrl_typevars) {
             self.append_result(instruction_id, typ);
         }
     }
@@ -243,16 +271,6 @@ impl DataFlowGraph {
         parameter
     }
 
-    /// Insert an instruction at the end of a given block.
-    /// If the block already has a terminator, the instruction is inserted before the terminator.
-    pub(crate) fn insert_instruction_in_block(
-        &mut self,
-        block: BasicBlockId,
-        instruction: InstructionId,
-    ) {
-        self.blocks[block].insert_instruction(instruction);
-    }
-
     /// Returns the field element represented by this value if it is a numeric constant.
     /// Returns None if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
@@ -278,6 +296,20 @@ impl DataFlowGraph {
         terminator: TerminatorInstruction,
     ) {
         self.blocks[block].set_terminator(terminator);
+    }
+
+    /// Moves the entirety of the given block's contents into the destination block.
+    /// The source block afterward will be left in a valid but emptied state. The
+    /// destination block will also have its terminator overwritten with that of the
+    /// source block.
+    pub(crate) fn inline_block(&mut self, source: BasicBlockId, destination: BasicBlockId) {
+        let source = &mut self.blocks[source];
+        let mut instructions = std::mem::take(source.instructions_mut());
+        let terminator = source.take_terminator();
+
+        let destination = &mut self.blocks[destination];
+        destination.instructions_mut().append(&mut instructions);
+        destination.set_terminator(terminator);
     }
 }
 
@@ -313,6 +345,52 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
     fn index_mut(&mut self, id: BasicBlockId) -> &mut BasicBlock {
         &mut self.blocks[id]
+    }
+}
+
+// The result of calling DataFlowGraph::insert_instruction can
+// be a list of results or a single ValueId if the instruction was simplified
+// to an existing value.
+pub(crate) enum InsertInstructionResult<'dfg> {
+    Results(&'dfg [ValueId]),
+    SimplifiedTo(ValueId),
+    InstructionRemoved,
+}
+
+impl<'dfg> InsertInstructionResult<'dfg> {
+    /// Retrieve the first (and expected to be the only) result.
+    pub(crate) fn first(&self) -> ValueId {
+        match self {
+            InsertInstructionResult::SimplifiedTo(value) => *value,
+            InsertInstructionResult::Results(results) => results[0],
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("Instruction was removed, no results")
+            }
+        }
+    }
+
+    /// Return all the results contained in the internal results array.
+    /// This is used for instructions returning multiple results that were
+    /// not simplified - like function calls.
+    pub(crate) fn results(&self) -> &'dfg [ValueId] {
+        match self {
+            InsertInstructionResult::Results(results) => results,
+            InsertInstructionResult::SimplifiedTo(_) => {
+                panic!("InsertInstructionResult::results called on a simplified instruction")
+            }
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("InsertInstructionResult::results called on a removed instruction")
+            }
+        }
+    }
+
+    /// Returns the amount of ValueIds contained
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            InsertInstructionResult::SimplifiedTo(_) => 1,
+            InsertInstructionResult::Results(results) => results.len(),
+            InsertInstructionResult::InstructionRemoved => 0,
+        }
     }
 }
 

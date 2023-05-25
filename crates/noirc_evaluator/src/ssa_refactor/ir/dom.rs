@@ -279,7 +279,7 @@ mod tests {
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
-        let func = ssa.functions.first().unwrap();
+        let func = ssa.main();
         let block0_id = func.entry_block();
 
         let dt = DominatorTree::with_function(func);
@@ -383,7 +383,7 @@ mod tests {
         builder.terminate_with_jmp(block1_id, vec![]);
 
         let ssa = builder.finish();
-        let func = ssa.functions.first().unwrap();
+        let func = ssa.main();
         let block0_id = func.entry_block();
 
         let dt = DominatorTree::with_function(func);

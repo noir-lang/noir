@@ -15,7 +15,6 @@ mod compile_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
-mod print_acir_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
@@ -56,7 +55,6 @@ enum NargoCommand {
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
     Gates(gates_cmd::GatesCommand),
-    PrintAcir(print_acir_cmd::PrintAcirCommand),
 }
 
 pub fn start_cli() -> eyre::Result<()> {
@@ -67,33 +65,38 @@ pub fn start_cli() -> eyre::Result<()> {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
+    let backend = crate::backends::ConcreteBackend::default();
+
     match command {
-        NargoCommand::New(args) => new_cmd::run(args, config),
-        NargoCommand::Check(args) => check_cmd::run(args, config),
-        NargoCommand::Compile(args) => compile_cmd::run(args, config),
-        NargoCommand::Execute(args) => execute_cmd::run(args, config),
-        NargoCommand::Prove(args) => prove_cmd::run(args, config),
-        NargoCommand::Verify(args) => verify_cmd::run(args, config),
-        NargoCommand::Test(args) => test_cmd::run(args, config),
-        NargoCommand::Gates(args) => gates_cmd::run(args, config),
-        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, config),
-        NargoCommand::PrintAcir(args) => print_acir_cmd::run(args, config),
+        NargoCommand::New(args) => new_cmd::run(&backend, args, config),
+        NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
+        NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
+        NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
+        NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
+        NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
+        NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
+        NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
+        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
     }?;
 
     Ok(())
 }
 
 // helper function which tests noir programs by trying to generate a proof and verify it
-pub fn prove_and_verify(proof_name: &str, program_dir: &Path, show_ssa: bool) -> bool {
+pub fn prove_and_verify(proof_name: &str, program_dir: &Path) -> bool {
+    let backend = crate::backends::ConcreteBackend::default();
+
     let compile_options = CompileOptions {
-        show_ssa,
-        allow_warnings: false,
+        show_ssa: false,
+        print_acir: false,
+        deny_warnings: false,
         show_output: false,
         experimental_ssa: false,
     };
     let proof_dir = program_dir.join(PROOFS_DIR);
 
     match prove_cmd::prove_with_path(
+        &backend,
         Some(proof_name.to_owned()),
         program_dir,
         &proof_dir,
@@ -123,7 +126,11 @@ mod tests {
     ///
     /// This is used for tests.
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new(&acvm::Language::R1CS);
+        let mut driver = Driver::new(
+            &acvm::Language::R1CS,
+            #[allow(deprecated)]
+            Box::new(acvm::default_is_opcode_supported(acvm::Language::R1CS)),
+        );
         driver.create_local_crate(&root_file, CrateType::Binary);
         crate::resolver::add_std_lib(&mut driver);
         driver.file_compiles()

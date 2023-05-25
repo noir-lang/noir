@@ -1,11 +1,11 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap},
     rc::Rc,
 };
 
 use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
-use iter_extended::{btree_map, vecmap};
+use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
@@ -112,7 +112,7 @@ pub struct StructType {
     /// Fields are ordered and private, they should only
     /// be accessed through get_field(), get_fields(), or instantiate()
     /// since these will handle applying generic arguments to fields as well.
-    fields: BTreeMap<Ident, Type>,
+    fields: Vec<(Ident, Type)>,
 
     pub generics: Generics,
     pub span: Span,
@@ -141,7 +141,7 @@ impl StructType {
         id: StructId,
         name: Ident,
         span: Span,
-        fields: BTreeMap<Ident, Type>,
+        fields: Vec<(Ident, Type)>,
         generics: Generics,
     ) -> StructType {
         StructType { id, fields, name, span, generics }
@@ -151,7 +151,7 @@ impl StructType {
     /// fields are resolved strictly after the struct itself is initially
     /// created. Therefore, this method is used to set the fields once they
     /// become known.
-    pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {
+    pub fn set_fields(&mut self, fields: Vec<(Ident, Type)>) {
         assert!(self.fields.is_empty());
         self.fields = fields;
     }
@@ -179,7 +179,7 @@ impl StructType {
     }
 
     /// Returns all the fields of this type, after being applied to the given generic arguments.
-    pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
+    pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
         assert_eq!(self.generics.len(), generic_args.len());
 
         let substitutions = self
@@ -189,17 +189,14 @@ impl StructType {
             .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
             .collect();
 
-        self.fields
-            .iter()
-            .map(|(name, typ)| {
-                let name = name.0.contents.clone();
-                (name, typ.substitute(&substitutions))
-            })
-            .collect()
+        vecmap(&self.fields, |(name, typ)| {
+            let name = name.0.contents.clone();
+            (name, typ.substitute(&substitutions))
+        })
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
-        self.fields.keys().cloned().collect()
+        self.fields.iter().map(|(name, _)| name.clone()).collect()
     }
 
     /// True if the given index is the same index as a generic type of this struct
@@ -652,7 +649,7 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
             Type::Vec(element) => {
-                write!(f, "Vec<{}>", element)
+                write!(f, "Vec<{element}>")
             }
         }
     }
@@ -1181,8 +1178,8 @@ impl Type {
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                let abi_map = btree_map(fields, |(name, typ)| (name, typ.as_abi_type()));
-                AbiType::Struct { fields: abi_map }
+                let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
+                AbiType::Struct { fields }
             }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),

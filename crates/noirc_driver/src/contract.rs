@@ -1,7 +1,7 @@
+use crate::program::{deserialize_circuit, serialize_circuit};
 use acvm::acir::circuit::Circuit;
 use noirc_abi::Abi;
 use serde::{Deserialize, Serialize};
-use crate::program::{serialize_circuit, deserialize_circuit};
 
 /// Describes the types of smart contract functions that are allowed.
 /// Unlike the similar enum in noirc_frontend, 'open' and 'unconstrained'

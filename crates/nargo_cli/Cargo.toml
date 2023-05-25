@@ -35,9 +35,10 @@ hex = "0.4.2"
 serde_json = "1.0"
 termcolor = "1.1.2"
 color-eyre = "0.6.2"
+tokio = "1.0"
 
 # Backends
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/aztec_backend", rev = "c9fb9e806f1400a2ff7594a0669bec56025220bb", default-features=false }
+acvm-backend-barretenberg = { version = "0.2.0", default-features = false }
 
 [dev-dependencies]
 tempdir = "0.3.7"
@@ -50,4 +51,3 @@ default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["acvm-backend-barretenberg/native"]
 plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
-

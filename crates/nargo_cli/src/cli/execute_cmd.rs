@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use acvm::acir::circuit::Circuit;
-use acvm::PartialWitnessGenerator;
+use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
+use acvm::Backend;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{Abi, InputMap, WitnessMap};
+use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
@@ -25,9 +25,13 @@ pub(crate) struct ExecuteCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: ExecuteCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
     let (return_value, solved_witness) =
-        execute_with_path(&config.program_dir, &args.compile_options)?;
+        execute_with_path(backend, &config.program_dir, &args.compile_options)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
@@ -43,19 +47,18 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
     Ok(())
 }
 
-fn execute_with_path(
+fn execute_with_path<B: Backend>(
+    backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let backend = crate::backends::ConcreteBackend::default();
-
-    let CompiledProgram { abi, circuit } = compile_circuit(&backend, program_dir, compile_options)?;
+) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
+    let CompiledProgram { abi, circuit } = compile_circuit(backend, program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(program_dir, PROVER_INPUT_FILE, Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(&backend, circuit, &abi, &inputs_map)?;
+    let solved_witness = execute_program(backend, circuit, &abi, &inputs_map)?;
 
     let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
@@ -63,12 +66,12 @@ fn execute_with_path(
     Ok((return_value, solved_witness))
 }
 
-pub(crate) fn execute_program(
-    backend: &impl PartialWitnessGenerator,
+pub(crate) fn execute_program<B: Backend>(
+    backend: &B,
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
-) -> Result<WitnessMap, CliError> {
+) -> Result<WitnessMap, CliError<B>> {
     let initial_witness = abi.encode(inputs_map, None)?;
 
     let solved_witness = nargo::ops::execute_circuit(backend, circuit, initial_witness)?;

@@ -9,7 +9,11 @@ use crate::ssa_refactor::ir::{
 };
 
 use super::{
-    ir::instruction::{InstructionId, Intrinsic},
+    ir::{
+        basic_block::BasicBlock,
+        dfg::InsertInstructionResult,
+        instruction::{InstructionId, Intrinsic},
+    },
     ssa_gen::Ssa,
 };
 
@@ -95,15 +99,22 @@ impl FunctionBuilder {
         self.current_function.dfg.add_block_parameter(block, typ)
     }
 
+    /// Returns the parameters of the given block in the current function.
+    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
+        self.current_function.dfg.block_parameters(block)
+    }
+
     /// Inserts a new instruction at the end of the current block and returns its results
-    fn insert_instruction(
+    pub(crate) fn insert_instruction(
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> &[ValueId] {
-        let id = self.current_function.dfg.make_instruction(instruction, ctrl_typevars);
-        self.current_function.dfg.insert_instruction_in_block(self.current_block, id);
-        self.current_function.dfg.instruction_results(id)
+    ) -> InsertInstructionResult {
+        self.current_function.dfg.insert_instruction_and_results(
+            instruction,
+            self.current_block,
+            ctrl_typevars,
+        )
     }
 
     /// Switch to inserting instructions in the given block.
@@ -113,11 +124,16 @@ impl FunctionBuilder {
         self.current_block = block;
     }
 
+    /// Returns the block currently being inserted into
+    pub(crate) fn current_block(&mut self) -> BasicBlockId {
+        self.current_block
+    }
+
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, size_to_allocate: u32) -> ValueId {
-        self.insert_instruction(Instruction::Allocate { size: size_to_allocate }, None)[0]
+        self.insert_instruction(Instruction::Allocate { size: size_to_allocate }, None).first()
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset
@@ -134,7 +150,7 @@ impl FunctionBuilder {
         type_to_load: Type,
     ) -> ValueId {
         address = self.insert_binary(address, BinaryOp::Add, offset);
-        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]))[0]
+        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
@@ -153,19 +169,19 @@ impl FunctionBuilder {
         rhs: ValueId,
     ) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None)[0]
+        self.insert_instruction(instruction, None).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None)[0]
+        self.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None)[0]
+        self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
     /// Insert a constrain instruction at the end of the current block.
@@ -181,7 +197,7 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> &[ValueId] {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types))
+        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -228,8 +244,12 @@ impl FunctionBuilder {
     /// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
-        Intrinsic::lookup(name)
-            .map(|intrinsic| self.current_function.dfg.import_intrinsic(intrinsic))
+        Intrinsic::lookup(name).map(|intrinsic| self.import_intrinsic_id(intrinsic))
+    }
+
+    /// Retrieve a value reference to the given intrinsic operation.
+    pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> ValueId {
+        self.current_function.dfg.import_intrinsic(intrinsic)
     }
 
     /// Removes the given instruction from the current block or panics otherwise.
@@ -250,6 +270,14 @@ impl std::ops::Index<InstructionId> for FunctionBuilder {
     type Output = Instruction;
 
     fn index(&self, id: InstructionId) -> &Self::Output {
+        &self.current_function.dfg[id]
+    }
+}
+
+impl std::ops::Index<BasicBlockId> for FunctionBuilder {
+    type Output = BasicBlock;
+
+    fn index(&self, id: BasicBlockId) -> &Self::Output {
         &self.current_function.dfg[id]
     }
 }

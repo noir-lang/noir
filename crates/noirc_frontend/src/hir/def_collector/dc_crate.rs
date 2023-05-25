@@ -19,7 +19,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 /// Stores all of the unresolved functions in a particular file/mod
@@ -346,7 +346,7 @@ fn resolve_struct_fields(
     krate: CrateId,
     unresolved: UnresolvedStruct,
     all_errors: &mut Vec<FileDiagnostic>,
-) -> (Generics, BTreeMap<Ident, Type>) {
+) -> (Generics, Vec<(Ident, Type)>) {
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 
