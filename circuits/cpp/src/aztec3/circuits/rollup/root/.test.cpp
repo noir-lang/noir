@@ -26,7 +26,6 @@
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include <aztec3/circuits/abis/private_historic_tree_roots.hpp>
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
-#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/signed_tx_request.hpp>
 #include <aztec3/circuits/abis/tx_context.hpp>
 #include <aztec3/circuits/abis/tx_request.hpp>

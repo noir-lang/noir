@@ -162,7 +162,6 @@ template <typename KernelInput>
 void common_validate_kernel_execution(DummyComposer& composer, KernelInput const& public_kernel_inputs)
 {
     common_validate_call_context(composer, public_kernel_inputs);
-
     common_validate_call_stack(composer, public_kernel_inputs);
 };
 

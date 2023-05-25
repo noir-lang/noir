@@ -86,14 +86,34 @@ export class PrivateCallData {
 }
 
 /**
- * Input to the private kernel circuit.
+ * Input to the private kernel circuit - initial call.
  */
-export class PrivateKernelInputs {
+export class PrivateKernelInputsInit {
   constructor(
     /**
      * The transaction request which led to the creation of these inputs.
      */
     public signedTxRequest: SignedTxRequest,
+    /**
+     * Private calldata corresponding to this iteration of the kernel.
+     */
+    public privateCall: PrivateCallData,
+  ) {}
+
+  /**
+   * Serialize this as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(this.signedTxRequest, this.privateCall);
+  }
+}
+
+/**
+ * Input to the private kernel circuit - Inner call.
+ */
+export class PrivateKernelInputsInner {
+  constructor(
     /**
      * The previous kernel data (dummy if this is the first kernel).
      */
@@ -109,6 +129,6 @@ export class PrivateKernelInputs {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.signedTxRequest, this.previousKernel, this.privateCall);
+    return serializeToBuffer(this.previousKernel, this.privateCall);
   }
 }

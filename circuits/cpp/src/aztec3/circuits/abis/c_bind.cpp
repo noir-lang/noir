@@ -8,7 +8,7 @@
 #include "private_circuit_public_inputs.hpp"
 #include "tx_context.hpp"
 #include "tx_request.hpp"
-#include "private_kernel/private_inputs.hpp"
+#include "private_kernel/private_kernel_inputs_inner.hpp"
 #include "public_kernel/public_kernel_inputs.hpp"
 #include "public_kernel/public_kernel_inputs_no_previous_kernel.hpp"
 #include "rollup/base/base_or_merge_rollup_public_inputs.hpp"
@@ -18,6 +18,7 @@
 
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
 #include "aztec3/circuits/abis/signed_tx_request.hpp"
 #include "aztec3/circuits/abis/types.hpp"
 #include <aztec3/circuits/hash.hpp>
@@ -441,9 +442,14 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_signed_tx_request(uint8_t
     return as_string_output<aztec3::circuits::abis::SignedTxRequest<NT>>(input, size);
 }
 
-WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs(uint8_t const* input, uint32_t* size)
+WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs_inner(uint8_t const* input, uint32_t* size)
 {
-    return as_string_output<aztec3::circuits::abis::private_kernel::PrivateInputs<NT>>(input, size);
+    return as_string_output<aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner<NT>>(input, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs_init(uint8_t const* input, uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit<NT>>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_kernel_circuit_public_inputs(uint8_t const* input,

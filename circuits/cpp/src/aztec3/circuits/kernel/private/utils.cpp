@@ -2,7 +2,7 @@
 #include "init.hpp"
 
 #include "aztec3/circuits/abis/new_contract_data.hpp"
-#include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
+#include "aztec3/circuits/mock/mock_kernel_circuit.hpp"
 
 #include "barretenberg/proof_system/types/composer_type.hpp"
 

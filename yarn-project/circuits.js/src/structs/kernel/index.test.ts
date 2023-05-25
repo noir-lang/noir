@@ -3,7 +3,8 @@ import { makeSignedTxRequest } from '../../tests/factories.js';
 import { makeEcdsaSignature } from '../../tests/factories.js';
 import {
   makePreviousKernelData,
-  makePrivateKernelInputs,
+  makePrivateKernelInputsInner,
+  makePrivateKernelInputsInit,
   makeKernelPublicInputs,
   makePublicKernelInputsNoKernelInput,
   makePublicKernelInputs,
@@ -19,11 +20,19 @@ describe('structs/kernel', () => {
     );
   });
 
-  it(`serializes and prints private_kernel_inputs`, async () => {
-    const kernelInputs = makePrivateKernelInputs();
+  it(`serializes and prints private_kernel_inputs_init`, async () => {
+    const kernelInputs = makePrivateKernelInputsInit();
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
-      'abis__test_roundtrip_serialize_private_kernel_inputs',
+      'abis__test_roundtrip_serialize_private_kernel_inputs_init',
+    );
+  });
+
+  it(`serializes and prints private_kernel_inputs_inner`, async () => {
+    const kernelInputs = makePrivateKernelInputsInner();
+    await expectSerializeToMatchSnapshot(
+      kernelInputs.toBuffer(),
+      'abis__test_roundtrip_serialize_private_kernel_inputs_inner',
     );
   });
 

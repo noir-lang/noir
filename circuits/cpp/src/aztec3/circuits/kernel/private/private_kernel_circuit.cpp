@@ -1,18 +1,18 @@
 #include "init.hpp"
 
+#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_inner.hpp"
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/new_contract_data.hpp>
-#include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/hash.hpp>
 
-#include <barretenberg/stdlib/primitives/field/array.hpp>
+#include "barretenberg/stdlib/primitives/field/array.hpp"
 
 namespace aztec3::circuits::kernel::private_kernel {
 
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::NewContractData;
-using aztec3::circuits::abis::private_kernel::PrivateInputs;
+using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
 
 using plonk::stdlib::array_length;
 using plonk::stdlib::array_pop;
@@ -28,7 +28,7 @@ using aztec3::circuits::compute_contract_address;
 // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // private_call.call_stack_item.public_inputs!
 CT::AggregationObject verify_proofs(Composer& composer,
-                                    PrivateInputs<CT> const& private_inputs,
+                                    PrivateKernelInputsInner<CT> const& private_inputs,
                                     size_t const& num_private_call_public_inputs,
                                     size_t const& num_private_kernel_public_inputs)
 {
@@ -55,7 +55,8 @@ CT::AggregationObject verify_proofs(Composer& composer,
  * as well as signed TX request and the private call information
  * @param public_inputs should be empty here since it is being initialized in this call
  */
-void initialise_end_values(PrivateInputs<CT> const& private_inputs, KernelCircuitPublicInputs<CT>& public_inputs)
+void initialise_end_values(PrivateKernelInputsInner<CT> const& private_inputs,
+                           KernelCircuitPublicInputs<CT>& public_inputs)
 {
     // TODO: Ensure public inputs is empty here
     public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
@@ -86,7 +87,7 @@ void initialise_end_values(PrivateInputs<CT> const& private_inputs, KernelCircui
  * and update its running callstack with all items in the current private-circuit/function's
  * callstack.
  */
-void update_end_values(PrivateInputs<CT> const& private_inputs, KernelCircuitPublicInputs<CT>& public_inputs)
+void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, KernelCircuitPublicInputs<CT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
 
@@ -104,15 +105,14 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, KernelCircuitPub
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
     const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
     const auto& deployer_address = private_call_public_inputs.call_context.msg_sender;
-    const auto& contract_deployment_data =
-        private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data;
+    const auto& contract_deployment_data = private_call_public_inputs.contract_deployment_data;
 
     {  // contract deployment
         // input storage contract address must be 0 if its a constructor call and non-zero otherwise
         auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
 
         auto private_call_vk_hash = private_inputs.private_call.vk->compress(GeneratorIndex::VK);
-        auto constructor_hash = compute_constructor_hash<CT>(private_inputs.signed_tx_request.tx_request.function_data,
+        auto constructor_hash = compute_constructor_hash<CT>(private_inputs.private_call.call_stack_item.function_data,
                                                              private_call_public_inputs.args,
                                                              private_call_vk_hash);
 
@@ -199,7 +199,7 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, KernelCircuitPub
  * @brief Ensure that the function/call-stack-item currently being processed by the kernel
  * matches the one that the previous kernel iteration said should come next.
  */
-void validate_this_private_call_hash(PrivateInputs<CT> const& private_inputs)
+void validate_this_private_call_hash(PrivateKernelInputsInner<CT> const& private_inputs)
 {
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
@@ -218,7 +218,7 @@ void validate_this_private_call_hash(PrivateInputs<CT> const& private_inputs)
  * So here we just ensure that the callstack preimages in the kernel's private inputs
  * matches the function's CallStackItem hashes.
  */
-void validate_this_private_call_stack(PrivateInputs<CT> const& private_inputs)
+void validate_this_private_call_stack(PrivateKernelInputsInner<CT> const& private_inputs)
 {
     const auto& stack = private_inputs.private_call.call_stack_item.public_inputs.private_call_stack;
     const auto& preimages = private_inputs.private_call.private_call_stack_preimages;
@@ -234,7 +234,7 @@ void validate_this_private_call_stack(PrivateInputs<CT> const& private_inputs)
     }
 };
 
-void validate_inputs(PrivateInputs<CT> const& private_inputs, bool first_iteration)
+void validate_inputs(PrivateKernelInputsInner<CT> const& private_inputs, bool first_iteration)
 {
     // this callstack represents the function currently being processed
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
@@ -318,10 +318,10 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs, bool first_iterati
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
 KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer,
-                                                     PrivateInputs<NT> const& _private_inputs,
+                                                     PrivateKernelInputsInner<NT> const& _private_inputs,
                                                      bool first_iteration)
 {
-    const PrivateInputs<CT> private_inputs = _private_inputs.to_circuit_type(composer);
+    const PrivateKernelInputsInner<CT> private_inputs = _private_inputs.to_circuit_type(composer);
 
     // We'll be pushing data to this during execution of this circuit.
     KernelCircuitPublicInputs<CT> public_inputs = KernelCircuitPublicInputs<NT>{}.to_circuit_type(composer);
