@@ -10,6 +10,11 @@ use super::{
     value::ValueId,
 };
 
+/// Maps old value ids to a new set of value ids, not necessarily in the same function.
+/// This is useful for optimization passes which rewrite instructions and values.
+/// Notably `map_instruction` and `push_instruction` are useful operations for such
+/// passes so that they need to worry less about remembering to update each ValueId
+/// within each Instruction.
 #[derive(Default)]
 pub(crate) struct ValueMap {
     map: HashMap<ValueId, ValueId>,
