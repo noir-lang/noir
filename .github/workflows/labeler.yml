@@ -1,44 +1,59 @@
-name: "Labeler"
-on:
-  pull_request_target:
-    types:
-      - opened
-      - reopened
-      - edited
-      - synchronize
-      - labeled
-      - unlabeled
+  name: "Labeler"
+  on:
+    pull_request_target:
+      types:
+        - opened
+        - reopened
+        - edited
+        - synchronize
 
-permissions:
-  pull-requests: write
-  contents: read
+  permissions:
+    pull-requests: write
+    contents: read
 
-jobs:
-  triage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: github/issue-labeler@v2.6
-        # We continue-on-error because the action is buggy and tries to remove labels when they don't exist
-        continue-on-error: true
-        with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
-          configuration-path: .github/labeler.yml
-          enable-versioned-regex: 0
+  jobs:
+    triage:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: github/issue-labeler@v2.6
+          # We continue-on-error because the action is buggy and tries to remove labels when they don't exist
+          continue-on-error: true
+          with:
+            repo-token: "${{ secrets.GITHUB_TOKEN }}"
+            configuration-path: .github/labeler.yml
+            enable-versioned-regex: 0
 
-      - name: Set workflowId
-        id: set_workflow_id
-        run: |
-          if [[ "${{ github.event.action }}" == "labeled" ]]; then
-            echo "::set-output name=workflowId::new-migrated-issue.yml"
-          else
-            echo "::set-output name=workflowId::delete-migrated-issue.yml"
-          fi
+        - name: Check if label was added
+          id: check-label
+          run: |
+            LABEL_NAME="doc needed"
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            
+            LABELS_JSON=$(curl \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/labels)
 
-      - name: Dispatch
-        uses: benc-uk/workflow-dispatch@v1 
-        with: 
-          workflow: ${{ steps.set_workflow_id.outputs.workflowId }}
-          repo: noir-lang/docs
-          ref: master 
-          token: ${{ secrets.GITHUB_TOKEN }} 
-          inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }'
+            if echo "$LABELS_JSON" | jq -e --arg LABEL_NAME "$LABEL_NAME" '.[] | select(.name == $LABEL_NAME)' > /dev/null; then
+              echo "::set-output name=has_label::true"
+            else
+              echo "::set-output name=has_label::false"
+            fi
+            
+        - name: Set workflowId
+          id: set_workflow_id
+          run: |
+            if [[ "${{ steps.check-label.outputs.has_label }}" == "true" ]]; then
+              echo "::set-output name=workflowId::new-migrated-issue.yml"
+            else
+              echo "::set-output name=workflowId::delete-migrated-issue.yml"
+            fi
+
+        - name: Dispatch
+          uses: benc-uk/workflow-dispatch@v1 
+          with: 
+            workflow: ${{ steps.set_workflow_id.outputs.workflowId }}
+            repo: noir-lang/docs
+            ref: master 
+            token: ${{ secrets.GITHUB_TOKEN }} 
+            inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }'
