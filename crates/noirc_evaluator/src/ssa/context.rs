@@ -12,7 +12,6 @@ use crate::ssa::{
     {block, builtin, flatten, function, inline, integer, node, optimizations},
 };
 use crate::Evaluator;
-use acvm::compiler::transformers::IsOpcodeSupported;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -702,7 +701,6 @@ impl SsaContext {
     pub(crate) fn ir_to_acir(
         &mut self,
         evaluator: &mut Evaluator,
-        is_opcode_supported: IsOpcodeSupported,
         enable_logging: bool,
         show_output: bool,
     ) -> Result<(), RuntimeError> {
@@ -749,7 +747,7 @@ impl SsaContext {
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
         let mut acir = Acir::default();
-        acir.acir_gen(evaluator, self, &self[self.first_block], is_opcode_supported, show_output)?;
+        acir.acir_gen(evaluator, self, &self[self.first_block], show_output)?;
         if enable_logging {
             print_acir_circuit(&evaluator.opcodes);
             println!("DONE");

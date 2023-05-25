@@ -73,12 +73,7 @@ pub fn create_circuit(
     let mut evaluator = Evaluator::default();
 
     // First evaluate the main function
-    evaluator.evaluate_main_alt(
-        program.clone(),
-        is_opcode_supported,
-        enable_logging,
-        show_output,
-    )?;
+    evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
 
     let Evaluator {
         current_witness_index,
@@ -152,7 +147,6 @@ impl Evaluator {
     pub fn evaluate_main_alt(
         &mut self,
         program: Program,
-        is_opcode_supported: IsOpcodeSupported,
         enable_logging: bool,
         show_output: bool,
     ) -> Result<(), RuntimeError> {
@@ -165,7 +159,7 @@ impl Evaluator {
         ir_gen.ssa_gen_main()?;
 
         //Generates ACIR representation:
-        ir_gen.context.ir_to_acir(self, is_opcode_supported, enable_logging, show_output)?;
+        ir_gen.context.ir_to_acir(self, enable_logging, show_output)?;
         Ok(())
     }
 

@@ -389,15 +389,19 @@ impl AcirMem {
         let item = MemOp { operation: op, value, index };
         self.array_heap_mut(*array_id).push(item);
     }
-    pub(crate) fn acir_gen(
-        &self,
-        evaluator: &mut Evaluator,
-        is_opcode_supported: IsOpcodeSupported,
-        ctx: &SsaContext,
-    ) {
+    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, ctx: &SsaContext) {
+        //Temporary hack - We hardcode Barretenberg support here.
+        //TODO: to remove once opcodesupported usage is clarified
+        let is_opcode_supported: OpcodeSupported = |o| match o {
+            AcirOpcode::Block(_) => false,
+            AcirOpcode::ROM(_) | AcirOpcode::RAM(_) => true,
+            _ => unreachable!(),
+        };
         for mem in &self.virtual_memory {
             let array = &ctx.mem[*mem.0];
             mem.1.acir_gen(evaluator, array.id, array.len, is_opcode_supported);
         }
     }
 }
+
+type OpcodeSupported = fn(&AcirOpcode) -> bool;

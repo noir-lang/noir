@@ -13,7 +13,6 @@ use acvm::acir::native_types::{Expression, Witness};
 mod operations;
 
 mod internal_var;
-use acvm::compiler::transformers::IsOpcodeSupported;
 pub(crate) use internal_var::InternalVar;
 mod constraints;
 mod internal_var_cache;
@@ -36,7 +35,6 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
         root: &BasicBlock,
-        is_opcode_supported: IsOpcodeSupported,
         show_output: bool,
     ) -> Result<(), RuntimeError> {
         let mut current_block = Some(root);
@@ -48,7 +46,7 @@ impl Acir {
             //TODO we should rather follow the jumps
             current_block = block.left.map(|block_id| &ctx[block_id]);
         }
-        self.memory.acir_gen(evaluator, is_opcode_supported, ctx);
+        self.memory.acir_gen(evaluator, ctx);
         Ok(())
     }
 
