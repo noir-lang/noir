@@ -472,7 +472,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         {
             num_points = points.size();
             num_fives = num_points / 5;
-
+            num_sixes = 0;
             // size-6 table is expensive and only benefits us if creating them reduces the number of total tables
             if (num_fives * 5 == (num_points - 1)) {
                 num_fives -= 1;
