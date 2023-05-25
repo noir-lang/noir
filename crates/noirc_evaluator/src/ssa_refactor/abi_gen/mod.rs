@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
+use iter_extended::{btree_map, vecmap};
 use noirc_abi::{Abi, AbiParameter, FunctionSignature};
 
 /// Traverses the parameters to the program to infer the lengths of any arrays that occur.
