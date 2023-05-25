@@ -19,7 +19,8 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
+    "start": "node ./dest/index.js"
   },
   "inherits": [
     "../package.common.json"
@@ -33,9 +34,15 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/aztec-node": "workspace:^",
+    "@aztec/aztec.js": "workspace:^",
+    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
+    "@aztec/noir-contracts": "workspace:^",
     "commander": "^9.0.0",
-    "tslib": "^2.4.0"
+    "tslib": "^2.4.0",
+    "viem": "^0.3.14"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

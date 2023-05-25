@@ -5,6 +5,7 @@ import { P2PClient } from './p2p_client.js';
 import { TxPool } from '../tx_pool/index.js';
 import { MockBlockSource } from './mocks.js';
 import { MockTx } from './mocks.js';
+import { P2PService } from '../index.js';
 
 /**
  * Mockify helper for testing purposes.
@@ -16,6 +17,7 @@ type Mockify<T> = {
 describe('In-Memory P2P Client', () => {
   let txPool: Mockify<TxPool>;
   let blockSource: L2BlockSource;
+  let p2pService: Mockify<P2PService>;
 
   beforeEach(() => {
     txPool = {
@@ -23,13 +25,22 @@ describe('In-Memory P2P Client', () => {
       getTxByHash: jest.fn().mockReturnValue(undefined),
       deleteTxs: jest.fn(),
       getAllTxs: jest.fn().mockReturnValue([]),
+      getAllTxHashes: jest.fn().mockReturnValue([]),
+      hasTx: jest.fn().mockReturnValue(false),
+    };
+
+    p2pService = {
+      start: jest.fn(),
+      stop: jest.fn(),
+      propagateTx: jest.fn(),
+      settledTxs: jest.fn(),
     };
 
     blockSource = new MockBlockSource();
   });
 
   it('can start & stop', async () => {
-    const client = new P2PClient(blockSource, txPool);
+    const client = new P2PClient(blockSource, txPool, p2pService);
     expect(await client.isReady()).toEqual(false);
 
     await client.start();
@@ -40,7 +51,7 @@ describe('In-Memory P2P Client', () => {
   });
 
   it('adds txs to pool', async () => {
-    const client = new P2PClient(blockSource, txPool);
+    const client = new P2PClient(blockSource, txPool, p2pService);
     await client.start();
     const tx1 = MockTx();
     const tx2 = MockTx();
@@ -52,7 +63,7 @@ describe('In-Memory P2P Client', () => {
   });
 
   it('rejects txs after being stopped', async () => {
-    const client = new P2PClient(blockSource, txPool);
+    const client = new P2PClient(blockSource, txPool, p2pService);
     await client.start();
     const tx1 = MockTx();
     const tx2 = MockTx();

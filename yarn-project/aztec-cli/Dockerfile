@@ -10,6 +10,6 @@ RUN yarn cache clean
 RUN yarn workspaces focus --production > /dev/null
 
 FROM node:18-alpine
-COPY --from=builder /usr/src/yarn-project/aztec-cli /usr/src/yarn-project/aztec-cli
+COPY --from=builder /usr/src/ /usr/src/
 WORKDIR /usr/src/yarn-project/aztec-cli
-ENTRYPOINT ["yarn"]
+ENTRYPOINT ["yarn", "start"]

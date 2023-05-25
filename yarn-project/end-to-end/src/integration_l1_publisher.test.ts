@@ -44,8 +44,9 @@ import {
   getContract,
 } from 'viem';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
-import { deployL1Contracts } from './deploy_l1_contracts.js';
+import { deployL1Contracts } from '@aztec/ethereum';
 import { L2Actor } from '@aztec/types';
+import { localAnvil } from './fixtures.js';
 
 // Accounts 4 and 5 of Anvil default startup with mnemonic: 'test test test test test test test test test test test junk'
 const sequencerPK = '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a';
@@ -92,7 +93,7 @@ describe('L1Publisher integration', () => {
       decoderHelperAddress: decoderHelperAddress_,
       publicClient: publicClient_,
       walletClient,
-    } = await deployL1Contracts(config.rpcUrl, deployerAccount, logger, true);
+    } = await deployL1Contracts(config.rpcUrl, deployerAccount, localAnvil, logger, true);
     publicClient = publicClient_;
 
     rollupAddress = getAddress(rollupAddress_.toString());
@@ -134,6 +135,7 @@ describe('L1Publisher integration', () => {
 
     publisher = getL1Publisher({
       rpcUrl: config.rpcUrl,
+      apiKey: '',
       chainId: config.chainId,
       requiredConfirmations: 1,
       rollupContract: EthAddress.fromString(rollupAddress),

@@ -1,10 +1,10 @@
-import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
+import { AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, EthAddress, TxStatus } from '@aztec/aztec.js';
 import { RollupNativeAssetContractAbi } from '@aztec/noir-contracts/examples';
 
 import { HDAccount, mnemonicToAccount } from 'viem/accounts';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contract, deployL1Contracts } from './deploy_l1_contracts.js';
+import { deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -24,7 +24,7 @@ import {
   Address,
 } from 'viem';
 import { foundry } from 'viem/chains';
-import { MNEMONIC } from './fixtures.js';
+import { MNEMONIC, localAnvil } from './fixtures.js';
 
 const logger = createDebugLogger('aztec:e2e_rollup_native_asset_contract');
 
@@ -36,7 +36,7 @@ const sha256ToField = (buf: Buffer): Fr => {
 };
 
 describe('e2e_rollup_native_asset_contract', () => {
-  let node: AztecNode;
+  let node: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
   let account: HDAccount;
   let accounts: AztecAddress[];
@@ -57,7 +57,7 @@ describe('e2e_rollup_native_asset_contract', () => {
       registryAddress: registryAddress_,
       outboxAddress,
       unverifiedDataEmitterAddress,
-    } = await deployL1Contracts(config.rpcUrl, account, logger);
+    } = await deployL1Contracts(config.rpcUrl, account, localAnvil, logger);
 
     config.publisherPrivateKey = Buffer.from(privKey!);
     config.rollupContract = rollupAddress;
@@ -65,7 +65,7 @@ describe('e2e_rollup_native_asset_contract', () => {
 
     registryAddress = getAddress(registryAddress_.toString());
 
-    node = await AztecNode.createAndSync(config);
+    node = await AztecNodeService.createAndSync(config);
     aztecRpcServer = await createAztecRpcServer(2, node);
     accounts = await aztecRpcServer.getAccounts();
 

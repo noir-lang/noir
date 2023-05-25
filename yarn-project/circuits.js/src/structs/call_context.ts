@@ -2,6 +2,7 @@ import { serializeToBuffer } from '../utils/serialize.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { FieldsOf } from '../utils/jsUtils.js';
+import { BufferReader } from '@aztec/foundation/serialize';
 import { Fr } from './index.js';
 
 /**
@@ -79,5 +80,22 @@ export class CallContext {
    */
   toBuffer() {
     return serializeToBuffer(...CallContext.getFields(this));
+  }
+
+  /**
+   * Deserialise this from a buffer.
+   * @param buffer - The bufferable type from which to deserialise.
+   * @returns The deserialised instance of PublicCallRequest.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new CallContext(
+      new AztecAddress(reader.readBytes(32)),
+      new AztecAddress(reader.readBytes(32)),
+      new EthAddress(reader.readBytes(32)),
+      reader.readBoolean(),
+      reader.readBoolean(),
+      reader.readBoolean(),
+    );
   }
 }

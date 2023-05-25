@@ -1,15 +1,15 @@
-import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
+import { AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
 import { NonNativeTokenContractAbi } from '@aztec/noir-contracts/examples';
 
 import { Account, mnemonicToAccount } from 'viem/accounts';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contract, deployL1Contracts } from './deploy_l1_contracts.js';
+import { deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { MNEMONIC } from './fixtures.js';
+import { MNEMONIC, localAnvil } from './fixtures.js';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { Chain, GetContractReturnType, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
@@ -21,7 +21,7 @@ const config = getConfigEnvVars();
 
 // NOTE: this tests is just a scaffold, it is awaiting functionality to come from the aztec-node around indexing messages in the contract
 describe.skip('e2e_l1_to_l2_msg', () => {
-  let node: AztecNode;
+  let node: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
   let accounts: AztecAddress[];
   let contract: Contract;
@@ -54,7 +54,7 @@ describe.skip('e2e_l1_to_l2_msg', () => {
       unverifiedDataEmitterAddress,
       walletClient,
       publicClient,
-    } = await deployL1Contracts(config.rpcUrl, account, logger);
+    } = await deployL1Contracts(config.rpcUrl, account, localAnvil, logger);
 
     rollupRegistryAddress = registryAddress_;
 
@@ -78,7 +78,7 @@ describe.skip('e2e_l1_to_l2_msg', () => {
       publicClient,
     });
 
-    node = await AztecNode.createAndSync(config);
+    node = await AztecNodeService.createAndSync(config);
     aztecRpcServer = await createAztecRpcServer(2, node);
     accounts = await aztecRpcServer.getAccounts();
   }, 60_000);

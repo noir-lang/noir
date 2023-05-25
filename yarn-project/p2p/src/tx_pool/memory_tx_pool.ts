@@ -27,7 +27,7 @@ export class InMemoryTxPool implements TxPool {
    */
   public getTxByHash(txHash: TxHash): Tx | undefined {
     const result = this.txs.get(txHash.toBigInt());
-    return result;
+    return result === undefined ? undefined : Tx.clone(result);
   }
 
   /**
@@ -60,6 +60,23 @@ export class InMemoryTxPool implements TxPool {
    * @returns Array of tx objects in the order they were added to the pool.
    */
   public getAllTxs(): Tx[] {
-    return Array.from(this.txs.values());
+    return Array.from(this.txs.values()).map(x => Tx.clone(x));
+  }
+
+  /**
+   * Gets the hashes of all transactions currently in the tx pool.
+   * @returns An array of transaction hashes found in the tx pool.
+   */
+  public getAllTxHashes(): TxHash[] {
+    return Array.from(this.txs.keys()).map(x => TxHash.fromBigInt(x));
+  }
+
+  /**
+   * Returns a boolean indicating if the transaction is present in the pool.
+   * @param txHash - The hash of the transaction to be queried.
+   * @returns True if the transaction present, false otherwise.
+   */
+  public hasTx(txHash: TxHash): boolean {
+    return this.txs.has(txHash.toBigInt());
   }
 }

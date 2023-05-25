@@ -15,6 +15,11 @@ export interface TxSenderConfig extends L1Addresses {
   rpcUrl: string;
 
   /**
+   * The API key of the ethereum host.
+   */
+  apiKey?: string;
+
+  /**
    * The chain id of the ethereum host.
    */
   chainId: number;

@@ -24,7 +24,7 @@ export const KERNEL_PUBLIC_DATA_READS_LENGTH = 4;
 
 export const VK_TREE_HEIGHT = 3;
 export const FUNCTION_TREE_HEIGHT = 4;
-export const CONTRACT_TREE_HEIGHT = 4;
+export const CONTRACT_TREE_HEIGHT = 8;
 export const PRIVATE_DATA_TREE_HEIGHT = 8;
 export const PUBLIC_DATA_TREE_HEIGHT = 254;
 export const NULLIFIER_TREE_HEIGHT = 8;

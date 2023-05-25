@@ -327,14 +327,16 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer,
     historic_contract_tree.update_element(0, contract_tree.root());
     historic_l1_to_l2_msg_tree.update_element(0, l1_to_l2_msg_tree.root());
 
+    // Historic trees sibling paths
     auto historic_data_sibling_path =
         get_sibling_path<PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>(historic_private_data_tree, 1, 0);
     auto historic_contract_sibling_path =
         get_sibling_path<CONTRACT_TREE_ROOTS_TREE_HEIGHT>(historic_contract_tree, 1, 0);
     auto historic_l1_to_l2_msg_sibling_path =
         get_sibling_path<L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>(historic_l1_to_l2_msg_tree, 1, 0);
-    auto l1_to_l2_tree_sibling_path = get_sibling_path<L1_TO_L2_MSG_SUBTREE_INCLUSION_CHECK_DEPTH>(
-        l1_to_l2_msg_tree, 0, L1_TO_L2_MSG_SUBTREE_INCLUSION_CHECK_DEPTH);
+    // l1 to l2 tree
+    auto l1_to_l2_tree_sibling_path =
+        get_sibling_path<L1_TO_L2_MSG_SUBTREE_INCLUSION_CHECK_DEPTH>(l1_to_l2_msg_tree, 0, L1_TO_L2_MSG_SUBTREE_DEPTH);
 
     // l1_to_l2_message tree snapshots
     AppendOnlyTreeSnapshot const start_l1_to_l2_msg_tree_snapshot = {

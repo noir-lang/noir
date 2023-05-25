@@ -1,13 +1,13 @@
 // TODO the verification keys in this contracts are mocked ATM
-import TestContractJson from './test_contract.json';
-import ZkTokenContractJson from './zk_token_contract.json';
-import ParentJson from './parent_contract.json';
-import ChildJson from './child_contract.json';
-import PublicTokenContractJson from './public_token_contract.json';
-import NonNativeTokenContractJson from './non_native_token_contract.json';
-import RollupNativeAssetContractJson from './rollup_native_asset_contract.json';
-import AccountContractJson from './account_contract.json';
-import { ContractAbi } from '@aztec/foundation/abi';
+import TestContractJson from './test_contract.json' assert { type: 'json' };
+import ZkTokenContractJson from './zk_token_contract.json' assert { type: 'json' };
+import ParentJson from './parent_contract.json' assert { type: 'json' };
+import ChildJson from './child_contract.json' assert { type: 'json' };
+import PublicTokenContractJson from './public_token_contract.json' assert { type: 'json' };
+import { ContractAbi } from '@aztec/foundation/abi' assert { type: 'json' };
+import NonNativeTokenContractJson from './non_native_token_contract.json' assert { type: 'json' };
+import RollupNativeAssetContractJson from './rollup_native_asset_contract.json' assert { type: 'json' };
+import AccountContractJson from './account_contract.json' assert { type: 'json' };
 
 export const TestContractAbi = TestContractJson as ContractAbi;
 export const ZkTokenContractAbi = ZkTokenContractJson as ContractAbi;

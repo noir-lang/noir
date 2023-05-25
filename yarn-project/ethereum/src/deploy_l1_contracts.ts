@@ -1,18 +1,18 @@
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import {
-  DecoderHelperAbi,
-  DecoderHelperBytecode,
-  InboxAbi,
-  InboxBytecode,
-  OutboxAbi,
-  OutboxBytecode,
-  RegistryAbi,
-  RegistryBytecode,
   RollupAbi,
   RollupBytecode,
   UnverifiedDataEmitterAbi,
   UnverifiedDataEmitterBytecode,
+  RegistryAbi,
+  RegistryBytecode,
+  InboxAbi,
+  InboxBytecode,
+  OutboxAbi,
+  OutboxBytecode,
+  DecoderHelperAbi,
+  DecoderHelperBytecode,
 } from '@aztec/l1-artifacts';
 import type { Abi, Narrow } from 'abitype';
 import {
@@ -29,7 +29,6 @@ import {
   http,
 } from 'viem';
 import { HDAccount, PrivateKeyAccount } from 'viem/accounts';
-import { foundry } from 'viem/chains';
 
 /**
  * Return type of the deployL1Contract function.
@@ -73,6 +72,7 @@ type DeployL1Contracts = {
  * Deploys the aztec L1 contracts; Rollup, Unverified Data Emitter & (optionally) Decoder Helper.
  * @param rpcUrl - URL of the ETH RPC to use for deployment.
  * @param account - Private Key or HD Account that will deploy the contracts.
+ * @param chain - The chain instance to deploy to.
  * @param logger - A logger object.
  * @param deployDecoderHelper - Boolean, whether to deploy the decoder helper or not.
  * @returns A list of ETH addresses of the deployed contracts.
@@ -80,6 +80,7 @@ type DeployL1Contracts = {
 export const deployL1Contracts = async (
   rpcUrl: string,
   account: HDAccount | PrivateKeyAccount,
+  chain: Chain,
   logger: DebugLogger,
   deployDecoderHelper = false,
 ): Promise<DeployL1Contracts> => {
@@ -87,11 +88,11 @@ export const deployL1Contracts = async (
 
   const walletClient = createWalletClient({
     account,
-    chain: foundry,
+    chain,
     transport: http(rpcUrl),
   });
   const publicClient = createPublicClient({
-    chain: foundry,
+    chain,
     transport: http(rpcUrl),
   });
 

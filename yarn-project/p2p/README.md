@@ -1,11 +1,7 @@
 # P2P
 
-This package defined an interface for a client that keeps track of Aztec transaction requests.
+This package includes the functionality of the P2P networking required by the aztec node. The `P2PClient` provides an interface for the introduction of transactions to the Tx Pool and propagation of those transactions through the network. The `P2PService` offers an abstraction of the P2P networking.
 
-When a transaction goes through (mined in a block), the p2p client is also responsible for reconciling the pool. i.e.
+The package depends on a block source in order to reconcile the transaction pool and remove settled transactions.
 
-- Check for new confirmed blocks
-- When new block is mined, go through its transactions and remove them from the pool.
-
-A very naive, in-memory implementation of the P2P client is also included in the package.
-It's currently used by the implementations of the sequencer and node.
+Additionally, the `BootstrapNode` class provides the functionality for running a P2P 'bootnode', one that serves the purpose of introducing new peers to the network. It does not participate in transaction exchange.

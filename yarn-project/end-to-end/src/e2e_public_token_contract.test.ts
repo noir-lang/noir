@@ -1,6 +1,6 @@
 import { mnemonicToAccount } from 'viem/accounts';
 
-import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
+import { AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, Point, TxStatus } from '@aztec/aztec.js';
 import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
@@ -9,8 +9,8 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contracts } from './deploy_l1_contracts.js';
-import { MNEMONIC } from './fixtures.js';
+import { deployL1Contracts } from '@aztec/ethereum';
+import { MNEMONIC, localAnvil } from './fixtures.js';
 import times from 'lodash.times';
 
 const logger = createDebugLogger('aztec:e2e_public_token_contract');
@@ -18,7 +18,7 @@ const logger = createDebugLogger('aztec:e2e_public_token_contract');
 const config = getConfigEnvVars();
 
 describe('e2e_public_token_contract', () => {
-  let node: AztecNode;
+  let node: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
   let accounts: AztecAddress[];
   let contract: Contract;
@@ -81,13 +81,18 @@ describe('e2e_public_token_contract', () => {
   beforeEach(async () => {
     const account = mnemonicToAccount(MNEMONIC);
     const privKey = account.getHdKey().privateKey;
-    const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(config.rpcUrl, account, logger);
+    const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(
+      config.rpcUrl,
+      account,
+      localAnvil,
+      logger,
+    );
 
     config.rollupContract = rollupAddress;
     config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
     config.publisherPrivateKey = Buffer.from(privKey!);
 
-    node = await AztecNode.createAndSync(config);
+    node = await AztecNodeService.createAndSync(config);
     aztecRpcServer = await createAztecRpcServer(1, node);
     accounts = await aztecRpcServer.getAccounts();
   }, 30_000);

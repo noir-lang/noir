@@ -18,6 +18,7 @@ import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { createEthereumChain } from '@aztec/ethereum';
 
 /**
  * Pushes transactions to the L1 rollup contract using viem.
@@ -41,23 +42,22 @@ export class ViemTxSender implements L1PublisherTxSender {
   constructor(config: TxSenderConfig) {
     const {
       rpcUrl,
-      chainId,
+      apiKey,
       publisherPrivateKey,
       rollupContract: rollupContractAddress,
       unverifiedDataEmitterContract: unverifiedDataEmitterContractAddress,
     } = config;
-
+    const chain = createEthereumChain(rpcUrl, apiKey);
     this.account = privateKeyToAccount(`0x${publisherPrivateKey.toString('hex')}`);
-    const chain = this.getChain(chainId);
     const walletClient = createWalletClient({
       account: this.account,
-      chain,
-      transport: http(rpcUrl),
+      chain: chain.chainInfo,
+      transport: http(chain.rpcUrl),
     });
 
     this.publicClient = createPublicClient({
-      chain: chain,
-      transport: http(rpcUrl),
+      chain: chain.chainInfo,
+      transport: http(chain.rpcUrl),
     });
 
     this.rollupContract = getContract({
@@ -118,11 +118,20 @@ export class ViemTxSender implements L1PublisherTxSender {
   /**
    * Sends a tx to the unverified data emitter contract with unverified data. Returns once the tx has been mined.
    * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param l2BlockHash - The hash of the block corresponding to this data.
    * @param unverifiedData - Data to publish.
    * @returns The hash of the mined tx.
    */
-  async sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
-    const args = [BigInt(l2BlockNum), `0x${unverifiedData.toBuffer().toString('hex')}`] as const;
+  async sendEmitUnverifiedDataTx(
+    l2BlockNum: number,
+    l2BlockHash: Buffer,
+    unverifiedData: UnverifiedData,
+  ): Promise<string | undefined> {
+    const args = [
+      BigInt(l2BlockNum),
+      `0x${l2BlockHash.toString('hex')}`,
+      `0x${unverifiedData.toBuffer().toString('hex')}`,
+    ] as const;
 
     const gas = await this.unverifiedDataEmitterContract.estimateGas.emitUnverifiedData(args, {
       account: this.account,
@@ -137,11 +146,13 @@ export class ViemTxSender implements L1PublisherTxSender {
   /**
    * Sends a tx to the unverified data emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
    * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param l2BlockHash - The hash of the block corresponding to this data.
    * @param newContractData - Data to publish.
    * @returns The hash of the mined tx.
    */
   async sendEmitContractDeploymentTx(
     l2BlockNum: number,
+    l2BlockHash: Buffer,
     newContractData: ContractPublicData[],
   ): Promise<(string | undefined)[]> {
     const hashes: string[] = [];
@@ -150,6 +161,7 @@ export class ViemTxSender implements L1PublisherTxSender {
         BigInt(l2BlockNum),
         contractPublicData.contractData.contractAddress.toString() as Hex,
         contractPublicData.contractData.portalContractAddress.toString() as Hex,
+        `0x${l2BlockHash.toString('hex')}`,
         `0x${contractPublicData.bytecode.toString('hex')}`,
       ] as const;
 

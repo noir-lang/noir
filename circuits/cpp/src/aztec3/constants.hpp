@@ -27,7 +27,7 @@ constexpr size_t KERNEL_PUBLIC_DATA_READS_LENGTH = 4;
 
 constexpr size_t VK_TREE_HEIGHT = 3;
 constexpr size_t FUNCTION_TREE_HEIGHT = 4;
-constexpr size_t CONTRACT_TREE_HEIGHT = 4;
+constexpr size_t CONTRACT_TREE_HEIGHT = 8;
 constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 8;
 constexpr size_t NULLIFIER_TREE_HEIGHT = 8;
 constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 254;

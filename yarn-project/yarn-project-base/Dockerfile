@@ -25,6 +25,7 @@ COPY aztec-node/package.json aztec-node/package.json
 COPY aztec.js/package.json aztec.js/package.json
 COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
+COPY ethereum/package.json ethereum/package.json
 COPY foundation/package.json foundation/package.json
 COPY key-store/package.json key-store/package.json
 COPY merkle-tree/package.json merkle-tree/package.json
@@ -35,7 +36,9 @@ COPY l1-artifacts/package.json l1-artifacts/package.json
 COPY barretenberg.js/package.json barretenberg.js/package.json
 COPY circuits.js/package.json circuits.js/package.json
 COPY p2p/package.json p2p/package.json
+COPY p2p-bootstrap/package.json p2p-bootstrap/package.json
 COPY prover-client/package.json prover-client/package.json
+COPY rollup-provider/package.json rollup-provider/package.json
 COPY sequencer-client/package.json sequencer-client/package.json
 COPY types/package.json types/package.json
 COPY world-state/package.json world-state/package.json
@@ -80,6 +83,7 @@ COPY aztec-rpc/tsconfig.json aztec-rpc/tsconfig.json
 COPY aztec-node/tsconfig.json aztec-node/tsconfig.json
 COPY aztec.js/tsconfig.json aztec.js/tsconfig.json
 COPY end-to-end/tsconfig.json end-to-end/tsconfig.json
+COPY ethereum/tsconfig.json ethereum/tsconfig.json
 COPY foundation/tsconfig.json foundation/tsconfig.json
 COPY key-store/tsconfig.json key-store/tsconfig.json
 COPY merkle-tree/tsconfig.json merkle-tree/tsconfig.json
@@ -88,8 +92,10 @@ COPY l1-artifacts/tsconfig.json l1-artifacts/tsconfig.json
 COPY barretenberg.js/tsconfig.json barretenberg.js/tsconfig.json
 COPY circuits.js/tsconfig.json circuits.js/tsconfig.json
 COPY p2p/tsconfig.json p2p/tsconfig.json
+COPY p2p-bootstrap/tsconfig.json p2p-bootstrap/tsconfig.json
 COPY prover-client/tsconfig.json prover-client/tsconfig.json
 COPY sequencer-client/tsconfig.json sequencer-client/tsconfig.json
+COPY rollup-provider/tsconfig.json rollup-provider/tsconfig.json
 COPY types/tsconfig.json types/tsconfig.json
 COPY world-state/tsconfig.json world-state/tsconfig.json
 

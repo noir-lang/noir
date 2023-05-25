@@ -4,6 +4,7 @@
 set -e
 
 export TEST=$1
+export COMPOSE_FILE=${2:-docker-compose.yml}
 
 if [ -n "$COMMIT_HASH" ]; then
   $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
@@ -15,4 +16,4 @@ if [ -n "$COMMIT_HASH" ]; then
 fi
 
 docker-compose rm -f
-docker-compose up --exit-code-from end-to-end
+docker-compose -f $COMPOSE_FILE up --exit-code-from end-to-end

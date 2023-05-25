@@ -1,7 +1,5 @@
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { AppendOnlyTreeSnapshot, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
-import { fr } from '@aztec/circuits.js/factories';
-
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
 import { ContractData, L2Block, L2BlockSource, MerkleTreeId, PublicDataWrite } from '@aztec/types';
 import { jest } from '@jest/globals';
@@ -99,6 +97,7 @@ describe('server_world_state_synchroniser', () => {
     updateHistoricRootsTrees: jest.fn().mockImplementation(() => Promise.resolve()),
     commit: jest.fn().mockImplementation(() => Promise.resolve()),
     rollback: jest.fn().mockImplementation(() => Promise.resolve()),
+    handleL2Block: jest.fn().mockImplementation(() => Promise.resolve()),
   } as any;
 
   it('can be constructed', () => {
@@ -244,9 +243,8 @@ describe('server_world_state_synchroniser', () => {
     await expect(server.start()).rejects.toThrow();
   });
 
-  it('updates the contract tree', async () => {
-    merkleTreeDb.appendLeaves.mockReset();
-    merkleTreeDb.updateHistoricRootsTrees.mockReset();
+  it('adds the received L2 blocks', async () => {
+    merkleTreeDb.handleL2Block.mockReset();
     const server = createSynchroniser(merkleTreeDb, rollupSource);
     const totalBlocks = LATEST_BLOCK_NUMBER + 1;
     nextBlocks = Array(totalBlocks)
@@ -254,34 +252,8 @@ describe('server_world_state_synchroniser', () => {
       .map((_, index) => getMockBlock(index, [Buffer.alloc(32, index)]));
     // sync the server
     await server.start();
-    // there are 4 data trees updated
-    expect(merkleTreeDb.appendLeaves).toHaveBeenCalledTimes(totalBlocks * 4);
-    // and 2 root trees
-    expect(merkleTreeDb.updateHistoricRootsTrees).toHaveBeenCalledTimes(totalBlocks);
-    // there should be a call to append to the contract tree for each block
-    for (let i = 0; i < totalBlocks; i++) {
-      expect(
-        merkleTreeDb.appendLeaves.mock.calls.findIndex(call => {
-          if (call[0] !== MerkleTreeId.CONTRACT_TREE) {
-            return false;
-          }
-          const leaves = call[1] as Buffer[];
-          return leaves.length === 1 && leaves[0].equals(Buffer.alloc(32, i));
-        }),
-      ).not.toBe(-1);
-    }
-    await server.stop();
-  });
 
-  it('updates the public data tree', async () => {
-    merkleTreeDb.appendLeaves.mockReset();
-    const server = createSynchroniser(merkleTreeDb, rollupSource);
-    const block = getMockBlock(LATEST_BLOCK_NUMBER + 1);
-    block.newPublicDataWrites[0] = new PublicDataWrite(fr(1), fr(2));
-    nextBlocks = [block];
-
-    await server.start();
-    expect(merkleTreeDb.updateLeaf).toHaveBeenCalledWith(MerkleTreeId.PUBLIC_DATA_TREE, fr(2).toBuffer(), fr(1).value);
+    expect(merkleTreeDb.handleL2Block).toHaveBeenCalledTimes(totalBlocks);
     await server.stop();
   });
 });

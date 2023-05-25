@@ -1,5 +1,5 @@
+import { deserializeBigInt, serializeBigInt } from '@aztec/foundation/serialize';
 import { assertMemberLength } from '@aztec/circuits.js';
-import { toBigInt } from '@aztec/foundation/serialize';
 
 /**
  * A class representing hash of Aztec transaction.
@@ -40,7 +40,15 @@ export class TxHash {
    * @returns The big int.
    */
   public toBigInt() {
-    return toBigInt(this.buffer);
+    return deserializeBigInt(this.buffer, 0, TxHash.SIZE).elem;
+  }
+  /**
+   * Creates a tx hash from a bigint.
+   * @param hash - The tx hash as a big int.
+   * @returns The TxHash.
+   */
+  public static fromBigInt(hash: bigint) {
+    return new TxHash(serializeBigInt(hash, TxHash.SIZE));
   }
   /**
    * Converts this hash from a buffer of 28 bytes.

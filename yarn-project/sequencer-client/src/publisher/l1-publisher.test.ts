@@ -34,13 +34,13 @@ describe('L1Publisher', () => {
     expect(txSender.getTransactionReceipt).toHaveBeenCalledWith(txHash);
   });
 
-  it('retries if sending a tx fails', async () => {
+  it('does not retry if sending a tx fails', async () => {
     txSender.sendProcessTx.mockReset().mockRejectedValueOnce(new Error()).mockResolvedValueOnce(txHash);
 
     const result = await publisher.processL2Block(l2Block);
 
-    expect(result).toEqual(true);
-    expect(txSender.sendProcessTx).toHaveBeenCalledTimes(2);
+    expect(result).toEqual(false);
+    expect(txSender.sendProcessTx).toHaveBeenCalledTimes(1);
   });
 
   it('retries if fetching the receipt fails', async () => {

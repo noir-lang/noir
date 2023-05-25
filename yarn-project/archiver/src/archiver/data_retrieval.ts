@@ -49,9 +49,7 @@ export async function retrieveBlocks(
     if (searchStartBlock > currentBlockNumber) {
       break;
     }
-
     const l2BlockProcessedLogs = await getL2BlockProcessedLogs(publicClient, rollupAddress, searchStartBlock);
-
     if (l2BlockProcessedLogs.length === 0) {
       break;
     }
@@ -72,6 +70,7 @@ export async function retrieveBlocks(
  * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
  * @param expectedNextRollupNumber - The next rollup id that we expect to find.
+ * @param blockHashMapping - A mapping from block number to relevant block hash.
  * @returns An array of UnverifiedData and the next eth block to search from.
  */
 export async function retrieveUnverifiedData(
@@ -81,6 +80,7 @@ export async function retrieveUnverifiedData(
   currentBlockNumber: bigint,
   searchStartBlock: bigint,
   expectedNextRollupNumber: bigint,
+  blockHashMapping: { [key: number]: Buffer | undefined },
 ): Promise<DataRetrieval<UnverifiedData>> {
   const newUnverifiedDataChunks: UnverifiedData[] = [];
   do {
@@ -98,7 +98,7 @@ export async function retrieveUnverifiedData(
       break;
     }
 
-    const newChunks = processUnverifiedDataLogs(expectedNextRollupNumber, unverifiedDataLogs);
+    const newChunks = processUnverifiedDataLogs(expectedNextRollupNumber, blockHashMapping, unverifiedDataLogs);
     newUnverifiedDataChunks.push(...newChunks);
     searchStartBlock = unverifiedDataLogs[unverifiedDataLogs.length - 1].blockNumber + 1n;
     expectedNextRollupNumber += BigInt(newChunks.length);
@@ -113,6 +113,7 @@ export async function retrieveUnverifiedData(
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
+ * @param blockHashMapping - A mapping from block number to relevant block hash.
  * @returns An array of ContractPublicData and their equivalent L2 Block number along with the next eth block to search from..
  */
 export async function retrieveNewContractData(
@@ -121,21 +122,23 @@ export async function retrieveNewContractData(
   blockUntilSynced: boolean,
   currentBlockNumber: bigint,
   searchStartBlock: bigint,
+  blockHashMapping: { [key: number]: Buffer | undefined },
 ): Promise<DataRetrieval<[ContractPublicData[], number]>> {
   let retrievedNewContracts: [ContractPublicData[], number][] = [];
   do {
     if (searchStartBlock > currentBlockNumber) {
       break;
     }
-
     const contractDataLogs = await getContractDeploymentLogs(
       publicClient,
       unverifiedDataEmitterAddress,
       searchStartBlock,
     );
-    const newContracts = processContractDeploymentLogs(contractDataLogs);
+    if (contractDataLogs.length === 0) {
+      break;
+    }
+    const newContracts = processContractDeploymentLogs(blockHashMapping, contractDataLogs);
     retrievedNewContracts = retrievedNewContracts.concat(newContracts);
-
     searchStartBlock = (contractDataLogs.findLast(cd => !!cd)?.blockNumber || searchStartBlock) + 1n;
   } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewContracts };

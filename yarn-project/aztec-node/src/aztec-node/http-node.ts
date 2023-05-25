@@ -1,0 +1,293 @@
+import { AztecNode } from '@aztec/aztec-node';
+import {
+  AztecAddress,
+  CONTRACT_TREE_HEIGHT,
+  Fr,
+  KernelCircuitPublicInputs,
+  L1_TO_L2_MESSAGES_TREE_HEIGHT,
+  PRIVATE_DATA_TREE_HEIGHT,
+  Proof,
+  PublicCallRequest,
+  SignedTxRequest,
+} from '@aztec/circuits.js';
+import { SiblingPath } from '@aztec/merkle-tree';
+import {
+  ContractData,
+  ContractPublicData,
+  EncodedContractFunction,
+  L2Block,
+  MerkleTreeId,
+  Tx,
+  TxHash,
+  UnverifiedData,
+} from '@aztec/types';
+
+/**
+ * Serialises a transaction to JSON representation.
+ * @param tx - The transaction to serialise.
+ * @returns The serialsied transaction.
+ */
+export function txToJson(tx: Tx) {
+  return {
+    data: tx.data?.toBuffer().toString('hex'),
+    unverified: tx.unverifiedData?.toBuffer().toString('hex'),
+    txRequest: tx.txRequest?.toBuffer().toString('hex'),
+    proof: tx.proof?.toBuffer().toString('hex'),
+    newContractPublicFunctions: tx.newContractPublicFunctions?.map(f => f.toBuffer().toString('hex')) ?? [],
+    enqueuedPublicFunctions: tx.enqueuedPublicFunctionCalls?.map(f => f.toBuffer().toString('hex')) ?? [],
+  };
+}
+
+/**
+ * Deserialises a transaction from JSON.
+ * @param json - The JSON representation of the transaction.
+ * @returns The deserialised transaction.
+ */
+export function txFromJson(json: any) {
+  const publicInputs = json.data ? KernelCircuitPublicInputs.fromBuffer(Buffer.from(json.data, 'hex')) : undefined;
+  const unverified = json.unverified ? UnverifiedData.fromBuffer(Buffer.from(json.unverified, 'hex')) : undefined;
+  const txRequest = json.txRequest ? SignedTxRequest.fromBuffer(Buffer.from(json.txRequest, 'hex')) : undefined;
+  const proof = json.proof ? Buffer.from(json.proof, 'hex') : undefined;
+  const newContractPublicFunctions = json.newContractPublicFunctions
+    ? json.newContractPublicFunctions.map((x: string) => EncodedContractFunction.fromBuffer(Buffer.from(x, 'hex')))
+    : [];
+  const enqueuedPublicFunctions = json.enqueuedPublicFunctions
+    ? json.enqueuedPublicFunctions.map((x: string) => PublicCallRequest.fromBuffer(Buffer.from(x, 'hex')))
+    : [];
+  if (txRequest) {
+    return Tx.createPublic(txRequest);
+  }
+  if (publicInputs && proof && unverified) {
+    return Tx.createPrivate(
+      publicInputs,
+      Proof.fromBuffer(proof),
+      unverified,
+      newContractPublicFunctions,
+      enqueuedPublicFunctions,
+    );
+  }
+  return Tx.create(publicInputs, proof == undefined ? undefined : Proof.fromBuffer(proof), unverified, txRequest);
+}
+
+/**
+ * A Http client based implementation of Aztec Node.
+ */
+export class HttpNode implements AztecNode {
+  private baseUrl: string;
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl.toString().replace(/\/$/, '');
+  }
+  /**
+   * Method to determine if the node is ready to accept transactions.
+   * @returns - Flag indicating the readiness for tx submission.
+   */
+  public async isReady(): Promise<boolean> {
+    const url = new URL(this.baseUrl);
+    const response = await fetch(url.toString());
+    const respJson = await response.json();
+    return respJson.isReady;
+  }
+
+  /**
+   * Method to request blocks. Will attempt to return all requested blocks but will return only those available.
+   * @param from - The start of the range of blocks to return.
+   * @param take - The number of blocks desired.
+   * @returns The blocks requested.
+   */
+  async getBlocks(from: number, take: number): Promise<L2Block[]> {
+    const url = new URL(`${this.baseUrl}/get-blocks`);
+    url.searchParams.append('from', from.toString());
+    if (take !== undefined) {
+      url.searchParams.append('take', take.toString());
+    }
+    const response = await (await fetch(url.toString())).json();
+    const blocks = response.blocks as string[];
+    if (!blocks) {
+      return Promise.resolve([]);
+    }
+    return Promise.resolve(blocks.map(x => L2Block.decode(Buffer.from(x, 'hex'))));
+  }
+
+  /**
+   * Method to fetch the current block height.
+   * @returns The block height as a number.
+   */
+  async getBlockHeight(): Promise<number> {
+    const url = new URL(`${this.baseUrl}/get-block-height`);
+    const response = await fetch(url.toString());
+    const respJson = await response.json();
+    return respJson.blockHeight;
+  }
+
+  /**
+   * Lookup the L2 contract data for this contract.
+   * Contains the ethereum portal address and bytecode.
+   * @param contractAddress - The contract data address.
+   * @returns The complete contract data including portal address & bytecode (if we didn't throw an error).
+   */
+  async getContractData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
+    const url = new URL(`${this.baseUrl}/contract-data`);
+    url.searchParams.append('address', contractAddress.toString());
+    const response = await (await fetch(url.toString())).json();
+    const contract = response.contractData as string;
+    return Promise.resolve(ContractPublicData.fromBuffer(Buffer.from(contract, 'hex')));
+  }
+
+  /**
+   * Lookup the L2 contract info for this contract.
+   * Contains the ethereum portal address .
+   * @param contractAddress - The contract data address.
+   * @returns The contract's address & portal address.
+   */
+  async getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    const url = new URL(`${this.baseUrl}/contract-info`);
+    url.searchParams.append('address', contractAddress.toString());
+    const response = await (await fetch(url.toString())).json();
+    const contract = response.contractInfo as string;
+    return Promise.resolve(ContractData.fromBuffer(Buffer.from(contract, 'hex')));
+  }
+
+  /**
+   * Gets the `take` amount of unverified data starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first `unverifiedData` to be returned.
+   * @param take - The number of `unverifiedData` to return.
+   * @returns The requested `unverifiedData`.
+   */
+  async getUnverifiedData(from: number, take: number): Promise<UnverifiedData[]> {
+    const url = new URL(`${this.baseUrl}/get-unverified`);
+    url.searchParams.append('from', from.toString());
+    if (take !== undefined) {
+      url.searchParams.append('take', take.toString());
+    }
+    const response = await (await fetch(url.toString())).json();
+    const unverified = response.unverified as string[];
+
+    if (!unverified) {
+      return Promise.resolve([]);
+    }
+    return Promise.resolve(unverified.map(x => UnverifiedData.fromBuffer(Buffer.from(x, 'hex'))));
+  }
+
+  /**
+   * Method to submit a transaction to the p2p pool.
+   * @param tx - The transaction to be submitted.
+   */
+  async sendTx(tx: Tx): Promise<void> {
+    const url = new URL(`${this.baseUrl}/tx`);
+    const json = txToJson(tx);
+    const init: RequestInit = {};
+    init['method'] = 'POST';
+    init['body'] = JSON.stringify(json);
+    await fetch(url, init);
+  }
+
+  /**
+   * Method to retrieve pending txs.
+   * @returns - The pending txs.
+   */
+  getPendingTxs(): Promise<Tx[]> {
+    return Promise.resolve([]);
+  }
+
+  /**
+   * Method to retrieve a single pending tx.
+   * @param txHash - The transaction hash to return.
+   * @returns - The pending tx if it exists.
+   */
+  async getPendingTxByHash(txHash: TxHash): Promise<Tx | undefined> {
+    const url = new URL(`${this.baseUrl}/get-pending-tx`);
+    url.searchParams.append('hash', txHash.toString());
+    const response = await (await fetch(url.toString())).json();
+    return Promise.resolve(txFromJson(response));
+  }
+
+  /**
+   * Find the index of the given contract.
+   * @param leafValue - The value to search for.
+   * @returns The index of the given leaf in the contracts tree or undefined if not found.
+   */
+  async findContractIndex(leafValue: Buffer): Promise<bigint | undefined> {
+    const url = new URL(`${this.baseUrl}/contract-index`);
+    url.searchParams.append('leaf', leafValue.toString('hex'));
+    const response = await (await fetch(url.toString())).json();
+    const index = response.index as string;
+    return Promise.resolve(BigInt(index));
+  }
+
+  /**
+   * Returns the sibling path for the given index in the contract tree.
+   * @param leafIndex - The index of the leaf for which the sibling path is required.
+   * @returns The sibling path for the leaf index.
+   */
+  async getContractPath(leafIndex: bigint): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>> {
+    const url = new URL(`${this.baseUrl}/contract-path`);
+    url.searchParams.append('leaf', leafIndex.toString());
+    const response = await (await fetch(url.toString())).json();
+    const path = response.path as string;
+    return Promise.resolve(SiblingPath.fromString(path));
+  }
+
+  /**
+   * Returns the sibling path for the given index in the data tree.
+   * @param leafIndex - The index of the leaf for which the sibling path is required.
+   * @returns The sibling path for the leaf index.
+   */
+  async getDataTreePath(leafIndex: bigint): Promise<SiblingPath<typeof PRIVATE_DATA_TREE_HEIGHT>> {
+    const url = new URL(`${this.baseUrl}/data-path`);
+    url.searchParams.append('leaf', leafIndex.toString());
+    const response = await (await fetch(url.toString())).json();
+    const path = response.path as string;
+    return Promise.resolve(SiblingPath.fromString(path));
+  }
+
+  /**
+   * Returns the sibling path for a leaf in the committed l1 to l2 data tree.
+   * @param leafIndex - Index of the leaf in the tree.
+   * @returns The sibling path.
+   */
+  async getL1ToL2MessagesTreePath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MESSAGES_TREE_HEIGHT>> {
+    const url = new URL(`${this.baseUrl}/l1-l2-path`);
+    url.searchParams.append('leaf', leafIndex.toString());
+    const response = await (await fetch(url.toString())).json();
+    const path = response.path as string;
+    return Promise.resolve(SiblingPath.fromString(path));
+  }
+
+  /**
+   * Gets the storage value at the given contract slot.
+   * @param contract - Address of the contract to query.
+   * @param slot - Slot to query.
+   * @returns Storage value at the given contract slot (or undefined if not found).
+   * Note: Aztec's version of `eth_getStorageAt`.
+   */
+  async getStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
+    const url = new URL(`${this.baseUrl}/storage-at`);
+    url.searchParams.append('address', contract.toString());
+    url.searchParams.append('slot', slot.toString());
+    const response = await (await fetch(url.toString())).json();
+    const value = response.value as string;
+    return Promise.resolve(Buffer.from(value, 'hex'));
+  }
+
+  /**
+   * Returns the current committed roots for the data trees.
+   * @returns The current committed roots for the data trees.
+   */
+  async getTreeRoots(): Promise<Record<MerkleTreeId, Fr>> {
+    const url = new URL(`${this.baseUrl}/tree-roots`);
+    const response = await (await fetch(url.toString())).json();
+
+    const extractRoot = (treeId: MerkleTreeId) => Fr.fromBuffer(Buffer.from(response.roots[`${treeId}`], 'hex'));
+
+    return {
+      [MerkleTreeId.CONTRACT_TREE]: extractRoot(MerkleTreeId.CONTRACT_TREE),
+      [MerkleTreeId.PRIVATE_DATA_TREE]: extractRoot(MerkleTreeId.PRIVATE_DATA_TREE),
+      [MerkleTreeId.NULLIFIER_TREE]: extractRoot(MerkleTreeId.NULLIFIER_TREE),
+      [MerkleTreeId.PUBLIC_DATA_TREE]: extractRoot(MerkleTreeId.PUBLIC_DATA_TREE),
+      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: extractRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
+      [MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE]: extractRoot(MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE),
+      [MerkleTreeId.CONTRACT_TREE_ROOTS_TREE]: extractRoot(MerkleTreeId.CONTRACT_TREE_ROOTS_TREE),
+      [MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE]: extractRoot(MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE),
+    };
+  }
+}

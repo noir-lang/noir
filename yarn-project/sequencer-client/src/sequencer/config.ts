@@ -7,7 +7,11 @@ export interface SequencerConfig {
    */
   transactionPollingInterval: number;
   /**
-   * Up to how many txs to include a block.
+   * The maximum number of txs to include in a block.
    */
   maxTxsPerBlock: number;
+  /**
+   * The minimum number of txs to include in a block.
+   */
+  minTxsPerBlock: number;
 }

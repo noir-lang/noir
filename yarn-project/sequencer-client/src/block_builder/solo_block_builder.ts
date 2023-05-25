@@ -473,7 +473,7 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     const index = await this.db.findLeafIndex(treeId, value.toBuffer());
     if (index === undefined) {
-      throw new Error(`Leaf with value ${value} not found in tree ${treeId}`);
+      throw new Error(`Leaf with value ${value} not found in tree ${MerkleTreeId[treeId]}`);
     }
     const path = await this.db.getSiblingPath(treeId, index);
     return new MembershipWitness(height, index, assertLength(path.toFieldArray(), height));

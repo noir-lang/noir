@@ -34,18 +34,28 @@ export interface L1PublisherTxSender {
   /**
    * Sends a tx to the unverified data emitter contract with unverified data. Returns once the tx has been mined.
    * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param l2BlockHash - The hash of the block corresponding to this data.
    * @param unverifiedData - Data to publish.
    * @returns The hash of the mined tx.
    */
-  sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
+  sendEmitUnverifiedDataTx(
+    l2BlockNum: number,
+    l2BlockHash: Buffer,
+    unverifiedData: UnverifiedData,
+  ): Promise<string | undefined>;
 
   /**
    * Sends a tx to the unverified data emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
    * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * @param l2BlockHash - The hash of the block corresponding to this data.
    * @param contractData - Data to publish.
    * @returns The hash of the mined tx.
    */
-  sendEmitContractDeploymentTx(l2BlockNum: number, contractData: ContractPublicData[]): Promise<(string | undefined)[]>;
+  sendEmitContractDeploymentTx(
+    l2BlockNum: number,
+    l2BlockHash: Buffer,
+    contractData: ContractPublicData[],
+  ): Promise<(string | undefined)[]>;
 
   /**
    * Returns a tx receipt if the tx has been mined.
@@ -139,10 +149,15 @@ export class L1Publisher implements L2BlockReceiver {
   /**
    * Publishes unverifiedData to L1.
    * @param l2BlockNum - The L2 block number that the unverifiedData is associated with.
+   * @param l2BlockHash - The hash of the block corresponding to this data.
    * @param unverifiedData - The unverifiedData to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processUnverifiedData(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<boolean> {
+  public async processUnverifiedData(
+    l2BlockNum: number,
+    l2BlockHash: Buffer,
+    unverifiedData: UnverifiedData,
+  ): Promise<boolean> {
     while (!this.interrupted) {
       if (!(await this.checkFeeDistributorBalance())) {
         this.log(`Fee distributor ETH balance too low, awaiting top up...`);
@@ -150,7 +165,7 @@ export class L1Publisher implements L2BlockReceiver {
         continue;
       }
 
-      const txHash = await this.sendEmitUnverifiedDataTx(l2BlockNum, unverifiedData);
+      const txHash = await this.sendEmitUnverifiedDataTx(l2BlockNum, l2BlockHash, unverifiedData);
       if (!txHash) break;
 
       const receipt = await this.getTransactionReceipt(txHash);
@@ -170,10 +185,11 @@ export class L1Publisher implements L2BlockReceiver {
   /**
    * Publishes new contract data to L1.
    * @param l2BlockNum - The L2 block number that the new contracts were deployed on.
+   * @param l2BlockHash - The hash of the block corresponding to this data.
    * @param contractData - The new contract data to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processNewContractData(l2BlockNum: number, contractData: ContractPublicData[]) {
+  public async processNewContractData(l2BlockNum: number, l2BlockHash: Buffer, contractData: ContractPublicData[]) {
     let _contractData: ContractPublicData[] = [];
     while (!this.interrupted) {
       if (!(await this.checkFeeDistributorBalance())) {
@@ -183,7 +199,7 @@ export class L1Publisher implements L2BlockReceiver {
       }
 
       const arr = _contractData.length ? _contractData : contractData;
-      const txHashes = await this.sendEmitNewContractDataTx(l2BlockNum, arr);
+      const txHashes = await this.sendEmitNewContractDataTx(l2BlockNum, l2BlockHash, arr);
       if (!txHashes) break;
       // filter successful txs
       _contractData = arr.filter((_, i) => !!txHashes[i]);
@@ -236,19 +252,20 @@ export class L1Publisher implements L2BlockReceiver {
       try {
         return await this.txSender.sendProcessTx(encodedData);
       } catch (err) {
-        this.log(`Error sending L2 block tx to L1`, err);
-        await this.sleepOrInterrupted();
+        this.log(`ROLLUP PUBLISH FAILED`, err);
+        return undefined;
       }
     }
   }
 
   private async sendEmitUnverifiedDataTx(
     l2BlockNum: number,
+    l2BlockHash: Buffer,
     unverifiedData: UnverifiedData,
   ): Promise<string | undefined> {
     while (!this.interrupted) {
       try {
-        return await this.txSender.sendEmitUnverifiedDataTx(l2BlockNum, unverifiedData);
+        return await this.txSender.sendEmitUnverifiedDataTx(l2BlockNum, l2BlockHash, unverifiedData);
       } catch (err) {
         this.log(`Error sending unverified data tx to L1`, err);
         await this.sleepOrInterrupted();
@@ -256,10 +273,10 @@ export class L1Publisher implements L2BlockReceiver {
     }
   }
 
-  private async sendEmitNewContractDataTx(l2BlockNum: number, contractData: ContractPublicData[]) {
+  private async sendEmitNewContractDataTx(l2BlockNum: number, l2BlockHash: Buffer, contractData: ContractPublicData[]) {
     while (!this.interrupted) {
       try {
-        return await this.txSender.sendEmitContractDeploymentTx(l2BlockNum, contractData);
+        return await this.txSender.sendEmitContractDeploymentTx(l2BlockNum, l2BlockHash, contractData);
       } catch (err) {
         this.log(`Error sending contract data to L1`, err);
         await this.sleepOrInterrupted();
@@ -272,7 +289,7 @@ export class L1Publisher implements L2BlockReceiver {
       try {
         return await this.txSender.getTransactionReceipt(txHash);
       } catch (err) {
-        this.log(`Error getting tx receipt`, err);
+        //this.log(`Error getting tx receipt`, err);
         await this.sleepOrInterrupted();
       }
     }

@@ -1,0 +1,38 @@
+version: '3'
+services:
+  fork:
+    image: ghcr.io/foundry-rs/foundry:nightly-a44aa13cfc23491ba32aaedc093e9488c1a6db43
+    entrypoint: 'anvil -p 8545 --host 0.0.0.0 --chain-id 31337'
+    ports:
+      - '8545:8545'
+
+  p2p-bootstrap:
+    image: aztecprotocol/p2p-bootstrap:latest
+    ports:
+      - '40400:40400'
+    command: 'start'
+    environment:
+      DEBUG: 'aztec:*'
+      P2P_TCP_LISTEN_PORT: 40400
+      P2P_TCP_LISTEN_IP: '0.0.0.0'
+      P2P_ANNOUNCE_HOSTNAME: 'p2p-bootstrap'
+      PEER_ID_PRIVATE_KEY: '0a260024080112205ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e1224080112205ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e1a44080112402df8b977f356c6e34fa021c9647973234dff4df706c185794405aafb556723cf5ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e'
+
+  end-to-end:
+    image: aztecprotocol/end-to-end:latest
+    environment:
+      DEBUG: 'aztec:*'
+      ETHEREUM_HOST: http://fork:8545
+      CHAIN_ID: 31337
+      ARCHIVER_POLLING_INTERVAL: 500
+      P2P_CHECK_INTERVAL: 50
+      SEQ_TX_POLLING_INTERVAL: 50
+      WS_CHECK_INTERVAL: 50
+      SEQ_MAX_TX_PER_BLOCK: 32
+      SEQ_MIN_TX_PER_BLOCK: 1
+      P2P_TCP_LISTEN_IP: '0.0.0.0'
+      P2P_NAT_ENABLED: 'false'
+      P2P_SERVER: 'false'
+      P2P_ENABLED: 'true'
+      BOOTSTRAP_NODES: '/ip4/p2p-bootstrap/tcp/40400/p2p/12D3KooWGBpbC6qQFkaCYphjNeY6sV99o4SnEWyTeBigoVriDn4D'
+    command: ${TEST:-./src/e2e_p2p_network.test.ts}

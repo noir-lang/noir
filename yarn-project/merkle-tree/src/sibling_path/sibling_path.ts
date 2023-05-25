@@ -85,8 +85,8 @@ export class SiblingPath<N extends number> {
    * @param offset - An offset to start deserializing from.
    * @returns A SiblingPath object.
    */
-  static fromBuffer(buf: Buffer, offset = 0): SiblingPath<number> {
-    const { elem } = SiblingPath.deserialize(buf, offset);
+  static fromBuffer<N extends number>(buf: Buffer, offset = 0): SiblingPath<N> {
+    const { elem } = SiblingPath.deserialize<N>(buf, offset);
     return elem;
   }
 
@@ -96,14 +96,14 @@ export class SiblingPath<N extends number> {
    * @param offset - An offset to start deserializing from.
    * @returns The deserialized sibling path and the number of bytes advanced.
    */
-  static deserialize(buf: Buffer, offset = 0) {
+  static deserialize<N extends number>(buf: Buffer, offset = 0) {
     const deserializePath = (buf: Buffer, offset: number) => ({
       elem: buf.slice(offset, offset + 32),
       adv: 32,
     });
     const { elem, adv } = deserializeArrayFromVector(deserializePath, buf, offset);
     const size = elem.length;
-    return { elem: new SiblingPath(size, elem), adv };
+    return { elem: new SiblingPath<N>(size as N, elem), adv };
   }
 
   /**
@@ -119,8 +119,8 @@ export class SiblingPath<N extends number> {
    * @param repr - A hex string representation of the sibling path.
    * @returns A SiblingPath object.
    */
-  public static fromString(repr: string): SiblingPath<number> {
-    return SiblingPath.fromBuffer(Buffer.from(repr, 'hex'));
+  public static fromString<N extends number>(repr: string): SiblingPath<N> {
+    return SiblingPath.fromBuffer<N>(Buffer.from(repr, 'hex'));
   }
 
   /**

@@ -16,6 +16,9 @@
       "path": "../circuits.js"
     },
     {
+      "path": "../ethereum"
+    },
+    {
       "path": "../foundation"
     },
     {
@@ -23,6 +26,9 @@
     },
     {
       "path": "../noir-contracts"
+    },
+    {
+      "path": "../p2p"
     },
     {
       "path": "../sequencer-client"

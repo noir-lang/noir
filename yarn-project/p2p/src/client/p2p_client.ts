@@ -2,9 +2,9 @@ import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource } from '@azte
 import { Tx, TxHash } from '@aztec/types';
 
 import { TxPool } from '../tx_pool/index.js';
-import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';
-import { getConfigEnvVars } from '../config.js';
+import { getP2PConfigEnvVars } from '../config.js';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { P2PService } from '../service/service.js';
 
 /**
  * Enum defining the possible states of the p2p client.
@@ -114,14 +114,16 @@ export class P2PClient implements P2P {
    * In-memory P2P client constructor.
    * @param l2BlockSource - P2P client's source for fetching existing block data.
    * @param txPool - The client's instance of a transaction pool. Defaults to in-memory implementation.
+   * @param p2pService - The concrete instance of p2p networking to use.
    * @param log - A logger.
    */
   constructor(
     private l2BlockSource: L2BlockSource,
-    private txPool: TxPool = new InMemoryTxPool(),
+    private txPool: TxPool,
+    private p2pService: P2PService,
     private log = createDebugLogger('aztec:p2p'),
   ) {
-    const { checkInterval, l2QueueSize } = getConfigEnvVars();
+    const { checkInterval, l2QueueSize } = getP2PConfigEnvVars();
     this.blockDownloader = new L2BlockDownloader(l2BlockSource, l2QueueSize, checkInterval);
   }
 
@@ -153,6 +155,7 @@ export class P2PClient implements P2P {
       // if no blocks to be retrieved, go straight to running
       this.setCurrentState(P2PClientState.RUNNING);
       this.syncPromise = Promise.resolve();
+      await this.p2pService.start();
       this.log(`Next block ${blockToDownloadFrom} already beyond latest block at ${this.latestBlockNumberAtStart}`);
     }
 
@@ -176,6 +179,7 @@ export class P2PClient implements P2P {
   public async stop() {
     this.log('Stopping p2p client...');
     this.stopping = true;
+    await this.p2pService.stop();
     await this.blockDownloader.stop();
     await this.runningPromise;
     this.setCurrentState(P2PClientState.STOPPED);
@@ -209,6 +213,7 @@ export class P2PClient implements P2P {
       throw new Error('P2P client not ready');
     }
     await this.txPool.addTxs([tx]);
+    this.p2pService.propagateTx(tx);
   }
 
   /**
@@ -261,10 +266,8 @@ export class P2PClient implements P2P {
     for (let i = 0; i < blocks.length; i++) {
       const blockContext = new L2BlockContext(blocks[i]);
       const txHashes = blockContext.getTxHashes();
-      for (const txHash of txHashes) {
-        this.log(`Deleting tx hash ${txHash.toString()} from tx pool`);
-      }
       this.txPool.deleteTxs(txHashes);
+      this.p2pService.settledTxs(txHashes);
     }
     return Promise.resolve();
   }
@@ -285,6 +288,7 @@ export class P2PClient implements P2P {
       this.setCurrentState(P2PClientState.RUNNING);
       if (this.syncResolve !== undefined) {
         this.syncResolve();
+        await this.p2pService.start();
       }
     }
   }

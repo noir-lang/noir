@@ -456,7 +456,6 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    * @param leaves - Values to insert into the tree.
    * @param treeHeight - Height of the tree.
    * @param subtreeHeight - Height of the subtree.
-   * @param includeUncommitted - If true, the uncommitted changes are included in the search.
    * @returns The data for the leaves to be updated when inserting the new ones.
    */
   public async batchInsert<
@@ -467,7 +466,6 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     leaves: Buffer[],
     treeHeight: TreeHeight,
     subtreeHeight: SubtreeHeight,
-    includeUncommitted: boolean,
   ): Promise<
     | [LowLeafWitnessData<TreeHeight>[], SiblingPath<SubtreeSiblingPathHeight>]
     | [undefined, SiblingPath<SubtreeSiblingPathHeight>]
@@ -481,7 +479,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     const pendingInsertionSubtree: LeafData[] = [];
 
     // Start info
-    const startInsertionIndex = this.getNumLeaves(includeUncommitted);
+    const startInsertionIndex = this.getNumLeaves(true);
 
     // Get insertion path for each leaf
     for (let i = 0; i < leaves.length; i++) {
@@ -494,7 +492,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
         continue;
       }
 
-      const indexOfPrevious = this.findIndexOfPreviousValue(newValue, includeUncommitted);
+      const indexOfPrevious = this.findIndexOfPreviousValue(newValue, true);
 
       // If a touched node has a value that is less greater than the current value
       const prevNodes = touched.get(indexOfPrevious.index);
@@ -537,11 +535,11 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
         }
 
         // get the low leaf
-        const lowLeaf = this.getLatestLeafDataCopy(indexOfPrevious.index, includeUncommitted);
+        const lowLeaf = this.getLatestLeafDataCopy(indexOfPrevious.index, true);
         if (lowLeaf === undefined) {
-          return [undefined, await this.getSubtreeSiblingPath(subtreeHeight, includeUncommitted)];
+          return [undefined, await this.getSubtreeSiblingPath(subtreeHeight, true)];
         }
-        const siblingPath = await this.getSiblingPath<TreeHeight>(BigInt(indexOfPrevious.index), includeUncommitted);
+        const siblingPath = await this.getSiblingPath<TreeHeight>(BigInt(indexOfPrevious.index), true);
 
         const witness: LowLeafWitnessData<TreeHeight> = {
           leafData: { ...lowLeaf },
@@ -569,7 +567,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
 
     const newSubtreeSiblingPath = await this.getSubtreeSiblingPath<SubtreeHeight, SubtreeSiblingPathHeight>(
       subtreeHeight,
-      includeUncommitted,
+      true,
     );
 
     // Perform batch insertion of new pending values

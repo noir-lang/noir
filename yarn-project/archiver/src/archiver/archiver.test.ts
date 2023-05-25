@@ -28,6 +28,7 @@ describe('Archiver', () => {
       EthAddress.fromString(rollupAddress),
       EthAddress.fromString(inboxAddress),
       EthAddress.fromString(unverifiedDataEmitterAddress),
+      0,
       archiverStore,
       1000,
     );
@@ -37,18 +38,19 @@ describe('Archiver', () => {
     let latestUnverifiedDataBlockNum = await archiver.getLatestUnverifiedDataBlockNum();
     expect(latestUnverifiedDataBlockNum).toEqual(0);
 
-    const rollupTxs = [1, 2, 3].map(makeRollupTx);
+    const blocks = [1, 2, 3].map(x => L2Block.random(x));
+    const rollupTxs = blocks.map(makeRollupTx);
 
     publicClient.getBlockNumber.mockResolvedValue(2500n);
     // logs should be created in order of how archiver syncs.
     publicClient.getLogs
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(100n, 1n)])
-      .mockResolvedValueOnce([makeUnverifiedDataEvent(102n, 1n)])
-      .mockResolvedValueOnce([makeContractDeployedEvent(104n, 1n)])
+      .mockResolvedValueOnce([makeUnverifiedDataEvent(102n, blocks[0])])
+      .mockResolvedValueOnce([makeContractDeployedEvent(104n, blocks[0])])
       .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(101n)])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(1100n, 2n), makeL2BlockProcessedEvent(1150n, 3n)])
-      .mockResolvedValueOnce([makeUnverifiedDataEvent(1100n, 2n)])
-      .mockResolvedValueOnce([makeContractDeployedEvent(1102n, 2n)])
+      .mockResolvedValueOnce([makeUnverifiedDataEvent(1100n, blocks[1])])
+      .mockResolvedValueOnce([makeContractDeployedEvent(1102n, blocks[1])])
       .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(1101n)])
       .mockResolvedValue([]);
     rollupTxs.forEach(tx => publicClient.getTransaction.mockResolvedValueOnce(tx));
@@ -95,28 +97,29 @@ function makeL2BlockProcessedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
 /**
  * Makes a fake UnverifiedData event for testing purposes.
  * @param l1BlockNum - L1 block number.
- * @param l2BlockNum - L2Block number.
+ * @param l2Block - The l2Block this event is associated with.
  * @returns An UnverifiedData event log.
  */
-function makeUnverifiedDataEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
+function makeUnverifiedDataEvent(l1BlockNum: bigint, l2Block: L2Block) {
   return {
     blockNumber: l1BlockNum,
     args: {
-      l2BlockNum,
+      l2BlockNum: BigInt(l2Block.number),
+      l2BlockHash: `0x${l2Block.getCalldataHash().toString('hex')}`,
       sender: EthAddress.random().toString(),
       data: '0x' + createRandomUnverifiedData(16).toString('hex'),
     },
-    transactionHash: `0x${l2BlockNum}`,
+    transactionHash: `0x${l2Block.number}`,
   } as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>;
 }
 
 /**
  * Makes a fake ContractDeployed event for testing purposes.
  * @param l1BlockNum - L1 block number.
- * @param l2BlockNum - L2Block number.
+ * @param l2Block - The l2Block this event is associated with.
  * @returns An UnverifiedData event log.
  */
-function makeContractDeployedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
+function makeContractDeployedEvent(l1BlockNum: bigint, l2Block: L2Block) {
   // const contractData = ContractData.random();
   const aztecAddress = AztecAddress.random();
   const portalAddress = EthAddress.random();
@@ -128,12 +131,13 @@ function makeContractDeployedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
   return {
     blockNumber: l1BlockNum,
     args: {
-      l2BlockNum,
+      l2BlockNum: BigInt(l2Block.number),
       aztecAddress: aztecAddress.toString(),
       portalAddress: portalAddress.toString(),
+      l2BlockHash: `0x${l2Block.getCalldataHash().toString('hex')}`,
       acir: '0x' + acir,
     },
-    transactionHash: `0x${l2BlockNum}`,
+    transactionHash: `0x${l2Block.number}`,
   } as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployment'>;
 }
 
@@ -162,12 +166,12 @@ function makeL1ToL2MessageAddedEvent(l1BlockNum: bigint) {
 
 /**
  * Makes a fake rollup tx for testing purposes.
- * @param blockNum - L2Block number.
+ * @param block - The L2Block.
  * @returns A fake tx with calldata that corresponds to calling process in the Rollup contract.
  */
-function makeRollupTx(blockNum: number) {
+function makeRollupTx(l2Block: L2Block) {
   const proof = `0x`;
-  const block = toHex(L2Block.random(blockNum).encode());
+  const block = toHex(l2Block.encode());
   const input = encodeFunctionData({ abi: RollupAbi, functionName: 'process', args: [proof, block] });
   return { input } as Transaction<bigint, number>;
 }

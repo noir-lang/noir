@@ -104,6 +104,7 @@
       "^yarn-project/archiver/"
     ],
     "dependencies": [
+      "ethereum",
       "foundation",
       "l1-artifacts",
       "types"
@@ -117,7 +118,12 @@
       "^yarn-project/aztec-cli/"
     ],
     "dependencies": [
-      "foundation"
+      "aztec-node",
+      "aztec.js",
+      "ethereum",
+      "foundation",
+      "l1-artifacts",
+      "noir-contracts"
     ]
   },
   "aztec-rpc": {
@@ -189,11 +195,25 @@
       "aztec-node",
       "aztec.js",
       "circuits.js",
+      "ethereum",
       "foundation",
       "l1-artifacts",
       "noir-contracts",
+      "p2p",
       "sequencer-client",
       "world-state"
+    ]
+  },
+  "ethereum": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/ethereum",
+    "dockerfile": "ethereum/Dockerfile",
+    "rebuildPatterns": [
+      "^yarn-project/ethereum/"
+    ],
+    "dependencies": [
+      "foundation",
+      "l1-artifacts"
     ]
   },
   "foundation": {
@@ -265,6 +285,17 @@
       "types"
     ]
   },
+  "p2p-bootstrap": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/p2p-bootstrap",
+    "dockerfile": "p2p/Dockerfile",
+    "rebuildPatterns": [
+      "^yarn-project/p2p-bootstrap/"
+    ],
+    "dependencies": [
+      "p2p"
+    ]
+  },
   "prover-client": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/prover-client",
@@ -274,6 +305,17 @@
     ],
     "dependencies": [
       "foundation"
+    ]
+  },
+  "rollup-provider": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/rollup-provider",
+    "dockerfile": "rollup-provider/Dockerfile",
+    "rebuildPatterns": [
+      "^yarn-project/rollup-provider/"
+    ],
+    "dependencies": [
+      "aztec-node"
     ]
   },
   "aztec-node": {
@@ -305,6 +347,7 @@
     "dependencies": [
       "acir-simulator",
       "circuits.js",
+      "ethereum",
       "foundation",
       "l1-artifacts",
       "merkle-tree",

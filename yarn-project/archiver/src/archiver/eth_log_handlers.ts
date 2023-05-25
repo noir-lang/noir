@@ -43,16 +43,23 @@ export function processPendingL1ToL2MessageAddedLogs(
 }
 /**
  * Processes newly received UnverifiedData logs.
+ * @param blockHashMapping - A mapping from block number to relevant block hash.
  * @param logs - ContractDeployment logs.
  * @returns The set of retrieved contract public data items.
  */
 export function processContractDeploymentLogs(
+  blockHashMapping: { [key: number]: Buffer | undefined },
   logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'ContractDeployment'>[],
 ): [ContractPublicData[], number][] {
   const contractPublicData: [ContractPublicData[], number][] = [];
   for (let i = 0; i < logs.length; i++) {
     const log = logs[i];
     const l2BlockNum = Number(log.args.l2BlockNum);
+    const blockHash = Buffer.from(hexToBytes(log.args.l2BlockHash));
+    const expectedBlockHash = blockHashMapping[l2BlockNum];
+    if (expectedBlockHash === undefined || !blockHash.equals(expectedBlockHash)) {
+      continue;
+    }
     const publicFnsReader = BufferReader.asReader(Buffer.from(log.args.acir.slice(2), 'hex'));
     const contractData = new ContractPublicData(
       new ContractData(AztecAddress.fromString(log.args.aztecAddress), EthAddress.fromString(log.args.portalAddress)),
@@ -70,17 +77,25 @@ export function processContractDeploymentLogs(
 /**
  * Processes newly received UnverifiedData logs.
  * @param expectedRollupNumber - The next expected rollup number.
+ * @param blockHashMapping - A mapping from block number to relevant block hash.
  * @param logs - UnverifiedData logs.
  */
 export function processUnverifiedDataLogs(
   expectedRollupNumber: bigint,
+  blockHashMapping: { [key: number]: Buffer | undefined },
   logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>[],
 ) {
   const unverifiedDataChunks: UnverifiedData[] = [];
   for (const log of logs) {
     const l2BlockNum = log.args.l2BlockNum;
-    if (l2BlockNum !== expectedRollupNumber) {
-      throw new Error('Block number mismatch. Expected: ' + expectedRollupNumber + ' but got: ' + l2BlockNum + '.');
+    const blockHash = Buffer.from(hexToBytes(log.args.l2BlockHash));
+    const expectedBlockHash = blockHashMapping[Number(l2BlockNum)];
+    if (
+      l2BlockNum !== expectedRollupNumber ||
+      expectedBlockHash === undefined ||
+      !blockHash.equals(expectedBlockHash)
+    ) {
+      continue;
     }
     const unverifiedDataBuf = Buffer.from(hexToBytes(log.args.data));
     const unverifiedData = UnverifiedData.fromBuffer(unverifiedDataBuf);

@@ -278,6 +278,7 @@ export class AztecRPCServer implements AztecRPCClient {
       tx = Tx.createPublic(new SignedTxRequest(txRequest, signature));
     } else if (txRequest.functionData.isConstructor) {
       newContract = contractAddress;
+
       tx = await accountState.simulateAndProve(txRequest, signature, contractAddress);
     } else {
       toContract = contractAddress;

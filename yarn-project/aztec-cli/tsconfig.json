@@ -7,8 +7,24 @@
   },
   "references": [
     {
+      "path": "../aztec-node"
+    },
+    {
+      "path": "../aztec.js"
+    },
+    {
+      "path": "../ethereum"
+    },
+    {
       "path": "../foundation"
+    },
+    {
+      "path": "../l1-artifacts"
+    },
+    {
+      "path": "../noir-contracts"
     }
   ],
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["contracts"]
 }

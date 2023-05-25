@@ -1,6 +1,6 @@
-import { createDebugLogger } from '@aztec/foundation/log';
 import { LeafData, SiblingPath, LowLeafWitnessData } from '@aztec/merkle-tree';
-import { MerkleTreeId } from '@aztec/types';
+import { L2Block, MerkleTreeId } from '@aztec/types';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 export * from './merkle_trees.js';
 export { LeafData } from '@aztec/merkle-tree';
@@ -55,12 +55,12 @@ type WithIncludeUncommitted<F> = F extends (...args: [...infer Rest]) => infer R
 /**
  * Defines the names of the setters on Merkle Trees.
  */
-type MerkleTreeSetters = 'appendLeaves' | 'updateLeaf';
+type MerkleTreeSetters = 'appendLeaves' | 'updateLeaf' | 'commit' | 'rollback' | 'handleL2Block' | 'batchInsert';
 
 /**
  * Defines the interface for operations on a set of Merkle Trees configuring whether to return committed or uncommitted data.
  */
-export type MerkleTreeDbOperations = {
+export type MerkleTreeDb = {
   [Property in keyof MerkleTreeOperations as Exclude<Property, MerkleTreeSetters>]: WithIncludeUncommitted<
     MerkleTreeOperations[Property]
   >;
@@ -158,12 +158,13 @@ export interface MerkleTreeOperations {
     treeHeight: number,
     subtreeHeight: number,
   ): Promise<[LowLeafWitnessData<number>[], SiblingPath<number>] | [undefined, SiblingPath<number>]>;
-}
 
-/**
- * Defines the interface for a database that stores Merkle trees.
- */
-export interface MerkleTreeDb extends MerkleTreeDbOperations {
+  /**
+   * Handles a single L2 block (i.e. Inserts the new commitments into the merkle tree).
+   * @param block - The L2 block to handle.
+   */
+  handleL2Block(block: L2Block): Promise<void>;
+
   /**
    * Commits pending changes to the underlying store.
    */

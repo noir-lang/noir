@@ -1,3 +1,4 @@
+import { BufferReader } from '@aztec/foundation/serialize';
 import { assertMemberLength } from '../utils/jsUtils.js';
 import { Bufferable, serializeToBuffer } from '../utils/serialize.js';
 import { randomBytes } from '@aztec/foundation/crypto';
@@ -53,6 +54,11 @@ export class EcdsaSignature {
 
   toBuffer() {
     return serializeToBuffer(this.r, this.s, this.v);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader): EcdsaSignature {
+    const reader = BufferReader.asReader(buffer);
+    return new EcdsaSignature(reader.readBytes(32), reader.readBytes(32), reader.readBytes(1));
   }
 
   /**

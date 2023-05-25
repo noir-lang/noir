@@ -286,6 +286,17 @@ jobs:
           name: "Build and test"
           command: build p2p
 
+  p2p-bootstrap:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build p2p-bootstrap
+
   acir-simulator:
     machine:
       image: ubuntu-2004:202010-01
@@ -351,6 +362,28 @@ jobs:
       - run:
           name: "Build"
           command: build end-to-end
+
+  ethereum:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: build ethereum
+
+  rollup-provider:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: build rollup-provider
 
   e2e-deploy-contract:
     docker:
@@ -428,6 +461,17 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_public_token_contract.test.ts
+
+  e2e-p2p:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_p2p_network.test.ts
 
   e2e-join:
     docker:
@@ -512,6 +556,7 @@ workflows:
 
       - aztec-js: *yarn_project
       - end-to-end: *yarn_project
+      - ethereum: *yarn_project
       - foundation: *yarn_project
       - world-state: *yarn_project
       - acir-simulator: *yarn_project
@@ -520,16 +565,19 @@ workflows:
       - barretenberg-js: *yarn_project
       - merkle-tree: *yarn_project
       - p2p: *yarn_project
+      - p2p-bootstrap: *yarn_project
       - noir-contracts: *yarn_project
       - noir-compiler: *yarn_project
       - sequencer-client: *yarn_project
       - types: *yarn_project
       - circuits-js: *yarn_project
+      - rollup-provider: *yarn_project
 
       - e2e-join:
           requires:
             - aztec-js
             - end-to-end
+            - ethereum
             - foundation
             - world-state
             - acir-simulator
@@ -538,11 +586,13 @@ workflows:
             - barretenberg-js
             - merkle-tree
             - p2p
+            - p2p-bootstrap
             - noir-contracts
             - noir-compiler
             - sequencer-client
             - types
             - circuits-js
+            - rollup-provider
           <<: *defaults
 
       - e2e-deploy-contract: *e2e_test
@@ -552,6 +602,7 @@ workflows:
       - e2e-public-token-contract: *e2e_test
       - e2e-l2-to-l1-messaging: *e2e_test
       - integration-l1-publisher: *e2e_test
+      - e2e-p2p: *e2e_test
 
       - e2e-end:
           requires:
@@ -562,4 +613,5 @@ workflows:
             - e2e-public-token-contract
             - e2e-l2-to-l1-messaging
             - integration-l1-publisher
+            - e2e-p2p
           <<: *defaults

@@ -161,7 +161,7 @@ void perform_historical_contract_data_tree_membership_checks(DummyComposer& comp
         NT::fr const leaf =
             baseRollupInputs.kernel_data[i]
                 .public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root;
-        abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
+        abis::MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
             baseRollupInputs.historic_contract_tree_root_membership_witnesses[i];
 
         check_membership<NT>(composer,
@@ -182,7 +182,7 @@ void perform_historical_l1_to_l2_message_tree_membership_checks(DummyComposer& c
         NT::fr const leaf =
             baseRollupInputs.kernel_data[i]
                 .public_inputs.constants.historic_tree_roots.private_historic_tree_roots.l1_to_l2_messages_tree_root;
-        abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
+        abis::MembershipWitness<NT, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
             baseRollupInputs.historic_l1_to_l2_msg_tree_root_membership_witnesses[i];
 
         check_membership<NT>(composer,

@@ -28,4 +28,17 @@ export interface TxPool {
    * @returns An array of transaction objects found in the tx pool.
    */
   getAllTxs(): Tx[];
+
+  /**
+   * Gets the hashes of all transactions currently in the tx pool.
+   * @returns An array of transaction hashes found in the tx pool.
+   */
+  getAllTxHashes(): TxHash[];
+
+  /**
+   * Returns a boolean indicating if the transaction is present in the pool.
+   * @param txHash - The hash of the transaction to be queried.
+   * @returns True if the transaction present, false otherwise.
+   */
+  hasTx(txHash: TxHash): boolean;
 }

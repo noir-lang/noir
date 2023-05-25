@@ -34,13 +34,14 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/types": "workspace:^",
     "debug": "^4.3.4",
     "tsc-watch": "^6.0.0",
     "tslib": "^2.5.0",
-    "viem": "^0.3.13",
+    "viem": "^0.3.14",
     "ws": "^8.13.0"
   },
   "devDependencies": {
