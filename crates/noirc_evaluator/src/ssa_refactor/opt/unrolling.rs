@@ -16,13 +16,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ssa_refactor::{
     ir::{
-        basic_block::BasicBlockId,
-        cfg::ControlFlowGraph,
-        dom::DominatorTree,
-        function::Function,
-        instruction::{InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
-        value::ValueId,
+        basic_block::BasicBlockId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function,
+        instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
         value_map::ValueMap,
     },
     ssa_gen::Ssa,
@@ -417,7 +412,7 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            self.push_instruction(instruction);
+            self.values.push_instruction(instruction, &mut self.function.dfg, self.insert_block);
         }
 
         let mut terminator = self.function.dfg[self.source_block]
@@ -426,18 +421,6 @@ impl<'f> LoopIteration<'f> {
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.function.dfg.set_block_terminator(self.insert_block, terminator);
-    }
-
-    fn push_instruction(&mut self, id: InstructionId) {
-        let (instruction, results, ctrl_typevars) =
-            self.values.map_instruction(&mut self.function.dfg, id);
-        let results = results.to_vec();
-        let new_results = self.function.dfg.insert_instruction_and_results(
-            instruction,
-            self.insert_block,
-            ctrl_typevars,
-        );
-        self.values.insert_new_instruction_results(&results, new_results);
     }
 }
 
