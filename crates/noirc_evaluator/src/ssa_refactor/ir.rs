@@ -10,3 +10,4 @@ pub(crate) mod post_order;
 pub(crate) mod printer;
 pub(crate) mod types;
 pub(crate) mod value;
+pub(crate) mod value_map;

@@ -13,6 +13,7 @@ use crate::ssa_refactor::{
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
+        value_map::ValueMap,
     },
     ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
@@ -71,7 +72,7 @@ struct PerFunctionContext<'function> {
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
     /// argument values.
-    values: HashMap<ValueId, ValueId>,
+    values: ValueMap,
 
     /// Maps BasicBlockIds in the function being inlined to the new BasicBlockIds to use in the
     /// function being inlined into.
@@ -140,7 +141,7 @@ impl InlineContext {
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
-        context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+        context.values.extend(parameters.iter().copied().zip(arguments.iter().copied()));
 
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
@@ -180,7 +181,7 @@ impl<'function> PerFunctionContext<'function> {
             source_function,
             blocks: HashMap::new(),
             instructions: HashMap::new(),
-            values: HashMap::new(),
+            values: ValueMap::default(),
             inlining_main: false,
         }
     }
@@ -191,8 +192,8 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
-        if let Some(value) = self.values.get(&id) {
-            return *value;
+        if let Some(value) = self.values.get(id) {
+            return value;
         }
 
         let new_value = match &self.source_function.dfg[id] {
@@ -345,43 +346,16 @@ impl<'function> PerFunctionContext<'function> {
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
         let new_results = self.context.inline_function(ssa, function, &arguments);
         let new_results = InsertInstructionResult::Results(&new_results);
-        Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
+        self.values.insert_new_instruction_results(old_results, new_results);
     }
 
     /// Push the given instruction from the source_function into the current block of the
     /// function being inlined into.
     fn push_instruction(&mut self, id: InstructionId) {
-        let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
-        let results = self.source_function.dfg.instruction_results(id);
-
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(results, |result| self.source_function.dfg.type_of_value(*result)));
-
+        let (instruction, results, ctrl_typevars) =
+            self.values.map_instruction(&self.source_function.dfg, id);
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
-        Self::insert_new_instruction_results(&mut self.values, results, new_results);
-    }
-
-    /// Modify the values HashMap to remember the mapping between an instruction result's previous
-    /// ValueId (from the source_function) and its new ValueId in the destination function.
-    fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
-        new_results: InsertInstructionResult,
-    ) {
-        assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
-            }
-            InsertInstructionResult::Results(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
-        }
+        self.values.insert_new_instruction_results(results, new_results);
     }
 
     /// Handle the given terminator instruction from the given source function block.

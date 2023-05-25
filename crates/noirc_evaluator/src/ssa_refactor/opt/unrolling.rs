@@ -14,18 +14,16 @@
 //! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
-use iter_extended::vecmap;
-
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::InsertInstructionResult,
         dom::DominatorTree,
         function::Function,
         instruction::{InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         value::ValueId,
+        value_map::ValueMap,
     },
     ssa_gen::Ssa,
 };
@@ -261,7 +259,7 @@ struct LoopIteration<'f> {
     /// Maps pre-unrolled ValueIds to unrolled ValueIds.
     /// These will often be the exact same as before, unless the ValueId was
     /// dependent on the loop induction variable which is changing on each iteration.
-    values: HashMap<ValueId, ValueId>,
+    values: ValueMap,
 
     /// Maps pre-unrolled block ids from within the loop to new block ids of each loop
     /// block for each loop iteration.
@@ -293,7 +291,7 @@ impl<'f> LoopIteration<'f> {
             loop_,
             insert_block,
             source_block,
-            values: HashMap::new(),
+            values: ValueMap::default(),
             blocks: HashMap::new(),
             original_blocks: HashMap::new(),
             visited_blocks: HashSet::new(),
@@ -363,7 +361,7 @@ impl<'f> LoopIteration<'f> {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) -> Vec<BasicBlockId> {
-        let condition = self.get_value(condition);
+        let condition = self.values.get_value(condition);
 
         match self.function.dfg.get_numeric_constant(condition) {
             Some(constant) => {
@@ -378,15 +376,6 @@ impl<'f> LoopIteration<'f> {
             }
             None => vec![then_destination, else_destination],
         }
-    }
-
-    /// Map a ValueId in the original pre-unrolled ssa to its new id in the unrolled SSA.
-    /// This is often the same ValueId as most values don't change while unrolling. The main
-    /// exception is instructions referencing the induction variable (or the variable itself)
-    /// which may have been simplified to another form. Block parameters or values outside the
-    /// loop shouldn't change at all and won't be present inside self.values.
-    fn get_value(&self, value: ValueId) -> ValueId {
-        self.values.get(&value).copied().unwrap_or(value)
     }
 
     /// Translate a block id to a block id in the unrolled loop. If the given
@@ -405,7 +394,7 @@ impl<'f> LoopIteration<'f> {
 
             for (param, new_param) in old_parameters.iter().zip(new_parameters) {
                 // Don't overwrite any existing entries to avoid overwriting the induction variable
-                self.values.entry(*param).or_insert(*new_param);
+                self.values.insert_if_not_present(*param, *new_param);
             }
 
             self.blocks.insert(block, new_block);
@@ -433,49 +422,22 @@ impl<'f> LoopIteration<'f> {
 
         let mut terminator = self.function.dfg[self.source_block]
             .unwrap_terminator()
-            .map_values(|value| self.get_value(value));
+            .map_values(|value| self.values.get_value(value));
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.function.dfg.set_block_terminator(self.insert_block, terminator);
     }
 
     fn push_instruction(&mut self, id: InstructionId) {
-        let instruction = self.function.dfg[id].map_values(|id| self.get_value(id));
-        let results = self.function.dfg.instruction_results(id).to_vec();
-
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
-
+        let (instruction, results, ctrl_typevars) =
+            self.values.map_instruction(&mut self.function.dfg, id);
+        let results = results.to_vec();
         let new_results = self.function.dfg.insert_instruction_and_results(
             instruction,
             self.insert_block,
             ctrl_typevars,
         );
-
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
-    }
-
-    /// Modify the values HashMap to remember the mapping between an instruction result's previous
-    /// ValueId (from the source_function) and its new ValueId in the destination function.
-    fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
-        new_results: InsertInstructionResult,
-    ) {
-        assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
-            }
-            InsertInstructionResult::Results(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
-        }
+        self.values.insert_new_instruction_results(&results, new_results);
     }
 }
 
