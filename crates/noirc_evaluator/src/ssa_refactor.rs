@@ -7,8 +7,6 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::BTreeSet;
-
 use crate::errors::RuntimeError;
 use acvm::{
     acir::circuit::{Circuit, Opcode as AcirOpcode, PublicInputs},
