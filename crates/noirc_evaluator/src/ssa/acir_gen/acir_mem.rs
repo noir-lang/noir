@@ -202,7 +202,7 @@ impl ArrayHeap {
         }
         outputs
     }
-    pub(crate) fn generate_permutation_constraints(
+    fn generate_permutation_constraints(
         &self,
         evaluator: &mut Evaluator,
         array_id: ArrayId,
