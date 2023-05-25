@@ -7,17 +7,22 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use crate::errors::{RuntimeError, RuntimeErrorKind};
+use crate::errors::RuntimeError;
 use acvm::{
-    acir::circuit::{Circuit, Opcode as AcirOpcode},
+    acir::circuit::{Circuit, Opcode as AcirOpcode, PublicInputs},
     Language,
 };
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
 
-use self::ssa_gen::Ssa;
+use self::{
+    abi_gen::{collate_array_lengths, gen_abi},
+    acir_gen::GeneratedAcir,
+    ssa_gen::Ssa,
+};
 
+mod abi_gen;
 mod acir_gen;
 mod ir;
 mod opt;
@@ -27,28 +32,35 @@ pub mod ssa_gen;
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
-pub fn optimize_into_acir(program: Program) {
+pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
+    let param_array_lengths = collate_array_lengths(&program.main_function_signature.0);
     ssa_gen::generate_ssa(program)
         .print("Initial SSA:")
         .inline_functions()
         .print("After Inlining:")
         .unroll_loops()
-        .print("After Unrolling:");
+        .print("After Unrolling:")
+        .into_acir(&param_array_lengths)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 /// This is analogous to `ssa:create_circuit` and this method is called when one wants
 /// to use the new ssa module to process Noir code.
 pub fn experimental_create_circuit(
-    _program: Program,
+    program: Program,
     _np_language: Language,
     _is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
-    optimize_into_acir(_program);
-    let error_kind = RuntimeErrorKind::Spanless("Acir-gen is unimplemented".into());
-    Err(RuntimeError::new(error_kind, None))
+    let func_sig = program.main_function_signature.clone();
+    let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
+        optimize_into_acir(program);
+    let abi = gen_abi(func_sig, return_witnesses.clone());
+    let public_parameters = PublicInputs(abi.param_witnesses.values().flatten().copied().collect());
+    let return_values = PublicInputs(return_witnesses.into_iter().collect());
+    let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
+    Ok((circuit, abi))
 }
 
 impl Ssa {
