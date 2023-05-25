@@ -363,7 +363,7 @@ impl<'f> Context<'f> {
         assert_eq!(params.len(), then_args.len());
         assert_eq!(params.len(), else_args.len());
 
-        let args = vecmap(then_args.into_iter().zip(else_args), |(then_arg, else_arg)| {
+        let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (self.translate_value(*then_arg), self.translate_value(*else_arg))
         });
 
@@ -391,7 +391,10 @@ impl<'f> Context<'f> {
             InsertInstructionResult::Results(arguments),
         );
 
-        for instruction in self.function.dfg[destination].instructions().to_vec() {
+        // If this is not a separate variable, clippy gets confused and says the to_vec is
+        // unnecessary, when removing it actually causes an aliasing/mutability error.
+        let instructions = self.function.dfg[destination].instructions().to_vec();
+        for instruction in instructions {
             self.push_instruction(instruction);
         }
 
