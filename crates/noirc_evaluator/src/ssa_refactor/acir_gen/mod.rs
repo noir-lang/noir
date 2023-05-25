@@ -4,7 +4,7 @@ pub(crate) use self::generated_acir::GeneratedAcir;
 
 use super::ssa_gen::Ssa;
 
-mod generated_acir;
+mod acir_ir;
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
