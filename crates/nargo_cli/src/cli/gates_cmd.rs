@@ -37,10 +37,10 @@ fn count_gates_with_path<B: Backend, P: AsRef<Path>>(
         num_opcodes
     );
 
-    let exact_circuit_size = backend
-        .get_exact_circuit_size(&compiled_program.circuit)
-        .map_err(CliError::ProofSystemCompilerError)?;
-    println!("Backend circuit size: {exact_circuit_size}");
+    // let exact_circuit_size = backend
+    //     .get_exact_circuit_size(&compiled_program.circuit)
+    //     .map_err(CliError::ProofSystemCompilerError)?;
+    // println!("Backend circuit size: {exact_circuit_size}");
 
     Ok(())
 }

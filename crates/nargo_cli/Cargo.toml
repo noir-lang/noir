@@ -38,7 +38,8 @@ color-eyre = "0.6.2"
 tokio = "1.0"
 
 # Backends
-acvm-backend-barretenberg = { version = "0.2.0", default-features = false }
+#acvm-backend-barretenberg = { optional = true, version = "0.1.2", default-features = false }
+#acvm-backend-barretenberg = { path = "../../../acvm-backend-barretenberg" }
 
 [dev-dependencies]
 tempdir = "0.3.7"
@@ -47,7 +48,7 @@ assert_fs = "1.0.10"
 predicates = "2.1.5"
 
 [features]
-default = ["plonk_bn254"]
+default = []
 # The plonk backend can only use bn254, so we do not specify the field
-plonk_bn254 = ["acvm-backend-barretenberg/native"]
-plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
+#plonk_bn254 = ["acvm-backend-barretenberg/native"]
+#plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
