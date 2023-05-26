@@ -37,21 +37,21 @@ namespace {
 using aztec3::circuits::compute_empty_sibling_path;
 using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
+using aztec3::circuits::abis::CombinedAccumulatedData;
+using aztec3::circuits::abis::CombinedConstantData;
+using aztec3::circuits::abis::CombinedHistoricTreeRoots;
 using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
+using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
+using aztec3::circuits::abis::PrivateHistoricTreeRoots;
 using aztec3::circuits::abis::PrivateTypes;
 using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
-
-using aztec3::circuits::abis::CombinedConstantData;
-using aztec3::circuits::abis::CombinedHistoricTreeRoots;
-using aztec3::circuits::abis::KernelCircuitPublicInputs;
-using aztec3::circuits::abis::PrivateHistoricTreeRoots;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
 
@@ -413,14 +413,14 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(bool const 
     const NT::address msg_sender =
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
 
-    auto const& private_call_deploy = create_private_call_deploy_data(is_constructor, func, args_vec, msg_sender);
+    auto const& [private_call_data, contract_deployment_data] =
+        create_private_call_deploy_data(is_constructor, func, args_vec, msg_sender);
 
-    auto const& private_call_data = private_call_deploy.first;
     const TxContext<NT> tx_context = TxContext<NT>{
         .is_fee_payment_tx = false,
         .is_rebate_payment_tx = false,
         .is_contract_deployment_tx = is_constructor,
-        .contract_deployment_data = private_call_deploy.second,
+        .contract_deployment_data = contract_deployment_data,
     };
 
     //***************************************************************************
@@ -491,6 +491,11 @@ void validate_deployed_contract_address(PrivateKernelInputsInit<NT> const& priva
     EXPECT_EQ(public_inputs.end.new_contracts[0].contract_address.to_field(), expected_contract_address);
 }
 
+void validate_no_new_deployed_contract(KernelCircuitPublicInputs<NT> const& public_inputs)
+{
+    ASSERT_TRUE(public_inputs.end.new_contracts == CombinedAccumulatedData<NT>{}.new_contracts);
+}
+
 /**
  * @brief Some private circuit proof (`deposit`, in this case)
  */
@@ -513,6 +518,12 @@ TEST(private_kernel_tests, circuit_deposit)
     auto const& private_inputs_init =
         do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
 
+    // TODO(jeanmon): Once we have an inner/init private kernel circuit,
+    // there should not be any new deployed contract address in public_inputs
+    // and the following assertion can be uncommented:
+    // validate_no_new_deployed_contract(public_inputs);
+
+    // TODO(jeanmon): Remove once we have an inner/innit private kernel circuit
     // Check contract address was correctly computed by the circuit
     validate_deployed_contract_address(private_inputs_init, public_inputs);
 
@@ -540,7 +551,7 @@ TEST(private_kernel_tests, native_deposit)
     DummyComposer composer = DummyComposer("private_kernel_tests__native_deposit");
     auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
 
-    validate_deployed_contract_address(private_inputs, public_inputs);
+    validate_no_new_deployed_contract(public_inputs);
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());

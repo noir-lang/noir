@@ -20,10 +20,10 @@ using plonk::stdlib::array_push;
 using plonk::stdlib::is_array_empty;
 using plonk::stdlib::push_array_to_array;
 
-using aztec3::circuits::add_contract_address_to_commitment;
-using aztec3::circuits::add_contract_address_to_nullifier;
 using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
+using aztec3::circuits::silo_commitment;
+using aztec3::circuits::silo_nullifier;
 
 // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // private_call.call_stack_item.public_inputs!
@@ -159,16 +159,12 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
         std::array<CT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
         for (size_t i = 0; i < new_commitments.size(); ++i) {
             siloed_new_commitments[i] = CT::fr::conditional_assign(
-                new_commitments[i] == 0,
-                0,
-                add_contract_address_to_commitment<CT>(storage_contract_address, new_commitments[i]));
+                new_commitments[i] == 0, 0, silo_commitment<CT>(storage_contract_address, new_commitments[i]));
         }
         std::array<CT::fr, NEW_NULLIFIERS_LENGTH> siloed_new_nullifiers;
         for (size_t i = 0; i < new_nullifiers.size(); ++i) {
             siloed_new_nullifiers[i] = CT::fr::conditional_assign(
-                new_nullifiers[i] == 0,
-                0,
-                add_contract_address_to_nullifier<CT>(storage_contract_address, new_nullifiers[i]));
+                new_nullifiers[i] == 0, 0, silo_nullifier<CT>(storage_contract_address, new_nullifiers[i]));
         }
 
         // Add new commitments/etc to AggregatedData

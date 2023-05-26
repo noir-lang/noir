@@ -58,7 +58,7 @@ template <typename NCT> typename NCT::address compute_contract_address(typename 
 }
 
 template <typename NCT>
-typename NCT::fr add_contract_address_to_commitment(typename NCT::address contract_address, typename NCT::fr commitment)
+typename NCT::fr silo_commitment(typename NCT::address contract_address, typename NCT::fr commitment)
 {
     using fr = typename NCT::fr;
 
@@ -71,7 +71,7 @@ typename NCT::fr add_contract_address_to_commitment(typename NCT::address contra
 }
 
 template <typename NCT>
-typename NCT::fr add_contract_address_to_nullifier(typename NCT::address contract_address, typename NCT::fr nullifier)
+typename NCT::fr silo_nullifier(typename NCT::address contract_address, typename NCT::fr nullifier)
 {
     using fr = typename NCT::fr;
 
