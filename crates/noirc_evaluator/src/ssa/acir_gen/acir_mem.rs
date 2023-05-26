@@ -135,6 +135,11 @@ impl ArrayHeap {
         array_len: u32,
         is_opcode_supported: OpcodeSupported,
     ) {
+        //sanity check
+        if array_len == 0 {
+            return;
+        }
+
         let dummy = MemoryBlock { id: AcirBlockId(0), len: 0, trace: Vec::new() };
 
         if is_opcode_supported(&AcirOpcode::ROM(dummy.clone())) {
