@@ -133,7 +133,7 @@ impl AcirContext {
                     lhs_constant == rhs_constant,
                 )));
             }
-        }
+        };
     }
 
     /// Adds a new Variable to context whose value will
@@ -246,11 +246,22 @@ impl AcirContext {
 
 /// Enum representing the possible values that a
 /// Variable can be given.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 enum AcirVarData {
     Witness(Witness),
     Expr(Expression),
     Const(FieldElement),
+}
+
+impl PartialEq for AcirVarData {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Witness(l0), Self::Witness(r0)) => l0 == r0,
+            (Self::Expr(l0), Self::Expr(r0)) => l0 == r0,
+            (Self::Const(l0), Self::Const(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
 }
 
 // TODO: check/test this hash impl
