@@ -110,29 +110,8 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        fn is_return_unit_type(values: &Vec<Id<Value>>, dfg: &DataFlowGraph) -> bool {
-            // Check if there is only one return value.
-            // If not, then the function cannot possibly return `Unit`
-            // to signify no return value.
-            //
-            // This assumes that we cannot return a tuple of Unit.
-            //
-            if values.len() != 1 {
-                return false;
-            }
-
-            // At this point, we know that we have a return type with one value
-            // To signify no return the SSA IR, will return `unit 0`
-            // This is numeric constant with type None;
-            if let Value::NumericConstant { typ, .. } = &dfg[values[0]] {
-                return Type::Unit == *typ;
-            }
-
-            // If its not a numeric constant, then it cannot be the void/unit type
-            false
-        }
-
-        if is_return_unit_type(return_values, dfg) {
+        let is_return_unit_type = return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
+        if is_return_unit_type {
             return;
         }
 
