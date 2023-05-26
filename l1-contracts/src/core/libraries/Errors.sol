@@ -11,34 +11,34 @@ pragma solidity >=0.8.18;
  */
 library Errors {
   // Inbox
-  error Inbox__DeadlineBeforeNow();
-  error Inbox__NotPastDeadline();
-  error Inbox__PastDeadline();
-  error Inbox__FeeTooHigh();
-  error Inbox__FailedToWithdrawFees();
-  error Inbox__Unauthorized();
-  error Inbox__NothingToConsume(bytes32 entryKey);
+  error Inbox__DeadlineBeforeNow(); // 0xbf94a5dc
+  error Inbox__NotPastDeadline(); //0x3218ad9e
+  error Inbox__PastDeadline(); // 0x1eb114ea
+  error Inbox__FeeTooHigh(); // 0x6f478f42
+  error Inbox__FailedToWithdrawFees(); // 0xbc66d464
+  error Inbox__Unauthorized(); // 0xe5336a6b
+  error Inbox__NothingToConsume(bytes32 entryKey); // 0xdd7e995e
   error Inbox__IncompatibleEntryArguments(
     bytes32 entryKey,
     uint64 storedFee,
     uint64 feePassed,
     uint32 storedDeadline,
     uint32 deadlinePassed
-  );
+  ); // 0xd483d8f2
 
   // Outbox
-  error Outbox__Unauthorized();
-  error Outbox__InvalidChainId();
-  error Outbox__NothingToConsume(bytes32 entryKey);
+  error Outbox__Unauthorized(); // 0x2c9490c2
+  error Outbox__InvalidChainId(); // 0x577ec7c4
+  error Outbox__NothingToConsume(bytes32 entryKey); // 0xfb4fb506
   error Outbox__IncompatibleEntryArguments(
     bytes32 entryKey,
     uint64 storedFee,
     uint64 feePassed,
     uint32 storedDeadline,
     uint32 deadlinePassed
-  );
+  ); // 0xad1b401b
 
   // Rollup
-  error Rollup__InvalidStateHash(bytes32 expected, bytes32 actual);
-  error Rollup__InvalidProof();
+  error Rollup__InvalidStateHash(bytes32 expected, bytes32 actual); // 0xa3cfaab3
+  error Rollup__InvalidProof(); // 0xa5b2ba17
 }

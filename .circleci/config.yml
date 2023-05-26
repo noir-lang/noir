@@ -429,6 +429,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_nested_contract.test.ts
 
+  e2e-l1-to-l2-messaging:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_l1_to_l2_msg.test.ts
+
   e2e-l2-to-l1-messaging:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -601,6 +612,7 @@ workflows:
       - e2e-nested-contract: *e2e_test
       - e2e-public-token-contract: *e2e_test
       - e2e-l2-to-l1-messaging: *e2e_test
+      - e2e-l1-to-l2-messaging: *e2e_test
       - integration-l1-publisher: *e2e_test
       - e2e-p2p: *e2e_test
 
@@ -612,6 +624,7 @@ workflows:
             - e2e-nested-contract
             - e2e-public-token-contract
             - e2e-l2-to-l1-messaging
+            - e2e-l1-to-l2-messaging
             - integration-l1-publisher
             - e2e-p2p
           <<: *defaults

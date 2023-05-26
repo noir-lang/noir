@@ -42,6 +42,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   private nextL2BlockFromBlock = 0n;
 
   /**
+   * Last Processed Block Number
+   */
+  private lastProcessedBlockNumber = 0n;
+
+  /**
    * Creates a new instance of the Archiver.
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
@@ -116,6 +121,28 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    */
   private async sync(blockUntilSynced: boolean) {
     const currentBlockNumber = await this.publicClient.getBlockNumber();
+    if (currentBlockNumber <= this.lastProcessedBlockNumber) {
+      this.log(`No new blocks to process, current block number: ${currentBlockNumber}`);
+      return;
+    }
+
+    // ********** Events that are processed inbetween blocks **********
+
+    // Process l1ToL2Messages, these are consumed as time passes, not each block
+    const retrievedPendingL1ToL2Messages = await retrieveNewPendingL1ToL2Messages(
+      this.publicClient,
+      this.inboxAddress,
+      blockUntilSynced,
+      currentBlockNumber,
+      this.lastProcessedBlockNumber + 1n, // + 1 to prevent re including messages from the last processed block
+    );
+    // TODO: optimise this - there could be messages in confirmed that are also in pending. No need to modify storage then.
+    // Store l1 to l2 messages
+    this.log('Adding pending l1 to l2 messages to store');
+    await this.store.addPendingL1ToL2Messages(retrievedPendingL1ToL2Messages.retrievedData);
+    this.lastProcessedBlockNumber = currentBlockNumber;
+
+    // ********** Events that are processed per block **********
 
     // The sequencer publishes unverified data first
     // Read all data from chain and then write to our stores at the end
@@ -154,13 +181,6 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
       this.nextL2BlockFromBlock,
       blockHashMapping,
     );
-    const retrievedPendingL1ToL2Messages = await retrieveNewPendingL1ToL2Messages(
-      this.publicClient,
-      this.inboxAddress,
-      blockUntilSynced,
-      currentBlockNumber,
-      this.nextL2BlockFromBlock,
-    );
 
     if (retrievedBlocks.retrievedData.length === 0) {
       return;
@@ -182,12 +202,9 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
       }
     });
 
-    // TODO: optimise this - there could be messages in confirmed that are also in pending. No need to modify storage then.
-    // store new pending l1 to l2 messages for which we have retrieved rollups
-    await this.store.addPendingL1ToL2Messages(retrievedPendingL1ToL2Messages.retrievedData);
     // from retrieved L2Blocks, confirm L1 to L2 messages that have been published
     // from each l2block fetch all messageKeys in a flattened array:
-    const messageKeysToRemove = retrievedBlocks.retrievedData.map(l2block => l2block.newL2ToL1Msgs).flat();
+    const messageKeysToRemove = retrievedBlocks.retrievedData.map(l2block => l2block.newL1ToL2Messages).flat();
     await this.store.confirmL1ToL2Messages(messageKeysToRemove);
 
     // store retrieved rollup blocks

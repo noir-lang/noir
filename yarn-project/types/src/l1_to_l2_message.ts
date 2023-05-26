@@ -26,6 +26,20 @@ export interface L1ToL2MessageSource {
 }
 
 /**
+ * L1AndL2Message and Index (in the merkle tree) as one type
+ */
+export type L1ToL2MessageAndIndex = {
+  /**
+   * The message.
+   */
+  message: L1ToL2Message;
+  /**
+   * the index in the L1 to L2 Message tree.
+   */
+  index: bigint;
+};
+
+/**
  * The format of an L1 to L2 Message.
  */
 export class L1ToL2Message {

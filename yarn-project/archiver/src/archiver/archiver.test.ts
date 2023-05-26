@@ -41,17 +41,17 @@ describe('Archiver', () => {
     const blocks = [1, 2, 3].map(x => L2Block.random(x));
     const rollupTxs = blocks.map(makeRollupTx);
 
-    publicClient.getBlockNumber.mockResolvedValue(2500n);
+    publicClient.getBlockNumber.mockResolvedValueOnce(2500n).mockResolvedValueOnce(2501n).mockResolvedValueOnce(2502n);
     // logs should be created in order of how archiver syncs.
     publicClient.getLogs
-      .mockResolvedValueOnce([makeL2BlockProcessedEvent(100n, 1n)])
+      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(100n)])
+      .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(102n, blocks[0])])
-      .mockResolvedValueOnce([makeContractDeployedEvent(104n, blocks[0])])
-      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(101n)])
-      .mockResolvedValueOnce([makeL2BlockProcessedEvent(1100n, 2n), makeL2BlockProcessedEvent(1150n, 3n)])
+      .mockResolvedValueOnce([makeContractDeployedEvent(103n, blocks[0])])
+      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(1000n)])
+      .mockResolvedValueOnce([makeL2BlockProcessedEvent(1101n, 2n), makeL2BlockProcessedEvent(1150n, 3n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(1100n, blocks[1])])
       .mockResolvedValueOnce([makeContractDeployedEvent(1102n, blocks[1])])
-      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(1101n)])
       .mockResolvedValue([]);
     rollupTxs.forEach(tx => publicClient.getTransaction.mockResolvedValueOnce(tx));
 

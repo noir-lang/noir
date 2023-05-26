@@ -8,6 +8,7 @@ import {
   L2BlockSource,
   MerkleTreeId,
   L1ToL2MessageSource,
+  L1ToL2MessageAndIndex,
 } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
@@ -31,7 +32,7 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
-import { AztecNode, L1ToL2MessageAndIndex } from './aztec-node.js';
+import { AztecNode } from './aztec-node.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 

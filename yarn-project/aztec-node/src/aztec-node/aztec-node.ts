@@ -1,6 +1,6 @@
 import { CONTRACT_TREE_HEIGHT, L1_TO_L2_MESSAGES_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { ContractPublicData, ContractData, L2Block, MerkleTreeId, L1ToL2Message } from '@aztec/types';
+import { ContractPublicData, ContractData, L2Block, MerkleTreeId, L1ToL2MessageAndIndex } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { Tx, TxHash } from '@aztec/types';
 import { UnverifiedData } from '@aztec/types';
@@ -123,17 +123,3 @@ export interface AztecNode {
    */
   getTreeRoots(): Promise<Record<MerkleTreeId, Fr>>;
 }
-
-/**
- * L1AndL2Message and Index (in the merkle tree) as one type
- */
-export type L1ToL2MessageAndIndex = {
-  /**
-   * The message.
-   */
-  message: L1ToL2Message;
-  /**
-   * the index in the L1 to L2 Message tree.
-   */
-  index: bigint;
-};

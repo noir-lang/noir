@@ -151,7 +151,7 @@ export function appFactory(node: AztecNode, prefix: string) {
     ctx.status = 200;
   });
 
-  router.get('/l1-l2-message-and-index', async (ctx: Koa.Context) => {
+  router.get('/l1-l2-message', async (ctx: Koa.Context) => {
     const key = ctx.query.messageKey!;
     const messageAndindex = await node.getL1ToL2MessageAndIndex(Fr.fromString(key as string));
     ctx.set('content-type', 'application/json');

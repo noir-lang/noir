@@ -97,6 +97,8 @@ contract TokenPortalTest is Test {
     // Perform op
     bytes32 entryKey = tokenPortal.depositToAztec{value: bid}(to, amount, deadline, secretHash);
 
+    assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
+
     // Check that the message is in the inbox
     DataStructures.Entry memory entry = inbox.get(entryKey);
     assertEq(entry.count, 1);
