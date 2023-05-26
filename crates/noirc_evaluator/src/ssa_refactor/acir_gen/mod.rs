@@ -1,8 +1,9 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use noirc_abi::FunctionSignature;
 
-use super::ssa_gen::Ssa;
+use super::{abi_gen::collate_array_lengths, ssa_gen::Ssa};
 
 mod acir_ir;
 
@@ -11,7 +12,8 @@ mod acir_ir;
 struct Context {}
 
 impl Ssa {
-    pub(crate) fn into_acir(self, _main_param_array_lengths: &[usize]) -> GeneratedAcir {
+    pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
+        let _param_array_lengths = collate_array_lengths(&main_function_signature.0);
         let mut context = Context::new();
         context.convert_ssa(self)
     }
