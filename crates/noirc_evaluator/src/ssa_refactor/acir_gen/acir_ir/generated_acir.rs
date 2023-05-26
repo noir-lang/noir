@@ -1,6 +1,14 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use acvm::acir::{circuit::Opcode, native_types::Witness};
+use super::errors::AcirGenError;
+use acvm::acir::{
+    circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    native_types::Witness,
+};
+use acvm::{
+    acir::{circuit::directives::Directive, native_types::Expression},
+    FieldElement,
+};
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
@@ -11,7 +19,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) current_witness_index: u32,
 
     /// The opcodes of which the compiled ACIR will comprise.
-    pub(crate) opcodes: Vec<Opcode>,
+    pub(crate) opcodes: Vec<AcirOpcode>,
 
     /// All witness indices that comprise the final return value of the program
     ///
@@ -22,13 +30,13 @@ pub(crate) struct GeneratedAcir {
 
 impl GeneratedAcir {
     /// Returns the current witness index.
-    pub fn current_witness_index(&self) -> Witness {
+    pub(crate) fn current_witness_index(&self) -> Witness {
         Witness(self.current_witness_index)
     }
 
     /// Adds a new opcode into ACIR.
     fn push_opcode(&mut self, opcode: AcirOpcode) {
-        self.opcodes.push(opcode)
+        self.opcodes.push(opcode);
     }
 
     /// Updates the witness index counter and returns
@@ -47,7 +55,7 @@ impl GeneratedAcir {
     /// This means you cannot multiply an infinite amount of Expressions together.
     /// Once the expression goes over degree-2, then it needs to be reduced to a Witness
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    pub fn expression_to_witness(&mut self, expression: &Expression) -> Witness {
+    pub(crate) fn expression_to_witness(&mut self, expression: &Expression) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
@@ -102,7 +110,7 @@ impl GeneratedAcir {
     /// If `expr` is not zero, then the constraint system will
     /// fail upon verification.
     pub(crate) fn assert_is_zero(&mut self, expr: Expression) {
-        self.push_opcode(AcirOpcode::Arithmetic(expr))
+        self.push_opcode(AcirOpcode::Arithmetic(expr));
     }
 
     /// Adds a constraint which ensure thats `witness` is an
@@ -118,10 +126,8 @@ impl GeneratedAcir {
             });
         };
 
-        let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
-            name: acvm::acir::BlackBoxFunc::RANGE,
-            inputs: vec![FunctionInput { witness, num_bits }],
-            outputs: vec![],
+        let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput { witness, num_bits },
         });
         self.push_opcode(constraint);
 

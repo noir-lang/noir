@@ -1,6 +1,6 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
-pub(crate) use self::generated_acir::GeneratedAcir;
+pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
 use super::ssa_gen::Ssa;
 
