@@ -10,7 +10,7 @@ export class L1ToL2MessageStore {
    * A map containing the message key to the corresponding L1 to L2
    * messages (and the number of times the message has been seen).
    */
-  private store: Map<bigint, L1ToL2MessageAndCount> = new Map();
+  protected store: Map<bigint, L1ToL2MessageAndCount> = new Map();
 
   constructor() {}
 
@@ -24,19 +24,6 @@ export class L1ToL2MessageStore {
     }
   }
 
-  removeMessage(messageKey: Fr) {
-    const messageKeyBigInt = messageKey.value;
-    const msgAndCount = this.store.get(messageKeyBigInt);
-    if (!msgAndCount) {
-      return;
-    }
-    if (msgAndCount.count > 1) {
-      msgAndCount.count--;
-    } else {
-      this.store.delete(messageKeyBigInt);
-    }
-  }
-
   getMessage(messageKey: Fr): L1ToL2Message | undefined {
     return this.store.get(messageKey.value)?.message;
   }
@@ -44,7 +31,13 @@ export class L1ToL2MessageStore {
   getMessageAndCount(messageKey: Fr): L1ToL2MessageAndCount | undefined {
     return this.store.get(messageKey.value);
   }
+}
 
+/**
+ * Specifically for the store that will hold pending messages
+ * for removing messages or fetching multiple messages.
+ */
+export class PendingL1ToL2MessageStore extends L1ToL2MessageStore {
   getMessageKeys(take: number): Fr[] {
     if (take < 1) {
       return [];
@@ -62,6 +55,19 @@ export class L1ToL2MessageStore {
       }
     }
     return messages;
+  }
+
+  removeMessage(messageKey: Fr) {
+    const messageKeyBigInt = messageKey.value;
+    const msgAndCount = this.store.get(messageKeyBigInt);
+    if (!msgAndCount) {
+      return;
+    }
+    if (msgAndCount.count > 1) {
+      msgAndCount.count--;
+    } else {
+      this.store.delete(messageKeyBigInt);
+    }
   }
 }
 

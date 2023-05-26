@@ -8,7 +8,7 @@ import {
 } from '@aztec/types';
 import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { L1ToL2MessageStore } from './l1_to_l2_message_store.js';
+import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
 
 /**
  * Interface describing a data store to be used by the archiver to store all its relevant data
@@ -62,7 +62,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * Contains all the pending L1 to L2 messages (accounts for duplication of messages)
    */
-  private pendingL1ToL2Messages: L1ToL2MessageStore = new L1ToL2MessageStore();
+  private pendingL1ToL2Messages: PendingL1ToL2MessageStore = new PendingL1ToL2MessageStore();
 
   constructor() {}
 

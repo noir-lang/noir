@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { L1ToL2MessageStore } from './l1_to_l2_message_store.js';
+import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
 import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/types';
 
 describe('l1_to_l2_message_store', () => {
@@ -24,6 +24,19 @@ describe('l1_to_l2_message_store', () => {
     store.addMessage(entryKey, msg);
     expect(store.getMessageAndCount(entryKey)).toEqual({ message: msg, count: 2 });
   });
+});
+
+describe('pending_l1_to_l2_message_store', () => {
+  let store: PendingL1ToL2MessageStore;
+  let entryKey: Fr;
+  let msg: L1ToL2Message;
+
+  beforeEach(() => {
+    // already adds a message to the store
+    store = new PendingL1ToL2MessageStore();
+    entryKey = Fr.random();
+    msg = L1ToL2Message.random();
+  });
 
   it('removeMessage removes the message if the count is 1', () => {
     store.addMessage(entryKey, msg);
@@ -44,7 +57,6 @@ describe('l1_to_l2_message_store', () => {
   });
 
   it('get messages for an empty store', () => {
-    const store = new L1ToL2MessageStore();
     expect(store.getMessageKeys(10)).toEqual([]);
   });
 
@@ -54,7 +66,6 @@ describe('l1_to_l2_message_store', () => {
   });
 
   it('get messages for a non-empty store when take > number of messages in store', () => {
-    const store = new L1ToL2MessageStore();
     const entryKeys = [1, 2, 3, 4, 5].map(x => new Fr(x));
     entryKeys.forEach(entryKey => {
       store.addMessage(entryKey, L1ToL2Message.random());
@@ -63,7 +74,6 @@ describe('l1_to_l2_message_store', () => {
   });
 
   it('get messages returns messages sorted by fees and also includes multiple of the same message', () => {
-    const store = new L1ToL2MessageStore();
     const entryKeys = [1, 2, 3, 3, 3, 4].map(x => new Fr(x));
     entryKeys.forEach(entryKey => {
       // set msg.fee to entryKey to test the sort.
