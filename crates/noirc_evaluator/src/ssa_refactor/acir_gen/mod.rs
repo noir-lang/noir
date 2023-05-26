@@ -25,8 +25,6 @@ impl Context {
     }
 
     fn convert_ssa(&mut self, _ssa: Ssa) -> GeneratedAcir {
-        // Milestone 0 is to compile an empty program with no return value. This stub will be
-        // filled out for milestone 1.
         GeneratedAcir {
             current_witness_index: 0,
             opcodes: Vec::new(),

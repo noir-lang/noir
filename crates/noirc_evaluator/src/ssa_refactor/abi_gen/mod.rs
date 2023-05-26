@@ -14,7 +14,6 @@ use noirc_abi::{Abi, AbiParameter, FunctionSignature};
 /// SSA representation. This allows the lengths to be consumed as array params are encountered in
 /// the SSA.
 pub(crate) fn collate_array_lengths(_abi_params: &[AbiParameter]) -> Vec<usize> {
-    // TODO: Not needed for milestone zero, but stubbed to indicate a planned dependency
     Vec::new()
 }
 
