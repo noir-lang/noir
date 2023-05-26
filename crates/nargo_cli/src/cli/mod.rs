@@ -129,7 +129,7 @@ mod tests {
         let mut driver = Driver::new(
             &acvm::Language::R1CS,
             #[allow(deprecated)]
-            Box::new(acvm::default_is_opcode_supported(acvm::Language::R1CS)),
+            Box::new(acvm::pwg::default_is_opcode_supported(acvm::Language::R1CS)),
         );
         driver.create_local_crate(&root_file, CrateType::Binary);
         crate::resolver::add_std_lib(&mut driver);

@@ -23,7 +23,7 @@ where
     S: Serializer,
 {
     println!("CUR WIT IDX: {:?}", circuit.current_witness_index);
-    let cs: ConstraintSystem = ConstraintSystem::from(circuit);
+    let cs: ConstraintSystem = ConstraintSystem::try_from(circuit).expect("should have no malformed bb funcs");
     let circuit_bytes = cs.to_bytes();
     println!("{:?}", circuit_bytes.capacity());
 

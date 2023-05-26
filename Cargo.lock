@@ -5,10 +5,10 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c831802bad8d6810bfdb57cd00913157dfe710a185dc360c9a94eecd043bbf12"
+source = "git+https://github.com/noir-lang/acvm.git?branch=mv/get-witness-values#d5a2cf8442417b4dbc3e81cd44bd38356e7048a1"
 dependencies = [
  "acir_field",
+ "brillig_vm",
  "flate2",
  "rmp-serde",
  "serde",
@@ -18,8 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d455746f51b4421548e42d34e2ce46b6db637cb048095d78766612d26bf526db"
+source = "git+https://github.com/noir-lang/acvm.git?branch=mv/get-witness-values#d5a2cf8442417b4dbc3e81cd44bd38356e7048a1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -32,8 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd8e75cf737b52195a8c109e0ee776e468e1c2ec42f0f88aa4465cd76a09b4ed"
+source = "git+https://github.com/noir-lang/acvm.git?branch=mv/get-witness-values#d5a2cf8442417b4dbc3e81cd44bd38356e7048a1"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -51,8 +49,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2e87549b987593eeb1902990006443f2fe5817db927035f081008e4b8a46a49"
+source = "git+https://github.com/noir-lang/acvm.git?branch=mv/get-witness-values#d5a2cf8442417b4dbc3e81cd44bd38356e7048a1"
 dependencies = [
  "acir",
 ]
@@ -404,6 +401,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "brillig_vm"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/acvm.git?branch=mv/get-witness-values#d5a2cf8442417b4dbc3e81cd44bd38356e7048a1"
+dependencies = [
+ "acir_field",
+ "num-bigint",
+ "serde",
 ]
 
 [[package]]
@@ -1211,6 +1218,7 @@ dependencies = [
  "noirc_driver",
  "rustc_version",
  "serde",
+ "serde-big-array",
  "thiserror",
  "toml",
 ]
@@ -1821,6 +1829,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2113ab51b87a539ae008b5c6c02dc020ffa39afd2d83cffcb3f4eb2722cebec2"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

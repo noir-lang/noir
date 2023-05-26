@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use noirc_abi::WitnessMap;
+// use noirc_abi::WitnessMap;
+use acvm::acir::native_types::WitnessMap;
 
 use super::{create_named_dir, write_to_file};
 use crate::{constants::WITNESS_EXT, errors::FilesystemError};

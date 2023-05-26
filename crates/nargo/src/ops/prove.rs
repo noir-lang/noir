@@ -8,5 +8,6 @@ pub fn prove_execution<B: ProofSystemCompiler>(
     solved_witness: WitnessMap,
     proving_key: &[u8],
 ) -> Result<Vec<u8>, B::Error> {
-    backend.prove_with_pk(common_reference_string, circuit, solved_witness, proving_key)
+    // TODO: update from not just accepting `false` once we get nargo to interop with dynamic backend
+    backend.prove_with_pk(common_reference_string, circuit, solved_witness, proving_key, false)
 }
