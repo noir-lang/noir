@@ -16,11 +16,7 @@ use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
 
-use self::{
-    abi_gen::{collate_array_lengths, gen_abi},
-    acir_gen::GeneratedAcir,
-    ssa_gen::Ssa,
-};
+use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
 mod abi_gen;
 mod acir_gen;
@@ -33,14 +29,14 @@ pub mod ssa_gen;
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
 pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
-    let param_array_lengths = collate_array_lengths(&program.main_function_signature.0);
+    let func_signature = program.main_function_signature.clone();
     ssa_gen::generate_ssa(program)
         .print("Initial SSA:")
         .inline_functions()
         .print("After Inlining:")
         .unroll_loops()
         .print("After Unrolling:")
-        .into_acir(&param_array_lengths)
+        .into_acir(func_signature)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
