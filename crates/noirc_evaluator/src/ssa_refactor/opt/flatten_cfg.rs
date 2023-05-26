@@ -23,7 +23,7 @@
 //! constrain v2
 //!
 //! 2. If we reach the end block of the branch created by the jmpif instruction, its block parameters
-//!    will be merged. To merge the jmp arguments of the then and else branches, the forumula
+//!    will be merged. To merge the jmp arguments of the then and else branches, the formula
 //!    `c * then_arg + !c * else_arg` is used for each argument.
 //!
 //! b0(v0: u1, v1: Field, v2: Field):
