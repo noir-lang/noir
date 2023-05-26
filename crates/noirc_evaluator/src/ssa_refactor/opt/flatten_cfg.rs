@@ -95,7 +95,7 @@ impl Ssa {
     /// Flattens the control flow graph of each function such that the function is left with a
     /// single block containing all instructions and no more control-flow.
     ///
-    /// This pass will modify side-effectful instructions in the particular, often multiplying
+    /// This pass will modify any instructions with side effects in the particular, often multiplying
     /// them by jump conditions to maintain correctness even when all branches of a jmpif are inlined.
     /// For more information, see the module-level comment at the top of this file.
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
@@ -116,11 +116,11 @@ struct Context<'f> {
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
 
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
-    /// When two branches are merged back into one, this consitutes a join point, and is analogous
+    /// When two branches are merged back into one, this constitutes a join point, and is analogous
     /// to the rest of the program after an if statement. When such a join point / end block is
     /// found, the top of this conditions stack is popped since we are no longer under that
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
-    /// the most recent condition combined with all previous condtions via `And` instructions.
+    /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
 
     /// A map of values from the unmodified function to their values given from this pass.
@@ -207,7 +207,7 @@ impl<'f> Context<'f> {
 
     /// Check the terminator of the given block and recursively inline any blocks reachable from
     /// it. Since each block from a jmpif terminator is inlined successively, we must handle
-    /// side-effectful instructions like constrain and store specially to preserve correctness.
+    /// instructions with side effects like constrain and store specially to preserve correctness.
     /// For these instructions we must keep track of what the current condition is and modify
     /// the instructions according to the module-level comment at the top of this file. Note that
     /// the current condition is all the jmpif conditions required to reach the current block,
@@ -279,8 +279,8 @@ impl<'f> Context<'f> {
     fn push_condition(&mut self, start_block: BasicBlockId, condition: ValueId) {
         let end_block = self.branch_ends[&start_block];
 
-        if let Some((_, previous_conditon)) = self.conditions.last() {
-            let and = Instruction::binary(BinaryOp::And, *previous_conditon, condition);
+        if let Some((_, previous_condition)) = self.conditions.last() {
+            let and = Instruction::binary(BinaryOp::And, *previous_condition, condition);
             let new_condition = self.insert_instruction(and);
             self.conditions.push((end_block, new_condition));
         } else {
@@ -414,7 +414,7 @@ impl<'f> Context<'f> {
     /// Push the given instruction to the end of the entry block of the current function.
     ///
     /// Note that each ValueId of the instruction will be mapped via self.translate_value.
-    /// Resultingly, the instruction that will be pushed will actually be a new instruction
+    /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
