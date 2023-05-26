@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir -p ./pkg
           ls -la
-          cp -r ./result/* ./pkg
+          cp -r -L ./result/* ./pkg
 
       - name: Output results
         run: ls -la ./result
