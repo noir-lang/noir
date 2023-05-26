@@ -469,15 +469,13 @@ impl<'f> Context<'f> {
             }
         };
 
-        for (address, store) in &then_branch.store_values {
-            merge_store(*address, store.new_value, store.old_value, store.old_value);
+        for (address, store) in then_branch.store_values {
+            merge_store(address, store.new_value, store.old_value, store.old_value);
         }
 
         for (address, store) in else_branch.store_values {
-            merge_store(*address, store.old_value, store.new_value, store.old_value);
+            merge_store(address, store.old_value, store.new_value, store.old_value);
         }
-
-        self.store_values = new_stores;
     }
 
     fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
