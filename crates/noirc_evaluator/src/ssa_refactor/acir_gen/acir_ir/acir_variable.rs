@@ -32,15 +32,6 @@ pub(crate) struct AcirContext {
 }
 
 impl AcirContext {
-    /// Creates a fresh AcirContext
-    pub(crate) fn new() -> Self {
-        AcirContext {
-            data: HashMap::new(),
-            data_reverse_map: HashMap::new(),
-            acir_ir: GeneratedAcir::new(),
-        }
-    }
-
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
@@ -251,6 +242,7 @@ impl AcirContext {
         self.acir_ir.push_return_witness(witness);
     }
 
+    /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(self) -> GeneratedAcir {
         self.acir_ir
     }

@@ -22,6 +22,7 @@ mod acir_ir;
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
+#[derive(Default)]
 struct Context {
     /// Maps SSA values to `AcirVar`.
     ///
@@ -37,17 +38,12 @@ struct Context {
 impl Ssa {
     pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
         let _param_array_lengths = collate_array_lengths(&main_function_signature.0);
-        let mut context = Context::new();
+        let context = Context::default();
         context.convert_ssa(self)
     }
 }
 
 impl Context {
-    /// Creates a new `Context` object.
-    fn new() -> Self {
-        Self { ssa_value_to_acir_var: HashMap::new(), acir_context: AcirContext::new() }
-    }
-
     /// Converts SSA into ACIR
     fn convert_ssa(mut self, ssa: Ssa) -> GeneratedAcir {
         assert_eq!(
@@ -67,15 +63,12 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
 
-        self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
+        self.convert_ssa_return(entry_block.terminator().unwrap());
 
         self.acir_context.finish()
     }
 
     /// Adds and binds an AcirVar for each numeric block parameter
-    ///
-    /// TODO: In the case of references, add AcirVars corresponding to the length of the array
-    /// and bind an ArrayId.
     fn convert_ssa_block_param(&mut self, param_id: ValueId, dfg: &DataFlowGraph) {
         let value = dfg[param_id];
         let param_type = match value {
@@ -88,9 +81,11 @@ impl Context {
                 self.ssa_value_to_acir_var.insert(param_id, acir_var);
             }
             Type::Reference => {
-                todo!("Alloc array for reference");
+                todo!("Create an abstract array holding an AcirVar for each element of the reference and bind its ArrayId to the reference.");
             }
-            _ => unreachable!("ICE: invalid type {param_type} found in parameters"),
+            _ => {
+                unreachable!("ICE: Params to the program should only contains numerics and arrays")
+            }
         }
     }
 
@@ -100,17 +95,16 @@ impl Context {
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg);
-                let result_value_id = dfg
-                    .instruction_results(instruction_id)
-                    .first()
-                    .expect("Binary ops have a single result");
-                self.ssa_value_to_acir_var.insert(*result_value_id, result_acir_var);
+                let result_ids = dfg.instruction_results(instruction_id);
+                assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
+                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
             }
             _ => todo!(),
         }
     }
 
-    fn convert_ssa_return(&mut self, terminator: &TerminatorInstruction, dfg: &DataFlowGraph) {
+    /// Converts an SSA terminator's return values into their ACIR representations
+    fn convert_ssa_return(&mut self, terminator: &TerminatorInstruction) {
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values } => return_values,
             _ => unreachable!("ICE: Program must have a singular return"),
@@ -124,7 +118,15 @@ impl Context {
         }
     }
 
-    /// Converts an SSA value into a `AcirVar`
+    /// Gets the cached `AcirVar` that was converted from the corresponding `ValueId`. If it does
+    /// not already exist in the cache, a conversion is attempted and cached for simple values
+    /// that require no further context such as numeric types - values requiring more context
+    /// should have already been cached elsewhere.
+    ///
+    /// Conversion is assumed to have already been performed for instruction results and block
+    /// parameters. This is because block parameters are converted before anything else, and
+    /// because instructions results are converted when the corresponding instruction is
+    /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirVar {
         let value = &dfg[value_id];
         if let Some(acir_var) = self.ssa_value_to_acir_var.get(&value_id) {
@@ -137,13 +139,8 @@ impl Context {
             }
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
-            // `ssa_value_to_acir_var.get(value_id)` should have already returned the
-            // corresponding `AcirVar`.
-            Value::Instruction { .. } => {
-                unreachable!("ICE: Instruction result value used before instruction encountered")
-            }
-            Value::Param { .. } => {
-                unreachable!("ICE: All block params should have already been bound")
+            Value::Instruction { .. } | Value::Param { .. } => {
+                unreachable!("ICE: Should have been in cache")
             }
         };
         self.ssa_value_to_acir_var.insert(value_id, acir_var);
