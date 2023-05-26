@@ -47,13 +47,27 @@ mod tests {
 
     #[test]
     fn noir_integration() {
+        run_all_tests(false)
+    }
+
+    #[test]
+    fn noir_integration_ssa_refactor() {
+        run_all_tests(true)
+    }
+
+    /// Runs all of the test cases using either the experimental SSA code
+    /// or the regular SSA code.
+    fn run_all_tests(experimental_ssa: bool) {
+        // Choose the test directory depending on whether we are in the SSA refactor module or not
+        let test_sub_dir = if experimental_ssa { "test_data_ssa_refactor" } else { "test_data" };
+
         // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
         // is the root of the repository and append the crate path
         let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
             Ok(dir) => PathBuf::from(dir),
             Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
         };
-        let test_data_dir = manifest_dir.join("tests").join("test_data");
+        let test_data_dir = manifest_dir.join("tests").join(test_sub_dir);
         let config_path = test_data_dir.join("config.toml");
 
         // Load config.toml file from `test_data` directory
@@ -80,7 +94,7 @@ mod tests {
             println!("Running test {test_name}");
 
             let verified = std::panic::catch_unwind(|| {
-                nargo_cli::cli::prove_and_verify("pp", test_program_dir)
+                nargo_cli::cli::prove_and_verify("pp", test_program_dir, experimental_ssa)
             });
 
             let r = match verified {
