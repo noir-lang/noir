@@ -23,7 +23,7 @@
 //! constrain v2
 //!
 //! 2. If we reach the end block of the branch created by the jmpif instruction, its block parameters
-//!    will be merged. To merge the jmp arguments of the then and else branches, the forumula
+//!    will be merged. To merge the jmp arguments of the then and else branches, the formula
 //!    `c * then_arg + !c * else_arg` is used for each argument.
 //!
 //! b0(v0: u1, v1: Field, v2: Field):
@@ -135,7 +135,7 @@ impl Ssa {
     /// Flattens the control flow graph of each function such that the function is left with a
     /// single block containing all instructions and no more control-flow.
     ///
-    /// This pass will modify side-effectful instructions in the particular, often multiplying
+    /// This pass will modify any instructions with side effects in particular, often multiplying
     /// them by jump conditions to maintain correctness even when all branches of a jmpif are inlined.
     /// For more information, see the module-level comment at the top of this file.
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
@@ -159,11 +159,11 @@ struct Context<'f> {
     store_values: HashMap<ValueId, Store>,
 
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
-    /// When two branches are merged back into one, this consitutes a join point, and is analogous
+    /// When two branches are merged back into one, this constitutes a join point, and is analogous
     /// to the rest of the program after an if statement. When such a join point / end block is
     /// found, the top of this conditions stack is popped since we are no longer under that
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
-    /// the most recent condition combined with all previous condtions via `And` instructions.
+    /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
 
     /// A map of values from the unmodified function to their values given from this pass.
@@ -214,9 +214,17 @@ impl<'f> Context<'f> {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         queue.push_front(self.function.entry_block());
-        visited.insert(self.function.entry_block());
 
         while let Some(block_id) = queue.pop_front() {
+            // If multiple blocks branch to the same successor before we visit it we can end up in
+            // situations where the same block occurs multiple times in our queue. This check
+            // prevents visiting the same block twice.
+            if visited.contains(&block_id) {
+                continue;
+            } else {
+                visited.insert(block_id);
+            }
+
             // If there is more than one predecessor, this must be an end block
             let mut predecessors = self.cfg.predecessors(block_id);
             if predecessors.len() > 1 {
@@ -224,6 +232,7 @@ impl<'f> Context<'f> {
                 // the block until we have. This ensures we analyze the function in evaluation order.
                 if !predecessors.all(|block| visited.contains(&block)) {
                     queue.push_back(block_id);
+                    visited.remove(&block_id);
                     continue;
                 }
 
@@ -246,13 +255,14 @@ impl<'f> Context<'f> {
             }
 
             queue.extend(block.successors().filter(|block| !visited.contains(block)));
-            visited.extend(block.successors());
         }
+
+        assert!(branch_beginnings.is_empty());
     }
 
     /// Check the terminator of the given block and recursively inline any blocks reachable from
     /// it. Since each block from a jmpif terminator is inlined successively, we must handle
-    /// side-effectful instructions like constrain and store specially to preserve correctness.
+    /// instructions with side effects like constrain and store specially to preserve correctness.
     /// For these instructions we must keep track of what the current condition is and modify
     /// the instructions according to the module-level comment at the top of this file. Note that
     /// the current condition is all the jmpif conditions required to reach the current block,
@@ -319,8 +329,8 @@ impl<'f> Context<'f> {
     fn push_condition(&mut self, start_block: BasicBlockId, condition: ValueId) {
         let end_block = self.branch_ends[&start_block];
 
-        if let Some((_, previous_conditon)) = self.conditions.last() {
-            let and = Instruction::binary(BinaryOp::And, *previous_conditon, condition);
+        if let Some((_, previous_condition)) = self.conditions.last() {
+            let and = Instruction::binary(BinaryOp::And, *previous_condition, condition);
             let new_condition = self.insert_instruction(and);
             self.conditions.push((end_block, new_condition));
         } else {
@@ -488,6 +498,12 @@ impl<'f> Context<'f> {
         self.handle_terminator(destination)
     }
 
+    /// Push the given instruction to the end of the entry block of the current function.
+    ///
+    /// Note that each ValueId of the instruction will be mapped via self.translate_value.
+    /// As a result, the instruction that will be pushed will actually be a new instruction
+    /// with a different InstructionId from the original. The results of the given instruction
+    /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.function.dfg[id].map_values(|id| self.translate_value(id));
         let instruction = self.handle_instruction_side_effects(instruction);
@@ -562,8 +578,11 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
+
     use crate::ssa_refactor::{
         ir::{
+            cfg::ControlFlowGraph,
             instruction::{BinaryOp, Instruction},
             map::Id,
             types::Type,
@@ -805,5 +824,71 @@ mod test {
             .count();
 
         assert_eq!(store_count, 4);
+    }
+
+    fn nested_branch_analysis() {
+        //         b0
+        //         ↓
+        //         b1
+        //       ↙   ↘
+        //     b2     b3
+        //     ↓      |
+        //     b4     |
+        //   ↙  ↘     |
+        // b5    b6   |
+        //   ↘  ↙     ↓
+        //    b7      b8
+        //      ↘   ↙
+        //       b9
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        let b4 = builder.insert_block();
+        let b5 = builder.insert_block();
+        let b6 = builder.insert_block();
+        let b7 = builder.insert_block();
+        let b8 = builder.insert_block();
+        let b9 = builder.insert_block();
+
+        let c1 = builder.add_parameter(Type::bool());
+        let c4 = builder.add_parameter(Type::bool());
+
+        builder.terminate_with_jmp(b1, vec![]);
+        builder.switch_to_block(b1);
+        builder.terminate_with_jmpif(c1, b2, b3);
+        builder.switch_to_block(b2);
+        builder.terminate_with_jmp(b4, vec![]);
+        builder.switch_to_block(b3);
+        builder.terminate_with_jmp(b8, vec![]);
+        builder.switch_to_block(b4);
+        builder.terminate_with_jmpif(c4, b5, b6);
+        builder.switch_to_block(b5);
+        builder.terminate_with_jmp(b7, vec![]);
+        builder.switch_to_block(b6);
+        builder.terminate_with_jmp(b7, vec![]);
+        builder.switch_to_block(b7);
+        builder.terminate_with_jmp(b9, vec![]);
+        builder.switch_to_block(b8);
+        builder.terminate_with_jmp(b9, vec![]);
+        builder.switch_to_block(b9);
+        builder.terminate_with_return(vec![]);
+
+        let mut ssa = builder.finish();
+        let function = ssa.main_mut();
+        let mut context = super::Context {
+            cfg: ControlFlowGraph::with_function(function),
+            function,
+            store_values: HashMap::new(),
+            branch_ends: HashMap::new(),
+            conditions: Vec::new(),
+            values: HashMap::new(),
+        };
+        context.analyze_function();
+        assert_eq!(context.branch_ends.len(), 2);
+        assert_eq!(context.branch_ends.get(&b1), Some(&b9));
+        assert_eq!(context.branch_ends.get(&b4), Some(&b7));
     }
 }

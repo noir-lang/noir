@@ -50,9 +50,12 @@ impl InputValue {
                 if map.len() != fields.len() {
                     return false;
                 }
+
+                let field_types = BTreeMap::from_iter(fields.iter().cloned());
+
                 // Check that all of the struct's fields' values match the ABI as well.
                 map.iter().all(|(field_name, field_value)| {
-                    if let Some(field_type) = fields.get(field_name) {
+                    if let Some(field_type) = field_types.get(field_name) {
                         field_value.matches_abi(field_type)
                     } else {
                         false
@@ -137,13 +140,13 @@ mod serialization_tests {
                 AbiParameter {
                     name: "bar".into(),
                     typ: AbiType::Struct {
-                        fields: BTreeMap::from([
+                        fields: vec![
                             ("field1".into(), AbiType::Integer { sign: Sign::Unsigned, width: 8 }),
                             (
                                 "field2".into(),
                                 AbiType::Array { length: 2, typ: Box::new(AbiType::Boolean) },
                             ),
-                        ]),
+                        ],
                     },
                     visibility: AbiVisibility::Private,
                 },

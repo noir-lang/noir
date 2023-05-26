@@ -304,10 +304,14 @@ impl<'a> FunctionContext<'a> {
         let mut result = self.unit_value();
 
         if let Some(alternative) = &if_expr.alternative {
+            let end_block = self.builder.insert_block();
+            let then_values = then_value.into_value_list(self);
+            self.builder.terminate_with_jmp(end_block, then_values);
+
             self.builder.switch_to_block(else_block);
             let else_value = self.codegen_expression(alternative);
-
-            let end_block = self.builder.insert_block();
+            let else_values = else_value.into_value_list(self);
+            self.builder.terminate_with_jmp(end_block, else_values);
 
             // Create block arguments for the end block as needed to branch to
             // with our then and else value.
@@ -315,13 +319,7 @@ impl<'a> FunctionContext<'a> {
                 self.builder.add_block_parameter(end_block, typ).into()
             });
 
-            let else_values = else_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, else_values);
-
             // Must also set the then block to jmp to the end now
-            self.builder.switch_to_block(then_block);
-            let then_values = then_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, then_values);
             self.builder.switch_to_block(end_block);
         } else {
             // In the case we have no 'else', the 'else' block is actually the end block.
