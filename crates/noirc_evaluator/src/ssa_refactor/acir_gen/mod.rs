@@ -63,7 +63,7 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
 
-        self.convert_ssa_return(entry_block.terminator().unwrap());
+        self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
 
         self.acir_context.finish()
     }
@@ -104,17 +104,14 @@ impl Context {
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
-    fn convert_ssa_return(&mut self, terminator: &TerminatorInstruction) {
+    fn convert_ssa_return(&mut self, terminator: &TerminatorInstruction, dfg: &DataFlowGraph) {
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values } => return_values,
             _ => unreachable!("ICE: Program must have a singular return"),
         };
         for value_id in return_values {
-            let acir_var = self
-                .ssa_value_to_acir_var
-                .get(value_id)
-                .expect("ICE: Return of value not yet encountered");
-            self.acir_context.return_var(*acir_var);
+            let acir_var = self.convert_ssa_value(*value_id, dfg);
+            self.acir_context.return_var(acir_var);
         }
     }
 
