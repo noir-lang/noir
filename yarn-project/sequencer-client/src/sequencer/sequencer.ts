@@ -1,4 +1,3 @@
-import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -6,13 +5,14 @@ import { P2P } from '@aztec/p2p';
 import {
   ContractData,
   ContractPublicData,
+  L1ToL2MessageSource,
+  L2Block,
   MerkleTreeId,
   PrivateTx,
   PublicTx,
   Tx,
   UnverifiedData,
   isPrivateTx,
-  L2Block,
   L2BlockSource,
 } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
@@ -47,6 +47,7 @@ export class Sequencer {
     private worldState: WorldStateSynchroniser,
     private blockBuilder: BlockBuilder,
     private l2BlockSource: L2BlockSource,
+    private l1ToL2MessageSource: L1ToL2MessageSource,
     private publicProcessorFactory: PublicProcessorFactory,
     config?: SequencerConfig,
     private log = createDebugLogger('aztec:sequencer'),
@@ -150,7 +151,7 @@ export class Sequencer {
 
       // Get l1 to l2 messages from the contract
       this.log('Requesting L1 to L2 messages from contract');
-      const l1ToL2Messages = this.takeL1ToL2MessagesFromContract();
+      const l1ToL2Messages = await this.getPendingL1ToL2Messages();
       this.log('Successfully retrieved L1 to L2 messages from contract');
 
       // Build the new block by running the rollup circuits
@@ -296,12 +297,12 @@ export class Sequencer {
   }
 
   /**
-   * Checks on chain messages inbox and selects messages to inlcude within the next rollup block.
-   * TODO: This is a stubbed method.
-   * @returns An array of L1 to L2 messages.
+   * Calls the archiver to pull upto `NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP` message keys
+   * (archiver returns the top messages sorted by fees)
+   * @returns An array of L1 to L2 messages' messageKeys
    */
-  protected takeL1ToL2MessagesFromContract(): Fr[] {
-    return new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
+  protected async getPendingL1ToL2Messages(): Promise<Fr[]> {
+    return await this.l1ToL2MessageSource.getPendingL1ToL2Messages();
   }
 
   /**

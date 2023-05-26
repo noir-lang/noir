@@ -45,17 +45,17 @@ export class L1ToL2MessageStore {
     return this.store.get(messageKey.value);
   }
 
-  getMessages(take: number): L1ToL2Message[] {
+  getMessageKeys(take: number): Fr[] {
     if (take < 1) {
       return [];
     }
     // fetch `take` number of messages from the store with the highest fee.
     // Note the store has multiple of the same message. So if a message has count 2, include both of them in the result:
-    const messages: L1ToL2Message[] = [];
+    const messages: Fr[] = [];
     const sortedMessages = Array.from(this.store.values()).sort((a, b) => b.message.fee - a.message.fee);
     for (const messageAndCount of sortedMessages) {
       for (let i = 0; i < messageAndCount.count; i++) {
-        messages.push(messageAndCount.message);
+        messages.push(messageAndCount.message.entryKey!);
         if (messages.length === take) {
           return messages;
         }

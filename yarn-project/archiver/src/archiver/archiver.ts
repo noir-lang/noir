@@ -302,10 +302,10 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   /**
    * Gets the `take` amount of pending L1 to L2 messages.
    * @param take - The number of messages to return.
-   * @returns The requested L1 to L2 messages.
+   * @returns The requested L1 to L2 messages' keys.
    */
-  getPendingL1ToL2Messages(take: number): Promise<L1ToL2Message[]> {
-    return this.store.getPendingL1ToL2Messages(take);
+  getPendingL1ToL2Messages(take: number): Promise<Fr[]> {
+    return this.store.getPendingL1ToL2MessageKeys(take);
   }
 
   /**

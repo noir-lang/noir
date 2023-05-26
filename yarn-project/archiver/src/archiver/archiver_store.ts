@@ -20,7 +20,7 @@ export interface ArchiverDataStore {
   addUnverifiedData(data: UnverifiedData[]): Promise<boolean>;
   addPendingL1ToL2Messages(messages: L1ToL2Message[]): Promise<boolean>;
   confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean>;
-  getPendingL1ToL2Messages(take: number): Promise<L1ToL2Message[]>;
+  getPendingL1ToL2MessageKeys(take: number): Promise<Fr[]>;
   getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
   getUnverifiedData(from: number, take: number): Promise<UnverifiedData[]>;
   addL2ContractPublicData(data: ContractPublicData[], blockNum: number): Promise<boolean>;
@@ -142,12 +142,12 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Gets the `take` amount of pending L1 to L2 messages.
+   * Gets the `take` amount of pending L1 to L2 messages, sorted by fee
    * @param take - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
-   * @returns The requested L1 to L2 messages.
+   * @returns The requested L1 to L2 message keys.
    */
-  public getPendingL1ToL2Messages(take: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<L1ToL2Message[]> {
-    return Promise.resolve(this.pendingL1ToL2Messages.getMessages(take));
+  public getPendingL1ToL2MessageKeys(take: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<Fr[]> {
+    return Promise.resolve(this.pendingL1ToL2Messages.getMessageKeys(take));
   }
 
   /**

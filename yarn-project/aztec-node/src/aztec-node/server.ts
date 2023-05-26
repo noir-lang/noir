@@ -7,6 +7,7 @@ import {
   L2Block,
   L2BlockSource,
   MerkleTreeId,
+  L1ToL2MessageSource,
 } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
@@ -30,7 +31,7 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
-import { AztecNode } from './aztec-node.js';
+import { AztecNode, L1ToL2MessageAndIndex } from './aztec-node.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -43,6 +44,7 @@ export class AztecNodeService implements AztecNode {
     protected blockSource: L2BlockSource,
     protected unverifiedDataSource: UnverifiedDataSource,
     protected contractDataSource: ContractDataSource,
+    protected l1ToL2MessageSource: L1ToL2MessageSource,
     protected merkleTreeDB: MerkleTrees,
     protected worldStateSynchroniser: WorldStateSynchroniser,
     protected sequencer: SequencerClient,
@@ -72,9 +74,17 @@ export class AztecNodeService implements AztecNode {
     await Promise.all([p2pClient.start(), worldStateSynchroniser.start()]);
 
     // now create the sequencer
-    const sequencer = await SequencerClient.new(config, p2pClient, worldStateSynchroniser, archiver, archiver);
+    const sequencer = await SequencerClient.new(
+      config,
+      p2pClient,
+      worldStateSynchroniser,
+      archiver,
+      archiver,
+      archiver,
+    );
     return new AztecNodeService(
       p2pClient,
+      archiver,
       archiver,
       archiver,
       archiver,
@@ -206,6 +216,23 @@ export class AztecNodeService implements AztecNode {
    */
   public getDataTreePath(leafIndex: bigint): Promise<SiblingPath<typeof PRIVATE_DATA_TREE_HEIGHT>> {
     return this.merkleTreeDB.getSiblingPath(MerkleTreeId.PRIVATE_DATA_TREE, leafIndex, false);
+  }
+
+  /**
+   * Gets a confirmed/consumed L1 to L2 message for the given message key
+   * and its index in the merkle tree.
+   * @param messageKey - The message key.
+   * @returns The map containing the message and index.
+   */
+  public async getL1ToL2MessageAndIndex(messageKey: Fr): Promise<L1ToL2MessageAndIndex> {
+    // todo: #697 - make this one lookup.
+    const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
+    const index = (await this.merkleTreeDB.findLeafIndex(
+      MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
+      messageKey.toBuffer(),
+      false,
+    ))!;
+    return Promise.resolve({ message, index });
   }
 
   /**

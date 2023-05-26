@@ -50,6 +50,7 @@ describe.skip('e2e_l1_to_l2_msg', () => {
     const privKey = account.getHdKey().privateKey;
     const {
       rollupAddress,
+      inboxAddress,
       registryAddress: registryAddress_,
       unverifiedDataEmitterAddress,
       walletClient,
@@ -60,6 +61,7 @@ describe.skip('e2e_l1_to_l2_msg', () => {
 
     config.publisherPrivateKey = Buffer.from(privKey!);
     config.rollupContract = rollupAddress;
+    config.inboxContract = inboxAddress;
     config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
 
     // Deploy portal contracts

@@ -1,7 +1,7 @@
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { serializeToBuffer } from '@aztec/circuits.js/utils';
+import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { sha256 } from '@aztec/foundation/crypto';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 
@@ -10,11 +10,11 @@ import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
  */
 export interface L1ToL2MessageSource {
   /**
-   * Gets the `take` amount of pending L1 to L2 messages.
-   * @param take - The number of messages to return.
-   * @returns The requested L1 to L2 messages.
+   * Gets the `take` amount of pending L1 to L2 messages, sorted by fee
+   * @param take - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
+   * @returns The requested L1 to L2 messages' keys.
    */
-  getPendingL1ToL2Messages(take: number): Promise<L1ToL2Message[]>;
+  getPendingL1ToL2Messages(take?: number): Promise<Fr[]>;
 
   /**
    * Gets the confirmed L1 to L2 message with the given message key.
@@ -86,6 +86,17 @@ export class L1ToL2Message {
     return serializeToBuffer(this.sender, this.recipient, this.content, this.secretHash, this.deadline, this.fee);
   }
 
+  static fromBuffer(buffer: Buffer | BufferReader): L1ToL2Message {
+    const reader = BufferReader.asReader(buffer);
+    const sender = reader.readObject(L1Actor);
+    const recipient = reader.readObject(L2Actor);
+    const content = reader.readFr();
+    const secretHash = reader.readFr();
+    const deadline = reader.readNumber();
+    const fee = reader.readNumber();
+    return new L1ToL2Message(sender, recipient, content, secretHash, deadline, fee);
+  }
+
   static empty(): L1ToL2Message {
     return new L1ToL2Message(L1Actor.empty(), L2Actor.empty(), Fr.ZERO, Fr.ZERO, 0, 0);
   }
@@ -129,6 +140,13 @@ export class L1Actor {
     return serializeToBuffer(this.sender, this.chainId);
   }
 
+  static fromBuffer(buffer: Buffer | BufferReader): L1Actor {
+    const reader = BufferReader.asReader(buffer);
+    const ethAddr = new EthAddress(reader.readBytes(32));
+    const chainId = reader.readNumber();
+    return new L1Actor(ethAddr, chainId);
+  }
+
   static random(): L1Actor {
     return new L1Actor(EthAddress.random(), Math.floor(Math.random() * 1000));
   }
@@ -159,6 +177,13 @@ export class L2Actor {
 
   toBuffer(): Buffer {
     return serializeToBuffer(this.recipient, this.version);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader): L2Actor {
+    const reader = BufferReader.asReader(buffer);
+    const aztecAddr = AztecAddress.fromBuffer(reader);
+    const version = reader.readNumber();
+    return new L2Actor(aztecAddr, version);
   }
 
   static random(): L2Actor {
