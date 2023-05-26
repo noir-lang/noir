@@ -129,10 +129,10 @@ impl Context {
             }
 
             // If its not a numeric constant, then it cannot be the void/unit type
-            return false;
+            false
         }
 
-        if is_return_unit_type(&return_values, dfg) {
+        if is_return_unit_type(return_values, dfg) {
             return;
         }
 
