@@ -12,6 +12,6 @@ use dep::std;
 fn main(hashed_message : [32]u8, pub_key_x : [32]u8, pub_key_y : [32]u8, signature : [64]u8) {
      // Is there ever a situation where someone would want 
      // to ensure that a signature was invalid?
-     let x = std::ecdsa_secp256k1::verify_signature(pub_key_x,pub_key_y,signature, hashed_message);
-     assert(x == 1);
+     let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x,pub_key_y,signature, hashed_message);
+     assert(valid_signature);
 }
