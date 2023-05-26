@@ -23,6 +23,7 @@ import {
   retrieveNewPendingL1ToL2Messages,
 } from './data_retrieval.js';
 import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.
@@ -181,8 +182,13 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
       }
     });
 
-    // store l1 to l2 messages for which we have retrieved rollups
+    // TODO: optimise this - there could be messages in confirmed that are also in pending. No need to modify storage then.
+    // store new pending l1 to l2 messages for which we have retrieved rollups
     await this.store.addPendingL1ToL2Messages(retrievedPendingL1ToL2Messages.retrievedData);
+    // from retrieved L2Blocks, confirm L1 to L2 messages that have been published
+    // from each l2block fetch all messageKeys in a flattened array:
+    const messageKeysToRemove = retrievedBlocks.retrievedData.map(l2block => l2block.newL2ToL1Msgs).flat();
+    await this.store.confirmL1ToL2Messages(messageKeysToRemove);
 
     // store retrieved rollup blocks
     await this.store.addL2Blocks(retrievedBlocks.retrievedData);
@@ -300,5 +306,14 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    */
   getPendingL1ToL2Messages(take: number): Promise<L1ToL2Message[]> {
     return this.store.getPendingL1ToL2Messages(take);
+  }
+
+  /**
+   * Gets the confirmed/consumed L1 to L2 message associated with the given message key
+   * @param messageKey - The message key.
+   * @returns The L1 to L2 message (throws if not found).
+   */
+  getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message> {
+    return this.store.getConfirmedL1ToL2Message(messageKey);
   }
 }

@@ -15,6 +15,14 @@ export interface L1ToL2MessageSource {
    * @returns The requested L1 to L2 messages.
    */
   getPendingL1ToL2Messages(take: number): Promise<L1ToL2Message[]>;
+
+  /**
+   * Gets the confirmed L1 to L2 message with the given message key.
+   * i.e. message that has already been consumed by the sequencer and published in an L2 Block
+   * @param messageKey - The message key.
+   * @returns The confirmed L1 to L2 message (throws if not found)
+   */
+  getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
 }
 
 /**
@@ -48,14 +56,9 @@ export class L1ToL2Message {
     public readonly fee: number,
     /**
      * The entry key for the message - optional.
-     * If not provided, it will be calculated by hashing the message (similar to the Inbox contract)
      */
     public readonly entryKey?: Fr,
-  ) {
-    if (!entryKey) {
-      this.entryKey = this.hash();
-    }
-  }
+  ) {}
 
   // TODO: (#646) - sha256 hash of the message packed the same as solidity
   hash(): Fr {
@@ -86,6 +89,17 @@ export class L1ToL2Message {
   static empty(): L1ToL2Message {
     return new L1ToL2Message(L1Actor.empty(), L2Actor.empty(), Fr.ZERO, Fr.ZERO, 0, 0);
   }
+
+  static random(): L1ToL2Message {
+    return new L1ToL2Message(
+      L1Actor.random(),
+      L2Actor.random(),
+      Fr.random(),
+      Fr.random(),
+      Math.floor(Math.random() * 1000),
+      Math.floor(Math.random() * 1000),
+    );
+  }
 }
 
 /**
@@ -114,6 +128,10 @@ export class L1Actor {
   toBuffer(): Buffer {
     return serializeToBuffer(this.sender, this.chainId);
   }
+
+  static random(): L1Actor {
+    return new L1Actor(EthAddress.random(), Math.floor(Math.random() * 1000));
+  }
 }
 
 /**
@@ -141,5 +159,9 @@ export class L2Actor {
 
   toBuffer(): Buffer {
     return serializeToBuffer(this.recipient, this.version);
+  }
+
+  static random(): L2Actor {
+    return new L2Actor(AztecAddress.random(), Math.floor(Math.random() * 1000));
   }
 }

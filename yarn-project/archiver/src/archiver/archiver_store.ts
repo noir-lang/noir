@@ -6,8 +6,9 @@ import {
   ContractData,
   L1ToL2Message,
 } from '@aztec/types';
-import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { L1ToL2MessageStore } from './l1_to_l2_message_store.js';
 
 /**
  * Interface describing a data store to be used by the archiver to store all its relevant data
@@ -18,7 +19,9 @@ export interface ArchiverDataStore {
   getL2Blocks(from: number, take: number): Promise<L2Block[]>;
   addUnverifiedData(data: UnverifiedData[]): Promise<boolean>;
   addPendingL1ToL2Messages(messages: L1ToL2Message[]): Promise<boolean>;
+  confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean>;
   getPendingL1ToL2Messages(take: number): Promise<L1ToL2Message[]>;
+  getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
   getUnverifiedData(from: number, take: number): Promise<UnverifiedData[]>;
   addL2ContractPublicData(data: ContractPublicData[], blockNum: number): Promise<boolean>;
   getL2ContractPublicData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined>;
@@ -51,9 +54,15 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   private contractPublicData: (ContractPublicData[] | undefined)[] = [];
 
   /**
-   * An array containing all the pending L1 to L2 messages
+   * Contains all the confirmed L1 to L2 messages (i.e. messages that were consumed in an L2 block)
+   * It is a map of entryKey to the corresponding L1 to L2 message and the number of times it has appeared
    */
-  private pendingL1ToL2Messages: L1ToL2Message[] = [];
+  private confirmedL1ToL2Messages: L1ToL2MessageStore = new L1ToL2MessageStore();
+
+  /**
+   * Contains all the pending L1 to L2 messages (accounts for duplication of messages)
+   */
+  private pendingL1ToL2Messages: L1ToL2MessageStore = new L1ToL2MessageStore();
 
   constructor() {}
 
@@ -78,12 +87,28 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Append new pending L1 to L2 messages to the store's list.
+   * Append new pending L1 to L2 messages to the store.
    * @param messages - The L1 to L2 messages to be added to the store.
    * @returns True if the operation is successful (always in this implementation).
    */
   public addPendingL1ToL2Messages(messages: L1ToL2Message[]): Promise<boolean> {
-    this.pendingL1ToL2Messages.push(...messages);
+    for (const msg of messages) {
+      this.pendingL1ToL2Messages.addMessage(msg.entryKey!, msg);
+    }
+    return Promise.resolve(true);
+  }
+
+  /**
+   * Messages that have been published in an L2 block are confirmed.
+   * Add them to the confirmed store, also remove them from the pending store.
+   * @param messageKeys - The message keys to be removed from the store.
+   * @returns True if the operation is successful (always in this implementation).
+   */
+  public confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean> {
+    messageKeys.forEach(messageKey => {
+      this.confirmedL1ToL2Messages.addMessage(messageKey, this.pendingL1ToL2Messages.getMessage(messageKey)!);
+      this.pendingL1ToL2Messages.removeMessage(messageKey);
+    });
     return Promise.resolve(true);
   }
 
@@ -122,9 +147,20 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns The requested L1 to L2 messages.
    */
   public getPendingL1ToL2Messages(take: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<L1ToL2Message[]> {
-    // todo: @rahul https://github.com/AztecProtocol/aztec-packages/issues/529 - change this so that sequencer actually actually consumes messages sorted by fee or another value
-    // upon consumption, the messages are removed from the store
-    return Promise.resolve(this.pendingL1ToL2Messages.slice(0, take));
+    return Promise.resolve(this.pendingL1ToL2Messages.getMessages(take));
+  }
+
+  /**
+   * Gets the confirmed L1 to L2 message corresponding to the given message key.
+   * @param messageKey - The message key to look up.
+   * @returns The requested L1 to L2 message or throws if not found.
+   */
+  public getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message> {
+    const message = this.confirmedL1ToL2Messages.getMessage(messageKey);
+    if (!message) {
+      throw new Error(`Message with key ${messageKey.toString()} not found`);
+    }
+    return Promise.resolve(message);
   }
 
   /**
