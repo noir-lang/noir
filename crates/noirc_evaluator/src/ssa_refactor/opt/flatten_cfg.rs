@@ -159,9 +159,17 @@ impl<'f> Context<'f> {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         queue.push_front(self.function.entry_block());
-        visited.insert(self.function.entry_block());
 
         while let Some(block_id) = queue.pop_front() {
+            // If multiple blocks branch to the same successor before we visit it we can end up in
+            // situations where the same block occurs multiple times in our queue. This check
+            // prevents visiting the same block twice.
+            if visited.contains(&block_id) {
+                continue;
+            } else {
+                visited.insert(block_id);
+            }
+
             // If there is more than one predecessor, this must be an end block
             let mut predecessors = self.cfg.predecessors(block_id);
             if predecessors.len() > 1 {
@@ -169,6 +177,7 @@ impl<'f> Context<'f> {
                 // the block until we have. This ensures we analyze the function in evaluation order.
                 if !predecessors.all(|block| visited.contains(&block)) {
                     queue.push_back(block_id);
+                    visited.remove(&block_id);
                     continue;
                 }
 
@@ -191,8 +200,9 @@ impl<'f> Context<'f> {
             }
 
             queue.extend(block.successors().filter(|block| !visited.contains(block)));
-            visited.extend(block.successors());
         }
+
+        assert!(branch_beginnings.is_empty());
     }
 
     /// Check the terminator of the given block and recursively inline any blocks reachable from
@@ -462,8 +472,10 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
+
     use crate::ssa_refactor::{
-        ir::{map::Id, types::Type},
+        ir::{cfg::ControlFlowGraph, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
     };
 
@@ -562,5 +574,71 @@ mod test {
         // }
         let ssa = ssa.flatten_cfg();
         assert_eq!(ssa.main().reachable_blocks().len(), 1);
+    }
+
+    #[test]
+    fn nested_branch_analysis() {
+        //         b0
+        //         ↓
+        //         b1
+        //       ↙   ↘
+        //     b2     b3
+        //     ↓      |
+        //     b4     |
+        //   ↙  ↘     |
+        // b5    b6   |
+        //   ↘  ↙     ↓
+        //    b7      b8
+        //      ↘   ↙
+        //       b9
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        let b4 = builder.insert_block();
+        let b5 = builder.insert_block();
+        let b6 = builder.insert_block();
+        let b7 = builder.insert_block();
+        let b8 = builder.insert_block();
+        let b9 = builder.insert_block();
+
+        let c1 = builder.add_parameter(Type::bool());
+        let c4 = builder.add_parameter(Type::bool());
+
+        builder.terminate_with_jmp(b1, vec![]);
+        builder.switch_to_block(b1);
+        builder.terminate_with_jmpif(c1, b2, b3);
+        builder.switch_to_block(b2);
+        builder.terminate_with_jmp(b4, vec![]);
+        builder.switch_to_block(b3);
+        builder.terminate_with_jmp(b8, vec![]);
+        builder.switch_to_block(b4);
+        builder.terminate_with_jmpif(c4, b5, b6);
+        builder.switch_to_block(b5);
+        builder.terminate_with_jmp(b7, vec![]);
+        builder.switch_to_block(b6);
+        builder.terminate_with_jmp(b7, vec![]);
+        builder.switch_to_block(b7);
+        builder.terminate_with_jmp(b9, vec![]);
+        builder.switch_to_block(b8);
+        builder.terminate_with_jmp(b9, vec![]);
+        builder.switch_to_block(b9);
+        builder.terminate_with_return(vec![]);
+
+        let mut ssa = builder.finish();
+        let function = ssa.main_mut();
+        let mut context = super::Context {
+            cfg: ControlFlowGraph::with_function(function),
+            function,
+            branch_ends: HashMap::new(),
+            conditions: Vec::new(),
+            values: HashMap::new(),
+        };
+        context.analyze_function();
+        assert_eq!(context.branch_ends.len(), 2);
+        assert_eq!(context.branch_ends.get(&b1), Some(&b9));
+        assert_eq!(context.branch_ends.get(&b4), Some(&b7));
     }
 }
