@@ -236,13 +236,14 @@
           fi
 
           wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
-          echo "NodeJS build complete. Directory contents:"
+          echo "Web build complete. Directory contents:"
           ls -la ${PKG_PATH}/web
 
           # wasm-pack build crates/wasm --mode no-install --scope noir-lang --target nodejs --out-dir pkg/nodejs --release
-          # echo "Web build complete. Directory contents:"
+          # echo "NodeJS build complete. Directory contents:"
           # ls -la ${PKG_PATH}/nodejs
-          cp -R /nodejs /web
+
+          cp -R ${PKG_PATH}/web ${PKG_PATH}/nodejs
 
           if [ -n ${COMMIT_SHORT} ]; then
               VERSION_APPENDIX="-${COMMIT_SHORT}"
