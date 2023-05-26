@@ -39,7 +39,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/nix-cache
-          key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}-temp
+          key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
 
       # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
       - name: Copy cache into nix store
