@@ -5,8 +5,8 @@
 // and the hashpath proves this
 // Currently we assume that it is a binary tree, so depth k implies a width of 2^k
 // XXX: In the future we can add an arity parameter
-fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {
-    (compute_merkle_root(_leaf, _index, _hash_path) == _root) as Field
+fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> bool {
+    compute_merkle_root(_leaf, _index, _hash_path) == _root
 }
 
 #[foreign(compute_merkle_root)]
