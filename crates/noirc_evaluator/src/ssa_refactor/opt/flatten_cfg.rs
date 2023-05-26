@@ -78,7 +78,7 @@
 //! Note that if the ValueId of the address stored to is not the same, two merging store
 //! instructions will be made - one to each address. This is the case even if both addresses refer
 //! to the same address internally. This can happen when they are equivalent offsets:
-//! 
+//!
 //! b0(v0: u1, v1: ref)
 //!   jmpif v0, then: b1, else: b2
 //! b1():
@@ -444,7 +444,7 @@ impl<'f> Context<'f> {
     ///
     /// This function relies on the 'then' branch being merged before the 'else' branch of a jmpif
     /// instruction. If this ordering is changed, the ordering that store values are merged within
-    /// this function also need to be changed to reflect that. 
+    /// this function also needs to be changed to reflect that.
     fn merge_stores(&mut self, then_branch: Branch, else_branch: Branch) {
         let mut merge_store = |address, then_case, else_case| {
             let then_condition = then_branch.condition;
