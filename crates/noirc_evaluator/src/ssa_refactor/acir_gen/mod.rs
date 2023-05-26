@@ -109,6 +109,33 @@ impl Context {
             TerminatorInstruction::Return { return_values } => return_values,
             _ => unreachable!("ICE: Program must have a singular return"),
         };
+
+        fn is_return_unit_type(values: &Vec<Id<Value>>, dfg: &DataFlowGraph) -> bool {
+            // Check if there is only one return value.
+            // If not, then the function cannot possibly return `Unit`
+            // to signify no return value.
+            //
+            // This assumes that we cannot return a tuple of Unit.
+            //
+            if values.len() != 1 {
+                return false;
+            }
+
+            // At this point, we know that we have a return type with one value
+            // To signify no return the SSA IR, will return `unit 0`
+            // This is numeric constant with type None;
+            if let Value::NumericConstant { typ, .. } = &dfg[values[0]] {
+                return Type::Unit == *typ;
+            }
+
+            // If its not a numeric constant, then it cannot be the void/unit type
+            return false;
+        }
+
+        if is_return_unit_type(&return_values, dfg) {
+            return;
+        }
+
         for value_id in return_values {
             let acir_var = self.convert_ssa_value(*value_id, dfg);
             self.acir_context.return_var(acir_var);
