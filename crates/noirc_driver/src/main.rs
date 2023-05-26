@@ -12,6 +12,9 @@ fn main() {
         Box::new(acvm::default_is_opcode_supported(Language::R1CS)),
     );
 
+    let a = 1;
+    println!("{a}");
+
     // Add local crate to dep graph
     driver.create_local_crate(ROOT_DIR_MAIN, CrateType::Binary);
 
