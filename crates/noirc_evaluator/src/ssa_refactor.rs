@@ -58,8 +58,12 @@ pub fn experimental_create_circuit(
     let func_sig = program.main_function_signature.clone();
     let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
         optimize_into_acir(program);
+
     let abi = gen_abi(func_sig, return_witnesses.clone());
-    let public_parameters = PublicInputs(abi.param_witnesses.values().flatten().copied().collect());
+    let public_abi = abi.clone().public_abi();
+
+    let public_parameters =
+        PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
     let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
     Ok((circuit, abi))
