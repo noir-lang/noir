@@ -456,19 +456,39 @@ impl<'f> Context<'f> {
     /// instruction. If this ordering is changed, the ordering that store values are merged within
     /// this function also needs to be changed to reflect that.
     fn merge_stores(&mut self, then_branch: Branch, else_branch: Branch) {
-        let mut merge_store = |address, then_case, else_case| {
+        let mut merge_store = |address, then_case, else_case, old_value| {
             let then_condition = then_branch.condition;
             let else_condition = else_branch.condition;
             let value = self.merge_values(then_condition, else_condition, then_case, else_case);
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
+
+            if let Some(store) = self.store_values.get_mut(&address) {
+                store.new_value = value;
+            } else {
+                self.store_values.insert(address, Store { old_value, new_value: value });
+            }
         };
 
-        for (address, store) in then_branch.store_values {
-            merge_store(address, store.new_value, store.old_value);
+        for (address, store) in &then_branch.store_values {
+            merge_store(*address, store.new_value, store.old_value, store.old_value);
         }
 
         for (address, store) in else_branch.store_values {
-            merge_store(address, store.old_value, store.new_value);
+            merge_store(*address, store.old_value, store.new_value, store.old_value);
+        }
+
+        self.store_values = new_stores;
+    }
+
+    fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
+        if let Some(store_value) = self.store_values.get_mut(&address) {
+            store_value.new_value = new_value;
+        } else {
+            let load = Instruction::Load { address };
+            let load_type = Some(vec![self.function.dfg.type_of_value(new_value)]);
+            let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+
+            self.store_values.insert(address, Store { old_value, new_value });
         }
     }
 
@@ -534,20 +554,10 @@ impl<'f> Context<'f> {
                         self.insert_instruction(Instruction::binary(BinaryOp::Eq, mul, condition));
                     Instruction::Constrain(eq)
                 }
-                Instruction::Store { address, value: new_value } => {
-                    if let Some(store_value) = self.store_values.get_mut(&address) {
-                        store_value.new_value = new_value;
-                    } else {
-                        let load = Instruction::Load { address };
-                        let load_type = Some(vec![self.function.dfg.type_of_value(new_value)]);
-                        let old_value =
-                            self.insert_instruction_with_typevars(load, load_type).first();
-
-                        self.store_values.insert(address, Store { old_value, new_value });
-                    }
-                    Instruction::Store { address, value: new_value }
+                Instruction::Store { address, value } => {
+                    self.remember_store(address, value);
+                    Instruction::Store { address, value }
                 }
-                // TODO: Need to log any stores found
                 other => other,
             }
         } else {
