@@ -15,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Label pull request
-        uses: phated/issue-labeler@master
+        # We can switch hash to release number once it is tagged
+        uses: github/issue-labeler@6ae80f5cf189fd96d96a4a4125c60e87cba0578d
         id: issue-labeler
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
