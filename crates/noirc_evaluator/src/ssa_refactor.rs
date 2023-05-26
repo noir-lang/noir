@@ -36,6 +36,12 @@ pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
         .print("After Inlining:")
         .unroll_loops()
         .print("After Unrolling:")
+        .simplify_cfg()
+        .print("After Simplifying:")
+        .flatten_cfg()
+        .print("After Flattening:")
+        .mem2reg()
+        .print("After Mem2Reg:")
         .into_acir(func_signature)
 }
 
