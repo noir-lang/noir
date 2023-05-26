@@ -29,6 +29,15 @@ pub(crate) struct GeneratedAcir {
 }
 
 impl GeneratedAcir {
+    /// Creates a fresh GeneratedAcir
+    pub(crate) fn new() -> Self {
+        GeneratedAcir {
+            current_witness_index: 0,
+            opcodes: Vec::new(),
+            return_witnesses: Vec::new(),
+        }
+    }
+
     /// Returns the current witness index.
     pub(crate) fn current_witness_index(&self) -> Witness {
         Witness(self.current_witness_index)
@@ -72,6 +81,10 @@ impl GeneratedAcir {
         self.assert_is_zero(constraint);
 
         fresh_witness
+    }
+
+    pub(crate) fn push_return_witness(&mut self, witness: Witness) {
+        self.return_witnesses.push(witness);
     }
 }
 

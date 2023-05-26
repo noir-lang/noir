@@ -3,13 +3,13 @@ use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
-struct AcirContext {
+pub(crate) struct AcirContext {
     /// Map which links Variables to AcirVarData.
     ///
     /// This is a common pattern in this codebase
@@ -32,6 +32,15 @@ struct AcirContext {
 }
 
 impl AcirContext {
+    /// Creates a fresh AcirContext
+    pub(crate) fn new() -> Self {
+        AcirContext {
+            data: HashMap::new(),
+            data_reverse_map: HashMap::new(),
+            acir_ir: GeneratedAcir::new(),
+        }
+    }
+
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
@@ -225,6 +234,25 @@ impl AcirContext {
                 self.add_data(AcirVarData::Const(*lhs_const + *rhs_const))
             }
         }
+    }
+
+    /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
+    /// `GeneratedAcir`'s return witnesses.
+    pub(crate) fn return_var(&mut self, acir_var: AcirVar) {
+        let acir_var_data = self.data.get(&acir_var).expect("ICE: return of undeclared AcirVar");
+        // TODO: Add caching to prevent expressions from being needlessly duplicated
+        let witness = match acir_var_data {
+            AcirVarData::Const(constant) => {
+                self.acir_ir.expression_to_witness(&Expression::from(*constant))
+            }
+            AcirVarData::Expr(expr) => self.acir_ir.expression_to_witness(expr),
+            AcirVarData::Witness(witness) => *witness,
+        };
+        self.acir_ir.push_return_witness(witness);
+    }
+
+    pub(crate) fn finish(self) -> GeneratedAcir {
+        self.acir_ir
     }
 
     /// Adds `Data` into the context and assigns it a Variable.
