@@ -411,6 +411,12 @@ impl<'f> Context<'f> {
         self.handle_terminator(destination)
     }
 
+    /// Push the given instruction to the end of the entry block of the current function.
+    ///
+    /// Note that each ValueId of the instruction will be mapped via self.translate_value.
+    /// Resultingly, the instruction that will be pushed will actually be a new instruction
+    /// with a different InstructionId from the original. The results of the given instruction
+    /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.function.dfg[id].map_values(|id| self.translate_value(id));
         let instruction = self.handle_instruction_side_effects(instruction);
