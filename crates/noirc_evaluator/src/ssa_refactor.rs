@@ -59,7 +59,7 @@ pub fn experimental_create_circuit(
     let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
         optimize_into_acir(program);
 
-    let abi = gen_abi(func_sig, return_witnesses.clone());
+    let abi = gen_abi(func_sig);
     let public_abi = abi.clone().public_abi();
 
     let public_parameters =
