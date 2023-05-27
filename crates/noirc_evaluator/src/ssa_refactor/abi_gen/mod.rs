@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::{Abi, AbiParameter, FunctionSignature};
+use noirc_abi::{Abi, AbiParameter, AbiType, FunctionSignature};
 
 /// Traverses the parameters to the program to infer the lengths of any arrays that occur.
 ///
@@ -17,26 +17,41 @@ pub(crate) fn collate_array_lengths(_abi_params: &[AbiParameter]) -> Vec<usize> 
     Vec::new()
 }
 
-/// Arranges a function signature and a generated circuit's return witnesses into a
-/// `noirc_abi::Abi`.
-pub(crate) fn gen_abi(func_sig: FunctionSignature, return_witnesses: Vec<Witness>) -> Abi {
+/// Computes an `noirc_abi::Abi` from a function signature.
+pub(crate) fn gen_abi(func_sig: FunctionSignature) -> Abi {
+    let (param_witnesses, return_witnesses) = function_signature_to_witnesses(&func_sig);
+
     let (parameters, return_type) = func_sig;
-    let param_witnesses = param_witnesses_from_abi_param(&parameters);
     Abi { parameters, return_type, param_witnesses, return_witnesses }
 }
 
-// Takes each abi parameter and shallowly maps to the expected witness range in which the
-// parameter's constituent values live.
-fn param_witnesses_from_abi_param(
-    abi_params: &Vec<AbiParameter>,
-) -> BTreeMap<String, Vec<Witness>> {
+/// Takes the function signature and maps each type to a range of witness indices
+fn function_signature_to_witnesses(
+    func_signature: &FunctionSignature,
+) -> (BTreeMap<String, Vec<Witness>>, Vec<Witness>) {
+    let (parameters, return_type) = func_signature;
+
     let mut offset = 1;
-    btree_map(abi_params, |param| {
-        let num_field_elements_needed = param.typ.field_count();
-        let idx_start = offset;
-        let idx_end = idx_start + num_field_elements_needed;
-        let witnesses = vecmap(idx_start..idx_end, Witness);
-        offset += num_field_elements_needed;
+    let param_witnesses = btree_map(parameters, |param| {
+        let witnesses = abi_type_to_witness_indices(&param.typ, offset);
+
+        let num_witnesses_needed = witnesses.len() as u32;
+        offset += num_witnesses_needed;
+
         (param.name.clone(), witnesses)
-    })
+    });
+
+    let return_witnesses = match return_type {
+        Some(return_type) => abi_type_to_witness_indices(return_type, offset),
+        None => Vec::new(),
+    };
+
+    (param_witnesses, return_witnesses)
+}
+/// Convert an AbiType to a vector of witnesses starting from the `witness_offset`
+fn abi_type_to_witness_indices(typ: &AbiType, witness_offset: u32) -> Vec<Witness> {
+    let num_field_elements_needed = typ.field_count();
+    let index_start = witness_offset;
+    let index_end = index_start + num_field_elements_needed;
+    vecmap(index_start..index_end, Witness)
 }
