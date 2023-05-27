@@ -10,7 +10,7 @@ fn main(
     mimc_input: [Field; 4],
 ) {
     assert(old_root == std::merkle::compute_merkle_root(old_leaf, index, old_hash_path));
-    
+
     let calculated_root = std::merkle::compute_merkle_root(leaf, index, old_hash_path);
     assert(new_root == calculated_root);
 
