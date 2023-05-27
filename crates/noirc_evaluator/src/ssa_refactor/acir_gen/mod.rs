@@ -110,7 +110,8 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        let is_return_unit_type = return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
+        let is_return_unit_type =
+            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
         if is_return_unit_type {
             return;
         }
@@ -157,6 +158,8 @@ impl Context {
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
+            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs),
             _ => todo!(),
         }
     }
