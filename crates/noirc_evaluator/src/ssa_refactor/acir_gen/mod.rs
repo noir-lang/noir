@@ -92,6 +92,7 @@ impl Context {
     /// Converts an SSA instruction into its ACIR representation
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
+        self.acir_context.acir_ir.start_region_label(format!("{instruction:?}"));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg);
@@ -101,6 +102,7 @@ impl Context {
             }
             _ => todo!(),
         }
+        self.acir_context.acir_ir.end_label();
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
@@ -110,7 +112,8 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        let is_return_unit_type = return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
+        let is_return_unit_type =
+            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
         if is_return_unit_type {
             return;
         }

@@ -28,7 +28,7 @@ pub(crate) struct AcirContext {
     /// For example, If one was to add two Variables together,
     /// then the `acir_ir` will be populated to assert this
     /// addition.
-    acir_ir: GeneratedAcir,
+    pub(crate) acir_ir: GeneratedAcir,
 }
 
 impl AcirContext {

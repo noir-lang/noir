@@ -11,6 +11,18 @@ use acvm::{
 };
 
 #[derive(Debug, Default)]
+pub(crate) struct OpcodeRegionLabel {
+    /// Range of the opcodes included in the region
+    start_range: usize,
+    /// The end range is `None` while its on the region_stack
+    /// and the caller has not finalized the region.
+    end_range_inclusive: Option<usize>,
+
+    /// Label to apply to this region of code
+    label: String,
+}
+
+#[derive(Debug, Default)]
 /// The output of the Acir-gen pass
 pub(crate) struct GeneratedAcir {
     /// The next witness index that may be declared.
@@ -26,9 +38,63 @@ pub(crate) struct GeneratedAcir {
     /// Note: This may contain repeated indices, which is necessary for later mapping into the
     /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
+
+    /// For debugging purposes, one can label blocks of the opcode.
+    finalized_regions: Vec<OpcodeRegionLabel>,
+    region_stack: Vec<OpcodeRegionLabel>,
 }
 
 impl GeneratedAcir {
+    pub(crate) fn start_region_label(&mut self, region_name: String) {
+        self.region_stack.push(OpcodeRegionLabel {
+            start_range: self.opcodes.len(),
+            end_range_inclusive: None,
+            label: region_name,
+        })
+    }
+    pub(crate) fn end_label(&mut self) {
+        let mut region_label = self.region_stack.pop().expect("tried to pop a region label from the stack without first pushing a region onto the stack");
+        region_label.end_range_inclusive = Some(self.opcodes.len());
+        self.finalized_regions.push(region_label)
+    }
+
+    pub(crate) fn print_acir(self) -> Self {
+        fn check_if_region_starting(
+            index: usize,
+            regions: &[OpcodeRegionLabel],
+        ) -> Vec<&OpcodeRegionLabel> {
+            regions.into_iter().filter(|region| region.start_range == index).collect()
+        }
+        fn check_if_region_ending(
+            index: usize,
+            regions: &[OpcodeRegionLabel],
+        ) -> Vec<&OpcodeRegionLabel> {
+            regions
+                .into_iter()
+                .filter(|region| {
+                    region.end_range_inclusive.expect("region has not been finalized") == index
+                })
+                .collect()
+        }
+
+        for (index, opcode) in self.opcodes.iter().enumerate() {
+            let regions_starting = check_if_region_starting(index, &self.finalized_regions);
+            let regions_ending = check_if_region_ending(index, &self.finalized_regions);
+
+            for region in regions_starting {
+                println!("region start: {}", region.label)
+            }
+
+            println!("OPCODE : {}", opcode);
+
+            for region in regions_ending {
+                println!("region end: {}", region.label)
+            }
+        }
+
+        self
+    }
+
     /// Returns the current witness index.
     pub(crate) fn current_witness_index(&self) -> Witness {
         Witness(self.current_witness_index)

@@ -43,6 +43,7 @@ pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
         .mem2reg()
         .print("After Mem2Reg:")
         .into_acir(func_signature)
+        .print_acir()
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
@@ -56,7 +57,7 @@ pub fn experimental_create_circuit(
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
-    let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
+    let GeneratedAcir { current_witness_index, opcodes, return_witnesses, .. } =
         optimize_into_acir(program);
 
     let abi = gen_abi(func_sig, return_witnesses.clone());
