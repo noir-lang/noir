@@ -55,15 +55,17 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
 
+        // The witnesses produced here should match the witnesses in the
+        // `Abi` struct, since the Abi is a mapping from main parameters
+        // and return type to witness indices.
         for param_id in entry_block.parameters() {
             self.convert_ssa_block_param(*param_id, dfg);
         }
+        self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
 
         for instruction_id in entry_block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
-
-        self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
 
         self.acir_context.finish()
     }
@@ -110,7 +112,8 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        let is_return_unit_type = return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
+        let is_return_unit_type =
+            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
         if is_return_unit_type {
             return;
         }
