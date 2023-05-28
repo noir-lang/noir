@@ -103,7 +103,10 @@ impl Context {
                 let constrain_condition = self.convert_ssa_value(*value_id, dfg);
                 self.acir_context.assert_eq_one(constrain_condition);
             }
-            _ => todo!(),
+            Instruction::Cast(value_id, typ) => {
+                self.convert_ssa_cast(value_id, typ, dfg);
+            }
+            _ => todo!("{instruction:?}"),
         }
     }
 
@@ -168,6 +171,18 @@ impl Context {
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             _ => todo!(),
+        }
+    }
+    /// Returns an `AcirVar` that is constrained to be
+    fn convert_ssa_cast(&mut self, value_id: &ValueId, typ: &Type, dfg: &DataFlowGraph) -> AcirVar {
+        let variable = self.convert_ssa_value(*value_id, dfg);
+
+        match typ {
+            Type::Numeric(numeric_type) => self
+                .acir_context
+                .numeric_cast_var(variable, numeric_type)
+                .expect("invalid range constraint was applied {numeric_type}"),
+            _ => unimplemented!("The cast operation is only valid for integers."),
         }
     }
 }
