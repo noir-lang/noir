@@ -104,7 +104,10 @@ impl Context {
                 self.acir_context.assert_eq_one(constrain_condition);
             }
             Instruction::Cast(value_id, typ) => {
-                self.convert_ssa_cast(value_id, typ, dfg);
+                let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+                assert_eq!(result_ids.len(), 1, "Cast ops have a single result");
+                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
             }
             _ => todo!("{instruction:?}"),
         }
