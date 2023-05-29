@@ -50,8 +50,8 @@ pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
 /// to use the new ssa module to process Noir code.
 pub fn experimental_create_circuit(
     program: Program,
-    _np_language: Language,
-    _is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     _enable_logging: bool,
     _show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
@@ -65,8 +65,27 @@ pub fn experimental_create_circuit(
     let public_parameters =
         PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
-    let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
-    Ok((circuit, abi))
+
+    // This region of code will optimize the ACIR bytecode for a particular backend
+    // it will be removed in the near future and we will subsequently only return the
+    // unoptimized backend-agnostic bytecode here
+    let optimized_circuit = {
+        use crate::errors::RuntimeErrorKind;
+        use acvm::compiler::optimizers::simplify::CircuitSimplifier;
+
+        let abi_len = abi.field_count();
+
+        let simplifier = CircuitSimplifier::new(abi_len);
+        acvm::compiler::compile(
+            Circuit { current_witness_index, opcodes, public_parameters, return_values },
+            np_language,
+            is_opcode_supported,
+            &simplifier,
+        )
+        .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?
+    };
+
+    Ok((optimized_circuit, abi))
 }
 
 impl Ssa {
