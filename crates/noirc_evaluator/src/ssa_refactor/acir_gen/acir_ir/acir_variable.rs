@@ -2,7 +2,11 @@ use crate::ssa_refactor::ir::types::NumericType;
 
 use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use acvm::{
-    acir::native_types::{Expression, Witness},
+    acir::{
+        circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
+        native_types::{Expression, Witness},
+        BlackBoxFunc,
+    },
     FieldElement,
 };
 use std::{borrow::Cow, collections::HashMap, hash::Hash};
@@ -329,6 +333,221 @@ impl AcirContext {
         let comparison_negated = self.sub_var(one, comparison);
 
         Ok(comparison_negated)
+    }
+
+    /// Calls a Blackbox function on the given inputs and returns a given set of outputs
+    /// to represent the result of the blackbox function.
+    pub(crate) fn intrinsics(
+        &mut self,
+        name: BlackBoxFunc,
+        inputs: Vec<AcirVar>,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        let inputs = self.prepare_inputs_for_intrinsics_call(name, &inputs)?;
+
+        let output_count = Self::black_box_expected_output_size(name);
+        let outputs: Vec<_> =
+            (0..output_count).map(|_| self.acir_ir.next_witness_index()).collect();
+        let outputs_var: Vec<_> = outputs
+            .iter()
+            .map(|witness_index| self.add_data(AcirVarData::Witness(*witness_index)))
+            .collect();
+
+        let black_box_func_call = match name {
+            BlackBoxFunc::AES => unimplemented!("AES is not implemented"),
+            BlackBoxFunc::AND => {
+                BlackBoxFuncCall::AND { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+            }
+            BlackBoxFunc::XOR => {
+                BlackBoxFuncCall::XOR { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+            }
+            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0] },
+            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs, outputs },
+            BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s { inputs, outputs },
+            BlackBoxFunc::HashToField128Security => {
+                BlackBoxFuncCall::HashToField128Security { inputs, output: outputs[0] }
+            }
+            BlackBoxFunc::ComputeMerkleRoot => BlackBoxFuncCall::ComputeMerkleRoot {
+                leaf: inputs[0],
+                index: inputs[1],
+                hash_path: inputs[2..].to_vec(),
+                output: outputs[0],
+            },
+            BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
+                public_key_x: inputs[0],
+                public_key_y: inputs[1],
+                // Schnorr signature is two field field elements (r,s)
+                signature: vec![inputs[2], inputs[3]],
+                message: inputs[4..].to_vec(),
+                output: outputs[0],
+            },
+            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen { inputs, outputs },
+            BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
+                // 32 bytes for each public key co-ordinate
+                public_key_x: inputs[0..32].to_vec(),
+                public_key_y: inputs[32..64].to_vec(),
+                // (r,s) are both 32 bytes each, so signature
+                // takes up 64 bytes
+                signature: inputs[64..128].to_vec(),
+                hashed_message: inputs[128..].to_vec(),
+                output: outputs[0],
+            },
+            BlackBoxFunc::FixedBaseScalarMul => {
+                BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
+            }
+            BlackBoxFunc::Keccak256 => BlackBoxFuncCall::Keccak256 { inputs, outputs },
+        };
+
+        self.acir_ir.push_intrinsic(black_box_func_call);
+
+        Ok(outputs_var)
+    }
+
+    /// Checks that the number of inputs being used to call the blackbox function
+    /// is correct according to the function definition.
+    ///
+    /// Some functions expect a variable number of inputs and in such a case,
+    /// this method will do nothing.  An example of this is sha256.
+    /// In that case, this function will not check anything.
+    ///
+    /// Since we expect black box functions to be called behind a Noir shim function,
+    /// we trigger a compiler error if the inputs do not match.
+    ///
+    /// An example of Noir shim function is the following:
+    /// ```
+    /// #[foreign(sha256)]
+    /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
+    /// ```
+    fn intrinsics_check_inputs(&mut self, name: BlackBoxFunc, inputs: &[AcirVar]) {
+        let expected_num_inputs = match Self::black_box_func_expected_input_size(name) {
+            Some(expected_num_inputs) => expected_num_inputs,
+            None => return,
+        };
+        let got_num_inputs = inputs.len();
+
+        assert_eq!(expected_num_inputs,inputs.len(),"Tried to call black box function {name} with {got_num_inputs} inputs, but this function's definition requires {expected_num_inputs} inputs");
+    }
+
+    /// Intrinsic calls expect their inputs to be in a specific data structure (FunctionInput).
+    ///
+    /// This function will convert `AcirVar` into `FunctionInput` for an intrinsic call.
+    fn prepare_inputs_for_intrinsics_call(
+        &mut self,
+        name: BlackBoxFunc,
+        inputs: &[AcirVar],
+    ) -> Result<Vec<FunctionInput>, AcirGenError> {
+        self.intrinsics_check_inputs(name, inputs);
+
+        let mut witnesses = Vec::new();
+        for input in inputs {
+            let var_data = &self.data[input];
+
+            // Intrinsics only accept Witnesses. This is not a limitation of the
+            // intrinsics, its just how we have defined things. Ideally, we allow
+            // constants too.
+            let expr = var_data.to_expression();
+            let witness = self.acir_ir.get_or_create_witness(&expr);
+
+            // Fetch the number of bits for this variable
+            // If it has never been constrained before, then we will
+            // encounter None, and so we take the max number of bits for a
+            // field element.
+            let num_bits = match self.variables_to_bit_sizes.get(input) {
+                Some(bits) => {
+                    // TODO: First lets check to see how these are handled by the IR
+                    //
+                    // In Noir, we specify the number of bits to take from the input
+                    // by doing the following:
+                    //
+                    // ```
+                    // call_intrinsic(x as u8)
+                    // ```
+                    //
+                    // The `as u8` specifies that we want to take 8 bits from the `x`
+                    // variable.
+                    //
+                    // TODO(Jake): There were discussions about the SSA IR optimizing out range
+                    // TODO constraints. We would want to be careful with it here. For example:
+                    //
+                    // ```
+                    // let x : u32 = y as u32
+                    // call_intrinsic(x as u64)
+                    // ```
+                    // The `x as u64` is redundant since we know that `x` fits within a u32.
+                    // However, since the `x as u64` line is being used to tell the intrinsic
+                    // to take 64 bits, we cannot remove it.
+
+                    *bits
+                }
+                None => FieldElement::max_num_bits(),
+            };
+
+            witnesses.push(FunctionInput { witness, num_bits })
+        }
+        Ok(witnesses)
+    }
+
+    /// This function will return the number of inputs that a blackbox function
+    /// expects. Returning `None` if there is no expectation.
+    ///
+    /// TODO(NOTE): We should not merge this PR, while this is here,
+    /// TODO: the ideal way to do this will be to recognize that each blackbox function
+    /// TODO is heterogenous and then check the input lengths in each functions context.
+    fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
+        match name {
+            // Bitwise opcodes will take in 2 parameters
+            BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
+            // All of the hash/cipher methods will take in a
+            // variable number of inputs.
+            // Note: one can view `ComputeMerkleRoot` as a hash function.
+            BlackBoxFunc::ComputeMerkleRoot
+            | BlackBoxFunc::AES
+            | BlackBoxFunc::Keccak256
+            | BlackBoxFunc::SHA256
+            | BlackBoxFunc::Blake2s
+            | BlackBoxFunc::Pedersen
+            | BlackBoxFunc::HashToField128Security => None,
+
+            // Can only apply a range constraint to one
+            // witness at a time.
+            BlackBoxFunc::RANGE => Some(1),
+
+            // Signature verification algorithms will take in a variable
+            // number of inputs, since the message/hashed-message can vary in size.
+            BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => None,
+            // Inputs for fixed based scalar multiplication
+            // is just a scalar
+            BlackBoxFunc::FixedBaseScalarMul => Some(1),
+        }
+    }
+    /// This function will return the number of outputs that a blackbox function
+    /// expects. Returning `None` if there is no expectation.
+    ///
+    /// TODO: With recursion, this becomes quite annoying, since that
+    /// TODO: is backend specific
+    fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
+        match name {
+            // Bitwise opcodes will return 1 parameter which is the output
+            // or the operation.
+            BlackBoxFunc::AND | BlackBoxFunc::XOR => 1,
+            // 32 byte hash algorithms
+            BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => 32,
+            // Hash to field returns a field element
+            BlackBoxFunc::HashToField128Security => 1,
+            // Pedersen returns a point
+            BlackBoxFunc::Pedersen => 2,
+            // A merkle root is represented as a single field element
+            BlackBoxFunc::ComputeMerkleRoot => 1,
+            // The output of AES128 is 16 bytes
+            BlackBoxFunc::AES => 1,
+            // Can only apply a range constraint to one
+            // witness at a time.
+            BlackBoxFunc::RANGE => 0,
+            // Signature verification algorithms will return a boolean
+            BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => 1,
+            // Output of fixed based scalar mul over the embedded curve
+            // will be 2 field elements representing the point.
+            BlackBoxFunc::FixedBaseScalarMul => 2,
+        }
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
