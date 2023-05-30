@@ -224,9 +224,6 @@ impl GeneratedAcir {
     ) -> Result<(), AcirGenError> {
         // We class this as an error because users should instead
         // do `as Field`.
-        // TODO: Since these are compiler time knowns,
-        // TODO this could be changed into a compiler panic and enforced
-        // TODO on the frontend instead.
         if num_bits >= FieldElement::max_num_bits() {
             return Err(AcirGenError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
