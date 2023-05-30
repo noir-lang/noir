@@ -160,6 +160,8 @@ impl Context {
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
+            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs),
             _ => todo!(),
         }
     }
