@@ -1,9 +1,10 @@
-use tempdir::TempDir;
-
-use std::collections::BTreeMap;
-use std::fs;
-
+#[cfg(not(feature = "bb_js"))]
+#[cfg(test)]
 mod tests {
+    use tempdir::TempDir;
+
+    use std::collections::BTreeMap;
+    use std::fs;
     use std::path::{Path, PathBuf};
 
     use super::*;
