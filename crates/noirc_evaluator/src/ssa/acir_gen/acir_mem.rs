@@ -136,10 +136,9 @@ impl ArrayHeap {
         is_opcode_supported: OpcodeSupported,
     ) {
         //sanity check
-        if array_len == 0 {
+        if array_len == 0 || self.trace.is_empty() {
             return;
         }
-
         let dummy = MemoryBlock { id: AcirBlockId(0), len: 0, trace: Vec::new() };
 
         if is_opcode_supported(&AcirOpcode::ROM(dummy.clone())) {
