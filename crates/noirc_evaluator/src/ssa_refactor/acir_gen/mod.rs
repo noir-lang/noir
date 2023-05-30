@@ -173,13 +173,6 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            // TODO: This is going to be somewhat inefficient initially since
-            // TODO: ACIR generates constraint using more_than_eq and then adds
-            // TODO: an opcode to switch it to less than, whereas
-            // TODO: SSA IR adds an instruction to do less_than
-            // TODO and then adds a not instruction to make it more_than_eq
-            // TODO: We can handle this on the ACIR side by adding an optimization
-            // TODO: though perhaps we can just switch SSA IR to use MoreThanEq?
             BinaryOp::Lt => self
                 .acir_context
                 .less_than_var(lhs, rhs)
