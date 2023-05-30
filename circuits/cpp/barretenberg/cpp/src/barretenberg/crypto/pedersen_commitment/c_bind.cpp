@@ -72,6 +72,18 @@ WASM_EXPORT void pedersen_plookup_commit(uint8_t const* inputs_buffer, uint8_t* 
     write(output, pedersen_hash);
 }
 
+WASM_EXPORT void pedersen_plookup_commit_with_hash_index(uint8_t const* inputs_buffer,
+                                                         uint8_t* output,
+                                                         uint32_t hash_index)
+{
+    std::vector<grumpkin::fq> to_compress;
+    read(inputs_buffer, to_compress);
+    grumpkin::g1::affine_element pedersen_hash =
+        crypto::pedersen_commitment::lookup::commit_native(to_compress, hash_index);
+
+    write(output, pedersen_hash);
+}
+
 WASM_EXPORT void pedersen__buffer_to_field(uint8_t const* data, size_t length, uint8_t* r)
 {
     std::vector<uint8_t> to_compress(data, data + length);
