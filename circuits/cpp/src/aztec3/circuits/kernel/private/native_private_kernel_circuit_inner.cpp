@@ -148,7 +148,8 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyComposer&
 
     validate_inputs(composer, private_inputs);
 
-    validate_this_private_call_hash(composer, private_inputs, public_inputs);
+    // TODO(jeanmon) Resuscitate after issue 499 is fixed as explained below.
+    // validate_this_private_call_hash(composer, private_inputs, public_inputs);
 
     // TODO(rahul) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/499
     // Noir doesn't have hash index so it can't hash private call stack item correctly

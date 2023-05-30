@@ -7,7 +7,7 @@ import {
   KernelCircuitPublicInputs,
   SignedTxRequest,
 } from '../index.js';
-import { boolToBuffer, serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
+import { serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/index.js';
 import { BufferReader } from '@aztec/foundation/serialize';
 import { handleCircuitOutput } from '../utils/call_wasm.js';
@@ -67,12 +67,11 @@ export async function privateKernelProve(
   const privateCallDataBuffer = privateCallData.toBuffer();
   const previousKernelBufferOffset = signedTxRequestBuffer.length;
   const privateCallDataOffset = previousKernelBufferOffset + previousKernelBuffer.length;
-  // The is an unused pointer argument here, so we offset the first iteration arg by 4 further bytes
-  const firstInterationOffset = privateCallDataOffset + privateCallDataBuffer.length + 4;
+  // This is an unused pointer argument at the moment.
+  const provingKeyOffset = privateCallDataOffset + privateCallDataBuffer.length;
   wasm.writeMemory(0, signedTxRequestBuffer);
   wasm.writeMemory(previousKernelBufferOffset, previousKernelBuffer);
   wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
-  wasm.writeMemory(firstInterationOffset, boolToBuffer(firstIteration));
 
   const proofOutputAddressPtr = wasm.call('bbmalloc', 4);
   const proofSize = await wasm.asyncCall(
@@ -80,8 +79,8 @@ export async function privateKernelProve(
     0,
     previousKernelBufferOffset,
     privateCallDataOffset,
-    firstInterationOffset,
-    firstInterationOffset,
+    provingKeyOffset,
+    firstIteration,
     proofOutputAddressPtr,
   );
   // for whenever we actually use this method, we need to do proper error handling in C++ via the bberg composer.
@@ -114,11 +113,9 @@ export async function privateKernelSim(
   const privateCallDataBuffer = privateCallData.toBuffer();
   const previousKernelBufferOffset = signedTxRequestBuffer.length;
   const privateCallDataOffset = previousKernelBufferOffset + previousKernelBuffer.length;
-  const firstInterationOffset = privateCallDataOffset + privateCallDataBuffer.length;
   wasm.writeMemory(0, signedTxRequestBuffer);
   wasm.writeMemory(previousKernelBufferOffset, previousKernelBuffer);
   wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
-  wasm.writeMemory(firstInterationOffset, boolToBuffer(firstIteration));
   const outputBufSizePtr = wasm.call('bbmalloc', 4);
   const outputBufPtrPtr = wasm.call('bbmalloc', 4);
   // Run and read outputs
@@ -127,7 +124,7 @@ export async function privateKernelSim(
     0,
     previousKernelBufferOffset,
     privateCallDataOffset,
-    firstInterationOffset,
+    firstIteration,
     outputBufSizePtr,
     outputBufPtrPtr,
   );
