@@ -1,4 +1,4 @@
-use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, MemoryBlock, FunctionInput};
+use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, FunctionInput, MemoryBlock};
 use acvm::acir::circuit::{Circuit, Opcode};
 use acvm::acir::native_types::Expression;
 use acvm::acir::BlackBoxFunc;
@@ -9,7 +9,7 @@ use thiserror::Error;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Error)]
-pub enum Error {
+pub(crate) enum Error {
     // NOTE:: only one being used at the moment
     #[error("Malformed Black Box Function: {0} - {1}")]
     MalformedBlackBoxFunc(BlackBoxFunc, String),
@@ -25,29 +25,29 @@ impl Assignments {
         Assignments::default()
     }
 
-    pub(crate) fn len(&self) -> usize {
-        self.0.len()
-    }
+    // pub(crate) fn len(&self) -> usize {
+    //     self.0.len()
+    // }
 }
 
-impl Assignments {
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let mut buffer = Vec::new();
+// impl Assignments {
+//     pub(crate) fn to_bytes(&self) -> Vec<u8> {
+//         let mut buffer = Vec::new();
 
-        let witness_len = self.0.len() as u32;
-        buffer.extend_from_slice(&witness_len.to_be_bytes());
+//         let witness_len = self.0.len() as u32;
+//         buffer.extend_from_slice(&witness_len.to_be_bytes());
 
-        for assignment in self.0.iter() {
-            buffer.extend_from_slice(&assignment.to_be_bytes());
-        }
+//         for assignment in self.0.iter() {
+//             buffer.extend_from_slice(&assignment.to_be_bytes());
+//         }
 
-        buffer
-    }
+//         buffer
+//     }
 
-    pub(crate) fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
+//     pub(crate) fn is_empty(&self) -> bool {
+//         self.0.is_empty()
+//     }
+// }
 
 impl IntoIterator for Assignments {
     type Item = FieldElement;
@@ -431,22 +431,10 @@ pub(crate) struct LogicConstraint {
 
 impl LogicConstraint {
     pub(crate) fn and(a: i32, b: i32, result: i32, num_bits: i32) -> LogicConstraint {
-        LogicConstraint {
-            a,
-            b,
-            result,
-            num_bits,
-            is_xor_gate: false,
-        }
+        LogicConstraint { a, b, result, num_bits, is_xor_gate: false }
     }
     pub(crate) fn xor(a: i32, b: i32, result: i32, num_bits: i32) -> LogicConstraint {
-        LogicConstraint {
-            a,
-            b,
-            result,
-            num_bits,
-            is_xor_gate: true,
-        }
+        LogicConstraint { a, b, result, num_bits, is_xor_gate: true }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -605,10 +593,6 @@ impl ConstraintSystem {
 }
 
 impl ConstraintSystem {
-    pub(crate) fn public_inputs_size(&self) -> usize {
-        self.public_inputs.len()
-    }
-
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let mut buffer: Vec<u8> = Vec::new();
 
@@ -793,11 +777,7 @@ impl BlockConstraint {
             trace.push(bb_op);
         }
         let is_ram = i8::from(is_ram_block);
-        BlockConstraint {
-            init,
-            trace,
-            is_ram,
-        }
+        BlockConstraint { init, trace, is_ram }
     }
 }
 
@@ -946,12 +926,10 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                                 })?;
 
                                 let out_byte_index = out_byte.witness_index() as i32;
-                                *res = out_byte_index
+                                *res = out_byte_index;
                             }
-                            let sha256_constraint = Sha256Constraint {
-                                inputs: sha256_inputs,
-                                result,
-                            };
+                            let sha256_constraint =
+                                Sha256Constraint { inputs: sha256_inputs, result };
 
                             sha256_constraints.push(sha256_constraint);
                         }
@@ -977,12 +955,10 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                                     })?;
 
                                 let out_byte_index = out_byte.witness_index() as i32;
-                                *res = out_byte_index
+                                *res = out_byte_index;
                             }
-                            let blake2s_constraint = Blake2sConstraint {
-                                inputs: blake2s_inputs,
-                                result,
-                            };
+                            let blake2s_constraint =
+                                Blake2sConstraint { inputs: blake2s_inputs, result };
 
                             blake2s_constraints.push(blake2s_constraint);
                         }
@@ -1007,7 +983,7 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                                         format!("Missing rest of signature. Tried to get byte {i} but failed"),
                                     ))?;
                                 let sig_byte_index = sig_byte.witness.witness_index() as i32;
-                                *sig = sig_byte_index
+                                *sig = sig_byte_index;
                             }
 
                             // The rest of the input is the message
@@ -1032,6 +1008,7 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                         }
                         BlackBoxFuncCall::Pedersen {
                             inputs: gadget_call_inputs,
+                            domain_separator: _,
                             outputs,
                         } => {
                             let mut inputs = Vec::new();
@@ -1044,11 +1021,7 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                             let result_x = outputs[0].witness_index() as i32;
                             let result_y = outputs[1].witness_index() as i32;
 
-                            let constraint = PedersenConstraint {
-                                inputs,
-                                result_x,
-                                result_y,
-                            };
+                            let constraint = PedersenConstraint { inputs, result_x, result_y };
 
                             pedersen_constraints.push(constraint);
                         }
@@ -1062,10 +1035,8 @@ impl TryFrom<&Circuit> for ConstraintSystem {
 
                             let result = output.witness_index() as i32;
 
-                            let hash_to_field_constraint = HashToFieldConstraint {
-                                inputs: hash_to_field_inputs,
-                                result,
-                            };
+                            let hash_to_field_constraint =
+                                HashToFieldConstraint { inputs: hash_to_field_inputs, result };
 
                             hash_to_field_constraints.push(hash_to_field_constraint);
                         }
@@ -1144,11 +1115,8 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                             let pubkey_x = outputs[0].witness_index() as i32;
                             let pubkey_y = outputs[1].witness_index() as i32;
 
-                            let fixed_base_scalar_mul = FixedBaseScalarMulConstraint {
-                                scalar,
-                                pubkey_x,
-                                pubkey_y,
-                            };
+                            let fixed_base_scalar_mul =
+                                FixedBaseScalarMulConstraint { scalar, pubkey_x, pubkey_y };
 
                             fixed_base_scalar_mul_constraints.push(fixed_base_scalar_mul);
                         }
@@ -1174,16 +1142,14 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                                     })?;
 
                                 let out_byte_index = out_byte.witness_index() as i32;
-                                *res = out_byte_index
+                                *res = out_byte_index;
                             }
-                            let keccak_constraint = Keccak256Constraint {
-                                inputs: keccak_inputs,
-                                result,
-                            };
+                            let keccak_constraint =
+                                Keccak256Constraint { inputs: keccak_inputs, result };
 
                             keccak_constraints.push(keccak_constraint);
                         }
-                        BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs } => {
+                        BlackBoxFuncCall::Keccak256VariableLength { .. } => {
                             // Not handled right now by recursion backend, up-to-date once new cbinds w/ recursion branch is up-to-date with master
                         }
                         BlackBoxFuncCall::RecursiveAggregation {
@@ -1223,12 +1189,12 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                             // key_hash
                             let key_hash = key_hash.witness.witness_index() as i32;
 
-
-                            let input_agg_obj_inputs = if let Some(input_aggregation_object) = input_aggregation_object {
-                                input_aggregation_object.clone()
-                            } else {
-                                vec![FunctionInput::dummy(); output_aggregation_object.len()]
-                            };
+                            let input_agg_obj_inputs =
+                                if let Some(input_aggregation_object) = input_aggregation_object {
+                                    input_aggregation_object.clone()
+                                } else {
+                                    vec![FunctionInput::dummy(); output_aggregation_object.len()]
+                                };
 
                             // input_aggregation_object
                             let mut input_agg_obj_inputs = input_agg_obj_inputs.iter();
@@ -1274,10 +1240,10 @@ impl TryFrom<&Circuit> for ConstraintSystem {
                     // Block is managed by ACVM
                 }
                 Opcode::RAM(block) => {
-                    block_constraints.push(BlockConstraint::from_memory_block(block, true))
+                    block_constraints.push(BlockConstraint::from_memory_block(block, true));
                 }
                 Opcode::ROM(block) => {
-                    block_constraints.push(BlockConstraint::from_memory_block(block, false))
+                    block_constraints.push(BlockConstraint::from_memory_block(block, false));
                 }
             }
         }

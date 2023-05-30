@@ -10,5 +10,12 @@ pub fn verify_proof<B: ProofSystemCompiler>(
     verification_key: &[u8],
 ) -> Result<bool, B::Error> {
     // TODO: update from not just accepting `false` once we get nargo to interop with dynamic backend
-    backend.verify_with_vk(common_reference_string, proof, public_inputs, circuit, verification_key, false)
+    backend.verify_with_vk(
+        common_reference_string,
+        proof,
+        public_inputs,
+        circuit,
+        verification_key,
+        false,
+    )
 }

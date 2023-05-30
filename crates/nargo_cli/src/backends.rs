@@ -1,5 +1,8 @@
 #[cfg(feature = "bb_js")]
-use acvm::{Backend, PartialWitnessGenerator, ProofSystemCompiler, SmartContract, CommonReferenceString, acir::circuit::opcodes::BlackBoxFuncCall};
+use acvm::{
+    acir::circuit::opcodes::BlackBoxFuncCall, Backend, CommonReferenceString,
+    PartialWitnessGenerator, ProofSystemCompiler, SmartContract,
+};
 
 #[cfg(any(feature = "plonk_bn254", feature = "plonk_bn254_wasm"))]
 pub(crate) use acvm_backend_barretenberg::Barretenberg as ConcreteBackend;
@@ -43,11 +46,32 @@ impl Backend for ConcreteBackend {}
 impl CommonReferenceString for ConcreteBackend {
     type Error = Errors;
 
-    fn generate_common_reference_string<'life0,'life1,'async_trait>(&'life0 self,circuit: &'life1 acvm::acir::circuit::Circuit,) ->  core::pin::Pin<Box<dyn core::future::Future<Output = Result<Vec<u8> ,Self::Error> > +'async_trait> >where 'life0:'async_trait,'life1:'async_trait,Self:'async_trait {
+    fn generate_common_reference_string<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        circuit: &'life1 acvm::acir::circuit::Circuit,
+    ) -> core::pin::Pin<
+        Box<dyn core::future::Future<Output = Result<Vec<u8>, Self::Error>> + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
         todo!()
     }
 
-    fn update_common_reference_string<'life0,'life1,'async_trait>(&'life0 self,common_reference_string:Vec<u8> ,circuit: &'life1 acvm::acir::circuit::Circuit,) ->  core::pin::Pin<Box<dyn core::future::Future<Output = Result<Vec<u8> ,Self::Error> > +'async_trait> >where 'life0:'async_trait,'life1:'async_trait,Self:'async_trait {
+    fn update_common_reference_string<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        common_reference_string: Vec<u8>,
+        circuit: &'life1 acvm::acir::circuit::Circuit,
+    ) -> core::pin::Pin<
+        Box<dyn core::future::Future<Output = Result<Vec<u8>, Self::Error>> + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
         todo!()
     }
 }
@@ -69,6 +93,7 @@ impl PartialWitnessGenerator for ConcreteBackend {
         &self,
         initial_witness: &mut acvm::acir::native_types::WitnessMap,
         inputs: &[acvm::acir::circuit::opcodes::FunctionInput],
+        domain_separator: u32,
         outputs: &[acvm::acir::native_types::Witness],
     ) -> Result<acvm::pwg::OpcodeResolution, acvm::pwg::OpcodeResolutionError> {
         todo!()
@@ -82,7 +107,6 @@ impl PartialWitnessGenerator for ConcreteBackend {
     ) -> Result<acvm::pwg::OpcodeResolution, acvm::pwg::OpcodeResolutionError> {
         todo!()
     }
-
 }
 
 impl ProofSystemCompiler for ConcreteBackend {
@@ -91,7 +115,7 @@ impl ProofSystemCompiler for ConcreteBackend {
     fn np_language(&self) -> acvm::Language {
         acvm::Language::PLONKCSat { width: 3 }
     }
-    
+
     fn get_exact_circuit_size(
         &self,
         _circuit: &acvm::acir::circuit::Circuit,
@@ -99,9 +123,13 @@ impl ProofSystemCompiler for ConcreteBackend {
         todo!()
     }
 
-
     fn supports_opcode(&self, opcode: &acvm::acir::circuit::Opcode) -> bool {
-        if !matches!(opcode, acvm::acir::circuit::Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })) {
+        if !matches!(
+            opcode,
+            acvm::acir::circuit::Opcode::BlackBoxFuncCall(
+                BlackBoxFuncCall::RecursiveAggregation { .. }
+            )
+        ) {
             todo!()
         } else {
             true
@@ -166,5 +194,4 @@ impl SmartContract for ConcreteBackend {
     ) -> Result<String, Self::Error> {
         todo!()
     }
-
 }

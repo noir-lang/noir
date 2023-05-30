@@ -11,6 +11,7 @@ mod fs;
 
 mod check_cmd;
 mod codegen_verifier_cmd;
+#[allow(unused)]
 mod compile_cmd;
 mod execute_cmd;
 mod gates_cmd;

@@ -6,7 +6,6 @@ use acvm::acir::native_types::WitnessMap;
 use super::{create_named_dir, write_to_file};
 use crate::{constants::WITNESS_EXT, errors::FilesystemError};
 
-
 pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     witnesses: WitnessMap,
     witness_name: &str,

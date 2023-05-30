@@ -76,13 +76,11 @@ impl Opcode {
                     | BlackBoxFunc::Keccak256
                     | BlackBoxFunc::Blake2s
                     | BlackBoxFunc::Pedersen
-                    | BlackBoxFunc::FixedBaseScalarMul 
+                    | BlackBoxFunc::FixedBaseScalarMul
                     | BlackBoxFunc::RecursiveAggregation => BigUint::zero(),
                     // Verify returns zero or one
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
-                    BlackBoxFunc::HashToField128Security => {
-                        ObjectType::native_field().max_size()
-                    }
+                    BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
                     }
@@ -103,16 +101,14 @@ impl Opcode {
                     BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Keccak256 => {
                         (32, ObjectType::unsigned_integer(8))
                     }
-                    BlackBoxFunc::HashToField128Security => {
-                        (1, ObjectType::native_field())
-                    }
+                    BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
                     // See issue #775 on changing this to return a boolean
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => {
                         (1, ObjectType::native_field())
                     }
                     BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
-                    // TODO: enable usage of variable number of outputs 
+                    // TODO: enable usage of variable number of outputs
                     // there should not be a hardcoded `16` here
                     BlackBoxFunc::RecursiveAggregation => (16, ObjectType::native_field()),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {

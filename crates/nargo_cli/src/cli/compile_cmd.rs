@@ -1,4 +1,6 @@
+#[allow(unused)]
 use acvm::Backend;
+#[allow(unused)]
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
 use nargo::artifacts::program::PreprocessedProgram;

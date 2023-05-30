@@ -5,25 +5,26 @@
 //! to generate them using these artifacts as a starting point.
 
 use acvm::acir::circuit::Circuit;
-use serde::{Deserialize, Deserializer, Serializer};
 use base64;
 use flate2::write::GzEncoder;
-use flate2::read::GzDecoder;
+use serde::{Deserializer, Serializer};
+// use flate2::read::GzDecoder;
 use flate2::Compression;
 use std::io::prelude::*;
 
 use self::barretenberg_structures::ConstraintSystem;
 
+mod barretenberg_structures;
 pub mod contract;
 pub mod program;
-mod barretenberg_structures;
 
 fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     println!("CUR WIT IDX: {:?}", circuit.current_witness_index);
-    let cs: ConstraintSystem = ConstraintSystem::try_from(circuit).expect("should have no malformed bb funcs");
+    let cs: ConstraintSystem =
+        ConstraintSystem::try_from(circuit).expect("should have no malformed bb funcs");
     let circuit_bytes = cs.to_bytes();
     println!("{:?}", circuit_bytes.capacity());
 
@@ -35,22 +36,21 @@ where
     s.serialize_str(&b64_string)
 }
 
-fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
+fn deserialize_circuit<'de, D>(_deserializer: D) -> Result<Circuit, D::Error>
 where
     D: Deserializer<'de>,
 {
     panic!("Not supported");
-    let b64_string = String::deserialize(deserializer)?;
-    let compressed_bytes = base64::decode(b64_string).map_err(serde::de::Error::custom)?;
+    // let b64_string = String::deserialize(deserializer)?;
+    // let compressed_bytes = base64::decode(b64_string).map_err(serde::de::Error::custom)?;
 
-    let mut decoder = GzDecoder::new(&compressed_bytes[..]);
-    let mut circuit_bytes = Vec::new();
-    decoder.read_to_end(&mut circuit_bytes).unwrap();
+    // let mut decoder = GzDecoder::new(&compressed_bytes[..]);
+    // let mut circuit_bytes = Vec::new();
+    // decoder.read_to_end(&mut circuit_bytes).unwrap();
 
-    let circuit = Circuit::read(&*circuit_bytes).unwrap();
-    Ok(circuit)
+    // let circuit = Circuit::read(&*circuit_bytes).unwrap();
+    // Ok(circuit)
 }
-
 
 // fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 // where
@@ -74,7 +74,6 @@ where
 //     let circuit = Circuit::read(&*circuit_bytes).unwrap();
 //     Ok(circuit)
 // }
-
 
 // TODO: move these down into ACVM.
 // fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
@@ -100,7 +99,6 @@ where
 //     Ok(circuit)
 // }
 
-
 // fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 // where
 //     S: Serializer,
@@ -125,7 +123,6 @@ where
 //     let circuit = Circuit::read(&*circuit_bytes).unwrap();
 //     Ok(circuit)
 // }
-
 
 // fn run_length_encode_zeroes(input: Vec<u8>) -> Vec<u8> {
 //     let mut output: Vec<u8> = Vec::new();

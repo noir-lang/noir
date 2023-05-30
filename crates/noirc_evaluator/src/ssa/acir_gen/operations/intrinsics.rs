@@ -143,23 +143,15 @@ pub(crate) fn evaluate(
                     output: outputs[0],
                 },
                 BlackBoxFunc::RecursiveAggregation => {
-                    let has_previous_aggregation = evaluator.opcodes.iter().any(|op| match op {
-                        AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. }) => true,
-                        _ => false,
+                    let has_previous_aggregation = evaluator.opcodes.iter().any(|op| {
+                        matches!(
+                            op,
+                            AcirOpcode::BlackBoxFuncCall(
+                                BlackBoxFuncCall::RecursiveAggregation { .. }
+                            )
+                        )
                     });
 
-                    let node_object =
-                    ctx.try_get_node(args[4]).expect("could not find node for {node_id}");
-                    let array_id = match node_object {
-                        node::NodeObject::Variable(_) => {
-                            let node_obj_type = node_object.get_type();
-                            match node_obj_type {
-                                node::ObjectType::ArrayPointer(a) => a,
-                                _ => unreachable!(),
-                            }
-                        }
-                        _ => todo!("generate a witness"),
-                    };
                     let input_aggregation_object = if !has_previous_aggregation {
                         None
                     } else {
