@@ -7,13 +7,16 @@ use super::{
     abi_gen::collate_array_lengths,
     ir::{
         dfg::DataFlowGraph,
-        instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{
+            Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
+        },
         map::Id,
         types::Type,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
+use iter_extended::vecmap;
 use noirc_abi::FunctionSignature;
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -111,12 +114,39 @@ impl Context {
                 assert_eq!(result_ids.len(), 1, "Cast ops have a single result");
                 (vec![result_ids[0]], vec![result_acir_var])
             }
+            Instruction::Call { func, arguments } => {
+                let intrinsic = Self::id_to_intrinsic(*func, dfg);
+                let black_box = match intrinsic {
+                    Intrinsic::BlackBox(black_box) => black_box,
+                    _ => todo!("expected a black box function"),
+                };
+
+                let inputs = vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
+                let outputs = self
+                    .acir_context
+                    .intrinsics(black_box, inputs)
+                    .expect("add Result types to all methods so errors bubble up");
+
+                let result_ids = dfg.instruction_results(instruction_id);
+                (result_ids.to_vec(), outputs)
+            }
             _ => todo!("{instruction:?}"),
         };
 
         // Map the results of the instructions to Acir variables
         for (result_id, result_var) in results_id.into_iter().zip(results_vars) {
             self.ssa_value_to_acir_var.insert(result_id, result_var);
+        }
+    }
+
+    /// Converts a `ValueId` into an `Intrinsic`.
+    ///
+    /// Panics if the `ValueId` does not represent an intrinsic.
+    fn id_to_intrinsic(value_id: ValueId, dfg: &DataFlowGraph) -> Intrinsic {
+        let value = &dfg[value_id];
+        match value {
+            Value::Intrinsic(intrinsic) => *intrinsic,
+            _ => unimplemented!("expected an intrinsic call, but found {value:?}"),
         }
     }
 
@@ -160,7 +190,7 @@ impl Context {
                 let field_element = &dfg[*constant].value();
                 self.acir_context.add_constant(*field_element)
             }
-            Value::Intrinsic(..) => todo!(),
+            Value::Intrinsic(..) => unreachable!("intrinsic functions are handled separately"),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value:?}")
