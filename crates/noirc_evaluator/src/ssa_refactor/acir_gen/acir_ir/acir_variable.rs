@@ -339,7 +339,6 @@ impl AcirVarData {
         None
     }
     /// Converts all enum variants to an Expression.
-    /// TODO: can refactor code in this file to use this
     pub(crate) fn to_expression(&self) -> Cow<Expression> {
         match self {
             AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),

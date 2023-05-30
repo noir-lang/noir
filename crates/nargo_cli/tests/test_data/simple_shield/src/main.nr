@@ -29,8 +29,7 @@ fn main(
     let receiver_note_commitment = std::hash::pedersen([to_pubkey_x, to_pubkey_y]);
 
     // Check that the input note nullifier is in the root
-    let is_member = std::merkle::check_membership(note_root, note_commitment[0], index, note_hash_path);
-    assert(is_member);
+    assert(note_root == std::merkle::compute_merkle_root(note_commitment[0], index, note_hash_path));
 
     [nullifier[0], receiver_note_commitment[0]]
 }

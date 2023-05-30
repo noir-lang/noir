@@ -120,6 +120,8 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
+        // Check if the program returns the `Unit/None` type.
+        // This type signifies that the program returns nothing.
         let is_return_unit_type =
             return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
         if is_return_unit_type {
