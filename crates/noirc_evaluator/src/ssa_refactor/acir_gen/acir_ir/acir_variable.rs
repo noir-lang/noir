@@ -345,12 +345,8 @@ impl AcirContext {
         let inputs = self.prepare_inputs_for_intrinsics_call(name, &inputs)?;
 
         let output_count = Self::black_box_expected_output_size(name);
-        let outputs: Vec<_> =
-            (0..output_count).map(|_| self.acir_ir.next_witness_index()).collect();
-        let outputs_var: Vec<_> = outputs
-            .iter()
-            .map(|witness_index| self.add_data(AcirVarData::Witness(*witness_index)))
-            .collect();
+        let outputs = vecmap(0..output_count, |_| self.acir_ir.next_witness_index());
+        let outputs_var = vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
         let black_box_func_call = match name {
             BlackBoxFunc::AES => unimplemented!("AES is not implemented"),
