@@ -2,11 +2,14 @@
 
 use std::collections::HashMap;
 
+use crate::brillig::artefact::Artefact;
+
 use self::acir_ir::acir_variable::{AcirContext, AcirVar};
 use super::{
     abi_gen::collate_array_lengths,
     ir::{
         dfg::DataFlowGraph,
+        function::RuntimeType,
         instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         map::Id,
         types::Type,
@@ -60,7 +63,7 @@ impl Context {
         }
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg);
+            self.convert_ssa_instruction(*instruction_id, dfg, &ssa);
         }
 
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
@@ -90,7 +93,12 @@ impl Context {
     }
 
     /// Converts an SSA instruction into its ACIR representation
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+    ) {
         let instruction = &dfg[instruction_id];
         match instruction {
             Instruction::Binary(binary) => {
@@ -98,6 +106,22 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
                 self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
+            }
+            Instruction::Call { func, arguments: _ } => {
+                match &dfg[*func] {
+                    Value::Function(id) => {
+                        let func = &ssa.functions[id];
+                        match func.runtime() {
+                            RuntimeType::Normal => unreachable!(),
+                            RuntimeType::Unsafe => {
+                                // Generate the brillig code of the function
+                                let code = Artefact::default().link(func.dfg.obj());
+                                self.acir_context.brillig(code);
+                            }
+                        }
+                    }
+                    _ => unreachable!("expected calling a function"),
+                }
             }
             _ => todo!(),
         }

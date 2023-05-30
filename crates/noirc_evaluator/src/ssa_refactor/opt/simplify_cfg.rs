@@ -150,6 +150,7 @@ fn try_inline_into_predecessor(
 mod test {
     use crate::ssa_refactor::{
         ir::{
+            function::RuntimeType,
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -168,7 +169,7 @@ mod test {
         //     return v1
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -224,7 +225,7 @@ mod test {
         //     return Field 2
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
         let v0 = builder.add_parameter(Type::bool());
 
         let b1 = builder.insert_block();

@@ -1,3 +1,5 @@
+use crate::brillig::acvm_brillig::BrilligOpcode;
+
 use super::generated_acir::GeneratedAcir;
 use acvm::{
     acir::native_types::{Expression, Witness},
@@ -261,6 +263,10 @@ impl AcirContext {
         self.data_reverse_map.insert(data, id);
 
         id
+    }
+
+    pub(crate) fn brillig(&mut self, _code: Vec<BrilligOpcode>) {
+        todo!();
     }
 }
 

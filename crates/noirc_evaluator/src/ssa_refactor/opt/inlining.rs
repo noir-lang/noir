@@ -10,7 +10,7 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -92,7 +92,7 @@ impl InlineContext {
     /// that could not be inlined calling it.
     fn new(ssa: &Ssa) -> InlineContext {
         let main_name = ssa.main().name().to_owned();
-        let builder = FunctionBuilder::new(main_name, ssa.next_id.next());
+        let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Normal);
         Self { builder, recursion_level: 0, failed_to_inline_a_call: false }
     }
 
@@ -441,6 +441,7 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use crate::ssa_refactor::{
         ir::{
+            function::RuntimeType,
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -460,14 +461,14 @@ mod test {
         //     return 72
         // }
         let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id, RuntimeType::Normal);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
         let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("bar".into(), bar_id);
+        builder.new_function("bar".into(), bar_id, false);
         let expected_return = 72u128;
         let seventy_two = builder.field_constant(expected_return);
         builder.terminate_with_return(vec![seventy_two]);
@@ -509,7 +510,7 @@ mod test {
         let id2_id = Id::test_new(3);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
         let main_v0 = builder.add_parameter(Type::field());
 
         let main_f1 = builder.import_function(square_id);
@@ -522,18 +523,18 @@ mod test {
         builder.terminate_with_return(vec![main_v16]);
 
         // Compiling square f1
-        builder.new_function("square".into(), square_id);
+        builder.new_function("square".into(), square_id, false);
         let square_v0 = builder.add_parameter(Type::field());
         let square_v2 = builder.insert_binary(square_v0, BinaryOp::Mul, square_v0);
         builder.terminate_with_return(vec![square_v2]);
 
         // Compiling id1 f2
-        builder.new_function("id1".into(), id1_id);
+        builder.new_function("id1".into(), id1_id, false);
         let id1_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id1_v0]);
 
         // Compiling id2 f3
-        builder.new_function("id2".into(), id2_id);
+        builder.new_function("id2".into(), id2_id, false);
         let id2_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id2_v0]);
 
@@ -565,7 +566,7 @@ mod test {
         //     return v4
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
 
         let factorial_id = Id::test_new(1);
         let factorial = builder.import_function(factorial_id);
@@ -574,7 +575,7 @@ mod test {
         let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("factorial".into(), factorial_id);
+        builder.new_function("factorial".into(), factorial_id, false);
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 

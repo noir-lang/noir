@@ -6,8 +6,8 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
 
-use crate::ssa_refactor::ir::function::Function;
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
+use crate::ssa_refactor::ir::function::{Function, RuntimeType};
 use crate::ssa_refactor::ir::instruction::BinaryOp;
 use crate::ssa_refactor::ir::map::AtomicCounter;
 use crate::ssa_refactor::ir::types::Type;
@@ -81,6 +81,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn new(
         function_name: String,
         parameters: &Parameters,
+        runtime: RuntimeType,
         shared_context: &'a SharedContext,
     ) -> Self {
         let function_id = shared_context
@@ -88,7 +89,7 @@ impl<'a> FunctionContext<'a> {
             .expect("No function in queue for the FunctionContext to compile")
             .1;
 
-        let builder = FunctionBuilder::new(function_name, function_id);
+        let builder = FunctionBuilder::new(function_name, function_id, runtime);
         let mut this = Self { definitions: HashMap::new(), builder, shared_context };
         this.add_parameters_to_scope(parameters);
         this
@@ -99,9 +100,15 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(&mut self, id: IrFunctionId, name: String, parameters: &Parameters) {
+    pub(super) fn new_function(
+        &mut self,
+        id: IrFunctionId,
+        name: String,
+        parameters: &Parameters,
+        is_unsafe: bool,
+    ) {
         self.definitions.clear();
-        self.builder.new_function(name, id);
+        self.builder.new_function(name, id, is_unsafe);
         self.add_parameters_to_scope(parameters);
     }
 

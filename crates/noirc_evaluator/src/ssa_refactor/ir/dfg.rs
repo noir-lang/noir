@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ssa_refactor::ir::instruction::SimplifyResult;
+use crate::{brillig::artefact::Artefact, ssa_refactor::ir::instruction::SimplifyResult};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -61,6 +61,9 @@ pub(crate) struct DataFlowGraph {
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
+
+    /// Brillig compilation artefact of the funtion
+    obj: Artefact,
 }
 
 impl DataFlowGraph {
@@ -89,6 +92,15 @@ impl DataFlowGraph {
 
         self.blocks[new_block].set_parameters(parameters);
         new_block
+    }
+
+    /// Brillig compilation artefact
+    pub(crate) fn obj(&self) -> &Artefact {
+        &self.obj
+    }
+
+    pub(crate) fn brillig_gen(&mut self, obj: Artefact) {
+        self.obj = obj;
     }
 
     /// Get an iterator over references to each basic block within the dfg, paired with the basic

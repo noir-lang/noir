@@ -68,14 +68,17 @@ impl PostOrder {
 #[cfg(test)]
 mod tests {
     use crate::ssa_refactor::ir::{
-        function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder,
+        function::{Function, RuntimeType},
+        instruction::TerminatorInstruction,
+        map::Id,
+        post_order::PostOrder,
         types::Type,
     };
 
     #[test]
     fn single_block() {
         let func_id = Id::test_new(0);
-        let func = Function::new("func".into(), func_id);
+        let func = Function::new("func".into(), func_id, RuntimeType::Normal);
         let post_order = PostOrder::with_function(&func);
         assert_eq!(post_order.0, [func.entry_block()]);
     }
@@ -103,7 +106,7 @@ mod tests {
         // D, F, E, B, A, (C dropped as unreachable)
 
         let func_id = Id::test_new(0);
-        let mut func = Function::new("func".into(), func_id);
+        let mut func = Function::new("func".into(), func_id, RuntimeType::Normal);
         let block_a_id = func.entry_block();
         let block_b_id = func.dfg.make_block();
         let block_c_id = func.dfg.make_block();

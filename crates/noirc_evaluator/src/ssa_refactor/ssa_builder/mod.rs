@@ -12,6 +12,7 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         dfg::InsertInstructionResult,
+        function::RuntimeType,
         instruction::{InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
@@ -35,8 +36,12 @@ impl FunctionBuilder {
     ///
     /// This creates the new function internally so there is no need to call .new_function()
     /// right after constructing a new FunctionBuilder.
-    pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
-        let new_function = Function::new(function_name, function_id);
+    pub(crate) fn new(
+        function_name: String,
+        function_id: FunctionId,
+        runtime: RuntimeType,
+    ) -> Self {
+        let new_function = Function::new(function_name, function_id, runtime);
         let current_block = new_function.entry_block();
 
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }
@@ -47,8 +52,9 @@ impl FunctionBuilder {
     /// A FunctionBuilder can always only work on one function at a time, so care
     /// should be taken not to finish a function that is still in progress by calling
     /// new_function before the current function is finished.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
-        let new_function = Function::new(name, function_id);
+    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId, is_unsafe: bool) {
+        let runtime = if is_unsafe { RuntimeType::Unsafe } else { RuntimeType::Normal };
+        let new_function = Function::new(name, function_id, runtime);
         self.current_block = new_function.entry_block();
 
         let old_function = std::mem::replace(&mut self.current_function, new_function);

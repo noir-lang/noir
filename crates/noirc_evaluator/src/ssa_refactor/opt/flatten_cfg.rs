@@ -481,7 +481,7 @@ mod test {
     use std::collections::HashMap;
 
     use crate::ssa_refactor::{
-        ir::{cfg::ControlFlowGraph, map::Id, types::Type},
+        ir::{cfg::ControlFlowGraph, function::RuntimeType, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
     };
 
@@ -498,7 +498,7 @@ mod test {
         //     return v1
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -550,7 +550,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -598,7 +598,7 @@ mod test {
         //      ↘   ↙
         //       b9
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();

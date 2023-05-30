@@ -216,6 +216,7 @@ mod tests {
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
+            function::RuntimeType,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -236,7 +237,7 @@ mod tests {
         // }
 
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Normal);
         let v0 = builder.insert_allocate(2);
         let const_one = builder.field_constant(FieldElement::one());
         let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
@@ -274,7 +275,7 @@ mod tests {
         // }
 
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Normal);
         let v0 = builder.insert_allocate(2);
         let const_one = builder.field_constant(FieldElement::one());
         let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
@@ -332,7 +333,7 @@ mod tests {
         //     return v2, v3, v4
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Normal);
 
         let v0 = builder.insert_allocate(1);
 

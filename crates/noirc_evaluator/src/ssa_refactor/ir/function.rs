@@ -1,11 +1,20 @@
 use std::collections::HashSet;
 
+use crate::brillig::brillig_gen::BrilligGen;
+
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum RuntimeType {
+    // A noir function
+    Normal,
+    // An unsafe function
+    Unsafe,
+}
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
 ///
@@ -22,6 +31,8 @@ pub(crate) struct Function {
 
     id: FunctionId,
 
+    runtime: RuntimeType,
+
     /// The DataFlowGraph holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
     pub(crate) dfg: DataFlowGraph,
@@ -31,10 +42,10 @@ impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
     /// Note that any parameters to the function must be manually added later.
-    pub(crate) fn new(name: String, id: FunctionId) -> Self {
+    pub(crate) fn new(name: String, id: FunctionId, runtime: RuntimeType) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg }
+        Self { name, id, entry_block, dfg, runtime }
     }
 
     /// The name of the function.
@@ -48,6 +59,10 @@ impl Function {
         self.id
     }
 
+    /// Runtime type of the function.
+    pub(crate) fn runtime(&self) -> RuntimeType {
+        self.runtime
+    }
     /// Retrieves the entry block of a function.
     ///
     /// A function's entry block contains the instructions
@@ -79,6 +94,10 @@ impl Function {
             }
         }
         blocks
+    }
+
+    pub(crate) fn compile_to_brillig(&mut self) {
+        self.dfg.brillig_gen(BrilligGen::compile());
     }
 }
 
