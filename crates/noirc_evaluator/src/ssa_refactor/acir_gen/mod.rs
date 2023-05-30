@@ -176,7 +176,8 @@ impl Context {
             _ => todo!(),
         }
     }
-    /// Returns an `AcirVar` that is constrained to be
+    /// Returns an `AcirVar` that is constrained to be `Type`.
+    /// Currently, we only allow casting to a NumericType.
     fn convert_ssa_cast(&mut self, value_id: &ValueId, typ: &Type, dfg: &DataFlowGraph) -> AcirVar {
         let variable = self.convert_ssa_value(*value_id, dfg);
 
