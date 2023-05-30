@@ -411,10 +411,10 @@ impl AcirContext {
     /// we trigger a compiler error if the inputs do not match.
     ///
     /// An example of Noir shim function is the following:
-    /// ```
+    /// ``
     /// #[foreign(sha256)]
     /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
-    /// ```
+    /// ``
     fn intrinsics_check_inputs(&mut self, name: BlackBoxFunc, inputs: &[AcirVar]) {
         let expected_num_inputs = match Self::black_box_func_expected_input_size(name) {
             Some(expected_num_inputs) => expected_num_inputs,
