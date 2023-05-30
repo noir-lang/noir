@@ -14,7 +14,6 @@ use noirc_abi::{Abi, AbiParameter, FunctionSignature};
 /// SSA representation. This allows the lengths to be consumed as array params are encountered in
 /// the SSA.
 pub(crate) fn collate_array_lengths(_abi_params: &[AbiParameter]) -> Vec<usize> {
-    // TODO: Not needed for milestone zero, but stubbed to indicate a planned dependency
     Vec::new()
 }
 
@@ -31,7 +30,7 @@ pub(crate) fn gen_abi(func_sig: FunctionSignature, return_witnesses: Vec<Witness
 fn param_witnesses_from_abi_param(
     abi_params: &Vec<AbiParameter>,
 ) -> BTreeMap<String, Vec<Witness>> {
-    let mut offset = 0;
+    let mut offset = 1;
     btree_map(abi_params, |param| {
         let num_field_elements_needed = param.typ.field_count();
         let idx_start = offset;

@@ -115,6 +115,16 @@ impl BasicBlock {
         std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
     }
 
+    /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
+    ///
+    /// If this block has no terminator, or a Return terminator this will be empty.
+    pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
+        match &self.terminator {
+            Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
+            _ => &[],
+        }
+    }
+
     /// Iterate over all the successors of the currently block, as determined by
     /// the blocks jumped to in the terminator instruction. If there is no terminator
     /// instruction yet, this will iterate 0 times.
