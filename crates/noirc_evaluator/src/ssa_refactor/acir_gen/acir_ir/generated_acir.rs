@@ -2,7 +2,10 @@
 //! program as it is being converted from SSA form.
 use super::errors::AcirGenError;
 use acvm::acir::{
-    circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    circuit::{
+        directives::QuotientDirective,
+        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    },
     native_types::Witness,
 };
 use acvm::{
@@ -239,5 +242,60 @@ impl GeneratedAcir {
         self.push_opcode(constraint);
 
         Ok(())
+    }
+
+    /// Returns a `Witness` that is constrained to be:
+    /// - `1` if lhs >= rhs
+    /// - `0` otherwise
+    ///
+    /// See [R1CS Workshop - Section 10](https://github.com/mir-protocol/r1cs-workshop/blob/master/workshop.pdf)
+    /// for an explanation.
+    pub(crate) fn more_than_eq_comparison(
+        &mut self,
+        a: &Expression,
+        b: &Expression,
+        max_bits: u32,
+    ) -> Result<Witness, AcirGenError> {
+        // Ensure that 2^{max_bits + 1} is less than the field size
+        //
+        // TODO: perhaps this should be a user error, instead of an assert
+        assert!(max_bits + 1 < FieldElement::max_num_bits());
+
+        // Compute : 2^max_bits + a - b
+        let mut comparison_evaluation = a - b;
+        let two = FieldElement::from(2_i128);
+        let two_max_bits = two.pow(&FieldElement::from(max_bits as i128));
+        comparison_evaluation.q_c += two_max_bits;
+
+        let q_witness = self.next_witness_index();
+        let r_witness = self.next_witness_index();
+
+        // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        let mut expr = Expression::default();
+        expr.push_addition_term(two_max_bits, q_witness);
+        expr.push_addition_term(FieldElement::one(), r_witness);
+        self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
+
+        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
+            a: comparison_evaluation,
+            b: Expression::from_field(two_max_bits),
+            q: q_witness,
+            r: r_witness,
+            predicate: None,
+        })));
+
+        // Add constraint to ensure `r` is correctly bounded
+        // between [0, 2^{max_bits}-1]
+        self.range_constraint(r_witness, max_bits)?;
+        // Add constraint to ensure that `q` is a boolean value
+        // in particular it should be the `n` bit of the comparison_evaluation
+        // which will indicate whether a >= b
+        //
+        // In the document linked above, they mention negating the value of `q`
+        // which would tell us whether a < b. Since we do not negate `q`
+        // what we get is a boolean indicating whether a >= b.
+        self.range_constraint(q_witness, 1)?;
+
+        Ok(q_witness)
     }
 }

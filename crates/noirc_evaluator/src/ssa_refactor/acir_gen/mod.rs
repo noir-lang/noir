@@ -162,7 +162,7 @@ impl Context {
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
-                unreachable!("ICE: Should have been in cache")
+                unreachable!("ICE: Should have been in cache {value:?}")
             }
         };
         self.ssa_value_to_acir_var.insert(value_id, acir_var);
@@ -181,11 +181,14 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
+            BinaryOp::Lt => self
+                .acir_context
+                .less_than_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
             _ => todo!(),
         }
     }
-    /// Returns an `AcirVar` that is constrained to be `Type`.
-    /// Currently, we only allow casting to a NumericType.
+    /// Returns an `AcirVar` that is constrained to be
     fn convert_ssa_cast(&mut self, value_id: &ValueId, typ: &Type, dfg: &DataFlowGraph) -> AcirVar {
         let variable = self.convert_ssa_value(*value_id, dfg);
 
