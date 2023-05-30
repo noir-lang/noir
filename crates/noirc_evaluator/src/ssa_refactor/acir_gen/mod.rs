@@ -124,7 +124,7 @@ impl Context {
                 let inputs = vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
                 let outputs = self
                     .acir_context
-                    .intrinsics(black_box, inputs)
+                    .black_box_function(black_box, inputs)
                     .expect("add Result types to all methods so errors bubble up");
 
                 let result_ids = dfg.instruction_results(instruction_id);
