@@ -89,7 +89,7 @@ impl GeneratedAcir {
     /// TODO: change this function signature into:
     /// TODO: call_blackbox(name : BlackBoxFunc, inputs : FunctionInput) -> Vec<Witness>
     pub(crate) fn push_intrinsic(&mut self, func_call: BlackBoxFuncCall) {
-        self.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call))
+        self.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
     }
     /// If `expr` can be represented as a `Witness` this function will
     /// return it, else a new opcode will be added to create a Witness

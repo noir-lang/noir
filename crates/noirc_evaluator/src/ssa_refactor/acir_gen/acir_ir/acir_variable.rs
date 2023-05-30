@@ -9,6 +9,7 @@ use acvm::{
     },
     FieldElement,
 };
+use iter_extended::vecmap;
 use std::{borrow::Cow, collections::HashMap, hash::Hash};
 
 #[derive(Debug, Default)]
@@ -346,7 +347,8 @@ impl AcirContext {
 
         let output_count = Self::black_box_expected_output_size(name);
         let outputs = vecmap(0..output_count, |_| self.acir_ir.next_witness_index());
-        let outputs_var = vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+        let outputs_var =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
         let black_box_func_call = match name {
             BlackBoxFunc::AES => unimplemented!("AES is not implemented"),
@@ -477,7 +479,7 @@ impl AcirContext {
                 None => FieldElement::max_num_bits(),
             };
 
-            witnesses.push(FunctionInput { witness, num_bits })
+            witnesses.push(FunctionInput { witness, num_bits });
         }
         Ok(witnesses)
     }
