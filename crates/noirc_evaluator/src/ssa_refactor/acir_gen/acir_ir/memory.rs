@@ -118,7 +118,7 @@ mod tests {
     use crate::ssa_refactor::acir_gen::acir_ir::{errors::AcirGenError, memory::Memory};
 
     #[test]
-    fn smoke_api_get_uninitialized_element_ou() {
+    fn smoke_api_get_uninitialized_element_out() {
         let mut memory = Memory::new();
 
         let array_size = 10;
