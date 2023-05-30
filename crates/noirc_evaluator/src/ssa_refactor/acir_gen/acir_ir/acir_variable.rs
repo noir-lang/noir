@@ -1,6 +1,10 @@
 use crate::ssa_refactor::ir::types::NumericType;
 
-use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
+use super::{
+    errors::AcirGenError,
+    generated_acir::GeneratedAcir,
+    memory::{ArrayId, Memory},
+};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -34,6 +38,8 @@ pub(crate) struct AcirContext {
 
     /// Maps an `AcirVar` to its known bit size.
     variables_to_bit_sizes: HashMap<AcirVar, u32>,
+    /// Maps the elements of virtual arrays to their `AcirVar` elements
+    memory: Memory,
 }
 
 impl AcirContext {
@@ -334,6 +340,27 @@ impl AcirContext {
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(self) -> GeneratedAcir {
         self.acir_ir
+    }
+
+    pub(crate) fn allocate_array(&mut self, size: usize) -> ArrayId {
+        self.memory.allocate(size)
+    }
+
+    pub(crate) fn array_store(
+        &mut self,
+        array_id: ArrayId,
+        index: usize,
+        element: AcirVar,
+    ) -> Result<(), AcirGenError> {
+        self.memory.constant_set(array_id, index, element)
+    }
+
+    pub(crate) fn array_load(
+        &mut self,
+        array_id: ArrayId,
+        index: usize,
+    ) -> Result<AcirVar, AcirGenError> {
+        self.memory.constant_get(array_id, index)
     }
 
     /// Adds `Data` into the context and assigns it a Variable.

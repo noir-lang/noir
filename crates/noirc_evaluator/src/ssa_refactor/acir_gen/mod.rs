@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use self::acir_ir::acir_variable::{AcirContext, AcirVar};
+use self::acir_ir::{
+    acir_variable::{AcirContext, AcirVar},
+    memory::ArrayId,
+};
 use super::{
     abi_gen::collate_array_lengths,
     ir::{
@@ -31,21 +34,22 @@ struct Context {
     /// for an SSA value, we check this map. If an `AcirVar`
     /// already exists for this Value, we return the `AcirVar`.
     ssa_value_to_acir_var: HashMap<Id<Value>, AcirVar>,
+    ssa_value_to_array_address: HashMap<ValueId, (ArrayId, usize)>,
     ///
     acir_context: AcirContext,
 }
 
 impl Ssa {
     pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
-        let _param_array_lengths = collate_array_lengths(&main_function_signature.0);
+        let param_array_lengths = collate_array_lengths(&main_function_signature.0);
         let context = Context::default();
-        context.convert_ssa(self)
+        context.convert_ssa(self, &param_array_lengths)
     }
 }
 
 impl Context {
     /// Converts SSA into ACIR
-    fn convert_ssa(mut self, ssa: Ssa) -> GeneratedAcir {
+    fn convert_ssa(mut self, ssa: Ssa, param_array_lengths: &[usize]) -> GeneratedAcir {
         assert_eq!(
             ssa.functions.len(),
             1,
@@ -55,9 +59,7 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
 
-        for param_id in entry_block.parameters() {
-            self.convert_ssa_block_param(*param_id, dfg);
-        }
+        self.convert_ssa_block_params(entry_block.parameters(), dfg, param_array_lengths);
 
         for instruction_id in entry_block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
@@ -68,31 +70,59 @@ impl Context {
         self.acir_context.finish()
     }
 
-    /// Adds and binds an AcirVar for each numeric block parameter
-    fn convert_ssa_block_param(&mut self, param_id: ValueId, dfg: &DataFlowGraph) {
-        let value = dfg[param_id];
-        let param_type = match value {
-            Value::Param { typ, .. } => typ,
-            _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
-        };
-        match param_type {
-            Type::Numeric(numeric_type) => {
-                let acir_var = self.acir_context.add_variable();
-                if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. })
-                {
-                    self.acir_context
-                        .numeric_cast_var(acir_var, &numeric_type)
-                        .expect("invalid range constraint was applied {numeric_type}");
+    /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array
+    /// element. At the same time `ArrayId`s are bound for any references within the params.
+    fn convert_ssa_block_params(
+        &mut self,
+        params: &[ValueId],
+        dfg: &DataFlowGraph,
+        param_array_lengths: &[usize],
+    ) {
+        let mut param_array_lengths_iter = param_array_lengths.iter();
+        for param_id in params {
+            let value = dfg[*param_id];
+            let param_type = match value {
+                Value::Param { typ, .. } => typ,
+                _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
+            };
+            match param_type {
+                Type::Numeric(numeric_type) => {
+                    let acir_var = self.acir_context.add_variable();
+                    if matches!(
+                        numeric_type,
+                        NumericType::Signed { .. } | NumericType::Unsigned { .. }
+                    ) {
+                        self.acir_context
+                            .numeric_cast_var(acir_var, &numeric_type)
+                            .expect("invalid range constraint was applied {numeric_type}");
+                    }
+                    self.ssa_value_to_acir_var.insert(*param_id, acir_var);
                 }
-                self.ssa_value_to_acir_var.insert(param_id, acir_var);
-            }
-            Type::Reference => {
-                todo!("Create an abstract array holding an AcirVar for each element of the reference and bind its ArrayId to the reference.");
-            }
-            _ => {
-                unreachable!("ICE: Params to the program should only contains numerics and arrays")
+                Type::Reference => {
+                    let array_length = param_array_lengths_iter
+                        .next()
+                        .expect("ICE: fewer arrays in abi than in block params");
+                    let array_id = self.acir_context.allocate_array(*array_length);
+                    self.ssa_value_to_array_address.insert(*param_id, (array_id, 0));
+                    for index in 0..*array_length {
+                        let acir_var = self.acir_context.add_variable();
+                        self.acir_context
+                            .array_store(array_id, index, acir_var)
+                            .expect("invalid array store");
+                    }
+                }
+                _ => {
+                    unreachable!(
+                        "ICE: Params to the program should only contains numerics and arrays"
+                    )
+                }
             }
         }
+        assert_eq!(
+            param_array_lengths_iter.next(),
+            None,
+            "ICE: more arrays in abi than in block params"
+        );
     }
 
     /// Converts an SSA instruction into its ACIR representation
@@ -100,9 +130,15 @@ impl Context {
         let instruction = &dfg[instruction_id];
         match instruction {
             Instruction::Binary(binary) => {
-                let result_acir_var = self.convert_ssa_binary(binary, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
+                if self.value_is_array_address(binary.lhs)
+                    || self.value_is_array_address(binary.rhs)
+                {
+                    self.track_array_address(result_ids[0], binary, dfg);
+                    return;
+                }
+                let result_acir_var = self.convert_ssa_binary(binary, dfg);
                 self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
             }
             Instruction::Constrain(value_id) => {
@@ -113,6 +149,17 @@ impl Context {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Cast ops have a single result");
+                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
+            }
+            Instruction::Load { address } => {
+                let (array_id, index) = self
+                    .ssa_value_to_array_address
+                    .get(address)
+                    .expect("ICE: Load from undeclared array");
+                let result_acir_var =
+                    self.acir_context.array_load(*array_id, *index).expect("invalid array load");
+                let result_ids = dfg.instruction_results(instruction_id);
+                assert_eq!(result_ids.len(), 1, "Load ops have a single result");
                 self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
             }
             _ => todo!("{instruction:?}"),
@@ -149,6 +196,10 @@ impl Context {
     /// parameters. This is because block parameters are converted before anything else, and
     /// because instructions results are converted when the corresponding instruction is
     /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
+    ///
+    /// It is not safe to call this function on value ids that represent addresses. Instructions
+    /// involving such values are evaluated via a separate path and stored in
+    /// `ssa_value_to_array_address` instead.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirVar {
         let value = &dfg[value_id];
         if let Some(acir_var) = self.ssa_value_to_acir_var.get(&value_id) {
@@ -199,5 +250,38 @@ impl Context {
                 .expect("invalid range constraint was applied {numeric_type}"),
             _ => unimplemented!("The cast operation is only valid for integers."),
         }
+    }
+
+    /// Returns true if the value has been declared as an array address
+    fn value_is_array_address(&self, value_id: ValueId) -> bool {
+        self.ssa_value_to_array_address.contains_key(&value_id)
+    }
+
+    /// Takes a binary instruction describing array address arithmetic and stores the result.
+    fn track_array_address(&mut self, value_id: ValueId, binary: &Binary, dfg: &DataFlowGraph) {
+        if binary.operator != BinaryOp::Add {
+            unreachable!("ICE: Array address arithmetic only supports Add");
+        }
+        let lhs_address = self.ssa_value_to_array_address.get(&binary.lhs);
+        let rhs_address = self.ssa_value_to_array_address.get(&binary.rhs);
+        let ((array_id, offset), other_value_id) = match (lhs_address, rhs_address) {
+            (Some(address), None) => (address, binary.rhs),
+            (None, Some(address)) => (address, binary.lhs),
+            (Some(_), Some(_)) => unreachable!("ICE: Addresses cannot be added"),
+            (None, None) => unreachable!("ICE: One operand must be an address"),
+        };
+        let other_value = &dfg[other_value_id];
+        let new_offset = match other_value {
+            Value::NumericConstant { constant, .. } => {
+                let constant = &dfg[*constant];
+                let field_element = constant.value();
+                let further_offset =
+                    field_element.try_to_u64().expect("ICE: array arithmetic doesn't fit in u64")
+                        as usize;
+                offset + further_offset
+            }
+            _ => unreachable!("Invalid array address arithmetic operand"),
+        };
+        self.ssa_value_to_array_address.insert(value_id, (*array_id, new_offset));
     }
 }
