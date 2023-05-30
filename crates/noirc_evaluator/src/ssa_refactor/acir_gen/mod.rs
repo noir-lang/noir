@@ -116,7 +116,9 @@ impl Context {
                 self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
             }
             Instruction::Not(value_id) => {
-                let result_acir_var = self.convert_ssa_not(*value_id, dfg);
+                let boolean_var = self.convert_ssa_value(*value_id, dfg);
+                let result_acir_var = self.acir_context.not_var(boolean_var);
+
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Not ops have a single result");
                 self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
@@ -205,11 +207,5 @@ impl Context {
                 .expect("invalid range constraint was applied {numeric_type}"),
             _ => unimplemented!("The cast operation is only valid for integers."),
         }
-    }
-
-    // Returns an `AcirVar` constrained to be the logical NOT of the input
-    fn convert_ssa_not(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirVar {
-        let acir_var = self.convert_ssa_value(value_id, dfg);
-        self.acir_context.not_var(acir_var)
     }
 }
