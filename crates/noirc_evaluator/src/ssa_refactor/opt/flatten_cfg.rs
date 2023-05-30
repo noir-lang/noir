@@ -591,9 +591,11 @@ mod test {
     use crate::ssa_refactor::{
         ir::{
             cfg::ControlFlowGraph,
-            instruction::{BinaryOp, Instruction},
+            dfg::DataFlowGraph,
+            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
+            value::{Value, ValueId},
         },
         ssa_builder::FunctionBuilder,
     };
@@ -834,6 +836,7 @@ mod test {
         assert_eq!(store_count, 4);
     }
 
+    #[test]
     fn nested_branch_analysis() {
         //         b0
         //         ↓
@@ -898,5 +901,193 @@ mod test {
         assert_eq!(context.branch_ends.len(), 2);
         assert_eq!(context.branch_ends.get(&b1), Some(&b9));
         assert_eq!(context.branch_ends.get(&b4), Some(&b7));
+    }
+
+    #[test]
+    fn nested_branch_stores() {
+        // Here we build some SSA with control flow given by the following graph.
+        // To test stores in nested if statements are handled correctly this graph is
+        // also nested. To keep things simple, each block stores to the same address
+        // an integer that matches its block number. So block 2 stores the value 2,
+        // block 3 stores 3 and so on. Note that only blocks { 0, 1, 2, 3, 5, 6 }
+        // will store values. Other blocks do not store values so that we can test
+        // how these existing values are merged at each join point.
+        //
+        // For debugging purposes, each block also has a call to println with two
+        // arguments. The first is the block the println was originally in, and the
+        // second is the current value stored in the reference.
+        //
+        //         b0   (0 stored)
+        //         ↓
+        //         b1   (1 stored)
+        //       ↙   ↘
+        //     b2     b3  (2 stored in b2) (3 stored in b3)
+        //     ↓      |
+        //     b4     |
+        //   ↙  ↘     |
+        // b5    b6   |   (5 stored in b5) (6 stored in b6)
+        //   ↘  ↙     ↓
+        //    b7      b8
+        //      ↘   ↙
+        //       b9
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        let b4 = builder.insert_block();
+        let b5 = builder.insert_block();
+        let b6 = builder.insert_block();
+        let b7 = builder.insert_block();
+        let b8 = builder.insert_block();
+        let b9 = builder.insert_block();
+
+        let c1 = builder.add_parameter(Type::bool());
+        let c4 = builder.add_parameter(Type::bool());
+
+        let r1 = builder.insert_allocate(1);
+
+        let store_value = |builder: &mut FunctionBuilder, value: u128| {
+            let value = builder.field_constant(value);
+            builder.insert_store(r1, value);
+        };
+
+        let println = builder.import_intrinsic_id(Intrinsic::Println);
+
+        let call_println = |builder: &mut FunctionBuilder, block: u128| {
+            let zero = builder.field_constant(0u128);
+            let block = builder.field_constant(block);
+            let load = builder.insert_load(r1, zero, Type::field());
+            builder.insert_call(println, vec![block, load], Vec::new());
+        };
+
+        let switch_store_and_print = |builder: &mut FunctionBuilder, block, block_number: u128| {
+            builder.switch_to_block(block);
+            store_value(builder, block_number);
+            call_println(builder, block_number);
+        };
+
+        let switch_and_print = |builder: &mut FunctionBuilder, block, block_number: u128| {
+            builder.switch_to_block(block);
+            call_println(builder, block_number);
+        };
+
+        store_value(&mut builder, 0);
+        call_println(&mut builder, 0);
+        builder.terminate_with_jmp(b1, vec![]);
+
+        switch_store_and_print(&mut builder, b1, 1);
+        builder.terminate_with_jmpif(c1, b2, b3);
+
+        switch_store_and_print(&mut builder, b2, 2);
+        builder.terminate_with_jmp(b4, vec![]);
+
+        switch_store_and_print(&mut builder, b3, 3);
+        builder.terminate_with_jmp(b8, vec![]);
+
+        switch_and_print(&mut builder, b4, 4);
+        builder.terminate_with_jmpif(c4, b5, b6);
+
+        switch_store_and_print(&mut builder, b5, 5);
+        builder.terminate_with_jmp(b7, vec![]);
+
+        switch_store_and_print(&mut builder, b6, 6);
+        builder.terminate_with_jmp(b7, vec![]);
+
+        switch_and_print(&mut builder, b7, 7);
+        builder.terminate_with_jmp(b9, vec![]);
+
+        switch_and_print(&mut builder, b8, 8);
+        builder.terminate_with_jmp(b9, vec![]);
+
+        switch_and_print(&mut builder, b9, 9);
+        let zero = builder.field_constant(0u128);
+        let load = builder.insert_load(r1, zero, Type::field());
+        builder.terminate_with_return(vec![load]);
+
+        let ssa = builder.finish().flatten_cfg().mem2reg();
+
+        println!("{ssa}");
+
+        // Expected results after mem2reg removes the allocation and each load and store:
+        //
+        // fn main f0 {
+        //   b0(v0: u1, v1: u1):
+        //     call println(Field 0, Field 0)
+        //     call println(Field 1, Field 1)
+        //     call println(Field 2, Field 2)
+        //     call println(Field 4, Field 2) ; block 4 does not store a value
+        //     v45 = and v0, v1
+        //     call println(Field 5, Field 5)
+        //     v49 = not v1
+        //     v50 = and v0, v49
+        //     call println(Field 6, Field 6)
+        //     v54 = mul v1, Field 5
+        //     v55 = mul v49, Field 2
+        //     v56 = add v54, v55
+        //     v57 = mul v1, Field 5
+        //     v58 = mul v49, Field 6
+        //     v59 = add v57, v58
+        //     call println(Field 7, v59)  ; v59 = 5 and 6 merged
+        //     v61 = not v0
+        //     call println(Field 3, Field 3)
+        //     call println(Field 8, Field 3) ; block 8 does not store a value
+        //     v66 = mul v0, v59
+        //     v67 = mul v61, Field 1
+        //     v68 = add v66, v67      ; This was from an unused store.
+        //     v69 = mul v0, v59
+        //     v70 = mul v61, Field 3
+        //     v71 = add v69, v70
+        //     call println(Field 9, v71)  ; v71 = 3, 5, and 6 merged
+        //     return v71
+        // }
+
+        let main = ssa.main();
+        let ret = match main.dfg[main.entry_block()].terminator() {
+            Some(TerminatorInstruction::Return { return_values }) => return_values[0],
+            _ => unreachable!(),
+        };
+
+        let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
+        assert_eq!(merged_values, vec![3, 5, 6]);
+    }
+
+    /// Work backwards from an instruction to find all the constant values
+    /// that were used to construct it. E.g for:
+    ///
+    /// b0(v0: Field):
+    ///   v1 = add v0, Field 6
+    ///   v2 = mul v1, Field 2
+    ///   v3 = sub v2, v0
+    ///   return v3
+    ///
+    /// Calling this function on v3 will return [2, 6].
+    fn get_all_constants_reachable_from_instruction(
+        dfg: &DataFlowGraph,
+        value: ValueId,
+    ) -> Vec<u128> {
+        match dfg[value] {
+            Value::Instruction { instruction, .. } => {
+                let mut values = vec![];
+                dfg[instruction].map_values(|value| {
+                    values.push(value);
+                    value
+                });
+
+                let mut values: Vec<_> = values
+                    .into_iter()
+                    .flat_map(|value| get_all_constants_reachable_from_instruction(dfg, value))
+                    .collect();
+
+                values.sort();
+                values.dedup();
+                values
+            }
+            Value::NumericConstant { constant, .. } => {
+                vec![dfg[constant].value().to_u128()]
+            }
+            _ => Vec::new(),
+        }
     }
 }
