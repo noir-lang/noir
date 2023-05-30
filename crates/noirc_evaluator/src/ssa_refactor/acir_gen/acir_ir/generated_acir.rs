@@ -225,7 +225,9 @@ impl GeneratedAcir {
         witness: Witness,
         num_bits: u32,
     ) -> Result<(), AcirGenError> {
-        if num_bits == FieldElement::max_num_bits() {
+        // We class this as an error because users should instead
+        // do `as Field`.
+        if num_bits >= FieldElement::max_num_bits() {
             return Err(AcirGenError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
             });

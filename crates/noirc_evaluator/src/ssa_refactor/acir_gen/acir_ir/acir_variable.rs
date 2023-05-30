@@ -1,4 +1,6 @@
-use super::generated_acir::GeneratedAcir;
+use crate::ssa_refactor::ir::types::NumericType;
+
+use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -252,6 +254,30 @@ impl AcirContext {
             AcirVarData::Witness(witness) => *witness,
         };
         self.acir_ir.push_return_witness(witness);
+    }
+
+    /// Constrains the `AcirVar` variable to be of type `NumericType`.
+    pub(crate) fn numeric_cast_var(
+        &mut self,
+        variable: AcirVar,
+        numeric_type: &NumericType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let data = &self.data[&variable];
+        match numeric_type {
+            NumericType::Signed { .. } => todo!("signed integer conversion is unimplemented"),
+            NumericType::Unsigned { bit_size } => {
+                let data_expr = data.to_expression();
+                let witness = self.acir_ir.get_or_create_witness(&data_expr);
+                self.acir_ir.range_constraint(witness, *bit_size)?;
+            }
+            NumericType::NativeField => {
+                // If someone has made a cast to a `Field` type then this is a Noop.
+                //
+                // The reason for doing this in code is for type safety; ie you have an
+                // integer, but a function requires the parameter to be a Field.
+            }
+        }
+        Ok(variable)
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
