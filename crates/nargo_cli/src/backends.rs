@@ -16,6 +16,7 @@ compile_error!(
 );
 
 #[derive(Debug, Clone, Copy, Default)]
+#[cfg(feature = "bb_js")]
 pub(crate) struct ConcreteBackend;
 
 #[derive(Debug, Clone, Copy, Default)]
