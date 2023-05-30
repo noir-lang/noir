@@ -1,7 +1,7 @@
 #include "schnorr.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
@@ -14,9 +14,7 @@ using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::schnorr;
 
-using Composer = plonk::UltraComposer;
-using Prover = plonk::UltraProver;
-using Verifier = plonk::UltraVerifier;
+using Composer = proof_system::UltraCircuitConstructor;
 using bool_ct = bool_t<Composer>;
 using byte_array_ct = byte_array<Composer>;
 using field_ct = field_t<Composer>;
@@ -46,14 +44,9 @@ auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
         EXPECT_EQ(output.y.get_value(), expected.y);
     };
 
-    auto prover = composer.create_prover();
+    info("composer gates = ", composer.get_num_gates());
 
-    info("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, expect_verify);
 };
 
@@ -165,14 +158,9 @@ TEST(stdlib_schnorr, convert_field_into_wnaf)
     field_ct input(&composer, scalar);
     convert_field_into_wnaf(&composer, input);
 
-    auto prover = composer.create_prover();
+    info("composer gates = ", composer.get_num_gates());
 
-    info("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -221,11 +209,8 @@ TEST(stdlib_schnorr, verify_signature)
         byte_array_ct message(&composer, message_string);
         verify_signature(message, pub_key, sig);
 
-        auto prover = composer.create_prover();
-        info("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        info("composer gates = ", composer.get_num_gates());
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 }
@@ -265,14 +250,9 @@ TEST(stdlib_schnorr, verify_signature_failure)
     byte_array_ct message(&composer, message_string);
     verify_signature(message, pub_key2_ct, sig);
 
-    auto prover = composer.create_prover();
+    info("composer gates = ", composer.get_num_gates());
 
-    info("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool verification_result = verifier.verify_proof(proof);
+    bool verification_result = composer.check_circuit();
     EXPECT_EQ(verification_result, false);
 }
 
@@ -304,11 +284,9 @@ TEST(stdlib_schnorr, signature_verification_result)
     bool_ct signature_result = signature_verification_result(message, pub_key, sig);
     EXPECT_EQ(signature_result.witness_bool, true);
 
-    Prover prover = composer.create_prover();
-    info("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    bool result = verifier.verify_proof(proof);
+    info("composer gates = ", composer.get_num_gates());
+
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -348,11 +326,9 @@ TEST(stdlib_schnorr, signature_verification_result_failure)
     bool_ct signature_result = signature_verification_result(message, pub_key2_ct, sig);
     EXPECT_EQ(signature_result.witness_bool, false);
 
-    Prover prover = composer.create_prover();
-    info("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    bool verification_result = verifier.verify_proof(proof);
+    info("composer gates = ", composer.get_num_gates());
+
+    bool verification_result = composer.check_circuit();
     EXPECT_EQ(verification_result, true);
 }
 

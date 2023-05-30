@@ -150,11 +150,11 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::eight_bit_fixed_base_table<X>::oper
 
     const auto tags = get_plookup_tags();
 
-    const auto xlo = plookup_read::read_pair_from_table(tags[0], index);
-    const auto xhi = plookup_read::read_pair_from_table(tags[1], index);
-    const auto ylo = plookup_read::read_pair_from_table(tags[2], index);
-    const auto yhi = plookup_read::read_pair_from_table(tags[3], index);
-    const auto xyprime = plookup_read::read_pair_from_table(tags[4], index);
+    const auto xlo = plookup_read<C>::read_pair_from_table(tags[0], index);
+    const auto xhi = plookup_read<C>::read_pair_from_table(tags[1], index);
+    const auto ylo = plookup_read<C>::read_pair_from_table(tags[2], index);
+    const auto yhi = plookup_read<C>::read_pair_from_table(tags[3], index);
+    const auto xyprime = plookup_read<C>::read_pair_from_table(tags[4], index);
 
     Fq x = Fq(xlo.first, xlo.second, xhi.first, xhi.second, xyprime.first);
     Fq y = Fq(ylo.first, ylo.second, yhi.first, yhi.second, xyprime.second);

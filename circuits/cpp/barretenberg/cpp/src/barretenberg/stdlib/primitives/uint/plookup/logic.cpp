@@ -279,10 +279,10 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::logic_operator(co
 
     ReadData<field_t<Composer>> lookup;
     if (op_type == XOR) {
-        lookup = plookup_read::get_lookup_accumulators(
+        lookup = plookup_read<Composer>::get_lookup_accumulators(
             MultiTableId::UINT32_XOR, field_t<Composer>(*this), field_t<Composer>(other), true);
     } else {
-        lookup = plookup_read::get_lookup_accumulators(
+        lookup = plookup_read<Composer>::get_lookup_accumulators(
             MultiTableId::UINT32_AND, field_t<Composer>(*this), field_t<Composer>(other), true);
     }
     uint_plookup<Composer, Native> result(ctx);
@@ -327,10 +327,10 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::logic_operator(co
     return result;
 }
 
-template class uint_plookup<plonk::UltraComposer, uint8_t>;
-template class uint_plookup<plonk::UltraComposer, uint16_t>;
-template class uint_plookup<plonk::UltraComposer, uint32_t>;
-template class uint_plookup<plonk::UltraComposer, uint64_t>;
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint8_t);
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint16_t);
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint32_t);
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint64_t);
 
 } // namespace stdlib
 } // namespace proof_system::plonk

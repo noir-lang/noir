@@ -2,7 +2,6 @@
 
 #include "../field/field.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/plonk/composer/composer_base.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 
 #include "../../hash/pedersen/pedersen.hpp"

@@ -9,7 +9,7 @@
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
-#include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
+#include "barretenberg/plonk/composer/composer_helper/composer_helper_lib.hpp"
 #include <utility>
 
 namespace proof_system::plonk {
@@ -17,7 +17,7 @@ class StandardPlonkComposerHelper {
   public:
     using Flavor = plonk::flavor::Standard;
     using CircuitConstructor = StandardCircuitConstructor;
-    static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
+    static constexpr size_t NUM_RESERVED_GATES = 4; // equal to the number of evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::program_width;
     std::shared_ptr<plonk::proving_key> circuit_proving_key;
     std::shared_ptr<plonk::verification_key> circuit_verification_key;

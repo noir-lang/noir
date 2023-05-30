@@ -1,8 +1,8 @@
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 #include "verification_key.hpp"
 
 namespace {
@@ -44,8 +44,10 @@ template <typename Composer> class VerificationKeyFixture : public testing::Test
 };
 
 // Each test will run for all composer types
-using ComposerTypes =
-    testing::Types<plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer, honk::StandardHonkComposer>;
+using ComposerTypes = testing::Types<plonk::StandardPlonkComposer,
+                                     plonk::TurboPlonkComposer,
+                                     plonk::UltraPlonkComposer,
+                                     honk::StandardHonkComposer>;
 TYPED_TEST_SUITE(VerificationKeyFixture, ComposerTypes);
 
 TYPED_TEST(VerificationKeyFixture, vk_data_vs_recursion_compress_native)

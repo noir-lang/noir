@@ -26,7 +26,7 @@ void UltraHonkComposerHelper::compute_witness(CircuitConstructor& circuit_constr
     const size_t filled_gates = circuit_constructor.num_gates + circuit_constructor.public_inputs.size();
     const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
-    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates + NUM_RANDOMIZED_GATES);
+    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
     // Pad the wires (pointers to `witness_indices` of the `variables` vector).
     // Note: the remaining NUM_RESERVED_GATES indices are padded with zeros within `construct_wire_polynomials_base`
@@ -39,12 +39,12 @@ void UltraHonkComposerHelper::compute_witness(CircuitConstructor& circuit_constr
     }
 
     // TODO(#340)(luke): within construct_wire_polynomials_base, the 3rd argument is used in the calculation of the
-    // dyadic circuit size (subgroup_size). Here (and in other split composers) we're passing in NUM_RANDOMIZED_GATES,
+    // dyadic circuit size (subgroup_size). Here (and in other split composers) we're passing in NUM_RESERVED_GATES,
     // but elsewhere, e.g. directly above, we use NUM_RESERVED_GATES in a similar role. Therefore, these two constants
     // must be equal for everything to be consistent. What we should do is compute the dyadic circuit size once and for
     // all then pass that around rather than computing in multiple places.
     auto wire_polynomials =
-        construct_wire_polynomials_base<Flavor>(circuit_constructor, total_num_gates, NUM_RANDOMIZED_GATES);
+        construct_wire_polynomials_base<Flavor>(circuit_constructor, total_num_gates, NUM_RESERVED_GATES);
 
     proving_key->w_l = wire_polynomials[0];
     proving_key->w_r = wire_polynomials[1];
@@ -181,7 +181,7 @@ std::shared_ptr<UltraHonkComposerHelper::Flavor::ProvingKey> UltraHonkComposerHe
     }
 
     const size_t minimum_circuit_size = tables_size + lookups_size;
-    const size_t num_randomized_gates = NUM_RANDOMIZED_GATES;
+    const size_t num_randomized_gates = NUM_RESERVED_GATES;
     // Initialize proving_key
     // TODO(#392)(Kesha): replace composer types.
     proving_key = initialize_proving_key<Flavor>(

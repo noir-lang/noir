@@ -2,14 +2,14 @@
 #include <array>
 #include <vector>
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer> class plookup_ {
+template <typename Composer> class plookup_read {
     typedef field_t<Composer> field_pt;
 
   public:
@@ -26,8 +26,7 @@ template <typename Composer> class plookup_ {
                                                                const bool is_2_to_1_lookup = false);
 };
 
-extern template class plookup_<plonk::UltraComposer>;
+EXTERN_STDLIB_ULTRA_TYPE(plookup_read);
 
-typedef plookup_<plonk::UltraComposer> plookup_read;
 } // namespace stdlib
 } // namespace proof_system::plonk

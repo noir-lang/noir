@@ -49,7 +49,7 @@ void UltraPlonkComposerHelper::compute_witness(CircuitConstructor& circuit_const
     }
 
     // TODO(luke): subgroup size was already computed above but compute_witness_base computes it again. If we pass in
-    // NUM_RANDOMIZED_GATES (as in the other split composers) the resulting sizes can differ. Reconcile this.
+    // NUM_RESERVED_GATES (as in the other split composers) the resulting sizes can differ. Reconcile this.
     auto wire_polynomial_evaluations =
         construct_wire_polynomials_base<Flavor>(circuit_constructor, total_num_gates, NUM_RESERVED_GATES);
 
@@ -186,13 +186,104 @@ UltraProver UltraPlonkComposerHelper::create_prover(CircuitConstructor& circuit_
 }
 
 /**
+ * @brief Uses slightly different settings from the UltraProver.
+ */
+UltraToStandardProver UltraPlonkComposerHelper::create_ultra_to_standard_prover(CircuitConstructor& circuit_constructor)
+{
+    finalize_circuit(circuit_constructor);
+
+    compute_proving_key(circuit_constructor);
+    compute_witness(circuit_constructor);
+
+    UltraToStandardProver output_state(circuit_proving_key, create_manifest(circuit_constructor.public_inputs.size()));
+
+    std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
+        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverPlookupArithmeticWidget<ultra_to_standard_settings>> arithmetic_widget =
+        std::make_unique<ProverPlookupArithmeticWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverGenPermSortWidget<ultra_to_standard_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverEllipticWidget<ultra_to_standard_settings>> elliptic_widget =
+        std::make_unique<ProverEllipticWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverPlookupAuxiliaryWidget<ultra_to_standard_settings>> auxiliary_widget =
+        std::make_unique<ProverPlookupAuxiliaryWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.random_widgets.emplace_back(std::move(plookup_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(sort_widget));
+    output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
+    output_state.transition_widgets.emplace_back(std::move(auxiliary_widget));
+
+    std::unique_ptr<KateCommitmentScheme<ultra_to_standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<ultra_to_standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
+    return output_state;
+}
+
+/**
+ * @brief Uses slightly different settings from the UltraProver.
+ */
+UltraWithKeccakProver UltraPlonkComposerHelper::create_ultra_with_keccak_prover(CircuitConstructor& circuit_constructor)
+{
+    finalize_circuit(circuit_constructor);
+    compute_proving_key(circuit_constructor);
+    compute_witness(circuit_constructor);
+
+    UltraWithKeccakProver output_state(circuit_proving_key, create_manifest(circuit_constructor.public_inputs.size()));
+
+    std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
+        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverPlookupArithmeticWidget<ultra_with_keccak_settings>> arithmetic_widget =
+        std::make_unique<ProverPlookupArithmeticWidget<ultra_with_keccak_settings>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverGenPermSortWidget<ultra_with_keccak_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<ultra_with_keccak_settings>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverEllipticWidget<ultra_with_keccak_settings>> elliptic_widget =
+        std::make_unique<ProverEllipticWidget<ultra_with_keccak_settings>>(circuit_proving_key.get());
+
+    std::unique_ptr<ProverPlookupAuxiliaryWidget<ultra_with_keccak_settings>> auxiliary_widget =
+        std::make_unique<ProverPlookupAuxiliaryWidget<ultra_with_keccak_settings>>(circuit_proving_key.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.random_widgets.emplace_back(std::move(plookup_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(sort_widget));
+    output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
+    output_state.transition_widgets.emplace_back(std::move(auxiliary_widget));
+
+    std::unique_ptr<KateCommitmentScheme<ultra_with_keccak_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<ultra_with_keccak_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
+    return output_state;
+}
+
+/**
  * Create verifier: compute verification key,
  * initialize verifier with it and an initial manifest and initialize commitment_scheme.
  *
  * @return The verifier.
  * */
 
-plonk::UltraVerifier UltraPlonkComposerHelper::create_verifier(const CircuitConstructor& circuit_constructor)
+plonk::UltraVerifier UltraPlonkComposerHelper::create_verifier(CircuitConstructor& circuit_constructor)
 {
     auto verification_key = compute_verification_key(circuit_constructor);
 
@@ -207,12 +298,57 @@ plonk::UltraVerifier UltraPlonkComposerHelper::create_verifier(const CircuitCons
     return output_state;
 }
 
-std::shared_ptr<proving_key> UltraPlonkComposerHelper::compute_proving_key(
-    const CircuitConstructor& circuit_constructor)
+/**
+ * @brief Create a verifier using pedersen hash for the transcript
+ *
+ * @param circuit_constructor
+ * @return UltraToStandardVerifier
+ */
+UltraToStandardVerifier UltraPlonkComposerHelper::create_ultra_to_standard_verifier(
+    CircuitConstructor& circuit_constructor)
+{
+    auto verification_key = compute_verification_key(circuit_constructor);
+
+    UltraToStandardVerifier output_state(circuit_verification_key,
+                                         create_manifest(circuit_constructor.public_inputs.size()));
+
+    std::unique_ptr<KateCommitmentScheme<ultra_to_standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<ultra_to_standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
+    return output_state;
+}
+
+/**
+ * @brief Create a verifier using keccak for the transcript
+ *
+ * @param circuit_constructor
+ * @return UltraWithKeccakVerifier
+ */
+UltraWithKeccakVerifier UltraPlonkComposerHelper::create_ultra_with_keccak_verifier(
+    CircuitConstructor& circuit_constructor)
+{
+    auto verification_key = compute_verification_key(circuit_constructor);
+
+    UltraWithKeccakVerifier output_state(circuit_verification_key,
+                                         create_manifest(circuit_constructor.public_inputs.size()));
+
+    std::unique_ptr<KateCommitmentScheme<ultra_with_keccak_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<ultra_with_keccak_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
+    return output_state;
+}
+
+std::shared_ptr<proving_key> UltraPlonkComposerHelper::compute_proving_key(CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
+
+    circuit_constructor.finalize_circuit();
 
     size_t tables_size = 0;
     size_t lookups_size = 0;
@@ -344,7 +480,7 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper::compute_proving_key(
  * */
 
 std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper::compute_verification_key(
-    const CircuitConstructor& circuit_constructor)
+    CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
         return circuit_verification_key;

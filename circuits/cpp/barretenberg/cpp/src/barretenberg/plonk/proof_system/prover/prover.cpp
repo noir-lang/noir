@@ -510,7 +510,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_evaluat
     fr zeta_pow_n = zeta.pow(key->circuit_size);
     fr scalar = zeta_pow_n;
     // Adjust the evaluation to consider the (n + 1)th coefficient when needed (note that width 3 is just an avatar for
-    // StandardComposer here)
+    // StandardPlonkComposer here)
     const size_t num_deg_n_poly = settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
     for (size_t j = 0; j < num_deg_n_poly; j++) {
         t_eval += key->quotient_polynomial_parts[j][key->circuit_size] * scalar;

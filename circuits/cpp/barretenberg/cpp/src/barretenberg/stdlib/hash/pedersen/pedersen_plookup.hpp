@@ -28,6 +28,6 @@ template <typename ComposerContext> class pedersen_plookup_hash {
     static field_t hash_multiple(const std::vector<field_t>& in, const size_t hash_index = 0);
 };
 
-extern template class pedersen_plookup_hash<plonk::UltraComposer>;
+EXTERN_STDLIB_ULTRA_TYPE(pedersen_plookup_hash);
 } // namespace stdlib
 } // namespace proof_system::plonk

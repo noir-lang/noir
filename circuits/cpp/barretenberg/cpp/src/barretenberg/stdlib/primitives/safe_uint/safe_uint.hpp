@@ -284,7 +284,6 @@ inline std::ostream& operator<<(std::ostream& os, safe_uint_t<ComposerContext> c
 }
 
 EXTERN_STDLIB_TYPE(safe_uint_t);
-extern template class safe_uint_t<honk::StandardHonkComposer>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

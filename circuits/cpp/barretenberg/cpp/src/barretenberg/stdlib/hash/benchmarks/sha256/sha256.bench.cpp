@@ -1,13 +1,13 @@
 #include "../../sha256/sha256.hpp"
 #include <benchmark/benchmark.h>
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
 
 using namespace benchmark;
 
-using Composer = proof_system::plonk::UltraComposer;
+using Composer = proof_system::plonk::UltraPlonkComposer;
 using Prover = proof_system::plonk::UltraProver;
 using Verifier = proof_system::plonk::UltraVerifier;
 

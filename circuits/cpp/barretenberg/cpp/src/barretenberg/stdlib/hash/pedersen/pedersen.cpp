@@ -209,8 +209,8 @@ point<C> pedersen_hash<C>::hash_single_internal(const field_t& in,
             if constexpr (C::type == ComposerType::PLOOKUP &&
                           (C::merkle_hash_type == merkle::HashType::FIXED_BASE_PEDERSEN ||
                            C::commitment_type == pedersen::CommitmentType::FIXED_BASE_PEDERSEN)) {
-                /* In TurboComposer, the selector q_5 is used to show that w_1 and w_2 are properly initialized to the
-                 * coordinates of P_s = (-s + 4^n)[g]. In UltraPlonK, we have removed q_5 for overall efficiency (it
+                /* In TurboPlonkComposer, the selector q_5 is used to show that w_1 and w_2 are properly initialized to
+                 * the coordinates of P_s = (-s + 4^n)[g]. In UltraPlonK, we have removed q_5 for overall efficiency (it
                  * would only be used here in this gate), but this presents us a cost in the present circuit: we must
                  * use an additional gate to perform part of the initialization. Since q_5 is only involved in the
                  * x-coordinate initialization (in the notation of the widget, Constraint 5), we only perform that part

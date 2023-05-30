@@ -1,20 +1,21 @@
-#include "turbo_composer.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "turbo_plonk_composer.hpp"
+#include "barretenberg/crypto/generators/generator_data.hpp"
+#include "barretenberg/crypto/generators/fixed_base_scalar_mul.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 
 using namespace barretenberg;
 using namespace proof_system;
-using namespace crypto::pedersen_commitment;
 using namespace crypto::generators;
 
+namespace proof_system::plonk::test_turbo_plonk_composer {
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-namespace proof_system::plonk {
-TEST(turbo_composer, base_case)
+
+TEST(turbo_plonk_composer, base_case)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
@@ -27,9 +28,9 @@ TEST(turbo_composer, base_case)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, composer_from_serialized_keys)
+TEST(turbo_plonk_composer, composer_from_serialized_keys)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
@@ -43,7 +44,7 @@ TEST(turbo_composer, composer_from_serialized_keys)
         std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
     auto verification_key = std::make_shared<plonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
 
-    TurboComposer composer2 = TurboComposer(proving_key, verification_key);
+    TurboPlonkComposer composer2 = TurboPlonkComposer(proving_key, verification_key);
     composer2.add_public_variable(a);
 
     auto prover = composer2.create_prover();
@@ -55,9 +56,9 @@ TEST(turbo_composer, composer_from_serialized_keys)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, test_add_gate_proofs)
+TEST(turbo_plonk_composer, test_add_gate_proofs)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr a = fr::one();
     fr b = fr::one();
     fr c = a + b;
@@ -118,9 +119,9 @@ TEST(turbo_composer, test_add_gate_proofs)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, test_mul_gate_proofs)
+TEST(turbo_plonk_composer, test_mul_gate_proofs)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -205,7 +206,7 @@ TEST(turbo_composer, test_mul_gate_proofs)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, small_scalar_multipliers)
+TEST(turbo_plonk_composer, small_scalar_multipliers)
 {
     constexpr size_t num_bits = 63;
     constexpr size_t num_quads_base = (num_bits - 1) >> 1;
@@ -274,7 +275,7 @@ TEST(turbo_composer, small_scalar_multipliers)
                                      origin_points[0].y,
                                      (origin_points[0].y - origin_points[1].y) };
 
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
@@ -334,7 +335,7 @@ TEST(turbo_composer, small_scalar_multipliers)
     free(accumulator_transcript);
 }
 
-TEST(turbo_composer, large_scalar_multipliers)
+TEST(turbo_plonk_composer, large_scalar_multipliers)
 {
     constexpr size_t num_bits = 254;
     constexpr size_t num_quads_base = (num_bits - 1) >> 1;
@@ -404,7 +405,7 @@ TEST(turbo_composer, large_scalar_multipliers)
                                      origin_points[0].y,
                                      (origin_points[0].y - origin_points[1].y) };
 
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
@@ -466,9 +467,9 @@ TEST(turbo_composer, large_scalar_multipliers)
     free(accumulator_transcript);
 }
 
-TEST(turbo_composer, range_constraint)
+TEST(turbo_plonk_composer, range_constraint)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     for (size_t i = 0; i < 10; ++i) {
         uint32_t value = engine.get_random_uint32();
@@ -510,9 +511,9 @@ TEST(turbo_composer, range_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, range_constraint_fail)
+TEST(turbo_plonk_composer, range_constraint_fail)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     uint64_t value = 0xffffff;
     uint32_t witness_index = composer.add_variable(fr(value));
@@ -534,9 +535,9 @@ TEST(turbo_composer, range_constraint_fail)
  * @brief Test that the `AND` constraint fails when constraining too few bits.
  *
  */
-TEST(turbo_composer, and_constraint_failure)
+TEST(turbo_plonk_composer, and_constraint_failure)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     uint32_t left_value = 4;
     fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
@@ -564,9 +565,9 @@ TEST(turbo_composer, and_constraint_failure)
     EXPECT_EQ(result, false);
 }
 
-TEST(turbo_composer, and_constraint)
+TEST(turbo_plonk_composer, and_constraint)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -639,9 +640,9 @@ TEST(turbo_composer, and_constraint)
  * @brief Test that the `XOR` constraint fails when constraining too few bits.
  *
  */
-TEST(turbo_composer, xor_constraint_failure)
+TEST(turbo_plonk_composer, xor_constraint_failure)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     uint32_t left_value = 4;
     fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
@@ -669,9 +670,9 @@ TEST(turbo_composer, xor_constraint_failure)
     EXPECT_EQ(result, false);
 }
 
-TEST(turbo_composer, xor_constraint)
+TEST(turbo_plonk_composer, xor_constraint)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -739,9 +740,9 @@ TEST(turbo_composer, xor_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, big_add_gate_with_bit_extract)
+TEST(turbo_plonk_composer, big_add_gate_with_bit_extract)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     const auto generate_constraints = [&composer](uint32_t quad_value) {
         uint32_t quad_accumulator_left =
@@ -783,7 +784,7 @@ TEST(turbo_composer, big_add_gate_with_bit_extract)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, validate_copy_constraints)
+TEST(turbo_plonk_composer, validate_copy_constraints)
 {
     for (size_t m = 0; m < 2; ++m) {
         for (size_t k = 0; k < 4; ++k) {
@@ -791,7 +792,7 @@ TEST(turbo_composer, validate_copy_constraints)
                 if (m == 0 && (j > 0 || k > 0)) {
                     continue;
                 }
-                TurboComposer composer = TurboComposer();
+                TurboPlonkComposer composer = TurboPlonkComposer();
 
                 barretenberg::fr variables[4]{
                     barretenberg::fr::random_element(),
@@ -853,9 +854,9 @@ TEST(turbo_composer, validate_copy_constraints)
     }
 }
 
-TEST(turbo_composer, test_check_circuit_add_gate_proofs_correct)
+TEST(turbo_plonk_composer, test_check_circuit_add_gate_proofs_correct)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr a = fr::one();
     fr b = fr::one();
     fr c = a + b;
@@ -878,9 +879,9 @@ TEST(turbo_composer, test_check_circuit_add_gate_proofs_correct)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, test_check_circuit_add_gate_proofs_broken)
+TEST(turbo_plonk_composer, test_check_circuit_add_gate_proofs_broken)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr a = fr::one();
     fr b = fr::one();
     fr c = a + b;
@@ -902,9 +903,9 @@ TEST(turbo_composer, test_check_circuit_add_gate_proofs_broken)
     bool result = composer.check_circuit();
     EXPECT_EQ(result, false);
 }
-TEST(turbo_composer, test_check_circuit_mul_gate_proofs_correct)
+TEST(turbo_plonk_composer, test_check_circuit_mul_gate_proofs_correct)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -937,9 +938,9 @@ TEST(turbo_composer, test_check_circuit_mul_gate_proofs_correct)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, test_check_circuit_mul_gate_proofs_broken)
+TEST(turbo_plonk_composer, test_check_circuit_mul_gate_proofs_broken)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -971,7 +972,7 @@ TEST(turbo_composer, test_check_circuit_mul_gate_proofs_broken)
 
     EXPECT_EQ(result, false);
 }
-TEST(turbo_composer, test_check_circuit_fixed_group)
+TEST(turbo_plonk_composer, test_check_circuit_fixed_group)
 {
     constexpr size_t num_bits = 254;
     constexpr size_t num_quads_base = (num_bits - 1) >> 1;
@@ -1041,7 +1042,7 @@ TEST(turbo_composer, test_check_circuit_fixed_group)
                                      origin_points[0].y,
                                      (origin_points[0].y - origin_points[1].y) };
 
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
@@ -1097,9 +1098,9 @@ TEST(turbo_composer, test_check_circuit_fixed_group)
     free(accumulator_transcript);
 }
 
-TEST(turbo_composer, test_check_circuit_range_constraint)
+TEST(turbo_plonk_composer, test_check_circuit_range_constraint)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     for (size_t i = 0; i < 10; ++i) {
         uint32_t value = engine.get_random_uint32();
@@ -1123,9 +1124,9 @@ TEST(turbo_composer, test_check_circuit_range_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(turbo_composer, test_check_circuit_xor)
+TEST(turbo_plonk_composer, test_check_circuit_xor)
 {
-    TurboComposer composer = TurboComposer();
+    TurboPlonkComposer composer = TurboPlonkComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -1153,4 +1154,4 @@ TEST(turbo_composer, test_check_circuit_xor)
 
     EXPECT_EQ(result, true);
 }
-} // namespace proof_system::plonk
+} // namespace proof_system::plonk::test_turbo_plonk_composer

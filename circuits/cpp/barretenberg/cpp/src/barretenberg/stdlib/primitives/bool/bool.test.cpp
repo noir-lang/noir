@@ -1,5 +1,5 @@
 #include "bool.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.cpp"
@@ -19,14 +19,18 @@ auto& engine = numeric::random::get_debug_engine();
 
 template <class Composer> class BoolTest : public ::testing::Test {};
 
-using ComposerTypes =
-    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
+                                       proof_system::TurboCircuitConstructor,
+                                       proof_system::UltraCircuitConstructor>;
+
 TYPED_TEST_SUITE(BoolTest, ComposerTypes);
 TYPED_TEST(BoolTest, TestBasicOperations)
 {
 
     STDLIB_TYPE_ALIASES
     auto composer = Composer();
+
+    auto gates_before = composer.get_num_gates();
 
     bool_ct a = witness_ct(&composer, barretenberg::fr::one());
     bool_ct b = witness_ct(&composer, barretenberg::fr::zero());
@@ -45,15 +49,11 @@ TYPED_TEST(BoolTest, TestBasicOperations)
     d = (!f) & a; // d = 1
     EXPECT_EQ(d.get_value(), 1);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 
-    EXPECT_EQ(prover.key->circuit_size, 16UL);
+    auto gates_after = composer.get_num_gates();
+    EXPECT_EQ(gates_after - gates_before, 6UL);
 }
 
 TYPED_TEST(BoolTest, Xor)
@@ -74,12 +74,7 @@ TYPED_TEST(BoolTest, Xor)
             EXPECT_EQ(c.get_value(), a.get_value() ^ b.get_value());
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -104,12 +99,8 @@ TYPED_TEST(BoolTest, XorConstants)
             a ^ b;
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -136,12 +127,8 @@ TYPED_TEST(BoolTest, XorTwinConstants)
             c = c ^ a ^ b;
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -154,12 +141,7 @@ TYPED_TEST(BoolTest, LogicalAnd)
     bool_ct b = witness_ct(&composer, 1);
     (!a) && (!b);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -173,12 +155,8 @@ TYPED_TEST(BoolTest, And)
         bool_ct b = witness_ct(&composer, (bool)(i % 2 == 1));
         a& b;
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -203,12 +181,8 @@ TYPED_TEST(BoolTest, AndConstants)
             a& b;
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -222,12 +196,8 @@ TYPED_TEST(BoolTest, or)
         bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
         a | b;
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -252,12 +222,8 @@ TYPED_TEST(BoolTest, OrConstants)
             a | b;
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -306,12 +272,8 @@ TYPED_TEST(BoolTest, Eq)
         EXPECT_EQ(c[i].get_value(), c_alt[i]);
         EXPECT_EQ(d[i].get_value(), d_alt[i]);
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -333,12 +295,8 @@ TYPED_TEST(BoolTest, Implies)
             EXPECT_EQ(c.get_value(), !a.get_value() || b.get_value());
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -360,12 +318,8 @@ TYPED_TEST(BoolTest, ImpliesBothWays)
             EXPECT_EQ(c.get_value(), !(a.get_value() ^ b.get_value()));
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -390,12 +344,8 @@ TYPED_TEST(BoolTest, MustImply)
             a.must_imply(b);
         }
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -460,11 +410,7 @@ TYPED_TEST(BoolTest, MustImplyMultiple)
             if (composer.failed()) {
                 EXPECT_EQ(composer.err(), "multi implication fail: g(x) is a multiple of 6");
             } else {
-                auto prover = composer.create_prover();
-                auto verifier = composer.create_verifier();
-
-                plonk::proof proof = prover.construct_proof();
-                bool result = verifier.verify_proof(proof);
+                bool result = composer.check_circuit();
                 EXPECT_EQ(result, true);
             }
         }
@@ -525,12 +471,8 @@ TYPED_TEST(BoolTest, ConditionalAssign)
 
         EXPECT_EQ(result.get_value(), condition ? left : right);
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
     info("composer gates = ", composer.get_num_gates());
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -561,12 +503,8 @@ TYPED_TEST(BoolTest, TestSimpleProof)
         a = b;
         f = b;
     }
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -591,13 +529,7 @@ TYPED_TEST(BoolTest, Normalize)
     generate_constraints(true, true, false);
     generate_constraints(true, true, true);
 
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 } // namespace test_stdlib_bool

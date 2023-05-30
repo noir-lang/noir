@@ -2,6 +2,8 @@
 #include <array>
 #include "circuit_constructor_base.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
+#include "barretenberg/proof_system/types/merkle_hash_type.hpp"
+#include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 
 namespace proof_system {
 
@@ -14,6 +16,11 @@ inline std::vector<std::string> turbo_selector_names()
 class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::Turbo<barretenberg::fr>> {
 
   public:
+    static constexpr ComposerType type = ComposerType::TURBO;
+    static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
+    static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
+    static constexpr size_t UINT_LOG2_BASE = 2;
+
     std::vector<uint32_t>& w_l = std::get<0>(wires);
     std::vector<uint32_t>& w_r = std::get<1>(wires);
     std::vector<uint32_t>& w_o = std::get<2>(wires);
@@ -31,10 +38,10 @@ class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::T
     std::vector<barretenberg::fr>& q_range = selectors.q_range;
     std::vector<barretenberg::fr>& q_logic = selectors.q_logic;
 
-    static constexpr ComposerType type = ComposerType::TURBO;
-    static constexpr size_t UINT_LOG2_BASE = 2;
-
     TurboCircuitConstructor(const size_t size_hint = 0);
+    // This constructor is needed to simplify switching between circuit constructor and composer
+    TurboCircuitConstructor(std::string const&, const size_t size_hint = 0)
+        : TurboCircuitConstructor(size_hint){};
     TurboCircuitConstructor(TurboCircuitConstructor&& other) = default;
     TurboCircuitConstructor& operator=(TurboCircuitConstructor&& other) = delete;
     ~TurboCircuitConstructor() {}

@@ -7,9 +7,9 @@
 #include "sha256_plookup.hpp"
 
 namespace proof_system::plonk {
-class UltraComposer;
-class StandardComposer;
-class TurboComposer;
+class UltraPlonkComposer;
+class StandardPlonkComposer;
+class TurboPlonkComposer;
 } // namespace proof_system::plonk
 
 namespace proof_system::plonk {
@@ -29,16 +29,11 @@ template <typename Composer> field_t<Composer> sha256_to_field(const packed_byte
     return slices[1] + (slices[0] * (uint256_t(1) << 128));
 }
 
-extern template byte_array<plonk::TurboComposer> sha256_block(const byte_array<plonk::TurboComposer>& input);
+#define SHA256_BLOCK(COMPOSER_TYPE) byte_array<COMPOSER_TYPE> sha256_block(const byte_array<COMPOSER_TYPE>& input)
+#define SHA256(COMPOSER_TYPE) packed_byte_array<COMPOSER_TYPE> sha256(const packed_byte_array<COMPOSER_TYPE>& input)
 
-extern template packed_byte_array<plonk::TurboComposer> sha256(const packed_byte_array<plonk::TurboComposer>& input);
-
-extern template byte_array<plonk::StandardComposer> sha256_block(const byte_array<plonk::StandardComposer>& input);
-
-extern template packed_byte_array<plonk::StandardComposer> sha256(
-    const packed_byte_array<plonk::StandardComposer>& input);
-
-extern template packed_byte_array<plonk::UltraComposer> sha256(const packed_byte_array<plonk::UltraComposer>& input);
+EXTERN_STDLIB_METHOD(SHA256_BLOCK)
+EXTERN_STDLIB_METHOD(SHA256)
 
 } // namespace stdlib
 } // namespace proof_system::plonk

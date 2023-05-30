@@ -77,7 +77,7 @@ size_t init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t const*
 
     acir_format::Composer composer(proving_key, nullptr);
     auto verification_key =
-        acir_format::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
+        proof_system::plonk::compute_verification_key_common(proving_key, crs_factory->get_verifier_crs());
 
     // The composer_type has not yet been set. We need to set the composer_type for when we later read in and
     // construct the verification key so that we have the correct polynomial manifest

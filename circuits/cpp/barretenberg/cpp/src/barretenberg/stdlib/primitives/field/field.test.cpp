@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 #include <utility>
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/common/streams.hpp"
 
@@ -97,10 +97,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
             field_ct a(witness_ct(&composer, elt));
             a.create_range_constraint(num_bits, "field_tests: range_constraint on a fails");
 
-            auto prover = composer.create_prover();
-            auto verifier = composer.create_verifier();
-            plonk::proof proof = prover.construct_proof();
-            bool verified = verifier.verify_proof(proof);
+            bool verified = composer.check_circuit();
             EXPECT_EQ(verified, expect_verified);
             if (verified != expect_verified) {
                 info("Range constraint malfunction on ", elt, " with num_bits ", num_bits);
@@ -175,10 +172,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
             EXPECT_EQ(x.get_value(), 1);
             EXPECT_EQ(y.get_value(), 1);
 
-            auto prover = composer.create_prover();
-            plonk::proof proof = prover.construct_proof();
-            auto verifier = composer.create_verifier();
-            bool result = verifier.verify_proof(proof);
+            bool result = composer.check_circuit();
 
             EXPECT_EQ(result, expected_result);
         };
@@ -191,21 +185,12 @@ template <typename Composer> class stdlib_field : public testing::Test {
     static void test_add_mul_with_constants()
     {
         Composer composer = Composer();
-
+        auto gates_before = composer.get_num_gates();
         uint64_t expected = fidget(composer);
-        auto prover = composer.create_prover();
-
-        // TODO(Cody): This is a hack and the test should be rewritten.
-        if constexpr (Composer::type == ComposerType::STANDARD_HONK) {
-            EXPECT_EQ(prover.key->w_o[20], fr(expected));
-        } else {
-            EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[18], fr(expected));
-        }
-
-        EXPECT_EQ(prover.key->circuit_size, 32UL);
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        auto gates_after = composer.get_num_gates();
+        EXPECT_EQ(composer.get_variable(composer.w_o[gates_after - 1]), fr(expected));
+        info("Number of gates added", gates_after - gates_before);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -237,11 +222,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(out.get_value(), 0);
         EXPECT_EQ(out.is_constant(), true);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -256,11 +237,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(b.get_value(), 10);
         EXPECT_EQ(a.get_value(), 11);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -275,40 +252,27 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(b.get_value(), 11);
         EXPECT_EQ(a.get_value(), 11);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_field_fibbonaci()
     {
         Composer composer = Composer();
-
+        auto gates_before = composer.get_num_gates();
         fibbonaci(composer);
+        auto gates_after = composer.get_num_gates();
+        EXPECT_EQ(composer.get_variable(composer.w_l[composer.get_num_gates() - 1]), fr(4181));
+        EXPECT_EQ(gates_after - gates_before, 18UL);
 
-        auto prover = composer.create_prover();
-
-        if constexpr (Composer::type == ComposerType::STANDARD_HONK) {
-            EXPECT_EQ(prover.key->w_o[19], fr(4181));
-        } else {
-            EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[17], fr(4181));
-        }
-
-        EXPECT_EQ(prover.key->circuit_size, 32UL);
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_field_pythagorean()
     {
         Composer composer = Composer();
+
         field_ct a(witness_ct(&composer, 3));
         field_ct b(witness_ct(&composer, 4));
         field_ct c(witness_ct(&composer, 5));
@@ -322,10 +286,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         // composer.assert_equal(sum_sqrs.witness_index, c_sqr.witness_index, "triple is not pythagorean");
         c_sqr.assert_equal(sum_sqrs);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool verified = verifier.verify_proof(proof);
+        bool verified = composer.check_circuit();
 
         for (size_t i = 0; i < composer.variables.size(); i++) {
             info(i, composer.variables[i]);
@@ -336,24 +297,26 @@ template <typename Composer> class stdlib_field : public testing::Test {
     static void test_equality()
     {
         Composer composer = Composer();
-
+        auto gates_before = composer.get_num_gates();
         field_ct a(witness_ct(&composer, 4));
         field_ct b(witness_ct(&composer, 4));
         bool_ct r = a == b;
 
+        auto gates_after = composer.get_num_gates();
         EXPECT_EQ(r.get_value(), true);
-
-        auto prover = composer.create_prover();
 
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
-        EXPECT_EQ(prover.key->circuit_size, 16UL);
-        auto verifier = composer.create_verifier();
+        // This logic requires on madd in field, which creates a big mul gate.
+        // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
+        if constexpr (Composer::type == ComposerType::STANDARD) {
+            EXPECT_EQ(gates_after - gates_before, 6UL);
+        } else {
+            EXPECT_EQ(gates_after - gates_before, 4UL);
+        }
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -361,23 +324,27 @@ template <typename Composer> class stdlib_field : public testing::Test {
     {
         Composer composer = Composer();
 
+        auto gates_before = composer.get_num_gates();
         field_ct a(witness_ct(&composer, 4));
         field_ct b(witness_ct(&composer, 3));
         bool_ct r = a == b;
 
         EXPECT_EQ(r.get_value(), false);
 
-        auto prover = composer.create_prover();
+        auto gates_after = composer.get_num_gates();
 
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(0));
 
-        EXPECT_EQ(prover.key->circuit_size, 16UL);
-        auto verifier = composer.create_verifier();
+        // This logic requires on madd in field, which creates a big mul gate.
+        // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
+        if constexpr (Composer::type == ComposerType::STANDARD) {
+            EXPECT_EQ(gates_after - gates_before, 6UL);
+        } else {
+            EXPECT_EQ(gates_after - gates_before, 4UL);
+        }
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -385,6 +352,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
     {
         Composer composer = Composer();
 
+        auto gates_before = composer.get_num_gates();
         field_ct a(witness_ct(&composer, 4));
         field_ct b = 3;
         field_ct c = 7;
@@ -392,17 +360,20 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         EXPECT_EQ(r.get_value(), true);
 
-        auto prover = composer.create_prover();
+        auto gates_after = composer.get_num_gates();
 
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
-        EXPECT_EQ(prover.key->circuit_size, 16UL);
-        auto verifier = composer.create_verifier();
+        // This logic requires on madd in field, which creates a big mul gate.
+        // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
+        if constexpr (Composer::type == ComposerType::STANDARD) {
+            EXPECT_EQ(gates_after - gates_before, 11UL);
+        } else {
+            EXPECT_EQ(gates_after - gates_before, 7UL);
+        }
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -413,13 +384,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         generate_test_plonk_circuit(composer, n);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -459,13 +424,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(d_zero.get_value(), true);
         EXPECT_EQ(e_zero.get_value(), false);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -514,13 +473,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         n = n.normalize();
         EXPECT_EQ(m.get_value(), n.get_value());
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -547,13 +500,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(result_c.get_value(), c.get_value());
         EXPECT_EQ(result_d.get_value(), d.get_value());
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -573,13 +520,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(slice_data[1].get_value(), fr(169));
         EXPECT_EQ(slice_data[2].get_value(), fr(61));
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -599,13 +540,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(slice_data[1].get_value(), fr(1));
         EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -628,13 +563,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(slice[1].get_value(), fr(expected1));
         EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -673,13 +602,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(result_g.get_value(), g.get_value());
         EXPECT_EQ(result_h.get_value(), h.get_value());
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -720,10 +643,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
                 EXPECT_EQ(bit_sum, a_expected);
             };
 
-            auto prover = composer.create_prover();
-            auto verifier = composer.create_verifier();
-            plonk::proof proof = prover.construct_proof();
-            bool verified = verifier.verify_proof(proof);
+            bool verified = composer.check_circuit();
             ASSERT_TRUE(verified);
         };
 
@@ -751,10 +671,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
             field_ct a = witness_ct(&composer, a_expected);
             std::vector<bool_ct> c = a.decompose_into_bits(256, witness_supplier);
 
-            auto prover = composer.create_prover();
-            auto verifier = composer.create_verifier();
-            plonk::proof proof = prover.construct_proof();
-            bool verified = verifier.verify_proof(proof);
+            bool verified = composer.check_circuit();
             ASSERT_FALSE(verified);
         };
 
@@ -775,12 +692,9 @@ template <typename Composer> class stdlib_field : public testing::Test {
         std::vector<field_ct> set = { a, b, c, d, e };
 
         a.assert_is_in_set(set);
-
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool result = verifier.verify_proof(proof);
+
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -798,11 +712,8 @@ template <typename Composer> class stdlib_field : public testing::Test {
         field_ct f(witness_ct(&composer, fr(6)));
         f.assert_is_in_set(set);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, false);
     }
 
@@ -820,12 +731,9 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         EXPECT_EQ(result.get_value(), expected);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
+        bool check_result = composer.check_circuit();
+        EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_zero()
@@ -841,12 +749,9 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         EXPECT_EQ(result.get_value(), barretenberg::fr(1));
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
+        bool check_result = composer.check_circuit();
+        EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_one()
@@ -861,13 +766,10 @@ template <typename Composer> class stdlib_field : public testing::Test {
         field_ct result = base.pow(exponent);
 
         EXPECT_EQ(result.get_value(), base_val);
-
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
+
+        bool check_result = composer.check_circuit();
+        EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_both_constant()
@@ -904,12 +806,9 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         EXPECT_EQ(result.get_value(), expected);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
+        bool check_result = composer.check_circuit();
+        EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_exponent_constant()
@@ -925,13 +824,10 @@ template <typename Composer> class stdlib_field : public testing::Test {
         barretenberg::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
-
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
+
+        bool check_result = composer.check_circuit();
+        EXPECT_EQ(check_result, true);
     };
 
     static void test_pow_exponent_out_of_range()
@@ -968,12 +864,10 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(value_ct.get_witness_index() + 1, first_copy.get_witness_index());
         EXPECT_EQ(value_ct.get_witness_index() + 2, second_copy.get_witness_index());
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
+
+        bool result = composer.check_circuit();
+        EXPECT_EQ(result, true);
     }
 
     static void test_ranged_less_than()
@@ -1016,15 +910,14 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
             EXPECT_EQ(result.get_value(), expected);
         }
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
+        bool check_result = composer.check_circuit();
+        EXPECT_EQ(check_result, true);
     }
 };
 
-typedef testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer, honk::StandardHonkComposer>
+typedef testing::Types<proof_system::StandardCircuitConstructor,
+                       proof_system::TurboCircuitConstructor,
+                       proof_system::UltraCircuitConstructor>
     ComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_field, ComposerTypes);

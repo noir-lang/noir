@@ -1,10 +1,10 @@
 #include "./plookup.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 namespace proof_system::plonk {
-class UltraComposer;
+class UltraPlonkComposer;
 } // namespace proof_system::plonk
 
 namespace proof_system::plonk {
@@ -15,10 +15,10 @@ using plookup::MultiTableId;
 using namespace barretenberg;
 
 template <typename Composer>
-plookup::ReadData<field_t<Composer>> plookup_<Composer>::get_lookup_accumulators(const MultiTableId id,
-                                                                                 const field_t<Composer>& key_a_in,
-                                                                                 const field_t<Composer>& key_b_in,
-                                                                                 const bool is_2_to_1_lookup)
+plookup::ReadData<field_t<Composer>> plookup_read<Composer>::get_lookup_accumulators(const MultiTableId id,
+                                                                                     const field_t<Composer>& key_a_in,
+                                                                                     const field_t<Composer>& key_b_in,
+                                                                                     const bool is_2_to_1_lookup)
 {
     auto key_a = key_a_in.normalize();
     auto key_b = key_b_in.normalize();
@@ -65,8 +65,8 @@ plookup::ReadData<field_t<Composer>> plookup_<Composer>::get_lookup_accumulators
 }
 
 template <typename Composer>
-std::pair<field_t<Composer>, field_t<Composer>> plookup_<Composer>::read_pair_from_table(const MultiTableId id,
-                                                                                         const field_t<Composer>& key)
+std::pair<field_t<Composer>, field_t<Composer>> plookup_read<Composer>::read_pair_from_table(
+    const MultiTableId id, const field_t<Composer>& key)
 {
     const auto lookup = get_lookup_accumulators(id, key);
 
@@ -74,9 +74,9 @@ std::pair<field_t<Composer>, field_t<Composer>> plookup_<Composer>::read_pair_fr
 }
 
 template <typename Composer>
-field_t<Composer> plookup_<Composer>::read_from_2_to_1_table(const MultiTableId id,
-                                                             const field_t<Composer>& key_a,
-                                                             const field_t<Composer>& key_b)
+field_t<Composer> plookup_read<Composer>::read_from_2_to_1_table(const MultiTableId id,
+                                                                 const field_t<Composer>& key_a,
+                                                                 const field_t<Composer>& key_b)
 {
     const auto lookup = get_lookup_accumulators(id, key_a, key_b, true);
 
@@ -84,13 +84,13 @@ field_t<Composer> plookup_<Composer>::read_from_2_to_1_table(const MultiTableId 
 }
 
 template <typename Composer>
-field_t<Composer> plookup_<Composer>::read_from_1_to_2_table(const MultiTableId id, const field_t<Composer>& key_a)
+field_t<Composer> plookup_read<Composer>::read_from_1_to_2_table(const MultiTableId id, const field_t<Composer>& key_a)
 {
     const auto lookup = get_lookup_accumulators(id, key_a);
 
     return lookup[ColumnIdx::C2][0];
 }
 
-template class plookup_<plonk::UltraComposer>;
+INSTANTIATE_STDLIB_ULTRA_TYPE(plookup_read)
 } // namespace stdlib
 } // namespace proof_system::plonk

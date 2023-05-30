@@ -84,7 +84,7 @@ auto verify_internal(Composer& composer, Tx& tx, CircuitData const& cd, char con
     info(name, ": Creating proof...");
 
     if (!cd.mock) {
-        if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
+        if constexpr (std::is_same<Composer, plonk::UltraPlonkComposer>::value) {
             if (std::string(name) == "root rollup") {
                 auto prover = composer.create_ultra_to_standard_prover();
                 auto proof = prover.construct_proof();
@@ -102,7 +102,7 @@ auto verify_internal(Composer& composer, Tx& tx, CircuitData const& cd, char con
     } else {
         Composer mock_proof_composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
         ::join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
-        if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
+        if constexpr (std::is_same<Composer, plonk::UltraPlonkComposer>::value) {
             if (std::string(name) == "root rollup") {
                 auto prover = mock_proof_composer.create_ultra_to_standard_prover();
                 auto proof = prover.construct_proof();
@@ -121,7 +121,7 @@ auto verify_internal(Composer& composer, Tx& tx, CircuitData const& cd, char con
 
     info(name, ": Proof created in ", proof_timer.toString(), "s");
     info(name, ": Total time taken: ", timer.toString(), "s");
-    if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
+    if constexpr (std::is_same<Composer, plonk::UltraPlonkComposer>::value) {
         if (std::string(name) == "root rollup") {
             auto verifier = composer.create_ultra_to_standard_verifier();
             result.verified = verifier.verify_proof({ result.proof_data });

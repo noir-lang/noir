@@ -8,7 +8,6 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../types/program_settings.hpp"
-#include "../../composer/composer_base.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"

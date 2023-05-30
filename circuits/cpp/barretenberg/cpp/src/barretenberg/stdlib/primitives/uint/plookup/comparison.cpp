@@ -73,9 +73,10 @@ template <typename Composer, typename Native> bool_t<Composer> uint_plookup<Comp
 {
     return (field_t<Composer>(*this).is_zero()).normalize();
 }
-template class uint_plookup<plonk::UltraComposer, uint8_t>;
-template class uint_plookup<plonk::UltraComposer, uint16_t>;
-template class uint_plookup<plonk::UltraComposer, uint32_t>;
-template class uint_plookup<plonk::UltraComposer, uint64_t>;
+
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint8_t);
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint16_t);
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint32_t);
+INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint64_t);
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -19,7 +19,7 @@ class StandardHonkComposerHelper {
     using ProvingKey = Flavor::ProvingKey;
     using VerificationKey = Flavor::VerificationKey;
 
-    static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
+    static constexpr size_t NUM_RESERVED_GATES = 2; // equal to the number of multilinear evaluations leaked
     static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<VerificationKey> verification_key;
@@ -59,7 +59,7 @@ class StandardHonkComposerHelper {
     // TODO(#216)(Adrian): Seems error prone to provide the number of randomized gates
     std::shared_ptr<ProvingKey> compute_proving_key_base(const CircuitConstructor& circuit_constructor,
                                                          const size_t minimum_circuit_size = 0,
-                                                         const size_t num_randomized_gates = NUM_RANDOMIZED_GATES);
+                                                         const size_t num_randomized_gates = NUM_RESERVED_GATES);
     // This needs to be static as it may be used only to compute the selector commitments.
 
     static std::shared_ptr<VerificationKey> compute_verification_key_base(

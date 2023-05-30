@@ -4,9 +4,9 @@
 #include <gtest/gtest.h>
 #include <utility>
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
 namespace test_stdlib_array {
@@ -43,11 +43,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
         auto filled_len = array_length<Composer>(values_ct);
         EXPECT_EQ(filled_len.get_value(), filled);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -60,11 +57,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
         EXPECT_EQ(filled_len.get_value(), 0);
         EXPECT_TRUE(filled_len.is_constant());
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -108,11 +102,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
         auto popped = array_pop<Composer>(values_ct);
         EXPECT_EQ(popped.get_value(), values[filled - 1]);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     };
 
@@ -163,11 +154,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
         array_push<Composer>(values_ct, value_ct);
         EXPECT_EQ(value_ct.get_value(), values_ct[filled].get_value());
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -206,11 +194,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
 
         EXPECT_EQ(num_pushes, ARRAY_LEN);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -266,11 +251,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
         is_empty = is_array_empty<Composer>(values_ct);
         EXPECT_EQ(is_empty.get_value(), true);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     };
 
@@ -301,11 +283,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
 
         bool proof_result = false;
         if (!composer.failed()) {
-            auto prover = composer.create_prover();
-            auto verifier = composer.create_verifier();
-            auto proof = prover.construct_proof();
             info("composer gates = ", composer.get_num_gates());
-            proof_result = verifier.verify_proof(proof);
+            proof_result = composer.check_circuit();
         }
 
         return std::make_pair(proof_result, composer.err());
@@ -592,11 +571,8 @@ template <typename Composer> class stdlib_array : public testing::Test {
         EXPECT_EQ(arr[2].get_values().first.get_value(), 3);
         EXPECT_EQ(arr[2].get_values().second.get_value(), 30);
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        auto proof = prover.construct_proof();
         info("composer gates = ", composer.get_num_gates());
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -622,7 +598,9 @@ template <typename Composer> class stdlib_array : public testing::Test {
     }
 };
 
-typedef testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer, honk::StandardHonkComposer>
+typedef testing::Types<proof_system::StandardCircuitConstructor,
+                       proof_system::TurboCircuitConstructor,
+                       proof_system::UltraCircuitConstructor>
     ComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_array, ComposerTypes);

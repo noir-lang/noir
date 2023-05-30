@@ -85,7 +85,7 @@ void StandardHonkComposerHelper::compute_witness(const CircuitConstructor& circu
         return;
     }
     auto wire_polynomials =
-        construct_wire_polynomials_base<Flavor>(circuit_constructor, minimum_circuit_size, NUM_RANDOMIZED_GATES);
+        construct_wire_polynomials_base<Flavor>(circuit_constructor, minimum_circuit_size, NUM_RESERVED_GATES);
 
     proving_key->w_l = wire_polynomials[0];
     proving_key->w_r = wire_polynomials[1];
@@ -109,7 +109,7 @@ std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelp
     }
     // Compute q_l, q_r, q_o, etc polynomials
     StandardHonkComposerHelper::compute_proving_key_base(
-        circuit_constructor, /*minimum_circuit_size=*/0, NUM_RANDOMIZED_GATES);
+        circuit_constructor, /*minimum_circuit_size=*/0, NUM_RESERVED_GATES);
 
     // Compute sigma polynomials (we should update that late)
     compute_standard_honk_sigma_permutations<Flavor>(circuit_constructor, proving_key.get());

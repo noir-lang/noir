@@ -156,14 +156,9 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
         fr_ct out = pedersen_commitment::compress(left, right);
 
-        auto prover = composer.create_prover();
+        info("composer gates = ", composer.get_num_gates());
 
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
 
         auto hash_output = pedersen_recover(left_in, right_in);
@@ -201,14 +196,9 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         fr_ct out_with_zero = pedersen_commitment::compress(out_1_with_zero, out_2);
         fr_ct out_with_r = pedersen_commitment::compress(out_1_with_r, out_2);
 
-        auto prover = composer.create_prover();
+        info("composer gates = ", composer.get_num_gates());
 
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
 
         auto hash_output_1_with_zero = pedersen_recover(zero_fr, one_fr);
@@ -272,14 +262,9 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
         composer.set_public_input(left.witness_index);
 
-        auto prover = composer.create_prover();
+        info("composer gates = ", composer.get_num_gates());
 
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -302,14 +287,9 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
         EXPECT_EQ(result.get_value(), expected);
 
-        auto prover = composer.create_prover();
+        info("composer gates = ", composer.get_num_gates());
 
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -358,14 +338,9 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
             EXPECT_EQ(result.get_value(), expected);
         }
 
-        auto prover = composer.create_prover();
+        info("composer gates = ", composer.get_num_gates());
 
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -412,7 +387,10 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
     }
 };
 
-typedef testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer> ComposerTypes;
+typedef testing::Types<proof_system::StandardCircuitConstructor,
+                       proof_system::TurboCircuitConstructor,
+                       proof_system::UltraCircuitConstructor>
+    ComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_pedersen, ComposerTypes);
 

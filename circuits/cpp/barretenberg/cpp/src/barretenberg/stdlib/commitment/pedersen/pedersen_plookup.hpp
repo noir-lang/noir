@@ -45,6 +45,6 @@ template <typename ComposerContext> class pedersen_plookup_commitment {
     static point compress_to_point(const field_t& left, const field_t& right, const bool skip_rhs_range_check = false);
 };
 
-extern template class pedersen_plookup_commitment<UltraComposer>;
+EXTERN_STDLIB_ULTRA_TYPE(pedersen_plookup_commitment)
 } // namespace stdlib
 } // namespace proof_system::plonk

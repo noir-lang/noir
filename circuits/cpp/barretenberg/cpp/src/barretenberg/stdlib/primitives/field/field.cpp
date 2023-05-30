@@ -741,7 +741,10 @@ void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, st
         } else {
             if constexpr (ComposerContext::type == ComposerType::PLOOKUP) {
                 context->decompose_into_default_range(
-                    normalize().get_witness_index(), num_bits, plonk::UltraComposer::DEFAULT_PLOOKUP_RANGE_BITNUM, msg);
+                    normalize().get_witness_index(),
+                    num_bits,
+                    proof_system::UltraCircuitConstructor::DEFAULT_PLOOKUP_RANGE_BITNUM,
+                    msg);
             } else {
                 context->decompose_into_base4_accumulators(normalize().get_witness_index(), num_bits, msg);
             }
@@ -960,7 +963,7 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
         return input[0]; //.normalize();
     }
     /**
-     * If we are using UltraComposer, we can accumulate 3 values into a sum per gate.
+     * If we are using UltraPlonkComposer, we can accumulate 3 values into a sum per gate.
      * We track a decumulating sum of values in the 4th wire of every row.
      * i.e. the 4th wire of the first row is the total output value
      *

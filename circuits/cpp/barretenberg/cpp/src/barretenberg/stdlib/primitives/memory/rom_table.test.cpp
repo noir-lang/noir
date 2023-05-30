@@ -4,14 +4,14 @@
 
 #include "barretenberg/numeric/random/engine.hpp"
 
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 
 namespace test_stdlib_rom_array {
 using namespace barretenberg;
 using namespace proof_system::plonk;
 
 // Defining ultra-specific types for local testing.
-using Composer = proof_system::plonk::UltraComposer;
+using Composer = proof_system::UltraCircuitConstructor;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;
 using rom_table_ct = stdlib::rom_table<Composer>;
@@ -61,10 +61,7 @@ TEST(rom_table, rom_table_read_write_consistency)
 
     EXPECT_EQ(result.get_value(), expected);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-    bool verified = verifier.verify_proof(proof);
+    bool verified = composer.check_circuit();
     EXPECT_EQ(verified, true);
 }
 

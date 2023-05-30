@@ -4,8 +4,6 @@
 
 #include "barretenberg/numeric/random/engine.hpp"
 
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-
 #include "../bool/bool.hpp"
 
 namespace test_stdlib_dynamic_array {
@@ -17,8 +15,8 @@ auto& engine = numeric::random::get_debug_engine();
 }
 
 // Defining ultra-specific types for local testing.
-using Composer = proof_system::plonk::UltraComposer;
-using bool_ct = stdlib::bool_t<plonk::UltraComposer>;
+using Composer = proof_system::UltraCircuitConstructor;
+using bool_ct = stdlib::bool_t<Composer>;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;
 using DynamicArray_ct = stdlib::DynamicArray<Composer>;
@@ -62,10 +60,7 @@ TEST(DynamicArray, DynamicArrayReadWriteConsistency)
     array.conditional_pop(true);
     EXPECT_EQ(array.native_size(), max_size - 1);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-    bool verified = verifier.verify_proof(proof);
+    bool verified = composer.check_circuit();
     EXPECT_EQ(verified, true);
 }
 

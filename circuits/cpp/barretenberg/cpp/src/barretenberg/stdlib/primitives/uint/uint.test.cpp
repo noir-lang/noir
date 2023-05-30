@@ -1,5 +1,4 @@
 #include "uint.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include <functional>
 #include <gtest/gtest.h>
 #include "barretenberg/numeric/random/engine.hpp"
@@ -14,7 +13,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 // NOTE: We only test width 32, but widths 8, 16, 32 and 64 can all be tested.
 //       In widths 8, 16, 32: all tests pass.
-//       In width 64, the following tests fail for UltraComposer.
+//       In width 64, the following tests fail for UltraPlonkComposer.
 //           test_xor_special, test_xor_more_constants, test_and_constants, test_and_special, test_or_special,
 //           test_ror_special, test_hash_rounds, test_and, test_xor, test_or.
 // They fail with 'C++ exception with description"Last key slice greater than 64" thrown in the test body."'
@@ -123,10 +122,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             };
 
             EXPECT_EQ(uint256_t(expected), a.get_value());
-            auto prover = composer.create_prover();
-            auto verifier = composer.create_verifier();
-            plonk::proof proof = prover.construct_proof();
-            bool verified = verifier.verify_proof(proof);
+            bool verified = composer.check_circuit();
             EXPECT_EQ(verified, true);
         };
 
@@ -238,10 +234,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             }
         };
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -275,10 +268,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             }
         };
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool verified = verifier.verify_proof(proof);
+        bool verified = composer.check_circuit();
 
         EXPECT_EQ(verified, true);
     }
@@ -315,10 +305,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             EXPECT_EQ(result[i].get_value(), expected[i]);
         }
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool proof_valid = verifier.verify_proof(proof);
+        bool proof_valid = composer.check_circuit();
         EXPECT_EQ(proof_valid, true);
     }
 
@@ -367,10 +354,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             }
         };
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -384,10 +368,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         uint_ct b = a;
         uint_ct c = a * b;
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -422,13 +403,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         EXPECT_EQ(a_result, a_expected);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -479,13 +454,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         uint_native c_result =
             static_cast<uint_native>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
         EXPECT_EQ(c_result, c_expected);
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -522,13 +491,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         uint_native c_result =
             static_cast<uint_native>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
         EXPECT_EQ(c_result, c_expected);
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -562,13 +525,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
         EXPECT_EQ(a_result, a_expected);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -602,13 +559,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
         EXPECT_EQ(a_result, a_expected);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -661,13 +612,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             bool c_result = static_cast<bool>(c.get_value());
             EXPECT_EQ(c_result, c_expected);
 
-            auto prover = composer.create_prover();
-
-            auto verifier = composer.create_verifier();
-
-            plonk::proof proof = prover.construct_proof();
-
-            bool result = verifier.verify_proof(proof);
+            bool result = composer.check_circuit();
             EXPECT_EQ(result, true);
         };
 
@@ -722,13 +667,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
         EXPECT_EQ(a_result, a_expected);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -883,13 +822,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         EXPECT_EQ(g_result, g_alt);
         EXPECT_EQ(h_result, h_alt);
 
-        auto prover = composer.create_prover();
-
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -921,14 +854,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         add_integers(true, false);
         add_integers(true, true);
 
-        auto prover = composer.create_prover();
-
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -958,14 +884,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         sub_integers(true, false);
         sub_integers(true, true);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -999,14 +920,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         mul_integers(true, false);
         mul_integers(true, true);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1060,14 +976,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         divide_integers(true, false, false, true, false);
         divide_integers(true, true, false, true, false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1116,14 +1027,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         mod_integers(true, false, false, true, false);
         mod_integers(true, true, false, true, false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1151,13 +1057,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             uint_ct e = c / d;
             e = e.normalize();
 
-            auto prover = composer.create_prover();
-
-            auto verifier = composer.create_verifier();
-
-            plonk::proof proof = prover.construct_proof();
-
-            bool proof_result = verifier.verify_proof(proof);
+            bool proof_result = composer.check_circuit();
             EXPECT_EQ(proof_result, false);
         };
 
@@ -1195,10 +1095,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             }
         };
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -1278,10 +1175,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         composer.create_range_constraint(
             remainder_idx, uint_native_width, "remainder range constraint fails in div_remainder_constraint test");
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, false);
     }
 
@@ -1314,14 +1208,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         and_integers(true, false);
         and_integers(true, true);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1354,14 +1243,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         xor_integers(true, false);
         xor_integers(true, true);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1398,14 +1282,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         or_integers(true, false);
         or_integers(true, true);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1433,14 +1312,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         not_integers(true, false);
         not_integers(true, true);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1477,14 +1351,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         compare_integers(false, true, false);  //      b > a
         compare_integers(true, false, false);  //      b = a
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1523,14 +1392,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         compare_integers(false, true, false);
         compare_integers(true, false, false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1568,14 +1432,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         compare_integers(false, true, false);
         compare_integers(true, false, false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1614,14 +1473,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         compare_integers(false, true, false);
         compare_integers(true, false, false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1660,14 +1514,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         compare_integers(false, true, false);
         compare_integers(true, false, false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1706,14 +1555,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         compare_integers(false, true, false);
         compare_integers(true, false, false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1739,14 +1583,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         not_integer(false);
         not_integer(false);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1772,14 +1611,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             shift_integer(true, i);
         }
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1805,14 +1639,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             shift_integer(false, i);
         }
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1842,14 +1671,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             ror_integer(false, i);
         }
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1879,14 +1703,9 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             rol_integer(false, i);
         }
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 
@@ -1917,19 +1736,16 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         bit_test(false);
         bit_test(true);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool proof_result = verifier.verify_proof(proof);
+        bool proof_result = composer.check_circuit();
         EXPECT_EQ(proof_result, true);
     }
 };
 
-typedef testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer, honk::StandardHonkComposer>
+typedef testing::Types<proof_system::StandardCircuitConstructor,
+                       proof_system::TurboCircuitConstructor,
+                       proof_system::UltraCircuitConstructor>
     ComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_uint, ComposerTypes);
@@ -2107,10 +1923,10 @@ TYPED_TEST(stdlib_uint, test_at)
 // There was one plookup-specific test in the ./plookup/uint_plookup.test.cpp
 TEST(stdlib_uint32, test_accumulators_plookup_uint32)
 {
-    using uint32_ct = proof_system::plonk::stdlib::uint32<plonk::UltraComposer>;
-    using witness_ct = proof_system::plonk::stdlib::witness_t<plonk::UltraComposer>;
+    using uint32_ct = proof_system::plonk::stdlib::uint32<plonk::UltraPlonkComposer>;
+    using witness_ct = proof_system::plonk::stdlib::witness_t<plonk::UltraPlonkComposer>;
 
-    plonk::UltraComposer composer = proof_system::plonk::UltraComposer();
+    plonk::UltraPlonkComposer composer = proof_system::plonk::UltraPlonkComposer();
 
     uint32_t a_val = engine.get_random_uint32();
     uint32_t b_val = engine.get_random_uint32();
@@ -2127,15 +1943,9 @@ TEST(stdlib_uint32, test_accumulators_plookup_uint32)
         EXPECT_EQ(result, expected);
     }
 
-    printf("calling preprocess\n");
-    auto prover = composer.create_prover();
-
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
 
-    auto proof = prover.construct_proof();
-
-    bool proof_result = verifier.verify_proof(proof);
+    bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 } // namespace test_stdlib_uint

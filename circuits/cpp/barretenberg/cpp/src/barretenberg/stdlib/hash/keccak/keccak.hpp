@@ -5,7 +5,7 @@
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 
 namespace proof_system::plonk {
-class UltraComposer;
+class UltraPlonkComposer;
 } // namespace proof_system::plonk
 
 namespace proof_system::plonk {
@@ -195,7 +195,7 @@ template <typename Composer> class keccak {
     }
 };
 
-extern template class keccak<plonk::UltraComposer>;
+EXTERN_STDLIB_ULTRA_TYPE(keccak)
 
 } // namespace stdlib
 } // namespace proof_system::plonk

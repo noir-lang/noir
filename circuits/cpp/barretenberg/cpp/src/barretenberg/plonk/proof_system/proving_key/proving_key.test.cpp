@@ -2,8 +2,8 @@
 #include "barretenberg/common/streams.hpp"
 #include "proving_key.hpp"
 #include "serialize.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 
 #ifndef __wasm__
 #include <filesystem>
@@ -15,7 +15,7 @@ using namespace proof_system;
 // Test proving key serialization/deserialization to/from buffer
 TEST(proving_key, proving_key_from_serialized_key)
 {
-    plonk::StandardComposer composer = plonk::StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
@@ -48,10 +48,10 @@ TEST(proving_key, proving_key_from_serialized_key)
     EXPECT_EQ(p_key.contains_recursive_proof, proving_key->contains_recursive_proof);
 }
 
-// Test proving key serialization/deserialization to/from buffer using UltraComposer
+// Test proving key serialization/deserialization to/from buffer using UltraPlonkComposer
 TEST(proving_key, proving_key_from_serialized_key_ultra)
 {
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraPlonkComposer composer = plonk::UltraPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
@@ -88,7 +88,7 @@ TEST(proving_key, proving_key_from_serialized_key_ultra)
 #ifndef __wasm__
 TEST(proving_key, proving_key_from_mmaped_key)
 {
-    plonk::StandardComposer composer = plonk::StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 

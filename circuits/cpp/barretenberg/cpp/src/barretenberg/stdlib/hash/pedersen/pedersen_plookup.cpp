@@ -99,11 +99,11 @@ point<C> pedersen_plookup_hash<C>::hash_single(const field_t& scalar, const bool
     // i.e. we do not require a check that scalar slice sums < p .
     // We can also likely use a multitable with 1 less lookup
     if (parity) {
-        lookup_lo = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_LO, y_lo);
-        lookup_hi = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_HI, y_hi);
+        lookup_lo = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_LO, y_lo);
+        lookup_hi = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_HI, y_hi);
     } else {
-        lookup_lo = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_LO, y_lo);
-        lookup_hi = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_HI, y_hi);
+        lookup_lo = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_LO, y_lo);
+        lookup_hi = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_HI, y_hi);
     }
 
     // validate slices equal scalar
@@ -169,7 +169,7 @@ field_t<C> pedersen_plookup_hash<C>::hash_multiple(const std::vector<field_t>& i
         return point{ 0, 0 }.x;
     }
 
-    auto result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, hash_index)[ColumnIdx::C2][0];
+    auto result = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, hash_index)[ColumnIdx::C2][0];
     auto num_inputs = inputs.size();
     for (size_t i = 0; i < num_inputs; i++) {
         auto p2 = pedersen_plookup_hash<C>::hash_single(result, false);
@@ -182,7 +182,7 @@ field_t<C> pedersen_plookup_hash<C>::hash_multiple(const std::vector<field_t>& i
     return add_points(p1, p2).x;
 }
 
-template class pedersen_plookup_hash<plonk::UltraComposer>;
+INSTANTIATE_STDLIB_ULTRA_TYPE(pedersen_plookup_hash);
 
 } // namespace stdlib
 } // namespace proof_system::plonk

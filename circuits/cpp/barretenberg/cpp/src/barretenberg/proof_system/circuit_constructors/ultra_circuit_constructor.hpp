@@ -8,6 +8,7 @@
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
+#include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 #include <optional>
 
 namespace proof_system {
@@ -16,6 +17,7 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::LOOKUP_PEDERSEN;
+    static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
     static constexpr size_t UINT_LOG2_BASE = 6; // DOCTODO: explain what this is, or rename.
     // The plookup range proof requires work linear in range size, thus cannot be used directly for
     // large ranges such as 2^64. For such ranges the element will be decomposed into smaller
@@ -27,7 +29,8 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     static constexpr uint32_t UNINITIALIZED_MEMORY_RECORD = UINT32_MAX;
     static constexpr size_t NUMBER_OF_GATES_PER_RAM_ACCESS = 2;
     static constexpr size_t NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY = 1;
-
+    // number of gates created per non-native field operation in process_non_native_field_multiplications
+    static constexpr size_t GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 7;
     struct non_native_field_witnesses {
         // first 4 array elements = limbs
         // 5th element = prime basis limb
@@ -566,10 +569,9 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
 
     std::vector<cached_partial_non_native_field_multiplication> cached_partial_non_native_field_multiplications;
 
-    void process_non_native_field_multiplications();
-
     bool circuit_finalised = false;
 
+    void process_non_native_field_multiplications();
     UltraCircuitConstructor(const size_t size_hint = 0)
         : CircuitConstructorBase(ultra_selector_names(), size_hint)
     {
@@ -579,15 +581,42 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
         w_4.reserve(size_hint);
         zero_idx = put_constant_variable(barretenberg::fr::zero());
         tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
-
-        // TODO(#217/#423): Related to issue of ensuring no identically 0 polynomials
-        add_gates_to_ensure_all_polys_are_non_zero();
     };
-
+    UltraCircuitConstructor(std::string const&, const size_t size_hint = 0)
+        : UltraCircuitConstructor(size_hint){};
     UltraCircuitConstructor(const UltraCircuitConstructor& other) = delete;
-    UltraCircuitConstructor(UltraCircuitConstructor&& other) = default;
+    UltraCircuitConstructor(UltraCircuitConstructor&& other)
+        : CircuitConstructorBase<arithmetization::Ultra<barretenberg::fr>>(std::move(other))
+    {
+        constant_variable_indices = other.constant_variable_indices;
+
+        lookup_tables = other.lookup_tables;
+        lookup_multi_tables = other.lookup_multi_tables;
+        range_lists = other.range_lists;
+        ram_arrays = other.ram_arrays;
+        rom_arrays = other.rom_arrays;
+        memory_read_records = other.memory_read_records;
+        memory_write_records = other.memory_write_records;
+        cached_partial_non_native_field_multiplications = other.cached_partial_non_native_field_multiplications;
+        circuit_finalised = other.circuit_finalised;
+    };
     UltraCircuitConstructor& operator=(const UltraCircuitConstructor& other) = delete;
-    UltraCircuitConstructor& operator=(UltraCircuitConstructor&& other) = delete;
+    UltraCircuitConstructor& operator=(UltraCircuitConstructor&& other)
+    {
+        CircuitConstructorBase<arithmetization::Ultra<barretenberg::fr>>::operator=(std::move(other));
+        constant_variable_indices = other.constant_variable_indices;
+
+        lookup_tables = other.lookup_tables;
+        lookup_multi_tables = other.lookup_multi_tables;
+        range_lists = other.range_lists;
+        ram_arrays = other.ram_arrays;
+        rom_arrays = other.rom_arrays;
+        memory_read_records = other.memory_read_records;
+        memory_write_records = other.memory_write_records;
+        cached_partial_non_native_field_multiplications = other.cached_partial_non_native_field_multiplications;
+        circuit_finalised = other.circuit_finalised;
+        return *this;
+    };
     ~UltraCircuitConstructor() override = default;
 
     void finalize_circuit();
@@ -630,12 +659,27 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
             /**
              * N.B. if `variable_index` is not used in any arithmetic constraints, this will create an unsatisfiable
              *      circuit!
-             *      this range constraint will increase the size of the 'sorted set' of range-constrained integers
-             *by 1. The 'non-sorted set' of range-constrained integers is a subset of the wire indices of all
-             *arithmetic gates. No arithemtic gate => size imbalance between sorted and non-sorted sets. Checking
-             *for this and throwing an error would require a refactor of the Composer to catelog all 'orphan'
-             *variables not assigned to gates.
+             *      this range constraint will increase the size of the 'sorted set' of range-constrained integers by 1.
+             *      The 'non-sorted set' of range-constrained integers is a subset of the wire indices of all arithmetic
+             *      gates. No arithemtic gate => size imbalance between sorted and non-sorted sets. Checking for this
+             *      and throwing an error would require a refactor of the Composer to catelog all 'orphan' variables not
+             *      assigned to gates.
+             *
+             * TODO(Suyash):
+             *    The following is a temporary fix to make sure the range constraints on numbers with
+             *    num_bits <= DEFAULT_PLOOKUP_RANGE_BITNUM is correctly enforced in the circuit.
+             *    Longer term, as Zac says, we would need to refactor the composer to fix this.
              **/
+            create_poly_gate(poly_triple{
+                .a = variable_index,
+                .b = variable_index,
+                .c = variable_index,
+                .q_m = 0,
+                .q_l = 1,
+                .q_r = -1,
+                .q_o = 0,
+                .q_c = 0,
+            });
             create_new_range_constraint(variable_index, 1ULL << num_bits, msg);
         } else {
             decompose_into_default_range(variable_index, num_bits, DEFAULT_PLOOKUP_RANGE_BITNUM, msg);
@@ -653,6 +697,165 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
 
     size_t get_num_constant_gates() const override { return 0; }
 
+    /**
+     * @brief Get the final number of gates in a circuit, which consists of the sum of:
+     * 1) Current number number of actual gates
+     * 2) Number of public inputs, as we'll need to add a gate for each of them
+     * 3) Number of Rom array-associated gates
+     * 4) Number of range-list associated gates
+     * 5) Number of non-native field multiplication gates.
+     *
+     *
+     * @param count return arument, number of existing gates
+     * @param rangecount return argument, extra gates due to range checks
+     * @param romcount return argument, extra gates due to rom reads
+     * @param ramcount return argument, extra gates due to ram read/writes
+     * @param nnfcount return argument, extra gates due to queued non native field gates
+     */
+    void get_num_gates_split_into_components(
+        size_t& count, size_t& rangecount, size_t& romcount, size_t& ramcount, size_t& nnfcount) const
+    {
+        count = num_gates;
+        // each ROM gate adds +1 extra gate due to the rom reads being copied to a sorted list set
+        for (size_t i = 0; i < rom_arrays.size(); ++i) {
+            for (size_t j = 0; j < rom_arrays[i].state.size(); ++j) {
+                if (rom_arrays[i].state[j][0] == UNINITIALIZED_MEMORY_RECORD) {
+                    romcount += 2;
+                }
+            }
+            romcount += (rom_arrays[i].records.size());
+            romcount += 1; // we add an addition gate after procesing a rom array
+        }
+
+        constexpr size_t gate_width = program_width;
+        // each RAM gate adds +2 extra gates due to the ram reads being copied to a sorted list set,
+        // as well as an extra gate to validate timestamps
+        std::vector<size_t> ram_timestamps;
+        std::vector<size_t> ram_range_sizes;
+        std::vector<size_t> ram_range_exists;
+        for (size_t i = 0; i < ram_arrays.size(); ++i) {
+            for (size_t j = 0; j < ram_arrays[i].state.size(); ++j) {
+                if (ram_arrays[i].state[j] == UNINITIALIZED_MEMORY_RECORD) {
+                    ramcount += NUMBER_OF_GATES_PER_RAM_ACCESS;
+                }
+            }
+            ramcount += (ram_arrays[i].records.size() * NUMBER_OF_GATES_PER_RAM_ACCESS);
+            ramcount += NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY; // we add an addition gate after procesing a ram array
+
+            // there will be 'max_timestamp' number of range checks, need to calculate.
+            const auto max_timestamp = ram_arrays[i].access_count - 1;
+
+            // if a range check of length `max_timestamp` already exists, we are double counting.
+            // We record `ram_timestamps` to detect and correct for this error when we process range lists.
+            ram_timestamps.push_back(max_timestamp);
+            size_t padding = (gate_width - (max_timestamp % gate_width)) % gate_width;
+            if (max_timestamp == gate_width)
+                padding += gate_width;
+            const size_t ram_range_check_list_size = max_timestamp + padding;
+
+            size_t ram_range_check_gate_count = (ram_range_check_list_size / gate_width);
+            ram_range_check_gate_count += 1; // we need to add 1 extra addition gates for every distinct range list
+
+            ram_range_sizes.push_back(ram_range_check_gate_count);
+            ram_range_exists.push_back(false);
+        }
+        for (const auto& list : range_lists) {
+            auto list_size = list.second.variable_indices.size();
+            size_t padding = (gate_width - (list.second.variable_indices.size() % gate_width)) % gate_width;
+            if (list.second.variable_indices.size() == gate_width)
+                padding += gate_width;
+            list_size += padding;
+
+            for (size_t i = 0; i < ram_timestamps.size(); ++i) {
+                if (list.second.target_range == ram_timestamps[i]) {
+                    ram_range_exists[i] = true;
+                }
+            }
+            rangecount += (list_size / gate_width);
+            rangecount += 1; // we need to add 1 extra addition gates for every distinct range list
+        }
+        // update rangecount to include the ram range checks the composer will eventually be creating
+        for (size_t i = 0; i < ram_range_sizes.size(); ++i) {
+            if (!ram_range_exists[i]) {
+                rangecount += ram_range_sizes[i];
+            }
+        }
+        std::vector<cached_partial_non_native_field_multiplication> nnf_copy(
+            cached_partial_non_native_field_multiplications);
+        // update nnfcount
+        std::sort(nnf_copy.begin(), nnf_copy.end());
+
+        auto last = std::unique(nnf_copy.begin(), nnf_copy.end());
+        const size_t num_nnf_ops = static_cast<size_t>(std::distance(nnf_copy.begin(), last));
+        nnfcount = num_nnf_ops * GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC;
+    }
+
+    /**
+     * @brief Get the final number of gates in a circuit, which consists of the sum of:
+     * 1) Current number number of actual gates
+     * 2) Number of public inputs, as we'll need to add a gate for each of them
+     * 3) Number of Rom array-associated gates
+     * 4) Number of range-list associated gates
+     * 5) Number of non-native field multiplication gates.
+     *
+     * @return size_t
+     */
+    size_t get_num_gates() const override
+    {
+        // if circuit finalised already added extra gates
+        if (circuit_finalised) {
+            return num_gates;
+        }
+        size_t count = 0;
+        size_t rangecount = 0;
+        size_t romcount = 0;
+        size_t ramcount = 0;
+        size_t nnfcount = 0;
+        get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
+        return count + romcount + ramcount + rangecount + nnfcount;
+    }
+
+    /**
+     * @brief Get the size of the circuit if it was finalized now
+     *
+     * @details This method estimates the size of the circuit without rounding up to the next power of 2. It takes into
+     * account the possibility that the tables will dominate the size and checks both the estimated plookup argument
+     * size and the general circuit size
+     *
+     * @return size_t
+     */
+    size_t get_total_circuit_size() const
+    {
+        size_t tables_size = 0;
+        size_t lookups_size = 0;
+        for (const auto& table : lookup_tables) {
+            tables_size += table.size;
+            lookups_size += table.lookup_gates.size();
+        }
+
+        auto minimum_circuit_size = tables_size + lookups_size;
+        auto num_filled_gates = get_num_gates() + public_inputs.size();
+        return std::max(minimum_circuit_size, num_filled_gates);
+    }
+
+    /**
+     * @brief Print the number and composition of gates in the circuit
+     *
+     */
+    virtual void print_num_gates() const override
+    {
+        size_t count = 0;
+        size_t rangecount = 0;
+        size_t romcount = 0;
+        size_t ramcount = 0;
+        size_t nnfcount = 0;
+        get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
+
+        size_t total = count + romcount + ramcount + rangecount;
+        std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", ram " << ramcount
+                  << ", range " << rangecount << ", non native field gates " << nnfcount
+                  << "), pubinp = " << public_inputs.size() << std::endl;
+    }
     // /**
     //  * @brief Get the final number of gates in a circuit, which consists of the sum of:
     //  * 1) Current number number of actual gates
@@ -861,7 +1064,7 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     }
 
     RangeList create_range_list(const uint64_t target_range);
-    void process_range_list(const RangeList& list);
+    void process_range_list(RangeList& list);
     void process_range_lists();
 
     /**

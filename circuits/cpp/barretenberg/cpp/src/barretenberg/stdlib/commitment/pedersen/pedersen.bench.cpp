@@ -3,7 +3,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
@@ -36,15 +36,15 @@ constexpr size_t get_index(const size_t target_count_base)
     }
     return 0;
 }
-void generate_test_pedersen_circuit(plonk::TurboComposer& turbo_composer, size_t num_repetitions)
+void generate_test_pedersen_circuit(plonk::TurboPlonkComposer& turbo_plonk_composer, size_t num_repetitions)
 {
-    plonk::stdlib::field_t<plonk::TurboComposer> left(
-        plonk::stdlib::witness_t(&turbo_composer, barretenberg::fr::random_element()));
-    plonk::stdlib::field_t<plonk::TurboComposer> out(
-        plonk::stdlib::witness_t(&turbo_composer, barretenberg::fr::random_element()));
+    plonk::stdlib::field_t<plonk::TurboPlonkComposer> left(
+        plonk::stdlib::witness_t(&turbo_plonk_composer, barretenberg::fr::random_element()));
+    plonk::stdlib::field_t<plonk::TurboPlonkComposer> out(
+        plonk::stdlib::witness_t(&turbo_plonk_composer, barretenberg::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = proof_system::plonk::stdlib::pedersen_commitment<plonk::TurboComposer>::compress(left, out);
+        out = proof_system::plonk::stdlib::pedersen_commitment<plonk::TurboPlonkComposer>::compress(left, out);
     }
 }
 
@@ -95,8 +95,8 @@ BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);
 void construct_pedersen_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        plonk::TurboComposer composer =
-            plonk::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        plonk::TurboPlonkComposer composer =
+            plonk::TurboPlonkComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
         std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
         composer.compute_witness();
@@ -117,8 +117,8 @@ BENCHMARK(construct_pedersen_witnesses_bench)
 void construct_pedersen_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        plonk::TurboComposer composer =
-            plonk::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        plonk::TurboPlonkComposer composer =
+            plonk::TurboPlonkComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
         composer.compute_proving_key();
@@ -143,8 +143,8 @@ void construct_pedersen_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        plonk::TurboComposer composer =
-            plonk::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        plonk::TurboPlonkComposer composer =
+            plonk::TurboPlonkComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
         composer.create_prover();

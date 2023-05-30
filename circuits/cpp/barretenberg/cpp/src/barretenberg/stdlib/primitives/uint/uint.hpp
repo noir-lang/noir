@@ -8,9 +8,9 @@
 #include "./plookup/uint.hpp"
 
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

@@ -2,7 +2,7 @@
 
 #include "barretenberg/plonk/flavor/flavor.hpp"
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
-#include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
+#include "barretenberg/plonk/composer/composer_helper/composer_helper_lib.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
@@ -18,11 +18,6 @@ class UltraPlonkComposerHelper {
     using Flavor = flavor::Ultra;
     using CircuitConstructor = UltraCircuitConstructor;
 
-    // TODO(luke): In the split composers, NUM_RANDOMIZED_GATES has replaced NUM_RESERVED_GATES (in some places) to
-    // determine the next-power-of-2 circuit size. (There are some places in this composer that still use
-    // NUM_RESERVED_GATES). Therefore for consistency within this composer itself, and consistency with the original
-    // Ultra Composer, this value must match that of NUM_RESERVED_GATES. This issue needs to be reconciled
-    // simultaneously here and in the other split composers.
     static constexpr size_t NUM_RESERVED_GATES = 4; // equal to the number of multilinear evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::NUM_WIRES;
     std::shared_ptr<plonk::proving_key> circuit_proving_key;
@@ -77,15 +72,42 @@ class UltraPlonkComposerHelper {
 
     [[nodiscard]] size_t get_num_selectors() { return ultra_selector_properties().size(); }
 
+    /**
+     * @brief Add information about which witnesses contain the recursive proof computation information
+     *
+     * @param circuit_constructor Object with the circuit
+     * @param proof_output_witness_indices Witness indices that need to become public and stored as recurisve proof
+     * specific
+     */
+    void add_recursive_proof(CircuitConstructor& circuit_constructor,
+                             const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+
+        if (contains_recursive_proof) {
+            circuit_constructor.failure("added recursive proof when one already exists");
+        }
+        contains_recursive_proof = true;
+
+        for (const auto& idx : proof_output_witness_indices) {
+            circuit_constructor.set_public_input(idx);
+            recursive_proof_public_input_indices.push_back((uint32_t)(circuit_constructor.public_inputs.size() - 1));
+        }
+    }
     void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
-    std::shared_ptr<plonk::proving_key> compute_proving_key(const CircuitConstructor& circuit_constructor);
-    std::shared_ptr<plonk::verification_key> compute_verification_key(const CircuitConstructor& circuit_constructor);
+    std::shared_ptr<plonk::proving_key> compute_proving_key(CircuitConstructor& circuit_constructor);
+    std::shared_ptr<plonk::verification_key> compute_verification_key(CircuitConstructor& circuit_constructor);
 
     void compute_witness(CircuitConstructor& circuit_constructor);
 
     UltraProver create_prover(CircuitConstructor& circuit_constructor);
-    UltraVerifier create_verifier(const CircuitConstructor& circuit_constructor);
+    UltraVerifier create_verifier(CircuitConstructor& circuit_constructor);
+
+    UltraToStandardProver create_ultra_to_standard_prover(CircuitConstructor& circuit_constructor);
+    UltraToStandardVerifier create_ultra_to_standard_verifier(CircuitConstructor& circuit_constructor);
+
+    UltraWithKeccakProver create_ultra_with_keccak_prover(CircuitConstructor& circuit_constructor);
+    UltraWithKeccakVerifier create_ultra_with_keccak_verifier(CircuitConstructor& circuit_constructor);
 
     void add_table_column_selector_poly_to_proving_key(polynomial& small, const std::string& tag);
 

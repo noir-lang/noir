@@ -1,6 +1,6 @@
 #pragma once
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
@@ -157,7 +157,8 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     state[a] = state[a].add_two(state[b], x);
 
     // d = (d ^ a).ror(16)
-    const auto lookup_1 = plookup_read::get_lookup_accumulators(BLAKE_XOR_ROTATE_16, state[d], state[a], true);
+    const auto lookup_1 =
+        plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR_ROTATE_16, state[d], state[a], true);
     field_pt scaling_factor_1 = (1 << (32 - 16));
     state[d] = lookup_1[ColumnIdx::C3][0] * scaling_factor_1;
 
@@ -165,7 +166,7 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     state[c] = state[c] + state[d];
 
     // b = (b ^ c).ror(12)
-    const auto lookup_2 = plookup_read::get_lookup_accumulators(BLAKE_XOR, state[b], state[c], true);
+    const auto lookup_2 = plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, state[b], state[c], true);
     field_pt lookup_output = lookup_2[ColumnIdx::C3][2];
     field_pt t2_term = field_pt(1 << 12) * lookup_2[ColumnIdx::C3][2];
     lookup_output += (lookup_2[ColumnIdx::C3][0] - t2_term) * field_pt(1 << 20);
@@ -179,7 +180,7 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     }
 
     // d = (d ^ a).ror(8)
-    const auto lookup_3 = plookup_read::get_lookup_accumulators(BLAKE_XOR_ROTATE_8, state[d], state[a], true);
+    const auto lookup_3 = plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR_ROTATE_8, state[d], state[a], true);
     field_pt scaling_factor_3 = (1 << (32 - 8));
     state[d] = lookup_3[ColumnIdx::C3][0] * scaling_factor_3;
 
@@ -191,7 +192,7 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     }
 
     // b = (b ^ c).ror(7)
-    const auto lookup_4 = plookup_read::get_lookup_accumulators(BLAKE_XOR_ROTATE_7, state[b], state[c], true);
+    const auto lookup_4 = plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR_ROTATE_7, state[b], state[c], true);
     field_pt scaling_factor_4 = (1 << (32 - 7));
     state[b] = lookup_4[ColumnIdx::C3][0] * scaling_factor_4;
 }

@@ -66,7 +66,6 @@ template <typename Composer> inline std::ostream& operator<<(std::ostream& os, p
 }
 
 EXTERN_STDLIB_TYPE(packed_byte_array);
-extern template class packed_byte_array<honk::StandardHonkComposer>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

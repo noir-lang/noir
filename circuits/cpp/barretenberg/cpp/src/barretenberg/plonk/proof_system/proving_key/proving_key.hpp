@@ -48,8 +48,8 @@ struct proving_key {
     size_t num_public_inputs;
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
-    std::vector<uint32_t> memory_read_records;  // Used by UltraComposer only; for ROM, RAM reads.
-    std::vector<uint32_t> memory_write_records; // Used by UltraComposer only, for RAM writes.
+    std::vector<uint32_t> memory_read_records;  // Used by UltraPlonkComposer only; for ROM, RAM reads.
+    std::vector<uint32_t> memory_write_records; // Used by UltraPlonkComposer only, for RAM writes.
 
     PolynomialStore<barretenberg::fr> polynomial_store;
 

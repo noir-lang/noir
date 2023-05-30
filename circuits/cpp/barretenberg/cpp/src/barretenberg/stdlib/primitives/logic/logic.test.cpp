@@ -3,10 +3,6 @@
 #include "barretenberg/proof_system/types/composer_type.hpp"
 #include "logic.hpp"
 #include <gtest/gtest.h>
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
@@ -31,8 +27,9 @@ using namespace proof_system::plonk;
 
 template <class Composer> class LogicTest : public testing::Test {};
 
-using ComposerTypes =
-    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
+                                       proof_system::TurboCircuitConstructor,
+                                       proof_system::UltraCircuitConstructor>;
 
 TYPED_TEST_SUITE(LogicTest, ComposerTypes);
 
@@ -88,16 +85,13 @@ TYPED_TEST(LogicTest, TestCorrectLogic)
     for (size_t i = 8; i < 248; i += 8) {
         run_test(i, composer);
     }
-    auto prover = composer.create_prover();
-    plonk::proof proof = prover.construct_proof();
-    auto verifier = composer.create_verifier();
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 // Tests the constraints will fail if the operands are larger than expected even though the result contains the correct
-// number of bits when using the UltraComposer This is because the range constraints on the right and left operand are
-// not being satisfied.
+// number of bits when using the UltraPlonkComposer This is because the range constraints on the right and left operand
+// are not being satisfied.
 TYPED_TEST(LogicTest, LargeOperands)
 {
     STDLIB_TYPE_ALIASES
@@ -119,10 +113,7 @@ TYPED_TEST(LogicTest, LargeOperands)
     EXPECT_EQ(uint256_t(and_result.get_value()), and_expected);
     EXPECT_EQ(uint256_t(xor_result.get_value()), xor_expected);
 
-    auto prover = composer.create_prover();
-    plonk::proof proof = prover.construct_proof();
-    auto verifier = composer.create_verifier();
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -154,10 +145,7 @@ TYPED_TEST(LogicTest, DifferentWitnessSameResult)
         field_ct xor_result = stdlib::logic<Composer>::create_logic_constraint(x, y, 32, true, get_bad_chunk);
         EXPECT_EQ(uint256_t(xor_result.get_value()), xor_expected);
 
-        auto prover = composer.create_prover();
-        plonk::proof proof = prover.construct_proof();
-        auto verifier = composer.create_verifier();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, false);
     }
 }

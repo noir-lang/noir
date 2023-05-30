@@ -28,8 +28,9 @@ auto& engine = numeric::random::get_debug_engine();
 
 template <class Composer> class BitArrayTest : public ::testing::Test {};
 
-using ComposerTypes =
-    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
+                                       proof_system::TurboCircuitConstructor,
+                                       proof_system::UltraCircuitConstructor>;
 TYPED_TEST_SUITE(BitArrayTest, ComposerTypes);
 
 TYPED_TEST(BitArrayTest, test_uint32_input_output_consistency)

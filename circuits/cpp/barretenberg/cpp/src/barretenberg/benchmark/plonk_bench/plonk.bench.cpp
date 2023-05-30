@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
@@ -15,7 +15,7 @@ constexpr size_t START = (MAX_GATES) >> (NUM_CIRCUITS - 1);
 // constexpr size_t MAX_HASH_ROUNDS = 8192;
 // constexpr size_t START_HASH_ROUNDS = 64;
 
-void generate_test_plonk_circuit(plonk::StandardComposer& composer, size_t num_gates)
+void generate_test_plonk_circuit(plonk::StandardPlonkComposer& composer, size_t num_gates)
 {
     plonk::stdlib::field_t a(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
     plonk::stdlib::field_t b(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
@@ -36,7 +36,8 @@ void construct_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        plonk::StandardComposer composer = proof_system::plonk::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardPlonkComposer composer =
+            proof_system::plonk::StandardPlonkComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         composer.compute_proving_key();
         state.ResumeTiming();
@@ -49,7 +50,8 @@ BENCHMARK(construct_witnesses_bench)->RangeMultiplier(2)->Range(START, MAX_GATES
 void construct_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        plonk::StandardComposer composer = proof_system::plonk::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardPlonkComposer composer =
+            proof_system::plonk::StandardPlonkComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
                      static_cast<size_t>(numeric::get_msb(START));
@@ -65,7 +67,8 @@ void construct_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        plonk::StandardComposer composer = proof_system::plonk::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardPlonkComposer composer =
+            proof_system::plonk::StandardPlonkComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
                      static_cast<size_t>(numeric::get_msb(START));

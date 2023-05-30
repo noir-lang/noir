@@ -1,8 +1,4 @@
 #include <gtest/gtest.h>
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/group/group.hpp"
@@ -23,8 +19,9 @@ auto& engine = numeric::random::get_debug_engine();
 
 template <class Composer> class GroupTest : public ::testing::Test {};
 
-using ComposerTypes =
-    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
+                                       proof_system::TurboCircuitConstructor,
+                                       proof_system::UltraCircuitConstructor>;
 TYPED_TEST_SUITE(GroupTest, ComposerTypes);
 
 TYPED_TEST(GroupTest, TestFixedBaseScalarMul)
@@ -47,14 +44,9 @@ TYPED_TEST(GroupTest, TestFixedBaseScalarMul)
     EXPECT_EQ(native_result.x, pub_key.x);
     EXPECT_EQ(native_result.y, pub_key.y);
 
-    auto prover = composer.create_prover();
-
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool proof_result = verifier.verify_proof(proof);
+    bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 
@@ -68,14 +60,9 @@ TYPED_TEST(GroupTest, TestFixedBaseScalarMulZeroFails)
     auto priv_key_witness = field_ct(witness_ct(&composer, fr(scalar)));
     group_ct::template fixed_base_scalar_mul<128>(priv_key_witness, 0);
 
-    auto prover = composer.create_prover();
-
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool proof_result = verifier.verify_proof(proof);
+    bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, false);
     EXPECT_EQ(composer.err(), "input scalar to fixed_base_scalar_mul_internal cannot be 0");
 }
@@ -100,14 +87,9 @@ TYPED_TEST(GroupTest, TestFixedBaseScalarMulWithTwoLimbs)
     EXPECT_EQ(result.x.get_value(), pub_key.x);
     EXPECT_EQ(result.y.get_value(), pub_key.y);
 
-    auto prover = composer.create_prover();
-
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool proof_result = verifier.verify_proof(proof);
+    bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 } // namespace stdlib_group_tests

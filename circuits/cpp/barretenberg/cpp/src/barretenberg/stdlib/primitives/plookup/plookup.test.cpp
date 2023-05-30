@@ -1,7 +1,6 @@
 #include "plookup.hpp"
 #include "../byte_array/byte_array.hpp"
 #include <gtest/gtest.h>
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen_lookup.hpp"
@@ -16,15 +15,13 @@ using namespace proof_system::plonk;
 using namespace plookup;
 
 // Defining ultra-specific types for local testing.
-using Composer = proof_system::plonk::UltraComposer;
+using Composer = proof_system::UltraCircuitConstructor;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;
-
+using plookup_read = proof_system::plonk::stdlib::plookup_read<Composer>;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-
-using stdlib::plookup_read;
 
 TEST(stdlib_plookup, pedersen_lookup_left)
 {
@@ -97,11 +94,7 @@ TEST(stdlib_plookup, pedersen_lookup_left)
         EXPECT_EQ(lookup_hi[ColumnIdx::C3][i].get_value(), expected_y[i + num_lookups_lo]);
     }
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -177,11 +170,7 @@ TEST(stdlib_plookup, pedersen_lookup_right)
         EXPECT_EQ(lookup_hi[ColumnIdx::C3][i].get_value(), expected_y[i + num_lookups_lo]);
     }
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -225,13 +214,7 @@ TEST(stdlib_plookup, uint32_xor)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), barretenberg::fr(out_expected[i]));
     }
 
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -302,13 +285,7 @@ TEST(stdlib_plookup, blake2s_xor_rotate_16)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 16);
     EXPECT_EQ(barretenberg::fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -368,13 +345,7 @@ TEST(stdlib_plookup, blake2s_xor_rotate_8)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 8);
     EXPECT_EQ(barretenberg::fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -434,13 +405,7 @@ TEST(stdlib_plookup, blake2s_xor_rotate_7)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 7);
     EXPECT_EQ(barretenberg::fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -503,13 +468,7 @@ TEST(stdlib_plookup, blake2s_xor)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), barretenberg::fr(out_expected[i]));
     }
 
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -551,13 +510,7 @@ TEST(stdlib_plookup, uint32_and)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), barretenberg::fr(out_expected[i]));
     }
 
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    auto proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
 
     EXPECT_EQ(result, true);
 }
@@ -653,10 +606,7 @@ TEST(stdlib_plookup, secp256k1_generator)
     curve::g1::affine_element expected(curve::g1::one * input_value);
     EXPECT_EQ(result, expected);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
+    bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 

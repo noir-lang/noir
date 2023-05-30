@@ -1,8 +1,8 @@
 #include "keccak.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 namespace proof_system::plonk {
 namespace stdlib {
 
@@ -323,9 +323,9 @@ template <typename Composer> void keccak<Composer>::theta(keccak_state& internal
             // To save a gate, we would need to place the wires for the first KECCAK_THETA_OUTPUT plookup gate
             // at P0, P1, P2. This is fiddly composer logic that is circuit-width-dependent
             // (this would save 120 gates per hash block... not worth making the code less readable for that)
-            D[i] = plookup_read::read_from_1_to_2_table(KECCAK_THETA_OUTPUT, mid);
+            D[i] = plookup_read<Composer>::read_from_1_to_2_table(KECCAK_THETA_OUTPUT, mid);
         } else {
-            const auto accumulators = plookup_read::get_lookup_accumulators(KECCAK_THETA_OUTPUT, D[i]);
+            const auto accumulators = plookup_read<Composer>::get_lookup_accumulators(KECCAK_THETA_OUTPUT, D[i]);
             D[i] = accumulators[ColumnIdx::C2][0];
 
             // Ensure input to lookup is < 11^64,
@@ -444,7 +444,7 @@ template <typename Composer> void keccak<Composer>::chi(keccak_state& internal)
         }
         for (size_t x = 0; x < 5; ++x) {
             // Normalize lane outputs and assign to internal.state
-            auto accumulators = plookup_read::get_lookup_accumulators(KECCAK_CHI_OUTPUT, lane_outputs[x]);
+            auto accumulators = plookup_read<Composer>::get_lookup_accumulators(KECCAK_CHI_OUTPUT, lane_outputs[x]);
             internal.state[y * 5 + x] = accumulators[ColumnIdx::C2][0];
             internal.state_msb[y * 5 + x] = accumulators[ColumnIdx::C3][accumulators[ColumnIdx::C3].size() - 1];
         }
@@ -539,7 +539,7 @@ template <typename Composer> byte_array<Composer> keccak<Composer>::sponge_squee
 
     // Each hash limb represents a little-endian integer. Need to reverse bytes before we write into the output array
     for (size_t i = 0; i < 4; ++i) {
-        field_ct output_limb = plookup_read::read_from_1_to_2_table(KECCAK_FORMAT_OUTPUT, internal.state[i]);
+        field_ct output_limb = plookup_read<Composer>::read_from_1_to_2_table(KECCAK_FORMAT_OUTPUT, internal.state[i]);
         byte_array_ct limb_bytes(output_limb, 8);
         byte_array_ct little_endian_limb_bytes(internal.context, 8);
         little_endian_limb_bytes.set_byte(0, limb_bytes[7]);
@@ -741,7 +741,8 @@ stdlib::byte_array<Composer> keccak<Composer>::hash(byte_array_ct& input, const 
     keccak_state internal;
     internal.context = ctx;
     for (size_t i = 0; i < formatted_slices.size(); ++i) {
-        const auto accumulators = plookup_read::get_lookup_accumulators(KECCAK_FORMAT_INPUT, formatted_slices[i]);
+        const auto accumulators =
+            plookup_read<Composer>::get_lookup_accumulators(KECCAK_FORMAT_INPUT, formatted_slices[i]);
         converted_buffer[i] = accumulators[ColumnIdx::C2][0];
         msb_buffer[i] = accumulators[ColumnIdx::C3][accumulators[ColumnIdx::C3].size() - 1];
     }
@@ -754,7 +755,6 @@ stdlib::byte_array<Composer> keccak<Composer>::hash(byte_array_ct& input, const 
     return result;
 }
 
-template class keccak<plonk::UltraComposer>;
-
+INSTANTIATE_STDLIB_ULTRA_TYPE(keccak)
 } // namespace stdlib
 } // namespace proof_system::plonk

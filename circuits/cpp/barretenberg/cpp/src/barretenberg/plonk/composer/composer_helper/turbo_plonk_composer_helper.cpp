@@ -12,7 +12,7 @@
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp"
 #include "barretenberg/proof_system/composer/permutation_helper.hpp"
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
-#include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
+#include "barretenberg/plonk/composer/composer_helper/composer_helper_lib.hpp"
 
 using namespace barretenberg;
 
@@ -36,7 +36,7 @@ std::shared_ptr<plonk::proving_key> TurboPlonkComposerHelper::compute_proving_ke
         return circuit_proving_key;
     }
     const size_t minimum_circuit_size = 0;
-    const size_t num_randomized_gates = NUM_RANDOMIZED_GATES;
+    const size_t num_randomized_gates = NUM_RESERVED_GATES;
     // Initialize circuit_proving_key
     // TODO(#392)(Kesha): replace composer types.
     circuit_proving_key = initialize_proving_key<Flavor>(
@@ -97,7 +97,7 @@ void TurboPlonkComposerHelper::compute_witness(const CircuitConstructor& circuit
         return;
     }
     auto wire_polynomial_evaluations =
-        construct_wire_polynomials_base<Flavor>(circuit_constructor, minimum_circuit_size, NUM_RANDOMIZED_GATES);
+        construct_wire_polynomials_base<Flavor>(circuit_constructor, minimum_circuit_size, NUM_RESERVED_GATES);
 
     for (size_t j = 0; j < program_width; ++j) {
         std::string index = std::to_string(j + 1);

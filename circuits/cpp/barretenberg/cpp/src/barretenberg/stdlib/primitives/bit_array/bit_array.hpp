@@ -182,7 +182,6 @@ template <typename ComposerContext> class bit_array {
 };
 
 EXTERN_STDLIB_TYPE(bit_array);
-extern template class bit_array<honk::StandardHonkComposer>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

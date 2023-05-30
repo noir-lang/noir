@@ -1,4 +1,4 @@
-#include "standard_composer.hpp"
+#include "standard_plonk_composer.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/generators/generator_data.hpp"
@@ -10,25 +10,24 @@ using namespace proof_system;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-namespace proof_system::plonk {
-TEST(standard_composer, base_case)
+
+TEST(standard_plonk_composer, base_case)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
+    plonk::Prover prover = composer.create_prover();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
+    plonk::proof proof = prover.construct_proof();
 
-    proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, composer_from_serialized_keys)
+TEST(standard_plonk_composer, composer_from_serialized_keys)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
@@ -42,21 +41,21 @@ TEST(standard_composer, composer_from_serialized_keys)
         std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
     auto verification_key = std::make_shared<plonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
 
-    StandardComposer composer2 = StandardComposer(proving_key, verification_key);
+    plonk::StandardPlonkComposer composer2 = plonk::StandardPlonkComposer(proving_key, verification_key);
     composer2.add_public_variable(a);
 
-    auto prover = composer2.create_prover();
-    auto verifier = composer2.create_verifier();
+    plonk::Prover prover = composer2.create_prover();
+    plonk::Verifier verifier = composer2.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_add_gate_proofs)
+TEST(standard_plonk_composer, test_add_gate_proofs)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -103,19 +102,19 @@ TEST(standard_composer, test_add_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_mul_gate_proofs)
+TEST(standard_plonk_composer, test_mul_gate_proofs)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -182,19 +181,19 @@ TEST(standard_composer, test_mul_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, q[0], q[1], q[2], q[3] });
     composer.create_mul_gate({ a_idx, b_idx, d_idx, q[4], q[5], q[6] });
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, range_constraint)
+TEST(standard_plonk_composer, range_constraint)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     for (size_t i = 0; i < 10; ++i) {
         uint32_t value = engine.get_random_uint32();
@@ -224,40 +223,40 @@ TEST(standard_composer, range_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, range_constraint_fail)
+TEST(standard_plonk_composer, range_constraint_fail)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     uint64_t value = 0xffffff;
     uint32_t witness_index = composer.add_variable(fr(value));
 
     composer.decompose_into_base4_accumulators(witness_index, 23);
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_composer, and_constraint)
+TEST(standard_plonk_composer, and_constraint)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -315,20 +314,20 @@ TEST(standard_composer, and_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, xor_constraint)
+TEST(standard_plonk_composer, xor_constraint)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -385,20 +384,20 @@ TEST(standard_composer, xor_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, big_add_gate_with_bit_extract)
+TEST(standard_plonk_composer, big_add_gate_with_bit_extract)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     const auto generate_constraints = [&composer](uint32_t quad_value) {
         uint32_t quad_accumulator_left =
@@ -429,81 +428,37 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
     generate_constraints(2);
     generate_constraints(3);
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
-
-    EXPECT_EQ(result, true);
-}
-
-TEST(standard_composer, test_composer)
-{
-    StandardComposer composer = StandardComposer();
-
-    const auto generate_constraints = [&composer](uint32_t quad_value) {
-        uint32_t quad_accumulator_left =
-            (engine.get_random_uint32() & 0x3fffffff) - quad_value; // make sure this won't overflow
-        uint32_t quad_accumulator_right = (4 * quad_accumulator_left) + quad_value;
-
-        uint32_t left_idx = composer.add_variable(uint256_t(quad_accumulator_left));
-        uint32_t right_idx = composer.add_variable(uint256_t(quad_accumulator_right));
-
-        uint32_t input = engine.get_random_uint32();
-        uint32_t output = input + (quad_value > 1 ? 1 : 0);
-
-        add_quad gate{ composer.add_variable(uint256_t(input)),
-                       composer.add_variable(uint256_t(output)),
-                       right_idx,
-                       left_idx,
-                       fr(6),
-                       -fr(6),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero() };
-
-        composer.create_big_add_gate_with_bit_extraction(gate);
-    };
-
-    generate_constraints(0);
-    generate_constraints(1);
-    generate_constraints(2);
-    generate_constraints(3);
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_range_constraint_fail)
+TEST(standard_plonk_composer, test_range_constraint_fail)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     uint32_t witness_index = composer.add_variable(fr::neg_one());
     composer.decompose_into_base4_accumulators(witness_index, 32);
 
-    auto prover = composer.create_prover();
+    plonk::Prover prover = composer.create_prover();
 
-    auto verifier = composer.create_verifier();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_composer, test_check_circuit_correct)
+TEST(standard_plonk_composer, test_check_circuit_correct)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -521,9 +476,9 @@ TEST(standard_composer, test_check_circuit_correct)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_check_circuit_broken)
+TEST(standard_plonk_composer, test_check_circuit_broken)
 {
-    StandardComposer composer = StandardComposer();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -540,4 +495,3 @@ TEST(standard_composer, test_check_circuit_broken)
     bool result = composer.check_circuit();
     EXPECT_EQ(result, false);
 }
-} // namespace proof_system::plonk

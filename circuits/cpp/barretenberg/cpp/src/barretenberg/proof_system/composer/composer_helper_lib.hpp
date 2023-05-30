@@ -129,7 +129,7 @@ std::vector<barretenberg::polynomial> construct_wire_polynomials_base(
     const size_t num_public_inputs = public_inputs.size();
 
     const size_t num_constraints = std::max(minimum_circuit_size, num_gates + num_public_inputs);
-    // TODO(#216)(Adrian): Not a fan of specifying NUM_RANDOMIZED_GATES everywhere,
+    // TODO(#216)(Adrian): Not a fan of specifying NUM_RESERVED_GATES everywhere,
     // Each flavor of Honk should have a "fixed" number of random places to add randomness to.
     // It should be taken care of in as few places possible.
     const size_t subgroup_size =

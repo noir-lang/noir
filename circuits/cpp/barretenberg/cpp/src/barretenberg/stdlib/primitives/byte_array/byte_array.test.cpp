@@ -1,9 +1,5 @@
 #include "byte_array.hpp"
 #include <gtest/gtest.h>
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
@@ -25,8 +21,9 @@ template <class Composer> class ByteArrayTest : public ::testing::Test {};
 
 template <class Composer> using byte_array_ct = stdlib::byte_array<Composer>;
 
-using ComposerTypes =
-    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
+                                       proof_system::TurboCircuitConstructor,
+                                       proof_system::UltraCircuitConstructor>;
 TYPED_TEST_SUITE(ByteArrayTest, ComposerTypes);
 
 TYPED_TEST(ByteArrayTest, test_reverse)
@@ -87,10 +84,7 @@ TYPED_TEST(ByteArrayTest, test_byte_array_input_output_consistency)
     EXPECT_EQ(a_result.get_value(), a_expected);
     EXPECT_EQ(b_result.get_value(), b_expected);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-    bool verified = verifier.verify_proof(proof);
+    bool verified = composer.check_circuit();
     EXPECT_EQ(verified, true);
 }
 
@@ -121,10 +115,7 @@ TYPED_TEST(ByteArrayTest, get_bit)
 
     EXPECT_EQ(arr.size(), 4UL);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
+    bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 
@@ -145,10 +136,7 @@ TYPED_TEST(ByteArrayTest, set_bit)
     EXPECT_EQ(out[1], uint8_t(7));
     EXPECT_EQ(out[3], uint8_t(5));
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    auto proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
+    bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 

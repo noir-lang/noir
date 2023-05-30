@@ -5,7 +5,7 @@
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
 
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
@@ -20,9 +20,7 @@ using namespace barretenberg;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 using namespace plonk::stdlib;
 
-using Composer = plonk::UltraComposer;
-using Prover = plonk::UltraProver;
-using Verifier = plonk::UltraVerifier;
+using Composer = proof_system::UltraCircuitConstructor;
 
 using bool_ct = bool_t<Composer>;
 using field_ct = field_t<Composer>;
@@ -47,14 +45,9 @@ TEST(stdlib_merkle_tree, test_check_membership)
     bool_ct is_member_ =
         check_membership(root, create_witness_hash_path(composer, db.get_hash_path(1)), field_ct(1), seven);
 
-    auto prover = composer.create_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(is_member.get_value(), true);
     EXPECT_EQ(is_member_.get_value(), true);
     EXPECT_EQ(result, true);
@@ -81,11 +74,8 @@ TEST(stdlib_merkle_tree, test_batch_update_membership)
     field_ct start_idx = field_ct(witness_ct(&composer, fr(4)));
     batch_update_membership(new_root, old_root, old_hash_path_1, values, start_idx);
     batch_update_membership(new_root, old_root, old_hash_path_2, values, start_idx);
-    auto prover = composer.create_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -100,14 +90,9 @@ TEST(stdlib_merkle_tree, test_assert_check_membership)
 
     assert_check_membership(root, create_witness_hash_path(composer, db.get_hash_path(0)), field_ct(0), zero);
 
-    auto prover = composer.create_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -123,14 +108,9 @@ TEST(stdlib_merkle_tree, test_assert_check_membership_fail)
 
     assert_check_membership(root, create_witness_hash_path(composer, db.get_hash_path(0)), field_ct(1), zero);
 
-    auto prover = composer.create_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, false);
 }
 // To test whether both old hash path and new hash path works for the same Merkle tree
@@ -155,14 +135,9 @@ TEST(stdlib_merkle_tree, test_update_members)
 
         update_membership(new_root, new_value, old_root, old_path, old_value, zero);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
     {
@@ -184,14 +159,9 @@ TEST(stdlib_merkle_tree, test_update_members)
 
         update_membership(new_root, new_value, old_root, new_path, old_value, zero);
 
-        auto prover = composer.create_prover();
-
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
 
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
 }
@@ -212,14 +182,9 @@ TEST(stdlib_merkle_tree, test_tree)
 
     assert_check_tree(root, values);
 
-    auto prover = composer.create_prover();
-
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
 
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -281,11 +246,8 @@ TEST(stdlib_merkle_tree, test_update_memberships)
 
     update_memberships(old_root_ct, new_roots_ct, new_values_ct, old_values_ct, old_hash_paths_ct, old_indices_ct);
 
-    auto prover = composer.create_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 } // namespace proof_system::stdlib_merkle_test

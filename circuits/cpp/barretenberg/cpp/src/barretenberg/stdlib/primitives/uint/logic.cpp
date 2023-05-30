@@ -80,7 +80,7 @@ uint<Composer, Native> uint<Composer, Native>::operator>>(const size_t shift) co
      *          ===                                   | this is equivalent :         ===
      *          \                             j       |   to the formula   :         \                  i - j
      *   A   =  /    a                     . 4        |      given in      :  a   =  /    a         .  4
-     *    i     ===   (w - 1 - i + j)                 | turbo_composer.cpp :    i     ===   (15 - j)
+     *    i     ===   (w - 1 - i + j)                 | turbo_plonk_composer.cpp :    i     ===   (15 - j)
      *         j = 0                                  |   when width = 32  :        j = 0
      *
      *
@@ -524,25 +524,10 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
     return result;
 }
 
-template class uint<plonk::TurboComposer, uint8_t>;
-template class uint<plonk::TurboComposer, uint16_t>;
-template class uint<plonk::TurboComposer, uint32_t>;
-template class uint<plonk::TurboComposer, uint64_t>;
-
-template class uint<plonk::StandardComposer, uint8_t>;
-template class uint<plonk::StandardComposer, uint16_t>;
-template class uint<plonk::StandardComposer, uint32_t>;
-template class uint<plonk::StandardComposer, uint64_t>;
-
-template class uint<honk::StandardHonkComposer, uint8_t>;
-template class uint<honk::StandardHonkComposer, uint16_t>;
-template class uint<honk::StandardHonkComposer, uint32_t>;
-template class uint<honk::StandardHonkComposer, uint64_t>;
-
-template class uint<plonk::StandardPlonkComposer, uint8_t>;
-template class uint<plonk::StandardPlonkComposer, uint16_t>;
-template class uint<plonk::StandardPlonkComposer, uint32_t>;
-template class uint<plonk::StandardPlonkComposer, uint64_t>;
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint8_t);
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint16_t);
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint32_t);
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint64_t);
 
 } // namespace stdlib
 } // namespace proof_system::plonk

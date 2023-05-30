@@ -6,10 +6,6 @@
 #include "safe_uint.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "../byte_array/byte_array.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
@@ -33,8 +29,9 @@ template <class T> void ignore_unused(T&) {} // use to ignore unused variables i
 
 template <class Composer> class SafeUintTest : public ::testing::Test {};
 
-using ComposerTypes =
-    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
+                                       proof_system::TurboCircuitConstructor,
+                                       proof_system::UltraCircuitConstructor>;
 TYPED_TEST_SUITE(SafeUintTest, ComposerTypes);
 
 // CONSTRUCTOR
@@ -49,10 +46,7 @@ TYPED_TEST(SafeUintTest, TestConstructorWithValueOutOfRangeFails)
     field_ct a(witness_ct(&composer, 100));
     suint_ct b(a, 2, "b");
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_FALSE(verifier.verify_proof(proof));
+    EXPECT_FALSE(composer.check_circuit());
 }
 
 TYPED_TEST(SafeUintTest, TestConstructorWithValueInRange)
@@ -63,10 +57,7 @@ TYPED_TEST(SafeUintTest, TestConstructorWithValueInRange)
     field_ct a(witness_ct(&composer, 100));
     suint_ct b(a, 7);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_TRUE(verifier.verify_proof(proof));
+    EXPECT_TRUE(composer.check_circuit());
 }
 
 // * OPERATOR
@@ -163,10 +154,7 @@ TYPED_TEST(SafeUintTest, TestSubtractMethod)
     suint_ct d(b, 4);
     c = d.subtract(c, 3);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_TRUE(verifier.verify_proof(proof));
+    EXPECT_TRUE(composer.check_circuit());
 }
 
 TYPED_TEST(SafeUintTest, TestSubtractMethodMinuedGtLhsFails)
@@ -181,10 +169,7 @@ TYPED_TEST(SafeUintTest, TestSubtractMethodMinuedGtLhsFails)
     suint_ct d(b, 4, "d");
     c = d.subtract(c, 2, "d - c"); // we can't be sure that 4-bits minus 2-bits is 2-bits.
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_FALSE(verifier.verify_proof(proof));
+    EXPECT_FALSE(composer.check_circuit());
 }
 
 #if !defined(__wasm__)
@@ -220,10 +205,7 @@ TYPED_TEST(SafeUintTest, TestMinusOperator)
     suint_ct d(b, 4);
     c = d - c;
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_TRUE(verifier.verify_proof(proof));
+    EXPECT_TRUE(composer.check_circuit());
 }
 
 #if !defined(__wasm__)
@@ -265,10 +247,7 @@ TYPED_TEST(SafeUintTest, TestDivideMethod)
     suint_ct d2(b2, 32);
     c2 = d2.divide(c2, 32, 8);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_TRUE(verifier.verify_proof(proof));
+    EXPECT_TRUE(composer.check_circuit());
 }
 
 TYPED_TEST(SafeUintTest, TestDivideMethodQuotientRangeTooSmallFails)
@@ -282,10 +261,7 @@ TYPED_TEST(SafeUintTest, TestDivideMethodQuotientRangeTooSmallFails)
     suint_ct d(b, 6);
     d = d.divide(c, 4, 1, "d/c");
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_FALSE(verifier.verify_proof(proof));
+    EXPECT_FALSE(composer.check_circuit());
 }
 
 #if !defined(__wasm__)
@@ -315,10 +291,7 @@ TYPED_TEST(SafeUintTest, TestDivideMethodQuotientRemainderIncorrectFails)
     suint_ct d(b, 5);
     d = d.divide(c, 3, 2, "d/c", [](uint256_t, uint256_t) { return std::make_pair(2, 3); });
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_FALSE(verifier.verify_proof(proof));
+    EXPECT_FALSE(composer.check_circuit());
 }
 
 TYPED_TEST(SafeUintTest, TestDivideMethodQuotientRemainderModRFails)
@@ -335,10 +308,7 @@ TYPED_TEST(SafeUintTest, TestDivideMethodQuotientRemainderModRFails)
     // 19 / 5 in the field is 0x1d08fbde871dc67f6e96903a4db401d17e858b5eaf6f438a5bedf9bf2999999e, so the quotient
     // should fail the range check of 3-bits.
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_FALSE(verifier.verify_proof(proof));
+    EXPECT_FALSE(composer.check_circuit());
 }
 
 TYPED_TEST(SafeUintTest, TestDivOperator)
@@ -351,10 +321,7 @@ TYPED_TEST(SafeUintTest, TestDivOperator)
 
     a = a / b;
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    EXPECT_TRUE(verifier.verify_proof(proof));
+    EXPECT_TRUE(composer.check_circuit());
 }
 
 // / OPERATOR
@@ -378,10 +345,7 @@ TYPED_TEST(SafeUintTest, TestDivideOperator)
         suint_ct d2(b2, 32);
         d2 / c2;
 
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, true);
     }
     // test failure when range for quotient too small
@@ -392,10 +356,7 @@ TYPED_TEST(SafeUintTest, TestDivideOperator)
         suint_ct c(a, 2);
         suint_ct d(b, 5);
         d = d / c;
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, false);
     }
     // test failure when range for remainder too small
@@ -406,10 +367,7 @@ TYPED_TEST(SafeUintTest, TestDivideOperator)
         suint_ct c(a, 2);
         suint_ct d(b, 5);
         d = d / c;
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, false);
     }
     // test failure when quotient and remainder values are wrong
@@ -420,10 +378,7 @@ TYPED_TEST(SafeUintTest, TestDivideOperator)
         suint_ct c(a, 2);
         suint_ct d(b, 5);
         d = d / c;
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, false);
     }
     // test failure when quotient and remainder are only correct mod r
@@ -434,10 +389,7 @@ TYPED_TEST(SafeUintTest, TestDivideOperator)
         suint_ct c(a, 2);
         suint_ct d(b, 5);
         d = d / c;
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-        plonk::proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
+        bool result = composer.check_circuit();
         EXPECT_EQ(result, false);
     }
 }
@@ -462,11 +414,7 @@ TYPED_TEST(SafeUintTest, TestSlice)
     EXPECT_EQ(slice_data[1].get_value(), fr(169));
     EXPECT_EQ(slice_data[2].get_value(), fr(61));
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_TRUE(result);
 }
 
@@ -488,11 +436,7 @@ TYPED_TEST(SafeUintTest, TestSliceEqualMsbLsb)
     EXPECT_EQ(slice_data[1].get_value(), fr(1));
     EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_TRUE(result);
 }
 
@@ -516,11 +460,7 @@ TYPED_TEST(SafeUintTest, TestSliceRandom)
     EXPECT_EQ(slice[1].get_value(), fr(expected1));
     EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_TRUE(result);
 }
 
@@ -574,10 +514,7 @@ TYPED_TEST(SafeUintTest, TestOperatorDivRemainderConstraint)
 
     a.assert_equal(int_val);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, false);
 }
 
@@ -603,10 +540,7 @@ TYPED_TEST(SafeUintTest, TestDivRemainderConstraint)
 
     a.divide(b, 32, 32, "", supply_bad_witnesses);
 
-    auto prover = composer.create_prover();
-    auto verifier = composer.create_verifier();
-    plonk::proof proof = prover.construct_proof();
-    bool result = verifier.verify_proof(proof);
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, false);
 }
 

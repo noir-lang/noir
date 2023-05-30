@@ -1,7 +1,7 @@
 #pragma once
 
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
-#include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
+#include "barretenberg/plonk/composer/composer_helper/composer_helper_lib.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
@@ -20,12 +20,7 @@ class UltraHonkComposerHelper {
     using ProvingKey = Flavor::ProvingKey;
     using VerificationKey = Flavor::VerificationKey;
 
-    // TODO(#340)(luke): In the split composers, NUM_RANDOMIZED_GATES has replaced NUM_RESERVED_GATES (in some places)
-    // to determine the next-power-of-2 circuit size. (There are some places in this composer that still use
-    // NUM_RESERVED_GATES). Therefore for consistency within this composer itself, and consistency with the original
-    // Ultra Composer, this value must match that of NUM_RESERVED_GATES. This issue needs to be reconciled
-    // simultaneously here and in the other split composers.
-    static constexpr size_t NUM_RANDOMIZED_GATES = 4; // equal to the number of multilinear evaluations leaked
+    static constexpr size_t NUM_RESERVED_GATES = 4; // equal to the number of multilinear evaluations leaked
     static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<VerificationKey> verification_key;

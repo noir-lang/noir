@@ -3,11 +3,11 @@
 
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/proof_system/plookup_tables/sha256.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 /**
  * Optimizations:
@@ -94,16 +94,16 @@ template <typename Composer> void blake2s_compress(blake2s_state<Composer>& S, b
 
     // Use the lookup tables to perform XORs
     const auto lookup_1 =
-        plookup_read::get_lookup_accumulators(BLAKE_XOR, S.t[0], field_pt(uint256_t(blake2s_IV[4])), true);
+        plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, S.t[0], field_pt(uint256_t(blake2s_IV[4])), true);
     v[12] = lookup_1[ColumnIdx::C3][0];
     const auto lookup_2 =
-        plookup_read::get_lookup_accumulators(BLAKE_XOR, S.t[1], field_pt(uint256_t(blake2s_IV[5])), true);
+        plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, S.t[1], field_pt(uint256_t(blake2s_IV[5])), true);
     v[13] = lookup_2[ColumnIdx::C3][0];
     const auto lookup_3 =
-        plookup_read::get_lookup_accumulators(BLAKE_XOR, S.f[0], field_pt(uint256_t(blake2s_IV[6])), true);
+        plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, S.f[0], field_pt(uint256_t(blake2s_IV[6])), true);
     v[14] = lookup_3[ColumnIdx::C3][0];
     const auto lookup_4 =
-        plookup_read::get_lookup_accumulators(BLAKE_XOR, S.f[1], field_pt(uint256_t(blake2s_IV[7])), true);
+        plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, S.f[1], field_pt(uint256_t(blake2s_IV[7])), true);
     v[15] = lookup_4[ColumnIdx::C3][0];
 
     blake_util::round_fn_lookup<Composer>(v, m, 0);
@@ -121,9 +121,9 @@ template <typename Composer> void blake2s_compress(blake2s_state<Composer>& S, b
     // be 'overflowed' i.e. contain values > 2^{32}. However we do NOT need to normalize them to be < 2^{32}, the
     // following `read_sequence_from_table` calls correctly constrain the output to be 32-bits
     for (size_t i = 0; i < 8; ++i) {
-        const auto lookup_a = plookup_read::get_lookup_accumulators(BLAKE_XOR, S.h[i], v[i], true);
+        const auto lookup_a = plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, S.h[i], v[i], true);
         const auto lookup_b =
-            plookup_read::get_lookup_accumulators(BLAKE_XOR, lookup_a[ColumnIdx::C3][0], v[i + 8], true);
+            plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, lookup_a[ColumnIdx::C3][0], v[i + 8], true);
         S.h[i] = lookup_b[ColumnIdx::C3][0];
     }
 }
@@ -167,7 +167,7 @@ template <typename Composer> byte_array<Composer> blake2s(const byte_array<Compo
     return result;
 }
 
-template byte_array<plonk::UltraComposer> blake2s(const byte_array<plonk::UltraComposer>& input);
+INSTANTIATE_STDLIB_ULTRA_METHOD(BLAKE2S_ULTRA)
 
 } // namespace blake2s_plookup
 

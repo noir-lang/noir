@@ -2,11 +2,11 @@
 
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/proof_system/plookup_tables/sha256.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 using namespace barretenberg;
 
@@ -26,7 +26,7 @@ constexpr size_t get_num_blocks(const size_t num_bits)
 }
 } // namespace internal
 
-void prepare_constants(std::array<field_t<plonk::UltraComposer>, 8>& input)
+template <typename Composer> void prepare_constants(std::array<field_t<Composer>, 8>& input)
 {
     constexpr uint64_t init_constants[8]{ 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                           0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
@@ -41,13 +41,13 @@ void prepare_constants(std::array<field_t<plonk::UltraComposer>, 8>& input)
     input[7] = init_constants[7];
 }
 
-sparse_witness_limbs convert_witness(const field_t<plonk::UltraComposer>& w)
+template <typename Composer> sparse_witness_limbs<Composer> convert_witness(const field_t<Composer>& w)
 {
-    typedef field_t<plonk::UltraComposer> field_pt;
+    typedef field_t<Composer> field_pt;
 
     sparse_witness_limbs result(w);
 
-    const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::SHA256_WITNESS_INPUT, w);
+    const auto lookup = plookup_read<Composer>::get_lookup_accumulators(MultiTableId::SHA256_WITNESS_INPUT, w);
 
     result.sparse_limbs = std::array<field_pt, 4>{
         lookup[ColumnIdx::C2][0],
@@ -66,15 +66,16 @@ sparse_witness_limbs convert_witness(const field_t<plonk::UltraComposer>& w)
     return result;
 }
 
-std::array<field_t<plonk::UltraComposer>, 64> extend_witness(const std::array<field_t<plonk::UltraComposer>, 16>& w_in)
+template <typename Composer>
+std::array<field_t<Composer>, 64> extend_witness(const std::array<field_t<Composer>, 16>& w_in)
 {
-    typedef field_t<plonk::UltraComposer> field_pt;
+    typedef field_t<Composer> field_pt;
 
-    plonk::UltraComposer* ctx = w_in[0].get_context();
+    Composer* ctx = w_in[0].get_context();
 
-    std::array<sparse_witness_limbs, 64> w_sparse;
+    std::array<sparse_witness_limbs<Composer>, 64> w_sparse;
     for (size_t i = 0; i < 16; ++i) {
-        w_sparse[i] = sparse_witness_limbs(w_in[i]);
+        w_sparse[i] = sparse_witness_limbs<Composer>(w_in[i]);
         if (!ctx && w_in[i].get_context()) {
             ctx = w_in[i].get_context();
         }
@@ -129,7 +130,7 @@ std::array<field_t<plonk::UltraComposer>, 64> extend_witness(const std::array<fi
                                            .add_two(w_right.rotated_limbs[3], left_xor_sparse)
                                            .normalize();
 
-        field_pt xor_result = plookup_read::read_from_1_to_2_table(SHA256_WITNESS_OUTPUT, xor_result_sparse);
+        field_pt xor_result = plookup_read<Composer>::read_from_1_to_2_table(SHA256_WITNESS_OUTPUT, xor_result_sparse);
 
         // TODO NORMALIZE WITH RANGE CHECK
 
@@ -139,7 +140,7 @@ std::array<field_t<plonk::UltraComposer>, 64> extend_witness(const std::array<fi
             w_out = field_pt(ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
 
         } else {
-            w_out = witness_t<plonk::UltraComposer>(
+            w_out = witness_t<Composer>(
                 ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
         }
         w_sparse[i] = sparse_witness_limbs(w_out);
@@ -153,29 +154,30 @@ std::array<field_t<plonk::UltraComposer>, 64> extend_witness(const std::array<fi
     return w_extended;
 }
 
-sparse_value map_into_choose_sparse_form(const field_t<plonk::UltraComposer>& e)
+template <typename Composer> sparse_value<Composer> map_into_choose_sparse_form(const field_t<Composer>& e)
 {
-    sparse_value result;
+    sparse_value<Composer> result;
     result.normal = e;
-    result.sparse = plookup_read::read_from_1_to_2_table(SHA256_CH_INPUT, e);
+    result.sparse = plookup_read<Composer>::read_from_1_to_2_table(SHA256_CH_INPUT, e);
 
     return result;
 }
 
-sparse_value map_into_maj_sparse_form(const field_t<plonk::UltraComposer>& e)
+template <typename Composer> sparse_value<Composer> map_into_maj_sparse_form(const field_t<Composer>& e)
 {
-    sparse_value result;
+    sparse_value<Composer> result;
     result.normal = e;
-    result.sparse = plookup_read::read_from_1_to_2_table(SHA256_MAJ_INPUT, e);
+    result.sparse = plookup_read<Composer>::read_from_1_to_2_table(SHA256_MAJ_INPUT, e);
 
     return result;
 }
 
-field_t<plonk::UltraComposer> choose(sparse_value& e, const sparse_value& f, const sparse_value& g)
+template <typename Composer>
+field_t<Composer> choose(sparse_value<Composer>& e, const sparse_value<Composer>& f, const sparse_value<Composer>& g)
 {
-    typedef field_t<plonk::UltraComposer> field_pt;
+    typedef field_t<Composer> field_pt;
 
-    const auto lookup = plookup_read::get_lookup_accumulators(SHA256_CH_INPUT, e.normal);
+    const auto lookup = plookup_read<Composer>::get_lookup_accumulators(SHA256_CH_INPUT, e.normal);
     const auto rotation_coefficients = sha256_tables::get_choose_rotation_multipliers();
 
     field_pt rotation_result = lookup[ColumnIdx::C3][0];
@@ -191,16 +193,17 @@ field_t<plonk::UltraComposer> choose(sparse_value& e, const sparse_value& f, con
 
     field_pt choose_result_sparse = xor_result.add_two(f.sparse + f.sparse, g.sparse + g.sparse + g.sparse).normalize();
 
-    field_pt choose_result = plookup_read::read_from_1_to_2_table(SHA256_CH_OUTPUT, choose_result_sparse);
+    field_pt choose_result = plookup_read<Composer>::read_from_1_to_2_table(SHA256_CH_OUTPUT, choose_result_sparse);
 
     return choose_result;
 }
 
-field_t<plonk::UltraComposer> majority(sparse_value& a, const sparse_value& b, const sparse_value& c)
+template <typename Composer>
+field_t<Composer> majority(sparse_value<Composer>& a, const sparse_value<Composer>& b, const sparse_value<Composer>& c)
 {
-    typedef field_t<plonk::UltraComposer> field_pt;
+    typedef field_t<Composer> field_pt;
 
-    const auto lookup = plookup_read::get_lookup_accumulators(SHA256_MAJ_INPUT, a.normal);
+    const auto lookup = plookup_read<Composer>::get_lookup_accumulators(SHA256_MAJ_INPUT, a.normal);
     const auto rotation_coefficients = sha256_tables::get_majority_rotation_multipliers();
 
     field_pt rotation_result =
@@ -215,18 +218,18 @@ field_t<plonk::UltraComposer> majority(sparse_value& a, const sparse_value& b, c
 
     field_pt majority_result_sparse = xor_result.add_two(b.sparse, c.sparse).normalize();
 
-    field_pt majority_result = plookup_read::read_from_1_to_2_table(SHA256_MAJ_OUTPUT, majority_result_sparse);
+    field_pt majority_result =
+        plookup_read<Composer>::read_from_1_to_2_table(SHA256_MAJ_OUTPUT, majority_result_sparse);
 
     return majority_result;
 }
 
-field_t<plonk::UltraComposer> add_normalize(const field_t<plonk::UltraComposer>& a,
-                                            const field_t<plonk::UltraComposer>& b)
+template <typename Composer> field_t<Composer> add_normalize(const field_t<Composer>& a, const field_t<Composer>& b)
 {
-    typedef field_t<plonk::UltraComposer> field_pt;
-    typedef witness_t<plonk::UltraComposer> witness_pt;
+    typedef field_t<Composer> field_pt;
+    typedef witness_t<Composer> witness_pt;
 
-    plonk::UltraComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
+    Composer* ctx = a.get_context() ? a.get_context() : b.get_context();
 
     uint256_t sum = a.get_value() + b.get_value();
 
@@ -244,10 +247,11 @@ field_t<plonk::UltraComposer> add_normalize(const field_t<plonk::UltraComposer>&
     return result;
 }
 
-std::array<field_t<plonk::UltraComposer>, 8> sha256_block(const std::array<field_t<plonk::UltraComposer>, 8>& h_init,
-                                                          const std::array<field_t<plonk::UltraComposer>, 16>& input)
+template <typename Composer>
+std::array<field_t<Composer>, 8> sha256_block(const std::array<field_t<Composer>, 8>& h_init,
+                                              const std::array<field_t<Composer>, 16>& input)
 {
-    typedef field_t<plonk::UltraComposer> field_pt;
+    typedef field_t<Composer> field_pt;
 
     constexpr uint64_t round_constants[64]{
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -321,11 +325,11 @@ std::array<field_t<plonk::UltraComposer>, 8> sha256_block(const std::array<field
     return output;
 }
 
-packed_byte_array<plonk::UltraComposer> sha256(const packed_byte_array<plonk::UltraComposer>& input)
+template <typename Composer> packed_byte_array<Composer> sha256(const packed_byte_array<Composer>& input)
 {
-    typedef field_t<plonk::UltraComposer> field_pt;
+    typedef field_t<Composer> field_pt;
 
-    plonk::UltraComposer* ctx = input.get_context();
+    Composer* ctx = input.get_context();
 
     auto message_schedule(input);
 
@@ -358,9 +362,12 @@ packed_byte_array<plonk::UltraComposer> sha256(const packed_byte_array<plonk::Ul
     }
 
     std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
-    return packed_byte_array<plonk::UltraComposer>(output, 4);
+    return packed_byte_array<Composer>(output, 4);
 }
+#define SHA256_PLOOKUP(COMPOSER_TYPE)                                                                                  \
+    packed_byte_array<COMPOSER_TYPE> sha256(const packed_byte_array<COMPOSER_TYPE>& input)
 
+INSTANTIATE_STDLIB_ULTRA_METHOD(SHA256_PLOOKUP)
 } // namespace sha256_plookup
 } // namespace stdlib
 } // namespace proof_system::plonk

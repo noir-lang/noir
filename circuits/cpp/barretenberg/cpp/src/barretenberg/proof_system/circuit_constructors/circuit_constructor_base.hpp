@@ -40,7 +40,6 @@ template <typename Arithmetization> class CircuitConstructorBase {
     // DOCTODO(#231): replace with the relevant wiki link.
     std::map<uint32_t, uint32_t> tau;
 
-    numeric::random::Engine* rand_engine = nullptr;
     bool _failed = false;
     std::string _err;
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
@@ -59,9 +58,9 @@ template <typename Arithmetization> class CircuitConstructorBase {
         }
     }
 
-    CircuitConstructorBase(const CircuitConstructorBase& other) = delete;
+    CircuitConstructorBase(const CircuitConstructorBase& other) = default;
     CircuitConstructorBase(CircuitConstructorBase&& other) noexcept = default;
-    CircuitConstructorBase& operator=(const CircuitConstructorBase& other) = delete;
+    CircuitConstructorBase& operator=(const CircuitConstructorBase& other) = default;
     CircuitConstructorBase& operator=(CircuitConstructorBase&& other) noexcept = default;
     virtual ~CircuitConstructorBase() = default;
 

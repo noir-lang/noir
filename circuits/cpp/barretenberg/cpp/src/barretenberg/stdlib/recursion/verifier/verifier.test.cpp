@@ -12,7 +12,7 @@
 using namespace proof_system::plonk;
 
 template <typename OuterComposer> class stdlib_verifier : public testing::Test {
-    using InnerComposer = proof_system::plonk::UltraComposer;
+    using InnerComposer = proof_system::plonk::UltraPlonkComposer;
 
     typedef stdlib::bn254<InnerComposer> inner_curve;
     typedef stdlib::bn254<OuterComposer> outer_curve;
@@ -56,7 +56,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     };
 
     /**
-     * Test is included because UltraComposer used to fail for circuits which didn't lookup any tables.
+     * Test is included because UltraPlonkComposer used to fail for circuits which didn't lookup any tables.
      */
     static void create_inner_circuit_no_tables(InnerComposer& composer,
                                                const std::vector<barretenberg::fr>& public_inputs)
@@ -110,9 +110,9 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         // circuit which uses non-ultra-pedersen challenges. We need the prover and verifier hashes to be the same. The
         // solution is to select the relevant prover and verifier types (whose settings use the same hash for
         // fiat-shamir), depending on the Inner-Outer combo. It's a bit clunky, but the alternative is to have a
-        // template argument for the hashtype, and that would pervade the entire UltraComposer, which would be
+        // template argument for the hashtype, and that would pervade the entire UltraPlonkComposer, which would be
         // horrendous.
-        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraComposer>::value;
+        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraPlonkComposer>::value;
         typedef typename std::conditional<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>::type
             ProverOfInnerCircuit;
         typedef typename std::conditional<is_ultra_to_ultra, plonk::UltraVerifier, plonk::UltraToStandardVerifier>::type
@@ -170,7 +170,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
                                                        OuterComposer& outer_composer)
     {
         // See create_outer_circuit for explanation of these constexpr definitions.
-        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraComposer>::value;
+        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraPlonkComposer>::value;
         typedef typename std::conditional<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>::type
             ProverOfInnerCircuit;
         typedef
@@ -226,7 +226,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
                                                                             const bool use_constant_key = false)
     {
         // See create_outer_circuit for explanation of these constexpr definitions.
-        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraComposer>::value;
+        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraPlonkComposer>::value;
         typedef typename std::conditional<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>::type
             ProverOfInnerCircuit;
         typedef
@@ -373,7 +373,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
     static void test_double_verification()
     {
-        if constexpr (std::is_same<OuterComposer, plonk::StandardComposer>::value)
+        if constexpr (std::is_same<OuterComposer, plonk::StandardPlonkComposer>::value)
             return; // We only care about running this test for turbo and ultra outer circuits, since in practice the
                     // only circuits which verify >1 proof are ultra or turbo circuits. Standard uses so many gates
                     // (16m) that it's a waste of time testing it.
@@ -630,7 +630,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
     static void test_inner_circuit()
     {
-        if constexpr (!std::is_same<OuterComposer, plonk::StandardComposer>::value)
+        if constexpr (!std::is_same<OuterComposer, plonk::StandardPlonkComposer>::value)
             return; // We only want to run this test once (since it's not actually dependent on the typed test
                     // parameter; which is the outer composer). We've only made it a typed test so that it can be
                     // included in this test suite. So to avoid running this test identically 3 times, we escape all but
@@ -651,7 +651,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     }
 };
 
-typedef testing::Types<plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer> OuterComposerTypes;
+typedef testing::Types<plonk::StandardPlonkComposer, plonk::TurboPlonkComposer, plonk::UltraPlonkComposer>
+    OuterComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_verifier, OuterComposerTypes);
 

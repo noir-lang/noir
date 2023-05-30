@@ -1,10 +1,8 @@
 #include "blake2s.hpp"
 #include "blake2s_plookup.hpp"
 #include "blake_util.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
@@ -120,7 +118,7 @@ template <typename Composer> void blake2s(blake2s_state<Composer>& S, byte_array
 template <typename Composer> byte_array<Composer> blake2s(const byte_array<Composer>& input)
 {
     if constexpr (Composer::type == ComposerType::PLOOKUP) {
-        return blake2s_plookup::blake2s<plonk::UltraComposer>(input);
+        return blake2s_plookup::blake2s<Composer>(input);
     }
 
     blake2s_state<Composer> S;
@@ -139,9 +137,7 @@ template <typename Composer> byte_array<Composer> blake2s(const byte_array<Compo
     return result;
 }
 
-template byte_array<plonk::StandardComposer> blake2s(const byte_array<plonk::StandardComposer>& input);
-template byte_array<plonk::TurboComposer> blake2s(const byte_array<plonk::TurboComposer>& input);
-template byte_array<plonk::UltraComposer> blake2s(const byte_array<plonk::UltraComposer>& input);
+INSTANTIATE_STDLIB_METHOD(BLAKE2S)
 
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -1,9 +1,8 @@
 #include "blake3s.hpp"
 #include "blake3s_plookup.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "../blake2s/blake_util.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
@@ -247,7 +246,7 @@ using namespace blake3_internal;
 template <typename Composer> byte_array<Composer> blake3s(const byte_array<Composer>& input)
 {
     if constexpr (Composer::type == ComposerType::PLOOKUP) {
-        return blake3s_plookup::blake3s<plonk::UltraComposer>(input);
+        return blake3s_plookup::blake3s<Composer>(input);
     }
 
     blake3_hasher<Composer> hasher = {};
@@ -259,9 +258,6 @@ template <typename Composer> byte_array<Composer> blake3s(const byte_array<Compo
     return result;
 }
 
-template byte_array<plonk::StandardComposer> blake3s(const byte_array<plonk::StandardComposer>& input);
-template byte_array<plonk::TurboComposer> blake3s(const byte_array<plonk::TurboComposer>& input);
-template byte_array<plonk::UltraComposer> blake3s(const byte_array<plonk::UltraComposer>& input);
-
+INSTANTIATE_STDLIB_METHOD(BLAKE3S)
 } // namespace stdlib
 } // namespace proof_system::plonk

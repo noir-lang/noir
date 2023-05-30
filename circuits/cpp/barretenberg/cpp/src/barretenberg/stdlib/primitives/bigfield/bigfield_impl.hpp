@@ -1951,7 +1951,7 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
         };
         field_t<C> remainder_prime_limb = field_t<C>::accumulate(prime_limb_accumulator);
 
-        plonk::UltraComposer::non_native_field_witnesses witnesses{
+        proof_system::UltraCircuitConstructor::non_native_field_witnesses witnesses{
             {
                 left.binary_basis_limbs[0].element.normalize().witness_index,
                 left.binary_basis_limbs[1].element.normalize().witness_index,
@@ -2289,7 +2289,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
             }
 
             if (i > 0) {
-                plonk::UltraComposer::non_native_field_witnesses mul_witnesses = {
+                proof_system::UltraCircuitConstructor::non_native_field_witnesses mul_witnesses = {
                     {
                         left[i].binary_basis_limbs[0].element.normalize().witness_index,
                         left[i].binary_basis_limbs[1].element.normalize().witness_index,
@@ -2385,7 +2385,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
         };
         field_t<C> remainder_prime_limb = field_t<C>::accumulate(prime_limb_accumulator);
 
-        plonk::UltraComposer::non_native_field_witnesses witnesses{
+        proof_system::UltraCircuitConstructor::non_native_field_witnesses witnesses{
             {
                 left[0].binary_basis_limbs[0].element.normalize().witness_index,
                 left[0].binary_basis_limbs[1].element.normalize().witness_index,

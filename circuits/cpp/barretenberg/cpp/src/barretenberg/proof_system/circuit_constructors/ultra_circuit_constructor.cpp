@@ -765,13 +765,25 @@ void UltraCircuitConstructor::create_new_range_constraint(const uint32_t variabl
     }
 }
 
-void UltraCircuitConstructor::process_range_list(const RangeList& list)
+void UltraCircuitConstructor::process_range_list(RangeList& list)
 {
     assert_valid_variables(list.variable_indices);
 
     ASSERT(list.variable_indices.size() > 0);
+
+    // replace witness index in variable_indices with the real variable index i.e. if a copy constraint has been
+    // applied on a variable after it was range constrained, this makes sure the indices in list point to the updated
+    // index in the range list so the set equivalence does not fail
+    for (uint32_t& x : list.variable_indices) {
+        x = real_variable_index[x];
+    }
+    // remove duplicate witness indices to prevent the sorted list set size being wrong!
+    std::sort(list.variable_indices.begin(), list.variable_indices.end());
+    auto back_iterator = std::unique(list.variable_indices.begin(), list.variable_indices.end());
+    list.variable_indices.erase(back_iterator, list.variable_indices.end());
+
     // go over variables
-    // for each variable, create mirror variable with same value - with tau tag
+    // iterate over each variable and create mirror variable with same value - with tau tag
     // need to make sure that, in original list, increments of at most 3
     std::vector<uint64_t> sorted_list;
     sorted_list.reserve(list.variable_indices.size());
@@ -806,7 +818,7 @@ void UltraCircuitConstructor::process_range_list(const RangeList& list)
 
 void UltraCircuitConstructor::process_range_lists()
 {
-    for (const auto& i : range_lists)
+    for (auto& i : range_lists)
         process_range_list(i.second);
 }
 
@@ -2160,6 +2172,13 @@ void UltraCircuitConstructor::set_ROM_element(const size_t rom_id,
     rom_array.records.emplace_back(new_record);
 }
 
+/**
+ * @brief Initialize a ROM array element with a pair of witness values
+ *
+ * @param rom_id  ROM array id
+ * @param index_value Index in the array
+ * @param value_witnesses The witnesses to put in the slot
+ */
 void UltraCircuitConstructor::set_ROM_element_pair(const size_t rom_id,
                                                    const size_t index_value,
                                                    const std::array<uint32_t, 2>& value_witnesses)
@@ -2183,6 +2202,13 @@ void UltraCircuitConstructor::set_ROM_element_pair(const size_t rom_id,
     rom_array.records.emplace_back(new_record);
 }
 
+/**
+ * @brief Read a single element from ROM
+ *
+ * @param rom_id The index of the array to read from
+ * @param index_witness The witness with the index inside the array
+ * @return uint32_t Cell value witness index
+ */
 uint32_t UltraCircuitConstructor::read_ROM_array(const size_t rom_id, const uint32_t index_witness)
 {
     ASSERT(rom_arrays.size() > rom_id);
@@ -2207,35 +2233,41 @@ uint32_t UltraCircuitConstructor::read_ROM_array(const size_t rom_id, const uint
     return value_witness;
 }
 
-// std::array<uint32_t, 2> UltraCircuitConstructor::read_ROM_array_pair(const size_t rom_id, const uint32_t
-// index_witness)
-// {
-//     std::array<uint32_t, 2> value_witnesses;
+/**
+ * @brief  Read a pair of elements from ROM
+ *
+ * @param rom_id The id of the ROM array
+ * @param index_witness The witness containing the index in the array
+ * @return std::array<uint32_t, 2> A pair of indexes of witness variables of cell values
+ */
+std::array<uint32_t, 2> UltraCircuitConstructor::read_ROM_array_pair(const size_t rom_id, const uint32_t index_witness)
+{
+    std::array<uint32_t, 2> value_witnesses;
 
-//     const uint32_t index = static_cast<uint32_t>(uint256_t(get_variable(index_witness)));
-//     ASSERT(rom_arrays.size() > rom_id);
-//     RomTranscript& rom_array = rom_arrays[rom_id];
-//     ASSERT(rom_array.state.size() > index);
-//     ASSERT(rom_array.state[index][0] != UNINITIALIZED_MEMORY_RECORD);
-//     ASSERT(rom_array.state[index][1] != UNINITIALIZED_MEMORY_RECORD);
-//     const auto value1 = get_variable(rom_array.state[index][0]);
-//     const auto value2 = get_variable(rom_array.state[index][1]);
-//     value_witnesses[0] = add_variable(value1);
-//     value_witnesses[1] = add_variable(value2);
-//     RomRecord new_record{
-//         .index_witness = index_witness,
-//         .value_column1_witness = value_witnesses[0],
-//         .value_column2_witness = value_witnesses[1],
-//         .index = index,
-//         .record_witness = 0,
-//         .gate_index = 0,
-//     };
-//     create_ROM_gate(new_record);
-//     rom_array.records.emplace_back(new_record);
+    const uint32_t index = static_cast<uint32_t>(uint256_t(get_variable(index_witness)));
+    ASSERT(rom_arrays.size() > rom_id);
+    RomTranscript& rom_array = rom_arrays[rom_id];
+    ASSERT(rom_array.state.size() > index);
+    ASSERT(rom_array.state[index][0] != UNINITIALIZED_MEMORY_RECORD);
+    ASSERT(rom_array.state[index][1] != UNINITIALIZED_MEMORY_RECORD);
+    const auto value1 = get_variable(rom_array.state[index][0]);
+    const auto value2 = get_variable(rom_array.state[index][1]);
+    value_witnesses[0] = add_variable(value1);
+    value_witnesses[1] = add_variable(value2);
+    RomRecord new_record{
+        .index_witness = index_witness,
+        .value_column1_witness = value_witnesses[0],
+        .value_column2_witness = value_witnesses[1],
+        .index = index,
+        .record_witness = 0,
+        .gate_index = 0,
+    };
+    create_ROM_gate(new_record);
+    rom_array.records.emplace_back(new_record);
 
-//     // create_read_gate
-//     return value_witnesses;
-// }
+    // create_read_gate
+    return value_witnesses;
+}
 
 /**
  * @brief Compute additional gates required to validate ROM reads. Called when generating the proving key

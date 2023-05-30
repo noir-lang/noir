@@ -6,6 +6,7 @@
 #include "../bool/bool.hpp"
 #include "../field/field.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
+#include "barretenberg/honk/composer/ultra_honk_composer.hpp"
 
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
@@ -46,15 +47,9 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
 
     using Composer = typename Curve::Composer;
 
-    static constexpr auto EXPECT_VERIFICATION = [](Composer& composer, bool expected_result = true) {
+    static constexpr auto EXPECT_CIRCUIT_CORRECTNESS = [](Composer& composer, bool expected_result = true) {
         info("composer gates = ", composer.get_num_gates());
-        auto prover = composer.create_prover();
-        info("creating verifier");
-        auto verifier = composer.create_verifier();
-        info("creating proof");
-        plonk::proof proof = prover.construct_proof();
-        bool verified = verifier.verify_proof(proof);
-        EXPECT_EQ(verified, expected_result);
+        EXPECT_EQ(composer.check_circuit(), expected_result);
     };
 
   public:
@@ -89,7 +84,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_sub()
@@ -117,7 +112,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_dbl()
@@ -143,7 +138,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_montgomery_ladder()
@@ -171,7 +166,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_mul()
@@ -199,7 +194,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_twin_mul()
@@ -232,8 +227,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_x_result, expected.x);
             EXPECT_EQ(c_y_result, expected.y);
         }
-
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_triple_mul()
@@ -273,7 +267,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_quad_mul()
@@ -318,7 +312,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_one()
@@ -341,7 +335,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_batch_mul()
@@ -377,7 +371,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_EQ(result_x, expected_point.x);
         EXPECT_EQ(result_y, expected_point.y);
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_chain_add()
@@ -412,7 +406,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(lambda_result, lambda);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_multiple_montgomery_ladder()
@@ -436,7 +430,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             acc_big.multiple_montgomery_ladder(to_add);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_compute_naf()
@@ -455,7 +449,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             reconstructed_val -= fr(naf[254].witness_bool);
             EXPECT_EQ(scalar_val, reconstructed_val);
         }
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_compute_wnaf()
@@ -466,7 +460,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         scalar_ct scalar = scalar_ct::from_witness(&composer, scalar_val);
         element_ct::compute_wnaf(scalar);
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_wnaf_batch_mul()
@@ -494,7 +488,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_batch_mul_short_scalars()
@@ -532,7 +526,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_EQ(result_x, expected_point.x);
         EXPECT_EQ(result_y, expected_point.y);
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_wnaf_batch_mul_128_bit()
@@ -564,7 +558,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_wnaf_batch_4()
@@ -615,7 +609,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_bn254_endo_batch_mul()
@@ -672,7 +666,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_EQ(result_x, expected_point.x);
         EXPECT_EQ(result_y, expected_point.y);
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_mixed_mul_bn254_endo()
@@ -754,7 +748,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(result_y, expected.y);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     };
 
     static void test_wnaf_secp256k1()
@@ -773,7 +767,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             element_ct::template compute_secp256k1_endo_wnaf<4, 3, 0>(x_a);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_wnaf_8bit_secp256k1()
@@ -792,7 +786,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             element_ct::template compute_secp256k1_endo_wnaf<8, 3, 0>(x_a);
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 
     static void test_ecdsa_mul_secp256k1()
@@ -825,21 +819,13 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(output.y.get_value().lo, uint256_t(expected.y));
         }
 
-        EXPECT_VERIFICATION(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(composer);
     }
 };
 
 enum UseBigfield { No, Yes };
-using TestTypes = testing::Types<TestType<stdlib::bn254<honk::StandardHonkComposer>, UseBigfield::No>,
-                                 //  TestType<stdlib::bn254<plonk::UltraComposer>, UseBigfield::No>,
-                                 //  TestType<stdlib::bn254<plonk::TurboComposer>, UseBigfield::No>,
-                                 TestType<stdlib::bn254<plonk::StandardComposer>, UseBigfield::No>,
-                                 TestType<stdlib::bn254<plonk::UltraComposer>, UseBigfield::Yes>,
-                                 // TestType<stdlib::bn254<plonk::TurboComposer>, UseBigfield::Yes>,
-                                 // TestType<stdlib::bn254<plonk::StandardComposer>, UseBigfield::Yes>,
-                                 // TestType<stdlib::bn254<honk::StandardHonkComposer>, UseBigfield::Yes>,
-                                 // TestType<stdlib::secp256r1<plonk::UltraComposer>, UseBigfield::Yes>,
-                                 TestType<stdlib::secp256k1<plonk::UltraComposer>, UseBigfield::Yes>>;
+using TestTypes = testing::Types<TestType<stdlib::bn254<proof_system::StandardCircuitConstructor>, UseBigfield::No>,
+                                 TestType<stdlib::bn254<proof_system::UltraCircuitConstructor>, UseBigfield::Yes>>;
 
 TYPED_TEST_SUITE(stdlib_biggroup, TestTypes);
 
@@ -907,7 +893,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, compute_naf)
     }
 }
 
-/* These tests only work for UltraComposer */
+/* These tests only work for Ultra Circuit Constructor */
 HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
 {
     if constexpr (TypeParam::Curve::Composer::type == ComposerType::PLOOKUP) {
@@ -917,11 +903,11 @@ HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
     }
 }
 
-/* the following test was only developed as a test of UltraComposer. It fails for Turbo and Standard in the case where
-   Fr is a bigfield. */
+/* the following test was only developed as a test of Ultra Circuit Constructor. It fails for Turbo and Standard in the
+   case where Fr is a bigfield. */
 HEAVY_TYPED_TEST(stdlib_biggroup, compute_wnaf)
 {
-    if constexpr (TypeParam::Curve::Composer::type != UltraComposer::type && TypeParam::use_bigfield) {
+    if constexpr (TypeParam::Curve::Composer::type != ComposerType::PLOOKUP && TypeParam::use_bigfield) {
         GTEST_SKIP();
     } else {
         TestFixture::test_compute_wnaf();

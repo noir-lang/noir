@@ -8,12 +8,9 @@ namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-inline std::vector<uint8_t> create_proof(join_split_tx const& tx,
-                                         circuit_data const& cd,
-                                         numeric::random::Engine* rand_engine = nullptr)
+inline std::vector<uint8_t> create_proof(join_split_tx const& tx, circuit_data const& cd)
 {
     Composer composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
-    composer.rand_engine = rand_engine;
     join_split_circuit(composer, tx);
 
     if (composer.failed()) {

@@ -39,7 +39,6 @@ template <typename FF, size_t num_selectors> struct SelectorsBase {
     using DataType = std::array<std::vector<FF>, num_selectors>;
     DataType _data;
     size_t size() { return _data.size(); };
-
     typename DataType::const_iterator begin() const { return _data.begin(); };
     typename DataType::iterator begin() { return _data.begin(); };
     typename DataType::const_iterator end() const { return _data.end(); };
@@ -90,7 +89,17 @@ template <typename FF> class Ultra : public Arithmetization</*NUM_WIRES =*/4, /*
         std::vector<FF>& q_elliptic = std::get<8>(this->_data);
         std::vector<FF>& q_aux = std::get<9>(this->_data);
         std::vector<FF>& q_lookup_type = std::get<10>(this->_data);
+        Selectors()
+            : SelectorsBase<FF, num_selectors>(){};
+        Selectors(const Selectors& other)
+            : SelectorsBase<FF, num_selectors>(other)
+        {}
+        Selectors& operator=(Selectors&& other)
+        {
+            SelectorsBase<FF, num_selectors>::operator=(other);
+            return *this;
+        }
+        ~Selectors() = default;
     };
 };
-
 } // namespace arithmetization

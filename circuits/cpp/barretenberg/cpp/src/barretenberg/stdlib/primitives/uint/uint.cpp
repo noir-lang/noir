@@ -18,11 +18,11 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
 {
     if constexpr (Composer::type == ComposerType::PLOOKUP) {
         // TODO: manage higher bit ranges
-        const auto sequence =
-            plookup_read::get_lookup_accumulators(plookup::MultiTableId::UINT32_XOR,
-                                                  field_t<Composer>::from_witness_index(context, witness_index),
-                                                  field_t<Composer>::from_witness_index(context, context->zero_idx),
-                                                  true);
+        const auto sequence = plookup_read<Composer>::get_lookup_accumulators(
+            plookup::MultiTableId::UINT32_XOR,
+            field_t<Composer>::from_witness_index(context, witness_index),
+            field_t<Composer>::from_witness_index(context, context->zero_idx),
+            true);
 
         std::vector<uint32_t> out(num_accumulators());
         for (size_t i = 0; i < num_accumulators(); ++i) {

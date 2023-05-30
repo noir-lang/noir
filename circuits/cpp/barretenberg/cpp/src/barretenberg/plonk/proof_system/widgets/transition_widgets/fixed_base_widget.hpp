@@ -73,8 +73,8 @@ namespace widget {
  **/
 template <class Field, class Getters, typename PolyContainer, bool turbo> class FixedBaseKernel {
   public:
-    // UltraComposer only needs 6 independent relations, (α^5 is not added), but  we accept the tiny inefficiency of
-    // computing and storing an extra power of α (we use power 0,1,2,3,4 and 6) to minimize code changes.
+    // UltraPlonkComposer only needs 6 independent relations, (α^5 is not added), but  we accept the tiny inefficiency
+    // of computing and storing an extra power of α (we use power 0,1,2,3,4 and 6) to minimize code changes.
     static constexpr size_t num_independent_relations = 7;
     // We state the challenges required for linear/nonlinear terms computation
     static constexpr uint8_t quotient_required_challenges = CHALLENGE_BIT_ALPHA;

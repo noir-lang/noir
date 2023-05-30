@@ -54,7 +54,7 @@ point<C> pedersen_plookup_commitment<C>::merkle_damgard_compress(const std::vect
     // with these 2 inputs is optimal in the case that the IV is constant. i.e. the 1st 3 calls to `hash_single` are
     // over constants and cost no constraints. r = H(iv, num_inputs) is constant and the 1st half of H(r, inputs[0]) is
     // also constant
-    auto result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, iv)[ColumnIdx::C2][0];
+    auto result = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, iv)[ColumnIdx::C2][0];
     auto num_inputs = inputs.size();
     result = compress(result, field_t(num_inputs));
     for (size_t i = 0; i < num_inputs - 1; i++) {
@@ -73,13 +73,13 @@ point<C> pedersen_plookup_commitment<C>::merkle_damgard_compress(const std::vect
         return point{ 0, 0 };
     }
 
-    auto result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, 0)[ColumnIdx::C2][0];
+    auto result = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, 0)[ColumnIdx::C2][0];
     result = compress(result, field_t(num_inputs));
 
     for (size_t i = 0; i < 2 * num_inputs - 1; i++) {
         if ((i & 1) == 0) {
             auto iv_result =
-                plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, ivs[i >> 1])[ColumnIdx::C2][0];
+                plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, ivs[i >> 1])[ColumnIdx::C2][0];
             result = compress(result, iv_result);
         } else {
             result = compress(result, inputs[i >> 1]);
@@ -97,7 +97,7 @@ point<C> pedersen_plookup_commitment<C>::merkle_damgard_compress_with_relaxed_ra
         return point{ 0, 0 };
     }
 
-    auto result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, iv)[ColumnIdx::C2][0];
+    auto result = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, iv)[ColumnIdx::C2][0];
     auto num_inputs = inputs.size();
     result = compress(result, field_t(num_inputs));
     for (size_t i = 0; i < num_inputs - 1; i++) {
@@ -121,7 +121,7 @@ point<C> pedersen_plookup_commitment<C>::merkle_damgard_tree_compress(const std:
     // Process height 0 of the tree.
     std::vector<field_t> temp_storage;
     for (size_t i = 0; i < num_inputs; i++) {
-        auto iv_result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, ivs[i])[ColumnIdx::C2][0];
+        auto iv_result = plookup_read<C>::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, ivs[i])[ColumnIdx::C2][0];
         temp_storage.push_back(compress(iv_result, inputs[i]));
     }
 
@@ -206,7 +206,7 @@ field_t<C> pedersen_plookup_commitment<C>::compress(const std::vector<std::pair<
     return commit(inputs, hash_indices).x;
 }
 
-template class pedersen_plookup_commitment<UltraComposer>;
+INSTANTIATE_STDLIB_ULTRA_TYPE(pedersen_plookup_commitment);
 
 } // namespace stdlib
 } // namespace proof_system::plonk

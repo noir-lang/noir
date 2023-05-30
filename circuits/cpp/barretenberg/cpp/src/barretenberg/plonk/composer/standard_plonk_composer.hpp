@@ -17,21 +17,34 @@ namespace proof_system::plonk {
  */
 class StandardPlonkComposer {
   public:
+    using ComposerHelper = StandardPlonkComposerHelper;
+    using CircuitConstructor = StandardCircuitConstructor;
+
     static constexpr ComposerType type = ComposerType::STANDARD;
-    static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
-    static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
+    static_assert(type == CircuitConstructor::type);
+    static constexpr merkle::HashType merkle_hash_type = CircuitConstructor::merkle_hash_type;
+    static constexpr pedersen::CommitmentType commitment_type = CircuitConstructor::commitment_type;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
     StandardCircuitConstructor circuit_constructor;
+
+    // References to circuit contructor's members for convenience
+    size_t& num_gates;
+    std::vector<barretenberg::fr>& variables;
+    // While we always have it set to zero, feels wrong to have a potentially broken dependency
+    uint32_t& zero_idx;
+
     // Composer helper contains all proof-related material that is separate from circuit creation such as:
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
     StandardPlonkComposerHelper composer_helper;
 
-    // Leaving it in for now just in case
-    bool contains_recursive_proof = false;
+    // References to composer helper's members for convenience
+    bool& contains_recursive_proof;
+    std::vector<uint32_t>& recursive_proof_public_input_indices;
+
     static constexpr size_t program_width = StandardCircuitConstructor::program_width;
 
     /**Standard methods*/
@@ -39,7 +52,10 @@ class StandardPlonkComposer {
     StandardPlonkComposer(const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , num_gates(circuit_constructor.num_gates)
-        , variables(circuit_constructor.variables){};
+        , variables(circuit_constructor.variables)
+        , zero_idx(circuit_constructor.zero_idx)
+        , contains_recursive_proof(composer_helper.contains_recursive_proof)
+        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
 
     StandardPlonkComposer(std::string const& crs_path, const size_t size_hint = 0)
         : StandardPlonkComposer(
@@ -48,16 +64,22 @@ class StandardPlonkComposer {
 
     StandardPlonkComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
-        , composer_helper(crs_factory)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
+        , zero_idx(circuit_constructor.zero_idx)
+        , composer_helper(crs_factory)
+        , contains_recursive_proof(composer_helper.contains_recursive_proof)
+        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
 
     {}
     StandardPlonkComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
-        , composer_helper(std::move(crs_factory))
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
+        , zero_idx(circuit_constructor.zero_idx)
+        , composer_helper(std::move(crs_factory))
+        , contains_recursive_proof(composer_helper.contains_recursive_proof)
+        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
 
     {}
 
@@ -65,9 +87,12 @@ class StandardPlonkComposer {
                           std::shared_ptr<plonk::verification_key> const& v_key,
                           size_t size_hint = 0)
         : circuit_constructor(size_hint)
-        , composer_helper(p_key, v_key)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
+        , zero_idx(circuit_constructor.zero_idx)
+        , composer_helper(p_key, v_key)
+        , contains_recursive_proof(composer_helper.contains_recursive_proof)
+        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
     {}
 
     StandardPlonkComposer(const StandardPlonkComposer& other) = delete;
@@ -163,6 +188,8 @@ class StandardPlonkComposer {
 
     barretenberg::fr get_variable(const uint32_t index) const { return circuit_constructor.get_variable(index); }
 
+    std::vector<barretenberg::fr> get_public_inputs() const { return circuit_constructor.get_public_inputs(); }
+
     /**Proof and verification-related methods*/
 
     std::shared_ptr<plonk::proving_key> compute_proving_key()
@@ -174,8 +201,6 @@ class StandardPlonkComposer {
     {
         return composer_helper.compute_verification_key(circuit_constructor);
     }
-
-    uint32_t zero_idx = 0;
 
     void compute_witness() { composer_helper.compute_witness(circuit_constructor); };
     // TODO(#230)(Cody): This will not be needed, but maybe something is required for ComposerHelper to be generic?
@@ -197,8 +222,10 @@ class StandardPlonkComposer {
         return StandardPlonkComposerHelper::create_manifest(num_public_inputs);
     }
 
-    size_t& num_gates;
-    std::vector<barretenberg::fr>& variables;
+    void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+        composer_helper.add_recursive_proof(circuit_constructor, proof_output_witness_indices);
+    }
     bool failed() const { return circuit_constructor.failed(); };
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
