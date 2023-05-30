@@ -1,17 +1,17 @@
-import { AztecNode, AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, ContractDeployer, SentTx, TxStatus } from '@aztec/aztec.js';
-import { BootstrapNode, P2PConfig, createLibP2PPeerId, exportLibP2PPeerIdToString } from '@aztec/p2p';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { AztecNode, AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
+import {
+  AztecAddress,
+  AztecRPCServer,
+  ContractDeployer,
+  SentTx,
+  TxStatus,
+  createAztecRPCServer,
+} from '@aztec/aztec.js';
+import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
+import { BootstrapNode, P2PConfig, createLibP2PPeerId, exportLibP2PPeerIdToString } from '@aztec/p2p';
 
-import { mnemonicToAccount } from 'viem/accounts';
-import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contracts } from '@aztec/ethereum';
-import { MNEMONIC, localAnvil } from './fixtures.js';
-
-const logger = createDebugLogger('aztec:e2e_p2p_network');
-
-const config = getConfigEnvVars();
+import { setup } from './setup.js';
 
 const NUM_NODES = 4;
 const NUM_TXS_PER_BLOCK = 4;
@@ -25,98 +25,20 @@ interface NodeContext {
   account: AztecAddress;
 }
 
-const createBootstrapNode = async () => {
-  const peerId = await createLibP2PPeerId();
-  const bootstrapNode = new BootstrapNode(logger);
-  const config: P2PConfig = {
-    p2pEnabled: true,
-    tcpListenPort: BOOT_NODE_TCP_PORT,
-    tcpListenIp: '0.0.0.0',
-    announceHostname: '127.0.0.1',
-    announcePort: BOOT_NODE_TCP_PORT,
-    peerIdPrivateKey: exportLibP2PPeerIdToString(peerId),
-    serverMode: true,
-    minPeerCount: 10,
-    maxPeerCount: 100,
-
-    // TODO: the following config options are not applicable to bootstrap nodes
-    checkInterval: 1000,
-    l2QueueSize: 1,
-    transactionProtocol: '',
-    bootstrapNodes: [''],
-  };
-  await bootstrapNode.start(config);
-
-  return bootstrapNode;
-};
-
-// creates a P2P enabled instance of Aztec Node Service
-const createNode = async (tcpListenPort: number, bootstrapNode: string) => {
-  const newConfig: AztecNodeConfig = {
-    ...config,
-    tcpListenPort,
-    tcpListenIp: '0.0.0.0',
-    enableNat: false,
-    bootstrapNodes: [bootstrapNode],
-    minTxsPerBlock: NUM_TXS_PER_BLOCK,
-    maxTxsPerBlock: NUM_TXS_PER_BLOCK,
-    p2pEnabled: true,
-    serverMode: false,
-  };
-  return await AztecNodeService.createAndSync(newConfig);
-};
-
-// submits a set of transactions to the provided aztec rpc server
-const submitTxsTo = async (aztecRpcServer: AztecRPCServer, account: AztecAddress, numTxs: number) => {
-  const txs: SentTx[] = [];
-  for (let i = 0; i < numTxs; i++) {
-    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
-    const tx = deployer.deploy().send();
-    logger(`Tx sent with hash ${await tx.getTxHash()}`);
-    const receipt = await tx.getReceipt();
-    expect(receipt).toEqual(
-      expect.objectContaining({
-        from: account,
-        to: undefined,
-        status: TxStatus.PENDING,
-        error: '',
-      }),
-    );
-    logger(`Receipt received and expecting contract deployment at ${receipt.contractAddress}`);
-    txs.push(tx);
-  }
-  return txs;
-};
-
-// creates and instance of the aztec rpc server and submit a given number of transactions to it.
-const createAztecRpcServerAndSubmitTransactions = async (node: AztecNode, numTxs: number) => {
-  const aztecRpcServer = await createAztecRpcServer(1, node);
-  const accounts = await aztecRpcServer.getAccounts();
-
-  const txs = await submitTxsTo(aztecRpcServer, accounts[0], numTxs);
-  return {
-    txs,
-    account: accounts[0],
-    rpcServer: aztecRpcServer,
-    node,
-  } as NodeContext;
-};
-
 describe('e2e_p2p_network', () => {
-  beforeEach(async () => {
-    const account = mnemonicToAccount(MNEMONIC);
-    const privKey = account.getHdKey().privateKey;
-    const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(
-      config.rpcUrl,
-      account,
-      localAnvil,
-      logger,
-    );
+  let aztecNode: AztecNodeService;
+  let aztecRpcServer: AztecRPCServer;
+  let config: AztecNodeConfig;
+  let logger: DebugLogger;
 
-    config.publisherPrivateKey = Buffer.from(privKey!);
-    config.rollupContract = rollupAddress;
-    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
-  }, 60_000);
+  beforeEach(async () => {
+    ({ aztecNode, aztecRpcServer, config, logger } = await setup());
+  }, 30_000);
+
+  afterEach(async () => {
+    await aztecNode.stop();
+    await aztecRpcServer.stop();
+  });
 
   it('should rollup txs from all peers', async () => {
     // create the bootstrap node for the network
@@ -156,4 +78,83 @@ describe('e2e_p2p_network', () => {
     }
     await bootstrapNode.stop();
   }, 60_000);
+
+  const createBootstrapNode = async () => {
+    const peerId = await createLibP2PPeerId();
+    const bootstrapNode = new BootstrapNode(logger);
+    const config: P2PConfig = {
+      p2pEnabled: true,
+      tcpListenPort: BOOT_NODE_TCP_PORT,
+      tcpListenIp: '0.0.0.0',
+      announceHostname: '127.0.0.1',
+      announcePort: BOOT_NODE_TCP_PORT,
+      peerIdPrivateKey: exportLibP2PPeerIdToString(peerId),
+      serverMode: true,
+      minPeerCount: 10,
+      maxPeerCount: 100,
+
+      // TODO: the following config options are not applicable to bootstrap nodes
+      checkInterval: 1000,
+      l2QueueSize: 1,
+      transactionProtocol: '',
+      bootstrapNodes: [''],
+    };
+    await bootstrapNode.start(config);
+
+    return bootstrapNode;
+  };
+
+  // creates a P2P enabled instance of Aztec Node Service
+  const createNode = async (tcpListenPort: number, bootstrapNode: string) => {
+    const newConfig: AztecNodeConfig = {
+      ...config,
+      tcpListenPort,
+      tcpListenIp: '0.0.0.0',
+      enableNat: false,
+      bootstrapNodes: [bootstrapNode],
+      minTxsPerBlock: NUM_TXS_PER_BLOCK,
+      maxTxsPerBlock: NUM_TXS_PER_BLOCK,
+      p2pEnabled: true,
+      serverMode: false,
+    };
+    return await AztecNodeService.createAndSync(newConfig);
+  };
+
+  // submits a set of transactions to the provided aztec rpc server
+  const submitTxsTo = async (aztecRpcServer: AztecRPCServer, account: AztecAddress, numTxs: number) => {
+    const txs: SentTx[] = [];
+    for (let i = 0; i < numTxs; i++) {
+      const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
+      const tx = deployer.deploy().send();
+      logger(`Tx sent with hash ${await tx.getTxHash()}`);
+      const receipt = await tx.getReceipt();
+      expect(receipt).toEqual(
+        expect.objectContaining({
+          from: account,
+          to: undefined,
+          status: TxStatus.PENDING,
+          error: '',
+        }),
+      );
+      logger(`Receipt received and expecting contract deployment at ${receipt.contractAddress}`);
+      txs.push(tx);
+    }
+    return txs;
+  };
+
+  // creates and instance of the aztec rpc server and submit a given number of transactions to it.
+  const createAztecRpcServerAndSubmitTransactions = async (node: AztecNode, numTxs: number) => {
+    const aztecRpcServer = await createAztecRPCServer(node);
+    await aztecRpcServer.addAccount();
+
+    const accounts = await aztecRpcServer.getAccounts();
+
+    const txs = await submitTxsTo(aztecRpcServer, accounts[0], numTxs);
+    return {
+      txs,
+      account: accounts[0],
+      rpcServer: aztecRpcServer,
+      node,
+    } as NodeContext;
+  };
 });

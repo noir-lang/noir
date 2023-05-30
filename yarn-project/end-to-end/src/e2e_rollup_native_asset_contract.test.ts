@@ -1,34 +1,17 @@
-import { AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
+import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, EthAddress, TxStatus } from '@aztec/aztec.js';
 import { RollupNativeAssetContractAbi } from '@aztec/noir-contracts/examples';
 
-import { HDAccount, mnemonicToAccount } from 'viem/accounts';
-import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { Fr, Point } from '@aztec/foundation/fields';
-import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { fr } from '@aztec/circuits.js/factories';
+import { DeployL1Contracts, deployL1Contract } from '@aztec/ethereum';
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { sha256 } from '@aztec/foundation/crypto';
+import { Fr, Point } from '@aztec/foundation/fields';
+import { DebugLogger } from '@aztec/foundation/log';
 import { OutboxAbi, RollupNativeAssetAbi, RollupNativeAssetBytecode } from '@aztec/l1-artifacts';
-import {
-  GetContractReturnType,
-  PublicClient,
-  HttpTransport,
-  Chain,
-  getContract,
-  createPublicClient,
-  http,
-  getAddress,
-  createWalletClient,
-  Address,
-} from 'viem';
-import { foundry } from 'viem/chains';
-import { MNEMONIC, localAnvil } from './fixtures.js';
-
-const logger = createDebugLogger('aztec:e2e_rollup_native_asset_contract');
-
-const config = getConfigEnvVars();
+import { Address, Chain, GetContractReturnType, HttpTransport, PublicClient, getAddress, getContract } from 'viem';
+import { HDAccount } from 'viem/accounts';
+import { setup } from './setup.js';
 
 const sha256ToField = (buf: Buffer): Fr => {
   const tempContent = toBigIntBE(sha256(buf));
@@ -36,10 +19,12 @@ const sha256ToField = (buf: Buffer): Fr => {
 };
 
 describe('e2e_rollup_native_asset_contract', () => {
-  let node: AztecNodeService;
+  let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
-  let account: HDAccount;
   let accounts: AztecAddress[];
+  let logger: DebugLogger;
+
+  let account: HDAccount;
   let contract: Contract;
   let portalAddress: EthAddress;
   let portalContract: any;
@@ -50,42 +35,21 @@ describe('e2e_rollup_native_asset_contract', () => {
   let registryAddress: Address;
 
   beforeEach(async () => {
-    account = mnemonicToAccount(MNEMONIC);
-    const privKey = account.getHdKey().privateKey;
-    const {
-      rollupAddress,
-      registryAddress: registryAddress_,
-      outboxAddress,
-      unverifiedDataEmitterAddress,
-    } = await deployL1Contracts(config.rpcUrl, account, localAnvil, logger);
-
-    config.publisherPrivateKey = Buffer.from(privKey!);
-    config.rollupContract = rollupAddress;
-    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
-
-    registryAddress = getAddress(registryAddress_.toString());
-
-    node = await AztecNodeService.createAndSync(config);
-    aztecRpcServer = await createAztecRpcServer(2, node);
+    let deployL1ContractsValues: DeployL1Contracts;
+    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger } = await setup());
     accounts = await aztecRpcServer.getAccounts();
 
-    publicClient = createPublicClient({
-      chain: foundry,
-      transport: http(config.rpcUrl),
-    });
+    registryAddress = getAddress(deployL1ContractsValues.registryAddress.toString());
 
+    publicClient = deployL1ContractsValues.publicClient;
     outbox = getContract({
-      address: getAddress(outboxAddress.toString()),
+      address: getAddress(deployL1ContractsValues.outboxAddress.toString()),
       abi: OutboxAbi,
       publicClient,
     });
 
     // Deploy L1 portal
-    walletClient = createWalletClient({
-      account,
-      chain: foundry,
-      transport: http(config.rpcUrl),
-    });
+    walletClient = deployL1ContractsValues.walletClient;
 
     portalAddress = await deployL1Contract(walletClient, publicClient, RollupNativeAssetAbi, RollupNativeAssetBytecode);
 
@@ -98,7 +62,7 @@ describe('e2e_rollup_native_asset_contract', () => {
   }, 60_000);
 
   afterEach(async () => {
-    await node?.stop();
+    await aztecNode?.stop();
     await aztecRpcServer?.stop();
   });
 
@@ -174,7 +138,7 @@ describe('e2e_rollup_native_asset_contract', () => {
         ethOutAddress.toBuffer32(),
       ]),
     );
-    const contractInfo = await node.getContractInfo(contract.address);
+    const contractInfo = await aztecNode.getContractInfo(contract.address);
     // Compute the expected hash and see if it is what we saw in the block.
     const entryKey = sha256ToField(
       Buffer.concat([
@@ -186,8 +150,8 @@ describe('e2e_rollup_native_asset_contract', () => {
       ]),
     );
 
-    const blockNumber = await node.getBlockHeight();
-    const blocks = await node.getBlocks(blockNumber, 1);
+    const blockNumber = await aztecNode.getBlockHeight();
+    const blocks = await aztecNode.getBlocks(blockNumber, 1);
     // If this is failing, it is likely because of wrong chain id
     expect(blocks[0].newL2ToL1Msgs[0]).toEqual(entryKey);
 

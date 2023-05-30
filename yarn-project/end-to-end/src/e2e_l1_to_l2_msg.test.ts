@@ -1,31 +1,27 @@
-import { AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { NonNativeTokenContractAbi } from '@aztec/noir-contracts/examples';
 
-import { Account, mnemonicToAccount } from 'viem/accounts';
-import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { CircuitsWasm } from '@aztec/circuits.js';
+import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
+import { DeployL1Contracts, deployL1Contract } from '@aztec/ethereum';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { MNEMONIC, localAnvil } from './fixtures.js';
+import { Fr, Point } from '@aztec/foundation/fields';
+import { DebugLogger } from '@aztec/foundation/log';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { Chain, GetContractReturnType, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
-import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
-import { CircuitsWasm } from '@aztec/circuits.js';
-
-const logger = createDebugLogger('aztec:e2e_l1_to_l2_msg');
-
-const config = getConfigEnvVars();
+import { Account } from 'viem/accounts';
+import { setup } from './setup.js';
 
 // NOTE: this tests is just a scaffold, it is awaiting functionality to come from the aztec-node around indexing messages in the contract
 describe('e2e_l1_to_l2_msg', () => {
-  let node: AztecNodeService;
+  let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
   let accounts: AztecAddress[];
-  let contract: Contract;
+  let logger: DebugLogger;
 
+  let contract: Contract;
   let ethAccount: EthAddress;
 
   let tokenPortalAddress: EthAddress;
@@ -43,27 +39,14 @@ describe('e2e_l1_to_l2_msg', () => {
   >;
 
   beforeEach(async () => {
-    const account = mnemonicToAccount(MNEMONIC);
+    let deployL1ContractsValues: DeployL1Contracts | undefined;
+    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger } = await setup(2));
+    rollupRegistryAddress = deployL1ContractsValues!.registryAddress;
 
-    ethAccount = EthAddress.fromString(account.address);
+    const walletClient = deployL1ContractsValues.walletClient;
+    const publicClient = deployL1ContractsValues.publicClient;
 
-    const privKey = account.getHdKey().privateKey;
-    const {
-      rollupAddress,
-      inboxAddress,
-      registryAddress: registryAddress_,
-      unverifiedDataEmitterAddress,
-      walletClient,
-      publicClient,
-    } = await deployL1Contracts(config.rpcUrl, account, localAnvil, logger);
-
-    rollupRegistryAddress = registryAddress_;
-
-    config.publisherPrivateKey = Buffer.from(privKey!);
-    config.rollupContract = rollupAddress;
-    config.inboxContract = inboxAddress;
-    config.archiverPollingInterval = 1000;
-    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
+    ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
 
     // Deploy portal contracts
     underlyingERC20Address = await deployL1Contract(walletClient, publicClient, PortalERC20Abi, PortalERC20Bytecode);
@@ -80,14 +63,10 @@ describe('e2e_l1_to_l2_msg', () => {
       walletClient,
       publicClient,
     });
-
-    node = await AztecNodeService.createAndSync(config);
-    aztecRpcServer = await createAztecRpcServer(2, node);
-    accounts = await aztecRpcServer.getAccounts();
-  }, 60_000);
+  }, 30_000);
 
   afterEach(async () => {
-    await node?.stop();
+    await aztecNode?.stop();
     await aztecRpcServer?.stop();
   });
 

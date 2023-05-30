@@ -1,46 +1,26 @@
-import { AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
+import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 
-import { mnemonicToAccount } from 'viem/accounts';
-import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contracts } from '@aztec/ethereum';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { Point } from '@aztec/foundation/fields';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { MNEMONIC, localAnvil } from './fixtures.js';
-
-const logger = createDebugLogger('aztec:e2e_zk_token_contract');
-
-const config = getConfigEnvVars();
+import { Point } from '@aztec/foundation/fields';
+import { DebugLogger } from '@aztec/foundation/log';
+import { setup } from './setup.js';
 
 describe('e2e_zk_token_contract', () => {
-  let node: AztecNodeService;
+  let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
   let accounts: AztecAddress[];
+  let logger: DebugLogger;
+
   let contract: Contract;
 
   beforeEach(async () => {
-    const account = mnemonicToAccount(MNEMONIC);
-    const privKey = account.getHdKey().privateKey;
-    const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(
-      config.rpcUrl,
-      account,
-      localAnvil,
-      logger,
-    );
-
-    config.publisherPrivateKey = Buffer.from(privKey!);
-    config.rollupContract = rollupAddress;
-    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
-
-    node = await AztecNodeService.createAndSync(config);
-    aztecRpcServer = await createAztecRpcServer(2, node);
-    accounts = await aztecRpcServer.getAccounts();
-  }, 60_000);
+    ({ aztecNode, aztecRpcServer, accounts, logger } = await setup(2));
+  }, 30_000);
 
   afterEach(async () => {
-    await node?.stop();
+    await aztecNode?.stop();
     await aztecRpcServer?.stop();
   });
 

@@ -1,51 +1,30 @@
-import { AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
+import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { DebugLogger } from '@aztec/foundation/log';
 import { ChildAbi, ParentAbi } from '@aztec/noir-contracts/examples';
 
 import { toBigInt } from '@aztec/foundation/serialize';
-import { mnemonicToAccount } from 'viem/accounts';
-import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { deployL1Contracts } from '@aztec/ethereum';
-import { MNEMONIC, localAnvil } from './fixtures.js';
-
-const logger = createDebugLogger('aztec:e2e_nested_contract');
-
-const config = getConfigEnvVars();
+import { setup } from './setup.js';
 
 describe('e2e_nested_contract', () => {
-  let node: AztecNodeService;
+  let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
   let accounts: AztecAddress[];
+  let logger: DebugLogger;
 
   let parentContract: Contract;
   let childContract: Contract;
 
   beforeEach(async () => {
-    const account = mnemonicToAccount(MNEMONIC);
-    const privKey = account.getHdKey().privateKey;
-    const { rollupAddress, unverifiedDataEmitterAddress } = await deployL1Contracts(
-      config.rpcUrl,
-      account,
-      localAnvil,
-      logger,
-    );
-
-    config.publisherPrivateKey = Buffer.from(privKey!);
-    config.rollupContract = rollupAddress;
-    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
-
-    node = await AztecNodeService.createAndSync(config);
-    aztecRpcServer = await createAztecRpcServer(1, node);
-    accounts = await aztecRpcServer.getAccounts();
+    ({ aztecNode, aztecRpcServer, accounts, logger } = await setup());
 
     parentContract = await deployContract(ParentAbi);
     childContract = await deployContract(ChildAbi);
-  }, 60_000);
+  }, 30_000);
 
   afterEach(async () => {
-    await node.stop();
+    await aztecNode.stop();
     await aztecRpcServer.stop();
   });
 
@@ -65,7 +44,7 @@ describe('e2e_nested_contract', () => {
   const addressToField = (address: AztecAddress): bigint => Fr.fromBuffer(address.toBuffer()).value;
 
   const getChildStoredValue = (child: { address: AztecAddress }) =>
-    node.getStorageAt(child.address, 1n).then(x => toBigInt(x!));
+    aztecNode.getStorageAt(child.address, 1n).then(x => toBigInt(x!));
 
   /**
    * Milestone 3.

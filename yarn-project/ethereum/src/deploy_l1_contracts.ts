@@ -33,7 +33,7 @@ import { HDAccount, PrivateKeyAccount } from 'viem/accounts';
 /**
  * Return type of the deployL1Contract function.
  */
-type DeployL1Contracts = {
+export type DeployL1Contracts = {
   /**
    * Wallet Client Type.
    */
