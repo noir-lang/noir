@@ -136,7 +136,7 @@ impl GeneratedAcir {
     /// First, lets create a new variable that is equal to the difference
     /// of the two expressions: `t = lhs - rhs` (constraint has been applied)
     ///
-    /// Next lets create a new variable `y` which will the Witness, we will ultimately
+    /// Next lets create a new variable `y` which will be the Witness that we will ultimately
     /// return indicating whether lhs == rhs.
     /// Note: We eventually need to apply constraints that ensure that it is a boolean.
     /// But right now with no constraints applied to it, it is essentially a free variable.
