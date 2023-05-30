@@ -260,7 +260,8 @@
         '';
 
         installPhase = ''
-          mkdir - p $out
+          mkdir -p $out
+          cp -r ${PKG_PATH}/* $out
         '';
 
       };
