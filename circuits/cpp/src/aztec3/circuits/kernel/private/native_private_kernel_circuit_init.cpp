@@ -156,11 +156,10 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_initial(DummyCompose
 
     validate_inputs(composer, private_inputs);
 
+    validate_this_private_call_against_tx_request(composer, private_inputs);
+
     // TODO(rahul) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/499
     // Noir doesn't have hash index so it can't hash private call stack item correctly
-    // TODO(jeanmon) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/672
-    // validate_this_private_call_against_tx_request(composer, private_inputs);
-
     // TODO(dbanks12): may need to comment out hash check in here according to TODO above
     // TODO(jeanmon) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/671
     // common_validate_call_stack(composer, private_inputs.private_call);
