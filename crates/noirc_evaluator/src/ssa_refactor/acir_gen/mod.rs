@@ -9,7 +9,7 @@ use super::{
         dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         map::Id,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -76,8 +76,14 @@ impl Context {
             _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
         };
         match param_type {
-            Type::Numeric(..) => {
+            Type::Numeric(numeric_type) => {
                 let acir_var = self.acir_context.add_variable();
+                if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. })
+                {
+                    self.acir_context
+                        .numeric_cast_var(acir_var, &numeric_type)
+                        .expect("invalid range constraint was applied {numeric_type}");
+                }
                 self.ssa_value_to_acir_var.insert(param_id, acir_var);
             }
             Type::Reference => {
