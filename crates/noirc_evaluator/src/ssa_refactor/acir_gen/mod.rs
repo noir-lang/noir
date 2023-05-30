@@ -155,10 +155,7 @@ impl Context {
             return *acir_var;
         }
         let acir_var = match value {
-            Value::NumericConstant { constant, .. } => {
-                let field_element = &dfg[*constant].value();
-                self.acir_context.add_constant(*field_element)
-            }
+            Value::NumericConstant { constant, .. } => self.acir_context.add_constant(*constant),
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
