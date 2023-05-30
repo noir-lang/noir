@@ -1,13 +1,16 @@
-use acvm::{Backend, PartialWitnessGenerator, ProofSystemCompiler, SmartContract, CommonReferenceString, acir::{BlackBoxFunc, circuit::opcodes::BlackBoxFuncCall}};
-// pub(crate) use acvm_backend_barretenberg::Barretenberg as ConcreteBackend;
+#[cfg(feature = "bb_js")]
+use acvm::{Backend, PartialWitnessGenerator, ProofSystemCompiler, SmartContract, CommonReferenceString, acir::circuit::opcodes::BlackBoxFuncCall};
 
-// #[cfg(not(any(feature = "plonk_bn254", feature = "plonk_bn254_wasm")))]
-// compile_error!("please specify a backend to compile with");
+#[cfg(any(feature = "plonk_bn254", feature = "plonk_bn254_wasm"))]
+pub(crate) use acvm_backend_barretenberg::Barretenberg as ConcreteBackend;
 
-// #[cfg(all(feature = "plonk_bn254", feature = "plonk_bn254_wasm"))]
-// compile_error!(
-//     "feature \"plonk_bn254\"  and feature \"plonk_bn254_wasm\" cannot be enabled at the same time"
-// );
+#[cfg(not(any(feature = "plonk_bn254", feature = "plonk_bn254_wasm", feature = "bb_js")))]
+compile_error!("please specify a backend to compile with");
+
+#[cfg(all(feature = "plonk_bn254", feature = "plonk_bn254_wasm"))]
+compile_error!(
+    "feature \"plonk_bn254\"  and feature \"plonk_bn254_wasm\" cannot be enabled at the same time"
+);
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ConcreteBackend;
