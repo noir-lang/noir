@@ -1,8 +1,8 @@
 // This is a test for simple return with a constant.
 //
-// ACIR generation checks if there is not return 
+// ACIR generation checks if there is no return 
 // type by checking to see if the return type is a numeric
-// constant with tpye None.
+// constant with type None.
 // 
 // This is just a low hanging test to check this.
 //
