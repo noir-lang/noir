@@ -3,7 +3,7 @@ use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
 };
-use std::{collections::HashMap, hash::Hash};
+use std::{borrow::Cow, collections::HashMap, hash::Hash};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -100,6 +100,18 @@ impl AcirContext {
         self.assert_eq_var(var, one_var);
     }
 
+    /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
+    /// 0 otherwise.
+    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let lhs_data = &self.data[&lhs];
+        let rhs_data = &self.data[&rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
+        self.add_data(AcirVarData::Witness(is_equal_witness))
+    }
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
         // TODO: could use sub_var and then assert_eq_zero
@@ -151,7 +163,7 @@ impl AcirContext {
         match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
-                let expr_as_witness = self.acir_ir.expression_to_witness(expr);
+                let expr_as_witness = self.acir_ir.get_or_create_witness(expr);
                 let mut expr = Expression::default();
                 expr.push_multiplication_term(FieldElement::one(), *witness, expr_as_witness);
 
@@ -176,8 +188,8 @@ impl AcirContext {
                 self.add_data(AcirVarData::Const(*lhs_constant * *rhs_constant))
             }
             (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                let lhs_expr_as_witness = self.acir_ir.expression_to_witness(lhs_expr);
-                let rhs_expr_as_witness = self.acir_ir.expression_to_witness(rhs_expr);
+                let lhs_expr_as_witness = self.acir_ir.get_or_create_witness(lhs_expr);
+                let rhs_expr_as_witness = self.acir_ir.get_or_create_witness(rhs_expr);
                 let mut expr = Expression::default();
                 expr.push_multiplication_term(
                     FieldElement::one(),
@@ -234,9 +246,9 @@ impl AcirContext {
         // TODO: Add caching to prevent expressions from being needlessly duplicated
         let witness = match acir_var_data {
             AcirVarData::Const(constant) => {
-                self.acir_ir.expression_to_witness(&Expression::from(*constant))
+                self.acir_ir.get_or_create_witness(&Expression::from(*constant))
             }
-            AcirVarData::Expr(expr) => self.acir_ir.expression_to_witness(expr),
+            AcirVarData::Expr(expr) => self.acir_ir.get_or_create_witness(expr),
             AcirVarData::Witness(witness) => *witness,
         };
         self.acir_ir.push_return_witness(witness);
@@ -299,6 +311,14 @@ impl AcirVarData {
             return Some(*field);
         }
         None
+    }
+    /// Converts all enum variants to an Expression.
+    pub(crate) fn to_expression(&self) -> Cow<Expression> {
+        match self {
+            AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),
+            AcirVarData::Expr(expr) => Cow::Borrowed(expr),
+            AcirVarData::Const(constant) => Cow::Owned(Expression::from(*constant)),
+        }
     }
 }
 

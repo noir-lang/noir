@@ -99,6 +99,10 @@ impl Context {
                 assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
                 self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
             }
+            Instruction::Constrain(value_id) => {
+                let constrain_condition = self.convert_ssa_value(*value_id, dfg);
+                self.acir_context.assert_eq_one(constrain_condition);
+            }
             _ => todo!(),
         }
     }
@@ -162,6 +166,10 @@ impl Context {
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
             BinaryOp::Div => self.acir_context.div_var(lhs, rhs),
+            // Note: that this produces unnecessary constraints when
+            // this Eq instruction is being used for a constrain statement
+            BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
+
             _ => todo!(),
         }
     }
