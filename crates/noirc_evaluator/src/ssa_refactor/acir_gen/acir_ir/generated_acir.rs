@@ -132,14 +132,14 @@ impl GeneratedAcir {
     /// - `0` otherwise
     ///
     /// Intuition: the equality of two Expressions is linked to whether
-    /// their difference has an inverse. a == b implies that a - b == 0
-    /// which implies that a - b has no inverse. So if two variables are equal
+    /// their difference has an inverse; a == b implies that a - b == 0
+    /// which implies that a - b has no inverse. So if two variables are equal,
     /// their difference will have no inverse.
     ///
     /// First, lets create a new variable that is equal to the difference
     /// of the two expressions: `t = lhs - rhs` (constraint has been applied)
     ///
-    /// Next lets create a new variable `y` which will the Witness, we will ultimately
+    /// Next lets create a new variable `y` which will be the Witness that we will ultimately
     /// return indicating whether lhs == rhs.
     /// Note: We eventually need to apply constraints that ensure that it is a boolean.
     /// But right now with no constraints applied to it, it is essentially a free variable.
@@ -159,29 +159,32 @@ impl GeneratedAcir {
     /// `y == 1 - t` and the equation `y * t == 0` fails.  
     ///
     /// To fix, we introduce another free variable called `z` and apply the following
-    /// constraint instead: y == 1 - tz.
+    /// constraint instead: y == 1 - t * z.
     ///
     /// When lhs == rhs, t is zero and so `y` is `1`.
     /// When lhs != rhs, t is non-zero, however the prover can set `z = 1/t`
     /// which will make `y` = 1 - t * 1/t =  `0`.
     ///
     /// We now arrive at the conclusion that when lhs == rhs, `y` is `1` and when
-    /// lhs != rhs, then `y` is zero.
+    /// lhs != rhs, then `y` is `0`.
     ///  
-    /// We introduce three variables `y`, `t` and `z`.
+    /// Bringing it all together, We introduce three variables `y`, `t` and `z`,
     /// With the following equations:
     /// - t == lhs - rhs
     /// - y == 1 - tz (z is a value that is chosen to be the inverse by the prover)
     /// - y * t == 0
     ///
-    /// Lets convince ourselves that the prover cannot prove something that is untrue.
+    /// Lets convince ourselves that the prover cannot prove an untrue statement.
     ///
     /// Assume that lhs == rhs, can the prover return y == 0 ?
-    /// when lhs == rhs, `t` is 0. There is no way to make `y` be zero
+    ///
+    /// When lhs == rhs, `t` is 0. There is no way to make `y` be zero
     /// since `y = 1 - 0 * z = 1`.
     ///
     /// Assume that lhs != rhs, can the prover return y == 1 ?
-    /// When lhs != rhs, then `t` is non-zero. by setting `z` to be 0, we can make `y` equal to `1`
+    ///
+    /// When lhs != rhs, then `t` is non-zero.
+    /// By setting `z` to be 0, we can make `y` equal to `1`.
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
     pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
