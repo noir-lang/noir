@@ -349,6 +349,36 @@ impl Keccak256Constraint {
 }
 
 #[derive(Clone, Hash, Debug, Serialize, Deserialize)]
+pub(crate) struct Keccak256VarConstraint {
+    pub(crate) inputs: Vec<(i32, i32)>,
+    pub(crate) result: [i32; 32],
+    pub(crate) var_message_size: i32,
+}
+
+impl Keccak256VarConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        let inputs_len = self.inputs.len() as u32;
+        buffer.extend_from_slice(&inputs_len.to_be_bytes());
+        for constraint in self.inputs.iter() {
+            buffer.extend_from_slice(&constraint.0.to_be_bytes());
+            buffer.extend_from_slice(&constraint.1.to_be_bytes());
+        }
+
+        let result_len = self.result.len() as u32;
+        buffer.extend_from_slice(&result_len.to_be_bytes());
+        for constraint in self.result.iter() {
+            buffer.extend_from_slice(&constraint.to_be_bytes());
+        }
+
+        buffer.extend_from_slice(&self.var_message_size.to_be_bytes());
+
+        buffer
+    }
+}
+
+#[derive(Clone, Hash, Debug, Serialize, Deserialize)]
 pub(crate) struct PedersenConstraint {
     pub(crate) inputs: Vec<i32>,
     pub(crate) result_x: i32,
@@ -446,6 +476,7 @@ pub(crate) struct ConstraintSystem {
     blake2s_constraints: Vec<Blake2sConstraint>,
     block_constraints: Vec<BlockConstraint>,
     keccak_constraints: Vec<Keccak256Constraint>,
+    keccak_var_constraints: Vec<Keccak256VarConstraint>,
     pedersen_constraints: Vec<PedersenConstraint>,
     hash_to_field_constraints: Vec<HashToFieldConstraint>,
     fixed_base_scalar_mul_constraints: Vec<FixedBaseScalarMulConstraint>,
@@ -646,6 +677,13 @@ impl ConstraintSystem {
             buffer.extend(&constraint.to_bytes());
         }
 
+        // Serialize each Keccak Var constraint
+        let keccak_var_len = self.keccak_var_constraints.len() as u32;
+        buffer.extend_from_slice(&keccak_var_len.to_be_bytes());
+        for constraint in self.keccak_var_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
         // Serialize each Pedersen constraint
         let pedersen_len = self.pedersen_constraints.len() as u32;
         buffer.extend_from_slice(&pedersen_len.to_be_bytes());
@@ -828,6 +866,7 @@ impl TryFrom<&Circuit> for ConstraintSystem {
         let mut blake2s_constraints: Vec<Blake2sConstraint> = Vec::new();
         let mut block_constraints: Vec<BlockConstraint> = Vec::new();
         let mut keccak_constraints: Vec<Keccak256Constraint> = Vec::new();
+        let keccak_var_constraints: Vec<Keccak256VarConstraint> = Vec::new();
         let mut pedersen_constraints: Vec<PedersenConstraint> = Vec::new();
         // ACVM doesn't generate `ComputeMerkleRootConstraint`s anymore.
         // We maintain this to maintain the serialization format.
@@ -1257,6 +1296,7 @@ impl TryFrom<&Circuit> for ConstraintSystem {
             blake2s_constraints,
             block_constraints,
             keccak_constraints,
+            keccak_var_constraints,
             hash_to_field_constraints,
             constraints,
             fixed_base_scalar_mul_constraints,
