@@ -244,7 +244,7 @@ impl AcirContext {
         }
     }
 
-    /// Adds a new variable that is constrained to be the logical opposite to `x`.
+    /// Adds a new variable that is constrained to be the logical NOT of `x`.
     ///
     /// `x` must be a 1-bit integer (i.e. a boolean)
     pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
