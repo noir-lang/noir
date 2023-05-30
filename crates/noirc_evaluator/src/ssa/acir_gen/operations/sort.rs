@@ -142,6 +142,7 @@ mod test {
             &self,
             _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
+            _domain_separator: u32,
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")
