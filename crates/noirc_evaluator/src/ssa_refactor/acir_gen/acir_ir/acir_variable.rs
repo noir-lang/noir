@@ -246,7 +246,7 @@ impl AcirContext {
 
     /// Adds a new variable that is constrained to be the logical opposite to `x`.
     ///
-    /// `x` must be of bit size 1 (i.e. a bool)
+    /// `x` must be a 1-bit integer (i.e. a boolean)
     pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
         assert_eq!(
             self.variables_to_bit_sizes.get(&x),
