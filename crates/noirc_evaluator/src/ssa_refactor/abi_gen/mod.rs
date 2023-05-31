@@ -21,6 +21,13 @@ pub(crate) fn collate_array_lengths(abi_params: &[AbiParameter]) -> Vec<usize> {
     acc
 }
 
+/// The underlying recursive implementation of `collate_array_lengths`
+///
+/// This does a depth-first traversal of the abi until an array (or string) is encountered, at
+/// which point arrays are handled differently depending on the element type:
+/// - arrays of fields, integers or booleans produce an array of the specified length
+/// - arrays of structs produce an array of the specified length for each field of the flatten
+///   struct (which reflects a simplification made during monomorphization)
 fn collate_array_lengths_recursive(acc: &mut Vec<usize>, abi_type: &AbiType) {
     match abi_type {
         AbiType::Array { length, typ: elem_type } => {
@@ -37,7 +44,7 @@ fn collate_array_lengths_recursive(acc: &mut Vec<usize>, abi_type: &AbiType) {
                     }
                 }
                 AbiType::String { .. } => {
-                    unreachable!("Arrays od strings are not supported");
+                    unreachable!("Arrays of strings are not supported");
                 }
                 AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } => {
                     // Simple 1D array
