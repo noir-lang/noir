@@ -265,6 +265,54 @@ impl AcirContext {
             }
         }
     }
+    /// Returns an `AcirVar` that is constrained to be lhs << rhs.
+    ///
+    /// We convert left shifts to multiplications, so this is equivalent to
+    /// lhs * 2^rhs.
+    ///
+    /// TODO: Currently, we maintain that the rhs needs to be a constant so that we can
+    /// TODO: compute 2^rhs in the compiler. However, we can extend it to witnesses
+    /// TODO: by first bit decomposing rhs and then using square-and-multiply to
+    /// TODO: compute 2^{rhs}. This will require if statements so it would be good
+    /// TODO: to have this implementation in Noir and the << operator uses that.
+    pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let rhs_data = &self.data[&rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.mul_var(lhs, two_pow_rhs_var)
+    }
+
+    /// Returns an `AcirVar` that is constrained to be lhs >> rhs.
+    ///
+    /// We convert right shifts to divisions, so this is equivalent to
+    /// lhs / 2^rhs.
+    ///
+    /// TODO: the previous code seems to have only done a right shift, if the
+    /// TODO rhs was a constant. Moreover, it did an unsigned division.
+    ///
+    /// TODO: We should rationalize whether we want shift left and shift right to work
+    /// TODO only for unsigned integers.
+    /// TODO:
+    /// TODO: This would mean that both implementation would be doing integer mul and
+    /// TODO integer division. The previous code was doing Mul and integer division.
+    pub(crate) fn shift_right_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let rhs_data = &self.data[&rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.div_var(lhs, two_pow_rhs_var)
+    }
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
