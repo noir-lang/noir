@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - master
+      - jb-nix-flake
 
 jobs:
   release-please:
@@ -73,8 +73,8 @@ jobs:
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
-  publish-wasm:
-    name: Publish noir_wasm package
+  dispatch-noir_wasm:
+    name: Dispatch to noir_wasm
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
@@ -84,6 +84,21 @@ jobs:
         with:
           workflow: update.yml
           repo: noir-lang/noir_wasm
-          ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          ref: jb-nix-flake
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  # publish-wasm:
+  #   name: Publish noir_wasm package
+  #   needs: [release-please]
+  #   if: ${{ needs.release-please.outputs.tag-name }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Dispatch to noir_wasm
+  #       uses: benc-uk/workflow-dispatch@v1
+  #       with:
+  #         workflow: update.yml
+  #         repo: noir-lang/noir_wasm
+  #         ref: master
+  #         token: ${{ secrets.NOIR_REPO_TOKEN }}
+  #         inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
