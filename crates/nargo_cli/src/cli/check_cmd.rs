@@ -1,13 +1,13 @@
-use crate::{errors::CliError, resolver::Resolver};
-use acvm::ProofSystemCompiler;
+use crate::errors::CliError;
+use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
-use super::fs::write_to_file;
 use super::NargoConfig;
+use super::{compile_cmd::setup_driver, fs::write_to_file};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
@@ -17,16 +17,22 @@ pub(crate) struct CheckCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
-    check_from_path(config.program_dir, &args.compile_options)?;
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: CheckCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
+    check_from_path(backend, config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 
-fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-
-    let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
+fn check_from_path<B: Backend, P: AsRef<Path>>(
+    backend: &B,
+    program_dir: P,
+    compile_options: &CompileOptions,
+) -> Result<(), CliError<B>> {
+    let mut driver = setup_driver(backend, program_dir.as_ref())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
@@ -36,7 +42,7 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
         // For now it is hard-coded to be toml.
         //
         // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(p.as_ref());
+        let path_to_root = PathBuf::from(program_dir.as_ref());
         let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
         let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
@@ -94,7 +100,7 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, path::PathBuf};
+    use std::path::PathBuf;
 
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
@@ -117,13 +123,13 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
-                    fields: BTreeMap::from([
+                    fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (
                             String::from("d2"),
                             AbiType::Array { length: 3, typ: Box::new(AbiType::Field) },
                         ),
-                    ]),
+                    ],
                 },
             ),
             typed_param("e", AbiType::Boolean),
@@ -148,12 +154,13 @@ d2 = ["", "", ""]
         let pass_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
+        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, path.clone(), &config).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -166,12 +173,13 @@ d2 = ["", "", ""]
         let fail_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
+        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_err(),
+                super::check_from_path(&backend, path.clone(), &config).is_err(),
                 "path: {}",
                 path.display()
             );
@@ -183,13 +191,14 @@ d2 = ["", "", ""]
         let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let config = CompileOptions { allow_warnings: true, ..Default::default() };
+        let backend = crate::backends::ConcreteBackend::default();
+        let config = CompileOptions { deny_warnings: false, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, path.clone(), &config).is_ok(),
                 "path: {}",
                 path.display()
             );

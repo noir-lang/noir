@@ -219,6 +219,7 @@ mod test {
             ]
             .into(),
             return_visibility: noirc_abi::AbiVisibility::Private,
+            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
             has_body: true,
         };
         interner.push_fn_meta(func_meta, func_id);

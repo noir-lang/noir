@@ -189,7 +189,7 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Ord, PartialOrd)]
 /// The different kinds of tokens that are possible in the target language
 pub enum TokenKind {
     Token(Token),
@@ -324,7 +324,6 @@ impl IntType {
 pub enum Attribute {
     Foreign(String),
     Builtin(String),
-    Alternative(String),
     Test,
 }
 
@@ -333,7 +332,6 @@ impl fmt::Display for Attribute {
         match *self {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
-            Attribute::Alternative(ref k) => write!(f, "#[alternative({k})]"),
             Attribute::Test => write!(f, "#[test]"),
         }
     }
@@ -365,7 +363,6 @@ impl Attribute {
         let tok = match attribute_type {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
-            "alternative" => Token::Attribute(Attribute::Alternative(attribute_name.to_string())),
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
@@ -401,7 +398,6 @@ impl AsRef<str> for Attribute {
         match self {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
-            Attribute::Alternative(string) => string,
             Attribute::Test => "",
         }
     }
@@ -414,6 +410,7 @@ impl AsRef<str> for Attribute {
 #[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum Keyword {
     As,
+    Assert,
     Bool,
     Char,
     CompTime,
@@ -421,6 +418,7 @@ pub enum Keyword {
     Contract,
     Crate,
     Dep,
+    Distinct,
     Else,
     Field,
     Fn,
@@ -447,6 +445,7 @@ impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Keyword::As => write!(f, "as"),
+            Keyword::Assert => write!(f, "assert"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
             Keyword::CompTime => write!(f, "comptime"),
@@ -454,6 +453,7 @@ impl fmt::Display for Keyword {
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
+            Keyword::Distinct => write!(f, "distinct"),
             Keyword::Else => write!(f, "else"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
@@ -483,6 +483,7 @@ impl Keyword {
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
             "as" => Keyword::As,
+            "assert" => Keyword::Assert,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,
@@ -490,6 +491,7 @@ impl Keyword {
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
+            "distinct" => Keyword::Distinct,
             "else" => Keyword::Else,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,

@@ -9,7 +9,7 @@ use crate::ssa::{
     },
 };
 use acvm::FieldElement;
-use num_bigint::ToBigUint;
+use num_bigint::BigUint;
 
 pub(super) fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.instruction(ins_id).clone();
@@ -74,14 +74,16 @@ pub(super) fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<()
 fn evaluate_intrinsic(
     ctx: &mut SsaContext,
     op: builtin::Opcode,
-    args: Vec<u128>,
+    args: Vec<FieldElement>,
     res_type: &ObjectType,
     block_id: BlockId,
 ) -> Result<Vec<NodeId>, RuntimeErrorKind> {
     match op {
         builtin::Opcode::ToBits(_) => {
-            let bit_count = args[1] as u32;
+            let bit_count = args[1].to_u128() as u32;
             let mut result = Vec::new();
+            let mut bits = args[0].bits();
+            bits.reverse();
 
             if let ObjectType::ArrayPointer(a) = res_type {
                 for i in 0..bit_count {
@@ -89,7 +91,7 @@ fn evaluate_intrinsic(
                         FieldElement::from(i as i128),
                         ObjectType::native_field(),
                     );
-                    let op = if args[0] & (1 << i) != 0 {
+                    let op = if i < bits.len() as u32 && bits[i as usize] {
                         Operation::Store {
                             array_id: *a,
                             index,
@@ -116,9 +118,10 @@ fn evaluate_intrinsic(
             );
         }
         builtin::Opcode::ToRadix(endian) => {
-            let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
-            let byte_count = args[2] as u32;
-            let diff = if byte_count > element.len() as u32 {
+            let mut element = BigUint::from_bytes_be(&args[0].to_be_bytes())
+                .to_radix_le(args[1].to_u128() as u32);
+            let byte_count = args[2].to_u128() as u32;
+            let diff = if byte_count >= element.len() as u32 {
                 byte_count - element.len() as u32
             } else {
                 return Err(RuntimeErrorKind::ArrayOutOfBounds {
@@ -504,6 +507,22 @@ fn cse_block_with_anchor(
                         new_list.push(*ins_id);
                     }
                 }
+                Operation::Constrain(condition, location) => {
+                    if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                        assert_ne!(similar, ins.id);
+                        *modified = true;
+                        let similar_ins = ctx
+                            .try_get_mut_instruction(similar)
+                            .expect("Similar instructions are instructions");
+                        if location.is_some() && similar_ins.get_location().is_none() {
+                            similar_ins.operation = Operation::Constrain(*condition, *location);
+                        }
+                        new_mark = Mark::ReplaceWith(similar);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
+                    }
+                }
                 _ => {
                     //TODO: checks we do not need to propagate res arguments
                     new_list.push(*ins_id);
@@ -532,9 +551,8 @@ fn cse_block_with_anchor(
                     // We do not simplify print statements
                     builtin::Opcode::Println(_) => (),
                     _ => {
-                        let args = args.iter().map(|arg| {
-                            NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
-                        });
+                        let args =
+                            args.iter().map(|arg| NodeEval::from_id(ctx, *arg).into_const_value());
 
                         if let Some(args) = args.collect() {
                             update2.mark = Mark::Deleted;

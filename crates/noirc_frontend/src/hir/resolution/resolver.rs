@@ -18,11 +18,11 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
+use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
@@ -567,17 +567,13 @@ impl<'a> Resolver<'a> {
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+    ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
 
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        let fields = unresolved
-            .fields
-            .into_iter()
-            .map(|(ident, typ)| (ident, self.resolve_type(typ)))
-            .collect();
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (generics, fields, self.errors)
     }
@@ -637,6 +633,12 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
 
+        if !self.distinct_allowed(func)
+            && func.def.return_distinctness != noirc_abi::AbiDistinctness::DuplicationAllowed
+        {
+            self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
+        }
+
         if attributes == Some(Attribute::Test) && !parameters.is_empty() {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
@@ -661,6 +663,7 @@ impl<'a> Resolver<'a> {
             typ,
             parameters: parameters.into(),
             return_visibility: func.def.return_visibility,
+            return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
         }
     }
@@ -670,7 +673,18 @@ impl<'a> Resolver<'a> {
         if self.in_contract() {
             !func.def.is_unconstrained && !func.def.is_open
         } else {
-            func.name() == "main"
+            func.name() == MAIN_FUNCTION
+        }
+    }
+
+    /// True if the `distinct` keyword is allowed on a function's return type
+    fn distinct_allowed(&self, func: &NoirFunction) -> bool {
+        if self.in_contract() {
+            // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
+            // witness indices in their abis is not a concern.
+            !func.def.is_unconstrained && !func.def.is_open
+        } else {
+            func.name() == MAIN_FUNCTION
         }
     }
 
@@ -841,7 +855,7 @@ impl<'a> Resolver<'a> {
                     let span = length.span;
                     let length = UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(
                         |error| {
-                            self.errors.push(ResolverError::ParserError(error));
+                            self.errors.push(ResolverError::ParserError(Box::new(error)));
                             UnresolvedTypeExpression::Constant(0, span)
                         },
                     );
@@ -1076,7 +1090,7 @@ impl<'a> Resolver<'a> {
     ) -> Vec<(Ident, U)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
-        let mut unseen_fields = self.get_field_names_of_type(&struct_type);
+        let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field, expr) in fields {
             let resolved = resolve_function(self, expr);
@@ -1113,10 +1127,6 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    fn get_field_names_of_type(&self, typ: &Shared<StructType>) -> BTreeSet<Ident> {
-        typ.borrow().field_names()
-    }
-
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1131,23 +1141,7 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         let id = self.resolve_path(path)?;
 
-        if let Some(mut function) = TryFromModuleDefId::try_from(id) {
-            // Check if this is an unsupported low level opcode. If so, replace it with
-            // an alternative in the stdlib.
-            if let Some(meta) = self.interner.try_function_meta(&function) {
-                if meta.kind == crate::FunctionKind::LowLevel {
-                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode = attribute.foreign().expect(
-                        "ice: function marked as foreign, but attribute kind does not match this",
-                    );
-                    if !self.interner.foreign(&opcode) {
-                        if let Some(new_id) = self.interner.get_alt(opcode) {
-                            function = new_id;
-                        }
-                    }
-                }
-            }
-
+        if let Some(function) = TryFromModuleDefId::try_from(id) {
             return Ok(self.interner.function_definition_id(function));
         }
 
@@ -1339,7 +1333,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain y == x;
+                assert(y == x);
             }
         "#;
 
@@ -1351,7 +1345,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain x == x;
+                assert(x == x);
             }
         "#;
 
@@ -1374,7 +1368,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = x + x;
-                constrain y == z;
+                assert(y == z);
             }
         "#;
 
@@ -1410,7 +1404,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let y = 5;
-                constrain y == x;
+                assert(y == x);
             }
         "#;
 

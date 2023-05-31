@@ -1,21 +1,9 @@
 // Regular merkle tree means a append-only merkle tree (Explain why this is the only way to have privacy and alternatives if you don't want it)
-
-// Returns one if the leaf is in the tree 
-// and it is at the given index 
-// and the hashpath proves this
 // Currently we assume that it is a binary tree, so depth k implies a width of 2^k
 // XXX: In the future we can add an arity parameter
-#[foreign(merkle_membership)]
-fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
 
-
-#[alternative(merkle_membership)]
-fn check_membership_in_noir(root : Field, leaf : Field, index : Field, hash_path: [Field]) -> Field {
-    (compute_root_from_leaf(leaf, index, hash_path) == root) as Field
-}
-
-// Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
-fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
+// Returns the merkle root of the tree from the provided leaf, its hashpath, using a pedersen hash function.
+fn compute_merkle_root(leaf: Field, index: Field, hash_path: [Field]) -> Field {
     let n = hash_path.len();
     let index_bits = index.to_le_bits(n as u32);
     let mut current = leaf;
