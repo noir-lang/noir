@@ -6,9 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
-        constant::NumericConstantId,
         dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction, InstructionId},
+        instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -45,20 +44,7 @@ impl Ssa {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
-enum Address {
-    Zeroth(InstructionId),
-    Offset(InstructionId, NumericConstantId),
-}
-
-impl Address {
-    fn alloc_id(&self) -> InstructionId {
-        match self {
-            Address::Zeroth(alloc_id) => *alloc_id,
-            Address::Offset(alloc_id, _) => *alloc_id,
-        }
-    }
-}
+type Address = (InstructionId, u64);
 
 struct PerBlockContext {
     block_id: BasicBlockId,
@@ -87,8 +73,8 @@ impl PerBlockContext {
 
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
-                Instruction::Store { address, value } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
+                Instruction::Store { address, offset, value } => {
+                    if let Some(address) = Self::try_const_address(*address, *offset, dfg) {
                         // We can only track the address if it is a constant offset from an
                         // allocation. A previous constant folding pass should make such addresses
                         // possible to identify.
@@ -98,8 +84,8 @@ impl PerBlockContext {
                     // value id such we can shallowly check for dynamic address reuse.
                     self.store_ids.push(*instruction_id);
                 }
-                Instruction::Load { address } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
+                Instruction::Load { address, offset } => {
+                    if let Some(address) = Self::try_const_address(*address, *offset, dfg) {
                         if let Some(last_value) = self.last_stores.get(&address) {
                             let last_value = dfg[*last_value];
                             loads_to_substitute.push((*instruction_id, last_value));
@@ -110,8 +96,8 @@ impl PerBlockContext {
                 }
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
-                        if let Some(address) = self.try_const_address(*arg, dfg) {
-                            self.alloc_ids_in_calls.insert(address.alloc_id());
+                        if let Some(allocation) = Self::get_allocation(*arg, dfg) {
+                            self.alloc_ids_in_calls.insert(allocation);
                         }
                     }
                 }
@@ -142,14 +128,14 @@ impl PerBlockContext {
         // Scan for unused stores
         let mut stores_to_remove: Vec<InstructionId> = Vec::new();
         for instruction_id in &self.store_ids {
-            let address = match &dfg[*instruction_id] {
-                Instruction::Store { address, .. } => *address,
+            let (address, offset) = match &dfg[*instruction_id] {
+                Instruction::Store { address, offset, .. } => (*address, *offset),
                 _ => unreachable!("store_ids should contain only store instructions"),
             };
 
-            if let Some(address) = self.try_const_address(address, dfg) {
+            if let Some(address) = Self::try_const_address(address, offset, dfg) {
                 if !self.failed_substitutes.contains(&address)
-                    && !self.alloc_ids_in_calls.contains(&address.alloc_id())
+                    && !self.alloc_ids_in_calls.contains(&address.0)
                 {
                     stores_to_remove.push(*instruction_id);
                 }
@@ -164,44 +150,21 @@ impl PerBlockContext {
     }
 
     // Attempts to normalize the given value into a const address
-    fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
-        let value = &dfg[value_id];
-        let instruction_id = match value {
-            Value::Instruction { instruction, .. } => *instruction,
-            _ => return None,
-        };
-        let instruction = &dfg[instruction_id];
-        match instruction {
-            Instruction::Allocate { .. } => Some(Address::Zeroth(instruction_id)),
-            Instruction::Binary(binary) => {
-                if binary.operator != BinaryOp::Add {
-                    return None;
-                }
-                let lhs = &dfg[binary.lhs];
-                let rhs = &dfg[binary.rhs];
-                self.try_const_address_offset(lhs, rhs, dfg)
-                    .or_else(|| self.try_const_address_offset(rhs, lhs, dfg))
-            }
-            _ => None,
-        }
+    fn try_const_address(address: ValueId, offset: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
+        let instruction = Self::get_allocation(address, dfg)?;
+
+        dfg.get_numeric_constant(offset).map(|offset| {
+            (instruction, offset.try_to_u64().unwrap())
+        })
     }
 
-    // Tries val1 as an allocation instruction id and val2 as a constant offset
-    fn try_const_address_offset(
-        &self,
-        val1: &Value,
-        val2: &Value,
-        dfg: &DataFlowGraph,
-    ) -> Option<Address> {
-        let alloc_id = match val1 {
-            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-                Instruction::Allocate { .. } => *instruction,
-                _ => return None,
-            },
-            _ => return None,
-        };
-        if let Value::NumericConstant { constant, .. } = val2 {
-            Some(Address::Offset(alloc_id, *constant))
+    fn get_allocation(address: ValueId, dfg: &DataFlowGraph) -> Option<InstructionId> {
+        if let Value::Instruction { instruction, .. } = dfg[address] {
+            if !matches!(&dfg[instruction], Instruction::Allocate { .. }) {
+                None
+            } else {
+                Some(instruction)
+            }
         } else {
             None
         }
@@ -216,7 +179,7 @@ mod tests {
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+            instruction::{Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
         },
@@ -229,19 +192,16 @@ mod tests {
         //   b0():
         //     v0 = alloc 2
         //     v1 = add v0, Field 1
-        //     store v1, Field 1
-        //     v2 = add v0, Field 1
-        //     v3 = load v1
-        //     return v3
+        //     store Field 1 in v0 with offset Field 1
+        //     v2 = load v0 with offset Field 1
+        //     return v2
         // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(2);
         let const_one = builder.field_constant(FieldElement::one());
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
-        builder.insert_store(v1, const_one);
-        // v2 is created internally by builder.insert_load
+        builder.insert_store(v0, const_one, const_one);
         let v3 = builder.insert_load(v0, const_one, Type::field());
         builder.terminate_with_return(vec![v3]);
 
@@ -265,10 +225,8 @@ mod tests {
         // fn func {
         //   b0():
         //     v0 = alloc 2
-        //     v1 = add v0, Field 1
-        //     store v1, Field 1
-        //     v2 = add v0, Field 1
-        //     v3 = load v1
+        //     store Field 1 in v1 with offset Field 1
+        //     v3 = load v0 with offset Field 1
         //     v4 = call f0, v0
         //     return v3
         // }
@@ -277,9 +235,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(2);
         let const_one = builder.field_constant(FieldElement::one());
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
-        builder.insert_store(v1, const_one);
-        // v2 is created internally by builder.insert_load
+        builder.insert_store(v0, const_one, const_one);
         let v3 = builder.insert_load(v0, const_one, Type::field());
         let f0 = builder.import_intrinsic_id(Intrinsic::Println);
         builder.insert_call(f0, vec![v0], vec![Type::Unit]);
@@ -322,13 +278,13 @@ mod tests {
         // fn main {
         //   b0():
         //     v0 = alloc 1
-        //     store v0, Field 5
-        //     v1 = load v0
+        //     store Field 5 in v0 with offset Field 0
+        //     v1 = load v0 with offset Field 0
         //     jmp b1(v1):
         //   b1(v2: Field):
-        //     v3 = load v0
-        //     store v0, Field 6
-        //     v4 = load v0
+        //     v3 = load v0 with offset Field 0
+        //     store Field 6 in v0 with offset Field 0
+        //     v4 = load v0 with offset Field 0
         //     return v2, v3, v4
         // }
         let main_id = Id::test_new(0);
@@ -337,9 +293,9 @@ mod tests {
         let v0 = builder.insert_allocate(1);
 
         let five = builder.field_constant(5u128);
-        builder.insert_store(v0, five);
-
         let zero = builder.field_constant(0u128);
+        builder.insert_store(v0, zero, five);
+
         let v1 = builder.insert_load(v0, zero, Type::field());
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![v1]);
@@ -349,7 +305,7 @@ mod tests {
         let v3 = builder.insert_load(v0, zero, Type::field());
 
         let six = builder.field_constant(6u128);
-        builder.insert_store(v0, six);
+        builder.insert_store(v0, zero, six);
         let v4 = builder.insert_load(v0, zero, Type::field());
 
         builder.terminate_with_return(vec![v2, v3, v4]);

@@ -139,9 +139,9 @@ impl<'a> FunctionContext<'a> {
         let mut i = 0u128;
         for element in elements {
             element.for_each(|element| {
-                let address = self.make_offset(array, i);
+                let offset = self.builder.field_constant(i);
                 let element = element.eval(self);
-                self.builder.insert_store(address, element);
+                self.builder.insert_store(array, offset, element);
                 i += 1;
             });
         }
@@ -177,7 +177,9 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array = self.codegen_non_tuple_expression(&index.collection);
-        self.codegen_array_index(array, &index.index, &index.element_type, true)
+        self.codegen_array_index(array, &index.index, &index.element_type, |this, array, offset, typ| {
+            this.builder.insert_load(array, offset, typ).into()
+        })
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -186,13 +188,13 @@ impl<'a> FunctionContext<'a> {
     /// Set load_result to true to load from each relevant index of the array
     /// (it may be multiple in the case of tuples). Set it to false to instead
     /// return a reference to each element, for use with the store instruction.
-    fn codegen_array_index(
+    fn codegen_array_index<T>(
         &mut self,
         array: super::ir::value::ValueId,
         index: &ast::Expression,
         element_type: &ast::Type,
-        load_result: bool,
-    ) -> Values {
+        load_function: impl FnMut(&mut Self, ValueId, ValueId, Type) -> T,
+    ) -> Tree<T> {
         let base_offset = self.codegen_non_tuple_expression(index);
 
         // base_index = base_offset * type_size
@@ -202,14 +204,11 @@ impl<'a> FunctionContext<'a> {
 
         let mut field_index = 0u128;
         Self::map_type(element_type, |typ| {
-            let offset = self.make_offset(base_index, field_index);
+            let index = self.builder.field_constant(field_index);
+            let offset = self.builder.insert_binary(base_index, BinaryOp::Add, index);
+
             field_index += 1;
-            if load_result {
-                self.builder.insert_load(array, offset, typ)
-            } else {
-                self.builder.insert_binary(array, BinaryOp::Add, offset)
-            }
-            .into()
+            load_function(self, array, offset, typ)
         })
     }
 
@@ -258,7 +257,8 @@ impl<'a> FunctionContext<'a> {
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
         self.codegen_expression(&for_expr.block);
-        let new_loop_index = self.make_offset(loop_index, 1);
+        let one = self.builder.field_constant(1u128);
+        let new_loop_index = self.builder.insert_binary(loop_index, BinaryOp::Add, one);
         self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
 
         // Finish by switching back to the end of the loop
@@ -385,7 +385,7 @@ impl<'a> FunctionContext<'a> {
         self.unit_value()
     }
 
-    fn codegen_lvalue(&mut self, lvalue: &ast::LValue) -> Values {
+    fn codegen_lvalue(&mut self, lvalue: &ast::LValue) -> Tree<(ValueId, ValueId)> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 // Do not .eval the Values here! We do not want to load from any references within
@@ -401,7 +401,10 @@ impl<'a> FunctionContext<'a> {
                 // to an array would be a Value::Mutable( Value::Mutable ( address ) ), and we
                 // only need the inner mutable value.
                 let array = self.codegen_lvalue(array).into_leaf().eval(self);
-                self.codegen_array_index(array, index, element_type, false)
+
+                self.codegen_array_index(array, index, element_type, |_, array, offset, _| {
+                    (array, offset)
+                })
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 let object = self.codegen_lvalue(object);

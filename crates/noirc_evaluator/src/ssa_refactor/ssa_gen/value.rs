@@ -31,7 +31,7 @@ pub(super) enum Value {
     Normal(IrValueId),
 
     /// A mutable variable that must be loaded as the given type before being used
-    Mutable(IrValueId, Type),
+    Mutable(IrValueId, /*offset:*/IrValueId, Type),
 }
 
 impl Value {
@@ -41,8 +41,7 @@ impl Value {
     pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, typ) => {
-                let offset = ctx.builder.field_constant(0u128);
+            Value::Mutable(address, offset, typ) => {
                 ctx.builder.insert_load(address, offset, typ)
             }
         }
@@ -53,7 +52,7 @@ impl Value {
     pub(super) fn eval_reference(self) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, _) => address,
+            Value::Mutable(address, ..) => address,
         }
     }
 }

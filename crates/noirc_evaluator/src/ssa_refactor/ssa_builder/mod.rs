@@ -144,9 +144,9 @@ impl FunctionBuilder {
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset
-    /// of the given address which should point to a previous Allocate instruction. Note that
-    /// this is limited to loading a single value. Loading multiple values (such as a tuple)
-    /// will require multiple loads.
+    /// of the given address which should point to a previous Allocate instruction or block
+    /// parameter. Note that this is limited to loading a single value. Loading multiple values
+    /// (such as a tuple) will require multiple loads.
     /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
     /// an array will have an offset of 3.
     /// Returns the element that was loaded.
@@ -156,15 +156,14 @@ impl FunctionBuilder {
         offset: ValueId,
         type_to_load: Type,
     ) -> ValueId {
-        address = self.insert_binary(address, BinaryOp::Add, offset);
-        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
+        self.insert_instruction(Instruction::Load { address, offset }, Some(vec![type_to_load])).first()
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
-    /// at the given address. Expects that the address points somewhere
-    /// within a previous Allocate instruction.
-    pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
-        self.insert_instruction(Instruction::Store { address, value }, None);
+    /// at the given address. Expects that the address points directly to a previous Allocate
+    /// instruction, or a block parameter.
+    pub(crate) fn insert_store(&mut self, address: ValueId, offset: ValueId, value: ValueId) {
+        self.insert_instruction(Instruction::Store { address, offset, value }, None);
     }
 
     /// Insert a binary instruction at the end of the current block.

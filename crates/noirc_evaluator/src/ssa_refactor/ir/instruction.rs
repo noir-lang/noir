@@ -101,10 +101,10 @@ pub(crate) enum Instruction {
     Allocate { size: u32 },
 
     /// Loads a value from memory.
-    Load { address: ValueId },
+    Load { address: ValueId, offset: ValueId },
 
     /// Writes a value to memory.
-    Store { address: ValueId, value: ValueId },
+    Store { address: ValueId, offset: ValueId, value: ValueId },
 }
 
 impl Instruction {
@@ -156,9 +156,9 @@ impl Instruction {
                 arguments: vecmap(arguments.iter().copied(), f),
             },
             Instruction::Allocate { size } => Instruction::Allocate { size: *size },
-            Instruction::Load { address } => Instruction::Load { address: f(*address) },
-            Instruction::Store { address, value } => {
-                Instruction::Store { address: f(*address), value: f(*value) }
+            Instruction::Load { address, offset } => Instruction::Load { address: f(*address), offset: f(*offset) },
+            Instruction::Store { address, offset, value } => {
+                Instruction::Store { address: f(*address), offset: f(*offset), value: f(*value) }
             }
         }
     }
@@ -342,13 +342,6 @@ impl Binary {
                 }
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
-                }
-
-                let reference = dfg.get_reference_constant(self.lhs);
-                if let ((Some((reference, lhs_offset)), Some(rhs_offset))) = (reference, rhs) {
-                    let offset = lhs_offset + rhs_offset.try_to_u64().unwrap().try_into().unwrap();
-                    let address = dfg.make_reference_constant(reference, offset);
-                    return SimplifyResult::SimplifiedTo(address);
                 }
             }
             BinaryOp::Sub => {

@@ -142,7 +142,8 @@ impl<'a> FunctionContext<'a> {
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let alloc = self.builder.insert_allocate(1);
-        self.builder.insert_store(alloc, value_to_store);
+        let zero = self.builder.field_constant(0u128);
+        self.builder.insert_store(alloc, zero, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
     }
@@ -251,15 +252,6 @@ impl<'a> FunctionContext<'a> {
         reshaped_return_values
     }
 
-    /// Create a const offset of an address for an array load or store
-    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
-        if offset != 0 {
-            let offset = self.builder.field_constant(offset);
-            address = self.builder.insert_binary(address, BinaryOp::Add, offset);
-        }
-        address
-    }
-
     /// Define a local variable to be some Values that can later be retrieved
     /// by calling self.lookup(id)
     pub(super) fn define(&mut self, id: LocalId, value: Values) {
@@ -296,7 +288,8 @@ impl<'a> FunctionContext<'a> {
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
                 let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
-                self.builder.insert_store(lhs, rhs);
+                let zero = self.builder.field_constant(0u128);
+                self.builder.insert_store(lhs, zero, rhs);
             }
             (lhs, rhs) => {
                 unreachable!(
