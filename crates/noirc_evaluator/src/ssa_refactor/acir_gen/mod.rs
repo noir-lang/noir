@@ -275,6 +275,18 @@ impl Context {
                 .acir_context
                 .less_than_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Xor => self
+                .acir_context
+                .xor_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::And => self
+                .acir_context
+                .and_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Or => self
+                .acir_context
+                .or_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
             _ => todo!(),
         }
     }
