@@ -347,6 +347,7 @@ impl AcirContext {
         self.memory.allocate(size)
     }
 
+    /// Stores the given `AcirVar` at the specified address in memory
     pub(crate) fn array_store(
         &mut self,
         array_id: ArrayId,
@@ -356,6 +357,9 @@ impl AcirContext {
         self.memory.constant_set(array_id, index, element)
     }
 
+    /// Gets the last stored `AcirVar` at the specified address in memory.
+    ///
+    /// This errors if nothing was previously stored at the address.
     pub(crate) fn array_load(
         &mut self,
         array_id: ArrayId,
