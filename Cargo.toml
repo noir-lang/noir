@@ -53,3 +53,6 @@ toml = "0.7.2"
 url = "2.2.0"
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
+
+[patch.crates-io]
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg.git", branch = "mv/recursion-dbg" }

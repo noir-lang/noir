@@ -1,9 +1,3 @@
-#[cfg(feature = "bb_js")]
-use acvm::{
-    acir::circuit::opcodes::BlackBoxFuncCall, Backend, CommonReferenceString,
-    PartialWitnessGenerator, ProofSystemCompiler, SmartContract,
-};
-
 #[cfg(any(feature = "plonk_bn254", feature = "plonk_bn254_wasm"))]
 pub(crate) use acvm_backend_barretenberg::Barretenberg as ConcreteBackend;
 
@@ -15,18 +9,28 @@ compile_error!(
     "feature \"plonk_bn254\"  and feature \"plonk_bn254_wasm\" cannot be enabled at the same time"
 );
 
+#[cfg(feature = "bb_js")]
+use acvm::{
+    acir::circuit::opcodes::BlackBoxFuncCall, Backend, CommonReferenceString,
+    PartialWitnessGenerator, ProofSystemCompiler, SmartContract,
+};
+
+#[cfg(feature = "bb_js")]
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ConcreteBackend;
 
+#[cfg(feature = "bb_js")]
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct Errors;
 
+#[cfg(feature = "bb_js")]
 impl std::fmt::Display for Errors {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!("Errors")
     }
 }
 
+#[cfg(feature = "bb_js")]
 impl std::error::Error for Errors {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         None
@@ -41,8 +45,10 @@ impl std::error::Error for Errors {
     }
 }
 
+#[cfg(feature = "bb_js")]
 impl Backend for ConcreteBackend {}
 
+#[cfg(feature = "bb_js")]
 impl CommonReferenceString for ConcreteBackend {
     type Error = Errors;
 
@@ -76,6 +82,7 @@ impl CommonReferenceString for ConcreteBackend {
     }
 }
 
+#[cfg(feature = "bb_js")]
 impl PartialWitnessGenerator for ConcreteBackend {
     fn schnorr_verify(
         &self,
@@ -109,6 +116,7 @@ impl PartialWitnessGenerator for ConcreteBackend {
     }
 }
 
+#[cfg(feature = "bb_js")]
 impl ProofSystemCompiler for ConcreteBackend {
     type Error = Errors;
 
@@ -184,6 +192,7 @@ impl ProofSystemCompiler for ConcreteBackend {
     }
 }
 
+#[cfg(feature = "bb_js")]
 impl SmartContract for ConcreteBackend {
     type Error = Errors;
 
