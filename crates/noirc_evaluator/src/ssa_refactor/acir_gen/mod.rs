@@ -138,10 +138,7 @@ impl Context {
         let (results_id, results_vars) = match instruction {
             Instruction::Binary(binary) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
-                if self.value_is_array_address(binary.lhs)
-                    || self.value_is_array_address(binary.rhs)
-                {
+                if Self::value_is_array_address(result_ids[0], dfg) {
                     self.track_array_address(result_ids[0], binary, dfg);
                     return;
                 }
@@ -157,13 +154,11 @@ impl Context {
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Cast ops have a single result");
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Load { address } => {
                 let result_acir_var = self.convert_ssa_load(address);
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Load ops have a single result");
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             _ => todo!("{instruction:?}"),
@@ -266,8 +261,8 @@ impl Context {
     }
 
     /// Returns true if the value has been declared as an array address
-    fn value_is_array_address(&self, value_id: ValueId) -> bool {
-        self.ssa_value_to_array_address.contains_key(&value_id)
+    fn value_is_array_address(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
+        dfg.type_of_value(value_id) == Type::Reference
     }
 
     /// Takes a binary instruction describing array address arithmetic and stores the result.
