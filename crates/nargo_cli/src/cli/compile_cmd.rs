@@ -107,7 +107,7 @@ pub(super) fn setup_driver<B: Backend>(
     Resolver::resolve_root_manifest(
         program_dir,
         backend.np_language(),
-        // TODO: Remove need for driver to be aware of backend.
+        // TODO(#1102): Remove need for driver to be aware of backend.
         Box::new(|op| B::default().supports_opcode(op)),
     )
 }
