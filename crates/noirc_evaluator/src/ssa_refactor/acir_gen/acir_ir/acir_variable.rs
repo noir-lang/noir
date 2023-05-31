@@ -127,7 +127,7 @@ impl AcirContext {
     /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
     pub(crate) fn xor_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
         let lhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type");
+            self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type, this should be caught by the type system");
         let rhs_bit_size =
             self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type");
         let bit_size = std::cmp::max(*lhs_bit_size, *rhs_bit_size);
