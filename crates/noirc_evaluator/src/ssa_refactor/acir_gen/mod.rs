@@ -98,22 +98,24 @@ impl Context {
     /// Converts an SSA instruction into its ACIR representation
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
-        match instruction {
+
+        let (results_id, results_vars) = match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
-                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
+                (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Constrain(value_id) => {
                 let constrain_condition = self.convert_ssa_value(*value_id, dfg);
                 self.acir_context.assert_eq_one(constrain_condition);
+                (Vec::new(), Vec::new())
             }
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Cast ops have a single result");
-                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
+                (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Not(value_id) => {
                 let boolean_var = self.convert_ssa_value(*value_id, dfg);
@@ -124,6 +126,11 @@ impl Context {
                 self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
             }
             _ => todo!("{instruction:?}"),
+        };
+
+        // Map the results of the instructions to Acir variables
+        for (result_id, result_var) in results_id.into_iter().zip(results_vars) {
+            self.ssa_value_to_acir_var.insert(result_id, result_var);
         }
     }
 
@@ -163,10 +170,7 @@ impl Context {
             return *acir_var;
         }
         let acir_var = match value {
-            Value::NumericConstant { constant, .. } => {
-                let field_element = &dfg[*constant].value();
-                self.acir_context.add_constant(*field_element)
-            }
+            Value::NumericConstant { constant, .. } => self.acir_context.add_constant(*constant),
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
