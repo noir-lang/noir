@@ -172,9 +172,10 @@ class UltraPlonkComposer {
         return composer_helper.compute_proving_key(circuit_constructor);
     }
 
-    std::shared_ptr<plonk::verification_key> compute_verification_key()
+    std::shared_ptr<plonk::verification_key> compute_verification_key(
+        std::string const& srs_path = "../srs_db/ignition")
     {
-        return composer_helper.compute_verification_key(circuit_constructor);
+        return composer_helper.compute_verification_key(circuit_constructor, srs_path);
     }
     UltraProver create_prover() { return composer_helper.create_prover(circuit_constructor); };
     UltraVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); };

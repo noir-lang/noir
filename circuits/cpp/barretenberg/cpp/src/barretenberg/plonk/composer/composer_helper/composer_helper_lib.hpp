@@ -25,6 +25,8 @@ void compute_monomial_and_coset_selector_forms(plonk::proving_key* key,
  * (2) sets the polynomial manifest using the data from proving key.
  */
 std::shared_ptr<plonk::verification_key> compute_verification_key_common(
-    std::shared_ptr<plonk::proving_key> const& proving_key, std::shared_ptr<VerifierReferenceString> const& vrs);
+    std::shared_ptr<plonk::proving_key> const& proving_key,
+    std::shared_ptr<VerifierReferenceString> const& vrs,
+    std::string const& srs_path = "../srs_db/ignition");
 
 } // namespace proof_system::plonk

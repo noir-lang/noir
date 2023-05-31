@@ -96,7 +96,8 @@ class UltraPlonkComposerHelper {
     void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
     std::shared_ptr<plonk::proving_key> compute_proving_key(CircuitConstructor& circuit_constructor);
-    std::shared_ptr<plonk::verification_key> compute_verification_key(CircuitConstructor& circuit_constructor);
+    std::shared_ptr<plonk::verification_key> compute_verification_key(
+        CircuitConstructor& circuit_constructor, std::string const& srs_path = "../srs_db/ignition");
 
     void compute_witness(CircuitConstructor& circuit_constructor);
 

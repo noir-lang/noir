@@ -44,12 +44,14 @@ void compute_monomial_and_coset_selector_forms(plonk::proving_key* circuit_provi
  * (2) sets the polynomial manifest using the data from proving key.
  */
 std::shared_ptr<plonk::verification_key> compute_verification_key_common(
-    std::shared_ptr<plonk::proving_key> const& proving_key, std::shared_ptr<VerifierReferenceString> const& vrs)
+    std::shared_ptr<plonk::proving_key> const& proving_key,
+    std::shared_ptr<VerifierReferenceString> const& vrs,
+    std::string const& srs_path)
 {
     auto circuit_verification_key = std::make_shared<plonk::verification_key>(
         proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
     // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
-    auto commitment_key = proof_system::honk::pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
+    auto commitment_key = proof_system::honk::pcs::kzg::CommitmentKey(proving_key->circuit_size, srs_path);
 
     for (size_t i = 0; i < proving_key->polynomial_manifest.size(); ++i) {
         const auto& poly_info = proving_key->polynomial_manifest[i];
