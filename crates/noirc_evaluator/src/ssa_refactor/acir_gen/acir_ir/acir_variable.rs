@@ -383,8 +383,6 @@ impl AcirContext {
             // field element.
             let num_bits = match self.variables_to_bit_sizes.get(input) {
                 Some(bits) => {
-                    // TODO: First lets check to see how these are handled by the IR
-                    //
                     // In Noir, we specify the number of bits to take from the input
                     // by doing the following:
                     //
@@ -395,8 +393,8 @@ impl AcirContext {
                     // The `as u8` specifies that we want to take 8 bits from the `x`
                     // variable.
                     //
-                    // TODO(Jake): There were discussions about the SSA IR optimizing out range
-                    // TODO constraints. We would want to be careful with it here. For example:
+                    // There were discussions about the SSA IR optimizing out range
+                    // constraints. We would want to be careful with it here. For example:
                     //
                     // ```
                     // let x : u32 = y as u32
