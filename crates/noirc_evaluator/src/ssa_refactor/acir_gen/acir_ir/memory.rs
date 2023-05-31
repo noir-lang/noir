@@ -37,8 +37,6 @@ impl Memory {
 
     /// Allocates an array of size `size`.
     /// The elements in the array are not zero initialized
-    ///
-    /// TODO: Check if this method is needed, ie allocation without a default
     pub(crate) fn allocate(&mut self, size: usize) -> ArrayId {
         let array = Array::new(size);
         self.add_array(array)
