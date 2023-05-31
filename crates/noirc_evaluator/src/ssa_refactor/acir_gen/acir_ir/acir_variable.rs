@@ -244,6 +244,28 @@ impl AcirContext {
         }
     }
 
+    /// Adds a new variable that is constrained to be the logical NOT of `x`.
+    ///
+    /// `x` must be a 1-bit integer (i.e. a boolean)
+    pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
+        assert_eq!(
+            self.variables_to_bit_sizes.get(&x),
+            Some(&1),
+            "ICE: NOT op applied to non-bool"
+        );
+        let data = &self.data[&x];
+        // Since `x` can only be 0 or 1, we can derive NOT as 1 - x
+        match data {
+            AcirVarData::Const(constant) => {
+                self.add_data(AcirVarData::Expr(&Expression::one() - &Expression::from(*constant)))
+            }
+            AcirVarData::Expr(expr) => self.add_data(AcirVarData::Expr(&Expression::one() - expr)),
+            AcirVarData::Witness(witness) => {
+                self.add_data(AcirVarData::Expr(&Expression::one() - *witness))
+            }
+        }
+    }
+
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) {
