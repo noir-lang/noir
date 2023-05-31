@@ -1084,9 +1084,7 @@ mod test {
                 values.dedup();
                 values
             }
-            Value::NumericConstant { constant, .. } => {
-                vec![dfg[constant].value().to_u128()]
-            }
+            Value::NumericConstant { constant, .. } => vec![constant.to_u128()],
             _ => Vec::new(),
         }
     }
