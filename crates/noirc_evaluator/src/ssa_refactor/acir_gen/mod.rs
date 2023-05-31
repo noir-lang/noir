@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::artefact::Artefact;
+use crate::brillig::artefact::Brillig;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirVar};
 use super::{
@@ -112,10 +112,10 @@ impl Context {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
                         match func.runtime() {
-                            RuntimeType::Normal => unreachable!(),
-                            RuntimeType::Unsafe => {
+                            RuntimeType::Acir => unimplemented!(),
+                            RuntimeType::Brillig => {
                                 // Generate the brillig code of the function
-                                let code = Artefact::default().link(func.dfg.obj());
+                                let code = Brillig::default().link(func.dfg.brillig());
                                 self.acir_context.brillig(code);
                             }
                         }

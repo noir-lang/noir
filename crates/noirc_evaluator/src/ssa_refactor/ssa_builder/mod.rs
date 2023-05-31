@@ -53,7 +53,7 @@ impl FunctionBuilder {
     /// should be taken not to finish a function that is still in progress by calling
     /// new_function before the current function is finished.
     pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId, is_unsafe: bool) {
-        let runtime = if is_unsafe { RuntimeType::Unsafe } else { RuntimeType::Normal };
+        let runtime = if is_unsafe { RuntimeType::Brillig } else { RuntimeType::Acir };
         let new_function = Function::new(name, function_id, runtime);
         self.current_block = new_function.entry_block();
 

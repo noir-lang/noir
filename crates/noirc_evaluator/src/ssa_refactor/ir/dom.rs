@@ -243,7 +243,7 @@ mod tests {
     #[test]
     fn empty() {
         let func_id = Id::test_new(0);
-        let mut func = Function::new("func".into(), func_id, RuntimeType::Normal);
+        let mut func = Function::new("func".into(), func_id, RuntimeType::Acir);
         let block0_id = func.entry_block();
         func.dfg.set_block_terminator(
             block0_id,
@@ -267,7 +267,7 @@ mod tests {
         //     return ()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Normal);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
 
         let cond = builder.add_parameter(Type::unsigned(1));
         let block1_id = builder.insert_block();
@@ -376,7 +376,7 @@ mod tests {
         //     jump block1()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Normal);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
         let block1_id = builder.insert_block();
         let block2_id = builder.insert_block();
 

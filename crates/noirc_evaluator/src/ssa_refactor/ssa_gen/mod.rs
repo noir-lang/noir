@@ -29,7 +29,7 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
     context.get_or_queue_function(main_id);
 
     let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, RuntimeType::Normal, &context);
+        FunctionContext::new(main.name.clone(), &main.parameters, RuntimeType::Acir, &context);
     function_context.codegen_function_body(&main.body);
 
     // Main has now been compiled and any other functions referenced within have been added to the
@@ -38,12 +38,7 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        function_context.new_function(
-            dest_id,
-            function.name.clone(),
-            &function.parameters,
-            function.unconstrained,
-        );
+        function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body);
         function_context.builder.current_function.compile_to_brillig();
     }

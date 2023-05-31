@@ -3,17 +3,17 @@ use super::acvm_brillig::BrilligOpcode;
 const PREFIX_LEN: usize = 3;
 
 #[derive(Default, Debug, Clone)]
-pub(crate) struct Artefact {
+pub(crate) struct Brillig {
     pub(crate) byte_code: Vec<BrilligOpcode>,
 }
 
-impl Artefact {
-    pub(crate) fn link(&mut self, obj: &Artefact) -> Vec<BrilligOpcode> {
+impl Brillig {
+    pub(crate) fn link(&mut self, obj: &Brillig) -> Vec<BrilligOpcode> {
         self.link_with(obj);
         self.byte_code.clone()
     }
 
-    fn link_with(&mut self, obj: &Artefact) {
+    fn link_with(&mut self, obj: &Brillig) {
         if obj.byte_code.is_empty() {
             panic!("ICE: unresolved symbol");
         }

@@ -1,8 +1,8 @@
-use super::{acvm_brillig::BrilligOpcode, artefact::Artefact};
+use super::{acvm_brillig::BrilligOpcode, artefact::Brillig};
 
 #[derive(Default)]
 pub(crate) struct BrilligGen {
-    obj: Artefact,
+    obj: Brillig,
 }
 
 impl BrilligGen {
@@ -11,7 +11,7 @@ impl BrilligGen {
         self.obj.byte_code.push(code);
     }
 
-    pub(crate) fn compile() -> Artefact {
+    pub(crate) fn compile() -> Brillig {
         let mut brillig = BrilligGen::default();
         brillig.push_code(BrilligOpcode::Stop);
         brillig.obj

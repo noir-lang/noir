@@ -100,16 +100,10 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(
-        &mut self,
-        id: IrFunctionId,
-        name: String,
-        parameters: &Parameters,
-        is_unsafe: bool,
-    ) {
+    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
-        self.builder.new_function(name, id, is_unsafe);
-        self.add_parameters_to_scope(parameters);
+        self.builder.new_function(func.name.clone(), id, func.unconstrained);
+        self.add_parameters_to_scope(&func.parameters);
     }
 
     /// Add each parameter to the current scope, and return the list of parameter types.
