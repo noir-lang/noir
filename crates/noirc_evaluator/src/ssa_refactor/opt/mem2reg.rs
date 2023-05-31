@@ -154,18 +154,23 @@ impl PerBlockContext {
         match dfg[value_id] {
             Value::ReferenceConstant { allocation, offset } => {
                 Self::get_allocation(allocation, dfg).map(|address| (address, offset))
-            },
+            }
             Value::Instruction { instruction, .. } => {
-                matches!(&dfg[instruction], Instruction::Allocate { .. }).then_some((instruction, 0))
-            },
+                matches!(&dfg[instruction], Instruction::Allocate { .. })
+                    .then_some((instruction, 0))
+            }
             _ => None,
         }
     }
 
+    /// If this value is the result of an allocate instruction, return the
+    /// instruction id of that instruction.
     fn get_allocation(value: ValueId, dfg: &DataFlowGraph) -> Option<InstructionId> {
         match dfg[value] {
-            Value::Instruction { instruction, .. } => matches!(&dfg[instruction], Instruction::Allocate { .. }).then_some(instruction),
-            _ => return None,
+            Value::Instruction { instruction, .. } => {
+                matches!(&dfg[instruction], Instruction::Allocate { .. }).then_some(instruction)
+            }
+            _ => None,
         }
     }
 }

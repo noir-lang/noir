@@ -63,8 +63,7 @@ fn value(function: &Function, id: ValueId) -> String {
     use super::value::Value;
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
-            let value = function.dfg[*constant].value();
-            format!("{typ} {value}")
+            format!("{typ} {constant}")
         }
         Value::ReferenceConstant { allocation, offset } => {
             format!("{allocation}, offset {offset}")
