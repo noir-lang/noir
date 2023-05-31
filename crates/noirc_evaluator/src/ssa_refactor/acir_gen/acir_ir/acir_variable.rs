@@ -424,3 +424,11 @@ impl AcirVarData {
 /// A Reference to an `AcirVarData`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
+
+#[test]
+fn add_same_constant() {
+    let mut ctx = AcirContext::default();
+    let id = ctx.add_constant(FieldElement::zero());
+    let should_be_same_id = ctx.add_constant(FieldElement::zero());
+    assert_eq!(id, should_be_same_id)
+}
