@@ -59,7 +59,7 @@ pub enum AbiType {
             serialize_with = "serialization::serialize_struct_fields",
             deserialize_with = "serialization::deserialize_struct_fields"
         )]
-        fields: BTreeMap<String, AbiType>,
+        fields: Vec<(String, AbiType)>,
     },
     String {
         length: u64,
@@ -249,7 +249,7 @@ impl Abi {
                     return Err(AbiError::TypeMismatch { param, value });
                 }
 
-                Self::encode_value(value).map(|v| (param_name, v))
+                Self::encode_value(value, &expected_type).map(|v| (param_name, v))
             })
             .collect::<Result<_, _>>()?;
 
@@ -275,7 +275,7 @@ impl Abi {
                         value: return_value,
                     });
                 }
-                let encoded_return_fields = Self::encode_value(return_value)?;
+                let encoded_return_fields = Self::encode_value(return_value, return_type)?;
 
                 // We need to be more careful when writing the return value's witness values.
                 // This is as it may share witness indices with other public inputs so we must check that when
@@ -300,7 +300,7 @@ impl Abi {
         Ok(witness_map.into())
     }
 
-    fn encode_value(value: InputValue) -> Result<Vec<FieldElement>, AbiError> {
+    fn encode_value(value: InputValue, abi_type: &AbiType) -> Result<Vec<FieldElement>, AbiError> {
         let mut encoded_value = Vec::new();
         match value {
             InputValue::Field(elem) => encoded_value.push(elem),
@@ -310,11 +310,14 @@ impl Abi {
                     string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
                 encoded_value.extend(str_as_fields);
             }
-            InputValue::Struct(object) => {
-                for value in object.into_values() {
-                    encoded_value.extend(Self::encode_value(value)?);
+            InputValue::Struct(object) => match abi_type {
+                AbiType::Struct { fields } => {
+                    for (field, typ) in fields {
+                        encoded_value.extend(Self::encode_value(object[field].clone(), typ)?);
+                    }
                 }
-            }
+                _ => unreachable!("value should have already been checked to match abi type"),
+            },
         }
         Ok(encoded_value)
     }

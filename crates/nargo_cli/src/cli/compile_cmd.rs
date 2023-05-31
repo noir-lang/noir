@@ -100,7 +100,7 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn setup_driver<B: Backend>(
+pub(super) fn setup_driver<B: Backend>(
     backend: &B,
     program_dir: &Path,
 ) -> Result<Driver, DependencyResolutionError> {

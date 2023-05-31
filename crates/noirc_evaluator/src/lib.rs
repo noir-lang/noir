@@ -17,7 +17,7 @@ use acvm::{
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
-use iter_extended::btree_map;
+use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node::ObjectType, ssa_gen::IrGenerator};
@@ -220,7 +220,7 @@ impl Evaluator {
                 vec![witness]
             }
             AbiType::Struct { fields } => {
-                let new_fields = btree_map(fields, |(inner_name, value)| {
+                let new_fields = vecmap(fields, |(inner_name, value)| {
                     let new_name = format!("{name}.{inner_name}");
                     (new_name, value.clone())
                 });
@@ -229,7 +229,44 @@ impl Evaluator {
                 self.generate_struct_witnesses(&mut struct_witnesses, &new_fields)?;
 
                 ir_gen.abi_struct(name, Some(def), fields, &struct_witnesses);
-                struct_witnesses.values().flatten().copied().collect()
+
+                // This is a dirty hack and should be removed in future.
+                //
+                // `struct_witnesses` is a flat map where structs are represented by multiple entries
+                // i.e. a struct `foo` with fields `bar` and `baz` is stored under the keys
+                // `foo.bar` and `foo.baz` each holding the witnesses for fields `bar` and `baz` respectively.
+                //
+                // We've then lost the information on ordering of these fields. To reconstruct this we iterate
+                // over `fields` recursively to calculate the proper ordering of this `BTreeMap`s keys.
+                //
+                // Ideally we wouldn't lose this information in the first place.
+                fn get_field_ordering(prefix: String, fields: &[(String, AbiType)]) -> Vec<String> {
+                    fields
+                        .iter()
+                        .flat_map(|(field_name, field_type)| {
+                            let flattened_name = format!("{prefix}.{field_name}");
+                            if let AbiType::Struct { fields } = field_type {
+                                get_field_ordering(flattened_name, fields)
+                            } else {
+                                vec![flattened_name]
+                            }
+                        })
+                        .collect()
+                }
+                let field_ordering = get_field_ordering(name.to_owned(), fields);
+
+                // We concatenate the witness vectors in the order of the struct's fields.
+                // This ensures that struct fields are mapped to the correct witness indices during ABI encoding.
+                field_ordering
+                    .iter()
+                    .flat_map(|field_name| {
+                        struct_witnesses.remove(field_name).unwrap_or_else(|| {
+                            unreachable!(
+                                "Expected a field named '{field_name}' in the struct pattern"
+                            )
+                        })
+                    })
+                    .collect()
             }
             AbiType::String { length } => {
                 let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
@@ -250,7 +287,7 @@ impl Evaluator {
     fn generate_struct_witnesses(
         &mut self,
         struct_witnesses: &mut BTreeMap<String, Vec<Witness>>,
-        fields: &BTreeMap<String, AbiType>,
+        fields: &[(String, AbiType)],
     ) -> Result<(), RuntimeErrorKind> {
         for (name, typ) in fields {
             match typ {
@@ -273,11 +310,10 @@ impl Evaluator {
                     struct_witnesses.insert(name.clone(), internal_arr_witnesses);
                 }
                 AbiType::Struct { fields, .. } => {
-                    let mut new_fields: BTreeMap<String, AbiType> = BTreeMap::new();
-                    for (inner_name, value) in fields {
-                        let new_name = format!("{name}.{inner_name}");
-                        new_fields.insert(new_name, value.clone());
-                    }
+                    let new_fields = vecmap(fields, |(field_name, typ)| {
+                        let new_name = format!("{name}.{field_name}");
+                        (new_name, typ.clone())
+                    });
                     self.generate_struct_witnesses(struct_witnesses, &new_fields)?;
                 }
                 AbiType::String { length } => {
