@@ -115,11 +115,8 @@ fn permutation_layer(
 mod test {
     use acvm::{
         acir::{circuit::opcodes::FunctionInput, native_types::Witness, native_types::WitnessMap},
-        pwg::{
-            block::Blocks, solve, OpcodeResolution, OpcodeResolutionError,
-            PartialWitnessGeneratorStatus,
-        },
-        FieldElement, PartialWitnessGenerator,
+        pwg::{block::Blocks, solve, OpcodeResolution, PartialWitnessGeneratorStatus},
+        FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
     };
 
     use crate::{
@@ -138,7 +135,6 @@ mod test {
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")
         }
-
         fn schnorr_verify(
             &self,
             _initial_witness: &mut WitnessMap,
@@ -150,7 +146,6 @@ mod test {
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")
         }
-
         fn pedersen(
             &self,
             _initial_witness: &mut WitnessMap,
@@ -159,7 +154,6 @@ mod test {
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")
         }
-
         fn fixed_base_scalar_mul(
             &self,
             _initial_witness: &mut WitnessMap,

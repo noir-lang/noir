@@ -83,15 +83,15 @@ pub fn start_cli() -> eyre::Result<()> {
 }
 
 // helper function which tests noir programs by trying to generate a proof and verify it
-pub fn prove_and_verify(proof_name: &str, program_dir: &Path) -> bool {
+pub fn prove_and_verify(proof_name: &str, program_dir: &Path, experimental_ssa: bool) -> bool {
     let backend = crate::backends::ConcreteBackend::default();
 
     let compile_options = CompileOptions {
         show_ssa: false,
         print_acir: false,
-        allow_warnings: false,
+        deny_warnings: false,
         show_output: false,
-        experimental_ssa: false,
+        experimental_ssa,
     };
     let proof_dir = program_dir.join(PROOFS_DIR);
 

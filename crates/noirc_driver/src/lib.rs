@@ -41,9 +41,9 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub print_acir: bool,
 
-    /// Issue a warning for each unused variable instead of an error
+    /// Treat all warnings as errors
     #[arg(short, long)]
-    pub allow_warnings: bool,
+    pub deny_warnings: bool,
 
     /// Display output of `println` statements
     #[arg(long)]
@@ -59,7 +59,7 @@ impl Default for CompileOptions {
         Self {
             show_ssa: false,
             print_acir: false,
-            allow_warnings: false,
+            deny_warnings: false,
             show_output: true,
             experimental_ssa: false,
         }
@@ -171,7 +171,7 @@ impl Driver {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let error_count =
-            reporter::report_all(&self.context.file_manager, &errs, options.allow_warnings);
+            reporter::report_all(&self.context.file_manager, &errs, options.deny_warnings);
         reporter::finish_report(error_count)
     }
 
@@ -310,7 +310,7 @@ impl Driver {
                 // Errors will be shown at the call site without a stacktrace
                 let file = err.location.map(|loc| loc.file);
                 let files = &self.context.file_manager;
-                let error = reporter::report(files, &err.into(), file, options.allow_warnings);
+                let error = reporter::report(files, &err.into(), file, options.deny_warnings);
                 reporter::finish_report(error as u32)?;
                 Err(ReportedError)
             }

@@ -106,11 +106,11 @@ impl CustomLabel {
 pub fn report_all(
     files: &fm::FileManager,
     diagnostics: &[FileDiagnostic],
-    allow_warnings: bool,
+    deny_warnings: bool,
 ) -> u32 {
     diagnostics
         .iter()
-        .map(|error| report(files, &error.diagnostic, Some(error.file_id), allow_warnings) as u32)
+        .map(|error| report(files, &error.diagnostic, Some(error.file_id), deny_warnings) as u32)
         .sum()
 }
 
@@ -119,24 +119,24 @@ pub fn report(
     files: &fm::FileManager,
     custom_diagnostic: &CustomDiagnostic,
     file: Option<fm::FileId>,
-    allow_warnings: bool,
+    deny_warnings: bool,
 ) -> bool {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let config = codespan_reporting::term::Config::default();
 
-    let diagnostic = convert_diagnostic(custom_diagnostic, file, allow_warnings);
+    let diagnostic = convert_diagnostic(custom_diagnostic, file, deny_warnings);
     term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
 
-    !allow_warnings || custom_diagnostic.is_error()
+    deny_warnings || custom_diagnostic.is_error()
 }
 
 fn convert_diagnostic(
     cd: &CustomDiagnostic,
     file: Option<fm::FileId>,
-    allow_warnings: bool,
+    deny_warnings: bool,
 ) -> Diagnostic<usize> {
-    let diagnostic = match (cd.kind, allow_warnings) {
-        (DiagnosticKind::Warning, true) => Diagnostic::warning(),
+    let diagnostic = match (cd.kind, deny_warnings) {
+        (DiagnosticKind::Warning, false) => Diagnostic::warning(),
         _ => Diagnostic::error(),
     };
 
