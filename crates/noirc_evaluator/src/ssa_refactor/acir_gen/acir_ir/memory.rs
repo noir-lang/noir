@@ -1,3 +1,5 @@
+use crate::ssa_refactor::ir::map::{DenseMap, Id};
+
 use super::{acir_variable::AcirVar, errors::AcirGenError};
 
 #[derive(Debug, Default)]
@@ -23,29 +25,15 @@ impl Array {
 #[derive(Debug, Default)]
 /// Memory used to represent Arrays
 pub(crate) struct Memory {
-    arrays: Vec<Array>,
+    arrays: DenseMap<Array>,
 }
 
 impl Memory {
-    pub(crate) fn new() -> Self {
-        Self { arrays: Vec::new() }
-    }
-
     /// Allocates an array of size `size`.
     /// The elements in the array are not zero initialized
     pub(crate) fn allocate(&mut self, size: usize) -> ArrayId {
         let array = Array::new(size);
-        self.add_array(array)
-    }
-
-    fn add_array(&mut self, array: Array) -> ArrayId {
-        let id = self.arrays.len();
-        self.arrays.push(array);
-        ArrayId(id)
-    }
-
-    fn mut_array(&mut self, array_id: ArrayId) -> &mut Array {
-        &mut self.arrays[array_id.0]
+        self.arrays.insert(array)
     }
 
     /// Sets an element at the array that `ArrayId` points to.
@@ -56,13 +44,8 @@ impl Memory {
         index: usize,
         element: AcirVar,
     ) -> Result<(), AcirGenError> {
-        // Check if the index is larger than the array size
-        let array = self.mut_array(array_id);
-        let array_size = array.size();
-
-        if index >= array_size {
-            return Err(AcirGenError::IndexOutOfBounds { index, array_size });
-        }
+        let array = &mut self.arrays[array_id];
+        Self::check_bounds(index, array.size())?;
 
         array.elements[index] = Some(element);
 
@@ -72,33 +55,28 @@ impl Memory {
     /// Gets an element at the array that `ArrayId` points to.
     /// The index must be constant in the Noir program.
     pub(crate) fn constant_get(
-        &mut self,
+        &self,
         array_id: ArrayId,
         index: usize,
     ) -> Result<AcirVar, AcirGenError> {
-        // Check if the index is larger than the array size
-        let array = self.mut_array(array_id);
-        let array_size = array.size();
+        let array = &self.arrays[array_id];
+        Self::check_bounds(index, array.size())?;
 
-        if index >= array_size {
-            return Err(AcirGenError::IndexOutOfBounds { index, array_size });
-        }
+        array.elements[index].ok_or(AcirGenError::UninitializedElementInArray { index, array_id })
+    }
 
-        let element = array.elements[index];
-
-        match element {
-            Some(element) => Ok(element),
-            None => {
-                // The element was never initialized
-                Err(AcirGenError::UninitializedElementInArray { index, array_id })
-            }
+    /// Check if the index is larger than the array size
+    fn check_bounds(index: usize, array_size: usize) -> Result<(), AcirGenError> {
+        if index < array_size {
+            Ok(())
+        } else {
+            Err(AcirGenError::IndexOutOfBounds { index, array_size })
         }
     }
 }
 
 /// Pointer to an allocated `Array`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ArrayId(usize);
+pub(crate) type ArrayId = Id<Array>;
 
 #[cfg(test)]
 mod tests {
@@ -106,7 +84,7 @@ mod tests {
 
     #[test]
     fn smoke_api_get_uninitialized_element_out() {
-        let mut memory = Memory::new();
+        let mut memory = Memory::default();
 
         let array_size = 10;
         let index = 0;
@@ -120,7 +98,7 @@ mod tests {
     }
     #[test]
     fn smoke_api_out_of_bounds() {
-        let mut memory = Memory::new();
+        let mut memory = Memory::default();
 
         let array_size = 10;
         let array_id = memory.allocate(array_size);
