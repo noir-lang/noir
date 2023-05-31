@@ -66,9 +66,12 @@ fn value(function: &Function, id: ValueId) -> String {
             let value = function.dfg[*constant].value();
             format!("{typ} {value}")
         }
+        Value::ReferenceConstant { allocation, offset } => {
+            format!("{allocation}, offset {offset}")
+        }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        _ => id.to_string(),
+        Value::Instruction { .. } | Value::Param { .. } => id.to_string(),
     }
 }
 

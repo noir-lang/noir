@@ -344,11 +344,18 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
 
-                let reference = dfg.get_reference_constant(self.lhs);
-                if let ((Some((reference, lhs_offset)), Some(rhs_offset))) = (reference, rhs) {
-                    let offset = lhs_offset + rhs_offset.try_to_u64().unwrap().try_into().unwrap();
-                    let address = dfg.make_reference_constant(reference, offset);
-                    return SimplifyResult::SimplifiedTo(address);
+                if let Some(rhs_offset) = rhs {
+                    if let Some((reference, lhs_offset)) = dfg.get_reference_constant(self.lhs) {
+                        let offset = lhs_offset + rhs_offset.try_to_u64().unwrap() as u32;
+                        let address = dfg.make_reference_constant(reference, offset);
+                        return SimplifyResult::SimplifiedTo(address);
+                    }
+
+                    if dfg.type_of_value(self.lhs) == Type::Reference {
+                        let offset = rhs_offset.try_to_u64().unwrap().try_into().unwrap();
+                        let address = dfg.make_reference_constant(self.lhs, offset);
+                        return SimplifyResult::SimplifiedTo(address);
+                    }
                 }
             }
             BinaryOp::Sub => {

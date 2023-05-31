@@ -6,9 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
-        constant::NumericConstantId,
         dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction, InstructionId},
+        instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -45,20 +44,7 @@ impl Ssa {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
-enum Address {
-    Zeroth(InstructionId),
-    Offset(InstructionId, NumericConstantId),
-}
-
-impl Address {
-    fn alloc_id(&self) -> InstructionId {
-        match self {
-            Address::Zeroth(alloc_id) => *alloc_id,
-            Address::Offset(alloc_id, _) => *alloc_id,
-        }
-    }
-}
+type Address = (InstructionId, /*offset:*/ u32);
 
 struct PerBlockContext {
     block_id: BasicBlockId,
@@ -88,7 +74,7 @@ impl PerBlockContext {
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { address, value } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
+                    if let Some(address) = Self::try_const_address(*address, dfg) {
                         // We can only track the address if it is a constant offset from an
                         // allocation. A previous constant folding pass should make such addresses
                         // possible to identify.
@@ -99,7 +85,7 @@ impl PerBlockContext {
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { address } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
+                    if let Some(address) = Self::try_const_address(*address, dfg) {
                         if let Some(last_value) = self.last_stores.get(&address) {
                             let last_value = dfg[*last_value];
                             loads_to_substitute.push((*instruction_id, last_value));
@@ -110,8 +96,8 @@ impl PerBlockContext {
                 }
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
-                        if let Some(address) = self.try_const_address(*arg, dfg) {
-                            self.alloc_ids_in_calls.insert(address.alloc_id());
+                        if let Some(address) = Self::try_const_address(*arg, dfg) {
+                            self.alloc_ids_in_calls.insert(address.0);
                         }
                     }
                 }
@@ -147,9 +133,9 @@ impl PerBlockContext {
                 _ => unreachable!("store_ids should contain only store instructions"),
             };
 
-            if let Some(address) = self.try_const_address(address, dfg) {
+            if let Some(address) = Self::try_const_address(address, dfg) {
                 if !self.failed_substitutes.contains(&address)
-                    && !self.alloc_ids_in_calls.contains(&address.alloc_id())
+                    && !self.alloc_ids_in_calls.contains(&address.0)
                 {
                     stores_to_remove.push(*instruction_id);
                 }
@@ -164,46 +150,22 @@ impl PerBlockContext {
     }
 
     // Attempts to normalize the given value into a const address
-    fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
-        let value = &dfg[value_id];
-        let instruction_id = match value {
-            Value::Instruction { instruction, .. } => *instruction,
-            _ => return None,
-        };
-        let instruction = &dfg[instruction_id];
-        match instruction {
-            Instruction::Allocate { .. } => Some(Address::Zeroth(instruction_id)),
-            Instruction::Binary(binary) => {
-                if binary.operator != BinaryOp::Add {
-                    return None;
-                }
-                let lhs = &dfg[binary.lhs];
-                let rhs = &dfg[binary.rhs];
-                self.try_const_address_offset(lhs, rhs, dfg)
-                    .or_else(|| self.try_const_address_offset(rhs, lhs, dfg))
-            }
+    fn try_const_address(value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
+        match dfg[value_id] {
+            Value::ReferenceConstant { allocation, offset } => {
+                Self::get_allocation(allocation, dfg).map(|address| (address, offset))
+            },
+            Value::Instruction { instruction, .. } => {
+                matches!(&dfg[instruction], Instruction::Allocate { .. }).then_some((instruction, 0))
+            },
             _ => None,
         }
     }
 
-    // Tries val1 as an allocation instruction id and val2 as a constant offset
-    fn try_const_address_offset(
-        &self,
-        val1: &Value,
-        val2: &Value,
-        dfg: &DataFlowGraph,
-    ) -> Option<Address> {
-        let alloc_id = match val1 {
-            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-                Instruction::Allocate { .. } => *instruction,
-                _ => return None,
-            },
+    fn get_allocation(value: ValueId, dfg: &DataFlowGraph) -> Option<InstructionId> {
+        match dfg[value] {
+            Value::Instruction { instruction, .. } => matches!(&dfg[instruction], Instruction::Allocate { .. }).then_some(instruction),
             _ => return None,
-        };
-        if let Value::NumericConstant { constant, .. } = val2 {
-            Some(Address::Offset(alloc_id, *constant))
-        } else {
-            None
         }
     }
 }
