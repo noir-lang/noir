@@ -110,6 +110,7 @@ impl Memory {
     }
 }
 
+/// Pointer to an allocated `Array`
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ArrayId(usize);
 

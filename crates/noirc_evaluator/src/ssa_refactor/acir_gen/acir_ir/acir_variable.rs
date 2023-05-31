@@ -342,6 +342,7 @@ impl AcirContext {
         self.acir_ir
     }
 
+    /// Allocates an array of size `size` and returns a pointer to the array in memory.
     pub(crate) fn allocate_array(&mut self, size: usize) -> ArrayId {
         self.memory.allocate(size)
     }
