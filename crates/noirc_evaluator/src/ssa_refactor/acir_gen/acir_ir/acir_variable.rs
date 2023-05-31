@@ -129,7 +129,7 @@ impl AcirContext {
         let lhs_bit_size =
             self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type, this should be caught by the type system");
         let rhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type");
+            self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type, this should be caught by the type system");
         let bit_size = std::cmp::max(*lhs_bit_size, *rhs_bit_size);
         let result = if bit_size == 1 {
             // Operands are booleans
