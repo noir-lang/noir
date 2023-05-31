@@ -18,10 +18,6 @@ impl Array {
     pub(crate) fn new(size: usize) -> Array {
         Self { elements: vec![None; size] }
     }
-
-    pub(crate) fn with_default(size: usize, default: AcirVar) -> Array {
-        Self { elements: vec![Some(default); size] }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -39,14 +35,6 @@ impl Memory {
     /// The elements in the array are not zero initialized
     pub(crate) fn allocate(&mut self, size: usize) -> ArrayId {
         let array = Array::new(size);
-        self.add_array(array)
-    }
-    pub(crate) fn allocate_with_default(
-        &mut self,
-        size: usize,
-        default_element: AcirVar,
-    ) -> ArrayId {
-        let array = Array::with_default(size, default_element);
         self.add_array(array)
     }
 
