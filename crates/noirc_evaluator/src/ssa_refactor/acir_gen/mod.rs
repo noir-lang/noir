@@ -136,6 +136,14 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 (result_ids.to_vec(), outputs)
             }
+            Instruction::Not(value_id) => {
+                let boolean_var = self.convert_ssa_value(*value_id, dfg);
+                let result_acir_var = self.acir_context.not_var(boolean_var);
+
+                let result_ids = dfg.instruction_results(instruction_id);
+                assert_eq!(result_ids.len(), 1, "Not ops have a single result");
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
             _ => todo!("{instruction:?}"),
         };
 
