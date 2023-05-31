@@ -62,7 +62,7 @@ TEST_F(escrow_tests, circuit_deposit)
     auto result = deposit(exec_ctx, { amount, asset_id, memo });
     info("result: ", result);
 
-    info("computed witness: ", composer.computed_witness);
+    info("computed witness: ", composer.composer_helper.computed_witness);
     // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
@@ -88,7 +88,7 @@ TEST_F(escrow_tests, circuit_transfer)
 
     transfer(exec_ctx, amount, to, asset_id, memo, reveal_msg_sender_to_recipient, fee);
 
-    info("computed witness: ", composer.computed_witness);
+    info("computed witness: ", composer.composer_helper.computed_witness);
     // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
@@ -113,7 +113,7 @@ TEST_F(escrow_tests, circuit_withdraw)
 
     withdraw(exec_ctx, amount, asset_id, memo, l1_withdrawal_address, fee);
 
-    info("computed witness: ", composer.computed_witness);
+    info("computed witness: ", composer.composer_helper.computed_witness);
     // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);

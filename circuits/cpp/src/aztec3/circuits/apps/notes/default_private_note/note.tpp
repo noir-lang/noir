@@ -10,7 +10,7 @@
 
 #include <barretenberg/crypto/generators/generator_data.hpp>
 
-#include <barretenberg/plonk/composer/turbo_composer.hpp>
+#include <barretenberg/plonk/composer/turbo_plonk_composer.hpp>
 
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>

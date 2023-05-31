@@ -42,10 +42,10 @@ inline CT::AggregationObject play_recursive_circuit_2(Composer& composer,
 
     info("composer failed 2? ", composer.failed());
 
-    info("\npublic inputs before: ", composer.public_inputs.size());
+    info("\npublic inputs before: ", composer.circuit_constructor.public_inputs.size());
     aggregation_object =
         Aggregator::aggregate(&composer, app_vk_ct, app_proof, app_vk->num_public_inputs, aggregation_object);
-    info("\npublic inputs after: ", composer.public_inputs.size());
+    info("\npublic inputs after: ", composer.circuit_constructor.public_inputs.size());
 
     info("composer failed 3? ", composer.failed());
 
@@ -53,7 +53,7 @@ inline CT::AggregationObject play_recursive_circuit_2(Composer& composer,
 
     info("composer failed 4? ", composer.failed());
 
-    info("\npublic inputs after after: ", composer.public_inputs.size());
+    info("\npublic inputs after after: ", composer.circuit_constructor.public_inputs.size());
 
     info("composer failed 5? ", composer.failed());
 

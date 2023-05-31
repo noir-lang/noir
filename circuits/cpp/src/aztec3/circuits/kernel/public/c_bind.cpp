@@ -15,7 +15,7 @@
 #include <barretenberg/srs/reference_string/env_reference_string.hpp>
 
 namespace {
-using Composer = plonk::UltraComposer;
+using Composer = plonk::UltraPlonkComposer;
 using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;

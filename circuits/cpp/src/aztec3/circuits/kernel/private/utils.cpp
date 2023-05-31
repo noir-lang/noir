@@ -58,7 +58,8 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
         real_vk_proof ? mock_kernel_prover.construct_proof() : NT::Proof{ .proof_data = std::vector<uint8_t>(64, 0) };
 
     std::shared_ptr<NT::VK> const mock_kernel_vk =
-        real_vk_proof ? mock_kernel_composer.compute_verification_key() : fake_vk();
+        real_vk_proof ? mock_kernel_composer.compute_verification_key("../barretenberg/cpp/srs_db/ignition")
+                      : fake_vk();
 
     PreviousKernelData<NT> previous_kernel = {
         .public_inputs = mock_kernel_public_inputs,

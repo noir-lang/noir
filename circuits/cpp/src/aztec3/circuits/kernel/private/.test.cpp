@@ -103,7 +103,7 @@ namespace aztec3::circuits::kernel::private_kernel {
 void debugComposer(Composer const& composer)
 {
 #ifdef DEBUG_PRINTS
-    info("computed witness: ", composer.computed_witness);
+    info("computed witness: ", composer.composer_helper.computed_witness);
     // info("witness: ", private_kernel_composer.witness);
     // info("constant variables: ", private_kernel_composer.constant_variables);
     // info("variables: ", composer.variables);
@@ -159,7 +159,7 @@ std::shared_ptr<NT::VK> gen_func_vk(bool is_constructor, private_function const&
     }
 
     // Now we can derive the vk:
-    return dummy_composer.compute_verification_key();
+    return dummy_composer.compute_verification_key("../barretenberg/cpp/srs_db/ignition");
 }
 
 std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_deploy_data(

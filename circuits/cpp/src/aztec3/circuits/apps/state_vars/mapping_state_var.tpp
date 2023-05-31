@@ -7,7 +7,7 @@
 
 #include "../function_execution_context.hpp"
 
-#include <barretenberg/plonk/composer/turbo_composer.hpp>
+#include <barretenberg/plonk/composer/turbo_plonk_composer.hpp>
 
 #include <barretenberg/common/streams.hpp>
 #include <barretenberg/common/map.hpp>

@@ -61,7 +61,7 @@ template <typename Composer> struct CircuitTypes {
 
     using AggregationObject = stdlib::recursion::aggregation_state<bn254>;
     using recursive_inner_verifier_settings =
-        std::conditional_t<std::same_as<Composer, plonk::TurboComposer>,
+        std::conditional_t<std::same_as<Composer, plonk::TurboPlonkComposer>,
                            stdlib::recursion::recursive_turbo_verifier_settings<bn254>,
                            stdlib::recursion::recursive_ultra_verifier_settings<bn254>>;
     using VK = stdlib::recursion::verification_key<bn254>;

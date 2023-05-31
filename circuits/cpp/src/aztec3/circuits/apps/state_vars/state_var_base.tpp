@@ -2,7 +2,7 @@
 
 #include "../function_execution_context.hpp"
 
-#include <barretenberg/plonk/composer/turbo_composer.hpp>
+#include <barretenberg/plonk/composer/turbo_plonk_composer.hpp>
 
 #include <barretenberg/crypto/generators/generator_data.hpp>
 

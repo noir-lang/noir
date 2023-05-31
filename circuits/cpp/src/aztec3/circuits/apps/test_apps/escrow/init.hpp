@@ -14,7 +14,7 @@
 namespace aztec3::circuits::apps::test_apps::escrow {
 
 // Composer
-using C = plonk::UltraComposer;
+using C = plonk::UltraPlonkComposer;
 
 // Native and circuit types
 using CT = aztec3::utils::types::CircuitTypes<C>;
