@@ -8,8 +8,6 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    use super::*;
-
     fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
         let config_str = std::fs::read_to_string(conf_path).unwrap();
 

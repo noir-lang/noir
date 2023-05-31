@@ -24,8 +24,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-# acvm = "0.12.0"
-acvm = { git = "https://github.com/noir-lang/acvm.git", branch = "mv/verify-proof-2" }
+acvm = "0.12.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -55,4 +54,5 @@ wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg.git", branch = "mv/recursion-dbg" }
+acvm = { git = "https://github.com/noir-lang/acvm.git", rev = "64a6db4b19d936c0868e1487078543a4919bfa4f" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg.git", rev = "63fbb6c76ef87d87dd2d50f064ceb1fa2a25147d" }
