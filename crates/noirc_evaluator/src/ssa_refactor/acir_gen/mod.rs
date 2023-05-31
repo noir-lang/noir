@@ -11,7 +11,7 @@ use super::{
             Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
         },
         map::Id,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -79,8 +79,14 @@ impl Context {
             _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
         };
         match param_type {
-            Type::Numeric(..) => {
+            Type::Numeric(numeric_type) => {
                 let acir_var = self.acir_context.add_variable();
+                if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. })
+                {
+                    self.acir_context
+                        .numeric_cast_var(acir_var, &numeric_type)
+                        .expect("invalid range constraint was applied {numeric_type}");
+                }
                 self.ssa_value_to_acir_var.insert(param_id, acir_var);
             }
             Type::Reference => {
@@ -186,11 +192,8 @@ impl Context {
             return *acir_var;
         }
         let acir_var = match value {
-            Value::NumericConstant { constant, .. } => {
-                let field_element = &dfg[*constant].value();
-                self.acir_context.add_constant(*field_element)
-            }
-            Value::Intrinsic(..) => unreachable!("intrinsic functions are handled separately"),
+            Value::NumericConstant { constant, .. } => self.acir_context.add_constant(*constant),
+            Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value:?}")
