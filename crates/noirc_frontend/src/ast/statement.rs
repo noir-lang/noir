@@ -238,6 +238,67 @@ pub enum PathKind {
     Plain,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UseTree {
+    Simple(Path, Option<Ident>),
+    List(Path, Vec<PathListItem>),
+}
+
+impl Display for UseTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+
+        match self {
+            UseTree::Simple(path, alias) => {
+                write!(f, "use {path}")?;
+
+                if let Some(alias) = alias {
+                    write!(f, " as {alias}")?;
+                }
+
+                Ok(())
+            }
+            UseTree::List(path, names) => {
+                write!(f, "use {path}{{")?;
+
+                let names = vecmap(names, |PathListItem { name, alias }| {
+                    let mut name = name.to_string();
+
+                    if let Some(alias) = alias {
+                        let _ = write!(name, " as {alias}");
+                    }
+
+                    name
+                })
+                .join(", ");
+
+                write!(f, "{names}}}")
+            }
+        }
+    }
+}
+
+impl UseTree {
+    pub fn desugar(self) -> Vec<ImportStatement> {
+        match self {
+            UseTree::Simple(path, alias) => vec![ImportStatement { path, alias }],
+            UseTree::List(path, paths) => paths
+                .into_iter()
+                .map(|PathListItem { name, alias }| ImportStatement {
+                    path: path.clone().join(name),
+                    alias,
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct PathListItem {
+    pub name: Ident,
+    pub alias: Option<Ident>,
+}
+
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
@@ -248,6 +309,11 @@ pub struct Path {
 }
 
 impl Path {
+    fn join(mut self, ident: Ident) -> Path {
+        self.segments.push(ident);
+        self
+    }
+
     /// Construct a PathKind::Plain from this single
     pub fn from_single(name: String, span: Span) -> Path {
         let segment = Ident::from(Spanned::from(span, name));
