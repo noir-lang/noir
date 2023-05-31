@@ -155,12 +155,7 @@ impl Context {
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Load { address } => {
-                let (array_id, index) = self
-                    .ssa_value_to_array_address
-                    .get(address)
-                    .expect("ICE: Load from undeclared array");
-                let result_acir_var =
-                    self.acir_context.array_load(*array_id, *index).expect("invalid array load");
+                let result_acir_var = self.convert_ssa_load(address);
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Load ops have a single result");
                 (vec![result_ids[0]], vec![result_acir_var])
@@ -255,6 +250,13 @@ impl Context {
                 .expect("invalid range constraint was applied {numeric_type}"),
             _ => unimplemented!("The cast operation is only valid for integers."),
         }
+    }
+
+    /// Returns the `AcirVar` that was previously stored at the given address.
+    fn convert_ssa_load(&mut self, address: &ValueId) -> AcirVar {
+        let (array_id, index) =
+            self.ssa_value_to_array_address.get(address).expect("ICE: Load from undeclared array");
+        self.acir_context.array_load(*array_id, *index).expect("invalid array load")
     }
 
     /// Returns true if the value has been declared as an array address
