@@ -46,6 +46,10 @@ pub(crate) struct DataFlowGraph {
     /// twice will return the same ConstantId.
     constants: TwoWayMap<NumericConstant>,
 
+    /// Map from (allocation_id, offset) to the ValueId of a ReferenceConstant value.
+    /// This is used to give each reference constant with the same value the same id.
+    references: HashMap<(ValueId, u32), ValueId>,
+
     /// Contains each function that has been imported into the current function.
     /// Each function's Value::Function is uniqued here so any given FunctionId
     /// will always have the same ValueId within this function.
@@ -170,6 +174,14 @@ impl DataFlowGraph {
         self.values.insert(Value::NumericConstant { constant, typ })
     }
 
+    /// Creates a new reference constant, or returns the Id to an existing one if one already exists.
+    pub(crate) fn make_reference_constant(&mut self, allocation: ValueId, offset: u32) -> ValueId {
+        *self
+            .references
+            .entry((allocation, offset))
+            .or_insert_with(|| self.values.insert(Value::ReferenceConstant { allocation, offset }))
+    }
+
     /// Gets or creates a ValueId for the given FunctionId.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         if let Some(existing) = self.functions.get(&function) {
@@ -285,6 +297,15 @@ impl DataFlowGraph {
     ) -> Option<(FieldElement, Type)> {
         match self.values[value] {
             Value::NumericConstant { constant, typ } => Some((self[constant].value(), typ)),
+            _ => None,
+        }
+    }
+
+    /// Returns the address and offset represented by this value if it is a constant reference.
+    /// If the value is not a constant reference, this returns None.
+    pub(crate) fn get_reference_constant(&self, value: Id<Value>) -> Option<(ValueId, u32)> {
+        match self.values[value] {
+            Value::ReferenceConstant { allocation, offset } => Some((allocation, offset)),
             _ => None,
         }
     }

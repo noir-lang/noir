@@ -159,6 +159,7 @@ impl Context {
                 let field_element = &dfg[*constant].value();
                 self.acir_context.add_constant(*field_element)
             }
+            Value::ReferenceConstant { .. } => todo!(),
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {

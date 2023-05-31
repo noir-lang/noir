@@ -34,6 +34,9 @@ pub(crate) enum Value {
     /// This Value originates from a numeric constant
     NumericConstant { constant: NumericConstantId, typ: Type },
 
+    /// Represents a known offset from a known allocation
+    ReferenceConstant { allocation: ValueId, offset: u32 },
+
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
     /// If the argument or return types are needed, users should retrieve
@@ -53,6 +56,7 @@ impl Value {
             Value::Instruction { typ, .. } => *typ,
             Value::Param { typ, .. } => *typ,
             Value::NumericConstant { typ, .. } => *typ,
+            Value::ReferenceConstant { .. } => Type::Reference,
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
         }

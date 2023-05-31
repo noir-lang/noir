@@ -195,7 +195,7 @@ impl<'function> PerFunctionContext<'function> {
             return *value;
         }
 
-        let new_value = match &self.source_function.dfg[id] {
+        let new_value = match self.source_function.dfg[id] {
             value @ Value::Instruction { .. } => {
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
@@ -203,11 +203,15 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                let value = self.source_function.dfg[*constant].value();
-                self.context.builder.numeric_constant(value, *typ)
+                let value = self.source_function.dfg[constant].value();
+                self.context.builder.numeric_constant(value, typ)
             }
-            Value::Function(function) => self.context.builder.import_function(*function),
-            Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::Function(function) => self.context.builder.import_function(function),
+            Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(intrinsic),
+            Value::ReferenceConstant { allocation, offset } => {
+                let allocation = self.translate_value(allocation);
+                self.context.builder.reference_constant(allocation, offset)
+            }
         };
 
         self.values.insert(id, new_value);
