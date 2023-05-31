@@ -34,8 +34,14 @@ struct Context {
     /// for an SSA value, we check this map. If an `AcirVar`
     /// already exists for this Value, we return the `AcirVar`.
     ssa_value_to_acir_var: HashMap<Id<Value>, AcirVar>,
-    ssa_value_to_array_address: HashMap<ValueId, (ArrayId, usize)>,
+    /// Maps SSA values to array addresses (including index offset).
     ///
+    /// When converting parameters the of main, `ArrayId`s are gathered and stored with an offset
+    /// of 0. When the use of these stored values are detected for address arithmetic, the results
+    /// of such instructions are stored, in effect capturing any further values that refer to
+    /// addresses.
+    ssa_value_to_array_address: HashMap<ValueId, (ArrayId, usize)>,
+    /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
 }
 
