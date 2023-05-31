@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 template <typename C> C slice(C const& container, size_t start)
 {

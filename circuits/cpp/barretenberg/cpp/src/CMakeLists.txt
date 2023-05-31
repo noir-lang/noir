@@ -247,6 +247,7 @@ else()
     if(INSTALL_BARRETENBERG)
         # The `install` function takes targets to install in different destinations on the system.
         install(
+            # TODO(dbanks12): should only need to install API headers
             TARGETS barretenberg barretenberg_headers
             # We also give it an optional export name in case something wants to target the install.
             EXPORT barretenbergTargets
