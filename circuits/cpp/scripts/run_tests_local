@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+DIR="$(dirname "$0")"
+
 # To be called LOCALLY for testing WITHOUT docker.
 # Also serves as a core/helper script called by
 # `run_tests` and `build_run_tests_docker_local`
@@ -39,9 +41,9 @@ fi
 
 if [ "$ARCH" != "wasm" ]; then
   # x86_64 / anything other than wasm
-  BUILD_DIR=build
+  BUILD_DIR=$DIR/../build
 else
-  BUILD_DIR=build-wasm
+  BUILD_DIR=$DIR/../build-wasm
 fi
 
 # if TESTS is GLOB or empty, run all built tests

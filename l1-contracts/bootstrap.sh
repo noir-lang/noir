@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eu
 
+cd "$(dirname "$0")"
+
 # Clean
 rm -rf broadcast cache out serve
 

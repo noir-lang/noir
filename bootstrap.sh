@@ -3,6 +3,8 @@ set -eu
 
 export CLEAN=${1:-}
 
+cd "$(dirname "$0")"
+
 # Remove all untracked files and directories.
 if [ -n "$CLEAN" ]; then
   if [ "$CLEAN" = "clean" ]; then
@@ -32,13 +34,8 @@ if [ ! -f ~/.nvm/nvm.sh ]; then
   exit 1
 fi
 
-cd circuits/cpp
-./bootstrap.sh
-cd ../..
-
-cd l1-contracts
-./bootstrap.sh
-cd ..
+circuits/cpp/bootstrap.sh
+l1-contracts/bootstrap.sh
 
 if [ "$(uname)" = "Darwin" ]; then
   # works around https://github.com/AztecProtocol/aztec3-packages/issues/158
