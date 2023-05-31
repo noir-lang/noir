@@ -9,7 +9,7 @@ use super::{
         dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         map::Id,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -63,7 +63,7 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
 
-        self.convert_ssa_return(entry_block.terminator().unwrap());
+        self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
 
         self.acir_context.finish()
     }
@@ -76,8 +76,14 @@ impl Context {
             _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
         };
         match param_type {
-            Type::Numeric(..) => {
+            Type::Numeric(numeric_type) => {
                 let acir_var = self.acir_context.add_variable();
+                if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. })
+                {
+                    self.acir_context
+                        .numeric_cast_var(acir_var, &numeric_type)
+                        .expect("invalid range constraint was applied {numeric_type}");
+                }
                 self.ssa_value_to_acir_var.insert(param_id, acir_var);
             }
             Type::Reference => {
@@ -92,29 +98,52 @@ impl Context {
     /// Converts an SSA instruction into its ACIR representation
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
-        match instruction {
+
+        let (results_id, results_vars) = match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
-                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
+                (vec![result_ids[0]], vec![result_acir_var])
             }
-            _ => todo!(),
+            Instruction::Constrain(value_id) => {
+                let constrain_condition = self.convert_ssa_value(*value_id, dfg);
+                self.acir_context.assert_eq_one(constrain_condition);
+                (Vec::new(), Vec::new())
+            }
+            Instruction::Cast(value_id, typ) => {
+                let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+                assert_eq!(result_ids.len(), 1, "Cast ops have a single result");
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
+            _ => todo!("{instruction:?}"),
+        };
+
+        // Map the results of the instructions to Acir variables
+        for (result_id, result_var) in results_id.into_iter().zip(results_vars) {
+            self.ssa_value_to_acir_var.insert(result_id, result_var);
         }
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
-    fn convert_ssa_return(&mut self, terminator: &TerminatorInstruction) {
+    fn convert_ssa_return(&mut self, terminator: &TerminatorInstruction, dfg: &DataFlowGraph) {
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values } => return_values,
             _ => unreachable!("ICE: Program must have a singular return"),
         };
+
+        // Check if the program returns the `Unit/None` type.
+        // This type signifies that the program returns nothing.
+        let is_return_unit_type =
+            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
+        if is_return_unit_type {
+            return;
+        }
+
         for value_id in return_values {
-            let acir_var = self
-                .ssa_value_to_acir_var
-                .get(value_id)
-                .expect("ICE: Return of value not yet encountered");
-            self.acir_context.return_var(*acir_var);
+            let acir_var = self.convert_ssa_value(*value_id, dfg);
+            self.acir_context.return_var(acir_var);
         }
     }
 
@@ -133,14 +162,11 @@ impl Context {
             return *acir_var;
         }
         let acir_var = match value {
-            Value::NumericConstant { constant, .. } => {
-                let field_element = &dfg[*constant].value();
-                self.acir_context.add_constant(*field_element)
-            }
+            Value::NumericConstant { constant, .. } => self.acir_context.add_constant(*constant),
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
-                unreachable!("ICE: Should have been in cache")
+                unreachable!("ICE: Should have been in cache {value:?}")
             }
         };
         self.ssa_value_to_acir_var.insert(value_id, acir_var);
@@ -154,7 +180,28 @@ impl Context {
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
+            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs),
+            // Note: that this produces unnecessary constraints when
+            // this Eq instruction is being used for a constrain statement
+            BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
+            BinaryOp::Lt => self
+                .acir_context
+                .less_than_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
             _ => todo!(),
+        }
+    }
+    /// Returns an `AcirVar` that is constrained to be
+    fn convert_ssa_cast(&mut self, value_id: &ValueId, typ: &Type, dfg: &DataFlowGraph) -> AcirVar {
+        let variable = self.convert_ssa_value(*value_id, dfg);
+
+        match typ {
+            Type::Numeric(numeric_type) => self
+                .acir_context
+                .numeric_cast_var(variable, numeric_type)
+                .expect("invalid range constraint was applied {numeric_type}"),
+            _ => unimplemented!("The cast operation is only valid for integers."),
         }
     }
 }

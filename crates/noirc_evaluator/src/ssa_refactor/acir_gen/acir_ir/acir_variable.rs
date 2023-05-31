@@ -1,9 +1,11 @@
-use super::generated_acir::GeneratedAcir;
+use crate::ssa_refactor::ir::types::NumericType;
+
+use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
 };
-use std::{collections::HashMap, hash::Hash};
+use std::{borrow::Cow, collections::HashMap, hash::Hash};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -29,6 +31,9 @@ pub(crate) struct AcirContext {
     /// then the `acir_ir` will be populated to assert this
     /// addition.
     acir_ir: GeneratedAcir,
+
+    /// Maps an `AcirVar` to its known bit size.
+    variables_to_bit_sizes: HashMap<AcirVar, u32>,
 }
 
 impl AcirContext {
@@ -100,6 +105,18 @@ impl AcirContext {
         self.assert_eq_var(var, one_var);
     }
 
+    /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
+    /// 0 otherwise.
+    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let lhs_data = &self.data[&lhs];
+        let rhs_data = &self.data[&rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
+        self.add_data(AcirVarData::Witness(is_equal_witness))
+    }
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
         // TODO: could use sub_var and then assert_eq_zero
@@ -151,7 +168,7 @@ impl AcirContext {
         match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
-                let expr_as_witness = self.acir_ir.expression_to_witness(expr);
+                let expr_as_witness = self.acir_ir.get_or_create_witness(expr);
                 let mut expr = Expression::default();
                 expr.push_multiplication_term(FieldElement::one(), *witness, expr_as_witness);
 
@@ -176,8 +193,8 @@ impl AcirContext {
                 self.add_data(AcirVarData::Const(*lhs_constant * *rhs_constant))
             }
             (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                let lhs_expr_as_witness = self.acir_ir.expression_to_witness(lhs_expr);
-                let rhs_expr_as_witness = self.acir_ir.expression_to_witness(rhs_expr);
+                let lhs_expr_as_witness = self.acir_ir.get_or_create_witness(lhs_expr);
+                let rhs_expr_as_witness = self.acir_ir.get_or_create_witness(rhs_expr);
                 let mut expr = Expression::default();
                 expr.push_multiplication_term(
                     FieldElement::one(),
@@ -234,12 +251,84 @@ impl AcirContext {
         // TODO: Add caching to prevent expressions from being needlessly duplicated
         let witness = match acir_var_data {
             AcirVarData::Const(constant) => {
-                self.acir_ir.expression_to_witness(&Expression::from(*constant))
+                self.acir_ir.get_or_create_witness(&Expression::from(*constant))
             }
-            AcirVarData::Expr(expr) => self.acir_ir.expression_to_witness(expr),
+            AcirVarData::Expr(expr) => self.acir_ir.get_or_create_witness(expr),
             AcirVarData::Witness(witness) => *witness,
         };
         self.acir_ir.push_return_witness(witness);
+    }
+
+    /// Constrains the `AcirVar` variable to be of type `NumericType`.
+    pub(crate) fn numeric_cast_var(
+        &mut self,
+        variable: AcirVar,
+        numeric_type: &NumericType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let data = &self.data[&variable];
+        match numeric_type {
+            NumericType::Signed { .. } => todo!("signed integer conversion is unimplemented"),
+            NumericType::Unsigned { bit_size } => {
+                let data_expr = data.to_expression();
+                let witness = self.acir_ir.get_or_create_witness(&data_expr);
+                self.acir_ir.range_constraint(witness, *bit_size)?;
+                // Log the bit size for this variable
+                self.variables_to_bit_sizes.insert(variable, *bit_size);
+            }
+            NumericType::NativeField => {
+                // If someone has made a cast to a `Field` type then this is a Noop.
+                //
+                // The reason for doing this in code is for type safety; ie you have an
+                // integer, but a function requires the parameter to be a Field.
+            }
+        }
+        Ok(variable)
+    }
+
+    /// Returns an `AcirVar` which will be `1` if lhs >= rhs
+    /// and `0` otherwise.
+    fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.data[&lhs];
+        let rhs_data = &self.data[&rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let lhs_bit_size = self.variables_to_bit_sizes.get(&lhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
+        let rhs_bit_size = self.variables_to_bit_sizes.get(&rhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
+
+        // This is a conservative choice. Technically, we should just be able to take
+        // the bit size of the `lhs` (upper bound), but we need to check/document what happens
+        // if the bit_size is not enough to represent both witnesses.
+        // An example is the following: (a as u8) >= (b as u32)
+        // If the equality is true, then it means that `b` also fits inside
+        // of a u8.
+        // But its not clear what happens if the equality is false,
+        // and we 8 bits to `more_than_eq_comparison`. The conservative
+        // choice chosen is to use 32.
+        let bit_size = *std::cmp::max(lhs_bit_size, rhs_bit_size);
+
+        let is_greater_than_eq =
+            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size)?;
+
+        Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
+    }
+
+    /// Returns an `AcirVar` which will be `1` if lhs < rhs
+    /// and `0` otherwise.
+    pub(crate) fn less_than_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, AcirGenError> {
+        // Flip the result of calling more than equal method to
+        // compute less than.
+        let comparison = self.more_than_eq_var(lhs, rhs)?;
+
+        let one = self.add_constant(FieldElement::one());
+        let comparison_negated = self.sub_var(one, comparison);
+
+        Ok(comparison_negated)
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
@@ -299,6 +388,14 @@ impl AcirVarData {
             return Some(*field);
         }
         None
+    }
+    /// Converts all enum variants to an Expression.
+    pub(crate) fn to_expression(&self) -> Cow<Expression> {
+        match self {
+            AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),
+            AcirVarData::Expr(expr) => Cow::Borrowed(expr),
+            AcirVarData::Const(constant) => Cow::Owned(Expression::from(*constant)),
+        }
     }
 }
 
