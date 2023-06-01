@@ -3,7 +3,6 @@
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
 #include "barretenberg/honk/pcs/shplonk/shplonk_single.hpp"
-#include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
@@ -18,6 +17,8 @@ template <UltraFlavor Flavor> class UltraProver_ {
 
     using FF = typename Flavor::FF;
     using PCSParams = typename Flavor::PCSParams;
+    using PCS = typename Flavor::PCS;
+    using PCSCommitmentKey = typename Flavor::PCSParams::CommitmentKey;
     using ProvingKey = typename Flavor::ProvingKey;
     using Polynomial = typename Flavor::Polynomial;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
@@ -35,7 +36,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     void execute_pcs_evaluation_round();
     void execute_shplonk_batched_quotient_round();
     void execute_shplonk_partial_evaluation_round();
-    void execute_kzg_round();
+    void execute_final_pcs_round();
 
     void compute_wire_commitments();
 
@@ -63,15 +64,15 @@ template <UltraFlavor Flavor> class UltraProver_ {
 
     Polynomial quotient_W;
 
-    work_queue<pcs::kzg::Params> queue;
+    work_queue<PCSParams> queue;
 
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
     pcs::gemini::ProverOutput<PCSParams> gemini_output;
     pcs::shplonk::ProverOutput<PCSParams> shplonk_output;
+    std::shared_ptr<PCSCommitmentKey> pcs_commitment_key;
 
     using Gemini = pcs::gemini::MultilinearReductionScheme<PCSParams>;
     using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<PCSParams>;
-    using KZG = pcs::kzg::UnivariateOpeningScheme<PCSParams>;
 
   private:
     plonk::proof proof;

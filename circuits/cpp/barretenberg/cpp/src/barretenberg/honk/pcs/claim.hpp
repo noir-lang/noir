@@ -26,15 +26,15 @@ template <typename Params> class OpeningPair {
  * @tparam Params for the given commitment scheme
  */
 template <typename Params> class OpeningClaim {
-    using CK = typename Params::CK;
-    using CommitmentAffine = typename Params::C;
+    using CK = typename Params::CommitmentKey;
+    using Commitment = typename Params::Commitment;
     using Fr = typename Params::Fr;
 
   public:
     // (challenge r, evaluation v = p(r))
     OpeningPair<Params> opening_pair;
     // commitment to univariate polynomial p(X)
-    CommitmentAffine commitment;
+    Commitment commitment;
 
     /**
      * @brief inefficiently check that the claim is correct by recomputing the commitment
@@ -44,7 +44,7 @@ template <typename Params> class OpeningClaim {
      * @param polynomial the claimed witness polynomial p(X)
      * @return C = Commit(p(X)) && p(r) = v
      */
-    bool verify(CK* ck, const barretenberg::Polynomial<Fr>& polynomial) const
+    bool verify(std::shared_ptr<CK> ck, const barretenberg::Polynomial<Fr>& polynomial) const
     {
         Fr real_eval = polynomial.evaluate(opening_pair.challenge);
         if (real_eval != opening_pair.evaluation) {
@@ -78,14 +78,14 @@ template <typename Params> class OpeningClaim {
  * @tparam CommitmentKey
  */
 template <typename Params> class MLEOpeningClaim {
-    using CommitmentAffine = typename Params::C;
+    using Commitment = typename Params::Commitment;
     using Fr = typename Params::Fr;
 
   public:
     // commitment to a univariate polynomial
     // whose coefficients are the multi-linear evaluations
     // of C = [f]
-    CommitmentAffine commitment;
+    Commitment commitment;
     // v  = f(u) = ∑ᵢ aᵢ⋅Lᵢ(u)
     // v↺ = g(u) = a₁⋅L₀(u) + … + aₙ₋₁⋅Lₙ₋₂(u)
     Fr evaluation;

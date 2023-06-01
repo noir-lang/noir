@@ -27,7 +27,7 @@ template <typename FF> class TranscriptTest : public testing::Test {
     {
         TranscriptManifest manifest_expected;
 
-        size_t log_n(numeric::get_msb(circuit_size));
+        auto log_n = numeric::get_msb(circuit_size);
 
         size_t max_relation_length = 5;
         size_t size_FF = sizeof(FF);
@@ -79,7 +79,25 @@ template <typename FF> class TranscriptTest : public testing::Test {
         manifest_expected.add_challenge(round, "Shplonk:z");
 
         round++;
+        // TODO(Mara): Make testing more flavor agnostic so we can test this with all flavors
         manifest_expected.add_entry(round, "KZG:W", size_G);
+
+        // For IPA
+        // manifest_expected.add_entry(round, "IPA:poly_degree", circuit_size);
+        // manifest_expected.add_challenge(round, "IPA:generator_challenge");
+
+        // for (size_t i = 0; i < log_n; i++) {
+        //     round++;
+        //     std::string idx = std::to_string(i);
+        //     manifest_expected.add_entry(round, "IPA:L_" + idx, size_G);
+        //     manifest_expected.add_entry(round, "IPA:R_" + idx, size_G);
+        //     std::string label = "IPA:round_challenge_" + idx;
+        //     manifest_expected.add_challenge(round, label);
+        // }
+
+        // round++;
+        // manifest_expected.add_entry(round, "IPA:a_0", size_FF);
+
         manifest_expected.add_challenge(round); // no challenge
 
         return manifest_expected;
@@ -108,7 +126,6 @@ TYPED_TEST(TranscriptTest, ProverManifestConsistency)
     // Check that the prover generated manifest agrees with the manifest hard coded in this suite
     auto manifest_expected = TestFixture::construct_standard_honk_manifest(prover.key->circuit_size);
     auto prover_manifest = prover.transcript.get_manifest();
-
     // Note: a manifest can be printed using manifest.print()
     for (size_t round = 0; round < manifest_expected.size(); ++round) {
         ASSERT_EQ(prover_manifest[round], manifest_expected[round]) << "Prover manifest discrepency in round " << round;

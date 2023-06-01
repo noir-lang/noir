@@ -8,7 +8,7 @@ template <typename Flavor> class StandardVerifier_ {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
     using VerificationKey = typename Flavor::VerificationKey;
-    using PCSVerificationKey = typename Flavor::PCSParams::VK;
+    using PCSVerificationKey = typename Flavor::PCSParams::VerificationKey;
 
   public:
     StandardVerifier_(std::shared_ptr<VerificationKey> verifier_key = nullptr);
@@ -20,9 +20,9 @@ template <typename Flavor> class StandardVerifier_ {
     bool verify_proof(const plonk::proof& proof);
 
     std::shared_ptr<VerificationKey> key;
-    std::map<std::string, Commitment> kate_g1_elements;
-    std::map<std::string, FF> kate_fr_elements;
-    std::shared_ptr<PCSVerificationKey> kate_verification_key;
+    std::map<std::string, Commitment> commitments;
+    std::map<std::string, FF> pcs_fr_elements;
+    std::shared_ptr<PCSVerificationKey> pcs_verification_key;
     VerifierTranscript<FF> transcript;
 };
 

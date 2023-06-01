@@ -3,7 +3,6 @@
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
 #include "barretenberg/honk/pcs/shplonk/shplonk_single.hpp"
-#include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
@@ -20,11 +19,13 @@ template <typename T> concept StandardFlavor = IsAnyOf<T, honk::flavor::Standard
 template <StandardFlavor Flavor> class StandardProver_ {
 
     using FF = typename Flavor::FF;
-    using PCSParams = typename Flavor::PCSParams;
     using ProvingKey = typename Flavor::ProvingKey;
     using Polynomial = typename Flavor::Polynomial;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
+    using PCSParams = typename Flavor::PCSParams;
+    using PCSCommitmentKey = typename Flavor::PCSParams::CommitmentKey;
+    using PCS = typename Flavor::PCS;
 
   public:
     explicit StandardProver_(std::shared_ptr<ProvingKey> input_key = nullptr);
@@ -38,7 +39,8 @@ template <StandardFlavor Flavor> class StandardProver_ {
     void execute_pcs_evaluation_round();
     void execute_shplonk_batched_quotient_round();
     void execute_shplonk_partial_evaluation_round();
-    void execute_kzg_round();
+
+    void execute_final_pcs_round();
 
     void compute_wire_commitments();
 
@@ -73,10 +75,10 @@ template <StandardFlavor Flavor> class StandardProver_ {
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
     pcs::gemini::ProverOutput<PCSParams> gemini_output;
     pcs::shplonk::ProverOutput<PCSParams> shplonk_output;
+    std::shared_ptr<PCSCommitmentKey> pcs_commitment_key;
 
     using Gemini = pcs::gemini::MultilinearReductionScheme<PCSParams>;
     using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<PCSParams>;
-    using KZG = pcs::kzg::UnivariateOpeningScheme<PCSParams>;
 
   private:
     plonk::proof proof;

@@ -67,11 +67,11 @@ template <typename Params> struct ProverOutput {
 };
 
 template <typename Params> class MultilinearReductionScheme {
-    using CK = typename Params::CK;
+    using CK = typename Params::CommitmentKey;
 
     using Fr = typename Params::Fr;
+    using GroupElement = typename Params::GroupElement;
     using Commitment = typename Params::Commitment;
-    using CommitmentAffine = typename Params::C;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -212,18 +212,18 @@ template <typename Params> class MultilinearReductionScheme {
      */
     static std::vector<OpeningClaim<Params>> reduce_verify(std::span<const Fr> mle_opening_point, /* u */
                                                            const Fr batched_evaluation,           /* all */
-                                                           Commitment& batched_f,                 /* unshifted */
-                                                           Commitment& batched_g,                 /* to-be-shifted */
+                                                           GroupElement& batched_f,               /* unshifted */
+                                                           GroupElement& batched_g,               /* to-be-shifted */
                                                            VerifierTranscript<Fr>& transcript)
     {
         const size_t num_variables = mle_opening_point.size();
 
         // Get polynomials Fold_i, i = 1,...,m-1 from transcript
-        std::vector<CommitmentAffine> commitments;
+        std::vector<Commitment> commitments;
         commitments.reserve(num_variables - 1);
         for (size_t i = 0; i < num_variables - 1; ++i) {
             auto commitment =
-                transcript.template receive_from_prover<CommitmentAffine>("Gemini:FOLD_" + std::to_string(i + 1));
+                transcript.template receive_from_prover<Commitment>("Gemini:FOLD_" + std::to_string(i + 1));
             commitments.emplace_back(commitment);
         }
 
@@ -329,14 +329,14 @@ template <typename Params> class MultilinearReductionScheme {
      * @param r evaluation point at which we have partially evaluated A₀ at r and -r.
      * @return std::pair<Commitment, Commitment>  c0_r_pos, c0_r_neg
      */
-    static std::pair<Commitment, Commitment> compute_simulated_commitments(Commitment& batched_f,
-                                                                           Commitment& batched_g,
-                                                                           Fr r)
+    static std::pair<GroupElement, GroupElement> compute_simulated_commitments(GroupElement& batched_f,
+                                                                               GroupElement& batched_g,
+                                                                               Fr r)
     {
         // C₀ᵣ₊ = [F] + r⁻¹⋅[G]
-        Commitment C0_r_pos = batched_f;
+        GroupElement C0_r_pos = batched_f;
         // C₀ᵣ₋ = [F] - r⁻¹⋅[G]
-        Commitment C0_r_neg = batched_f;
+        GroupElement C0_r_neg = batched_f;
         Fr r_inv = r.invert();
         if (!batched_g.is_point_at_infinity()) {
             batched_g *= r_inv;

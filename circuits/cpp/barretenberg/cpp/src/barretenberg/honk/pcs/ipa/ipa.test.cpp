@@ -1,61 +1,81 @@
 #include "ipa.hpp"
 #include "barretenberg/common/mem.hpp"
 #include <gtest/gtest.h>
+#include "barretenberg/ecc/curves/types.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/commitment_key.test.hpp"
 using namespace barretenberg;
-namespace proof_system::honk::pcs {
+namespace proof_system::honk::pcs::ipa {
 
-class IPATests : public CommitmentTest<ipa::Params> {
+class IPATest : public CommitmentTest<Params> {
   public:
-    using Params = ipa::Params;
     using Fr = typename Params::Fr;
-    using element = typename Params::Commitment;
-    using affine_element = typename Params::C;
-    using CK = typename Params::CK;
-    using VK = typename Params::VK;
+    using GroupElement = typename Params::GroupElement;
+    using CK = typename Params::CommitmentKey;
+    using VK = typename Params::VerificationKey;
     using Polynomial = barretenberg::Polynomial<Fr>;
 };
 
-TEST_F(IPATests, Commit)
+TEST_F(IPATest, CommitOnManyZeroCoeffPolyWorks)
 {
-    constexpr size_t n = 128;
-    auto poly = this->random_polynomial(n);
-    barretenberg::g1::element commitment = this->commit(poly);
+    constexpr size_t n = 4;
+    Polynomial p(n);
+    for (size_t i = 0; i < n - 1; i++) {
+        p[i] = Fr::zero();
+    }
+    p[3] = Fr::one();
+    GroupElement commitment = this->commit(p);
     auto srs_elements = this->ck()->srs.get_monomial_points();
-    barretenberg::g1::element expected = srs_elements[0] * poly[0];
-    for (size_t i = 1; i < n; i++) {
-        expected += srs_elements[i] * poly[i];
+    GroupElement expected = srs_elements[0] * p[0];
+    // The SRS stored in the commitment key is the result after applying the pippenger point table so the
+    // values at odd indices contain the point {srs[i-1].x * beta, srs[i-1].y}, where beta is the endomorphism
+    // G_vec_local should use only the original SRS thus we extract only the even indices.
+    for (size_t i = 2; i < 2 * n; i += 2) {
+        expected += srs_elements[i] * p[i >> 1];
     }
     EXPECT_EQ(expected.normalize(), commitment.normalize());
 }
 
-TEST_F(IPATests, Open)
+TEST_F(IPATest, Commit)
 {
-    using IPA = ipa::InnerProductArgument<Params>;
+    constexpr size_t n = 128;
+    auto poly = this->random_polynomial(n);
+    GroupElement commitment = this->commit(poly);
+    auto srs_elements = this->ck()->srs.get_monomial_points();
+    GroupElement expected = srs_elements[0] * poly[0];
+    // The SRS stored in the commitment key is the result after applying the pippenger point table so the
+    // values at odd indices contain the point {srs[i-1].x * beta, srs[i-1].y}, where beta is the endomorphism
+    // G_vec_local should use only the original SRS thus we extract only the even indices.
+    for (size_t i = 2; i < 2 * n; i += 2) {
+        expected += srs_elements[i] * poly[i >> 1];
+    }
+    EXPECT_EQ(expected.normalize(), commitment.normalize());
+}
+
+TEST_F(IPATest, Open)
+{
+    using IPA = IPA<Params>;
     // generate a random polynomial, degree needs to be a power of two
     size_t n = 128;
     auto poly = this->random_polynomial(n);
     auto [x, eval] = this->random_eval(poly);
     auto commitment = this->commit(poly);
-    const OpeningPair<Params> opening_pair{ x, eval };
+    const OpeningPair<Params> opening_pair = { x, eval };
+    const OpeningClaim<Params> opening_claim{ opening_pair, commitment };
 
     // initialize empty prover transcript
     ProverTranscript<Fr> prover_transcript;
-
-    prover_transcript.send_to_verifier("IPA:C", commitment);
-
-    IPA::reduce_prove(this->ck(), opening_pair, poly, prover_transcript);
+    IPA::compute_opening_proof(this->ck(), opening_pair, poly, prover_transcript);
 
     // initialize verifier transcript from proof data
     VerifierTranscript<Fr> verifier_transcript{ prover_transcript.proof_data };
 
-    auto result = IPA::reduce_verify(this->vk(), opening_pair, n, verifier_transcript);
+    auto result = IPA::verify(this->vk(), opening_claim, verifier_transcript);
     EXPECT_TRUE(result);
 
     EXPECT_EQ(prover_transcript.get_manifest(), verifier_transcript.get_manifest());
 }
-} // namespace proof_system::honk::pcs
+} // namespace proof_system::honk::pcs::ipa

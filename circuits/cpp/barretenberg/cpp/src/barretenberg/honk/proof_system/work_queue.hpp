@@ -14,9 +14,9 @@ enum WorkType { SCALAR_MULTIPLICATION };
 // at the same time as the similar patterns in Gemini etc.
 template <typename Params> class work_queue {
 
-    using CommitmentKey = typename Params::CK;
+    using CommitmentKey = typename Params::CommitmentKey;
     using FF = typename Params::Fr;
-    using Commitment = typename Params::C;
+    using Commitment = typename Params::Commitment;
 
     struct work_item_info {
         uint32_t num_scalar_multiplications;

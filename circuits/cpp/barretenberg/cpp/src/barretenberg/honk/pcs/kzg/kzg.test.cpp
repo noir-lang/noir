@@ -15,24 +15,26 @@
 
 namespace proof_system::honk::pcs::kzg {
 
-template <class Params> class BilinearAccumulationTest : public CommitmentTest<Params> {
+template <class Params> class KZGTest : public CommitmentTest<Params> {
   public:
     using Fr = typename Params::Fr;
     using Commitment = typename Params::Commitment;
+    using GroupElement = typename Params::GroupElement;
     using Polynomial = barretenberg::Polynomial<Fr>;
 };
 
-TYPED_TEST_SUITE(BilinearAccumulationTest, CommitmentSchemeParams);
+TYPED_TEST_SUITE(KZGTest, CommitmentSchemeParams);
 
-TYPED_TEST(BilinearAccumulationTest, single)
+TYPED_TEST(KZGTest, single)
 {
     const size_t n = 16;
 
-    using KZG = UnivariateOpeningScheme<TypeParam>;
+    using KZG = KZG<TypeParam>;
     using Fr = typename TypeParam::Fr;
 
     auto witness = this->random_polynomial(n);
-    auto commitment = this->commit(witness);
+    barretenberg::g1::element commitment = this->commit(witness);
+
     auto challenge = Fr::random_element();
     auto evaluation = witness.evaluate(challenge);
     auto opening_pair = OpeningPair<TypeParam>{ challenge, evaluation };
@@ -40,13 +42,10 @@ TYPED_TEST(BilinearAccumulationTest, single)
 
     auto prover_transcript = ProverTranscript<Fr>::init_empty();
 
-    auto quotient_W = KZG::compute_opening_proof_polynomial(opening_pair, witness);
-    prover_transcript.send_to_verifier("KZG:W", this->commit(quotient_W));
+    KZG::compute_opening_proof(this->ck(), opening_pair, witness, prover_transcript);
 
     auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
-    auto kzg_claim = KZG::reduce_verify(opening_claim, verifier_transcript);
-
-    bool verified = kzg_claim.verify(this->vk());
+    bool verified = KZG::verify(this->vk(), opening_claim, verifier_transcript);
 
     EXPECT_EQ(verified, true);
 }
@@ -57,13 +56,13 @@ TYPED_TEST(BilinearAccumulationTest, single)
  * of a single Honk proof. (Expository comments included throughout).
  *
  */
-TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
+TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
 {
     using Shplonk = shplonk::SingleBatchOpeningScheme<TypeParam>;
     using Gemini = gemini::MultilinearReductionScheme<TypeParam>;
-    using KZG = UnivariateOpeningScheme<TypeParam>;
+    using KZG = KZG<TypeParam>;
     using Fr = typename TypeParam::Fr;
-    using Commitment = typename TypeParam::Commitment;
+    using GroupElement = typename TypeParam::GroupElement;
     using Polynomial = typename barretenberg::Polynomial<Fr>;
 
     const size_t n = 16;
@@ -78,8 +77,8 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
     auto poly2 = this->random_polynomial(n);
     poly2[0] = Fr::zero(); // this property is required of polynomials whose shift is used
 
-    Commitment commitment1 = this->commit(poly1);
-    Commitment commitment2 = this->commit(poly2);
+    GroupElement commitment1 = this->commit(poly1);
+    GroupElement commitment2 = this->commit(poly2);
 
     auto eval1 = poly1.evaluate_mle(mle_opening_point);
     auto eval2 = poly2.evaluate_mle(mle_opening_point);
@@ -104,8 +103,8 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
     batched_to_be_shifted.add_scaled(poly2, rhos[2]);
 
     // Compute batched commitments
-    Commitment batched_commitment_unshifted = Commitment::zero();
-    Commitment batched_commitment_to_be_shifted = Commitment::zero();
+    GroupElement batched_commitment_unshifted = GroupElement::zero();
+    GroupElement batched_commitment_to_be_shifted = GroupElement::zero();
     batched_commitment_unshifted = commitment1 * rhos[0] + commitment2 * rhos[1];
     batched_commitment_to_be_shifted = commitment2 * rhos[2];
 
@@ -149,8 +148,7 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
 
     // KZG prover:
     // - Adds commitment [W] to transcript
-    auto quotient_W = KZG::compute_opening_proof_polynomial(shplonk_opening_pair, shplonk_witness);
-    prover_transcript.send_to_verifier("KZG:W", this->commit(quotient_W));
+    KZG::compute_opening_proof(this->ck(), shplonk_opening_pair, shplonk_witness, prover_transcript);
 
     // Run the full verifier PCS protocol with genuine opening claims (genuine commitment, genuine evaluation)
 
@@ -169,10 +167,9 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
 
     // KZG verifier:
     // aggregates inputs [Q] - [Q_z] and [W] into an 'accumulator' (can perform pairing check on result)
-    auto kzg_claim = KZG::reduce_verify(shplonk_verifier_claim, verifier_transcript);
+    bool verified = KZG::verify(this->vk(), shplonk_verifier_claim, verifier_transcript);
 
     // Final pairing check: e([Q] - [Q_z] + z[W], [1]_2) = e([W], [x]_2)
-    bool verified = kzg_claim.verify(this->vk());
 
     EXPECT_EQ(verified, true);
 }

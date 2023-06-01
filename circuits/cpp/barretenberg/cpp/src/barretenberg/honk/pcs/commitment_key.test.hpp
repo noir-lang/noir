@@ -25,16 +25,16 @@ constexpr std::string_view kzg_srs_path = "../srs_db/ignition";
 
 template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 
-template <> inline std::shared_ptr<kzg::CommitmentKey> CreateCommitmentKey<kzg::CommitmentKey>()
+template <> inline std::shared_ptr<kzg::Params::CommitmentKey> CreateCommitmentKey<kzg::Params::CommitmentKey>()
 {
     const size_t n = 128;
-    return std::make_shared<kzg::CommitmentKey>(n, kzg_srs_path);
+    return std::make_shared<kzg::Params::CommitmentKey>(n, kzg_srs_path);
 }
 // For IPA
-template <> inline std::shared_ptr<ipa::CommitmentKey> CreateCommitmentKey<ipa::CommitmentKey>()
+template <> inline std::shared_ptr<ipa::Params::CommitmentKey> CreateCommitmentKey<ipa::Params::CommitmentKey>()
 {
     const size_t n = 128;
-    return std::make_shared<ipa::CommitmentKey>(n, kzg_srs_path);
+    return std::make_shared<ipa::Params::CommitmentKey>(n, kzg_srs_path);
 }
 
 template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
@@ -45,15 +45,17 @@ template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
 
 template <class VK> inline std::shared_ptr<VK> CreateVerificationKey();
 
-template <> inline std::shared_ptr<kzg::VerificationKey> CreateVerificationKey<kzg::VerificationKey>()
-{
-    return std::make_shared<kzg::VerificationKey>(kzg_srs_path);
-}
-// For IPA
-template <> inline std::shared_ptr<ipa::VerificationKey> CreateVerificationKey<ipa::VerificationKey>()
+template <> inline std::shared_ptr<kzg::Params::VerificationKey> CreateVerificationKey<kzg::Params::VerificationKey>()
 {
     const size_t n = 128;
-    return std::make_shared<ipa::VerificationKey>(n, kzg_srs_path);
+    return std::make_shared<kzg::Params::VerificationKey>(n, kzg_srs_path);
+}
+// For IPA
+template <> inline std::shared_ptr<ipa::Params::VerificationKey> CreateVerificationKey<ipa::Params::VerificationKey>()
+{
+    const size_t n = 128;
+    //
+    return std::make_shared<ipa::Params::VerificationKey>(n, kzg_srs_path);
 }
 template <typename VK> inline std::shared_ptr<VK> CreateVerificationKey()
 // requires std::default_initializable<VK>
@@ -61,23 +63,23 @@ template <typename VK> inline std::shared_ptr<VK> CreateVerificationKey()
     return std::make_shared<VK>();
 }
 template <typename Params> class CommitmentTest : public ::testing::Test {
-    using CK = typename Params::CK;
-    using VK = typename Params::VK;
+    using CK = typename Params::CommitmentKey;
+    using VK = typename Params::VerificationKey;
 
     using Fr = typename Params::Fr;
-    using CommitmentAffine = typename Params::C;
+    using Commitment = typename Params::Commitment;
     using Polynomial = typename Params::Polynomial;
     using Transcript = transcript::StandardTranscript;
 
   public:
     CommitmentTest()
-        : engine{ &numeric::random::get_debug_engine() }
+        : engine{ &numeric::random::get_engine() }
     {}
 
     std::shared_ptr<CK> ck() { return commitment_key; }
     std::shared_ptr<VK> vk() { return verification_key; }
 
-    CommitmentAffine commit(const Polynomial& polynomial) { return commitment_key->commit(polynomial); }
+    Commitment commit(const Polynomial& polynomial) { return commitment_key->commit(polynomial); }
 
     Polynomial random_polynomial(const size_t n)
     {
@@ -121,7 +123,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
         auto& [x, y] = claim.opening_pair;
         Fr y_expected = witness.evaluate(x);
         EXPECT_EQ(y, y_expected) << "OpeningClaim: evaluations mismatch";
-        CommitmentAffine commitment_expected = commit(witness);
+        Commitment commitment_expected = commit(witness);
         EXPECT_EQ(commitment, commitment_expected) << "OpeningClaim: commitment mismatch";
     }
 
@@ -186,14 +188,14 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     // Can be omitted if not needed.
     static void TearDownTestSuite() {}
 
-    static typename std::shared_ptr<typename Params::CK> commitment_key;
-    static typename std::shared_ptr<typename Params::VK> verification_key;
+    static typename std::shared_ptr<typename Params::CommitmentKey> commitment_key;
+    static typename std::shared_ptr<typename Params::VerificationKey> verification_key;
 };
 
 template <typename Params>
-typename std::shared_ptr<typename Params::CK> CommitmentTest<Params>::commitment_key = nullptr;
+typename std::shared_ptr<typename Params::CommitmentKey> CommitmentTest<Params>::commitment_key = nullptr;
 template <typename Params>
-typename std::shared_ptr<typename Params::VK> CommitmentTest<Params>::verification_key = nullptr;
+typename std::shared_ptr<typename Params::VerificationKey> CommitmentTest<Params>::verification_key = nullptr;
 
 using CommitmentSchemeParams = ::testing::Types<kzg::Params>;
 using IpaCommitmentSchemeParams = ::testing::Types<ipa::Params>;

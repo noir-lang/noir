@@ -17,15 +17,15 @@ StandardVerifier_<Flavor>::StandardVerifier_(std::shared_ptr<typename Flavor::Ve
 template <typename Flavor>
 StandardVerifier_<Flavor>::StandardVerifier_(StandardVerifier_&& other)
     : key(other.key)
-    , kate_verification_key(std::move(other.kate_verification_key))
+    , pcs_verification_key(std::move(other.pcs_verification_key))
 {}
 
 template <typename Flavor> StandardVerifier_<Flavor>& StandardVerifier_<Flavor>::operator=(StandardVerifier_&& other)
 {
     key = other.key;
-    kate_verification_key = (std::move(other.kate_verification_key));
-    kate_g1_elements.clear();
-    kate_fr_elements.clear();
+    pcs_verification_key = (std::move(other.pcs_verification_key));
+    commitments.clear();
+    pcs_fr_elements.clear();
     return *this;
 }
 
@@ -60,9 +60,10 @@ template <typename Flavor> bool StandardVerifier_<Flavor>::verify_proof(const pl
     using FF = typename Flavor::FF;
     using GroupElement = typename Flavor::GroupElement;
     using Commitment = typename Flavor::Commitment;
-    using Gemini = pcs::gemini::MultilinearReductionScheme<pcs::kzg::Params>;
-    using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<pcs::kzg::Params>;
-    using KZG = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>;
+    using PCSParams = typename Flavor::PCSParams;
+    using Gemini = pcs::gemini::MultilinearReductionScheme<PCSParams>;
+    using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<PCSParams>;
+    using PCS = typename Flavor::PCS;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
 
@@ -163,11 +164,8 @@ template <typename Flavor> bool StandardVerifier_<Flavor>::verify_proof(const pl
     // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
     auto shplonk_claim = Shplonk::reduce_verify(gemini_claim, transcript);
 
-    // Aggregate inputs [Q] - [Q_z] and [W] into an 'accumulator' (can perform pairing check on result)
-    auto kzg_claim = KZG::reduce_verify(shplonk_claim, transcript);
-
-    // Return result of final pairing check
-    return kzg_claim.verify(kate_verification_key);
+    // Verify the Shplonk claim with KZG or IPA
+    return PCS::verify(pcs_verification_key, shplonk_claim, transcript);
 }
 
 template class StandardVerifier_<honk::flavor::Standard>;

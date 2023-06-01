@@ -143,6 +143,11 @@ UltraProver UltraHonkComposerHelper::create_prover(CircuitConstructor& circuit_c
 
     UltraProver output_state(proving_key);
 
+    auto pcs_commitment_key =
+        std::make_unique<PCSParams::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");
+
+    output_state.pcs_commitment_key = std::move(pcs_commitment_key);
+
     return output_state;
 }
 
@@ -158,10 +163,10 @@ UltraVerifier UltraHonkComposerHelper::create_verifier(const CircuitConstructor&
 
     UltraVerifier output_state(verification_key);
 
-    // TODO(Cody): This should be more generic
-    auto kate_verification_key = std::make_unique<pcs::kzg::VerificationKey>("../srs_db/ignition");
+    auto pcs_verification_key =
+        std::make_unique<PCSVerificationKey>(verification_key->circuit_size, "../srs_db/ignition");
 
-    output_state.kate_verification_key = std::move(kate_verification_key);
+    output_state.pcs_verification_key = std::move(pcs_verification_key);
 
     return output_state;
 }
@@ -310,13 +315,10 @@ std::shared_ptr<UltraHonkComposerHelper::VerificationKey> UltraHonkComposerHelpe
         compute_proving_key(circuit_constructor);
     }
 
-    verification_key = std::make_shared<UltraHonkComposerHelper::VerificationKey>(proving_key->circuit_size,
-                                                                                  proving_key->num_public_inputs,
-                                                                                  crs_factory_->get_verifier_crs(),
-                                                                                  proving_key->composer_type);
+    verification_key = std::make_shared<UltraHonkComposerHelper::VerificationKey>(
+        proving_key->circuit_size, proving_key->num_public_inputs, proving_key->composer_type);
 
-    // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
-    auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
+    auto commitment_key = PCSCommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
 
     // Compute and store commitments to all precomputed polynomials
     verification_key->q_m = commitment_key.commit(proving_key->q_m);

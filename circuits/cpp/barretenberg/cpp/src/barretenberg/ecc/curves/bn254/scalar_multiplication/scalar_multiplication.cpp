@@ -101,6 +101,10 @@
 namespace barretenberg {
 namespace scalar_multiplication {
 
+/**
+ * The pippppenger point table computes for each point P = (x,y), a point P' = (\beta * x, -y) which enables us
+ * to use the curve endomorphism for faster scalar multiplication. See below for more details.
+ */
 void generate_pippenger_point_table(g1::affine_element* points, g1::affine_element* table, size_t num_points)
 {
     // iterate backwards, so that `points` and `table` can point to the same memory location
@@ -916,14 +920,14 @@ g1::element pippenger(fr* scalars,
  * We use affine-addition formula in this method, which paradoxically is ~45% faster than the mixed addition formulae.
  * See `scalar_multiplication.cpp` for a more detailed description.
  *
- * It's...unsafe, because we assume that the incomplete addition formula exceptions are not triggered.
+ * It's...unsafe, because we assume that the incomplete addition formula exceptions are not triggered i.e. that all the
+ * points provided as arguments to the msm are distinct.
  * We don't bother to check for this to avoid conditional branches in a critical section of our code.
- * This is fine for situations where your bases are linearly independent (i.e. KZG10 polynomial commitments),
- * because triggering the incomplete addition exceptions is about as hard as solving the disrete log problem.
- *
- * This is ok for the prover, but GIANT RED CLAXON WARNINGS FOR THE VERIFIER
- * Don't use this in a verification algorithm! That would be a really bad idea.
- * Unless you're a malicious adversary, then it would be a great idea!
+ * This is fine for situations where your bases are linearly independent (i.e. KZG10 polynomial commitments where
+ * there should be no equal points in the SRS), because triggering the incomplete addition exceptions is about as hard
+ *as solving the disrete log problem. This is ok for the prover, but GIANT RED CLAXON WARNINGS FOR THE VERIFIER Don't
+ *use this in a verification algorithm! That would be a really bad idea. Unless you're a malicious adversary, then it
+ *would be a great idea!
  *
  **/
 g1::element pippenger_unsafe(fr* scalars,

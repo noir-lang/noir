@@ -15,6 +15,7 @@ namespace proof_system::honk {
 class StandardHonkComposerHelper {
   public:
     using Flavor = flavor::Standard;
+    using PCSParams = Flavor::PCSParams;
     using CircuitConstructor = Flavor::CircuitConstructor;
     using ProvingKey = Flavor::ProvingKey;
     using VerificationKey = Flavor::VerificationKey;
@@ -63,7 +64,7 @@ class StandardHonkComposerHelper {
     // This needs to be static as it may be used only to compute the selector commitments.
 
     static std::shared_ptr<VerificationKey> compute_verification_key_base(
-        std::shared_ptr<ProvingKey> const& proving_key, std::shared_ptr<VerifierReferenceString> const& vrs);
+        std::shared_ptr<ProvingKey> const& proving_key);
 
     void compute_witness(const CircuitConstructor& circuit_constructor, const size_t minimum_circuit_size = 0);
 };

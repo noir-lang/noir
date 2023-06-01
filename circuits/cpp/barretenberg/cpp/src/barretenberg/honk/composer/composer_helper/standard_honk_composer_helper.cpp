@@ -43,13 +43,11 @@ std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelp
  */
 
 std::shared_ptr<StandardHonkComposerHelper::VerificationKey> StandardHonkComposerHelper::compute_verification_key_base(
-    std::shared_ptr<StandardHonkComposerHelper::ProvingKey> const& proving_key,
-    std::shared_ptr<VerifierReferenceString> const& vrs)
+    std::shared_ptr<StandardHonkComposerHelper::ProvingKey> const& proving_key)
 {
     auto key = std::make_shared<VerificationKey>(
-        proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
-    // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
-    auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
+        proving_key->circuit_size, proving_key->num_public_inputs, proving_key->composer_type);
+    auto commitment_key = PCSParams::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
 
     // Compute and store commitments to all precomputed polynomials
     key->q_m = commitment_key.commit(proving_key->q_m);
@@ -135,8 +133,7 @@ std::shared_ptr<StandardHonkComposerHelper::VerificationKey> StandardHonkCompose
         compute_proving_key(circuit_constructor);
     }
 
-    verification_key =
-        StandardHonkComposerHelper::compute_verification_key_base(proving_key, crs_factory_->get_verifier_crs());
+    verification_key = StandardHonkComposerHelper::compute_verification_key_base(proving_key);
     verification_key->composer_type = proving_key->composer_type;
 
     return verification_key;
@@ -147,10 +144,10 @@ StandardVerifier StandardHonkComposerHelper::create_verifier(const CircuitConstr
     compute_verification_key(circuit_constructor);
     StandardVerifier output_state(verification_key);
 
-    // TODO(Cody): This should be more generic
-    auto kate_verification_key = std::make_unique<pcs::kzg::VerificationKey>("../srs_db/ignition");
+    auto pcs_verification_key =
+        std::make_unique<PCSParams::VerificationKey>(verification_key->circuit_size, "../srs_db/ignition");
 
-    output_state.kate_verification_key = std::move(kate_verification_key);
+    output_state.pcs_verification_key = std::move(pcs_verification_key);
 
     return output_state;
 }
@@ -159,8 +156,12 @@ StandardProver StandardHonkComposerHelper::create_prover(const CircuitConstructo
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
-
     StandardProver output_state(proving_key);
+
+    auto pcs_commitment_key =
+        std::make_unique<PCSParams::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");
+
+    output_state.pcs_commitment_key = std::move(pcs_commitment_key);
 
     return output_state;
 }

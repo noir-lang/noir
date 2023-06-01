@@ -19,6 +19,10 @@ class UltraHonkComposerHelper {
     using CircuitConstructor = Flavor::CircuitConstructor;
     using ProvingKey = Flavor::ProvingKey;
     using VerificationKey = Flavor::VerificationKey;
+    using PCSParams = Flavor::PCSParams;
+    using PCS = Flavor::PCS;
+    using PCSCommitmentKey = PCSParams::CommitmentKey;
+    using PCSVerificationKey = PCSParams::VerificationKey;
 
     static constexpr size_t NUM_RESERVED_GATES = 4; // equal to the number of multilinear evaluations leaked
     static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;

@@ -12,7 +12,7 @@ namespace proof_system::honk::pcs::gemini {
 template <class Params> class GeminiTest : public CommitmentTest<Params> {
     using Gemini = MultilinearReductionScheme<Params>;
     using Fr = typename Params::Fr;
-    using Commitment = typename Params::Commitment;
+    using GroupElement = typename Params::GroupElement;
     using Polynomial = typename barretenberg::Polynomial<Fr>;
 
   public:
@@ -21,8 +21,8 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
                                           std::vector<Fr> multilinear_evaluations,
                                           std::vector<std::span<Fr>> multilinear_polynomials,
                                           std::vector<std::span<Fr>> multilinear_polynomials_to_be_shifted,
-                                          std::vector<Commitment> multilinear_commitments,
-                                          std::vector<Commitment> multilinear_commitments_to_be_shifted)
+                                          std::vector<GroupElement> multilinear_commitments,
+                                          std::vector<GroupElement> multilinear_commitments_to_be_shifted)
     {
         auto prover_transcript = ProverTranscript<Fr>::init_empty();
 
@@ -38,8 +38,8 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
 
         Polynomial batched_unshifted(1 << log_n);
         Polynomial batched_to_be_shifted(1 << log_n);
-        Commitment batched_commitment_unshifted = Commitment::zero();
-        Commitment batched_commitment_to_be_shifted = Commitment::zero();
+        GroupElement batched_commitment_unshifted = GroupElement::zero();
+        GroupElement batched_commitment_to_be_shifted = GroupElement::zero();
         const size_t num_unshifted = multilinear_polynomials.size();
         const size_t num_shifted = multilinear_polynomials_to_be_shifted.size();
         for (size_t i = 0; i < num_unshifted; ++i) {
@@ -105,7 +105,7 @@ TYPED_TEST_SUITE(GeminiTest, CommitmentSchemeParams);
 TYPED_TEST(GeminiTest, Single)
 {
     using Fr = typename TypeParam::Fr;
-    using Commitment = typename TypeParam::Commitment;
+    using GroupElement = typename TypeParam::GroupElement;
 
     const size_t n = 16;
     const size_t log_n = 4;
@@ -119,8 +119,8 @@ TYPED_TEST(GeminiTest, Single)
     std::vector<Fr> multilinear_evaluations = { eval };
     std::vector<std::span<Fr>> multilinear_polynomials = { poly };
     std::vector<std::span<Fr>> multilinear_polynomials_to_be_shifted = {};
-    std::vector<Commitment> multilinear_commitments = { commitment };
-    std::vector<Commitment> multilinear_commitments_to_be_shifted = {};
+    std::vector<GroupElement> multilinear_commitments = { commitment };
+    std::vector<GroupElement> multilinear_commitments_to_be_shifted = {};
 
     this->execute_gemini_and_verify_claims(log_n,
                                            u,
@@ -134,7 +134,7 @@ TYPED_TEST(GeminiTest, Single)
 TYPED_TEST(GeminiTest, SingleShift)
 {
     using Fr = typename TypeParam::Fr;
-    using Commitment = typename TypeParam::Commitment;
+    using GroupElement = typename TypeParam::GroupElement;
 
     const size_t n = 16;
     const size_t log_n = 4;
@@ -152,8 +152,8 @@ TYPED_TEST(GeminiTest, SingleShift)
     std::vector<Fr> multilinear_evaluations = { eval_shift };
     std::vector<std::span<Fr>> multilinear_polynomials = {};
     std::vector<std::span<Fr>> multilinear_polynomials_to_be_shifted = { poly };
-    std::vector<Commitment> multilinear_commitments = {};
-    std::vector<Commitment> multilinear_commitments_to_be_shifted = { commitment };
+    std::vector<GroupElement> multilinear_commitments = {};
+    std::vector<GroupElement> multilinear_commitments_to_be_shifted = { commitment };
 
     this->execute_gemini_and_verify_claims(log_n,
                                            u,
@@ -167,7 +167,7 @@ TYPED_TEST(GeminiTest, SingleShift)
 TYPED_TEST(GeminiTest, Double)
 {
     using Fr = typename TypeParam::Fr;
-    using Commitment = typename TypeParam::Commitment;
+    using GroupElement = typename TypeParam::GroupElement;
 
     const size_t n = 16;
     const size_t log_n = 4;
@@ -187,8 +187,8 @@ TYPED_TEST(GeminiTest, Double)
     std::vector<Fr> multilinear_evaluations = { eval1, eval2 };
     std::vector<std::span<Fr>> multilinear_polynomials = { poly1, poly2 };
     std::vector<std::span<Fr>> multilinear_polynomials_to_be_shifted = {};
-    std::vector<Commitment> multilinear_commitments = { commitment1, commitment2 };
-    std::vector<Commitment> multilinear_commitments_to_be_shifted = {};
+    std::vector<GroupElement> multilinear_commitments = { commitment1, commitment2 };
+    std::vector<GroupElement> multilinear_commitments_to_be_shifted = {};
 
     this->execute_gemini_and_verify_claims(log_n,
                                            u,
@@ -203,7 +203,7 @@ TYPED_TEST(GeminiTest, DoubleWithShift)
 {
     // using Gemini = MultilinearReductionScheme<TypeParam>;
     using Fr = typename TypeParam::Fr;
-    using Commitment = typename TypeParam::Commitment;
+    using GroupElement = typename TypeParam::GroupElement;
 
     const size_t n = 16;
     const size_t log_n = 4;
@@ -225,8 +225,8 @@ TYPED_TEST(GeminiTest, DoubleWithShift)
     std::vector<Fr> multilinear_evaluations = { eval1, eval2, eval2_shift };
     std::vector<std::span<Fr>> multilinear_polynomials = { poly1, poly2 };
     std::vector<std::span<Fr>> multilinear_polynomials_to_be_shifted = { poly2 };
-    std::vector<Commitment> multilinear_commitments = { commitment1, commitment2 };
-    std::vector<Commitment> multilinear_commitments_to_be_shifted = { commitment2 };
+    std::vector<GroupElement> multilinear_commitments = { commitment1, commitment2 };
+    std::vector<GroupElement> multilinear_commitments_to_be_shifted = { commitment2 };
 
     this->execute_gemini_and_verify_claims(log_n,
                                            u,

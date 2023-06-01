@@ -8,16 +8,17 @@ namespace proof_system::honk::pcs::shplonk {
 
 /**
  * @brief Protocol for opening several polynomials, each in a single different point.
- * It is a simplification of the MultiBatchOpeningScheme.
+ * It is a simplification of the MultiBatchOpeningScheme (several polynomials on several
+ * different points, protocol not implemented).
  *
  * @tparam Params for the given commitment scheme
  */
 template <typename Params> class SingleBatchOpeningScheme {
-    using CK = typename Params::CK;
+    using CK = typename Params::CommitmentKey;
 
     using Fr = typename Params::Fr;
+    using GroupElement = typename Params::GroupElement;
     using Commitment = typename Params::Commitment;
-    using CommitmentAffine = typename Params::C;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -129,7 +130,7 @@ template <typename Params> class SingleBatchOpeningScheme {
 
         const Fr nu = transcript.get_challenge("Shplonk:nu");
 
-        auto Q_commitment = transcript.template receive_from_prover<CommitmentAffine>("Shplonk:Q");
+        auto Q_commitment = transcript.template receive_from_prover<Commitment>("Shplonk:Q");
 
         const Fr z_challenge = transcript.get_challenge("Shplonk:z");
 
@@ -143,7 +144,7 @@ template <typename Params> class SingleBatchOpeningScheme {
 
         // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
         //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
-        Commitment G_commitment = Q_commitment;
+        GroupElement G_commitment = Q_commitment;
 
         // {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
         std::vector<Fr> inverse_vanishing_evals;
@@ -168,7 +169,7 @@ template <typename Params> class SingleBatchOpeningScheme {
             current_nu *= nu;
         }
         // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
-        G_commitment += Commitment::one() * G_commitment_constant;
+        G_commitment += GroupElement::one() * G_commitment_constant;
 
         // Return opening pair (z, 0) and commitment [G]
         return { { z_challenge, Fr::zero() }, G_commitment };
