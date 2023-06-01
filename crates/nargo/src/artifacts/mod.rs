@@ -5,7 +5,7 @@
 //! to generate them using these artifacts as a starting point.
 
 use acvm::acir::circuit::Circuit;
-use serde::{Deserializer, Serializer, Serialize, Deserialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod contract;
 pub mod program;
@@ -15,13 +15,8 @@ mod barretenberg_structures;
 
 #[cfg(feature = "bb_js")]
 use {
-    
-    self::barretenberg_structures::ConstraintSystem,
-    base64,
-    flate2::write::GzEncoder,
-    flate2::read::GzDecoder,
-    flate2::Compression,
-    std::io::prelude::*,
+    self::barretenberg_structures::ConstraintSystem, base64, flate2::read::GzDecoder,
+    flate2::write::GzEncoder, flate2::Compression, std::io::prelude::*,
 };
 
 // TODO: move these down into ACVM.
