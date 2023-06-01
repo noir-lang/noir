@@ -346,6 +346,49 @@ impl AcirContext {
         }
     }
 
+    /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
+    ///
+    /// We convert left shifts to multiplications, so this is equivalent to
+    /// `lhs * 2^rhs`.
+    ///
+    /// We currently require `rhs` to be a constant
+    /// however this can be extended, see #1478.
+    pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let rhs_data = &self.data[&rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.mul_var(lhs, two_pow_rhs_var)
+    }
+
+    /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
+    ///
+    /// We convert right shifts to divisions, so this is equivalent to
+    /// `lhs / 2^rhs`.
+    ///
+    /// We currently require `rhs` to be a constant
+    /// however this can be extended, see #1478.
+    ///
+    /// This code is doing a field division instead of an integer division,
+    /// see #1479 about how this is expected to change.
+    pub(crate) fn shift_right_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let rhs_data = &self.data[&rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.div_var(lhs, two_pow_rhs_var)
+    }
+
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) {

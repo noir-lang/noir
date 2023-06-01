@@ -309,6 +309,8 @@ impl Context {
                 .acir_context
                 .less_than_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs),
+            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs),
             BinaryOp::Xor => self
                 .acir_context
                 .xor_var(lhs, rhs)
