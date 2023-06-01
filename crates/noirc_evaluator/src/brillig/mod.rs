@@ -34,7 +34,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
-    /// Generate compilation artefacts for brillig funtions
+    /// Generate compilation artefacts for brillig functions
     pub(crate) fn to_brillig(&self) -> Brillig {
         let mut brillig = Brillig::default();
         for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
