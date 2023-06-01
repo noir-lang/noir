@@ -18,7 +18,6 @@ CONTRACTS=(
   "l1-contracts:UnverifiedDataEmitter"
   "l1-contracts:TokenPortal"
   "l1-contracts:PortalERC20"
-  "l1-contracts:RollupNativeAsset"
 )
 
 

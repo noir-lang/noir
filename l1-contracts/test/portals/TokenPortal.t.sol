@@ -9,6 +9,7 @@ import {Registry} from "@aztec/core/messagebridge/Registry.sol";
 import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
+import {Errors} from "@aztec/core/libraries/Errors.sol";
 
 // Interfaces
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
@@ -30,6 +31,7 @@ contract TokenPortalTest is Test {
     bytes32 content,
     bytes32 secretHash
   );
+  event MessageConsumed(bytes32 indexed entryKey, address indexed recipient);
 
   Registry internal registry;
   Inbox internal inbox;
@@ -102,5 +104,37 @@ contract TokenPortalTest is Test {
     // Check that the message is in the inbox
     DataStructures.Entry memory entry = inbox.get(entryKey);
     assertEq(entry.count, 1);
+  }
+
+  function testWithdraw() public {
+    uint256 withdrawAmount = 654;
+    portalERC20.mint(address(tokenPortal), withdrawAmount);
+    address _recipient = address(0xdead);
+    bytes32[] memory entryKeys = new bytes32[](1);
+    entryKeys[0] = outbox.computeEntryKey(
+      DataStructures.L2ToL1Msg({
+        sender: DataStructures.L2Actor({actor: l2TokenAddress, version: 1}),
+        recipient: DataStructures.L1Actor({actor: address(tokenPortal), chainId: block.chainid}),
+        content: Hash.sha256ToField(
+          abi.encodeWithSignature("withdraw(uint256,address)", withdrawAmount, _recipient)
+          )
+      })
+    );
+
+    // Insert messages into the outbox (impersonating the rollup contract)
+    vm.prank(address(rollup));
+    outbox.sendL1Messages(entryKeys);
+
+    assertEq(portalERC20.balanceOf(_recipient), 0);
+
+    vm.expectEmit(true, true, true, true);
+    emit MessageConsumed(entryKeys[0], address(tokenPortal));
+    bytes32 entryKey = tokenPortal.withdraw(withdrawAmount, _recipient);
+    // Should have received 654 RNA tokens
+    assertEq(portalERC20.balanceOf(_recipient), withdrawAmount);
+
+    // Should not be able to withdraw again
+    vm.expectRevert(abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKey));
+    tokenPortal.withdraw(withdrawAmount, _recipient);
   }
 }
