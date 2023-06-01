@@ -126,10 +126,14 @@ impl AcirContext {
 
     /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
     pub(crate) fn xor_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type, this should be caught by the type system");
-        let rhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: XOR applied to field type, this should be caught by the type system");
+        let lhs_bit_size = self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: XOR applied to field type, this should be caught by the type system");
+        let rhs_bit_size = self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: XOR applied to field type, this should be caught by the type system");
         let bit_size = std::cmp::max(*lhs_bit_size, *rhs_bit_size);
         let result = if bit_size == 1 {
             // Operands are booleans
@@ -180,11 +184,18 @@ impl AcirContext {
             self.sub_var(sum, mul)
         } else {
             // Implement OR in terms of AND
+            // max - ((max - a) AND (max -b))
+            // Subtracting from max flips the bits, so this is effectively:
+            // (NOT a) NAND (NOT b)
             let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
             let a = self.sub_var(max, lhs);
             let b = self.sub_var(max, rhs);
+            // We track the bit sizes of these intermediaries so that blackbox input generation
+            // infers them correctly.
+            self.variables_to_bit_sizes.insert(a, bit_size);
+            self.variables_to_bit_sizes.insert(b, bit_size);
             let output = self.black_box_function(BlackBoxFunc::AND, vec![a, b])?;
-            output[0]
+            self.sub_var(max, output[0])
         };
         self.variables_to_bit_sizes.insert(result, bit_size);
         Ok(result)
@@ -464,13 +475,6 @@ impl AcirContext {
     /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
         assert_eq!(self.data.len(), self.data_reverse_map.len());
-        // if let Some(acir_var) = self.data_reverse_map.get(&data) {
-        //     // Avoid data duplication
-        //     return *acir_var;
-        // }
-        if let Some(acir_var) = self.data_reverse_map.get(&data) {
-            println!("data dupe!! {data:?}");
-        }
 
         let id = AcirVar(self.data.len());
 
