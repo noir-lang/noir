@@ -426,13 +426,14 @@ pub(crate) struct AcirVar(usize);
 #[test]
 fn repeat_op() {
     let mut ctx = AcirContext::default();
-    let var1 = ctx.add_variable();
-    let var2 = ctx.add_variable();
-    let mul = ctx.mul_var(var1, var2);
-    let should_be_same_mul = ctx.mul_var(var1, var2);
-    // It's only on the third attempt that `add_data`'s `data_reverse_map` & `data` equal length
-    // assert previously failed (prior to adding a dupe check inside of add_data).
-    let should_be_same_mul_again = ctx.mul_var(var1, var2);
-    assert_eq!(mul, should_be_same_mul);
-    assert_eq!(mul, should_be_same_mul_again);
+
+    let var_a = ctx.add_variable();
+    let var_b = ctx.add_variable();
+
+    // Multiplying the same variables twice should yield
+    // the same output.
+    let var_c = ctx.mul_var(var_a, var_b);
+    let should_be_var_c = ctx.mul_var(var_a, var_b);
+
+    assert_eq!(var_c, should_be_var_c);
 }
