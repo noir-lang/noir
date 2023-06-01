@@ -463,7 +463,10 @@ impl<'f> Context<'f> {
             let then_condition = then_branch.condition;
             let else_condition = else_branch.condition;
             let value = self.merge_values(then_condition, else_condition, then_case, else_case);
-            self.insert_instruction_with_typevars(Instruction::Store { address, offset, value }, None);
+            self.insert_instruction_with_typevars(
+                Instruction::Store { address, offset, value },
+                None,
+            );
 
             if let Some(store) = self.store_values.get_mut(&(address, offset)) {
                 store.new_value = value;

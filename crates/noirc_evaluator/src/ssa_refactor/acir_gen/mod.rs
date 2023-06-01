@@ -255,10 +255,19 @@ impl Context {
     }
 
     /// Returns the `AcirVar` that was previously stored at the given address.
-    fn convert_ssa_load(&mut self, address: &ValueId, offset: &ValueId, dfg: &DataFlowGraph) -> AcirVar {
-        let array_id = self.ssa_value_to_array_address.get(address).expect("ICE: Load from undeclared array");
-        let index = dfg.get_numeric_constant(*offset).expect("Expected constant value for array index")
-            .try_to_u64().expect("Expected array index to fit in u64") as usize;
+    fn convert_ssa_load(
+        &mut self,
+        address: &ValueId,
+        offset: &ValueId,
+        dfg: &DataFlowGraph,
+    ) -> AcirVar {
+        let array_id =
+            self.ssa_value_to_array_address.get(address).expect("ICE: Load from undeclared array");
+        let index = dfg
+            .get_numeric_constant(*offset)
+            .expect("Expected constant value for array index")
+            .try_to_u64()
+            .expect("Expected array index to fit in u64") as usize;
         self.acir_context.array_load(*array_id, index).expect("invalid array load")
     }
 
