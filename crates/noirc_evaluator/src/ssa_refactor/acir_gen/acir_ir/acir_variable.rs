@@ -274,7 +274,9 @@ impl AcirContext {
     /// Returns an `AcirVar` that is constrained to be lhs << rhs.
     ///
     /// We convert left shifts to multiplications, so this is equivalent to
-    /// lhs * 2^rhs. We currently maintain that rhs needs to be a constant
+    /// lhs * 2^rhs.
+    ///
+    /// We currently maintain that rhs needs to be a constant
     /// however this can be extended, see #1478.
     pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let rhs_data = &self.data[&rhs];
@@ -294,14 +296,11 @@ impl AcirContext {
     /// We convert right shifts to divisions, so this is equivalent to
     /// lhs / 2^rhs.
     ///
-    /// TODO: the previous code seems to have only done a right shift, if the
-    /// TODO rhs was a constant. Moreover, it did an unsigned division.
+    /// We currently maintain that rhs needs to be a constant
+    /// however this can be extended, see #1478.
     ///
-    /// TODO: We should rationalize whether we want shift left and shift right to work
-    /// TODO only for unsigned integers.
-    /// TODO:
-    /// TODO: This would mean that both implementation would be doing integer mul and
-    /// TODO integer division. The previous code was doing Mul and integer division.
+    /// This code is doing a field division instead of an integer division,
+    /// see #1479 about how this is expected to change.
     pub(crate) fn shift_right_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let rhs_data = &self.data[&rhs];
 
