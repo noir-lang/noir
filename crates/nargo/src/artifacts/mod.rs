@@ -5,9 +5,9 @@
 //! to generate them using these artifacts as a starting point.
 
 use acvm::acir::circuit::Circuit;
+use serde::{Deserializer, Serializer, Serialize, Deserialize};
 use base64;
 use flate2::write::GzEncoder;
-use serde::{Deserializer, Serializer};
 // use flate2::read::GzDecoder;
 use flate2::Compression;
 use std::io::prelude::*;
@@ -18,7 +18,8 @@ mod barretenberg_structures;
 pub mod contract;
 pub mod program;
 
-fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
+#[allow(unused)]
+fn serialize_circuit_bb<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -36,7 +37,8 @@ where
     s.serialize_str(&b64_string)
 }
 
-fn deserialize_circuit<'de, D>(_deserializer: D) -> Result<Circuit, D::Error>
+#[allow(unused)]
+fn deserialize_circuit_bb<'de, D>(_deserializer: D) -> Result<Circuit, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -52,123 +54,22 @@ where
     // Ok(circuit)
 }
 
-// fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
-// where
-//     S: Serializer,
-// {
-//     let mut circuit_bytes: Vec<u8> = Vec::new();
-//     circuit.write(&mut circuit_bytes).unwrap();
-
-//     let encoded_circuit_bytes = run_length_encode_zeroes(circuit_bytes);
-//     let b64_string = base64::encode(encoded_circuit_bytes);
-//     s.serialize_str(&b64_string)
-// }
-
-// fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
-// where
-//     D: Deserializer<'de>,
-// {
-//     let b64_string = String::deserialize(deserializer)?;
-//     let encoded_circuit_bytes = base64::decode(b64_string).map_err(serde::de::Error::custom)?;
-//     let circuit_bytes = run_length_decode_zeroes(encoded_circuit_bytes);
-//     let circuit = Circuit::read(&*circuit_bytes).unwrap();
-//     Ok(circuit)
-// }
-
 // TODO: move these down into ACVM.
-// fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
-// where
-//     S: Serializer,
-// {
-//     let mut circuit_bytes: Vec<u8> = Vec::new();
-//     circuit.write(&mut circuit_bytes).unwrap();
+fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut circuit_bytes: Vec<u8> = Vec::new();
+    circuit.write(&mut circuit_bytes).unwrap();
 
-//     // circuit_bytes.serialize(s)
-//     let hex_string = hex::encode(circuit_bytes);
-//     s.serialize_str(&hex_string)
-// }
+    circuit_bytes.serialize(s)
+}
 
-// fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
-// where
-//     D: Deserializer<'de>,
-// {
-//     // let circuit_bytes = Vec::<u8>::deserialize(deserializer)?;
-//     let hex_string = String::deserialize(deserializer)?;
-//     let circuit_bytes = hex::decode(hex_string).map_err(serde::de::Error::custom)?;
-//     let circuit = Circuit::read(&*circuit_bytes).unwrap();
-//     Ok(circuit)
-// }
-
-// fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
-// where
-//     S: Serializer,
-// {
-//     let mut circuit_bytes: Vec<u8> = Vec::new();
-//     circuit.write(&mut circuit_bytes).unwrap();
-
-//     let encoded_circuit_bytes = run_length_encode_zeroes(circuit_bytes);
-//     let hex_string = hex::encode(encoded_circuit_bytes);
-
-//     s.serialize_str(&hex_string)
-// }
-
-// fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
-// where
-//     D: Deserializer<'de>,
-// {
-//     let hex_string = String::deserialize(deserializer)?;
-//     let encoded_circuit_bytes = hex::decode(hex_string).map_err(serde::de::Error::custom)?;
-//     let circuit_bytes = run_length_decode_zeroes(encoded_circuit_bytes);
-
-//     let circuit = Circuit::read(&*circuit_bytes).unwrap();
-//     Ok(circuit)
-// }
-
-// fn run_length_encode_zeroes(input: Vec<u8>) -> Vec<u8> {
-//     let mut output: Vec<u8> = Vec::new();
-//     let mut count = 0;
-//     for &byte in input.iter() {
-//         if byte == 0 {
-//             count += 1;
-//             // Skip the loop, don't push anything yet.
-//             continue;
-//         }
-
-//         // If we've encountered a sequence of zeroes, write it out.
-//         if count > 0 {
-//             output.push(0);
-//             output.push(count);
-//             count = 0;
-//         }
-
-//         output.push(byte);
-//     }
-
-//     // Edge case for if the last sequence is zeroes.
-//     if count > 0 {
-//         output.push(0);
-//         output.push(count);
-//     }
-
-//     output
-// }
-
-// fn run_length_decode_zeroes(input: Vec<u8>) -> Vec<u8> {
-//     let mut output: Vec<u8> = Vec::new();
-//     let mut i = 0;
-//     while i < input.len() {
-//         if input[i] == 0 {
-//             // We have a sequence of zeroes. The next byte is the count.
-//             let count = input[i+1];
-//             for _ in 0..count {
-//                 output.push(0);
-//             }
-//             i += 2; // Skip the count.
-//         } else {
-//             output.push(input[i]);
-//             i += 1;
-//         }
-//     }
-
-//     output
-// }
+fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let circuit_bytes = Vec::<u8>::deserialize(deserializer)?;
+    let circuit = Circuit::read(&*circuit_bytes).unwrap();
+    Ok(circuit)
+}
