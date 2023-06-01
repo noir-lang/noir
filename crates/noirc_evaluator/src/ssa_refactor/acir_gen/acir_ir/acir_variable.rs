@@ -128,6 +128,80 @@ impl AcirContext {
         let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
         self.add_data(AcirVarData::Witness(is_equal_witness))
     }
+
+    /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
+    pub(crate) fn xor_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: XOR applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: XOR applied to field type, this should be caught by the type system");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to XOR require equal bit size");
+
+        let outputs = self.black_box_function(BlackBoxFunc::XOR, vec![lhs, rhs])?;
+        let result = outputs[0];
+        self.variables_to_bit_sizes.insert(result, lhs_bit_size);
+        Ok(result)
+    }
+
+    /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
+    pub(crate) fn and_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: AND applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: AND applied to field type, this should be caught by the type system");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to AND require equal bit size");
+
+        let outputs = self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs])?;
+        let result = outputs[0];
+        self.variables_to_bit_sizes.insert(result, lhs_bit_size);
+        Ok(result)
+    }
+
+    /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
+    pub(crate) fn or_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: OR applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: OR applied to field type, this should be caught by the type system");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to OR require equal bit size");
+        let bit_size = lhs_bit_size;
+        let result = if bit_size == 1 {
+            // Operands are booleans
+            // a + b - ab
+            let sum = self.add_var(lhs, rhs);
+            let mul = self.mul_var(lhs, rhs);
+            self.sub_var(sum, mul)
+        } else {
+            // Implement OR in terms of AND
+            // max - ((max - a) AND (max -b))
+            // Subtracting from max flips the bits, so this is effectively:
+            // (NOT a) NAND (NOT b)
+            let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
+            let a = self.sub_var(max, lhs);
+            let b = self.sub_var(max, rhs);
+            // We track the bit sizes of these intermediaries so that blackbox input generation
+            // infers them correctly.
+            self.variables_to_bit_sizes.insert(a, bit_size);
+            self.variables_to_bit_sizes.insert(b, bit_size);
+            let output = self.black_box_function(BlackBoxFunc::AND, vec![a, b])?;
+            self.sub_var(max, output[0])
+        };
+        self.variables_to_bit_sizes.insert(result, bit_size);
+        Ok(result)
+    }
+
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
         // TODO: could use sub_var and then assert_eq_zero
