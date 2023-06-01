@@ -177,9 +177,7 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array = self.codegen_non_tuple_expression(&index.collection);
-        self.codegen_array_index(array, &index.index, &index.element_type, |this, array, offset, typ| {
-            this.builder.insert_load(array, offset, typ).into()
-        })
+        self.codegen_array_index(array, &index.index, &index.element_type, true)
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -188,13 +186,13 @@ impl<'a> FunctionContext<'a> {
     /// Set load_result to true to load from each relevant index of the array
     /// (it may be multiple in the case of tuples). Set it to false to instead
     /// return a reference to each element, for use with the store instruction.
-    fn codegen_array_index<T>(
+    fn codegen_array_index(
         &mut self,
         array: super::ir::value::ValueId,
         index: &ast::Expression,
         element_type: &ast::Type,
-        load_function: impl FnMut(&mut Self, ValueId, ValueId, Type) -> T,
-    ) -> Tree<T> {
+        load_value: bool,
+    ) -> Values {
         let base_offset = self.codegen_non_tuple_expression(index);
 
         // base_index = base_offset * type_size
@@ -206,9 +204,13 @@ impl<'a> FunctionContext<'a> {
         Self::map_type(element_type, |typ| {
             let index = self.builder.field_constant(field_index);
             let offset = self.builder.insert_binary(base_index, BinaryOp::Add, index);
-
             field_index += 1;
-            load_function(self, array, offset, typ)
+
+            if load_value {
+                self.builder.insert_load(array, offset, typ).into()
+            } else {
+                value::Value::Mutable(array, offset, typ)
+            }
         })
     }
 
@@ -385,7 +387,7 @@ impl<'a> FunctionContext<'a> {
         self.unit_value()
     }
 
-    fn codegen_lvalue(&mut self, lvalue: &ast::LValue) -> Tree<(ValueId, ValueId)> {
+    fn codegen_lvalue(&mut self, lvalue: &ast::LValue) -> Values {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 // Do not .eval the Values here! We do not want to load from any references within
@@ -401,10 +403,7 @@ impl<'a> FunctionContext<'a> {
                 // to an array would be a Value::Mutable( Value::Mutable ( address ) ), and we
                 // only need the inner mutable value.
                 let array = self.codegen_lvalue(array).into_leaf().eval(self);
-
-                self.codegen_array_index(array, index, element_type, |_, array, offset, _| {
-                    (array, offset)
-                })
+                self.codegen_array_index(array, index, element_type, false)
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 let object = self.codegen_lvalue(object);

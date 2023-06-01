@@ -150,12 +150,14 @@ impl PerBlockContext {
     }
 
     // Attempts to normalize the given value into a const address
-    fn try_const_address(address: ValueId, offset: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
+    fn try_const_address(
+        address: ValueId,
+        offset: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Option<Address> {
         let instruction = Self::get_allocation(address, dfg)?;
 
-        dfg.get_numeric_constant(offset).map(|offset| {
-            (instruction, offset.try_to_u64().unwrap())
-        })
+        dfg.get_numeric_constant(offset).map(|offset| (instruction, offset.try_to_u64().unwrap()))
     }
 
     fn get_allocation(address: ValueId, dfg: &DataFlowGraph) -> Option<InstructionId> {

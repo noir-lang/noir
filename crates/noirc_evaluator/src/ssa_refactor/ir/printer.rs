@@ -146,9 +146,11 @@ pub(crate) fn display_instruction(
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
         }
         Instruction::Allocate { size } => writeln!(f, "alloc {size} fields"),
-        Instruction::Load { address, offset } => writeln!(f, "load {} with offset {}", show(*address), show(*offset)),
+        Instruction::Load { address, offset } => {
+            writeln!(f, "load {}, offset {}", show(*address), show(*offset))
+        }
         Instruction::Store { address, offset, value } => {
-            writeln!(f, "store {} at {} with offset {}", show(*value), show(*address), show(*offset))
+            writeln!(f, "store {} at {}, offset {}", show(*value), show(*address), show(*offset))
         }
     }
 }

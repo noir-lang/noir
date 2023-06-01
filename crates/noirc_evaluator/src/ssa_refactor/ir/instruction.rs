@@ -156,7 +156,9 @@ impl Instruction {
                 arguments: vecmap(arguments.iter().copied(), f),
             },
             Instruction::Allocate { size } => Instruction::Allocate { size: *size },
-            Instruction::Load { address, offset } => Instruction::Load { address: f(*address), offset: f(*offset) },
+            Instruction::Load { address, offset } => {
+                Instruction::Load { address: f(*address), offset: f(*offset) }
+            }
             Instruction::Store { address, offset, value } => {
                 Instruction::Store { address: f(*address), offset: f(*offset), value: f(*value) }
             }

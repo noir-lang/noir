@@ -152,11 +152,12 @@ impl FunctionBuilder {
     /// Returns the element that was loaded.
     pub(crate) fn insert_load(
         &mut self,
-        mut address: ValueId,
+        address: ValueId,
         offset: ValueId,
         type_to_load: Type,
     ) -> ValueId {
-        self.insert_instruction(Instruction::Load { address, offset }, Some(vec![type_to_load])).first()
+        self.insert_instruction(Instruction::Load { address, offset }, Some(vec![type_to_load]))
+            .first()
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element

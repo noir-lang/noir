@@ -145,7 +145,7 @@ impl<'a> FunctionContext<'a> {
         let zero = self.builder.field_constant(0u128);
         self.builder.insert_store(alloc, zero, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
-        Value::Mutable(alloc, typ)
+        Value::Mutable(alloc, zero, typ)
     }
 
     /// Maps the given type to a Tree of the result type.
