@@ -69,9 +69,16 @@ describe('Kernel Prover', () => {
   };
 
   const expectExecution = (fns: string[]) => {
-    const callStackItems = proofCreator.createProof.mock.calls.map(args => args[2].callStackItem.functionData);
-    expect(callStackItems).toEqual(fns);
-    proofCreator.createProof.mockClear();
+    const callStackItemsInit = proofCreator.createProofInit.mock.calls.map(args => args[1].callStackItem.functionData);
+    const callStackItemsInner = proofCreator.createProofInner.mock.calls.map(
+      args => args[1].callStackItem.functionData,
+    );
+
+    expect(proofCreator.createProofInit).toHaveBeenCalledTimes(Math.min(1, fns.length));
+    expect(proofCreator.createProofInner).toHaveBeenCalledTimes(Math.max(0, fns.length - 1));
+    expect(callStackItemsInit.concat(callStackItemsInner)).toEqual(fns);
+    proofCreator.createProofInner.mockClear();
+    proofCreator.createProofInit.mockClear();
   };
 
   const expectOutputNotes = (outputNotes: OutputNoteData[], expectedNoteIndices: number[]) => {
@@ -94,7 +101,8 @@ describe('Kernel Prover', () => {
     proofCreator.getSiloedCommitments.mockImplementation(publicInputs =>
       Promise.resolve(publicInputs.newCommitments.map(createFakeSiloedCommitment)),
     );
-    proofCreator.createProof.mockResolvedValue(createProofOutput([]));
+    proofCreator.createProofInit.mockResolvedValue(createProofOutput([]));
+    proofCreator.createProofInner.mockResolvedValue(createProofOutput([]));
 
     prover = new KernelProver(oracle, proofCreator);
   });
@@ -141,9 +149,9 @@ describe('Kernel Prover', () => {
     const resultA = createExecutionResult('a', [1, 2, 3]);
     const resultB = createExecutionResult('b', [4]);
     const resultC = createExecutionResult('c', [5, 6]);
-    proofCreator.createProof.mockResolvedValueOnce(createProofOutput([1, 2, 3]));
-    proofCreator.createProof.mockResolvedValueOnce(createProofOutput([1, 3, 4]));
-    proofCreator.createProof.mockResolvedValueOnce(createProofOutput([1, 3, 5, 6]));
+    proofCreator.createProofInit.mockResolvedValueOnce(createProofOutput([1, 2, 3]));
+    proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 4]));
+    proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 5, 6]));
 
     const executionResult = {
       ...resultA,

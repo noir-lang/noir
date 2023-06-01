@@ -92,39 +92,75 @@ export async function privateKernelProve(
 }
 
 /**
- * Computes the public inputs of the private kernel without computing the proof.
+ * Computes the public inputs of the private kernel first iteration without computing the proof.
  * @param wasm - The circuits wasm instance.
  * @param signedTxRequest - The signed transaction request.
- * @param previousKernel - The previous kernel data (dummy if this is the first kernel in the chain).
  * @param privateCallData - The private call data.
- * @param firstIteration - Whether this is the first iteration of the private kernel.
  * @returns The public inputs of the private kernel.
  */
-export async function privateKernelSim(
+export async function privateKernelSimInit(
   wasm: CircuitsWasm,
   signedTxRequest: SignedTxRequest,
-  previousKernel: PreviousKernelData,
   privateCallData: PrivateCallData,
-  firstIteration: boolean,
 ): Promise<KernelCircuitPublicInputs> {
   wasm.call('pedersen__init');
   const signedTxRequestBuffer = signedTxRequest.toBuffer();
-  const previousKernelBuffer = previousKernel.toBuffer();
   const privateCallDataBuffer = privateCallData.toBuffer();
-  const previousKernelBufferOffset = signedTxRequestBuffer.length;
-  const privateCallDataOffset = previousKernelBufferOffset + previousKernelBuffer.length;
+  const privateCallDataOffset = signedTxRequestBuffer.length;
   wasm.writeMemory(0, signedTxRequestBuffer);
-  wasm.writeMemory(previousKernelBufferOffset, previousKernelBuffer);
   wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
   const outputBufSizePtr = wasm.call('bbmalloc', 4);
   const outputBufPtrPtr = wasm.call('bbmalloc', 4);
   // Run and read outputs
   const circuitFailureBufPtr = await wasm.asyncCall(
-    'private_kernel__sim',
+    'private_kernel__sim_init',
     0,
-    previousKernelBufferOffset,
     privateCallDataOffset,
-    firstIteration,
+    outputBufSizePtr,
+    outputBufPtrPtr,
+  );
+  try {
+    // Try deserializing the output to `KernelCircuitPublicInputs` and throw if it fails
+    return handleCircuitOutput(
+      wasm,
+      outputBufSizePtr,
+      outputBufPtrPtr,
+      circuitFailureBufPtr,
+      KernelCircuitPublicInputs,
+    );
+  } finally {
+    // Free memory
+    wasm.call('bbfree', outputBufSizePtr);
+    wasm.call('bbfree', outputBufPtrPtr);
+    wasm.call('bbfree', circuitFailureBufPtr);
+  }
+}
+
+/**
+ * Computes the public inputs of a private kernel inner iteration without computing the proof.
+ * @param wasm - The circuits wasm instance.
+ * @param previousKernel - The previous kernel data (dummy if this is the first kernel in the chain).
+ * @param privateCallData - The private call data.
+ * @returns The public inputs of the private kernel.
+ */
+export async function privateKernelSimInner(
+  wasm: CircuitsWasm,
+  previousKernel: PreviousKernelData,
+  privateCallData: PrivateCallData,
+): Promise<KernelCircuitPublicInputs> {
+  wasm.call('pedersen__init');
+  const previousKernelBuffer = previousKernel.toBuffer();
+  const privateCallDataBuffer = privateCallData.toBuffer();
+  const privateCallDataOffset = previousKernelBuffer.length;
+  wasm.writeMemory(0, previousKernelBuffer);
+  wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
+  const outputBufSizePtr = wasm.call('bbmalloc', 4);
+  const outputBufPtrPtr = wasm.call('bbmalloc', 4);
+  // Run and read outputs
+  const circuitFailureBufPtr = await wasm.asyncCall(
+    'private_kernel__sim_inner',
+    0,
+    privateCallDataOffset,
     outputBufSizePtr,
     outputBufPtrPtr,
   );

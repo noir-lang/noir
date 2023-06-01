@@ -65,43 +65,55 @@ CBIND(private_kernel__dummy_previous_kernel, []() { return dummy_previous_kernel
 
 // TODO(dbanks12): comment about how public_inputs is a confusing name
 // returns size of public inputs
-WASM_EXPORT uint8_t* private_kernel__sim(uint8_t const* signed_tx_request_buf,
-                                         uint8_t const* previous_kernel_buf,
-                                         uint8_t const* private_call_buf,
-                                         bool first_iteration,
-                                         size_t* private_kernel_public_inputs_size_out,
-                                         uint8_t const** private_kernel_public_inputs_buf)
+WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* signed_tx_request_buf,
+                                              uint8_t const* private_call_buf,
+                                              size_t* private_kernel_public_inputs_size_out,
+                                              uint8_t const** private_kernel_public_inputs_buf)
 {
-    DummyComposer composer = DummyComposer("private_kernel__sim");
+    DummyComposer composer = DummyComposer("private_kernel__sim_init");
+
     PrivateCallData<NT> private_call_data;
     read(private_call_buf, private_call_data);
 
-    KernelCircuitPublicInputs<NT> public_inputs = KernelCircuitPublicInputs<NT>{};
+    SignedTxRequest<NT> signed_tx_request;
+    read(signed_tx_request_buf, signed_tx_request);
 
-    if (first_iteration) {
-        SignedTxRequest<NT> signed_tx_request;
-        read(signed_tx_request_buf, signed_tx_request);
+    PrivateKernelInputsInit<NT> const private_inputs = PrivateKernelInputsInit<NT>{
+        .signed_tx_request = signed_tx_request,
+        .private_call = private_call_data,
+    };
 
-        // Assert that previous_kernel_buf is empty (i.e. nullptr)
-        ASSERT(previous_kernel_buf == nullptr);
+    auto public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
 
-        PrivateKernelInputsInit<NT> const private_inputs = PrivateKernelInputsInit<NT>{
-            .signed_tx_request = signed_tx_request,
-            .private_call = private_call_data,
-        };
+    // serialize public inputs to bytes vec
+    std::vector<uint8_t> public_inputs_vec;
+    write(public_inputs_vec, public_inputs);
+    // copy public inputs to output buffer
+    auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
+    memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
+    *private_kernel_public_inputs_buf = raw_public_inputs_buf;
+    *private_kernel_public_inputs_size_out = public_inputs_vec.size();
+    return composer.alloc_and_serialize_first_failure();
+}
 
-        public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
-    } else {
-        PreviousKernelData<NT> previous_kernel;
-        read(previous_kernel_buf, previous_kernel);
+WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_buf,
+                                               uint8_t const* private_call_buf,
+                                               size_t* private_kernel_public_inputs_size_out,
+                                               uint8_t const** private_kernel_public_inputs_buf)
+{
+    DummyComposer composer = DummyComposer("private_kernel__sim_inner");
+    PrivateCallData<NT> private_call_data;
+    read(private_call_buf, private_call_data);
 
-        PrivateKernelInputsInner<NT> const private_inputs = PrivateKernelInputsInner<NT>{
-            .previous_kernel = previous_kernel,
-            .private_call = private_call_data,
-        };
+    PreviousKernelData<NT> previous_kernel;
+    read(previous_kernel_buf, previous_kernel);
 
-        public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
-    }
+    PrivateKernelInputsInner<NT> const private_inputs = PrivateKernelInputsInner<NT>{
+        .previous_kernel = previous_kernel,
+        .private_call = private_call_data,
+    };
+
+    auto public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
