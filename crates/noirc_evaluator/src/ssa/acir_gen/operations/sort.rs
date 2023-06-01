@@ -115,8 +115,11 @@ fn permutation_layer(
 mod test {
     use acvm::{
         acir::{circuit::opcodes::FunctionInput, native_types::Witness, native_types::WitnessMap},
-        pwg::{block::Blocks, solve, OpcodeResolution, PartialWitnessGeneratorStatus},
-        FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
+        pwg::{
+            block::Blocks, solve, OpcodeResolution, OpcodeResolutionError,
+            PartialWitnessGeneratorStatus,
+        },
+        FieldElement, PartialWitnessGenerator,
     };
 
     use crate::{
