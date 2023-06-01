@@ -89,7 +89,7 @@ fn generate_tests(test_file: &mut File, experimental_ssa: bool) {
             r#"
 {exclude_macro}
 #[test]
-fn prove_and_verify_{test_name}() {{
+fn prove_and_verify_{test_name}_{test_sub_dir}() {{
     // Copy the test case into a temp dir so we don't leave artifacts around.
     let tmp_dir = TempDir::new("{test_name}").unwrap();
     copy_recursively(PathBuf::from("{test_dir}"), &tmp_dir)
