@@ -50,13 +50,13 @@ struct Context {
 
 impl Ssa {
     pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
-        let param_array_info: Vec<_> = collate_array_info(&main_function_signature.0)
+        let param_arrays_info: Vec<_> = collate_array_info(&main_function_signature.0)
             .iter()
             .map(|(size, abi_type)| (*size, numeric_type_for_abi_array_element_type(abi_type)))
             .collect();
 
         let context = Context::default();
-        context.convert_ssa(self, &param_array_info)
+        context.convert_ssa(self, &param_arrays_info)
     }
 }
 
@@ -103,9 +103,9 @@ impl Context {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-        param_array_info: &[(usize, NumericType)],
+        param_arrays_info: &[(usize, NumericType)],
     ) {
-        let mut param_array_lengths_iter = param_array_info.iter();
+        let mut param_arrays_info_iter = param_arrays_info.iter();
         for param_id in params {
             let value = &dfg[*param_id];
             let param_type = match value {
@@ -118,7 +118,7 @@ impl Context {
                     self.ssa_value_to_acir_var.insert(*param_id, acir_var);
                 }
                 Type::Reference => {
-                    let (array_length, numeric_type) = param_array_lengths_iter
+                    let (array_length, numeric_type) = param_arrays_info_iter
                         .next()
                         .expect("ICE: fewer arrays in abi than in block params");
                     let array_id = self.acir_context.allocate_array(*array_length);
@@ -138,7 +138,7 @@ impl Context {
             }
         }
         assert_eq!(
-            param_array_lengths_iter.next(),
+            param_arrays_info_iter.next(),
             None,
             "ICE: more arrays in abi than in block params"
         );
