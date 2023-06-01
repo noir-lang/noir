@@ -131,56 +131,44 @@ impl AcirContext {
 
     /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
     pub(crate) fn xor_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_bit_size = self
+        let lhs_bit_size = *self
             .variables_to_bit_sizes
             .get(&lhs)
             .expect("ICE: XOR applied to field type, this should be caught by the type system");
-        let rhs_bit_size = self
+        let rhs_bit_size = *self
             .variables_to_bit_sizes
             .get(&lhs)
             .expect("ICE: XOR applied to field type, this should be caught by the type system");
-        let bit_size = std::cmp::max(*lhs_bit_size, *rhs_bit_size);
-        let result = if bit_size == 1 {
-            // Operands are booleans
-            // a + b - 2ab
-            let sum = self.add_var(lhs, rhs);
-            let mul = self.mul_var(lhs, rhs);
-            let double_mul = self.add_var(mul, mul);
-            self.sub_var(sum, double_mul)
-        } else {
-            let outputs = self.black_box_function(BlackBoxFunc::XOR, vec![lhs, rhs])?;
-            outputs[0]
-        };
-        self.variables_to_bit_sizes.insert(result, bit_size);
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to XOR require equal bit size");
+
+        let outputs = self.black_box_function(BlackBoxFunc::XOR, vec![lhs, rhs])?;
+        let result = outputs[0];
+        self.variables_to_bit_sizes.insert(result, lhs_bit_size);
         Ok(result)
     }
 
     /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
     pub(crate) fn and_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
         let lhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: AND applied to field type");
+            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: AND applied to field type");
         let rhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: AND applied to field type");
-        let bit_size = std::cmp::max(*lhs_bit_size, *rhs_bit_size);
-        let result = if bit_size == 1 {
-            // Operands are booleans
-            // a * b
-            self.mul_var(lhs, rhs)
-        } else {
-            let outputs = self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs])?;
-            outputs[0]
-        };
-        self.variables_to_bit_sizes.insert(result, bit_size);
+            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: AND applied to field type");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to AND require equal bit size");
+
+        let outputs = self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs])?;
+        let result = outputs[0];
+        self.variables_to_bit_sizes.insert(result, lhs_bit_size);
         Ok(result)
     }
 
     /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
     pub(crate) fn or_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
         let lhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: OR applied to field type");
+            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: OR applied to field type");
         let rhs_bit_size =
-            self.variables_to_bit_sizes.get(&lhs).expect("ICE: OR applied to field type");
-        let bit_size = std::cmp::max(*lhs_bit_size, *rhs_bit_size);
+            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: OR applied to field type");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to OR require equal bit size");
+        let bit_size = lhs_bit_size;
         let result = if bit_size == 1 {
             // Operands are booleans
             // a + b - ab
