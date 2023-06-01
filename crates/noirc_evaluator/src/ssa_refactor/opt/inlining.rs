@@ -203,8 +203,7 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                let value = self.source_function.dfg[*constant].value();
-                self.context.builder.numeric_constant(value, *typ)
+                self.context.builder.numeric_constant(*constant, *typ)
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),

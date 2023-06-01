@@ -1,11 +1,22 @@
 use crate::brillig::acvm_brillig::BrilligOpcode;
 
-use super::generated_acir::GeneratedAcir;
+use crate::ssa_refactor::ir::types::NumericType;
+
+use super::{
+    errors::AcirGenError,
+    generated_acir::GeneratedAcir,
+    memory::{ArrayId, Memory},
+};
 use acvm::{
-    acir::native_types::{Expression, Witness},
+    acir::{
+        circuit::opcodes::FunctionInput,
+        native_types::{Expression, Witness},
+        BlackBoxFunc,
+    },
     FieldElement,
 };
-use std::{collections::HashMap, hash::Hash};
+use iter_extended::vecmap;
+use std::{borrow::Cow, collections::HashMap, hash::Hash};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -31,17 +42,17 @@ pub(crate) struct AcirContext {
     /// then the `acir_ir` will be populated to assert this
     /// addition.
     acir_ir: GeneratedAcir,
+
+    /// Maps an `AcirVar` to its known bit size.
+    variables_to_bit_sizes: HashMap<AcirVar, u32>,
+    /// Maps the elements of virtual arrays to their `AcirVar` elements
+    memory: Memory,
 }
 
 impl AcirContext {
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
-
-        if let Some(var) = self.data_reverse_map.get(&constant_data) {
-            return *var;
-        };
-
         self.add_data(constant_data)
     }
 
@@ -102,6 +113,92 @@ impl AcirContext {
         self.assert_eq_var(var, one_var);
     }
 
+    /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
+    /// 0 otherwise.
+    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let lhs_data = &self.data[&lhs];
+        let rhs_data = &self.data[&rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
+        self.add_data(AcirVarData::Witness(is_equal_witness))
+    }
+
+    /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
+    pub(crate) fn xor_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: XOR applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: XOR applied to field type, this should be caught by the type system");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to XOR require equal bit size");
+
+        let outputs = self.black_box_function(BlackBoxFunc::XOR, vec![lhs, rhs])?;
+        let result = outputs[0];
+        self.variables_to_bit_sizes.insert(result, lhs_bit_size);
+        Ok(result)
+    }
+
+    /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
+    pub(crate) fn and_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: AND applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: AND applied to field type, this should be caught by the type system");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to AND require equal bit size");
+
+        let outputs = self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs])?;
+        let result = outputs[0];
+        self.variables_to_bit_sizes.insert(result, lhs_bit_size);
+        Ok(result)
+    }
+
+    /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
+    pub(crate) fn or_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: OR applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: OR applied to field type, this should be caught by the type system");
+        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to OR require equal bit size");
+        let bit_size = lhs_bit_size;
+        let result = if bit_size == 1 {
+            // Operands are booleans
+            // a + b - ab
+            let sum = self.add_var(lhs, rhs);
+            let mul = self.mul_var(lhs, rhs);
+            self.sub_var(sum, mul)
+        } else {
+            // Implement OR in terms of AND
+            // max - ((max - a) AND (max -b))
+            // Subtracting from max flips the bits, so this is effectively:
+            // (NOT a) NAND (NOT b)
+            let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
+            let a = self.sub_var(max, lhs);
+            let b = self.sub_var(max, rhs);
+            // We track the bit sizes of these intermediaries so that blackbox input generation
+            // infers them correctly.
+            self.variables_to_bit_sizes.insert(a, bit_size);
+            self.variables_to_bit_sizes.insert(b, bit_size);
+            let output = self.black_box_function(BlackBoxFunc::AND, vec![a, b])?;
+            self.sub_var(max, output[0])
+        };
+        self.variables_to_bit_sizes.insert(result, bit_size);
+        Ok(result)
+    }
+
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
         // TODO: could use sub_var and then assert_eq_zero
@@ -153,7 +250,7 @@ impl AcirContext {
         match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
-                let expr_as_witness = self.acir_ir.expression_to_witness(expr);
+                let expr_as_witness = self.acir_ir.get_or_create_witness(expr);
                 let mut expr = Expression::default();
                 expr.push_multiplication_term(FieldElement::one(), *witness, expr_as_witness);
 
@@ -178,8 +275,8 @@ impl AcirContext {
                 self.add_data(AcirVarData::Const(*lhs_constant * *rhs_constant))
             }
             (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                let lhs_expr_as_witness = self.acir_ir.expression_to_witness(lhs_expr);
-                let rhs_expr_as_witness = self.acir_ir.expression_to_witness(rhs_expr);
+                let lhs_expr_as_witness = self.acir_ir.get_or_create_witness(lhs_expr);
+                let rhs_expr_as_witness = self.acir_ir.get_or_create_witness(rhs_expr);
                 let mut expr = Expression::default();
                 expr.push_multiplication_term(
                     FieldElement::one(),
@@ -229,6 +326,28 @@ impl AcirContext {
         }
     }
 
+    /// Adds a new variable that is constrained to be the logical NOT of `x`.
+    ///
+    /// `x` must be a 1-bit integer (i.e. a boolean)
+    pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
+        assert_eq!(
+            self.variables_to_bit_sizes.get(&x),
+            Some(&1),
+            "ICE: NOT op applied to non-bool"
+        );
+        let data = &self.data[&x];
+        // Since `x` can only be 0 or 1, we can derive NOT as 1 - x
+        match data {
+            AcirVarData::Const(constant) => {
+                self.add_data(AcirVarData::Expr(&Expression::one() - &Expression::from(*constant)))
+            }
+            AcirVarData::Expr(expr) => self.add_data(AcirVarData::Expr(&Expression::one() - expr)),
+            AcirVarData::Witness(witness) => {
+                self.add_data(AcirVarData::Expr(&Expression::one() - *witness))
+            }
+        }
+    }
+
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) {
@@ -236,17 +355,193 @@ impl AcirContext {
         // TODO: Add caching to prevent expressions from being needlessly duplicated
         let witness = match acir_var_data {
             AcirVarData::Const(constant) => {
-                self.acir_ir.expression_to_witness(&Expression::from(*constant))
+                self.acir_ir.get_or_create_witness(&Expression::from(*constant))
             }
-            AcirVarData::Expr(expr) => self.acir_ir.expression_to_witness(expr),
+            AcirVarData::Expr(expr) => self.acir_ir.get_or_create_witness(expr),
             AcirVarData::Witness(witness) => *witness,
         };
         self.acir_ir.push_return_witness(witness);
     }
 
+    /// Constrains the `AcirVar` variable to be of type `NumericType`.
+    pub(crate) fn numeric_cast_var(
+        &mut self,
+        variable: AcirVar,
+        numeric_type: &NumericType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let data = &self.data[&variable];
+        match numeric_type {
+            NumericType::Signed { .. } => todo!("signed integer conversion is unimplemented"),
+            NumericType::Unsigned { bit_size } => {
+                let data_expr = data.to_expression();
+                let witness = self.acir_ir.get_or_create_witness(&data_expr);
+                self.acir_ir.range_constraint(witness, *bit_size)?;
+                // Log the bit size for this variable
+                self.variables_to_bit_sizes.insert(variable, *bit_size);
+            }
+            NumericType::NativeField => {
+                // If someone has made a cast to a `Field` type then this is a Noop.
+                //
+                // The reason for doing this in code is for type safety; ie you have an
+                // integer, but a function requires the parameter to be a Field.
+            }
+        }
+        Ok(variable)
+    }
+
+    /// Returns an `AcirVar` which will be `1` if lhs >= rhs
+    /// and `0` otherwise.
+    fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.data[&lhs];
+        let rhs_data = &self.data[&rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let lhs_bit_size = self.variables_to_bit_sizes.get(&lhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
+        let rhs_bit_size = self.variables_to_bit_sizes.get(&rhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
+
+        // This is a conservative choice. Technically, we should just be able to take
+        // the bit size of the `lhs` (upper bound), but we need to check/document what happens
+        // if the bit_size is not enough to represent both witnesses.
+        // An example is the following: (a as u8) >= (b as u32)
+        // If the equality is true, then it means that `b` also fits inside
+        // of a u8.
+        // But its not clear what happens if the equality is false,
+        // and we 8 bits to `more_than_eq_comparison`. The conservative
+        // choice chosen is to use 32.
+        let bit_size = *std::cmp::max(lhs_bit_size, rhs_bit_size);
+
+        let is_greater_than_eq =
+            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size)?;
+
+        Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
+    }
+
+    /// Returns an `AcirVar` which will be `1` if lhs < rhs
+    /// and `0` otherwise.
+    pub(crate) fn less_than_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, AcirGenError> {
+        // Flip the result of calling more than equal method to
+        // compute less than.
+        let comparison = self.more_than_eq_var(lhs, rhs)?;
+
+        let one = self.add_constant(FieldElement::one());
+        let comparison_negated = self.sub_var(one, comparison);
+
+        Ok(comparison_negated)
+    }
+
+    /// Calls a Blackbox function on the given inputs and returns a given set of outputs
+    /// to represent the result of the blackbox function.
+    pub(crate) fn black_box_function(
+        &mut self,
+        name: BlackBoxFunc,
+        inputs: Vec<AcirVar>,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        // Convert `AcirVar` to `FunctionInput`
+        let inputs = self.prepare_inputs_for_black_box_func_call(&inputs)?;
+
+        // Call Black box with `FunctionInput`
+        let outputs = self.acir_ir.call_black_box(name, inputs);
+
+        // Convert `Witness` values which are now constrained to be the output of the
+        // black box function call into `AcirVar`s.
+        //
+        // We do not apply range information on the output of the black box function.
+        // See issue #1439
+        let outputs_var =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+
+        Ok(outputs_var)
+    }
+
+    /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
+    ///
+    /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
+    fn prepare_inputs_for_black_box_func_call(
+        &mut self,
+        inputs: &[AcirVar],
+    ) -> Result<Vec<FunctionInput>, AcirGenError> {
+        let mut witnesses = Vec::new();
+        for input in inputs {
+            let var_data = &self.data[input];
+
+            // Intrinsics only accept Witnesses. This is not a limitation of the
+            // intrinsics, its just how we have defined things. Ideally, we allow
+            // constants too.
+            let expr = var_data.to_expression();
+            let witness = self.acir_ir.get_or_create_witness(&expr);
+
+            // Fetch the number of bits for this variable
+            // If it has never been constrained before, then we will
+            // encounter None, and so we take the max number of bits for a
+            // field element.
+            let num_bits = match self.variables_to_bit_sizes.get(input) {
+                Some(bits) => {
+                    // In Noir, we specify the number of bits to take from the input
+                    // by doing the following:
+                    //
+                    // ```
+                    // call_intrinsic(x as u8)
+                    // ```
+                    //
+                    // The `as u8` specifies that we want to take 8 bits from the `x`
+                    // variable.
+                    //
+                    // There were discussions about the SSA IR optimizing out range
+                    // constraints. We would want to be careful with it here. For example:
+                    //
+                    // ```
+                    // let x : u32 = y as u32
+                    // call_intrinsic(x as u64)
+                    // ```
+                    // The `x as u64` is redundant since we know that `x` fits within a u32.
+                    // However, since the `x as u64` line is being used to tell the intrinsic
+                    // to take 64 bits, we cannot remove it.
+
+                    *bits
+                }
+                None => FieldElement::max_num_bits(),
+            };
+
+            witnesses.push(FunctionInput { witness, num_bits });
+        }
+        Ok(witnesses)
+    }
+
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(self) -> GeneratedAcir {
         self.acir_ir
+    }
+
+    /// Allocates an array of size `size` and returns a pointer to the array in memory.
+    pub(crate) fn allocate_array(&mut self, size: usize) -> ArrayId {
+        self.memory.allocate(size)
+    }
+
+    /// Stores the given `AcirVar` at the specified address in memory
+    pub(crate) fn array_store(
+        &mut self,
+        array_id: ArrayId,
+        index: usize,
+        element: AcirVar,
+    ) -> Result<(), AcirGenError> {
+        self.memory.constant_set(array_id, index, element)
+    }
+
+    /// Gets the last stored `AcirVar` at the specified address in memory.
+    ///
+    /// This errors if nothing was previously stored at the address.
+    pub(crate) fn array_load(
+        &mut self,
+        array_id: ArrayId,
+        index: usize,
+    ) -> Result<AcirVar, AcirGenError> {
+        self.memory.constant_get(array_id, index)
     }
 
     /// Adds `Data` into the context and assigns it a Variable.
@@ -256,6 +551,9 @@ impl AcirContext {
     /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
         assert_eq!(self.data.len(), self.data_reverse_map.len());
+        if let Some(acir_var) = self.data_reverse_map.get(&data) {
+            return *acir_var;
+        }
 
         let id = AcirVar(self.data.len());
 
@@ -306,8 +604,31 @@ impl AcirVarData {
         }
         None
     }
+    /// Converts all enum variants to an Expression.
+    pub(crate) fn to_expression(&self) -> Cow<Expression> {
+        match self {
+            AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),
+            AcirVarData::Expr(expr) => Cow::Borrowed(expr),
+            AcirVarData::Const(constant) => Cow::Owned(Expression::from(*constant)),
+        }
+    }
 }
 
 /// A Reference to an `AcirVarData`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
+
+#[test]
+fn repeat_op() {
+    let mut ctx = AcirContext::default();
+
+    let var_a = ctx.add_variable();
+    let var_b = ctx.add_variable();
+
+    // Multiplying the same variables twice should yield
+    // the same output.
+    let var_c = ctx.mul_var(var_a, var_b);
+    let should_be_var_c = ctx.mul_var(var_a, var_b);
+
+    assert_eq!(var_c, should_be_var_c);
+}
