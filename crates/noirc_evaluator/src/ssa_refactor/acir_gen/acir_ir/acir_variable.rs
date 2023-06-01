@@ -271,12 +271,13 @@ impl AcirContext {
             }
         }
     }
-    /// Returns an `AcirVar` that is constrained to be lhs << rhs.
+
+    /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
     ///
     /// We convert left shifts to multiplications, so this is equivalent to
-    /// lhs * 2^rhs.
+    /// `lhs * 2^rhs`.
     ///
-    /// We currently maintain that rhs needs to be a constant
+    /// We currently require `rhs` to be a constant
     /// however this can be extended, see #1478.
     pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let rhs_data = &self.data[&rhs];
