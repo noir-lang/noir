@@ -3,6 +3,7 @@ use crate::ssa_refactor::ir::function::Function;
 use super::{acvm_brillig::BrilligOpcode, artefact::BrilligArtefact};
 
 #[derive(Default)]
+/// Generate the compilation artefacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
     obj: BrilligArtefact,
 }

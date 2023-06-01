@@ -53,8 +53,8 @@ impl FunctionBuilder {
     /// A FunctionBuilder can always only work on one function at a time, so care
     /// should be taken not to finish a function that is still in progress by calling
     /// new_function before the current function is finished.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId, is_unsafe: bool) {
-        let runtime = if is_unsafe { RuntimeType::Brillig } else { RuntimeType::Acir };
+    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId, brillig: bool) {
+        let runtime = if brillig { RuntimeType::Brillig } else { RuntimeType::Acir };
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime);
         self.current_block = new_function.entry_block();
