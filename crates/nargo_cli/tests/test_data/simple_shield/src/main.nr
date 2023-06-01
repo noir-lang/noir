@@ -21,7 +21,7 @@ fn main(
 
     // Compute input note commitment
     let note_commitment = std::hash::pedersen([pubkey_x, pubkey_y]);
-    
+
     // Compute input note nullifier
     let nullifier = std::hash::pedersen([note_commitment[0], index, priv_key]);
 
