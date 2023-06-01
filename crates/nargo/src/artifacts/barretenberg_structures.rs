@@ -25,29 +25,29 @@ impl Assignments {
         Assignments::default()
     }
 
-    // pub(crate) fn len(&self) -> usize {
-    //     self.0.len()
-    // }
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
-// impl Assignments {
-//     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-//         let mut buffer = Vec::new();
+impl Assignments {
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
 
-//         let witness_len = self.0.len() as u32;
-//         buffer.extend_from_slice(&witness_len.to_be_bytes());
+        let witness_len = self.0.len() as u32;
+        buffer.extend_from_slice(&witness_len.to_be_bytes());
 
-//         for assignment in self.0.iter() {
-//             buffer.extend_from_slice(&assignment.to_be_bytes());
-//         }
+        for assignment in self.0.iter() {
+            buffer.extend_from_slice(&assignment.to_be_bytes());
+        }
 
-//         buffer
-//     }
+        buffer
+    }
 
-//     pub(crate) fn is_empty(&self) -> bool {
-//         self.0.is_empty()
-//     }
-// }
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 
 impl IntoIterator for Assignments {
     type Item = FieldElement;
