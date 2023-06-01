@@ -148,7 +148,10 @@ impl AcirContext {
             .expect("ICE: XOR applied to field type, this should be caught by the type system");
         assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to XOR require equal bit size");
 
-        let outputs = self.black_box_function(BlackBoxFunc::XOR, vec![lhs, rhs])?;
+        let outputs = self.black_box_function(
+            BlackBoxFunc::XOR,
+            vec![BlackboxArg::AcirVar(lhs), BlackboxArg::AcirVar(rhs)],
+        )?;
         let result = outputs[0];
         self.variables_to_bit_sizes.insert(result, lhs_bit_size);
         Ok(result)
@@ -166,7 +169,10 @@ impl AcirContext {
             .expect("ICE: AND applied to field type, this should be caught by the type system");
         assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to AND require equal bit size");
 
-        let outputs = self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs])?;
+        let outputs = self.black_box_function(
+            BlackBoxFunc::AND,
+            vec![BlackboxArg::AcirVar(lhs), BlackboxArg::AcirVar(rhs)],
+        )?;
         let result = outputs[0];
         self.variables_to_bit_sizes.insert(result, lhs_bit_size);
         Ok(result)
@@ -202,7 +208,10 @@ impl AcirContext {
             // infers them correctly.
             self.variables_to_bit_sizes.insert(a, bit_size);
             self.variables_to_bit_sizes.insert(b, bit_size);
-            let output = self.black_box_function(BlackBoxFunc::AND, vec![a, b])?;
+            let output = self.black_box_function(
+                BlackBoxFunc::AND,
+                vec![BlackboxArg::AcirVar(a), BlackboxArg::AcirVar(b)],
+            )?;
             self.sub_var(max, output[0])
         };
         self.variables_to_bit_sizes.insert(result, bit_size);
