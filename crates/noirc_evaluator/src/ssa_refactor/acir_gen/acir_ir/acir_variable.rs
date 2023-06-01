@@ -585,6 +585,16 @@ impl AcirContext {
         self.memory.constant_get(array_id, index)
     }
 
+    /// Gets all `AcirVar` elements currently stored at the array.
+    ///
+    /// This errors if nothing was previously stored any element in the array.
+    pub(crate) fn array_load_all(
+        &mut self,
+        array_id: ArrayId,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        self.memory.constant_get_all(array_id)
+    }
+
     /// Adds `Data` into the context and assigns it a Variable.
     ///
     /// Variable can be seen as an index into the context.
