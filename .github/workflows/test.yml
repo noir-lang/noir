@@ -58,4 +58,4 @@ jobs:
       - name: Export cache from nix store
         if: steps.nix-store-cache.outputs.cache-hit != 'true'
         run: |
-          nix copy --to "file:///tmp/nix-cache?compression=zstd&parallel-compression=true" .#native-cargo-artifacts
+          nix copy --to "file:///tmp/nix-cache?compression=zstd&parallel-compression=true" .#cargo-artifacts
