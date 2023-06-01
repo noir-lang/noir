@@ -1,7 +1,8 @@
+use acvm::FieldElement;
+
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
 
 use super::{
-    constant::NumericConstantId,
     function::FunctionId,
     instruction::{InstructionId, Intrinsic},
     map::Id,
@@ -32,10 +33,7 @@ pub(crate) enum Value {
     Param { block: BasicBlockId, position: usize, typ: Type },
 
     /// This Value originates from a numeric constant
-    NumericConstant { constant: NumericConstantId, typ: Type },
-
-    /// Represents a known offset from a known allocation
-    ReferenceConstant { allocation: ValueId, offset: u32 },
+    NumericConstant { constant: FieldElement, typ: Type },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -56,7 +54,6 @@ impl Value {
             Value::Instruction { typ, .. } => *typ,
             Value::Param { typ, .. } => *typ,
             Value::NumericConstant { typ, .. } => *typ,
-            Value::ReferenceConstant { .. } => Type::Reference,
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
         }

@@ -4,12 +4,11 @@ use crate::ssa_refactor::ir::instruction::SimplifyResult;
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    constant::{NumericConstant, NumericConstantId},
     function::{FunctionId, Signature},
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
-    map::{DenseMap, Id, TwoWayMap},
+    map::{DenseMap, Id},
     types::Type,
     value::{Value, ValueId},
 };
@@ -41,10 +40,9 @@ pub(crate) struct DataFlowGraph {
     /// function.
     values: DenseMap<Value>,
 
-    /// Storage for all constants used within a function.
     /// Each constant is unique, attempting to insert the same constant
-    /// twice will return the same ConstantId.
-    constants: TwoWayMap<NumericConstant>,
+    /// twice will return the same ValueId.
+    constants: HashMap<FieldElement, ValueId>,
 
     /// Map from (allocation_id, offset) to the ValueId of a ReferenceConstant value.
     /// This is used to give each reference constant with the same value the same id.
@@ -169,17 +167,13 @@ impl DataFlowGraph {
 
     /// Creates a new constant value, or returns the Id to an existing one if
     /// one already exists.
-    pub(crate) fn make_constant(&mut self, value: FieldElement, typ: Type) -> ValueId {
-        let constant = self.constants.insert(NumericConstant::new(value));
-        self.values.insert(Value::NumericConstant { constant, typ })
-    }
-
-    /// Creates a new reference constant, or returns the Id to an existing one if one already exists.
-    pub(crate) fn make_reference_constant(&mut self, allocation: ValueId, offset: u32) -> ValueId {
-        *self
-            .references
-            .entry((allocation, offset))
-            .or_insert_with(|| self.values.insert(Value::ReferenceConstant { allocation, offset }))
+    pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: Type) -> ValueId {
+        if let Some(id) = self.constants.get(&constant) {
+            return *id;
+        }
+        let id = self.values.insert(Value::NumericConstant { constant, typ });
+        self.constants.insert(constant, id);
+        id
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -296,16 +290,7 @@ impl DataFlowGraph {
         value: Id<Value>,
     ) -> Option<(FieldElement, Type)> {
         match self.values[value] {
-            Value::NumericConstant { constant, typ } => Some((self[constant].value(), typ)),
-            _ => None,
-        }
-    }
-
-    /// Returns the address and offset represented by this value if it is a constant reference.
-    /// If the value is not a constant reference, this returns None.
-    pub(crate) fn get_reference_constant(&self, value: Id<Value>) -> Option<(ValueId, u32)> {
-        match self.values[value] {
-            Value::ReferenceConstant { allocation, offset } => Some((allocation, offset)),
+            Value::NumericConstant { constant, typ } => Some((constant, typ)),
             _ => None,
         }
     }
@@ -345,13 +330,6 @@ impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
     fn index(&self, id: ValueId) -> &Self::Output {
         &self.values[id]
-    }
-}
-
-impl std::ops::Index<NumericConstantId> for DataFlowGraph {
-    type Output = NumericConstant;
-    fn index(&self, id: NumericConstantId) -> &Self::Output {
-        &self.constants[id]
     }
 }
 

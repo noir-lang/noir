@@ -82,13 +82,6 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
-    /// Inserts a reference constant into the current function if not already present.
-    ///
-    /// This is often created indirectly through constant folding.
-    pub(crate) fn reference_constant(&mut self, allocation: ValueId, offset: u32) -> ValueId {
-        self.current_function.dfg.make_reference_constant(allocation, offset)
-    }
-
     /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
         self.current_function.dfg.type_of_value(value)

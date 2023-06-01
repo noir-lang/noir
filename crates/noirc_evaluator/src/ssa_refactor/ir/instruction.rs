@@ -183,7 +183,7 @@ impl Instruction {
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
-                        let value = dfg[*constant].value().is_zero() as u128;
+                        let value = constant.is_zero() as u128;
                         SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
                     }
                     Value::Instruction { instruction, .. } => {
