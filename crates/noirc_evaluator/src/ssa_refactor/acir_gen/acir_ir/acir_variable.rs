@@ -292,12 +292,12 @@ impl AcirContext {
         self.mul_var(lhs, two_pow_rhs_var)
     }
 
-    /// Returns an `AcirVar` that is constrained to be lhs >> rhs.
+    /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
     ///
     /// We convert right shifts to divisions, so this is equivalent to
-    /// lhs / 2^rhs.
+    /// `lhs / 2^rhs`.
     ///
-    /// We currently maintain that rhs needs to be a constant
+    /// We currently require `rhs` to be a constant
     /// however this can be extended, see #1478.
     ///
     /// This code is doing a field division instead of an integer division,
