@@ -361,7 +361,6 @@ impl AcirContext {
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
         assert_eq!(self.data.len(), self.data_reverse_map.len());
         if let Some(acir_var) = self.data_reverse_map.get(&data) {
-            // Avoids data duplication, and prevents bug where mappings are no longer 1-2-1
             return *acir_var;
         }
 
