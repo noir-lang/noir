@@ -6,9 +6,14 @@ use super::{
     memory::{ArrayId, Memory},
 };
 use acvm::{
-    acir::native_types::{Expression, Witness},
+    acir::{
+        circuit::opcodes::FunctionInput,
+        native_types::{Expression, Witness},
+        BlackBoxFunc,
+    },
     FieldElement,
 };
+use iter_extended::vecmap;
 use std::{borrow::Cow, collections::HashMap, hash::Hash};
 
 #[derive(Debug, Default)]
@@ -357,6 +362,84 @@ impl AcirContext {
         let comparison_negated = self.sub_var(one, comparison);
 
         Ok(comparison_negated)
+    }
+
+    /// Calls a Blackbox function on the given inputs and returns a given set of outputs
+    /// to represent the result of the blackbox function.
+    pub(crate) fn black_box_function(
+        &mut self,
+        name: BlackBoxFunc,
+        inputs: Vec<AcirVar>,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        // Convert `AcirVar` to `FunctionInput`
+        let inputs = self.prepare_inputs_for_black_box_func_call(&inputs)?;
+
+        // Call Black box with `FunctionInput`
+        let outputs = self.acir_ir.call_black_box(name, inputs);
+
+        // Convert `Witness` values which are now constrained to be the output of the
+        // black box function call into `AcirVar`s.
+        //
+        // We do not apply range information on the output of the black box function.
+        // See issue #1439
+        let outputs_var =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+
+        Ok(outputs_var)
+    }
+
+    /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
+    ///
+    /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
+    fn prepare_inputs_for_black_box_func_call(
+        &mut self,
+        inputs: &[AcirVar],
+    ) -> Result<Vec<FunctionInput>, AcirGenError> {
+        let mut witnesses = Vec::new();
+        for input in inputs {
+            let var_data = &self.data[input];
+
+            // Intrinsics only accept Witnesses. This is not a limitation of the
+            // intrinsics, its just how we have defined things. Ideally, we allow
+            // constants too.
+            let expr = var_data.to_expression();
+            let witness = self.acir_ir.get_or_create_witness(&expr);
+
+            // Fetch the number of bits for this variable
+            // If it has never been constrained before, then we will
+            // encounter None, and so we take the max number of bits for a
+            // field element.
+            let num_bits = match self.variables_to_bit_sizes.get(input) {
+                Some(bits) => {
+                    // In Noir, we specify the number of bits to take from the input
+                    // by doing the following:
+                    //
+                    // ```
+                    // call_intrinsic(x as u8)
+                    // ```
+                    //
+                    // The `as u8` specifies that we want to take 8 bits from the `x`
+                    // variable.
+                    //
+                    // There were discussions about the SSA IR optimizing out range
+                    // constraints. We would want to be careful with it here. For example:
+                    //
+                    // ```
+                    // let x : u32 = y as u32
+                    // call_intrinsic(x as u64)
+                    // ```
+                    // The `x as u64` is redundant since we know that `x` fits within a u32.
+                    // However, since the `x as u64` line is being used to tell the intrinsic
+                    // to take 64 bits, we cannot remove it.
+
+                    *bits
+                }
+                None => FieldElement::max_num_bits(),
+            };
+
+            witnesses.push(FunctionInput { witness, num_bits });
+        }
+        Ok(witnesses)
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
