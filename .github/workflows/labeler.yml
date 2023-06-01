@@ -30,7 +30,7 @@ jobs:
         with:
           workflow: new-migrated-issue.yml
           repo: noir-lang/docs
-          ref: phated/fix-issue-workflows
+          ref: master
           token: ${{ secrets.DOCS_REPO_TOKEN }}
           inputs: '{ "pr-number": "${{ github.event.pull_request.number }}" }'
 
@@ -40,6 +40,6 @@ jobs:
         with:
           workflow: delete-migrated-issue.yml
           repo: noir-lang/docs
-          ref: phated/fix-issue-workflows
+          ref: master
           token: ${{ secrets.DOCS_REPO_TOKEN }}
           inputs: '{ "pr-number": "${{ github.event.pull_request.number }}" }'
