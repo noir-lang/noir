@@ -15,7 +15,6 @@ path = "src/main.rs"
 [build-dependencies]
 rustc_version = "0.4.0"
 build-data = "0.1.3"
-toml.workspace = true
 
 [dependencies]
 cfg-if.workspace = true
