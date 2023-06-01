@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use self::acir_ir::{
-    acir_variable::{AcirContext, AcirVar, BlackboxArg},
+    acir_variable::{AcirContext, AcirVar},
     memory::ArrayId,
 };
 use super::{
@@ -19,7 +19,6 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use iter_extended::vecmap;
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -340,18 +339,23 @@ impl Context {
             Intrinsic::BlackBox(black_box) => black_box,
             _ => todo!("expected a black box function"),
         };
-        let inputs = vecmap(arguments, |value_id| {
+        let mut inputs = Vec::new();
+        for value_id in arguments {
             if Self::value_is_array_address(*value_id, dfg) {
                 let (array_id, index) = self
                     .ssa_value_to_array_address
                     .get(value_id)
                     .expect("ICE: Call argument of undeclared array");
                 assert_eq!(index, &0, "ICE: Call arguments only accept arrays in their entirety");
-                BlackboxArg::ArrayId(*array_id)
+                let elements = self
+                    .acir_context
+                    .array_load_all(*array_id)
+                    .expect("add Result types to all methods so errors bubble up");
+                inputs.extend(elements);
             } else {
-                BlackboxArg::AcirVar(self.convert_ssa_value(*value_id, dfg))
+                inputs.push(self.convert_ssa_value(*value_id, dfg));
             }
-        });
+        }
         self.acir_context
             .black_box_function(black_box, inputs)
             .expect("add Result types to all methods so errors bubble up")
