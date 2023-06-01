@@ -41,7 +41,8 @@ impl FunctionBuilder {
         function_id: FunctionId,
         runtime: RuntimeType,
     ) -> Self {
-        let new_function = Function::new(function_name, function_id, runtime);
+        let mut new_function = Function::new(function_name, function_id);
+        new_function.set_runtime(runtime);
         let current_block = new_function.entry_block();
 
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }
@@ -54,7 +55,8 @@ impl FunctionBuilder {
     /// new_function before the current function is finished.
     pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId, is_unsafe: bool) {
         let runtime = if is_unsafe { RuntimeType::Brillig } else { RuntimeType::Acir };
-        let new_function = Function::new(name, function_id, runtime);
+        let mut new_function = Function::new(name, function_id);
+        new_function.set_runtime(runtime);
         self.current_block = new_function.entry_block();
 
         let old_function = std::mem::replace(&mut self.current_function, new_function);

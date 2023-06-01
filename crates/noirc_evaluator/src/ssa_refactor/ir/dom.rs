@@ -243,7 +243,7 @@ mod tests {
     #[test]
     fn empty() {
         let func_id = Id::test_new(0);
-        let mut func = Function::new("func".into(), func_id, RuntimeType::Acir);
+        let mut func = Function::new("func".into(), func_id);
         let block0_id = func.entry_block();
         func.dfg.set_block_terminator(
             block0_id,

@@ -40,7 +40,6 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body);
-        function_context.builder.current_function.compile_to_brillig();
     }
 
     function_context.builder.finish()

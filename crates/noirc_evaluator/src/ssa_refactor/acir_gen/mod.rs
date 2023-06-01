@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::artefact::Brillig;
+use crate::brillig::{artefact::BrilligArtefact, Brillig};
 
 use self::acir_ir::acir_variable::{AcirContext, AcirVar};
 use super::{
@@ -39,16 +39,20 @@ struct Context {
 }
 
 impl Ssa {
-    pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
+    pub(crate) fn into_acir(
+        self,
+        main_function_signature: FunctionSignature,
+        brillig: Brillig,
+    ) -> GeneratedAcir {
         let _param_array_lengths = collate_array_lengths(&main_function_signature.0);
         let context = Context::default();
-        context.convert_ssa(self)
+        context.convert_ssa(self, brillig)
     }
 }
 
 impl Context {
     /// Converts SSA into ACIR
-    fn convert_ssa(mut self, ssa: Ssa) -> GeneratedAcir {
+    fn convert_ssa(mut self, ssa: Ssa, brillig: Brillig) -> GeneratedAcir {
         assert_eq!(
             ssa.functions.len(),
             1,
@@ -63,7 +67,7 @@ impl Context {
         }
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, &ssa);
+            self.convert_ssa_instruction(*instruction_id, dfg, &ssa, &brillig);
         }
 
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
@@ -98,6 +102,7 @@ impl Context {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
         ssa: &Ssa,
+        brillig: &Brillig,
     ) {
         let instruction = &dfg[instruction_id];
         match instruction {
@@ -115,7 +120,7 @@ impl Context {
                             RuntimeType::Acir => unimplemented!(),
                             RuntimeType::Brillig => {
                                 // Generate the brillig code of the function
-                                let code = Brillig::default().link(func.dfg.brillig());
+                                let code = BrilligArtefact::default().link(&brillig[*id]);
                                 self.acir_context.brillig(code);
                             }
                         }
