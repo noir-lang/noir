@@ -10,13 +10,16 @@ use super::{
     abi_gen::collate_array_info,
     ir::{
         dfg::DataFlowGraph,
-        instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{
+            Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
+        },
         map::Id,
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
+use iter_extended::vecmap;
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -163,10 +166,7 @@ impl Context {
         let (results_id, results_vars) = match instruction {
             Instruction::Binary(binary) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Binary ops have a single result");
-                if self.value_is_array_address(binary.lhs)
-                    || self.value_is_array_address(binary.rhs)
-                {
+                if Self::value_is_array_address(result_ids[0], dfg) {
                     self.track_array_address(result_ids[0], binary, dfg);
                     return;
                 }
@@ -182,13 +182,34 @@ impl Context {
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Cast ops have a single result");
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Load { address } => {
                 let result_acir_var = self.convert_ssa_load(address);
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Load ops have a single result");
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
+            Instruction::Call { func, arguments } => {
+                let intrinsic = Self::id_to_intrinsic(*func, dfg);
+                let black_box = match intrinsic {
+                    Intrinsic::BlackBox(black_box) => black_box,
+                    _ => todo!("expected a black box function"),
+                };
+
+                let inputs = vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
+                let outputs = self
+                    .acir_context
+                    .black_box_function(black_box, inputs)
+                    .expect("add Result types to all methods so errors bubble up");
+
+                let result_ids = dfg.instruction_results(instruction_id);
+                (result_ids.to_vec(), outputs)
+            }
+            Instruction::Not(value_id) => {
+                let boolean_var = self.convert_ssa_value(*value_id, dfg);
+                let result_acir_var = self.acir_context.not_var(boolean_var);
+
+                let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             _ => todo!("{instruction:?}"),
@@ -197,6 +218,17 @@ impl Context {
         // Map the results of the instructions to Acir variables
         for (result_id, result_var) in results_id.into_iter().zip(results_vars) {
             self.ssa_value_to_acir_var.insert(result_id, result_var);
+        }
+    }
+
+    /// Converts a `ValueId` into an `Intrinsic`.
+    ///
+    /// Panics if the `ValueId` does not represent an intrinsic.
+    fn id_to_intrinsic(value_id: ValueId, dfg: &DataFlowGraph) -> Intrinsic {
+        let value = &dfg[value_id];
+        match value {
+            Value::Intrinsic(intrinsic) => *intrinsic,
+            _ => unimplemented!("expected an intrinsic call, but found {value:?}"),
         }
     }
 
@@ -291,8 +323,8 @@ impl Context {
     }
 
     /// Returns true if the value has been declared as an array address
-    fn value_is_array_address(&self, value_id: ValueId) -> bool {
-        self.ssa_value_to_array_address.contains_key(&value_id)
+    fn value_is_array_address(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
+        dfg.type_of_value(value_id) == Type::Reference
     }
 
     /// Takes a binary instruction describing array address arithmetic and stores the result.
