@@ -6,7 +6,6 @@ exclude = [
     "poseidonsponge_x5_254",
     "sha2_blocks",
     "sha2_byte",
-    "xor",
 ]
 
 
