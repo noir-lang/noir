@@ -3,7 +3,7 @@
 use super::errors::AcirGenError;
 use acvm::acir::{
     circuit::{
-        directives::QuotientDirective,
+        directives::{LogInfo, QuotientDirective},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
     native_types::Witness,
@@ -149,6 +149,13 @@ impl GeneratedAcir {
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
         outputs_clone
+    }
+
+    /// Adds a log directive to print the provided witnesses.
+    ///
+    /// Logging of strings is currently unsupported.
+    pub(crate) fn call_print(&mut self, witnesses: Vec<Witness>) {
+        self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
     }
 
     /// If `expr` can be represented as a `Witness` this function will
