@@ -16,6 +16,7 @@ import { L2Tx } from './l2_tx.js';
 import { PublicDataWrite } from './public_data_write.js';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { sha256 } from '@aztec/foundation/crypto';
+import { UnverifiedData } from './unverified_data.js';
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
  * TODO: Reuse data types and serialization functions from circuits package.
@@ -118,6 +119,14 @@ export class L2Block {
      * The L1 to L2 messages to be inserted into the L2 toL2 message tree.
      */
     public newL1ToL2Messages: Fr[] = [],
+    /**
+     * Length (in bytes) of the unverified data chunks in the block.
+     */
+    public newEncryptedLogsLength: number,
+    /**
+     * Consolidated logs from all txs.
+     */
+    public newEncryptedLogs: UnverifiedData,
   ) {}
 
   /**
@@ -134,6 +143,8 @@ export class L2Block {
     const newPublicDataWrites = times(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * txsPerBlock, PublicDataWrite.random);
     const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
     const newL2ToL1Msgs = times(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, Fr.random);
+    const newEncryptedLogs = UnverifiedData.random(txsPerBlock * 2);
+    const newEncryptedLogsLength = newEncryptedLogs.getSerializedLength();
 
     return L2Block.fromFields({
       number: l2BlockNum,
@@ -160,6 +171,8 @@ export class L2Block {
       newPublicDataWrites,
       newL1ToL2Messages,
       newL2ToL1Msgs,
+      newEncryptedLogsLength,
+      newEncryptedLogs,
     });
   }
 
@@ -265,6 +278,14 @@ export class L2Block {
      * The L1 to L2 messages to be inserted into the L2 toL2 message tree.
      */
     newL1ToL2Messages: Fr[];
+    /**
+     * Length (in bytes) of the unverified data chunks in the block.
+     */
+    newEncryptedLogsLength: number;
+    /**
+     * Consolidated logs from all txs.
+     */
+    newEncryptedLogs: UnverifiedData;
   }) {
     return new this(
       fields.number,
@@ -291,6 +312,8 @@ export class L2Block {
       fields.newContracts,
       fields.newContractData,
       fields.newL1ToL2Messages,
+      fields.newEncryptedLogsLength,
+      fields.newEncryptedLogs,
     );
   }
 
@@ -330,6 +353,8 @@ export class L2Block {
       this.newContractData,
       this.newL1ToL2Messages.length,
       this.newL1ToL2Messages,
+      this.newEncryptedLogsLength,
+      this.newEncryptedLogs,
     );
   }
 
@@ -373,6 +398,8 @@ export class L2Block {
     const newContractData = reader.readArray(newContracts.length, ContractData);
     // TODO(sean): could an optimisation of this be that it is encoded such that zeros are assumed
     const newL1ToL2Messages = reader.readVector(Fr);
+    const newEncryptedLogsLength = reader.readNumber();
+    const newEncryptedLogs = new UnverifiedData(reader.readBufferArray());
 
     return L2Block.fromFields({
       number,
@@ -399,6 +426,8 @@ export class L2Block {
       newContracts,
       newContractData,
       newL1ToL2Messages,
+      newEncryptedLogsLength,
+      newEncryptedLogs,
     });
   }
 
@@ -477,6 +506,7 @@ export class L2Block {
    * and inside the circuit, it is part of the public inputs.
    * @returns The calldata hash.
    */
+  // TODO: add newEncryptedLogs to this hash once it's been propagated through circuits.
   getCalldataHash() {
     const computeRoot = (leafs: Buffer[]): Buffer => {
       const layers: Buffer[][] = [leafs];

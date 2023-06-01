@@ -11,9 +11,9 @@ import {
   PrivateTx,
   PublicTx,
   Tx,
-  UnverifiedData,
   isPrivateTx,
   L2BlockSource,
+  UnverifiedData,
 } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import times from 'lodash.times';
@@ -197,6 +197,7 @@ export class Sequencer {
     const blockHash = block.getCalldataHash();
     this.log(`Publishing data with block hash ${blockHash.toString('hex')}`);
 
+    // TODO: Stop publishing unverified data once Archiver is updated to store logs found in block data.
     const publishedUnverifiedData = await this.publisher.processUnverifiedData(block.number, blockHash, unverifiedData);
     if (publishedUnverifiedData) {
       this.log(`Successfully published unverifiedData for block ${block.number}`);

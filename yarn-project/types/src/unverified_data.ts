@@ -1,4 +1,4 @@
-import { deserializeBufferFromVector, serializeBufferToVector } from '@aztec/foundation/serialize';
+import { BufferReader, serializeBufferToVector } from '@aztec/foundation/serialize';
 import { randomBytes } from 'crypto';
 
 /**
@@ -26,6 +26,15 @@ export class UnverifiedData {
   }
 
   /**
+   * Get the total length of all data chunks in the instance if the data was serialized.
+   * @returns Total length of data chunks.
+   */
+  public getSerializedLength(): number {
+    // Adding 4 to each chunk's length to account for the size stored in the serialized buffer.
+    return this.dataChunks.reduce((acc, chunk) => acc + chunk.length + 4, 0);
+  }
+
+  /**
    * Creates a new UnverifiedData object by concatenating multiple ones.
    * @param datas - The individual data objects to concatenate.
    * @returns A new UnverifiedData object whose chunks are the concatenation of the chunks.
@@ -39,21 +48,10 @@ export class UnverifiedData {
    * @param buf - The buffer containing the serialized unverified data.
    * @returns A new UnverifiedData object.
    */
-  public static fromBuffer(buf: Buffer): UnverifiedData {
-    let currIndex = 0;
-    const chunks: Buffer[] = [];
-    while (currIndex < buf.length) {
-      const { elem, adv } = deserializeBufferFromVector(buf, currIndex);
-      chunks.push(elem);
-      currIndex += adv;
-    }
-    if (currIndex !== buf.length) {
-      throw new Error(
-        `Unverified data buffer was not fully consumed. Consumed ${currIndex + 1} bytes. Total length: ${
-          buf.length
-        } bytes.`,
-      );
-    }
+  public static fromBuffer(buf: Buffer | BufferReader): UnverifiedData {
+    const reader = BufferReader.asReader(buf);
+
+    const chunks = reader.readBufferArray();
     return new UnverifiedData(chunks);
   }
 

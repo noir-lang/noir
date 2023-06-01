@@ -30,7 +30,7 @@ import {
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { ContractData, L2Block, MerkleTreeId, PublicDataWrite, Tx } from '@aztec/types';
+import { ContractData, L2Block, MerkleTreeId, PublicDataWrite, Tx, UnverifiedData } from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
@@ -194,6 +194,9 @@ describe('sequencer/solo_block_builder', () => {
       tx.data.end.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafIndex, t.newValue)),
     );
     const newL2ToL1Msgs = flatMap(txs, tx => tx.data.end.newL2ToL1Msgs);
+    const newEncryptedLogs = UnverifiedData.join(
+      txs.map(tx => tx.unverifiedData).filter(data => data !== undefined) as UnverifiedData[],
+    );
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
@@ -221,6 +224,8 @@ describe('sequencer/solo_block_builder', () => {
       newPublicDataWrites,
       newL1ToL2Messages: mockL1ToL2Messages,
       newL2ToL1Msgs,
+      newEncryptedLogs,
+      newEncryptedLogsLength: newEncryptedLogs.getSerializedLength(),
     });
 
     const callDataHash = l2Block.getCalldataHash();

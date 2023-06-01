@@ -2,10 +2,12 @@ import { jest } from '@jest/globals';
 import { Fq, Fr } from '../fields/fields.js';
 import { BufferReader } from './buffer_reader.js';
 import { serializeBufferArrayToVector } from './free_funcs.js';
+import { randomBytes } from '../crypto/index.js';
 
 const ARRAY = Array.from(Array(32)).map((_, idx) => (idx % 2 === 0 ? 0 : 1));
 const BUFFER = Buffer.from(ARRAY);
 const NUMBER = 65537;
+const sizes = [16, 48, 32];
 
 describe('buffer reader', () => {
   let bufferReader: BufferReader;
@@ -100,6 +102,53 @@ describe('buffer reader', () => {
           },
         }),
       ).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
+  });
+
+  describe('readBufferArray', () => {
+    it('should read variable length array from buffer', () => {
+      // Testing `readBufferArray` with a buffer that ONLY contains the data that will be read.
+      // No `size` variable is passed in this case.
+      const bufferArray: Buffer[] = [];
+      let buf = Buffer.alloc(0);
+      for (const size of sizes) {
+        const sizeBuf = Buffer.alloc(4);
+        sizeBuf.writeUInt32BE(size);
+        const bytes = randomBytes(size);
+        const ranBuf = Buffer.concat([sizeBuf, bytes]);
+        bufferArray.push(bytes);
+        buf = Buffer.concat([buf, ranBuf]);
+      }
+      const reader = BufferReader.asReader(buf);
+      const res = reader.readBufferArray();
+      expect(res).toEqual(bufferArray);
+    });
+
+    it('should read variable length array from buffer with other contents', () => {
+      // testing `readBufferArray` with a buffer that includes some other data before and after the data that will be read.
+      // The `size` variable needs to be passed in this case.
+      const bufferArray: Buffer[] = [];
+      const prefixBytes = randomBytes(32);
+      const postfixBytes = randomBytes(16);
+      let bufLen = 0;
+      let buf = Buffer.alloc(32, prefixBytes);
+      for (const size of sizes) {
+        const sizeBuf = Buffer.alloc(4);
+        sizeBuf.writeUInt32BE(size);
+
+        const bytes = randomBytes(size);
+        const ranBuf = Buffer.concat([sizeBuf, bytes]);
+        buf = Buffer.concat([buf, ranBuf]);
+
+        bufferArray.push(bytes);
+        bufLen += ranBuf.length;
+      }
+      buf = Buffer.concat([buf, postfixBytes]);
+      const reader = BufferReader.asReader(buf);
+      const preRes = reader.readBytes(prefixBytes.length);
+      expect(preRes).toEqual(prefixBytes);
+      expect(reader.readBufferArray(bufLen)).toEqual(bufferArray);
+      expect(reader.readBytes(postfixBytes.length)).toEqual(postfixBytes);
     });
   });
 
