@@ -102,7 +102,11 @@ impl<'a> FunctionContext<'a> {
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
     pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
-        self.builder.new_function(func.name.clone(), id, func.unconstrained);
+        if func.unconstrained {
+            self.builder.new_brillig_function(func.name.clone(), id);
+        } else {
+            self.builder.new_function(func.name.clone(), id);
+        }
         self.add_parameters_to_scope(&func.parameters);
     }
 

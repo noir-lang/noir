@@ -470,7 +470,7 @@ mod test {
         let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("bar".into(), bar_id, false);
+        builder.new_function("bar".into(), bar_id);
         let expected_return = 72u128;
         let seventy_two = builder.field_constant(expected_return);
         builder.terminate_with_return(vec![seventy_two]);
@@ -525,18 +525,18 @@ mod test {
         builder.terminate_with_return(vec![main_v16]);
 
         // Compiling square f1
-        builder.new_function("square".into(), square_id, false);
+        builder.new_function("square".into(), square_id);
         let square_v0 = builder.add_parameter(Type::field());
         let square_v2 = builder.insert_binary(square_v0, BinaryOp::Mul, square_v0);
         builder.terminate_with_return(vec![square_v2]);
 
         // Compiling id1 f2
-        builder.new_function("id1".into(), id1_id, false);
+        builder.new_function("id1".into(), id1_id);
         let id1_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id1_v0]);
 
         // Compiling id2 f3
-        builder.new_function("id2".into(), id2_id, false);
+        builder.new_function("id2".into(), id2_id);
         let id2_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id2_v0]);
 
@@ -577,7 +577,7 @@ mod test {
         let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("factorial".into(), factorial_id, false);
+        builder.new_function("factorial".into(), factorial_id);
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
