@@ -274,13 +274,8 @@ impl AcirContext {
     /// Returns an `AcirVar` that is constrained to be lhs << rhs.
     ///
     /// We convert left shifts to multiplications, so this is equivalent to
-    /// lhs * 2^rhs.
-    ///
-    /// TODO: Currently, we maintain that the rhs needs to be a constant so that we can
-    /// TODO: compute 2^rhs in the compiler. However, we can extend it to witnesses
-    /// TODO: by first bit decomposing rhs and then using square-and-multiply to
-    /// TODO: compute 2^{rhs}. This will require if statements so it would be good
-    /// TODO: to have this implementation in Noir and the << operator uses that.
+    /// lhs * 2^rhs. We currently maintain that rhs needs to be a constant
+    /// however this can be extended, see #1478.
     pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
         let rhs_data = &self.data[&rhs];
 
