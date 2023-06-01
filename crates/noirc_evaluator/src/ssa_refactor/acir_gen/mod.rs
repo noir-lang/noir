@@ -146,7 +146,6 @@ impl Context {
                     (Vec::new(), Vec::new())
                 } else {
                     let result_acir_var = self.convert_ssa_binary(binary, dfg);
-                    self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
                     (vec![result_ids[0]], vec![result_acir_var])
                 }
             }
