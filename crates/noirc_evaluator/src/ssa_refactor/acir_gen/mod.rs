@@ -168,11 +168,11 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 if Self::value_is_array_address(result_ids[0], dfg) {
                     self.track_array_address(result_ids[0], binary, dfg);
-                    return;
+                    (Vec::new(), Vec::new())
+                } else {
+                    let result_acir_var = self.convert_ssa_binary(binary, dfg);
+                    (vec![result_ids[0]], vec![result_acir_var])
                 }
-                let result_acir_var = self.convert_ssa_binary(binary, dfg);
-                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
-                (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Constrain(value_id) => {
                 let constrain_condition = self.convert_ssa_value(*value_id, dfg);
@@ -181,11 +181,6 @@ impl Context {
             }
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
-                let result_ids = dfg.instruction_results(instruction_id);
-                (vec![result_ids[0]], vec![result_acir_var])
-            }
-            Instruction::Load { address } => {
-                let result_acir_var = self.convert_ssa_load(address);
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
@@ -209,6 +204,21 @@ impl Context {
                 let boolean_var = self.convert_ssa_value(*value_id, dfg);
                 let result_acir_var = self.acir_context.not_var(boolean_var);
 
+                let result_ids = dfg.instruction_results(instruction_id);
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
+            Instruction::Allocate { size } => {
+                let array_id = self.acir_context.allocate_array(*size as usize);
+                let result_ids = dfg.instruction_results(instruction_id);
+                self.ssa_value_to_array_address.insert(result_ids[0], (array_id, 0));
+                (Vec::new(), Vec::new())
+            }
+            Instruction::Store { address, value } => {
+                self.convert_ssa_store(address, value, dfg);
+                (Vec::new(), Vec::new())
+            }
+            Instruction::Load { address } => {
+                let result_acir_var = self.convert_ssa_load(address);
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
@@ -313,6 +323,15 @@ impl Context {
                 .expect("invalid range constraint was applied {numeric_type}"),
             _ => unimplemented!("The cast operation is only valid for integers."),
         }
+    }
+
+    /// Stores the `AcirVar` corresponding to `value` at the `ArrayId` and index corresponding to
+    /// `address`.
+    fn convert_ssa_store(&mut self, address: &ValueId, value: &ValueId, dfg: &DataFlowGraph) {
+        let element_var = self.convert_ssa_value(*value, dfg);
+        let (array_id, index) =
+            self.ssa_value_to_array_address.get(address).expect("ICE: Load from undeclared array");
+        self.acir_context.array_store(*array_id, *index, element_var).expect("invalid array load");
     }
 
     /// Returns the `AcirVar` that was previously stored at the given address.
