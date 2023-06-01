@@ -130,14 +130,6 @@ mod test {
 
     struct MockBackend {}
     impl PartialWitnessGenerator for MockBackend {
-        fn aes(
-            &self,
-            _initial_witness: &mut WitnessMap,
-            _inputs: &[FunctionInput],
-            _outputs: &[Witness],
-        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
-            panic!("Path not trodden by this test")
-        }
         fn schnorr_verify(
             &self,
             _initial_witness: &mut WitnessMap,
@@ -153,6 +145,7 @@ mod test {
             &self,
             _initial_witness: &mut WitnessMap,
             _inputs: &[FunctionInput],
+            _domain_separator: u32,
             _outputs: &[Witness],
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             panic!("Path not trodden by this test")
