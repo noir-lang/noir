@@ -516,6 +516,17 @@ impl AcirContext {
         Ok(witnesses)
     }
 
+    /// Prints the given `AcirVar`s as witnesses.
+    pub(crate) fn print(&mut self, input: Vec<AcirVar>) -> Result<(), AcirGenError> {
+        let witnesses = vecmap(input, |acir_var| {
+            let var_data = &self.data[&acir_var];
+            let expr = var_data.to_expression();
+            self.acir_ir.get_or_create_witness(&expr)
+        });
+        self.acir_ir.call_print(witnesses);
+        Ok(())
+    }
+
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(self) -> GeneratedAcir {
         self.acir_ir
@@ -550,10 +561,7 @@ impl AcirContext {
     /// Gets all `AcirVar` elements currently stored at the array.
     ///
     /// This errors if nothing was previously stored any element in the array.
-    pub(crate) fn array_load_all(
-        &mut self,
-        array_id: ArrayId,
-    ) -> Result<Vec<AcirVar>, AcirGenError> {
+    pub(crate) fn array_load_all(&self, array_id: ArrayId) -> Result<Vec<AcirVar>, AcirGenError> {
         self.memory.constant_get_all(array_id)
     }
 

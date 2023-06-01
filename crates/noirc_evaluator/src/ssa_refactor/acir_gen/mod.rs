@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirVar},
+    errors::AcirGenError,
     memory::ArrayId,
 };
 use super::{
@@ -48,14 +49,18 @@ struct Context {
 }
 
 impl Ssa {
-    pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
+    pub(crate) fn into_acir(
+        self,
+        main_function_signature: FunctionSignature,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         let param_arrays_info: Vec<_> = collate_array_info(&main_function_signature.0)
             .iter()
             .map(|(size, abi_type)| (*size, numeric_type_for_abi_array_element_type(abi_type)))
             .collect();
 
         let context = Context::default();
-        context.convert_ssa(self, &param_arrays_info)
+        context.convert_ssa(self, &param_arrays_info, allow_log_ops)
     }
 }
 
@@ -75,7 +80,12 @@ fn numeric_type_for_abi_array_element_type(abi_type: &AbiType) -> NumericType {
 
 impl Context {
     /// Converts SSA into ACIR
-    fn convert_ssa(mut self, ssa: Ssa, param_array_info: &[(usize, NumericType)]) -> GeneratedAcir {
+    fn convert_ssa(
+        mut self,
+        ssa: Ssa,
+        param_array_info: &[(usize, NumericType)],
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         assert_eq!(
             ssa.functions.len(),
             1,
@@ -88,7 +98,7 @@ impl Context {
         self.convert_ssa_block_params(entry_block.parameters(), dfg, param_array_info);
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg);
+            self.convert_ssa_instruction(*instruction_id, dfg, allow_log_ops);
         }
 
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
@@ -159,7 +169,12 @@ impl Context {
     }
 
     /// Converts an SSA instruction into its ACIR representation
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        allow_log_ops: bool,
+    ) {
         let instruction = &dfg[instruction_id];
 
         let (results_id, results_vars) = match instruction {
@@ -184,7 +199,7 @@ impl Context {
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Call { func, arguments } => {
-                let outputs = self.convert_ssa_call(*func, arguments, dfg);
+                let outputs = self.convert_ssa_call(*func, arguments, dfg, allow_log_ops);
                 let result_ids = dfg.instruction_results(instruction_id);
                 (result_ids.to_vec(), outputs)
             }
@@ -333,13 +348,38 @@ impl Context {
         func: ValueId,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
+        allow_log_ops: bool,
     ) -> Vec<AcirVar> {
+        let inputs = self
+            .flatten_arguments(arguments, dfg)
+            .expect("add Result types to all methods so errors bubble up");
         let intrinsic = Self::id_to_intrinsic(func, dfg);
-        let black_box = match intrinsic {
-            Intrinsic::BlackBox(black_box) => black_box,
+        match intrinsic {
+            Intrinsic::BlackBox(black_box) => self
+                .acir_context
+                .black_box_function(black_box, inputs)
+                .expect("add Result types to all methods so errors bubble up"),
+            Intrinsic::Println => {
+                if allow_log_ops {
+                    self.acir_context
+                        .print(inputs)
+                        .expect("add Result types to all methods so errors bubble up");
+                }
+                Vec::new()
+            }
             _ => todo!("expected a black box function"),
-        };
-        let mut inputs = Vec::new();
+        }
+    }
+
+    /// Maps an ssa value list, for which some values may be references to arrays, by inlining
+    /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
+    /// that correspond to other values.
+    fn flatten_arguments(
+        &mut self,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        let mut acir_vars = Vec::new();
         for value_id in arguments {
             if Self::value_is_array_address(*value_id, dfg) {
                 let (array_id, index) = self
@@ -347,18 +387,13 @@ impl Context {
                     .get(value_id)
                     .expect("ICE: Call argument of undeclared array");
                 assert_eq!(index, &0, "ICE: Call arguments only accept arrays in their entirety");
-                let elements = self
-                    .acir_context
-                    .array_load_all(*array_id)
-                    .expect("add Result types to all methods so errors bubble up");
-                inputs.extend(elements);
+                let elements = self.acir_context.array_load_all(*array_id)?;
+                acir_vars.extend(elements);
             } else {
-                inputs.push(self.convert_ssa_value(*value_id, dfg));
+                acir_vars.push(self.convert_ssa_value(*value_id, dfg));
             }
         }
-        self.acir_context
-            .black_box_function(black_box, inputs)
-            .expect("add Result types to all methods so errors bubble up")
+        Ok(acir_vars)
     }
 
     /// Stores the `AcirVar` corresponding to `value` at the `ArrayId` and index corresponding to

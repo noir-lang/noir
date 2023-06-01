@@ -28,7 +28,7 @@ pub mod ssa_gen;
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
-pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
+pub(crate) fn optimize_into_acir(program: Program, allow_log_ops: bool) -> GeneratedAcir {
     let func_signature = program.main_function_signature.clone();
     ssa_gen::generate_ssa(program)
         .print("Initial SSA:")
@@ -42,7 +42,7 @@ pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
         .print("After Flattening:")
         .mem2reg()
         .print("After Mem2Reg:")
-        .into_acir(func_signature)
+        .into_acir(func_signature, allow_log_ops)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
@@ -53,11 +53,11 @@ pub fn experimental_create_circuit(
     np_language: Language,
     is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     _enable_logging: bool,
-    _show_output: bool,
+    show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
-        optimize_into_acir(program);
+        optimize_into_acir(program, show_output);
 
     let abi = gen_abi(func_sig, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
