@@ -187,7 +187,6 @@ impl Context {
             Instruction::Allocate { size } => {
                 let array_id = self.acir_context.allocate_array(*size as usize);
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Allocate ops have a single result");
                 self.ssa_value_to_array_address.insert(result_ids[0], (array_id, 0));
                 (Vec::new(), Vec::new())
             }
