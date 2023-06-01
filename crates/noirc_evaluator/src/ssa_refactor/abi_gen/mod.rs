@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::{Abi, AbiParameter, FunctionSignature};
+use noirc_abi::{Abi, AbiParameter, AbiType, FunctionSignature};
 
 /// Traverses the parameters to the program to infer the lengths of any arrays that occur.
 ///
@@ -13,8 +13,57 @@ use noirc_abi::{Abi, AbiParameter, FunctionSignature};
 /// This function returns the lengths ordered such as to correspond to the ordering used by the
 /// SSA representation. This allows the lengths to be consumed as array params are encountered in
 /// the SSA.
-pub(crate) fn collate_array_lengths(_abi_params: &[AbiParameter]) -> Vec<usize> {
-    Vec::new()
+pub(crate) fn collate_array_lengths(abi_params: &[AbiParameter]) -> Vec<usize> {
+    let mut acc = Vec::new();
+    for abi_param in abi_params {
+        collate_array_lengths_recursive(&mut acc, &abi_param.typ);
+    }
+    acc
+}
+
+/// The underlying recursive implementation of `collate_array_lengths`
+///
+/// This does a depth-first traversal of the abi until an array (or string) is encountered, at
+/// which point arrays are handled differently depending on the element type:
+/// - arrays of fields, integers or booleans produce an array of the specified length
+/// - arrays of structs produce an array of the specified length for each field of the flatten
+///   struct (which reflects a simplification made during monomorphization)
+fn collate_array_lengths_recursive(acc: &mut Vec<usize>, abi_type: &AbiType) {
+    match abi_type {
+        AbiType::Array { length, typ: elem_type } => {
+            match elem_type.as_ref() {
+                AbiType::Array { .. } => {
+                    unreachable!("2D arrays are not supported");
+                }
+                AbiType::Struct { .. } => {
+                    // monomorphization converts arrays of structs into an array per flattened
+                    // struct field.
+                    let array_count = elem_type.field_count();
+                    for _ in 0..array_count {
+                        acc.push(*length as usize);
+                    }
+                }
+                AbiType::String { .. } => {
+                    unreachable!("Arrays of strings are not supported");
+                }
+                AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } => {
+                    // Simple 1D array
+                    acc.push(*length as usize);
+                }
+            }
+        }
+        AbiType::Struct { fields } => {
+            for (_, field_type) in fields {
+                collate_array_lengths_recursive(acc, field_type);
+            }
+        }
+        AbiType::String { length } => {
+            acc.push(*length as usize);
+        }
+        AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } => {
+            // Do not produce arrays
+        }
+    }
 }
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
