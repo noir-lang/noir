@@ -132,15 +132,18 @@ impl ProofSystemCompiler for ConcreteBackend {
     }
 
     fn supports_opcode(&self, opcode: &acvm::acir::circuit::Opcode) -> bool {
-        if !matches!(
-            opcode,
-            acvm::acir::circuit::Opcode::BlackBoxFuncCall(
-                BlackBoxFuncCall::RecursiveAggregation { .. }
-            )
-        ) {
-            todo!()
-        } else {
-            true
+        match opcode {
+            acvm::acir::circuit::Opcode::BlackBoxFuncCall(black_box_func_call) => {
+                // TODO: bb.js does not currently support ACVM simulation with a backend
+                // ACVM simulation with bb.js is necessary to support these opcodes
+                match black_box_func_call {
+                    BlackBoxFuncCall::SchnorrVerify { .. }
+                    | BlackBoxFuncCall::Pedersen { .. }
+                    | BlackBoxFuncCall::FixedBaseScalarMul { .. } => false,
+                    _ => true,
+                }
+            }
+            _ => true,
         }
     }
 

@@ -110,6 +110,8 @@ pub(crate) fn run<B: Backend>(
     args: CompileCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
+    let circuit_dir = config.program_dir.join(TARGET_DIR);
+
     let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
     let preprocessed_program = PreprocessedProgram {
         backend: String::from("dummy-backend-bb.js"),
