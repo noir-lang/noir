@@ -149,10 +149,14 @@ impl AcirContext {
 
     /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
     pub(crate) fn and_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_bit_size =
-            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: AND applied to field type");
-        let rhs_bit_size =
-            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: AND applied to field type");
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: AND applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: AND applied to field type, this should be caught by the type system");
         assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to AND require equal bit size");
 
         let outputs = self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs])?;
@@ -163,10 +167,14 @@ impl AcirContext {
 
     /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
     pub(crate) fn or_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_bit_size =
-            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: OR applied to field type");
-        let rhs_bit_size =
-            *self.variables_to_bit_sizes.get(&lhs).expect("ICE: OR applied to field type");
+        let lhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: OR applied to field type, this should be caught by the type system");
+        let rhs_bit_size = *self
+            .variables_to_bit_sizes
+            .get(&lhs)
+            .expect("ICE: OR applied to field type, this should be caught by the type system");
         assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to OR require equal bit size");
         let bit_size = lhs_bit_size;
         let result = if bit_size == 1 {
