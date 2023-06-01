@@ -69,12 +69,12 @@ impl FunctionBuilder {
 
     /// Finish the current function and create a new ACIR function.
     pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
-        self.new_function_with_type(name, function_id, RuntimeType::Acir)
+        self.new_function_with_type(name, function_id, RuntimeType::Acir);
     }
 
     /// Finish the current function and create a new unconstrained function.
     pub(crate) fn new_brillig_function(&mut self, name: String, function_id: FunctionId) {
-        self.new_function_with_type(name, function_id, RuntimeType::Brillig)
+        self.new_function_with_type(name, function_id, RuntimeType::Brillig);
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
