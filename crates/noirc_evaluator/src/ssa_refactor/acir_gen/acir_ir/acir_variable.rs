@@ -40,11 +40,6 @@ impl AcirContext {
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
-
-        if let Some(var) = self.data_reverse_map.get(&constant_data) {
-            return *var;
-        };
-
         self.add_data(constant_data)
     }
 
@@ -430,9 +425,15 @@ impl AcirVarData {
 pub(crate) struct AcirVar(usize);
 
 #[test]
-fn add_same_constant() {
+fn repeat_op() {
     let mut ctx = AcirContext::default();
-    let id = ctx.add_constant(FieldElement::zero());
-    let should_be_same_id = ctx.add_constant(FieldElement::zero());
-    assert_eq!(id, should_be_same_id)
+    let var1 = ctx.add_variable();
+    let var2 = ctx.add_variable();
+    let mul = ctx.mul_var(var1, var2);
+    let should_be_same_mul = ctx.mul_var(var1, var2);
+    // It's only on the third attempt that `add_data`'s `data_reverse_map` & `data` equal length
+    // assert previously failed (prior to adding a dupe check inside of add_data).
+    let should_be_same_mul_again = ctx.mul_var(var1, var2);
+    assert_eq!(mul, should_be_same_mul);
+    assert_eq!(mul, should_be_same_mul_again);
 }
