@@ -22,7 +22,6 @@ use super::{
     ssa_gen::Ssa,
 };
 use crate::brillig::{artefact::BrilligArtefact, Brillig};
-use iter_extended::vecmap;
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -212,7 +211,7 @@ impl Context {
                         let func = &ssa.functions[id];
                         match func.runtime() {
                             RuntimeType::Acir => unimplemented!(
-                                "expected an intrinsic/brillig call, but found {func:?}"
+                                "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
                                 // Generate the brillig code of the function
@@ -223,20 +222,13 @@ impl Context {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
-                        let outputs =
-                            self.convert_ssa_intrinsic_call(*func, arguments, dfg, allow_log_ops);
-                        let black_box = match intrinsic {
-                            Intrinsic::BlackBox(black_box) => black_box,
-                            _ => todo!("expected a black box function"),
-                        };
-
-                        let inputs =
-                            vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
-                        let outputs = self
-                            .acir_context
-                            .black_box_function(*black_box, inputs)
-                            .expect("add Result types to all methods so errors bubble up");
-
+                        let outputs = self.convert_ssa_intrinsic_call(
+                            *intrinsic,
+                            arguments,
+                            dfg,
+                            allow_log_ops,
+                        );
+                        let result_ids = dfg.instruction_results(instruction_id);
                         (result_ids.to_vec(), outputs)
                     }
                     _ => unreachable!("expected calling a function"),
@@ -270,17 +262,6 @@ impl Context {
         // Map the results of the instructions to Acir variables
         for (result_id, result_var) in results_id.into_iter().zip(results_vars) {
             self.ssa_value_to_acir_var.insert(result_id, result_var);
-        }
-    }
-
-    /// Converts a `ValueId` into an `Intrinsic`.
-    ///
-    /// Panics if the `ValueId` does not represent an intrinsic.
-    fn id_to_intrinsic(value_id: ValueId, dfg: &DataFlowGraph) -> Intrinsic {
-        let value = &dfg[value_id];
-        match value {
-            Value::Intrinsic(intrinsic) => *intrinsic,
-            _ => unimplemented!("expected an intrinsic call, but found {value:?}"),
         }
     }
 
@@ -386,7 +367,7 @@ impl Context {
     /// The function being called is required to be intrinsic.
     fn convert_ssa_intrinsic_call(
         &mut self,
-        func: ValueId,
+        intrinsic: Intrinsic,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
         allow_log_ops: bool,
@@ -394,7 +375,6 @@ impl Context {
         let inputs = self
             .flatten_arguments(arguments, dfg)
             .expect("add Result types to all methods so errors bubble up");
-        let intrinsic = Self::id_to_intrinsic(func, dfg);
         match intrinsic {
             Intrinsic::BlackBox(black_box) => self
                 .acir_context
