@@ -106,13 +106,24 @@ pub(crate) fn evaluate(
                     inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
                     outputs: outputs.to_vec(),
                 },
-                BlackBoxFunc::Keccak256 => BlackBoxFuncCall::Keccak256 {
-                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
-                    outputs: outputs.to_vec(),
-                },
+                BlackBoxFunc::Keccak256 => {
+                    let msg_size = acir_gen
+                        .var_cache
+                        .get_or_compute_internal_var(args[1], evaluator, ctx)
+                        .expect("ICE - could not get an expression for keccak message size");
+                    let witness =
+                        acir_gen.var_cache.get_or_compute_witness_unwrap(msg_size, evaluator, ctx);
+                    let var_message_size = FunctionInput { witness, num_bits: 32 };
+                    BlackBoxFuncCall::Keccak256VariableLength {
+                        inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        var_message_size,
+                        outputs: outputs.to_vec(),
+                    }
+                }
                 BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
                     inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
                     outputs: outputs.to_vec(),
+                    domain_separator: 0,
                 },
                 BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                     input: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),

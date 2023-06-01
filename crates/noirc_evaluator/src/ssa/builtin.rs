@@ -80,9 +80,6 @@ impl Opcode {
                     // Verify returns zero or one
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
                     BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
-                    BlackBoxFunc::AES => {
-                        todo!("ICE: AES is unimplemented")
-                    }
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
                     }
@@ -100,7 +97,6 @@ impl Opcode {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
-                    BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
                     BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Keccak256 => {
                         (32, ObjectType::unsigned_integer(8))
                     }
