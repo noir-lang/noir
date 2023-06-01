@@ -17,7 +17,7 @@ fn pedersen_with_separator<N>(_input : [Field; N], _separator : comptime u32) ->
 fn hash_to_field<N>(_input : [Field; N]) -> Field {}
 
 #[foreign(keccak256)]
-fn keccak256<N>(_input : [u8; N]) -> [u8; 32] {}
+fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32] {}
 
 // mimc-p/p implementation
 // constants are (publicly generated) random numbers, for instance using keccak as a ROM.
