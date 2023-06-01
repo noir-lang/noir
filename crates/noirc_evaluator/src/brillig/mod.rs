@@ -7,10 +7,11 @@ pub(crate) mod artefact;
 pub(crate) mod brillig_gen;
 
 use crate::ssa_refactor::{
-    ir::function::{Function, FunctionId},
+    ir::function::{Function, FunctionId, RuntimeType},
     ssa_gen::Ssa,
 };
-/// Context struct for the brillig gen pass.
+/// Context structure for the brillig pass.
+/// It stores brillig-related data required for brillig generation.
 #[derive(Default)]
 pub struct Brillig {
     /// Maps SSA functions to their brillig opcode
@@ -18,6 +19,7 @@ pub struct Brillig {
 }
 
 impl Brillig {
+    /// Compiles a function into brillig and store the compilation artefacts
     pub(crate) fn compile(&mut self, func: &Function) {
         let obj = BrilligGen::compile(func);
         self.ssa_function_to_brillig.insert(func.id(), obj);
@@ -32,9 +34,10 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
+    /// Generate compilation artefacts for brillig funtions
     pub(crate) fn to_brillig(&self) -> Brillig {
         let mut brillig = Brillig::default();
-        for f in self.functions.values() {
+        for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
             let id = f.id();
             if id != self.main_id {
                 brillig.compile(f);
