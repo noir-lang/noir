@@ -1,6 +1,10 @@
 use crate::ssa_refactor::ir::types::NumericType;
 
-use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
+use super::{
+    errors::AcirGenError,
+    generated_acir::GeneratedAcir,
+    memory::{ArrayId, Memory},
+};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -31,6 +35,11 @@ pub(crate) struct AcirContext {
     /// then the `acir_ir` will be populated to assert this
     /// addition.
     acir_ir: GeneratedAcir,
+
+    /// Maps an `AcirVar` to its known bit size.
+    variables_to_bit_sizes: HashMap<AcirVar, u32>,
+    /// Maps the elements of virtual arrays to their `AcirVar` elements
+    memory: Memory,
 }
 
 impl AcirContext {
@@ -241,6 +250,28 @@ impl AcirContext {
         }
     }
 
+    /// Adds a new variable that is constrained to be the logical NOT of `x`.
+    ///
+    /// `x` must be a 1-bit integer (i.e. a boolean)
+    pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
+        assert_eq!(
+            self.variables_to_bit_sizes.get(&x),
+            Some(&1),
+            "ICE: NOT op applied to non-bool"
+        );
+        let data = &self.data[&x];
+        // Since `x` can only be 0 or 1, we can derive NOT as 1 - x
+        match data {
+            AcirVarData::Const(constant) => {
+                self.add_data(AcirVarData::Expr(&Expression::one() - &Expression::from(*constant)))
+            }
+            AcirVarData::Expr(expr) => self.add_data(AcirVarData::Expr(&Expression::one() - expr)),
+            AcirVarData::Witness(witness) => {
+                self.add_data(AcirVarData::Expr(&Expression::one() - *witness))
+            }
+        }
+    }
+
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) {
@@ -269,6 +300,8 @@ impl AcirContext {
                 let data_expr = data.to_expression();
                 let witness = self.acir_ir.get_or_create_witness(&data_expr);
                 self.acir_ir.range_constraint(witness, *bit_size)?;
+                // Log the bit size for this variable
+                self.variables_to_bit_sizes.insert(variable, *bit_size);
             }
             NumericType::NativeField => {
                 // If someone has made a cast to a `Field` type then this is a Noop.
@@ -280,9 +313,81 @@ impl AcirContext {
         Ok(variable)
     }
 
+    /// Returns an `AcirVar` which will be `1` if lhs >= rhs
+    /// and `0` otherwise.
+    fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.data[&lhs];
+        let rhs_data = &self.data[&rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let lhs_bit_size = self.variables_to_bit_sizes.get(&lhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
+        let rhs_bit_size = self.variables_to_bit_sizes.get(&rhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
+
+        // This is a conservative choice. Technically, we should just be able to take
+        // the bit size of the `lhs` (upper bound), but we need to check/document what happens
+        // if the bit_size is not enough to represent both witnesses.
+        // An example is the following: (a as u8) >= (b as u32)
+        // If the equality is true, then it means that `b` also fits inside
+        // of a u8.
+        // But its not clear what happens if the equality is false,
+        // and we 8 bits to `more_than_eq_comparison`. The conservative
+        // choice chosen is to use 32.
+        let bit_size = *std::cmp::max(lhs_bit_size, rhs_bit_size);
+
+        let is_greater_than_eq =
+            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size)?;
+
+        Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
+    }
+
+    /// Returns an `AcirVar` which will be `1` if lhs < rhs
+    /// and `0` otherwise.
+    pub(crate) fn less_than_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, AcirGenError> {
+        // Flip the result of calling more than equal method to
+        // compute less than.
+        let comparison = self.more_than_eq_var(lhs, rhs)?;
+
+        let one = self.add_constant(FieldElement::one());
+        let comparison_negated = self.sub_var(one, comparison);
+
+        Ok(comparison_negated)
+    }
+
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(self) -> GeneratedAcir {
         self.acir_ir
+    }
+
+    /// Allocates an array of size `size` and returns a pointer to the array in memory.
+    pub(crate) fn allocate_array(&mut self, size: usize) -> ArrayId {
+        self.memory.allocate(size)
+    }
+
+    /// Stores the given `AcirVar` at the specified address in memory
+    pub(crate) fn array_store(
+        &mut self,
+        array_id: ArrayId,
+        index: usize,
+        element: AcirVar,
+    ) -> Result<(), AcirGenError> {
+        self.memory.constant_set(array_id, index, element)
+    }
+
+    /// Gets the last stored `AcirVar` at the specified address in memory.
+    ///
+    /// This errors if nothing was previously stored at the address.
+    pub(crate) fn array_load(
+        &mut self,
+        array_id: ArrayId,
+        index: usize,
+    ) -> Result<AcirVar, AcirGenError> {
+        self.memory.constant_get(array_id, index)
     }
 
     /// Adds `Data` into the context and assigns it a Variable.
