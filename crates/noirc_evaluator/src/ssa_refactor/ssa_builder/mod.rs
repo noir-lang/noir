@@ -53,14 +53,28 @@ impl FunctionBuilder {
     /// A FunctionBuilder can always only work on one function at a time, so care
     /// should be taken not to finish a function that is still in progress by calling
     /// new_function before the current function is finished.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId, brillig: bool) {
-        let runtime = if brillig { RuntimeType::Brillig } else { RuntimeType::Acir };
+    fn new_function_with_type(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        runtime_type: RuntimeType,
+    ) {
         let mut new_function = Function::new(name, function_id);
-        new_function.set_runtime(runtime);
+        new_function.set_runtime(runtime_type);
         self.current_block = new_function.entry_block();
 
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         self.finished_functions.push(old_function);
+    }
+
+    /// Finish the current function and create a new ACIR function.
+    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir)
+    }
+
+    /// Finish the current function and create a new unconstrained function.
+    pub(crate) fn new_brillig_function(&mut self, name: String, function_id: FunctionId) {
+        self.new_function_with_type(name, function_id, RuntimeType::Brillig)
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
