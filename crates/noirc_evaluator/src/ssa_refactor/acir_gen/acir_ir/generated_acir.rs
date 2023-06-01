@@ -151,6 +151,33 @@ impl GeneratedAcir {
         outputs_clone
     }
 
+    pub(crate) fn radix_decompose(
+        &mut self,
+        input: Witness,
+        radix: u32,
+        limb_size: u32,
+    ) -> Vec<Witness> {
+        let u32_size = std::mem::size_of::<u32>() * 8;
+        let bit_size = u32_size as u32 - radix.leading_zeros();
+        let shift = FieldElement::from(radix as u128);
+
+        let mut radix_pow = FieldElement::one();
+        let mut result = Vec::new();
+        for _ in 0..limb_size {
+            let limb_witness = self.next_witness_index();
+            result.push(limb_witness);
+            radix_pow = radix_pow * shift;
+            let current_pow_2 = 1_u128 << (bit_size - 1);
+            if radix as u128 != current_pow_2 {
+                self.range_constraint(limb_witness, bit_size);
+            }
+
+            // Eek - this method needs lifting back into acir_vairable to access less-than impl
+            // TODO: constrain limb < radix (while applying bit_size)
+        }
+        result
+    }
+
     /// Adds a log directive to print the provided witnesses.
     ///
     /// Logging of strings is currently unsupported.

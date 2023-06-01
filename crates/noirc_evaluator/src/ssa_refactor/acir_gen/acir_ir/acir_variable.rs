@@ -1,4 +1,4 @@
-use crate::ssa_refactor::ir::types::NumericType;
+use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
 
 use super::{
     errors::AcirGenError,
@@ -552,6 +552,41 @@ impl AcirContext {
             witnesses.push(FunctionInput { witness, num_bits });
         }
         Ok(witnesses)
+    }
+
+    /// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
+    /// over given radix.
+    ///
+    /// The `AcirVar`s for the `radix_var` and `limb_size_var` must be a constant
+    ///
+    /// TODO: support radix larger than field modulus
+    pub(crate) fn radix_decompose(
+        &mut self,
+        endian: Endian,
+        input_var: AcirVar,
+        radix_var: AcirVar,
+        limb_size_var: AcirVar,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        let input_expr = &self.data[&input_var].to_expression();
+        let input_witness = self.acir_ir.get_or_create_witness(input_expr);
+
+        let radix = &self.data[&radix_var].as_constant().expect("ICE: radix should be a constant");
+        let radix_u64 = radix.try_to_u64().expect("Radix doesn't fit in u64");
+
+        let limb_size =
+            &self.data[&limb_size_var].as_constant().expect("ICE: limb_size should be a constant");
+        let limb_size_u64 = limb_size.try_to_u64().expect("limb_size doesn't fit in u64");
+
+        let mut result_witnesses =
+            self.acir_ir.radix_decompose(input_witness, radix_u64 as u32, limb_size_u64 as u32);
+        if endian == Endian::Big {
+            result_witnesses.reverse();
+        }
+
+        let result =
+            vecmap(result_witnesses, |witness| self.add_data(AcirVarData::Witness(witness)));
+
+        Ok(result)
     }
 
     /// Prints the given `AcirVar`s as witnesses.

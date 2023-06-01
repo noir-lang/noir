@@ -361,6 +361,12 @@ impl Context {
                 .acir_context
                 .black_box_function(black_box, inputs)
                 .expect("add Result types to all methods so errors bubble up"),
+            Intrinsic::ToRadix(endian) => {
+                // inputs = [field, radix, limb_size]; (see noir_stdlib/src/field.nr)
+                self.acir_context
+                    .radix_decompose(endian, inputs[0], inputs[1], inputs[2])
+                    .expect("add Result types to all methods so errors bubble up")
+            }
             Intrinsic::Println => {
                 if allow_log_ops {
                     self.acir_context
