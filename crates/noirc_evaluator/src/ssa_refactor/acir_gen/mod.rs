@@ -7,7 +7,7 @@ use self::acir_ir::{
     memory::ArrayId,
 };
 use super::{
-    abi_gen::collate_array_lengths,
+    abi_gen::collate_array_info,
     ir::{
         dfg::DataFlowGraph,
         instruction::{
@@ -20,7 +20,7 @@ use super::{
     ssa_gen::Ssa,
 };
 use iter_extended::vecmap;
-use noirc_abi::FunctionSignature;
+use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
@@ -50,15 +50,33 @@ struct Context {
 
 impl Ssa {
     pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
-        let param_array_lengths = collate_array_lengths(&main_function_signature.0);
+        let param_arrays_info: Vec<_> = collate_array_info(&main_function_signature.0)
+            .iter()
+            .map(|(size, abi_type)| (*size, numeric_type_for_abi_array_element_type(abi_type)))
+            .collect();
+
         let context = Context::default();
-        context.convert_ssa(self, &param_array_lengths)
+        context.convert_ssa(self, &param_arrays_info)
+    }
+}
+
+/// Gives the equivalent ssa numeric type for the given abi type. We are dealing in the context of
+/// arrays - hence why only numerics are supported.
+fn numeric_type_for_abi_array_element_type(abi_type: &AbiType) -> NumericType {
+    match abi_type {
+        AbiType::Boolean => NumericType::Unsigned { bit_size: 1 },
+        AbiType::Integer { sign, width } => match sign {
+            Sign::Signed => NumericType::Signed { bit_size: *width },
+            Sign::Unsigned => NumericType::Unsigned { bit_size: *width },
+        },
+        AbiType::Field => NumericType::NativeField,
+        _ => unreachable!("Non-numeric cannot be array element"),
     }
 }
 
 impl Context {
     /// Converts SSA into ACIR
-    fn convert_ssa(mut self, ssa: Ssa, param_array_lengths: &[usize]) -> GeneratedAcir {
+    fn convert_ssa(mut self, ssa: Ssa, param_array_info: &[(usize, NumericType)]) -> GeneratedAcir {
         assert_eq!(
             ssa.functions.len(),
             1,
@@ -68,7 +86,7 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
 
-        self.convert_ssa_block_params(entry_block.parameters(), dfg, param_array_lengths);
+        self.convert_ssa_block_params(entry_block.parameters(), dfg, param_array_info);
 
         for instruction_id in entry_block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
@@ -85,36 +103,28 @@ impl Context {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-        param_array_lengths: &[usize],
+        param_arrays_info: &[(usize, NumericType)],
     ) {
-        let mut param_array_lengths_iter = param_array_lengths.iter();
+        let mut param_arrays_info_iter = param_arrays_info.iter();
         for param_id in params {
-            let value = dfg[*param_id];
+            let value = &dfg[*param_id];
             let param_type = match value {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
             };
             match param_type {
                 Type::Numeric(numeric_type) => {
-                    let acir_var = self.acir_context.add_variable();
-                    if matches!(
-                        numeric_type,
-                        NumericType::Signed { .. } | NumericType::Unsigned { .. }
-                    ) {
-                        self.acir_context
-                            .numeric_cast_var(acir_var, &numeric_type)
-                            .expect("invalid range constraint was applied {numeric_type}");
-                    }
+                    let acir_var = self.add_numeric_input_var(numeric_type);
                     self.ssa_value_to_acir_var.insert(*param_id, acir_var);
                 }
                 Type::Reference => {
-                    let array_length = param_array_lengths_iter
+                    let (array_length, numeric_type) = param_arrays_info_iter
                         .next()
                         .expect("ICE: fewer arrays in abi than in block params");
                     let array_id = self.acir_context.allocate_array(*array_length);
                     self.ssa_value_to_array_address.insert(*param_id, (array_id, 0));
                     for index in 0..*array_length {
-                        let acir_var = self.acir_context.add_variable();
+                        let acir_var = self.add_numeric_input_var(numeric_type);
                         self.acir_context
                             .array_store(array_id, index, acir_var)
                             .expect("invalid array store");
@@ -128,10 +138,25 @@ impl Context {
             }
         }
         assert_eq!(
-            param_array_lengths_iter.next(),
+            param_arrays_info_iter.next(),
             None,
             "ICE: more arrays in abi than in block params"
         );
+    }
+
+    /// Creates an `AcirVar` corresponding to a parameter witness to appears in the abi. A range
+    /// constraint is added if the numeric type requires it.
+    ///
+    /// This function is used not only for adding numeric block parameters, but also for adding
+    /// any array elements that belong to reference type block parameters.
+    fn add_numeric_input_var(&mut self, numeric_type: &NumericType) -> AcirVar {
+        let acir_var = self.acir_context.add_variable();
+        if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
+            self.acir_context
+                .numeric_cast_var(acir_var, numeric_type)
+                .expect("invalid range constraint was applied {numeric_type}");
+        }
+        acir_var
     }
 
     /// Converts an SSA instruction into its ACIR representation
@@ -185,7 +210,6 @@ impl Context {
                 let result_acir_var = self.acir_context.not_var(boolean_var);
 
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Not ops have a single result");
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             _ => todo!("{instruction:?}"),
