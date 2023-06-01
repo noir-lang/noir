@@ -184,7 +184,7 @@ impl Context {
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Call { func, arguments } => {
-                let outputs = self.convert_ssa_call(*func, arguments, dfg);
+                let outputs = self.convert_ssa_intrinsic_call(*func, arguments, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 (result_ids.to_vec(), outputs)
             }
@@ -325,10 +325,10 @@ impl Context {
         }
     }
 
-    /// Returns the a vector of `AcirVar`s constrained to be result of the function call.
+    /// Returns a vector of `AcirVar`s constrained to be result of the function call.
     ///
     /// The function being called is required to be intrinsic.
-    fn convert_ssa_call(
+    fn convert_ssa_intrinsic_call(
         &mut self,
         func: ValueId,
         arguments: &[ValueId],
@@ -346,7 +346,7 @@ impl Context {
                     .ssa_value_to_array_address
                     .get(value_id)
                     .expect("ICE: Call argument of undeclared array");
-                assert_eq!(index, &0, "ICE: Call arguments only accept arrays in their entirety");
+                assert_eq!(*index, 0, "ICE: Call arguments only accept arrays in their entirety");
                 let elements = self
                     .acir_context
                     .array_load_all(*array_id)

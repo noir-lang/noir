@@ -67,7 +67,7 @@ impl Memory {
 
     /// Gets all elements at the array that `ArrayId` points to.
     ///
-    /// This requires all elements of the array to have been initialized.
+    /// This returns an error if any of the array's elements have not been initialized.
     pub(crate) fn constant_get_all(&self, array_id: ArrayId) -> Result<Vec<AcirVar>, AcirGenError> {
         let array = &self.arrays[array_id];
         let mut elements = Vec::new();
