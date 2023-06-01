@@ -110,11 +110,15 @@ pub(crate) fn evaluate(
                     inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
                     outputs: outputs.to_vec(),
                 },
-                BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
-                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
-                    outputs: outputs.to_vec(),
-                    domain_separator: 0,
-                },
+                BlackBoxFunc::Pedersen => {
+                    let separator =
+                        ctx.get_as_constant(args[1]).expect("domain separator to be comptime");
+                    BlackBoxFuncCall::Pedersen {
+                        inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        outputs: outputs.to_vec(),
+                        domain_separator: separator.to_u128() as u32,
+                    }
+                }
                 BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                     input: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
                     outputs: outputs.to_vec(),
