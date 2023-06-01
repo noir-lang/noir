@@ -187,6 +187,7 @@ impl Context {
             Instruction::Allocate { size } => {
                 let array_id = self.acir_context.allocate_array(*size as usize);
                 let result_ids = dfg.instruction_results(instruction_id);
+                self.ssa_value_to_array_address.insert(result_ids[0], (array_id, 0));
                 (Vec::new(), Vec::new())
             }
             Instruction::Store { address, value } => {
