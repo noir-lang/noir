@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - jb-nix-flake
+      - jb/noir-wasm-workflow
 
 jobs:
   release-please:
