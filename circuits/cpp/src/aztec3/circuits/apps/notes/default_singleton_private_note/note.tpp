@@ -1,28 +1,20 @@
 #include "note_preimage.hpp"
 #include "nullifier_preimage.hpp"
-
+#include "../../opcodes/opcodes.hpp"
+#include "../../oracle_wrapper.hpp"
+#include "../../state_vars/state_var_base.hpp"
 #include "../note_interface.hpp"
 
-#include "../../oracle_wrapper.hpp"
-#include "../../opcodes/opcodes.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include "../../state_vars/state_var_base.hpp"
-
-#include <barretenberg/crypto/generators/generator_data.hpp>
-
-#include <barretenberg/plonk/composer/turbo_plonk_composer.hpp>
-
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
 using aztec3::circuits::apps::state_vars::StateVar;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::apps::notes {
 
@@ -246,4 +238,4 @@ typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::ge
         compressed_storage_slot_point, owner_private_key, is_dummy);
 };
 
-} // namespace aztec3::circuits::apps::notes
+}  // namespace aztec3::circuits::apps::notes

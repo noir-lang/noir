@@ -2,16 +2,14 @@
 
 #include "function_declaration.hpp"
 
-#include <aztec3/circuits/abis/function_data.hpp>
+#include "aztec3/circuits/abis/function_data.hpp"
 
-#include <barretenberg/common/container.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::apps {
 
 using aztec3::circuits::abis::FunctionData;
 
-using aztec3::utils::types::CircuitTypes;
-using plonk::stdlib::witness_t;
 using NT = aztec3::utils::types::NativeTypes;
 
 // template <typename Composer> class FunctionExecutionContext;

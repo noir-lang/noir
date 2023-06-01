@@ -2,9 +2,8 @@
 
 #include "aztec3/utils/types/circuit_types.hpp"
 
-#include "barretenberg/serialize/msgpack.hpp"
-#include "barretenberg/stdlib/merkle_tree/hash.hpp"
-#include "barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp"
+#include <barretenberg/barretenberg.hpp>
+
 namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;

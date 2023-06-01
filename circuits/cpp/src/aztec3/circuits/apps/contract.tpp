@@ -1,22 +1,18 @@
 #pragma once
-#include "function_execution_context.hpp"
+
 #include "function_declaration.hpp"
+#include "function_execution_context.hpp"
 
-#include <barretenberg/common/container.hpp>
+#include "aztec3/circuits/abis/function_data.hpp"
+#include "aztec3/constants.hpp"
+#include "aztec3/utils/types/convert.hpp"
 
-#include <aztec3/constants.hpp>
-
-#include <aztec3/circuits/abis/function_data.hpp>
-
-#include <aztec3/utils/types/convert.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::apps {
 
-using aztec3::utils::types::CircuitTypes;
-using plonk::stdlib::witness_t;
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::FunctionData;
-// using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 template <typename NCT> void Contract<NCT>::set_functions(std::vector<FunctionDeclaration<NCT>> const& functions)
 {
@@ -62,4 +58,4 @@ template <typename NCT> FunctionData<NCT> Contract<NCT>::get_function_data_by_na
     return function_datas[name];
 }
 
-} // namespace aztec3::circuits::apps
+}  // namespace aztec3::circuits::apps

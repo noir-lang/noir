@@ -1,14 +1,12 @@
 #pragma once
 
-#include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
-#include <aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp>
-#include <aztec3/circuits/apps/utxo_datum.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/circuits/abis/call_context.hpp"
+#include "aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp"
+#include "aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp"
+#include "aztec3/circuits/apps/utxo_datum.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
 namespace aztec3::oracle {
-
-using aztec3::circuits::abis::CallContext;
 
 using aztec3::circuits::apps::UTXOSLoadDatum;
 
@@ -16,7 +14,6 @@ using aztec3::circuits::apps::notes::DefaultPrivateNotePreimage;
 
 using aztec3::circuits::apps::notes::DefaultSingletonPrivateNotePreimage;
 
-using aztec3::utils::types::CircuitTypes;
 using NT = aztec3::utils::types::NativeTypes;
 
 // A temporary stub, whilst building other things first.

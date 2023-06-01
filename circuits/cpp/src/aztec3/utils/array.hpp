@@ -1,7 +1,7 @@
 #pragma once
 #include "./types/native_types.hpp"
 
-#include "barretenberg/common/throw_or_abort.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 /**
  * NOTE: see bberg's stdlib/primitives/field/array.hpp for the corresponding circuit implementations of these functions.

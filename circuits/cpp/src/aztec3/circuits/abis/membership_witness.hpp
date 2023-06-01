@@ -1,8 +1,9 @@
 #pragma once
 
+#include "aztec3/utils/array.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
-#include <aztec3/utils/array.hpp>
+
 namespace aztec3::circuits::abis {
 
 using aztec3::utils::zero_array;

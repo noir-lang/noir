@@ -1,11 +1,9 @@
 #include "index.hpp"
 
-#include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/abis/function_data.hpp>
+#include "aztec3/circuits/abis/call_context.hpp"
+#include "aztec3/circuits/abis/function_data.hpp"
 
-// #include <aztec3/circuits/apps/function_execution_context.hpp>
-
-#include <barretenberg/common/test.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
 

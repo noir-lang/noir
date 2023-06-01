@@ -2,13 +2,11 @@
 #include "contract_deployment_data.hpp"
 #include "function_data.hpp"
 
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/crypto/generators/generator_data.hpp>
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
 

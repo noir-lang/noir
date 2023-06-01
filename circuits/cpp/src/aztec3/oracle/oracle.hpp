@@ -2,13 +2,12 @@
 
 #include "fake_db.hpp"
 
-#include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/abis/contract_deployment_data.hpp>
-#include <aztec3/circuits/abis/function_data.hpp>
-#include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
-#include <aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp>
-#include <aztec3/circuits/apps/utxo_datum.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/circuits/abis/call_context.hpp"
+#include "aztec3/circuits/abis/contract_deployment_data.hpp"
+#include "aztec3/circuits/abis/function_data.hpp"
+#include "aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp"
+#include "aztec3/circuits/apps/utxo_datum.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
 namespace aztec3::oracle {
 
@@ -18,7 +17,6 @@ using aztec3::circuits::abis::FunctionData;
 
 using aztec3::circuits::apps::UTXOSLoadDatum;
 
-using aztec3::utils::types::CircuitTypes;
 using NT = aztec3::utils::types::NativeTypes;
 
 /// Note: the server will always serve NATIVE types to the circuit, since eventually we'll be passing data to Noir (so

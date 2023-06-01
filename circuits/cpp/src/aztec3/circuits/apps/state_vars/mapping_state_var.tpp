@@ -1,5 +1,5 @@
 #pragma once
-// #include <barretenberg/common/container.hpp>
+
 // #include "oracle_wrapper.hpp"
 // #include "private_state_note.hpp"
 // #include "private_state_note_preimage.hpp"
@@ -7,19 +7,15 @@
 
 #include "../function_execution_context.hpp"
 
-#include <barretenberg/plonk/composer/turbo_plonk_composer.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/common/streams.hpp>
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/crypto/generators/generator_data.hpp>
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 using aztec3::circuits::apps::FunctionExecutionContext;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::apps::state_vars {
 
@@ -78,16 +74,17 @@ std::tuple<typename CircuitTypes<Composer>::grumpkin_point, bool> MappingStateVa
 
     std::vector<std::pair<fr, generator_index_t>> input_pairs;
 
-    input_pairs.push_back(std::make_pair(this->start_slot,
-                                         generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT,
-                                                             0 }))); // hash_sub_index 0 is reserved for the start_slot.
+    input_pairs.push_back(
+        std::make_pair(this->start_slot,
+                       generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT,
+                                           0 })));  // hash_sub_index 0 is reserved for the start_slot.
 
     if (key) {
         input_pairs.push_back(std::make_pair(
             *key,
             generator_index_t(
                 { StorageSlotGeneratorIndex::MAPPING_SLOT,
-                  this->level_of_container_nesting }))); // hash_sub_index 0 is reserved for the start_slot.
+                  this->level_of_container_nesting })));  // hash_sub_index 0 is reserved for the start_slot.
     } else {
         // If this mapping key has no mapping_key_value (std::nullopt), then we must be partially committing and
         // omitting this mapping key from that partial commitment.
@@ -145,4 +142,4 @@ template <typename Composer, typename V> V& MappingStateVar<Composer, V>::at(std
     return this->value_cache[lookup];
 }
 
-}; // namespace aztec3::circuits::apps::state_vars
+};  // namespace aztec3::circuits::apps::state_vars

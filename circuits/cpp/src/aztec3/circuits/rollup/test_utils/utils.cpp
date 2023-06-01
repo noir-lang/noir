@@ -1,19 +1,15 @@
 #include "utils.hpp"
 
-#include "init.hpp"
 #include "nullifier_tree_testing_harness.hpp"
 
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/rollup/root/root_rollup_public_inputs.hpp"
+#include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/rollup/base/init.hpp"
 #include "aztec3/constants.hpp"
-#include <aztec3/circuits/kernel/private/utils.hpp>
-#include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/stdlib/merkle_tree/memory_store.hpp"
-#include "barretenberg/stdlib/merkle_tree/merkle_tree.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 #include <set>
 #include <utility>

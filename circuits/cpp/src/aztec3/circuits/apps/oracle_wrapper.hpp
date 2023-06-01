@@ -1,12 +1,13 @@
 #pragma once
-#include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/abis/contract_deployment_data.hpp>
-#include <aztec3/oracle/oracle.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 
-#include <barretenberg/common/map.hpp>
+#include "aztec3/circuits/abis/call_context.hpp"
+#include "aztec3/circuits/abis/contract_deployment_data.hpp"
+#include "aztec3/oracle/oracle.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
+
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::apps {
 

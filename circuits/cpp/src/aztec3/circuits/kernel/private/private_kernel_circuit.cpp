@@ -6,7 +6,7 @@
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 
-#include "barretenberg/stdlib/primitives/field/array.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 

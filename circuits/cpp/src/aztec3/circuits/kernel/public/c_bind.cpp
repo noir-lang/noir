@@ -3,16 +3,14 @@
 #include "index.hpp"
 #include "init.hpp"
 
+#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
+#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp"
+#include "aztec3/constants.hpp"
 #include "aztec3/utils/dummy_composer.hpp"
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp>
-#include <aztec3/constants.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/common/serialize.hpp>
-#include <barretenberg/serialize/cbind.hpp>
-#include <barretenberg/srs/reference_string/env_reference_string.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 using Composer = plonk::UltraPlonkComposer;

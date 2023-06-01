@@ -1,15 +1,13 @@
 #pragma once
 
 #include "public_call_data.hpp"
-#include "../previous_kernel_data.hpp"
 #include "../signed_tx_request.hpp"
 
 #include "aztec3/circuits/abis/combined_historic_tree_roots.hpp"
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis::public_kernel {
 

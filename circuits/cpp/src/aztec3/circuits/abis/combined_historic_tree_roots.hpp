@@ -1,18 +1,17 @@
 #pragma once
 #include "private_historic_tree_roots.hpp"
 
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
 
 using aztec3::circuits::abis::PrivateHistoricTreeRoots;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct CombinedHistoricTreeRoots {

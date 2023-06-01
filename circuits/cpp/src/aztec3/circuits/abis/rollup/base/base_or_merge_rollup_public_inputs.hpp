@@ -1,16 +1,10 @@
 #pragma once
+
 #include "../../append_only_tree_snapshot.hpp"
 #include "../constant_rollup_data.hpp"
 
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-
 namespace aztec3::circuits::abis {
 
-using aztec3::utils::types::CircuitTypes;
-using aztec3::utils::types::NativeTypes;
-using std::is_same;
 
 const uint32_t BASE_ROLLUP_TYPE = 0;
 const uint32_t MERGE_ROLLUP_TYPE = 1;

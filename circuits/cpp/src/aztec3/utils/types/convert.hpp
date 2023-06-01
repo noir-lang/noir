@@ -3,9 +3,7 @@
 #include "circuit_types.hpp"
 #include "native_types.hpp"
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/primitives/point/point.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <array>
 

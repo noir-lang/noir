@@ -4,15 +4,16 @@
 
 #include "aztec3/utils/dummy_composer.hpp"
 
+#include <barretenberg/barretenberg.hpp>
+
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::abis::BaseOrMergeRollupPublicInputs;
 using aztec3::circuits::abis::MergeRollupInputs;
 using aztec3::circuits::rollup::merge::merge_rollup_circuit;
-
 }  // namespace
-#define WASM_EXPORT __attribute__((visibility("default")))
+
 // WASM Cbinds
 extern "C" {
 

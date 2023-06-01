@@ -3,8 +3,7 @@
 
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 
-#include <barretenberg/common/serialize.hpp>
-#include <barretenberg/serialize/cbind.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
 

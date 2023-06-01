@@ -1,12 +1,10 @@
 #pragma once
 
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/common/streams.hpp>
-#include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::apps::notes {
 

@@ -1,7 +1,6 @@
 #include "nullifier_tree_testing_harness.hpp"
 
-#include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp>
-#include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_memory_tree.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <cstdint>
 #include <tuple>

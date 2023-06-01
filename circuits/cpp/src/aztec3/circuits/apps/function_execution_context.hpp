@@ -5,15 +5,14 @@
 #include "notes/note_interface.hpp"
 #include "opcodes/opcodes.hpp"
 
-#include <aztec3/circuits/abis/call_stack_item.hpp>
-#include <aztec3/circuits/abis/function_data.hpp>
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/types.hpp>
-#include <aztec3/constants.hpp>
-#include <aztec3/utils/types/convert.hpp>
+#include "aztec3/circuits/abis/call_stack_item.hpp"
+#include "aztec3/circuits/abis/function_data.hpp"
+#include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/types.hpp"
+#include "aztec3/constants.hpp"
+#include "aztec3/utils/types/convert.hpp"
 
-#include <barretenberg/common/container.hpp>
-#include <barretenberg/stdlib/primitives/field/array.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::apps {
 

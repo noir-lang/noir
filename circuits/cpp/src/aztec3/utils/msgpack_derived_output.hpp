@@ -1,6 +1,6 @@
 #pragma once
 
-#include <barretenberg/serialize/msgpack.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <iostream>
 #include <string>

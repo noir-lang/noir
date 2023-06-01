@@ -1,27 +1,9 @@
 #pragma once
+
+// TODO(dbanks12) consider removing this include which is used by consumers of circuit_types.hpp
 #include "native_types.hpp"
 
-#include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp>
-#include <barretenberg/stdlib/encryption/schnorr/schnorr.hpp>
-#include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
-#include <barretenberg/stdlib/hash/blake3s/blake3s.hpp>
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/primitives/address/address.hpp>
-#include <barretenberg/stdlib/primitives/bigfield/bigfield.hpp>
-#include <barretenberg/stdlib/primitives/biggroup/biggroup.hpp>
-#include <barretenberg/stdlib/primitives/bit_array/bit_array.hpp>
-#include <barretenberg/stdlib/primitives/bool/bool.hpp>
-#include <barretenberg/stdlib/primitives/byte_array/byte_array.hpp>
-#include <barretenberg/stdlib/primitives/curves/bn254.hpp>
-#include <barretenberg/stdlib/primitives/group/group.hpp>
-#include <barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
-#include <barretenberg/stdlib/primitives/point/point.hpp>
-#include <barretenberg/stdlib/primitives/uint/uint.hpp>
-#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
-#include <barretenberg/stdlib/recursion/verification_key/verification_key.hpp>
-#include <barretenberg/stdlib/recursion/verifier/program_settings.hpp>
-#include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 using namespace proof_system::plonk;
 

@@ -2,12 +2,12 @@
 
 #include "../opcodes/opcodes.hpp"
 
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::apps::state_vars {
 
@@ -30,4 +30,4 @@ void UTXOStateVar<Composer, Note>::insert(typename Note::NotePreimage new_note_p
     Opcodes<Composer>::template UTXO_SSTORE<Note>(this, new_note_preimage);
 };
 
-} // namespace aztec3::circuits::apps::state_vars
+}  // namespace aztec3::circuits::apps::state_vars

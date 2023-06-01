@@ -1,22 +1,22 @@
 #pragma once
 
+#include "../state_vars/state_var_base.hpp"
+#include "../state_vars/utxo_set_state_var.hpp"
+#include "../state_vars/utxo_state_var.hpp"
 #include "../function_execution_context.hpp"
 #include "../utxo_datum.hpp"
 
-#include "../state_vars/state_var_base.hpp"
-#include "../state_vars/utxo_state_var.hpp"
-#include "../state_vars/utxo_set_state_var.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 // Declared here, so that `opcodes.hpp` doesn't see it; thereby preventing circular dependencies.
 using aztec3::circuits::apps::state_vars::StateVar;
 using aztec3::circuits::apps::state_vars::UTXOSetStateVar;
 using aztec3::circuits::apps::state_vars::UTXOStateVar;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::apps::opcodes {
 
@@ -26,8 +26,7 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
-template <typename Composer>
-template <typename Note>
+template <typename Composer> template <typename Note>
 Note Opcodes<Composer>::UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var,
                                    typename Note::NotePreimage const& advice)
 {
@@ -60,8 +59,7 @@ Note Opcodes<Composer>::UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var,
     return new_note;
 };
 
-template <typename Composer>
-template <typename Note>
+template <typename Composer> template <typename Note>
 std::vector<Note> Opcodes<Composer>::UTXO_SLOAD(UTXOSetStateVar<Composer, Note>* utxo_set_state_var,
                                                 size_t const& num_notes,
                                                 typename Note::NotePreimage const& advice)
@@ -105,8 +103,7 @@ std::vector<Note> Opcodes<Composer>::UTXO_SLOAD(UTXOSetStateVar<Composer, Note>*
     return new_notes;
 };
 
-template <typename Composer>
-template <typename Note>
+template <typename Composer> template <typename Note>
 void Opcodes<Composer>::UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_nullify)
 {
     typename CT::fr const nullifier = note_to_nullify.get_nullifier();
@@ -120,8 +117,7 @@ void Opcodes<Composer>::UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_n
     exec_ctx->nullified_notes.push_back(nullified_note_ptr);
 };
 
-template <typename Composer>
-template <typename Note>
+template <typename Composer> template <typename Note>
 void Opcodes<Composer>::UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_initialise)
 {
     typename CT::fr const init_nullifier = note_to_initialise.get_initialisation_nullifier();
@@ -138,8 +134,7 @@ void Opcodes<Composer>::UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_i
     exec_ctx->new_notes.push_back(init_note_ptr);
 };
 
-template <typename Composer>
-template <typename Note>
+template <typename Composer> template <typename Note>
 void Opcodes<Composer>::UTXO_SSTORE(StateVar<Composer>* state_var, typename Note::NotePreimage new_note_preimage)
 {
     auto& exec_ctx = state_var->exec_ctx;
@@ -151,4 +146,4 @@ void Opcodes<Composer>::UTXO_SSTORE(StateVar<Composer>* state_var, typename Note
     exec_ctx->new_notes.push_back(new_note_ptr);
 };
 
-} // namespace aztec3::circuits::apps::opcodes
+}  // namespace aztec3::circuits::apps::opcodes

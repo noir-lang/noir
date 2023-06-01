@@ -1,12 +1,10 @@
 #pragma once
 
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
 
 namespace aztec3::circuits::apps::notes {
 
 using aztec3::utils::types::CircuitTypes;
-using aztec3::utils::types::NativeTypes;
 
 /**
  * Note: The methods in this interface must be implemented by the derived Note types, even if such note types don't

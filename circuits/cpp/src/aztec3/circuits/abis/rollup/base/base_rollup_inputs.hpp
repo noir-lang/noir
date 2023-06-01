@@ -7,16 +7,9 @@
 
 #include "aztec3/constants.hpp"
 
-#include <barretenberg/serialize/msgpack.hpp>
-
-#include <math.h>
-
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
-
-using aztec3::utils::types::CircuitTypes;
-using aztec3::utils::types::NativeTypes;
-using std::is_same;
 
 template <typename NCT> struct BaseRollupInputs {
     using fr = typename NCT::fr;

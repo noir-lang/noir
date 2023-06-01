@@ -3,42 +3,19 @@
 #include "init.hpp"
 
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
-#include "aztec3/circuits/abis/membership_witness.hpp"
+#include "aztec3/circuits/abis/combined_accumulated_data.hpp"
+#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/rollup/merge/previous_rollup_data.hpp"
-#include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/rollup/base/init.hpp"
-#include "aztec3/circuits/rollup/base/native_base_rollup_circuit.hpp"
 #include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/dummy_composer.hpp"
-#include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/abis/call_stack_item.hpp>
-#include <aztec3/circuits/abis/combined_accumulated_data.hpp>
-#include <aztec3/circuits/abis/combined_constant_data.hpp>
-#include <aztec3/circuits/abis/combined_historic_tree_roots.hpp>
-#include <aztec3/circuits/abis/contract_deployment_data.hpp>
-#include <aztec3/circuits/abis/function_data.hpp>
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/private_historic_tree_roots.hpp>
-#include <aztec3/circuits/abis/private_kernel/globals.hpp>
-#include <aztec3/circuits/abis/signed_tx_request.hpp>
-#include <aztec3/circuits/abis/tx_context.hpp>
-#include <aztec3/circuits/abis/tx_request.hpp>
-#include <aztec3/circuits/apps/function_execution_context.hpp>
-#include <aztec3/circuits/apps/test_apps/basic_contract_deployment/basic_contract_deployment.hpp>
-#include <aztec3/circuits/apps/test_apps/escrow/deposit.hpp>
-#include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 
-#include "barretenberg/crypto/sha256/sha256.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/common/test.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
 

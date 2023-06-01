@@ -4,16 +4,10 @@
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/rollup/merge/previous_rollup_data.hpp"
 #include "aztec3/constants.hpp"
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
 
 #include <ostream>
 
 namespace aztec3::circuits::abis {
-
-using aztec3::utils::types::CircuitTypes;
-using aztec3::utils::types::NativeTypes;
 
 // TODO: The copy constructor for this struct may throw memory access out of bounds
 // Hit when running aztec3-packages/yarn-project/circuits.js/src/rollup/rollup_wasm_wrapper.test.ts."calls

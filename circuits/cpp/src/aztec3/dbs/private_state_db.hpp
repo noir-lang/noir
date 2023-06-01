@@ -1,8 +1,9 @@
 // // TODO: move the leveldb_store to a more neutral module.
-// #include <barretenberg/stdlib/merkle_tree/leveldb_store.hpp>
-// #include <aztec3/utils/types/native_types.hpp>
-// #include <barretenberg/crypto/pedersen/pedersen.hpp>
 // #include "../constants.hpp"
+
+// #include "aztec3/utils/types/native_types.hpp"
+
+// #include <barretenberg/barretenberg.hpp>
 
 // namespace aztec3::db {
 

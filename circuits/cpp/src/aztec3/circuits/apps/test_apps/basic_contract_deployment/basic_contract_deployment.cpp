@@ -2,7 +2,7 @@
 
 #include "contract.hpp"
 
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+#include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
 
 namespace aztec3::circuits::apps::test_apps::basic_contract_deployment {
 

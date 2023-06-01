@@ -5,7 +5,7 @@
 #include "aztec3/circuits/abis/public_data_update_request.hpp"
 #include "aztec3/constants.hpp"
 
-#include "barretenberg/numeric/uint256/uint256.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::rollup::test_utils::utils {
 

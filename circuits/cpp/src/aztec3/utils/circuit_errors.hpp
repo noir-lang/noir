@@ -1,7 +1,6 @@
 #pragma once
-#include "aztec3/utils/types/circuit_types.hpp"
 
-#include <barretenberg/serialize/msgpack.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <variant>
 

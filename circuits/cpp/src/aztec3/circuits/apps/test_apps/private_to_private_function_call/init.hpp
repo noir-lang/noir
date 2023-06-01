@@ -1,14 +1,14 @@
 #pragma once
 
-#include <aztec3/circuits/apps/contract.hpp>
-#include <aztec3/circuits/apps/function_execution_context.hpp>
-#include <aztec3/circuits/apps/notes/default_singleton_private_note/note.hpp>
-#include <aztec3/circuits/apps/oracle_wrapper.hpp>
-#include <aztec3/circuits/apps/state_vars/utxo_state_var.hpp>
-#include <aztec3/oracle/oracle.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/circuits/apps/contract.hpp"
+#include "aztec3/circuits/apps/function_execution_context.hpp"
+#include "aztec3/circuits/apps/notes/default_singleton_private_note/note.hpp"
+#include "aztec3/circuits/apps/oracle_wrapper.hpp"
+#include "aztec3/circuits/apps/state_vars/utxo_state_var.hpp"
+#include "aztec3/oracle/oracle.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 

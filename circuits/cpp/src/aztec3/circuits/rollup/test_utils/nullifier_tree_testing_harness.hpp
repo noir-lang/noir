@@ -1,13 +1,14 @@
 #pragma once
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include "barretenberg/stdlib/merkle_tree/hash.hpp"
-#include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
-#include "barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp"
-#include "barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_memory_tree.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 #include <tuple>
 
+namespace {
+using aztec3::utils::types::NativeTypes;
+}  // namespace
 /**
  * A version of the nullifier memory tree with extra methods specific to testing our rollup circuits.
  */

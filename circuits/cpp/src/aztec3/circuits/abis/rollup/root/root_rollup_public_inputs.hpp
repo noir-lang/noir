@@ -1,20 +1,15 @@
-
 #pragma once
 
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include "barretenberg/crypto/sha256/sha256.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 #include <ostream>
 
 namespace aztec3::circuits::abis {
-
-using aztec3::utils::types::CircuitTypes;
-using aztec3::utils::types::NativeTypes;
-
 
 template <typename NCT> struct RootRollupPublicInputs {
     using fr = typename NCT::fr;

@@ -6,10 +6,7 @@
 #include "aztec3/circuits/abis/signed_tx_request.hpp"
 #include "aztec3/circuits/hash.hpp"
 
-#include <barretenberg/common/serialize.hpp>
-#include <barretenberg/numeric/random/engine.hpp>
-#include <barretenberg/serialize/test_helper.hpp>
-#include <barretenberg/stdlib/merkle_tree/membership.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
 

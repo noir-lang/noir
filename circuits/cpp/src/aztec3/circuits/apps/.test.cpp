@@ -1,10 +1,4 @@
 
-// #include <barretenberg/common/serialize.hpp>
-// #include <barretenberg/stdlib/types/types.hpp>
-// #include <barretenberg/numeric/random/engine.hpp>
-
-#include <barretenberg/common/test.hpp>
-
 #include <gtest/gtest.h>
 
 // #include "utxo_state_var.hpp"
@@ -12,7 +6,6 @@
 #include "contract.hpp"
 #include "function_execution_context.hpp"
 #include "oracle_wrapper.hpp"
-#include "utxo_datum.hpp"
 #include "notes/default_private_note/note.hpp"
 #include "notes/default_private_note/note_preimage.hpp"
 #include "notes/default_singleton_private_note/note.hpp"
@@ -23,10 +16,12 @@
 #include "state_vars/utxo_set_state_var.hpp"
 #include "state_vars/utxo_state_var.hpp"
 
-#include <aztec3/oracle/oracle.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/oracle/oracle.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
+
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 // Composer

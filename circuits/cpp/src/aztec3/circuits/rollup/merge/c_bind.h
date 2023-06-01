@@ -1,7 +1,9 @@
-#include <cstdint>
-#include <cstddef>
+#pragma once
 
-#define WASM_EXPORT __attribute__((visibility("default")))
+#include <barretenberg/barretenberg.hpp>
+
+#include <cstddef>
+#include <cstdint>
 
 extern "C" {
 

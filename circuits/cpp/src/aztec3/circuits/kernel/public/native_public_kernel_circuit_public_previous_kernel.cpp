@@ -3,10 +3,10 @@
 #include "common.hpp"
 #include "init.hpp"
 
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp>
-#include <aztec3/utils/array.hpp>
-#include <aztec3/utils/dummy_composer.hpp>
+#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
+#include "aztec3/utils/array.hpp"
+#include "aztec3/utils/dummy_composer.hpp"
 
 namespace {
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;

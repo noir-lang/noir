@@ -1,7 +1,6 @@
 #pragma once
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/primitives/field/field.hpp>
+
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::mock {
 

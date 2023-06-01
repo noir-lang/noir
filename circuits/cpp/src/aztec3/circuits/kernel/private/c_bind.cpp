@@ -6,8 +6,7 @@
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 
-#include "barretenberg/srs/reference_string/env_reference_string.hpp"
-#include <barretenberg/serialize/cbind.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 using Composer = plonk::UltraPlonkComposer;

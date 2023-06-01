@@ -3,21 +3,15 @@
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/public_data_read.hpp"
 #include "aztec3/circuits/abis/public_data_update_request.hpp"
+#include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
+#include "aztec3/circuits/abis/rollup/base/base_rollup_inputs.hpp"
+#include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
-#include <aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp>
-#include <aztec3/circuits/abis/rollup/base/base_rollup_inputs.hpp>
-#include <aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp>
 
-#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
-#include "barretenberg/crypto/sha256/sha256.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
-#include "barretenberg/stdlib/merkle_tree/membership.hpp"
-#include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
-#include "barretenberg/stdlib/merkle_tree/merkle_tree.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 #include <algorithm>
 #include <array>

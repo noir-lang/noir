@@ -2,12 +2,9 @@
 
 #include "../function_execution_context.hpp"
 
-#include <barretenberg/plonk/composer/turbo_plonk_composer.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
 
-#include <barretenberg/crypto/generators/generator_data.hpp>
-
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 using aztec3::circuits::apps::FunctionExecutionContext;
@@ -20,8 +17,7 @@ using crypto::generators::generator_index_t;
 
 template <typename Composer>
 StateVar<Composer>::StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
-    : exec_ctx(exec_ctx)
-    , state_var_name(state_var_name)
+    : exec_ctx(exec_ctx), state_var_name(state_var_name)
 {
     // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
     // this ^ linter rule breaks things here here
@@ -38,4 +34,4 @@ template <typename Composer> typename CircuitTypes<Composer>::grumpkin_point Sta
 
 // template class PrivateStateVar<Composer>;
 
-}; // namespace aztec3::circuits::apps::state_vars
+};  // namespace aztec3::circuits::apps::state_vars

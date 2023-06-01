@@ -5,13 +5,12 @@
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 
-#include "barretenberg/serialize/msgpack.hpp"
-#include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include <barretenberg/barretenberg.hpp>
+
 namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct NewContractData {

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps {

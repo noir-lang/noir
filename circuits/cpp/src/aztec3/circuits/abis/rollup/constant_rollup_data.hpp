@@ -1,13 +1,10 @@
 #pragma once
+
 #include "../append_only_tree_snapshot.hpp"
 
-#include <barretenberg/serialize/msgpack.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
-
-using aztec3::utils::types::CircuitTypes;
-using aztec3::utils::types::NativeTypes;
-using std::is_same;
 
 template <typename NCT> struct ConstantRollupData {
     using fr = typename NCT::fr;

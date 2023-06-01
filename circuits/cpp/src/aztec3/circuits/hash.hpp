@@ -1,12 +1,12 @@
 #pragma once
 
+#include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
-#include <aztec3/circuits/abis/function_data.hpp>
-#include <aztec3/circuits/abis/new_contract_data.hpp>
-#include <aztec3/constants.hpp>
-#include <aztec3/utils/circuit_errors.hpp>
+#include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/constants.hpp"
+#include "aztec3/utils/circuit_errors.hpp"
 
-#include "barretenberg/crypto/sha256/sha256.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 #include <array>
 

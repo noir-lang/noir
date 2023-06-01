@@ -25,10 +25,7 @@
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/common/test.hpp>
-#include <barretenberg/serialize/test_helper.hpp>
-#include <barretenberg/stdlib/merkle_tree/membership.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
 

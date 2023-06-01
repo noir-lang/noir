@@ -1,14 +1,8 @@
 #pragma once
 
-#include "aztec3/utils/types/circuit_types.hpp"
-
-#include <barretenberg/serialize/msgpack.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
-
-using aztec3::utils::types::CircuitTypes;
-using aztec3::utils::types::NativeTypes;
-using std::is_same;
 
 template <typename NCT> struct AppendOnlyTreeSnapshot {
     using fr = typename NCT::fr;

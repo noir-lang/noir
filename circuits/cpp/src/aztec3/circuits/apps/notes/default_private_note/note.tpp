@@ -1,28 +1,20 @@
 #include "note_preimage.hpp"
 #include "nullifier_preimage.hpp"
-
+#include "../../opcodes/opcodes.hpp"
+#include "../../oracle_wrapper.hpp"
+#include "../../state_vars/state_var_base.hpp"
 #include "../note_interface.hpp"
 
-#include "../../oracle_wrapper.hpp"
-#include "../../opcodes/opcodes.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include "../../state_vars/state_var_base.hpp"
-
-#include <barretenberg/crypto/generators/generator_data.hpp>
-
-#include <barretenberg/plonk/composer/turbo_plonk_composer.hpp>
-
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-#include <aztec3/utils/types/native_types.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
 using aztec3::circuits::apps::state_vars::StateVar;
-} // namespace
+}  // namespace
 
 namespace aztec3::circuits::apps::notes {
 
@@ -75,16 +67,18 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_com
 
     auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
         if (!input) {
-            throw_or_abort("Cannot commit to a partial preimage. Call compute_partial_commitment instead, or complete "
-                           "the preimage.");
+            throw_or_abort(
+                "Cannot commit to a partial preimage. Call compute_partial_commitment instead, or complete "
+                "the preimage.");
         }
         return std::make_pair((*input).to_field(), generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }));
     };
 
     auto gen_pair_fr = [&](std::optional<fr> const& input, size_t const hash_sub_index) {
         if (!input) {
-            throw_or_abort("Cannot commit to a partial preimage. Call compute_partial_commitment instead, or complete "
-                           "the preimage.");
+            throw_or_abort(
+                "Cannot commit to a partial preimage. Call compute_partial_commitment instead, or complete "
+                "the preimage.");
         }
         return std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }));
     };
@@ -285,4 +279,4 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::generate_no
     return *(note_preimage.nonce);
 };
 
-} // namespace aztec3::circuits::apps::notes
+}  // namespace aztec3::circuits::apps::notes

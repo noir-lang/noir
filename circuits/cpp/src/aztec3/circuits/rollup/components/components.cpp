@@ -4,11 +4,7 @@
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
-#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
-#include "barretenberg/crypto/sha256/sha256.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
-#include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
+#include <barretenberg/barretenberg.hpp>
 
 #include <algorithm>
 #include <array>

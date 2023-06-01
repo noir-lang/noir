@@ -1,21 +1,6 @@
 #pragma once
-#include <barretenberg/crypto/blake2s/blake2s.hpp>
-#include <barretenberg/crypto/blake3s/blake3s.hpp>
-#include <barretenberg/crypto/ecdsa/ecdsa.hpp>
-#include <barretenberg/crypto/generators/generator_data.hpp>
-#include <barretenberg/crypto/pedersen_commitment/pedersen.hpp>
-#include <barretenberg/crypto/schnorr/schnorr.hpp>
-#include <barretenberg/ecc/curves/bn254/fq.hpp>
-#include <barretenberg/ecc/curves/bn254/fr.hpp>
-#include <barretenberg/ecc/curves/bn254/g1.hpp>
-#include <barretenberg/ecc/curves/grumpkin/grumpkin.hpp>
-#include <barretenberg/numeric/uint256/uint256.hpp>
-#include <barretenberg/plonk/proof_system/types/proof.hpp>
-#include <barretenberg/plonk/proof_system/verification_key/verification_key.hpp>
-#include <barretenberg/stdlib/primitives/address/address.hpp>
-#include <barretenberg/stdlib/recursion/aggregation_state/native_aggregation_state.hpp>
-#include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
 
+#include <barretenberg/barretenberg.hpp>
 namespace aztec3::utils::types {
 
 struct NativeTypes {

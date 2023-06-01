@@ -1,14 +1,9 @@
 #pragma once
-#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/numeric/random/engine.hpp>
-#include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
-#include <barretenberg/stdlib/primitives/field/field.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
-// #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

@@ -1,12 +1,10 @@
 #pragma once
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
-#include <aztec3/utils/types/circuit_types.hpp>
-#include <aztec3/utils/types/convert.hpp>
-#include <aztec3/utils/types/native_types.hpp>
+#include "aztec3/utils/types/circuit_types.hpp"
+#include "aztec3/utils/types/convert.hpp"
+#include "aztec3/utils/types/native_types.hpp"
 
-#include <barretenberg/plonk/proof_system/types/proof.hpp>
-#include <barretenberg/srs/reference_string/env_reference_string.hpp>
-#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
 
