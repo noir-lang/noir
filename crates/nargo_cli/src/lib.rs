@@ -13,7 +13,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[allow(unused)]
 mod backends;
 pub mod cli;
 mod constants;
