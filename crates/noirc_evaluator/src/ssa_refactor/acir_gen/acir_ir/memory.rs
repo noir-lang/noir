@@ -65,6 +65,18 @@ impl Memory {
         array.elements[index].ok_or(AcirGenError::UninitializedElementInArray { index, array_id })
     }
 
+    /// Gets all elements at the array that `ArrayId` points to.
+    ///
+    /// This requires all elements of the array to have been initialized.
+    pub(crate) fn constant_get_all(&self, array_id: ArrayId) -> Result<Vec<AcirVar>, AcirGenError> {
+        let array = &self.arrays[array_id];
+        let mut elements = Vec::new();
+        for index in 0..array.size() {
+            elements.push(self.constant_get(array_id, index)?);
+        }
+        Ok(elements)
+    }
+
     /// Check if the index is larger than the array size
     fn check_bounds(index: usize, array_size: usize) -> Result<(), AcirGenError> {
         if index < array_size {

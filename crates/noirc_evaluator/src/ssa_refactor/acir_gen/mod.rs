@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use self::acir_ir::{
-    acir_variable::{AcirContext, AcirVar},
+    acir_variable::{AcirContext, AcirVar, BlackboxArg},
     memory::ArrayId,
 };
 use super::{
@@ -185,18 +185,7 @@ impl Context {
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Call { func, arguments } => {
-                let intrinsic = Self::id_to_intrinsic(*func, dfg);
-                let black_box = match intrinsic {
-                    Intrinsic::BlackBox(black_box) => black_box,
-                    _ => todo!("expected a black box function"),
-                };
-
-                let inputs = vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
-                let outputs = self
-                    .acir_context
-                    .black_box_function(black_box, inputs)
-                    .expect("add Result types to all methods so errors bubble up");
-
+                let outputs = self.convert_ssa_call(*func, arguments, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 (result_ids.to_vec(), outputs)
             }
@@ -335,6 +324,37 @@ impl Context {
                 .expect("invalid range constraint was applied {numeric_type}"),
             _ => unimplemented!("The cast operation is only valid for integers."),
         }
+    }
+
+    /// Returns the a vector of `AcirVar`s constrained to be result of the function call.
+    ///
+    /// The function being called is required to be intrinsic.
+    fn convert_ssa_call(
+        &mut self,
+        func: ValueId,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Vec<AcirVar> {
+        let intrinsic = Self::id_to_intrinsic(func, dfg);
+        let black_box = match intrinsic {
+            Intrinsic::BlackBox(black_box) => black_box,
+            _ => todo!("expected a black box function"),
+        };
+        let inputs = vecmap(arguments, |value_id| {
+            if Self::value_is_array_address(*value_id, dfg) {
+                let (array_id, index) = self
+                    .ssa_value_to_array_address
+                    .get(value_id)
+                    .expect("ICE: Call argument of undeclared array");
+                assert_eq!(index, &0, "ICE: Call arguments only accept arrays in their entirety");
+                BlackboxArg::ArrayId(*array_id)
+            } else {
+                BlackboxArg::AcirVar(self.convert_ssa_value(*value_id, dfg))
+            }
+        });
+        self.acir_context
+            .black_box_function(black_box, inputs)
+            .expect("add Result types to all methods so errors bubble up")
     }
 
     /// Stores the `AcirVar` corresponding to `value` at the `ArrayId` and index corresponding to

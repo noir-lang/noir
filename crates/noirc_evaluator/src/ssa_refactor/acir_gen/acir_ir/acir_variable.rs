@@ -16,6 +16,13 @@ use acvm::{
 use iter_extended::vecmap;
 use std::{borrow::Cow, collections::HashMap, hash::Hash};
 
+/// Arguments to blackbox function can be either numerics or arrays. When constructing the input
+/// to a blackbox this enum is used to distinguish between the two.
+pub(crate) enum BlackboxArg {
+    AcirVar(AcirVar),
+    ArrayId(ArrayId),
+}
+
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
@@ -443,7 +450,7 @@ impl AcirContext {
     pub(crate) fn black_box_function(
         &mut self,
         name: BlackBoxFunc,
-        inputs: Vec<AcirVar>,
+        inputs: Vec<BlackboxArg>,
     ) -> Result<Vec<AcirVar>, AcirGenError> {
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(&inputs)?;
@@ -462,58 +469,78 @@ impl AcirContext {
         Ok(outputs_var)
     }
 
+    /// Flattens the blackbox call's argument list and prepares the flattened list elements into
+    /// the `FunctionInput` format.
+    fn prepare_inputs_for_black_box_func_call(
+        &mut self,
+        arguments: &[BlackboxArg],
+    ) -> Result<Vec<FunctionInput>, AcirGenError> {
+        let mut witnesses = Vec::new();
+        for arg in arguments {
+            match arg {
+                BlackboxArg::AcirVar(acir_var) => {
+                    witnesses.push(self.prepare_input_element_for_black_box_func_call(acir_var)?);
+                }
+                BlackboxArg::ArrayId(array_id) => {
+                    for acir_var in self.memory.constant_get_all(*array_id)? {
+                        witnesses
+                            .push(self.prepare_input_element_for_black_box_func_call(&acir_var)?);
+                    }
+                }
+            }
+        }
+        Ok(witnesses)
+    }
+
     /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
     ///
     /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
-    fn prepare_inputs_for_black_box_func_call(
+    fn prepare_input_element_for_black_box_func_call(
         &mut self,
-        inputs: &[AcirVar],
-    ) -> Result<Vec<FunctionInput>, AcirGenError> {
-        let mut witnesses = Vec::new();
-        for input in inputs {
-            let var_data = &self.data[input];
+        input: &AcirVar,
+    ) -> Result<FunctionInput, AcirGenError> {
+        let var_data = &self.data[input];
 
-            // Intrinsics only accept Witnesses. This is not a limitation of the
-            // intrinsics, its just how we have defined things. Ideally, we allow
-            // constants too.
-            let expr = var_data.to_expression();
-            let witness = self.acir_ir.get_or_create_witness(&expr);
+        // Intrinsics only accept Witnesses. This is not a limitation of the
+        // intrinsics, its just how we have defined things. Ideally, we allow
+        // constants too.
+        let expr = var_data.to_expression();
+        let witness = self.acir_ir.get_or_create_witness(&expr);
 
-            // Fetch the number of bits for this variable
-            // If it has never been constrained before, then we will
-            // encounter None, and so we take the max number of bits for a
-            // field element.
-            let num_bits = match self.variables_to_bit_sizes.get(input) {
-                Some(bits) => {
-                    // In Noir, we specify the number of bits to take from the input
-                    // by doing the following:
-                    //
-                    // ```
-                    // call_intrinsic(x as u8)
-                    // ```
-                    //
-                    // The `as u8` specifies that we want to take 8 bits from the `x`
-                    // variable.
-                    //
-                    // There were discussions about the SSA IR optimizing out range
-                    // constraints. We would want to be careful with it here. For example:
-                    //
-                    // ```
-                    // let x : u32 = y as u32
-                    // call_intrinsic(x as u64)
-                    // ```
-                    // The `x as u64` is redundant since we know that `x` fits within a u32.
-                    // However, since the `x as u64` line is being used to tell the intrinsic
-                    // to take 64 bits, we cannot remove it.
+        // Fetch the number of bits for this variable
+        // If it has never been constrained before, then we will
+        // encounter None, and so we take the max number of bits for a
+        // field element.
+        let num_bits = match self.variables_to_bit_sizes.get(input) {
+            Some(bits) => {
+                // In Noir, we specify the number of bits to take from the input
+                // by doing the following:
+                //
+                // ```
+                // call_intrinsic(x as u8)
+                // ```
+                //
+                // The `as u8` specifies that we want to take 8 bits from the `x`
+                // variable.
+                //
+                // There were discussions about the SSA IR optimizing out range
+                // constraints. We would want to be careful with it here. For example:
+                //
+                // ```
+                // let x : u32 = y as u32
+                // call_intrinsic(x as u64)
+                // ```
+                // The `x as u64` is redundant since we know that `x` fits within a u32.
+                // However, since the `x as u64` line is being used to tell the intrinsic
+                // to take 64 bits, we cannot remove it.
 
-                    *bits
-                }
-                None => FieldElement::max_num_bits(),
-            };
+                *bits
+            }
+            None => FieldElement::max_num_bits(),
+        };
 
-            witnesses.push(FunctionInput { witness, num_bits });
-        }
-        Ok(witnesses)
+        let witness = FunctionInput { witness, num_bits };
+        Ok(witness)
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
