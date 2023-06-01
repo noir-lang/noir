@@ -6,20 +6,48 @@
 
 use acvm::acir::circuit::Circuit;
 use serde::{Deserializer, Serializer, Serialize, Deserialize};
-use base64;
-use flate2::write::GzEncoder;
-// use flate2::read::GzDecoder;
-use flate2::Compression;
-use std::io::prelude::*;
 
-use self::barretenberg_structures::ConstraintSystem;
-
-mod barretenberg_structures;
 pub mod contract;
 pub mod program;
 
-#[allow(unused)]
-fn serialize_circuit_bb<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
+#[cfg(feature = "bb_js")]
+mod barretenberg_structures;
+
+#[cfg(feature = "bb_js")]
+use {
+    
+    self::barretenberg_structures::ConstraintSystem,
+    base64,
+    flate2::write::GzEncoder,
+    flate2::read::GzDecoder,
+    flate2::Compression,
+    std::io::prelude::*,
+};
+
+// TODO: move these down into ACVM.
+#[cfg(not(feature = "bb_js"))]
+fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut circuit_bytes: Vec<u8> = Vec::new();
+    circuit.write(&mut circuit_bytes).unwrap();
+
+    circuit_bytes.serialize(s)
+}
+
+#[cfg(not(feature = "bb_js"))]
+fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let circuit_bytes = Vec::<u8>::deserialize(deserializer)?;
+    let circuit = Circuit::read(&*circuit_bytes).unwrap();
+    Ok(circuit)
+}
+
+#[cfg(feature = "bb_js")]
+fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -37,39 +65,19 @@ where
     s.serialize_str(&b64_string)
 }
 
-#[allow(unused)]
-fn deserialize_circuit_bb<'de, D>(_deserializer: D) -> Result<Circuit, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    panic!("Not supported");
-    // let b64_string = String::deserialize(deserializer)?;
-    // let compressed_bytes = base64::decode(b64_string).map_err(serde::de::Error::custom)?;
-
-    // let mut decoder = GzDecoder::new(&compressed_bytes[..]);
-    // let mut circuit_bytes = Vec::new();
-    // decoder.read_to_end(&mut circuit_bytes).unwrap();
-
-    // let circuit = Circuit::read(&*circuit_bytes).unwrap();
-    // Ok(circuit)
-}
-
-// TODO: move these down into ACVM.
-fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let mut circuit_bytes: Vec<u8> = Vec::new();
-    circuit.write(&mut circuit_bytes).unwrap();
-
-    circuit_bytes.serialize(s)
-}
-
+#[cfg(feature = "bb_js")]
 fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let circuit_bytes = Vec::<u8>::deserialize(deserializer)?;
+    // panic!("Not supported");
+    let b64_string = String::deserialize(deserializer)?;
+    let compressed_bytes = base64::decode(b64_string).map_err(serde::de::Error::custom)?;
+
+    let mut decoder = GzDecoder::new(&compressed_bytes[..]);
+    let mut circuit_bytes = Vec::new();
+    decoder.read_to_end(&mut circuit_bytes).unwrap();
+
     let circuit = Circuit::read(&*circuit_bytes).unwrap();
     Ok(circuit)
 }
