@@ -51,11 +51,6 @@ impl AcirContext {
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
-
-        if let Some(var) = self.data_reverse_map.get(&constant_data) {
-            return *var;
-        };
-
         self.add_data(constant_data)
     }
 
@@ -351,6 +346,49 @@ impl AcirContext {
         }
     }
 
+    /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
+    ///
+    /// We convert left shifts to multiplications, so this is equivalent to
+    /// `lhs * 2^rhs`.
+    ///
+    /// We currently require `rhs` to be a constant
+    /// however this can be extended, see #1478.
+    pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let rhs_data = &self.data[&rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.mul_var(lhs, two_pow_rhs_var)
+    }
+
+    /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
+    ///
+    /// We convert right shifts to divisions, so this is equivalent to
+    /// `lhs / 2^rhs`.
+    ///
+    /// We currently require `rhs` to be a constant
+    /// however this can be extended, see #1478.
+    ///
+    /// This code is doing a field division instead of an integer division,
+    /// see #1479 about how this is expected to change.
+    pub(crate) fn shift_right_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+        let rhs_data = &self.data[&rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.div_var(lhs, two_pow_rhs_var)
+    }
+
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) {
@@ -572,6 +610,9 @@ impl AcirContext {
     /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
         assert_eq!(self.data.len(), self.data_reverse_map.len());
+        if let Some(acir_var) = self.data_reverse_map.get(&data) {
+            return *acir_var;
+        }
 
         let id = AcirVar(self.data.len());
 
@@ -631,3 +672,18 @@ impl AcirVarData {
 /// A Reference to an `AcirVarData`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
+
+#[test]
+fn repeat_op() {
+    let mut ctx = AcirContext::default();
+
+    let var_a = ctx.add_variable();
+    let var_b = ctx.add_variable();
+
+    // Multiplying the same variables twice should yield
+    // the same output.
+    let var_c = ctx.mul_var(var_a, var_b);
+    let should_be_var_c = ctx.mul_var(var_a, var_b);
+
+    assert_eq!(var_c, should_be_var_c);
+}

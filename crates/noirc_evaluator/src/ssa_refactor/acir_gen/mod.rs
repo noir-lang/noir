@@ -199,7 +199,7 @@ impl Context {
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Call { func, arguments } => {
-                let outputs = self.convert_ssa_call(*func, arguments, dfg, allow_log_ops);
+                let outputs = self.convert_ssa_intrinsic_call(*func, arguments, dfg, allow_log_ops);
                 let result_ids = dfg.instruction_results(instruction_id);
                 (result_ids.to_vec(), outputs)
             }
@@ -312,6 +312,8 @@ impl Context {
                 .acir_context
                 .less_than_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs),
+            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs),
             BinaryOp::Xor => self
                 .acir_context
                 .xor_var(lhs, rhs)
@@ -340,10 +342,10 @@ impl Context {
         }
     }
 
-    /// Returns the a vector of `AcirVar`s constrained to be result of the function call.
+    /// Returns a vector of `AcirVar`s constrained to be result of the function call.
     ///
     /// The function being called is required to be intrinsic.
-    fn convert_ssa_call(
+    fn convert_ssa_intrinsic_call(
         &mut self,
         func: ValueId,
         arguments: &[ValueId],
