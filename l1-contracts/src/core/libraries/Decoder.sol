@@ -409,7 +409,9 @@ library Decoder {
     bytes32[] memory l1ToL2Msgs;
     bytes32 l1ToL2MsgsHash;
     {
-      uint256 l1ToL2MsgsHashPreimageSize = 0x20 * Constants.L1_TO_L2_MSGS_PER_ROLLUP;
+      // `l1ToL2Msgs` is fixed size so if `lengths.l1Tol2MsgsCount` < `Constants.L1_TO_L2_MSGS_PER_ROLLUP` the array
+      // will contain some zero values.
+      uint256 l1ToL2MsgsHashPreimageSize = 0x20 * lengths.l1Tol2MsgsCount;
       l1ToL2Msgs = new bytes32[](Constants.L1_TO_L2_MSGS_PER_ROLLUP);
       assembly {
         calldatacopy(
