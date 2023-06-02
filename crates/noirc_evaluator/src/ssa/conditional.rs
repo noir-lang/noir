@@ -578,6 +578,7 @@ impl DecisionTree {
                             return Ok(false);
                         }
                     } else {
+                        // we use a 0 index when the predicate is false, to avoid out-of-bound issues
                         let ass_value = Self::unwrap_predicate(ctx, &Some(ass_value));
                         let op = Operation::Cast(ass_value);
                         let pred = ctx.add_instruction(Instruction::new(
@@ -680,28 +681,33 @@ impl DecisionTree {
                         if !stack.is_new_array(ctx, array_id) && ctx.under_assumption(ass_value) {
                             let pred =
                                 Self::and_conditions(Some(ass_value), *predicate, stack, ctx);
-                            let op = Operation::Cast(Self::unwrap_predicate(ctx, &pred));
+                            // we use a 0 index when the predicate is false and index is not constant, to avoid out-of-bound issues
+                            let idx = if ctx.get_as_constant(*index).is_some() {
+                                *index
+                            } else {
+                                let op = Operation::Cast(Self::unwrap_predicate(ctx, &pred));
 
-                            let cast = ctx.add_instruction(Instruction::new(
-                                op,
-                                ctx.object_type(*index),
-                                Some(stack.block),
-                            ));
-                            stack.push(cast);
-                            let op = Operation::Binary(node::Binary {
-                                lhs: *index,
-                                rhs: cast,
-                                operator: BinaryOp::Mul,
-                                predicate: None,
-                            });
-                            let idx = ctx.add_instruction(Instruction::new(
-                                op,
-                                ObjectType::native_field(),
-                                Some(stack.block),
-                            ));
-                            optimizations::simplify_id(ctx, idx).unwrap();
-                            stack.push(idx);
-
+                                let cast = ctx.add_instruction(Instruction::new(
+                                    op,
+                                    ctx.object_type(*index),
+                                    Some(stack.block),
+                                ));
+                                stack.push(cast);
+                                let op = Operation::Binary(node::Binary {
+                                    lhs: *index,
+                                    rhs: cast,
+                                    operator: BinaryOp::Mul,
+                                    predicate: None,
+                                });
+                                let idx = ctx.add_instruction(Instruction::new(
+                                    op,
+                                    ObjectType::native_field(),
+                                    Some(stack.block),
+                                ));
+                                optimizations::simplify_id(ctx, idx).unwrap();
+                                stack.push(idx);
+                                idx
+                            };
                             let ins2 = ctx.instruction_mut(ins_id);
                             ins2.operation = Operation::Store {
                                 array_id: *array_id,
