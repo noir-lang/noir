@@ -1,3 +1,5 @@
+use crate::brillig::acvm_brillig::BrilligOpcode;
+
 use crate::ssa_refactor::ir::types::NumericType;
 
 use super::{
@@ -620,6 +622,10 @@ impl AcirContext {
         self.data_reverse_map.insert(data, id);
 
         id
+    }
+
+    pub(crate) fn brillig(&mut self, _code: Vec<BrilligOpcode>) {
+        todo!();
     }
 }
 

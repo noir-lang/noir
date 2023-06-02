@@ -68,7 +68,10 @@ impl PostOrder {
 #[cfg(test)]
 mod tests {
     use crate::ssa_refactor::ir::{
-        function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder,
+        function::{Function, RuntimeType},
+        instruction::TerminatorInstruction,
+        map::Id,
+        post_order::PostOrder,
         types::Type,
     };
 

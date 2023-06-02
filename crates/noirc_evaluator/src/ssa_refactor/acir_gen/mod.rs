@@ -11,6 +11,7 @@ use super::{
     abi_gen::collate_array_info,
     ir::{
         dfg::DataFlowGraph,
+        function::RuntimeType,
         instruction::{
             Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
         },
@@ -20,6 +21,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
+use crate::brillig::{artefact::BrilligArtefact, Brillig};
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -52,6 +54,7 @@ impl Ssa {
     pub(crate) fn into_acir(
         self,
         main_function_signature: FunctionSignature,
+        brillig: Brillig,
         allow_log_ops: bool,
     ) -> GeneratedAcir {
         let param_arrays_info: Vec<_> = collate_array_info(&main_function_signature.0)
@@ -60,7 +63,7 @@ impl Ssa {
             .collect();
 
         let context = Context::default();
-        context.convert_ssa(self, &param_arrays_info, allow_log_ops)
+        context.convert_ssa(self, &param_arrays_info, brillig, allow_log_ops)
     }
 }
 
@@ -84,6 +87,7 @@ impl Context {
         mut self,
         ssa: Ssa,
         param_array_info: &[(usize, NumericType)],
+        brillig: Brillig,
         allow_log_ops: bool,
     ) -> GeneratedAcir {
         assert_eq!(
@@ -98,7 +102,7 @@ impl Context {
         self.convert_ssa_block_params(entry_block.parameters(), dfg, param_array_info);
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, allow_log_ops);
+            self.convert_ssa_instruction(*instruction_id, dfg, &ssa, &brillig, allow_log_ops);
         }
 
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
@@ -173,6 +177,8 @@ impl Context {
         &mut self,
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
+        ssa: &Ssa,
+        brillig: &Brillig,
         allow_log_ops: bool,
     ) {
         let instruction = &dfg[instruction_id];
@@ -199,9 +205,34 @@ impl Context {
                 (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Call { func, arguments } => {
-                let outputs = self.convert_ssa_intrinsic_call(*func, arguments, dfg, allow_log_ops);
                 let result_ids = dfg.instruction_results(instruction_id);
-                (result_ids.to_vec(), outputs)
+                match &dfg[*func] {
+                    Value::Function(id) => {
+                        let func = &ssa.functions[id];
+                        match func.runtime() {
+                            RuntimeType::Acir => unimplemented!(
+                                "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
+                            ),
+                            RuntimeType::Brillig => {
+                                // Generate the brillig code of the function
+                                let code = BrilligArtefact::default().link(&brillig[*id]);
+                                self.acir_context.brillig(code);
+                                (result_ids.to_vec(), Vec::new())
+                            }
+                        }
+                    }
+                    Value::Intrinsic(intrinsic) => {
+                        let outputs = self.convert_ssa_intrinsic_call(
+                            *intrinsic,
+                            arguments,
+                            dfg,
+                            allow_log_ops,
+                        );
+                        let result_ids = dfg.instruction_results(instruction_id);
+                        (result_ids.to_vec(), outputs)
+                    }
+                    _ => unreachable!("expected calling a function"),
+                }
             }
             Instruction::Not(value_id) => {
                 let boolean_var = self.convert_ssa_value(*value_id, dfg);
@@ -231,17 +262,6 @@ impl Context {
         // Map the results of the instructions to Acir variables
         for (result_id, result_var) in results_id.into_iter().zip(results_vars) {
             self.ssa_value_to_acir_var.insert(result_id, result_var);
-        }
-    }
-
-    /// Converts a `ValueId` into an `Intrinsic`.
-    ///
-    /// Panics if the `ValueId` does not represent an intrinsic.
-    fn id_to_intrinsic(value_id: ValueId, dfg: &DataFlowGraph) -> Intrinsic {
-        let value = &dfg[value_id];
-        match value {
-            Value::Intrinsic(intrinsic) => *intrinsic,
-            _ => unimplemented!("expected an intrinsic call, but found {value:?}"),
         }
     }
 
@@ -347,7 +367,7 @@ impl Context {
     /// The function being called is required to be intrinsic.
     fn convert_ssa_intrinsic_call(
         &mut self,
-        func: ValueId,
+        intrinsic: Intrinsic,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
         allow_log_ops: bool,
@@ -355,7 +375,6 @@ impl Context {
         let inputs = self
             .flatten_arguments(arguments, dfg)
             .expect("add Result types to all methods so errors bubble up");
-        let intrinsic = Self::id_to_intrinsic(func, dfg);
         match intrinsic {
             Intrinsic::BlackBox(black_box) => self
                 .acir_context
