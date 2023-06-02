@@ -41,6 +41,22 @@ export function processPendingL1ToL2MessageAddedLogs(
   }
   return l1ToL2Messages;
 }
+
+/**
+ * Process newly received L1ToL2MessageCancelled logs.
+ * @param logs - L1ToL2MessageCancelled logs.
+ * @returns Array of message keys of the L1 to L2 messages that were cancelled
+ */
+export function processCancelledL1ToL2MessagesLogs(
+  logs: Log<bigint, number, undefined, typeof InboxAbi, 'L1ToL2MessageCancelled'>[],
+): Fr[] {
+  const cancelledL1ToL2Messages: Fr[] = [];
+  for (const log of logs) {
+    cancelledL1ToL2Messages.push(Fr.fromString(log.args.entryKey));
+  }
+  return cancelledL1ToL2Messages;
+}
+
 /**
  * Processes newly received UnverifiedData logs.
  * @param blockHashMapping - A mapping from block number to relevant block hash.
@@ -247,6 +263,29 @@ export async function getPendingL1ToL2MessageLogs(
   const abiItem = getAbiItem({
     abi: InboxAbi,
     name: 'MessageAdded',
+  });
+  return await publicClient.getLogs({
+    address: getAddress(inboxAddress.toString()),
+    event: abiItem,
+    fromBlock,
+  });
+}
+
+/**
+ * Get relevant `L1ToL2MessageCancelled` logs emitted by Inbox on chain when pending messages are cancelled
+ * @param publicClient - The viem public client to use for transaction retrieval.
+ * @param inboxAddress - The address of the inbox contract.
+ * @param fromBlock - First block to get logs from (inclusive).
+ * @returns An array of `L1ToL2MessageCancelled` logs.
+ */
+export async function getL1ToL2MessageCancelledLogs(
+  publicClient: PublicClient,
+  inboxAddress: EthAddress,
+  fromBlock: bigint,
+): Promise<Log<bigint, number, undefined, typeof InboxAbi, 'L1ToL2MessageCancelled'>[]> {
+  const abiItem = getAbiItem({
+    abi: InboxAbi,
+    name: 'L1ToL2MessageCancelled',
   });
   return await publicClient.getLogs({
     address: getAddress(inboxAddress.toString()),

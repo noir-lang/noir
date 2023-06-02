@@ -11,7 +11,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId, exportLibP2PPeerIdToString } from '@aztec/p2p';
 
-import { setup } from './setup.js';
+import { setup } from './utils.js';
 
 const NUM_NODES = 4;
 const NUM_TXS_PER_BLOCK = 4;

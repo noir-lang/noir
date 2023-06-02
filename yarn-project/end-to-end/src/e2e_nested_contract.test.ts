@@ -5,7 +5,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { ChildAbi, ParentAbi } from '@aztec/noir-contracts/examples';
 
 import { toBigInt } from '@aztec/foundation/serialize';
-import { setup } from './setup.js';
+import { setup } from './utils.js';
 
 describe('e2e_nested_contract', () => {
   let aztecNode: AztecNodeService;

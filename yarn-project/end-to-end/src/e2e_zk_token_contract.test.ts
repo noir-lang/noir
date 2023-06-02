@@ -2,10 +2,8 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { Point } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
-import { setup } from './setup.js';
+import { pointToPublicKey, setup } from './utils.js';
 
 describe('e2e_zk_token_contract', () => {
   let aztecNode: AztecNodeService;
@@ -29,15 +27,6 @@ describe('e2e_zk_token_contract', () => {
     const [balance] = await contract.methods.getBalance(pointToPublicKey(ownerPublicKey)).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
-  };
-
-  const pointToPublicKey = (point: Point) => {
-    const x = point.buffer.subarray(0, 32);
-    const y = point.buffer.subarray(32, 64);
-    return {
-      x: toBigIntBE(x),
-      y: toBigIntBE(y),
-    };
   };
 
   const deployContract = async (initialBalance = 0n, owner = { x: 0n, y: 0n }) => {

@@ -19,7 +19,7 @@ import { sha256 } from '@aztec/foundation/crypto';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import times from 'lodash.times';
-import { setup } from './setup.js';
+import { setup } from './utils.js';
 
 describe('e2e_account_contract', () => {
   let aztecNode: AztecNodeService;

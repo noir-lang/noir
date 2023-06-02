@@ -4,13 +4,16 @@ import {
   getL2BlockProcessedLogs,
   getPendingL1ToL2MessageLogs,
   getUnverifiedDataLogs,
+  getL1ToL2MessageCancelledLogs,
   processBlockLogs,
   processContractDeploymentLogs,
   processPendingL1ToL2MessageAddedLogs,
   processUnverifiedDataLogs,
+  processCancelledL1ToL2MessagesLogs,
 } from './eth_log_handlers.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { ContractPublicData, L1ToL2Message, L2Block, UnverifiedData } from '@aztec/types';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Data retreived from logs
@@ -172,4 +175,39 @@ export async function retrieveNewPendingL1ToL2Messages(
     searchStartBlock = (newL1ToL2MessageLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
   } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewL1ToL2Messages };
+}
+
+/**
+ * Fetch newly cancelled L1 to L2 messages.
+ * @param publicClient - The viem public client to use for transaction retrieval.
+ * @param inboxAddress - The address of the inbox contract to fetch messages from.
+ * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
+ * @param currentBlockNumber - Latest available block number in the ETH node.
+ * @param searchStartBlock - The block number to use for starting the search.
+ * @returns An array of message keys that were cancelled and next eth block to search from.
+ */
+export async function retrieveNewCancelledL1ToL2Messages(
+  publicClient: PublicClient,
+  inboxAddress: EthAddress,
+  blockUntilSynced: boolean,
+  currentBlockNumber: bigint,
+  searchStartBlock: bigint,
+): Promise<DataRetrieval<Fr>> {
+  const retrievedNewCancelledL1ToL2Messages: Fr[] = [];
+  do {
+    if (searchStartBlock > currentBlockNumber) {
+      break;
+    }
+    const newL1ToL2MessageCancelledLogs = await getL1ToL2MessageCancelledLogs(
+      publicClient,
+      inboxAddress,
+      searchStartBlock,
+    );
+    const newCancelledL1ToL2Messages = processCancelledL1ToL2MessagesLogs(newL1ToL2MessageCancelledLogs);
+    retrievedNewCancelledL1ToL2Messages.push(...newCancelledL1ToL2Messages);
+    // handles the case when there are no new messages:
+    searchStartBlock =
+      (newL1ToL2MessageCancelledLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
+  } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
+  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewCancelledL1ToL2Messages };
 }

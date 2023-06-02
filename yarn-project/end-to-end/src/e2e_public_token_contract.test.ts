@@ -1,5 +1,5 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, Point, TxStatus } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
 import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
@@ -7,7 +7,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 
 import times from 'lodash.times';
-import { setup } from './setup.js';
+import { pointToPublicKey, setup } from './utils.js';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService;
@@ -16,15 +16,6 @@ describe('e2e_public_token_contract', () => {
   let logger: DebugLogger;
 
   let contract: Contract;
-
-  const pointToPublicKey = (point: Point) => {
-    const x = point.buffer.subarray(0, 32);
-    const y = point.buffer.subarray(32, 64);
-    return {
-      x: toBigIntBE(x),
-      y: toBigIntBE(y),
-    };
-  };
 
   const deployContract = async () => {
     logger(`Deploying L2 public contract...`);

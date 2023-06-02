@@ -19,6 +19,7 @@ export interface ArchiverDataStore {
   getL2Blocks(from: number, take: number): Promise<L2Block[]>;
   addUnverifiedData(data: UnverifiedData[]): Promise<boolean>;
   addPendingL1ToL2Messages(messages: L1ToL2Message[]): Promise<boolean>;
+  cancelPendingL1ToL2Messages(messageKeys: Fr[]): Promise<boolean>;
   confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean>;
   getPendingL1ToL2MessageKeys(take: number): Promise<Fr[]>;
   getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
@@ -98,6 +99,17 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     return Promise.resolve(true);
   }
 
+  /**
+   * Remove pending L1 to L2 messages from the store (if they were cancelled).
+   * @param messageKeys - The message keys to be removed from the store.
+   * @returns True if the operation is successful (always in this implementation).
+   */
+  public cancelPendingL1ToL2Messages(messageKeys: Fr[]): Promise<boolean> {
+    messageKeys.forEach(messageKey => {
+      this.pendingL1ToL2Messages.removeMessage(messageKey);
+    });
+    return Promise.resolve(true);
+  }
   /**
    * Messages that have been published in an L2 block are confirmed.
    * Add them to the confirmed store, also remove them from the pending store.

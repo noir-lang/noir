@@ -3,7 +3,7 @@ import { AztecAddress, AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@a
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 
-import { setup } from './setup.js';
+import { setup } from './utils.js';
 
 describe('e2e_deploy_contract', () => {
   let aztecNode: AztecNodeService;

@@ -9,6 +9,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
+import { Fr } from '@aztec/foundation/fields';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';
@@ -22,7 +23,7 @@ describe('Archiver', () => {
     archiverStore = new MemoryArchiverStore();
   });
 
-  it('can start, sync and stop', async () => {
+  it('can start, sync and stop and handle l1 to l2 messages', async () => {
     const archiver = new Archiver(
       publicClient,
       EthAddress.fromString(rollupAddress),
@@ -40,15 +41,47 @@ describe('Archiver', () => {
 
     const blocks = [1, 2, 3].map(x => L2Block.random(x));
     const rollupTxs = blocks.map(makeRollupTx);
+    // `L2Block.random(x)` creates some l1 to l2 messages. We add those,
+    // since it is expected by the test that these would be consumed.
+    // Archiver removes such messages from pending store.
+    // Also create some more messages to cancel and some that will stay pending.
 
+    const messageToCancel1 = Fr.random().toString(true);
+    const messageToCancel2 = Fr.random().toString(true);
+    const l1ToL2MessagesToCancel = [messageToCancel1, messageToCancel2];
+    const messageToStayPending1 = Fr.random().toString(true);
+    const messageToStayPending2 = Fr.random().toString(true);
+
+    const l1ToL2MessageAddedEvents = [
+      makeL1ToL2MessageAddedEvents(
+        100n,
+        blocks[0].newL1ToL2Messages.map(key => key.toString(true)),
+      ),
+      makeL1ToL2MessageAddedEvents(
+        100n,
+        blocks[1].newL1ToL2Messages.map(key => key.toString(true)),
+      ),
+      makeL1ToL2MessageAddedEvents(
+        1000n,
+        blocks[2].newL1ToL2Messages.map(key => key.toString(true)),
+      ),
+      makeL1ToL2MessageAddedEvents(102n, [
+        messageToCancel1,
+        messageToCancel2,
+        messageToStayPending1,
+        messageToStayPending2,
+      ]),
+    ];
     publicClient.getBlockNumber.mockResolvedValueOnce(2500n).mockResolvedValueOnce(2501n).mockResolvedValueOnce(2502n);
     // logs should be created in order of how archiver syncs.
     publicClient.getLogs
-      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(100n)])
+      .mockResolvedValueOnce(l1ToL2MessageAddedEvents.slice(0, 2).flat())
+      .mockResolvedValueOnce([]) // no messages to cancel
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(102n, blocks[0])])
       .mockResolvedValueOnce([makeContractDeployedEvent(103n, blocks[0])])
-      .mockResolvedValueOnce([makeL1ToL2MessageAddedEvent(1000n)])
+      .mockResolvedValueOnce(l1ToL2MessageAddedEvents.slice(2, 4).flat())
+      .mockResolvedValueOnce(makeL1ToL2MessageCancelledEvents(1100n, l1ToL2MessagesToCancel))
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(1101n, 2n), makeL2BlockProcessedEvent(1150n, 3n)])
       .mockResolvedValueOnce([makeUnverifiedDataEvent(1100n, blocks[1])])
       .mockResolvedValueOnce([makeContractDeployedEvent(1102n, blocks[1])])
@@ -73,8 +106,14 @@ describe('Archiver', () => {
     latestUnverifiedDataBlockNum = await archiver.getLatestUnverifiedDataBlockNum();
     expect(latestUnverifiedDataBlockNum).toEqual(2);
 
-    // there are only 2 l1ToL2 messages in the store
-    expect((await archiver.getPendingL1ToL2Messages(10)).length).toEqual(2);
+    // Check that only 2 messages (l1ToL2MessageAddedEvents[3][2] and l1ToL2MessageAddedEvents[3][3]) are pending.
+    // Other two (l1ToL2MessageAddedEvents[3][0..2]) were cancelled. And the previous messages were confirmed.
+    const expectedPendingMessageKeys = [
+      l1ToL2MessageAddedEvents[3][2].args.entryKey,
+      l1ToL2MessageAddedEvents[3][3].args.entryKey,
+    ];
+    const actualPendingMessageKeys = (await archiver.getPendingL1ToL2Messages(10)).map(key => key.toString(true));
+    expect(expectedPendingMessageKeys).toEqual(actualPendingMessageKeys);
 
     await archiver.stop();
   }, 10_000);
@@ -142,26 +181,47 @@ function makeContractDeployedEvent(l1BlockNum: bigint, l2Block: L2Block) {
 }
 
 /**
- * Makes a fake L1ToL2 MessageAdded event for testing purposes.
+ * Makes fake L1ToL2 MessageAdded events for testing purposes.
  * @param l1BlockNum - L1 block number.
- * @returns An L2BlockProcessed event log.
+ * @param entryKeys - The entry keys of the messages to add.
+ * @returns MessageAdded event logs.
  */
-function makeL1ToL2MessageAddedEvent(l1BlockNum: bigint) {
-  return {
-    blockNumber: l1BlockNum,
-    args: {
-      sender: EthAddress.random().toString(),
-      senderChainId: 1n,
-      recipient: AztecAddress.random().toString(),
-      recipientVersion: 1n,
-      content: '0x' + randomBytes(32).toString('hex'),
-      secretHash: '0x' + randomBytes(32).toString('hex'),
-      deadline: 100,
-      fee: 1n,
-      entryKey: '0x' + randomBytes(32).toString('hex'),
-    },
-    transactionHash: `0x${l1BlockNum}`,
-  } as Log<bigint, number, undefined, typeof InboxAbi, 'MessageAdded'>;
+function makeL1ToL2MessageAddedEvents(l1BlockNum: bigint, entryKeys: string[]) {
+  return entryKeys.map(entryKey => {
+    return {
+      blockNumber: l1BlockNum,
+      args: {
+        sender: EthAddress.random().toString(),
+        senderChainId: 1n,
+        recipient: AztecAddress.random().toString(),
+        recipientVersion: 1n,
+        content: '0x' + randomBytes(32).toString('hex'),
+        secretHash: '0x' + randomBytes(32).toString('hex'),
+        deadline: 100,
+        fee: 1n,
+        entryKey: entryKey,
+      },
+      transactionHash: `0x${l1BlockNum}`,
+    } as Log<bigint, number, undefined, typeof InboxAbi, 'MessageAdded'>;
+  });
+}
+
+/**
+ * Makes fake L1ToL2 MessageCancelled events for testing purposes.
+ * @param l1BlockNum - L1 block number.
+ * @param entryKey - The entry keys of the message to cancel.
+ * @returns MessageCancelled event logs.
+ */
+function makeL1ToL2MessageCancelledEvents(l1BlockNum: bigint, entryKeys: string[]) {
+  return entryKeys.map(entryKey => {
+    return {
+      blockNumber: l1BlockNum,
+      args: {
+        entryKey,
+      },
+      transactionHash: `0x${l1BlockNum}`,
+    } as Log<bigint, number, undefined, typeof InboxAbi, 'L1ToL2MessageCancelled'>;
+  });
 }
 
 /**

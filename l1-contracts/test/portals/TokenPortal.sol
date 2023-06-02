@@ -52,6 +52,40 @@ contract TokenPortal {
   }
 
   /**
+   * Cancel the L1 to L2 message
+   * @param _to - The aztec address of the recipient in the original message
+   * @param _amount - The amount to deposit per the original message
+   * @param _deadline - The timestamp after which the entry can be cancelled
+   * @param _secretHash - The hash of the secret consumable message in the original message
+   * @param _fee - The fee paid to the sequencer
+   * @return The key of the entry in the Inbox
+   */
+  function cancelL1ToAztecMessage(
+    bytes32 _to,
+    uint256 _amount,
+    uint32 _deadline,
+    bytes32 _secretHash,
+    uint64 _fee
+  ) external returns (bytes32) {
+    // @todo: (issue #624) handle different versions
+    IInbox inbox = registry.getInbox();
+    DataStructures.L1Actor memory l1Actor = DataStructures.L1Actor(address(this), block.chainid);
+    DataStructures.L2Actor memory l2Actor = DataStructures.L2Actor(l2TokenAddress, 1);
+    DataStructures.L1ToL2Msg memory message = DataStructures.L1ToL2Msg({
+      sender: l1Actor,
+      recipient: l2Actor,
+      content: Hash.sha256ToField(abi.encodeWithSignature("mint(uint256,bytes32)", _amount, _to)),
+      secretHash: _secretHash,
+      deadline: _deadline,
+      fee: _fee
+    });
+    // @todo: (issue #740) implement secure way to cancel the message.
+    bytes32 entryKey = inbox.cancelL2Message(message, address(this));
+    underlying.transfer(msg.sender, _amount);
+    return entryKey;
+  }
+
+  /**
    * @notice Withdraw funds from the portal
    * @dev Second part of withdraw, must be initiated from L2 first as it will consume a message from outbox
    * @param _amount - The amount to withdraw
