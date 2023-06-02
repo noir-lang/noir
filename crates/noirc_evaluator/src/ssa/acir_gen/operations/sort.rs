@@ -113,13 +113,13 @@ fn permutation_layer(
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
-
     use acvm::{
-        acir::{circuit::opcodes::BlackBoxFuncCall, native_types::Witness},
-        pwg::block::Blocks,
-        FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator,
-        PartialWitnessGeneratorStatus,
+        acir::{circuit::opcodes::FunctionInput, native_types::Witness, native_types::WitnessMap},
+        pwg::{
+            block::Blocks, solve, OpcodeResolution, OpcodeResolutionError,
+            PartialWitnessGeneratorStatus,
+        },
+        FieldElement, PartialWitnessGenerator,
     };
 
     use crate::{
@@ -130,12 +130,33 @@ mod test {
 
     struct MockBackend {}
     impl PartialWitnessGenerator for MockBackend {
-        fn solve_black_box_function_call(
+        fn schnorr_verify(
             &self,
-            _initial_witness: &mut BTreeMap<Witness, FieldElement>,
-            _func_call: &BlackBoxFuncCall,
+            _initial_witness: &mut WitnessMap,
+            _public_key_x: &FunctionInput,
+            _public_key_y: &FunctionInput,
+            _signature: &[FunctionInput],
+            _message: &[FunctionInput],
+            _output: &Witness,
         ) -> Result<OpcodeResolution, OpcodeResolutionError> {
-            unreachable!();
+            panic!("Path not trodden by this test")
+        }
+        fn pedersen(
+            &self,
+            _initial_witness: &mut WitnessMap,
+            _inputs: &[FunctionInput],
+            _domain_separator: u32,
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+        fn fixed_base_scalar_mul(
+            &self,
+            _initial_witness: &mut WitnessMap,
+            _input: &FunctionInput,
+            _outputs: &[Witness],
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            panic!("Path not trodden by this test")
         }
     }
 
@@ -150,7 +171,7 @@ mod test {
             let mut input = Vec::new();
             let mut a_val = Vec::new();
             let mut b_wit = Vec::new();
-            let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
+            let mut solved_witness = WitnessMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
                 input.push(w.into());
@@ -181,9 +202,9 @@ mod test {
             // compute the network output by solving the constraints
             let backend = MockBackend {};
             let mut blocks = Blocks::default();
-            let solver_status = backend
-                .solve(&mut solved_witness, &mut blocks, eval.opcodes.clone())
-                .expect("Could not solve permutation constraints");
+            let solver_status =
+                solve(&backend, &mut solved_witness, &mut blocks, eval.opcodes.clone())
+                    .expect("Could not solve permutation constraints");
             assert_eq!(solver_status, PartialWitnessGeneratorStatus::Solved, "Incomplete solution");
             let mut b_val = Vec::new();
             for i in 0..output.len() {

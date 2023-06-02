@@ -1,13 +1,13 @@
-use std::{collections::BTreeMap, io::Write, path::Path};
+use std::{io::Write, path::Path};
 
-use acvm::Backend;
+use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::ops::execute_circuit;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{errors::CliError, resolver::Resolver};
+use crate::{cli::compile_cmd::setup_driver, errors::CliError};
 
 use super::NargoConfig;
 
@@ -37,7 +37,7 @@ fn run_tests<B: Backend>(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
+    let mut driver = setup_driver(backend, program_dir)?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
@@ -89,7 +89,7 @@ fn run_test<B: Backend>(
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match execute_circuit(backend, program.circuit, BTreeMap::new()) {
+    match execute_circuit(backend, program.circuit, WitnessMap::new()) {
         Ok(_) => Ok(()),
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);

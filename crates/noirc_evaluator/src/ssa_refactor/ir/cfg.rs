@@ -27,7 +27,14 @@ pub(crate) struct ControlFlowGraph {
 impl ControlFlowGraph {
     /// Allocate and compute the control flow graph for `func`.
     pub(crate) fn with_function(func: &Function) -> Self {
-        let mut cfg = ControlFlowGraph { data: HashMap::new() };
+        // It is expected to be safe to query the control flow graph for any reachable block,
+        // therefore we must ensure that a node exists for the entry block, regardless of whether
+        // it later comes to describe any edges after calling compute.
+        let entry_block = func.entry_block();
+        let empty_node = CfgNode { predecessors: HashSet::new(), successors: HashSet::new() };
+        let data = HashMap::from([(entry_block, empty_node)]);
+
+        let mut cfg = ControlFlowGraph { data };
         cfg.compute(func);
         cfg
     }

@@ -1,3 +1,4 @@
+use acvm::Language;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateType, LOCAL_CRATE};
 fn main() {
@@ -5,7 +6,11 @@ fn main() {
     const EXTERNAL_DIR2: &str = "dep_a/lib.nr";
     const ROOT_DIR_MAIN: &str = "example_real_project/main.nr";
 
-    let mut driver = Driver::new(&acvm::Language::R1CS);
+    let mut driver = Driver::new(
+        &Language::R1CS,
+        #[allow(deprecated)]
+        Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)),
+    );
 
     // Add local crate to dep graph
     driver.create_local_crate(ROOT_DIR_MAIN, CrateType::Binary);

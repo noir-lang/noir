@@ -18,7 +18,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -567,17 +567,13 @@ impl<'a> Resolver<'a> {
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+    ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
 
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        let fields = unresolved
-            .fields
-            .into_iter()
-            .map(|(ident, typ)| (ident, self.resolve_type(typ)))
-            .collect();
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (generics, fields, self.errors)
     }
@@ -1094,7 +1090,7 @@ impl<'a> Resolver<'a> {
     ) -> Vec<(Ident, U)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
-        let mut unseen_fields = self.get_field_names_of_type(&struct_type);
+        let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field, expr) in fields {
             let resolved = resolve_function(self, expr);
@@ -1131,10 +1127,6 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    fn get_field_names_of_type(&self, typ: &Shared<StructType>) -> BTreeSet<Ident> {
-        typ.borrow().field_names()
-    }
-
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1149,23 +1141,7 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         let id = self.resolve_path(path)?;
 
-        if let Some(mut function) = TryFromModuleDefId::try_from(id) {
-            // Check if this is an unsupported low level opcode. If so, replace it with
-            // an alternative in the stdlib.
-            if let Some(meta) = self.interner.try_function_meta(&function) {
-                if meta.kind == crate::FunctionKind::LowLevel {
-                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode = attribute.foreign().expect(
-                        "ice: function marked as foreign, but attribute kind does not match this",
-                    );
-                    if !self.interner.foreign(&opcode) {
-                        if let Some(new_id) = self.interner.get_alt(opcode) {
-                            function = new_id;
-                        }
-                    }
-                }
-            }
-
+        if let Some(function) = TryFromModuleDefId::try_from(id) {
             return Ok(self.interner.function_definition_id(function));
         }
 

@@ -11,6 +11,10 @@ use super::NargoConfig;
 use super::{
     compile_cmd::compile_circuit,
     fs::{
+        common_reference_string::{
+            read_cached_common_reference_string, update_common_reference_string,
+            write_cached_common_reference_string,
+        },
         inputs::{read_inputs_from_file, write_inputs_to_file},
         program::read_program_from_file,
         proof::save_proof_to_dir,
@@ -72,14 +76,31 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     check_proof: bool,
     compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError<B>> {
-    let preprocessed_program = match circuit_build_path {
-        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
+    let common_reference_string = read_cached_common_reference_string();
+
+    let (common_reference_string, preprocessed_program) = match circuit_build_path {
+        Some(circuit_build_path) => {
+            let program = read_program_from_file(circuit_build_path)?;
+            let common_reference_string = update_common_reference_string(
+                backend,
+                &common_reference_string,
+                &program.bytecode,
+            )
+            .map_err(CliError::CommonReferenceStringError)?;
+            (common_reference_string, program)
+        }
         None => {
-            let compiled_program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-            preprocess_program(backend, compiled_program)
-                .map_err(CliError::ProofSystemCompilerError)?
+            let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+            let common_reference_string =
+                update_common_reference_string(backend, &common_reference_string, &program.circuit)
+                    .map_err(CliError::CommonReferenceStringError)?;
+            let program = preprocess_program(backend, &common_reference_string, program)
+                .map_err(CliError::ProofSystemCompilerError)?;
+            (common_reference_string, program)
         }
     };
+
+    write_cached_common_reference_string(&common_reference_string);
 
     let PreprocessedProgram { abi, bytecode, proving_key, verification_key, .. } =
         preprocessed_program;
@@ -102,14 +123,21 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         Format::Toml,
     )?;
 
-    let proof = prove_execution(backend, &bytecode, solved_witness, &proving_key)
-        .map_err(CliError::ProofSystemCompilerError)?;
+    let proof =
+        prove_execution(backend, &common_reference_string, &bytecode, solved_witness, &proving_key)
+            .map_err(CliError::ProofSystemCompilerError)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof =
-            verify_proof(backend, &bytecode, &proof, public_inputs, &verification_key)
-                .map_err(CliError::ProofSystemCompilerError)?;
+        let valid_proof = verify_proof(
+            backend,
+            &common_reference_string,
+            &bytecode,
+            &proof,
+            public_inputs,
+            &verification_key,
+        )
+        .map_err(CliError::ProofSystemCompilerError)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

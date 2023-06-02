@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
 use super::map::Id;
@@ -60,6 +62,23 @@ impl Function {
     /// The parameters will always match that of this function's entry block.
     pub(crate) fn parameters(&self) -> &[ValueId] {
         self.dfg.block_parameters(self.entry_block)
+    }
+
+    /// Collects all the reachable blocks of this function.
+    ///
+    /// Note that self.dfg.basic_blocks_iter() iterates over all blocks,
+    /// whether reachable or not. This function should be used if you
+    /// want to iterate only reachable blocks.
+    pub(crate) fn reachable_blocks(&self) -> HashSet<BasicBlockId> {
+        let mut blocks = HashSet::new();
+        let mut stack = vec![self.entry_block];
+
+        while let Some(block) = stack.pop() {
+            if blocks.insert(block) {
+                stack.extend(self.dfg[block].successors());
+            }
+        }
+        blocks
     }
 }
 

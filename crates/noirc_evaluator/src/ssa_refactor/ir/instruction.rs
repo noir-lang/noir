@@ -1,7 +1,13 @@
-use acvm::acir::BlackBoxFunc;
+use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 
-use super::{basic_block::BasicBlockId, map::Id, types::Type, value::ValueId};
+use super::{
+    basic_block::BasicBlockId,
+    dfg::DataFlowGraph,
+    map::Id,
+    types::Type,
+    value::{Value, ValueId},
+};
 
 /// Reference to an instruction
 ///
@@ -102,6 +108,11 @@ pub(crate) enum Instruction {
 }
 
 impl Instruction {
+    /// Returns a binary instruction with the given operator, lhs, and rhs
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+        Instruction::Binary(Binary { lhs, operator, rhs })
+    }
+
     /// Returns the type that this instruction will return.
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
@@ -149,6 +160,53 @@ impl Instruction {
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
+        }
+    }
+
+    /// Try to simplify this instruction. If the instruction can be simplified to a known value,
+    /// that value is returned. Otherwise None is returned.
+    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
+        use SimplifyResult::*;
+        match self {
+            Instruction::Binary(binary) => binary.simplify(dfg),
+            Instruction::Cast(value, typ) => {
+                match (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                    Some(value) => SimplifiedTo(value),
+                    _ => None,
+                }
+            }
+            Instruction::Not(value) => {
+                match &dfg[*value] {
+                    // Limit optimizing ! on constants to only booleans. If we tried it on fields,
+                    // there is no Not on FieldElement, so we'd need to convert between u128. This
+                    // would be incorrect however since the extra bits on the field would not be flipped.
+                    Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
+                        let value = constant.is_zero() as u128;
+                        SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
+                    }
+                    Value::Instruction { instruction, .. } => {
+                        // !!v => v
+                        match &dfg[*instruction] {
+                            Instruction::Not(value) => SimplifiedTo(*value),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            Instruction::Constrain(value) => {
+                if let Some(constant) = dfg.get_numeric_constant(*value) {
+                    if constant.is_one() {
+                        return Remove;
+                    }
+                }
+                None
+            }
+            Instruction::Truncate { .. } => None,
+            Instruction::Call { .. } => None,
+            Instruction::Allocate { .. } => None,
+            Instruction::Load { .. } => None,
+            Instruction::Store { .. } => None,
         }
     }
 }
@@ -200,6 +258,44 @@ pub(crate) enum TerminatorInstruction {
     Return { return_values: Vec<ValueId> },
 }
 
+impl TerminatorInstruction {
+    /// Map each ValueId in this terminator to a new value.
+    pub(crate) fn map_values(
+        &self,
+        mut f: impl FnMut(ValueId) -> ValueId,
+    ) -> TerminatorInstruction {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, then_destination, else_destination } => JmpIf {
+                condition: f(*condition),
+                then_destination: *then_destination,
+                else_destination: *else_destination,
+            },
+            Jmp { destination, arguments } => {
+                Jmp { destination: *destination, arguments: vecmap(arguments, |value| f(*value)) }
+            }
+            Return { return_values } => {
+                Return { return_values: vecmap(return_values, |value| f(*value)) }
+            }
+        }
+    }
+
+    /// Mutate each BlockId to a new BlockId specified by the given mapping function.
+    pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { then_destination, else_destination, .. } => {
+                *then_destination = f(*then_destination);
+                *else_destination = f(*else_destination);
+            }
+            Jmp { destination, .. } => {
+                *destination = f(*destination);
+            }
+            Return { .. } => (),
+        }
+    }
+}
+
 /// A binary instruction in the IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct Binary {
@@ -217,6 +313,172 @@ impl Binary {
         match self.operator {
             BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
             _ => InstructionResultType::Operand(self.lhs),
+        }
+    }
+
+    /// Try to simplify this binary instruction, returning the new value if possible.
+    fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
+        let lhs = dfg.get_numeric_constant(self.lhs);
+        let rhs = dfg.get_numeric_constant(self.rhs);
+        let operand_type = dfg.type_of_value(self.lhs);
+
+        if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+            return match self.eval_constants(dfg, lhs, rhs, operand_type) {
+                Some(value) => SimplifyResult::SimplifiedTo(value),
+                None => SimplifyResult::None,
+            };
+        }
+
+        let lhs_is_zero = lhs.map_or(false, |lhs| lhs.is_zero());
+        let rhs_is_zero = rhs.map_or(false, |rhs| rhs.is_zero());
+
+        let lhs_is_one = lhs.map_or(false, |lhs| lhs.is_one());
+        let rhs_is_one = rhs.map_or(false, |rhs| rhs.is_one());
+
+        match self.operator {
+            BinaryOp::Add => {
+                if lhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.rhs);
+                }
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+            }
+            BinaryOp::Sub => {
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+            }
+            BinaryOp::Mul => {
+                if lhs_is_one {
+                    return SimplifyResult::SimplifiedTo(self.rhs);
+                }
+                if rhs_is_one {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+                if lhs_is_zero || rhs_is_zero {
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
+            BinaryOp::Div => {
+                if rhs_is_one {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+            }
+            BinaryOp::Mod => {
+                if rhs_is_one {
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
+            BinaryOp::Eq => {
+                if self.lhs == self.rhs {
+                    let one = dfg.make_constant(FieldElement::one(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(one);
+                }
+            }
+            BinaryOp::Lt => {
+                if self.lhs == self.rhs {
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
+            BinaryOp::And => {
+                if lhs_is_zero || rhs_is_zero {
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
+            BinaryOp::Or => {
+                if lhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.rhs);
+                }
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+            }
+            BinaryOp::Xor => {
+                if self.lhs == self.rhs {
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
+            BinaryOp::Shl => {
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+            }
+            BinaryOp::Shr => {
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+            }
+        }
+        SimplifyResult::None
+    }
+
+    /// Evaluate the two constants with the operation specified by self.operator.
+    /// Pushes the resulting value to the given DataFlowGraph's constants and returns it.
+    fn eval_constants(
+        &self,
+        dfg: &mut DataFlowGraph,
+        lhs: FieldElement,
+        rhs: FieldElement,
+        operand_type: Type,
+    ) -> Option<Id<Value>> {
+        let value = match self.operator {
+            BinaryOp::Add => lhs + rhs,
+            BinaryOp::Sub => lhs - rhs,
+            BinaryOp::Mul => lhs * rhs,
+            BinaryOp::Div => lhs / rhs,
+            BinaryOp::Eq => (lhs == rhs).into(),
+            BinaryOp::Lt => (lhs < rhs).into(),
+
+            // The rest of the operators we must try to convert to u128 first
+            BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::And => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Or => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Xor => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
+            BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
+        };
+        // TODO: Keep original type of constant
+        Some(dfg.make_constant(value, operand_type))
+    }
+
+    /// Try to evaluate the given operands as u128s for operators that are only valid on u128s,
+    /// like the bitwise operators and modulus.
+    fn eval_constant_u128_operations(
+        &self,
+        lhs: FieldElement,
+        rhs: FieldElement,
+    ) -> Option<FieldElement> {
+        let lhs = lhs.try_into_u128()?;
+        let rhs = rhs.try_into_u128()?;
+        match self.operator {
+            BinaryOp::Mod => Some((lhs % rhs).into()),
+            BinaryOp::And => Some((lhs & rhs).into()),
+            BinaryOp::Or => Some((lhs | rhs).into()),
+            BinaryOp::Shr => Some((lhs >> rhs).into()),
+            // Check for overflow and return None if anything does overflow
+            BinaryOp::Shl => {
+                let rhs = rhs.try_into().ok()?;
+                lhs.checked_shl(rhs).map(Into::into)
+            }
+
+            // Converting a field xor to a u128 xor would be incorrect since we wouldn't have the
+            // extra bits of the field. So we don't optimize it here.
+            BinaryOp::Xor => None,
+
+            op @ (BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::Eq
+            | BinaryOp::Lt) => panic!(
+                "eval_constant_u128_operations invalid for {op:?} use eval_constants instead"
+            ),
         }
     }
 }
@@ -278,4 +540,17 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::Shr => write!(f, "shr"),
         }
     }
+}
+
+/// Contains the result to Instruction::simplify, specifying how the instruction
+/// should be simplified.
+pub(crate) enum SimplifyResult {
+    /// Replace this function's result with the given value
+    SimplifiedTo(ValueId),
+
+    /// Remove the instruction, it is unnecessary
+    Remove,
+
+    /// Instruction could not be simplified
+    None,
 }
