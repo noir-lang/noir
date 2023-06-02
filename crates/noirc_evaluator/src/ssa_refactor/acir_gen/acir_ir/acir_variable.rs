@@ -496,23 +496,9 @@ impl AcirContext {
                     .expect("ICE: Domain separator must be a constant");
                 vec![domain_constant]
             }
-            BlackBoxFunc::Keccak256 => {
-                // There are two variants of Keccak256 - one for fixed length inputs and one for
-                // variable length inputs. Whether or not the last argument (corresponding to
-                // `message_size` in the stdlib) is a constant determines which variant is used.
-                // If it's not a constant, we'll leave it at the end of the input list to be
-                // ingested as a `FunctionInput`.
-                let message_size_var =
-                    inputs.pop().expect("ICE: Keccak expects a message_size arg");
-                if let AcirVarData::Const(constant) = self.data[&message_size_var] {
-                    vec![constant]
-                } else {
-                    inputs.push(message_size_var);
-                    vec![]
-                }
-            }
             _ => vec![],
         };
+
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(&inputs)?;
 
