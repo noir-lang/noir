@@ -20,7 +20,7 @@ use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
 mod abi_gen;
 mod acir_gen;
-mod ir;
+pub mod ir;
 mod opt;
 mod ssa_builder;
 pub mod ssa_gen;
@@ -30,9 +30,9 @@ pub mod ssa_gen;
 /// convert the final SSA into ACIR and return it.
 pub(crate) fn optimize_into_acir(program: Program, allow_log_ops: bool) -> GeneratedAcir {
     let func_signature = program.main_function_signature.clone();
-    ssa_gen::generate_ssa(program)
-        .print("Initial SSA:")
-        .inline_functions()
+    let ssa = ssa_gen::generate_ssa(program).print("Initial SSA:");
+    let brillig = ssa.to_brillig();
+    ssa.inline_functions()
         .print("After Inlining:")
         .unroll_loops()
         .print("After Unrolling:")
@@ -42,7 +42,7 @@ pub(crate) fn optimize_into_acir(program: Program, allow_log_ops: bool) -> Gener
         .print("After Flattening:")
         .mem2reg()
         .print("After Mem2Reg:")
-        .into_acir(func_signature, allow_log_ops)
+        .into_acir(func_signature, brillig, allow_log_ops)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
