@@ -92,7 +92,6 @@ pub(crate) fn evaluate(
                 }
                 BlackBoxFunc::SchnorrVerify
                 | BlackBoxFunc::EcdsaSecp256k1
-                | BlackBoxFunc::ComputeMerkleRoot
                 | BlackBoxFunc::HashToField128Security => {
                     prepare_outputs(&mut acir_gen.memory, instruction_id, 1, ctx, evaluator)
                 }
@@ -107,14 +106,29 @@ pub(crate) fn evaluate(
                     inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
                     outputs: outputs.to_vec(),
                 },
-                BlackBoxFunc::Keccak256 => BlackBoxFuncCall::Keccak256 {
-                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
-                    outputs: outputs.to_vec(),
-                },
-                BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
-                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
-                    outputs: outputs.to_vec(),
-                },
+                BlackBoxFunc::Keccak256 => {
+                    let msg_size = acir_gen
+                        .var_cache
+                        .get_or_compute_internal_var(args[1], evaluator, ctx)
+                        .expect("ICE - could not get an expression for keccak message size");
+                    let witness =
+                        acir_gen.var_cache.get_or_compute_witness_unwrap(msg_size, evaluator, ctx);
+                    let var_message_size = FunctionInput { witness, num_bits: 32 };
+                    BlackBoxFuncCall::Keccak256VariableLength {
+                        inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        var_message_size,
+                        outputs: outputs.to_vec(),
+                    }
+                }
+                BlackBoxFunc::Pedersen => {
+                    let separator =
+                        ctx.get_as_constant(args[1]).expect("domain separator to be comptime");
+                    BlackBoxFuncCall::Pedersen {
+                        inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        outputs: outputs.to_vec(),
+                        domain_separator: separator.to_u128() as u32,
+                    }
+                }
                 BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                     input: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
                     outputs: outputs.to_vec(),
@@ -131,12 +145,6 @@ pub(crate) fn evaluate(
                     public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
                     signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
                     hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
-                    output: outputs[0],
-                },
-                BlackBoxFunc::ComputeMerkleRoot => BlackBoxFuncCall::ComputeMerkleRoot {
-                    leaf: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
-                    index: resolve_variable(&args[1], acir_gen, ctx, evaluator).unwrap(),
-                    hash_path: resolve_array(&args[2], acir_gen, ctx, evaluator),
                     output: outputs[0],
                 },
                 BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
