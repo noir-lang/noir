@@ -91,7 +91,7 @@ impl GeneratedAcir {
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
-        inputs: Vec<FunctionInput>,
+        mut inputs: Vec<FunctionInput>,
         constants: Vec<FieldElement>,
     ) -> Vec<Witness> {
         intrinsics_check_inputs(func_name, &inputs);
@@ -141,7 +141,10 @@ impl GeneratedAcir {
             BlackBoxFunc::FixedBaseScalarMul => {
                 BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
             }
-            BlackBoxFunc::Keccak256 => BlackBoxFuncCall::Keccak256 { inputs, outputs },
+            BlackBoxFunc::Keccak256 => {
+                let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
+                BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
+            }
         };
 
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
