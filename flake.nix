@@ -275,7 +275,7 @@
         pname = "noir_wasm";
         version = "1.0.0";
 
-        inherit cargoArtifacts;
+        cargoArtifacts = native-cargo-artifacts;
         inherit GIT_COMMIT;
         inherit GIT_DIRTY;
 
