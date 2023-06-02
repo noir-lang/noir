@@ -201,7 +201,22 @@ impl Context {
             Instruction::Call { func, arguments } => {
                 let outputs = self.convert_ssa_intrinsic_call(*func, arguments, dfg, allow_log_ops);
                 let result_ids = dfg.instruction_results(instruction_id);
-                (result_ids.to_vec(), outputs)
+                if Self::value_is_array_address(result_ids[0], dfg) {
+                    // Some intrinsics return arrays - these require an allocation
+                    if result_ids.len() != 1 {
+                        todo!("Complex return type encountered. Restructuring required to provide info on how to repackage result");
+                    }
+                    let array_id = self.acir_context.allocate_array(outputs.len());
+                    self.ssa_value_to_array_address.insert(result_ids[0], (array_id, 0));
+                    for (index, element) in outputs.iter().enumerate() {
+                        self.acir_context
+                            .array_store(array_id, index, *element)
+                            .expect("add Result types to all methods so errors bubble up");
+                    }
+                    (Vec::new(), Vec::new())
+                } else {
+                    (result_ids.to_vec(), outputs)
+                }
             }
             Instruction::Not(value_id) => {
                 let boolean_var = self.convert_ssa_value(*value_id, dfg);
@@ -365,6 +380,12 @@ impl Context {
                 // inputs = [field, radix, limb_size]; (see noir_stdlib/src/field.nr)
                 self.acir_context
                     .radix_decompose(endian, inputs[0], inputs[1], inputs[2])
+                    .expect("add Result types to all methods so errors bubble up")
+            }
+            Intrinsic::ToBits(endian) => {
+                // inputs = [field, bit_size]; (see noir_stdlib/src/field.nr)
+                self.acir_context
+                    .bit_decompose(endian, inputs[0], inputs[1])
                     .expect("add Result types to all methods so errors bubble up")
             }
             Intrinsic::Println => {

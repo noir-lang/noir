@@ -151,31 +151,43 @@ impl GeneratedAcir {
         outputs_clone
     }
 
-    pub(crate) fn radix_decompose(
+    /// Takes an input expression and returns witnesses that are constrained to be limbs
+    /// decomposed from the input for the given radix and limb count.
+    ///
+    /// Only radix that are a power of two are supported
+    pub(crate) fn radix_le_decompose(
         &mut self,
-        input: Witness,
+        input_expr: &Expression,
         radix: u32,
-        limb_size: u32,
-    ) -> Vec<Witness> {
-        let u32_size = std::mem::size_of::<u32>() * 8;
-        let bit_size = u32_size as u32 - radix.leading_zeros();
-        let shift = FieldElement::from(radix as u128);
+        limb_count: u32,
+    ) -> Result<Vec<Witness>, AcirGenError> {
+        let bit_size = u32::BITS - (radix - 1).leading_zeros();
+        assert_eq!(2_u32.pow(bit_size), radix, "ICE: Radix must be a power of 2");
 
-        let mut radix_pow = FieldElement::one();
-        let mut result = Vec::new();
-        for _ in 0..limb_size {
+        let mut composed_limbs = Expression::default();
+
+        let mut limb_witnesses = Vec::new();
+        let mut radix_pow: u128 = 1;
+        for _ in 0..limb_count {
             let limb_witness = self.next_witness_index();
-            result.push(limb_witness);
-            radix_pow = radix_pow * shift;
-            let current_pow_2 = 1_u128 << (bit_size - 1);
-            if radix as u128 != current_pow_2 {
-                self.range_constraint(limb_witness, bit_size);
-            }
+            self.range_constraint(limb_witness, bit_size)?;
 
-            // Eek - this method needs lifting back into acir_vairable to access less-than impl
-            // TODO: constrain limb < radix (while applying bit_size)
+            composed_limbs = composed_limbs
+                .add_mul(FieldElement::from(radix_pow), &Expression::from(limb_witness));
+
+            limb_witnesses.push(limb_witness);
+            radix_pow *= radix as u128;
         }
-        result
+
+        self.assert_is_zero(input_expr - &composed_limbs);
+
+        self.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
+            a: input_expr.clone(),
+            b: limb_witnesses.clone(),
+            radix,
+        }));
+
+        Ok(limb_witnesses)
     }
 
     /// Adds a log directive to print the provided witnesses.
