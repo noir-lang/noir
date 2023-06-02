@@ -31,7 +31,7 @@ jobs:
   update-lockfile:
     name: Update lockfile
     needs: [release-please]
-    if: ${{ needs.release-please.outputs.release-pr }}
+    # if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release branch
@@ -58,25 +58,25 @@ jobs:
           git commit -m 'chore: Update lockfile'
           git push
 
-  build-binaries:
-    name: Build binaries
-    needs: [release-please]
-    if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dispatch to build-nargo
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: publish.yml
-          repo: noir-lang/build-nargo
-          ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
+  # build-binaries:
+  #   name: Build binaries
+  #   needs: [release-please]
+  #   if: ${{ needs.release-please.outputs.tag-name }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Dispatch to build-nargo
+  #       uses: benc-uk/workflow-dispatch@v1
+  #       with:
+  #         workflow: publish.yml
+  #         repo: noir-lang/build-nargo
+  #         ref: master
+  #         token: ${{ secrets.NOIR_REPO_TOKEN }}
+  #         inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   dispatch-noir_wasm:
     name: Dispatch to noir_wasm
     needs: [release-please]
-    if: ${{ needs.release-please.outputs.tag-name }}
+    # if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch to noir_wasm
