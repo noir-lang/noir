@@ -1,8 +1,11 @@
-add_executable(honk_bench honk.bench.cpp)
+add_executable(honk_bench main.bench.cpp honk.bench.cpp ultra_honk.bench.cpp)
 
 target_link_libraries(
   honk_bench
   stdlib_primitives
+  stdlib_sha256
+  stdlib_keccak
+  stdlib_merkle_tree
   env
   benchmark::benchmark
 )

@@ -10,6 +10,7 @@ namespace proof_system::plonk {
 class UltraPlonkComposer;
 class StandardPlonkComposer;
 class TurboPlonkComposer;
+class UltraHonkComposer;
 } // namespace proof_system::plonk
 
 namespace proof_system::plonk {

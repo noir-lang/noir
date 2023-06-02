@@ -87,7 +87,7 @@
         // We should disable automatic inclusion of headers unless we decide to follow "WhyIWYU".
         "clangd.arguments": [
             "-header-insertion=never"
-          ]
+        ],
         //
         // CMake
         //
@@ -114,8 +114,8 @@
         // Ensures tests are run from the `build` directory
         // which ensures SRS can be read
         "testMate.cpp.test.workingDirectory": "${workspaceFolder}/cpp/build",
-        // Filter all binaries that are not tests
-        "testMate.cpp.test.executables": "${workspaceFolder}/cpp/build/bin/*{test,Test,TEST}*",
+        // Filter all binaries that are not tests or benchmarks
+        "testMate.cpp.test.executables": "${workspaceFolder}/cpp/{build}/bin/*{test,Test,TEST,bench}*",
         //
         // Other
         //

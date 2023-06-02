@@ -24,6 +24,7 @@ echo -e '\nConfiguring and building honk_bench in master branch..'
 git checkout master > /dev/null
 rm -rf $BUILD_DIR
 cmake --preset bench > /dev/null && cmake --build --preset bench --target honk_bench > /dev/null
+cd build-bench
 MASTER_HONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/honk_bench_results_master.json"
 echo -e '\nRunning honk_bench in master..'
 bin/honk_bench --benchmark_format=json > $MASTER_HONK_BENCH_RESULTS
@@ -33,6 +34,7 @@ echo -e '\nConfiguring and building honk_bench in current feature branch..'
 git checkout -
 rm -rf $BUILD_DIR
 cmake --preset bench > /dev/null && cmake --build --preset bench --target honk_bench > /dev/null
+cd build-bench
 BRANCH_HONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/honk_bench_results_branch.json"
 echo -e '\nRunning honk_bench in feature branch..'
 bin/honk_bench --benchmark_format=json > $BRANCH_HONK_BENCH_RESULTS

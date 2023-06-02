@@ -16,7 +16,8 @@
     template stdlib_method(plonk::StandardPlonkComposer);                                                              \
     template stdlib_method(honk::StandardHonkComposer);                                                                \
     template stdlib_method(plonk::TurboPlonkComposer);                                                                 \
-    template stdlib_method(plonk::UltraPlonkComposer);
+    template stdlib_method(plonk::UltraPlonkComposer);                                                                 \
+    template stdlib_method(honk::UltraHonkComposer);
 
 #define INSTANTIATE_STDLIB_TYPE(stdlib_type)                                                                           \
     template class stdlib_type<proof_system::StandardCircuitConstructor>;                                              \
@@ -25,16 +26,18 @@
     template class stdlib_type<proof_system::TurboCircuitConstructor>;                                                 \
     template class stdlib_type<plonk::TurboPlonkComposer>;                                                             \
     template class stdlib_type<proof_system::UltraCircuitConstructor>;                                                 \
-    template class stdlib_type<plonk::UltraPlonkComposer>;
+    template class stdlib_type<plonk::UltraPlonkComposer>;                                                             \
+    template class stdlib_type<honk::UltraHonkComposer>;
 
 #define INSTANTIATE_STDLIB_TYPE_VA(stdlib_type, ...)                                                                   \
     template class stdlib_type<proof_system::StandardCircuitConstructor, __VA_ARGS__>;                                 \
     template class stdlib_type<plonk::StandardPlonkComposer, __VA_ARGS__>;                                             \
-    template class stdlib_type<honk::StandardPlonkComposer, __VA_ARGS__>;                                              \
+    template class stdlib_type<honk::StandardHonkComposer, __VA_ARGS__>;                                               \
     template class stdlib_type<proof_system::TurboCircuitConstructor, __VA_ARGS__>;                                    \
     template class stdlib_type<plonk::TurboPlonkComposer, __VA_ARGS__>;                                                \
     template class stdlib_type<proof_system::UltraCircuitConstructor, __VA_ARGS__>;                                    \
-    template class stdlib_type<plonk::UltraPlonkComposer, __VA_ARGS__>;
+    template class stdlib_type<plonk::UltraPlonkComposer, __VA_ARGS__>;                                                \
+    template class stdlib_type<honk::UltraHonkComposer, __VA_ARGS__>;
 
 #define INSTANTIATE_STDLIB_BASIC_TYPE(stdlib_type)                                                                     \
     template class stdlib_type<proof_system::StandardCircuitConstructor>;                                              \
@@ -52,12 +55,15 @@
 
 #define INSTANTIATE_STDLIB_ULTRA_METHOD(stdlib_method)                                                                 \
     template stdlib_method(proof_system::UltraCircuitConstructor);                                                     \
-    template stdlib_method(plonk::UltraPlonkComposer);
+    template stdlib_method(plonk::UltraPlonkComposer);                                                                 \
+    template stdlib_method(honk::UltraHonkComposer);
 
 #define INSTANTIATE_STDLIB_ULTRA_TYPE(stdlib_type)                                                                     \
     template class stdlib_type<proof_system::UltraCircuitConstructor>;                                                 \
-    template class stdlib_type<plonk::UltraPlonkComposer>;
+    template class stdlib_type<plonk::UltraPlonkComposer>;                                                             \
+    template class stdlib_type<honk::UltraHonkComposer>;
 
 #define INSTANTIATE_STDLIB_ULTRA_TYPE_VA(stdlib_type, ...)                                                             \
     template class stdlib_type<proof_system::UltraCircuitConstructor, __VA_ARGS__>;                                    \
-    template class stdlib_type<plonk::UltraPlonkComposer, __VA_ARGS__>;
+    template class stdlib_type<plonk::UltraPlonkComposer, __VA_ARGS__>;                                                \
+    template class stdlib_type<honk::UltraHonkComposer, __VA_ARGS__>;
