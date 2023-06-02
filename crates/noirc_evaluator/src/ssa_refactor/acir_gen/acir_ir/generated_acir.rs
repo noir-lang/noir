@@ -142,8 +142,21 @@ impl GeneratedAcir {
                 BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
             }
             BlackBoxFunc::Keccak256 => {
-                let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
-                BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
+                if constants.len() == 1 {
+                    // This constant has been separated from the other arguments to represent the
+                    // `message_size`, and therefore what remains in the arguments is the message.
+                    let message_size = constants[0].to_u128() as usize;
+                    assert_eq!(
+                        inputs.len(),
+                        message_size,
+                        "ICE: Expected keccak256 message size does not match input"
+                    );
+                    BlackBoxFuncCall::Keccak256 { inputs, outputs }
+                } else {
+                    // The final argument wasn't separated as a constant so needs separating now.
+                    let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
+                    BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
+                }
             }
         };
 
