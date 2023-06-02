@@ -7,7 +7,6 @@
 #include "fixed_base_scalar_mul.hpp"
 #include "schnorr_verify.hpp"
 #include "ecdsa_secp256k1.hpp"
-#include "compute_merkle_root_constraint.hpp"
 #include "block_constraint.hpp"
 #include "pedersen.hpp"
 #include "hash_to_field.hpp"
@@ -32,7 +31,6 @@ struct acir_format {
     std::vector<KeccakVarConstraint> keccak_var_constraints;
     std::vector<HashToFieldConstraint> hash_to_field_constraints;
     std::vector<PedersenConstraint> pedersen_constraints;
-    std::vector<ComputeMerkleRootConstraint> compute_merkle_root_constraints;
     std::vector<BlockConstraint> block_constraints;
     // A standard plonk arithmetic constraint, as defined in the poly_triple struct, consists of selector values
     // for q_M,q_L,q_R,q_O,q_C and indices of three variables taking the role of left, right and output wire
@@ -65,7 +63,6 @@ template <typename B> inline void read(B& buf, acir_format& data)
     read(buf, data.logic_constraints);
     read(buf, data.range_constraints);
     read(buf, data.sha256_constraints);
-    read(buf, data.compute_merkle_root_constraints);
     read(buf, data.schnorr_constraints);
     read(buf, data.ecdsa_constraints);
     read(buf, data.blake2s_constraints);
@@ -86,7 +83,6 @@ template <typename B> inline void write(B& buf, acir_format const& data)
     write(buf, data.logic_constraints);
     write(buf, data.range_constraints);
     write(buf, data.sha256_constraints);
-    write(buf, data.compute_merkle_root_constraints);
     write(buf, data.schnorr_constraints);
     write(buf, data.ecdsa_constraints);
     write(buf, data.blake2s_constraints);

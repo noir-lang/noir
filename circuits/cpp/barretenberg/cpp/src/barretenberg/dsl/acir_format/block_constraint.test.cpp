@@ -116,7 +116,6 @@ TEST(up_ram, TestBlockConstraint)
         .keccak_var_constraints = {},
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .compute_merkle_root_constraints = {},
         .block_constraints = { block },
         .constraints = {},
     };
