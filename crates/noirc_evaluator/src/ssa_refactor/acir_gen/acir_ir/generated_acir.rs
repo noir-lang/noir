@@ -91,7 +91,8 @@ impl GeneratedAcir {
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
-        inputs: Vec<FunctionInput>,
+        mut inputs: Vec<FunctionInput>,
+        constants: Vec<FieldElement>,
     ) -> Vec<Witness> {
         intrinsics_check_inputs(func_name, &inputs);
 
@@ -102,7 +103,6 @@ impl GeneratedAcir {
         let outputs_clone = outputs.clone();
 
         let black_box_func_call = match func_name {
-            BlackBoxFunc::AES => unimplemented!("AES is not implemented"),
             BlackBoxFunc::AND => {
                 BlackBoxFuncCall::AND { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
             }
@@ -115,12 +115,6 @@ impl GeneratedAcir {
             BlackBoxFunc::HashToField128Security => {
                 BlackBoxFuncCall::HashToField128Security { inputs, output: outputs[0] }
             }
-            BlackBoxFunc::ComputeMerkleRoot => BlackBoxFuncCall::ComputeMerkleRoot {
-                leaf: inputs[0],
-                index: inputs[1],
-                hash_path: inputs[2..].to_vec(),
-                output: outputs[0],
-            },
             BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
                 public_key_x: inputs[0],
                 public_key_y: inputs[1],
@@ -129,7 +123,11 @@ impl GeneratedAcir {
                 message: inputs[4..].to_vec(),
                 output: outputs[0],
             },
-            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen { inputs, outputs },
+            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
+                inputs,
+                outputs,
+                domain_separator: constants[0].to_u128() as u32,
+            },
             BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
                 // 32 bytes for each public key co-ordinate
                 public_key_x: inputs[0..32].to_vec(),
@@ -143,7 +141,10 @@ impl GeneratedAcir {
             BlackBoxFunc::FixedBaseScalarMul => {
                 BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
             }
-            BlackBoxFunc::Keccak256 => BlackBoxFuncCall::Keccak256 { inputs, outputs },
+            BlackBoxFunc::Keccak256 => {
+                let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
+                BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
+            }
         };
 
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -382,10 +383,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
-        // Note: one can view `ComputeMerkleRoot` as a hash function.
-        BlackBoxFunc::ComputeMerkleRoot
-        | BlackBoxFunc::AES
-        | BlackBoxFunc::Keccak256
+        BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Pedersen
@@ -417,10 +415,6 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
         BlackBoxFunc::HashToField128Security => 1,
         // Pedersen returns a point
         BlackBoxFunc::Pedersen => 2,
-        // A merkle root is represented as a single field element
-        BlackBoxFunc::ComputeMerkleRoot => 1,
-        // The output of AES128 is 16 bytes
-        BlackBoxFunc::AES => 1,
         // Can only apply a range constraint to one
         // witness at a time.
         BlackBoxFunc::RANGE => 0,
