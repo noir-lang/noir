@@ -3,15 +3,17 @@
 use super::errors::AcirGenError;
 use acvm::acir::{
     circuit::{
-        directives::QuotientDirective,
+        directives::{LogInfo, QuotientDirective},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
     native_types::Witness,
+    BlackBoxFunc,
 };
 use acvm::{
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
+use iter_extended::vecmap;
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
@@ -84,6 +86,80 @@ impl GeneratedAcir {
 }
 
 impl GeneratedAcir {
+    /// Calls a black box function and returns the output
+    /// of said blackbox function.
+    pub(crate) fn call_black_box(
+        &mut self,
+        func_name: BlackBoxFunc,
+        mut inputs: Vec<FunctionInput>,
+        constants: Vec<FieldElement>,
+    ) -> Vec<Witness> {
+        intrinsics_check_inputs(func_name, &inputs);
+
+        let output_count = black_box_expected_output_size(func_name);
+        let outputs = vecmap(0..output_count, |_| self.next_witness_index());
+
+        // clone is needed since outputs is moved when used in blackbox function.
+        let outputs_clone = outputs.clone();
+
+        let black_box_func_call = match func_name {
+            BlackBoxFunc::AND => {
+                BlackBoxFuncCall::AND { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+            }
+            BlackBoxFunc::XOR => {
+                BlackBoxFuncCall::XOR { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+            }
+            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0] },
+            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs, outputs },
+            BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s { inputs, outputs },
+            BlackBoxFunc::HashToField128Security => {
+                BlackBoxFuncCall::HashToField128Security { inputs, output: outputs[0] }
+            }
+            BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
+                public_key_x: inputs[0],
+                public_key_y: inputs[1],
+                // Schnorr signature is two field field elements (r,s)
+                signature: vec![inputs[2], inputs[3]],
+                message: inputs[4..].to_vec(),
+                output: outputs[0],
+            },
+            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
+                inputs,
+                outputs,
+                domain_separator: constants[0].to_u128() as u32,
+            },
+            BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
+                // 32 bytes for each public key co-ordinate
+                public_key_x: inputs[0..32].to_vec(),
+                public_key_y: inputs[32..64].to_vec(),
+                // (r,s) are both 32 bytes each, so signature
+                // takes up 64 bytes
+                signature: inputs[64..128].to_vec(),
+                hashed_message: inputs[128..].to_vec(),
+                output: outputs[0],
+            },
+            BlackBoxFunc::FixedBaseScalarMul => {
+                BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
+            }
+            BlackBoxFunc::Keccak256 => {
+                let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
+                BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
+            }
+            BlackBoxFunc::RecursiveAggregation => todo!(),
+        };
+
+        self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
+
+        outputs_clone
+    }
+
+    /// Adds a log directive to print the provided witnesses.
+    ///
+    /// Logging of strings is currently unsupported.
+    pub(crate) fn call_print(&mut self, witnesses: Vec<Witness>) {
+        self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
+    }
+
     /// If `expr` can be represented as a `Witness` this function will
     /// return it, else a new opcode will be added to create a Witness
     /// that is equal to `expr`.
@@ -298,4 +374,83 @@ impl GeneratedAcir {
 
         Ok(q_witness)
     }
+}
+
+/// This function will return the number of inputs that a blackbox function
+/// expects. Returning `None` if there is no expectation.
+fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
+    match name {
+        // Bitwise opcodes will take in 2 parameters
+        BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
+        // All of the hash/cipher methods will take in a
+        // variable number of inputs.
+        BlackBoxFunc::Keccak256
+        | BlackBoxFunc::SHA256
+        | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Pedersen
+        | BlackBoxFunc::HashToField128Security => None,
+
+        // Can only apply a range constraint to one
+        // witness at a time.
+        BlackBoxFunc::RANGE => Some(1),
+
+        // Signature verification algorithms will take in a variable
+        // number of inputs, since the message/hashed-message can vary in size.
+        BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => None,
+        // Inputs for fixed based scalar multiplication
+        // is just a scalar
+        BlackBoxFunc::FixedBaseScalarMul => Some(1),
+        BlackBoxFunc::RecursiveAggregation => None,
+    }
+}
+
+/// This function will return the number of outputs that a blackbox function
+/// expects. Returning `None` if there is no expectation.
+fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
+    match name {
+        // Bitwise opcodes will return 1 parameter which is the output
+        // or the operation.
+        BlackBoxFunc::AND | BlackBoxFunc::XOR => 1,
+        // 32 byte hash algorithms
+        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => 32,
+        // Hash to field returns a field element
+        BlackBoxFunc::HashToField128Security => 1,
+        // Pedersen returns a point
+        BlackBoxFunc::Pedersen => 2,
+        // Can only apply a range constraint to one
+        // witness at a time.
+        BlackBoxFunc::RANGE => 0,
+        // Signature verification algorithms will return a boolean
+        BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => 1,
+        // Output of fixed based scalar mul over the embedded curve
+        // will be 2 field elements representing the point.
+        BlackBoxFunc::FixedBaseScalarMul => 2,
+        // TODO: change this func to return an option
+        BlackBoxFunc::RecursiveAggregation => 16,
+    }
+}
+
+/// Checks that the number of inputs being used to call the blackbox function
+/// is correct according to the function definition.
+///
+/// Some functions expect a variable number of inputs and in such a case,
+/// this method will do nothing.  An example of this is sha256.
+/// In that case, this function will not check anything.
+///
+/// Since we expect black box functions to be called behind a Noir shim function,
+/// we trigger a compiler error if the inputs do not match.
+///
+/// An example of Noir shim function is the following:
+/// ``
+/// #[foreign(sha256)]
+/// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
+/// ``
+fn intrinsics_check_inputs(name: BlackBoxFunc, inputs: &[FunctionInput]) {
+    let expected_num_inputs = match black_box_func_expected_input_size(name) {
+        Some(expected_num_inputs) => expected_num_inputs,
+        None => return,
+    };
+    let got_num_inputs = inputs.len();
+
+    assert_eq!(expected_num_inputs,inputs.len(),"Tried to call black box function {name} with {got_num_inputs} inputs, but this function's definition requires {expected_num_inputs} inputs");
 }

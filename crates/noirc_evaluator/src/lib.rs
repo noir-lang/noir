@@ -10,6 +10,8 @@ mod ssa;
 // for functions and execute different optimizations.
 pub mod ssa_refactor;
 
+pub mod brillig;
+
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
