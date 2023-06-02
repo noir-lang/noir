@@ -230,8 +230,12 @@ mod tests {
 
     use crate::ssa_refactor::{
         ir::{
-            basic_block::BasicBlockId, dom::DominatorTree, function::Function,
-            instruction::TerminatorInstruction, map::Id, types::Type,
+            basic_block::BasicBlockId,
+            dom::DominatorTree,
+            function::{Function, RuntimeType},
+            instruction::TerminatorInstruction,
+            map::Id,
+            types::Type,
         },
         ssa_builder::FunctionBuilder,
     };
@@ -263,7 +267,7 @@ mod tests {
         //     return ()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
 
         let cond = builder.add_parameter(Type::unsigned(1));
         let block1_id = builder.insert_block();
@@ -372,7 +376,7 @@ mod tests {
         //     jump block1()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
         let block1_id = builder.insert_block();
         let block2_id = builder.insert_block();
 

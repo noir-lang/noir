@@ -13,34 +13,36 @@ use noirc_abi::{Abi, AbiParameter, AbiType, FunctionSignature};
 /// This function returns the lengths ordered such as to correspond to the ordering used by the
 /// SSA representation. This allows the lengths to be consumed as array params are encountered in
 /// the SSA.
-pub(crate) fn collate_array_lengths(abi_params: &[AbiParameter]) -> Vec<usize> {
+pub(crate) fn collate_array_info(abi_params: &[AbiParameter]) -> Vec<(usize, AbiType)> {
     let mut acc = Vec::new();
     for abi_param in abi_params {
-        collate_array_lengths_recursive(&mut acc, &abi_param.typ);
+        collate_array_info_recursive(&mut acc, &abi_param.typ);
     }
     acc
 }
 
-/// The underlying recursive implementation of `collate_array_lengths`
+/// The underlying recursive implementation of `collate_array_info`
 ///
 /// This does a depth-first traversal of the abi until an array (or string) is encountered, at
 /// which point arrays are handled differently depending on the element type:
 /// - arrays of fields, integers or booleans produce an array of the specified length
 /// - arrays of structs produce an array of the specified length for each field of the flatten
 ///   struct (which reflects a simplification made during monomorphization)
-fn collate_array_lengths_recursive(acc: &mut Vec<usize>, abi_type: &AbiType) {
+fn collate_array_info_recursive(acc: &mut Vec<(usize, AbiType)>, abi_type: &AbiType) {
     match abi_type {
         AbiType::Array { length, typ: elem_type } => {
-            match elem_type.as_ref() {
+            let elem_type = elem_type.as_ref();
+            match elem_type {
                 AbiType::Array { .. } => {
                     unreachable!("2D arrays are not supported");
                 }
                 AbiType::Struct { .. } => {
                     // monomorphization converts arrays of structs into an array per flattened
                     // struct field.
-                    let array_count = elem_type.field_count();
-                    for _ in 0..array_count {
-                        acc.push(*length as usize);
+                    let mut destructured_array_types = Vec::new();
+                    flatten_abi_type_recursive(&mut destructured_array_types, elem_type);
+                    for abi_type in destructured_array_types {
+                        acc.push((*length as usize, abi_type));
                     }
                 }
                 AbiType::String { .. } => {
@@ -48,20 +50,41 @@ fn collate_array_lengths_recursive(acc: &mut Vec<usize>, abi_type: &AbiType) {
                 }
                 AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } => {
                     // Simple 1D array
-                    acc.push(*length as usize);
+                    acc.push((*length as usize, elem_type.clone()));
                 }
             }
         }
         AbiType::Struct { fields } => {
             for (_, field_type) in fields {
-                collate_array_lengths_recursive(acc, field_type);
+                collate_array_info_recursive(acc, field_type);
             }
         }
         AbiType::String { length } => {
-            acc.push(*length as usize);
+            // Strings are implemented as u8 arrays
+            let element_type = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
+            acc.push((*length as usize, element_type));
         }
         AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } => {
             // Do not produce arrays
+        }
+    }
+}
+
+/// Used for flattening a struct into its ordered constituent field types. This is needed for
+/// informing knowing the bit widths of any array sets that were destructured from an array of
+/// structs. For this reason, any array encountered within this function are considered to be
+/// nested within a struct and are therefore disallowed. This is acceptable because this function
+/// will only be applied to structs which have been found in an array.
+fn flatten_abi_type_recursive(acc: &mut Vec<AbiType>, abi_type: &AbiType) {
+    match abi_type {
+        AbiType::Array { .. } | AbiType::String { .. } => {
+            unreachable!("2D arrays are unsupported")
+        }
+        AbiType::Boolean | AbiType::Integer { .. } | AbiType::Field => acc.push(abi_type.clone()),
+        AbiType::Struct { fields } => {
+            for (_, field_type) in fields {
+                flatten_abi_type_recursive(acc, field_type);
+            }
         }
     }
 }
