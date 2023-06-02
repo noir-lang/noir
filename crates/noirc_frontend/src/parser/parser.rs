@@ -431,6 +431,15 @@ fn path() -> impl NoirParser<Path> {
     ))
 }
 
+fn empty_path() -> impl NoirParser<Path> {
+    let make_path = |kind| move |_| Path { segments: Vec::new(), kind };
+
+    let prefix = |key| keyword(key);
+    let path_kind = |key, kind| prefix(key).map(make_path(kind));
+
+    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
+}
+
 fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
@@ -443,7 +452,7 @@ fn use_tree() -> impl NoirParser<UseTree> {
         });
 
         let list = {
-            let prefix = path().then_ignore(just(Token::DoubleColon));
+            let prefix = path().or(empty_path()).then_ignore(just(Token::DoubleColon));
             let tree = use_tree
                 .separated_by(just(Token::Comma))
                 .allow_trailing()
@@ -1543,6 +1552,7 @@ mod test {
                 "use foo::{bar, hello}",
                 "use foo::{bar as bar2, hello}",
                 "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+                "use dep::{std::println, bar::baz}",
             ],
         );
 
