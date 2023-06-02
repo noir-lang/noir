@@ -239,64 +239,58 @@ pub enum PathKind {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum UseTree {
-    Simple(Path, Option<Ident>),
-    List(Path, Vec<PathListItem>),
+pub struct UseTree {
+    pub prefix: Path,
+    pub kind: UseTreeKind,
 }
 
 impl Display for UseTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use std::fmt::Write;
+        write!(f, "{}", self.prefix)?;
 
-        match self {
-            UseTree::Simple(path, alias) => {
-                write!(f, "use {path}")?;
+        match &self.kind {
+            UseTreeKind::Path(name, alias) => {
+                write!(f, "{name}")?;
 
-                if let Some(alias) = alias {
-                    write!(f, " as {alias}")?;
+                while let Some(alias) = alias {
+                    write!(f, " as {}", alias)?;
                 }
 
                 Ok(())
             }
-            UseTree::List(path, names) => {
-                write!(f, "use {path}{{")?;
-
-                let names = vecmap(names, |PathListItem { name, alias }| {
-                    let mut name = name.to_string();
-
-                    if let Some(alias) = alias {
-                        let _ = write!(name, " as {alias}");
-                    }
-
-                    name
-                })
-                .join(", ");
-
-                write!(f, "{names}}}")
+            UseTreeKind::List(trees) => {
+                write!(f, "::{{")?;
+                let tree = vecmap(trees, ToString::to_string).join(", ");
+                write!(f, "{tree}}}")
             }
-        }
-    }
-}
-
-impl UseTree {
-    pub fn desugar(self) -> Vec<ImportStatement> {
-        match self {
-            UseTree::Simple(path, alias) => vec![ImportStatement { path, alias }],
-            UseTree::List(path, paths) => paths
-                .into_iter()
-                .map(|PathListItem { name, alias }| ImportStatement {
-                    path: path.clone().join(name),
-                    alias,
-                })
-                .collect(),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PathListItem {
-    pub name: Ident,
-    pub alias: Option<Ident>,
+pub enum UseTreeKind {
+    Path(Ident, Option<Ident>),
+    List(Vec<UseTree>),
+}
+
+impl UseTree {
+    pub fn desugar(self, root: Option<Path>) -> Vec<ImportStatement> {
+        let prefix = if let Some(mut root) = root {
+            root.segments.extend(self.prefix.segments);
+            root
+        } else {
+            self.prefix
+        };
+
+        match self.kind {
+            UseTreeKind::Path(name, alias) => {
+                vec![ImportStatement { path: prefix.join(name), alias }]
+            }
+            UseTreeKind::List(trees) => {
+                trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()
+            }
+        }
+    }
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -309,6 +303,10 @@ pub struct Path {
 }
 
 impl Path {
+    pub fn pop(&mut self) -> Ident {
+        self.segments.pop().unwrap()
+    }
+
     fn join(mut self, ident: Ident) -> Path {
         self.segments.push(ident);
         self

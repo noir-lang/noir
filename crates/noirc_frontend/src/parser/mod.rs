@@ -253,7 +253,7 @@ impl ParsedModule {
     }
 
     fn push_import(&mut self, import_stmt: UseTree) {
-        self.imports.extend(import_stmt.desugar());
+        self.imports.extend(import_stmt.desugar(None));
     }
 
     fn push_module_decl(&mut self, mod_name: Ident) {
@@ -446,7 +446,7 @@ impl std::fmt::Display for TopLevelStatement {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
             TopLevelStatement::Module(m) => write!(f, "mod {m}"),
-            TopLevelStatement::Import(i) => i.fmt(f),
+            TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),

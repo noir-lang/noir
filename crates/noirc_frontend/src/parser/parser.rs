@@ -36,7 +36,7 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct, Path,
-    PathKind, PathListItem, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree,
+    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -396,7 +396,7 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Use).ignore_then(path_list().or(path_simple())).map(TopLevelStatement::Import)
+    keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
 }
 
 fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
@@ -435,22 +435,25 @@ fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
 
-fn path_simple() -> impl NoirParser<UseTree> {
-    path().then(rename()).map(|(name, rename)| UseTree::Simple(name, rename))
-}
+fn use_tree() -> impl NoirParser<UseTree> {
+    recursive(|use_tree| {
+        let simple = path().then(rename()).map(|(mut prefix, alias)| {
+            let ident = prefix.pop();
+            UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
+        });
 
-fn path_list() -> impl NoirParser<UseTree> {
-    let path = path().then_ignore(just(Token::DoubleColon));
+        let list = {
+            let prefix = path().then_ignore(just(Token::DoubleColon));
+            let tree = use_tree
+                .separated_by(just(Token::Comma))
+                .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
+                .map(UseTreeKind::List);
 
-    let items = path_list_item()
-        .separated_by(just(Token::Comma))
-        .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
+            prefix.then(tree).map(|(prefix, kind)| UseTree { prefix, kind })
+        };
 
-    path.then(items).map(|(path, names)| UseTree::List(path, names))
-}
-
-fn path_list_item() -> impl NoirParser<PathListItem> {
-    ident().then(rename()).map(|(name, rename)| PathListItem { name, alias: rename })
+        choice((list, simple))
+    })
 }
 
 fn ident() -> impl NoirParser<Ident> {
@@ -1536,6 +1539,7 @@ mod test {
                 "use bar as bar",
                 "use foo::{bar, hello}",
                 "use foo::{bar as bar2, hello}",
+                "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
             ],
         );
 
