@@ -417,15 +417,8 @@ fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
     })
 }
 
-fn path0(trailing_separator: bool) -> impl NoirParser<Path> {
-    let idents = || {
-        let idents = ident().separated_by(just(Token::DoubleColon)).at_least(1);
-        if trailing_separator {
-            idents.allow_trailing()
-        } else {
-            idents
-        }
-    };
+fn path() -> impl NoirParser<Path> {
+    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
     let make_path = |kind| move |segments| Path { segments, kind };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
@@ -438,10 +431,6 @@ fn path0(trailing_separator: bool) -> impl NoirParser<Path> {
     ))
 }
 
-fn path() -> impl NoirParser<Path> {
-    path0(false)
-}
-
 fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
@@ -451,7 +440,8 @@ fn path_simple() -> impl NoirParser<UseTree> {
 }
 
 fn path_list() -> impl NoirParser<UseTree> {
-    let path = path0(true);
+    let path = path().then_ignore(just(Token::DoubleColon));
+
     let items = path_list_item()
         .separated_by(just(Token::Comma))
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
@@ -1551,7 +1541,13 @@ mod test {
 
         parse_all_failing(
             use_statement(),
-            vec!["use std as ;", "use foobar as as;", "use hello:: as foo;"],
+            vec![
+                "use std as ;",
+                "use foobar as as;",
+                "use hello:: as foo;",
+                "use foo bar::baz",
+                "use foo bar::{baz}",
+            ],
         );
     }
 
