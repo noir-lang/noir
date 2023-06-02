@@ -483,13 +483,26 @@ impl AcirContext {
     pub(crate) fn black_box_function(
         &mut self,
         name: BlackBoxFunc,
-        inputs: Vec<AcirVar>,
+        mut inputs: Vec<AcirVar>,
     ) -> Result<Vec<AcirVar>, AcirGenError> {
+        // Separate out any arguments that should be constants
+        let constants = match name {
+            BlackBoxFunc::Pedersen => {
+                // The last argument of pedersen is the domain separator, which must be a constant
+                let domain_var =
+                    inputs.pop().expect("ICE: Pedersen call requires domain separator");
+                let domain_constant = self.data[&domain_var]
+                    .as_constant()
+                    .expect("ICE: Domain separator must be a constant");
+                vec![domain_constant]
+            }
+            _ => vec![],
+        };
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(&inputs)?;
 
         // Call Black box with `FunctionInput`
-        let outputs = self.acir_ir.call_black_box(name, inputs);
+        let outputs = self.acir_ir.call_black_box(name, inputs, constants);
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.
