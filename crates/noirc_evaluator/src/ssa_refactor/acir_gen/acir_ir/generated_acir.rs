@@ -13,7 +13,7 @@ use acvm::{
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
@@ -167,18 +167,17 @@ impl GeneratedAcir {
 
         let mut composed_limbs = Expression::default();
 
-        let mut limb_witnesses = Vec::new();
         let mut radix_pow: u128 = 1;
-        for _ in 0..limb_count {
+        let limb_witnesses = try_vecmap(0..limb_count, |_| {
             let limb_witness = self.next_witness_index();
             self.range_constraint(limb_witness, bit_size)?;
 
             composed_limbs = composed_limbs
                 .add_mul(FieldElement::from(radix_pow), &Expression::from(limb_witness));
 
-            limb_witnesses.push(limb_witness);
             radix_pow *= radix as u128;
-        }
+            Ok(limb_witness)
+        })?;
 
         self.assert_is_zero(input_expr - &composed_limbs);
 
