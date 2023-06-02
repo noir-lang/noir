@@ -5,7 +5,6 @@ mod tests {
     use std::collections::BTreeMap;
     use std::fs;
     use std::path::{Path, PathBuf};
-    use tempdir::TempDir;
 
     use super::*;
 
