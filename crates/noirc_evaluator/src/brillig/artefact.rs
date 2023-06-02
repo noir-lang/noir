@@ -1,4 +1,4 @@
-use super::acvm_brillig::BrilligOpcode;
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
 #[derive(Default, Debug, Clone)]
 /// Artefacts resulting from the compilation of a function into brillig byte code

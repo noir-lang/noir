@@ -1,4 +1,4 @@
-use crate::brillig::acvm_brillig::BrilligOpcode;
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
 use crate::ssa_refactor::ir::types::NumericType;
 
