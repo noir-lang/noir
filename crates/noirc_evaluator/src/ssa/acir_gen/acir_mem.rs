@@ -140,18 +140,22 @@ impl ArrayHeap {
             return;
         }
         let dummy = MemoryBlock { id: AcirBlockId(0), len: 0, trace: Vec::new() };
+        let trace_len = match self.typ {
+            ArrayType::ReadOnly(Some(len)) | ArrayType::ReadWrite(Some(len)) => len,
+            _ => self.trace.len(),
+        };
 
         if is_opcode_supported(&AcirOpcode::ROM(dummy.clone())) {
             // If the backend support ROM and the array is read-only, we generate the ROM opcode
             if matches!(self.typ, ArrayType::ReadOnly(_)) {
-                self.add_rom_opcode(evaluator, array_id, array_len);
+                self.add_rom_opcode(evaluator, array_id, array_len, trace_len);
                 return;
             }
         }
         if is_opcode_supported(&AcirOpcode::Block(dummy.clone())) {
             self.add_block_opcode(evaluator, array_id, array_len);
         } else if is_opcode_supported(&AcirOpcode::RAM(dummy)) {
-            self.add_ram_opcode(evaluator, array_id, array_len);
+            self.add_ram_opcode(evaluator, array_id, array_len, trace_len);
         } else {
             self.generate_permutation_constraints(evaluator, array_id, array_len);
         }
@@ -165,9 +169,15 @@ impl ArrayHeap {
         }));
     }
 
-    fn add_rom_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
-        let mut trace = Vec::with_capacity(self.trace.len());
-        for op in &self.trace {
+    fn add_rom_opcode(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+        trace_len: usize,
+    ) {
+        let mut trace = Vec::with_capacity(trace_len);
+        for op in self.trace.iter().take(trace_len) {
             let index = Self::normalize_expression(&op.index, evaluator);
             let value = Self::normalize_expression(&op.value, evaluator);
             trace.push(MemOp { operation: op.operation.clone(), index, value });
@@ -179,9 +189,15 @@ impl ArrayHeap {
         }));
     }
 
-    fn add_ram_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
-        let mut trace = Vec::with_capacity(self.trace.len());
-        for op in &self.trace {
+    fn add_ram_opcode(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+        trace_len: usize,
+    ) {
+        let mut trace = Vec::with_capacity(trace_len);
+        for op in self.trace.iter().take(trace_len) {
             let index = Self::normalize_expression(&op.index, evaluator);
             let value = Self::normalize_expression(&op.value, evaluator);
             trace.push(MemOp { operation: op.operation.clone(), index, value });
@@ -334,6 +350,17 @@ impl AcirMem {
                 InternalVar::zero_expr()
             };
             self.array_map_mut(array.id).insert(i, var);
+        }
+    }
+
+    //Ensure we do not optimise writes when the array is returned
+    pub(crate) fn return_array(&mut self, array_id: ArrayId) {
+        let heap = self.array_heap_mut(array_id);
+        match heap.typ {
+            ArrayType::ReadOnly(_) | ArrayType::ReadWrite(_) => {
+                heap.typ = ArrayType::ReadWrite(None);
+            }
+            _ => (),
         }
     }
 
