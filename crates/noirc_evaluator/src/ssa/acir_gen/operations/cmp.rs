@@ -126,8 +126,8 @@ fn array_eq(
     // Fetch the elements in both `MemArrays`s, these are `InternalVar`s
     // We then convert these to `Expressions`
     let internal_var_to_expr = |internal_var: InternalVar| internal_var.expression().clone();
-    let a_values = vecmap(memory_map.load_array(a), internal_var_to_expr);
-    let b_values = vecmap(memory_map.load_array(b), internal_var_to_expr);
+    let a_values = vecmap(memory_map.load_array(a, evaluator), internal_var_to_expr);
+    let b_values = vecmap(memory_map.load_array(b, evaluator), internal_var_to_expr);
 
     constraints::arrays_eq_predicate(&a_values, &b_values, evaluator)
 }

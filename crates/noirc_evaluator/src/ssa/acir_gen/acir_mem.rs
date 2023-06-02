@@ -264,11 +264,20 @@ impl AcirMem {
     }
 
     // Load array values into InternalVars
-    // If create_witness is true, we create witnesses for values that do not have witness
-    pub(super) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
+    pub(super) fn load_array(
+        &mut self,
+        array: &MemArray,
+        evaluator: &mut Evaluator,
+    ) -> Vec<InternalVar> {
         vecmap(0..array.len, |offset| {
-            self.load_array_element_constant_index(array, offset)
-                .expect("infallible: array out of bounds error")
+            operations::load::evaluate_with(
+                array,
+                &InternalVar::from(FieldElement::from(offset as i128)),
+                self,
+                None,
+                evaluator,
+            )
+            .expect("infallible: array out of bounds error")
         })
     }
 
