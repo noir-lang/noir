@@ -446,6 +446,7 @@ fn use_tree() -> impl NoirParser<UseTree> {
             let prefix = path().then_ignore(just(Token::DoubleColon));
             let tree = use_tree
                 .separated_by(just(Token::Comma))
+                .allow_trailing()
                 .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
                 .map(UseTreeKind::List);
 
@@ -1537,6 +1538,8 @@ mod test {
                 "use std",
                 "use foo::bar as hello",
                 "use bar as bar",
+                "use foo::{}",
+                "use foo::{bar,}",
                 "use foo::{bar, hello}",
                 "use foo::{bar as bar2, hello}",
                 "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
@@ -1551,6 +1554,7 @@ mod test {
                 "use hello:: as foo;",
                 "use foo bar::baz",
                 "use foo bar::{baz}",
+                "use foo::{,}",
             ],
         );
     }
