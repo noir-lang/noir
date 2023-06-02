@@ -1,21 +1,17 @@
-#include "./scalar_multiplication.hpp"
-
-#include "barretenberg/common/throw_or_abort.hpp"
-#include "barretenberg/common/mem.hpp"
-#include "barretenberg/common/max_threads.hpp"
-#include "barretenberg/numeric/bitop/get_msb.hpp"
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 
-#include "../../../groups/wnaf.hpp"
-#include "../fq.hpp"
-#include "../fr.hpp"
-#include "../g1.hpp"
+#include "./scalar_multiplication.hpp"
 #include "./process_buckets.hpp"
 #include "./runtime_states.hpp"
+
+#include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/common/mem.hpp"
+#include "barretenberg/common/max_threads.hpp"
+#include "barretenberg/ecc/groups/wnaf.hpp"
+#include "barretenberg/numeric/bitop/get_msb.hpp"
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -56,44 +52,44 @@
     uint64_t schedule_o = state.point_schedule[schedule_it + 14];                                                      \
     uint64_t schedule_p = state.point_schedule[schedule_it + 15];                                                      \
                                                                                                                        \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_a >> 32ULL), state.point_pairs_1 + current_offset, (schedule_a >> 31ULL) & 1ULL);     \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_b >> 32ULL), state.point_pairs_1 + current_offset + 1, (schedule_b >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_c >> 32ULL), state.point_pairs_1 + current_offset + 2, (schedule_c >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_d >> 32ULL), state.point_pairs_1 + current_offset + 3, (schedule_d >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_e >> 32ULL), state.point_pairs_1 + current_offset + 4, (schedule_e >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_f >> 32ULL), state.point_pairs_1 + current_offset + 5, (schedule_f >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_g >> 32ULL), state.point_pairs_1 + current_offset + 6, (schedule_g >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_h >> 32ULL), state.point_pairs_1 + current_offset + 7, (schedule_h >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_i >> 32ULL), state.point_pairs_1 + current_offset + 8, (schedule_i >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(                                                                                     \
+    Group::conditional_negate_affine(                                                                                  \
         state.points + (schedule_j >> 32ULL), state.point_pairs_1 + current_offset + 9, (schedule_j >> 31ULL) & 1ULL); \
-    g1::conditional_negate_affine(state.points + (schedule_k >> 32ULL),                                                \
-                                  state.point_pairs_1 + current_offset + 10,                                           \
-                                  (schedule_k >> 31ULL) & 1ULL);                                                       \
-    g1::conditional_negate_affine(state.points + (schedule_l >> 32ULL),                                                \
-                                  state.point_pairs_1 + current_offset + 11,                                           \
-                                  (schedule_l >> 31ULL) & 1ULL);                                                       \
-    g1::conditional_negate_affine(state.points + (schedule_m >> 32ULL),                                                \
-                                  state.point_pairs_1 + current_offset + 12,                                           \
-                                  (schedule_m >> 31ULL) & 1ULL);                                                       \
-    g1::conditional_negate_affine(state.points + (schedule_n >> 32ULL),                                                \
-                                  state.point_pairs_1 + current_offset + 13,                                           \
-                                  (schedule_n >> 31ULL) & 1ULL);                                                       \
-    g1::conditional_negate_affine(state.points + (schedule_o >> 32ULL),                                                \
-                                  state.point_pairs_1 + current_offset + 14,                                           \
-                                  (schedule_o >> 31ULL) & 1ULL);                                                       \
-    g1::conditional_negate_affine(state.points + (schedule_p >> 32ULL),                                                \
-                                  state.point_pairs_1 + current_offset + 15,                                           \
-                                  (schedule_p >> 31ULL) & 1ULL);                                                       \
+    Group::conditional_negate_affine(state.points + (schedule_k >> 32ULL),                                             \
+                                     state.point_pairs_1 + current_offset + 10,                                        \
+                                     (schedule_k >> 31ULL) & 1ULL);                                                    \
+    Group::conditional_negate_affine(state.points + (schedule_l >> 32ULL),                                             \
+                                     state.point_pairs_1 + current_offset + 11,                                        \
+                                     (schedule_l >> 31ULL) & 1ULL);                                                    \
+    Group::conditional_negate_affine(state.points + (schedule_m >> 32ULL),                                             \
+                                     state.point_pairs_1 + current_offset + 12,                                        \
+                                     (schedule_m >> 31ULL) & 1ULL);                                                    \
+    Group::conditional_negate_affine(state.points + (schedule_n >> 32ULL),                                             \
+                                     state.point_pairs_1 + current_offset + 13,                                        \
+                                     (schedule_n >> 31ULL) & 1ULL);                                                    \
+    Group::conditional_negate_affine(state.points + (schedule_o >> 32ULL),                                             \
+                                     state.point_pairs_1 + current_offset + 14,                                        \
+                                     (schedule_o >> 31ULL) & 1ULL);                                                    \
+    Group::conditional_negate_affine(state.points + (schedule_p >> 32ULL),                                             \
+                                     state.point_pairs_1 + current_offset + 15,                                        \
+                                     (schedule_p >> 31ULL) & 1ULL);                                                    \
                                                                                                                        \
     current_offset += 16;                                                                                              \
     schedule_it += 16;
@@ -105,10 +101,14 @@ namespace scalar_multiplication {
  * The pippppenger point table computes for each point P = (x,y), a point P' = (\beta * x, -y) which enables us
  * to use the curve endomorphism for faster scalar multiplication. See below for more details.
  */
-void generate_pippenger_point_table(g1::affine_element* points, g1::affine_element* table, size_t num_points)
+template <typename Curve>
+void generate_pippenger_point_table(typename Curve::AffineElement* points,
+                                    typename Curve::AffineElement* table,
+                                    size_t num_points)
 {
     // iterate backwards, so that `points` and `table` can point to the same memory location
-    fq beta = fq::cube_root_of_unity();
+    using Fq = typename Curve::BaseField;
+    Fq beta = Fq::cube_root_of_unity();
     for (size_t i = num_points - 1; i < num_points; --i) {
         table[i * 2] = points[i];
         table[i * 2 + 1].x = beta * points[i].x;
@@ -196,12 +196,14 @@ void generate_pippenger_point_table(g1::affine_element* points, g1::affine_eleme
  * @param scalars The pointer to the region with initial scalars that need to be converted into WNAF
  * @param num_initial_points The number of points before the endomorphism split
  **/
+template <typename Curve>
 void compute_wnaf_states(uint64_t* point_schedule,
                          bool* input_skew_table,
                          uint64_t* round_counts,
-                         const fr* scalars,
+                         const typename Curve::ScalarField* scalars,
                          const size_t num_initial_points)
 {
+    using Fr = typename Curve::ScalarField;
     const size_t num_points = num_initial_points * 2;
     constexpr size_t MAX_NUM_ROUNDS = 256;
     constexpr size_t MAX_NUM_THREADS = 128;
@@ -225,15 +227,15 @@ void compute_wnaf_states(uint64_t* point_schedule,
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < num_threads; ++i) {
-        fr T0;
+        Fr T0;
         uint64_t* wnaf_table = &point_schedule[(2 * i) * num_initial_points_per_thread];
-        const fr* thread_scalars = &scalars[i * num_initial_points_per_thread];
+        const Fr* thread_scalars = &scalars[i * num_initial_points_per_thread];
         bool* skew_table = &input_skew_table[(2 * i) * num_initial_points_per_thread];
         uint64_t offset = i * num_points_per_thread;
 
         for (uint64_t j = 0; j < num_initial_points_per_thread; ++j) {
             T0 = thread_scalars[j].from_montgomery_form();
-            fr::split_into_endomorphism_scalars(T0, T0, *(fr*)&T0.data[2]);
+            Fr::split_into_endomorphism_scalars(T0, T0, *(Fr*)&T0.data[2]);
 
             wnaf::fixed_wnaf_with_counts(&T0.data[0],
                                          &wnaf_table[(j << 1UL)],
@@ -313,9 +315,13 @@ void organize_buckets(uint64_t* point_schedule, const uint64_t*, const size_t nu
  *
  * We can re-arrange the Pippenger algorithm to get this property, but it's...complicated
  **/
-void add_affine_points(g1::affine_element* points, const size_t num_points, fq* scratch_space)
+template <typename Curve>
+void add_affine_points(typename Curve::AffineElement* points,
+                       const size_t num_points,
+                       typename Curve::BaseField* scratch_space)
 {
-    fq batch_inversion_accumulator = fq::one();
+    using Fq = typename Curve::BaseField;
+    Fq batch_inversion_accumulator = Fq::one();
 
     for (size_t i = 0; i < num_points; i += 2) {
         scratch_space[i >> 1] = points[i].x + points[i + 1].x; // x2 + x1
@@ -350,9 +356,13 @@ void add_affine_points(g1::affine_element* points, const size_t num_points, fq* 
     }
 }
 
-void add_affine_points_with_edge_cases(g1::affine_element* points, const size_t num_points, fq* scratch_space)
+template <typename Curve>
+void add_affine_points_with_edge_cases(typename Curve::AffineElement* points,
+                                       const size_t num_points,
+                                       typename Curve::BaseField* scratch_space)
 {
-    fq batch_inversion_accumulator = fq::one();
+    using Fq = typename Curve::BaseField;
+    Fq batch_inversion_accumulator = Fq::one();
 
     for (size_t i = 0; i < num_points; i += 2) {
         if (points[i].is_point_at_infinity() || points[i + 1].is_point_at_infinity()) {
@@ -362,7 +372,7 @@ void add_affine_points_with_edge_cases(g1::affine_element* points, const size_t 
             if (points[i].y == points[i + 1].y) {
                 // double
                 scratch_space[i >> 1] = points[i].x + points[i].x; // 2x
-                fq x_squared = points[i].x.sqr();
+                Fq x_squared = points[i].x.sqr();
                 points[i + 1].x = points[i].y + points[i].y;         // 2y
                 points[i + 1].y = x_squared + x_squared + x_squared; // 3x^2
                 points[i + 1].y *= batch_inversion_accumulator;
@@ -418,7 +428,10 @@ void add_affine_points_with_edge_cases(g1::affine_element* points, const size_t 
  * `max_bucket_bits` indicates the largest set of nested pairs in the array,
  * which defines the iteration depth
  **/
-void evaluate_addition_chains(affine_product_runtime_state& state, const size_t max_bucket_bits, bool handle_edge_cases)
+template <typename Curve>
+void evaluate_addition_chains(affine_product_runtime_state<Curve>& state,
+                              const size_t max_bucket_bits,
+                              bool handle_edge_cases)
 {
     size_t end = state.num_points;
     size_t start = 0;
@@ -426,9 +439,9 @@ void evaluate_addition_chains(affine_product_runtime_state& state, const size_t 
         const size_t points_in_round = (state.num_points - state.bit_offsets[i + 1]) >> (i);
         start = end - points_in_round;
         if (handle_edge_cases) {
-            add_affine_points_with_edge_cases(state.point_pairs_1 + start, points_in_round, state.scratch_space);
+            add_affine_points_with_edge_cases<Curve>(state.point_pairs_1 + start, points_in_round, state.scratch_space);
         } else {
-            add_affine_points(state.point_pairs_1 + start, points_in_round, state.scratch_space);
+            add_affine_points<Curve>(state.point_pairs_1 + start, points_in_round, state.scratch_space);
         }
     }
 }
@@ -453,7 +466,10 @@ void evaluate_addition_chains(affine_product_runtime_state& state, const size_t 
  * The next step is to 'play it again Sam', and recurse back into `reduce_buckets`, with our reduced number of points.
  * We repeat this process until every bucket only has one point assigned to it.
  **/
-g1::affine_element* reduce_buckets(affine_product_runtime_state& state, bool first_round, bool handle_edge_cases)
+template <typename Curve>
+typename Curve::AffineElement* reduce_buckets(affine_product_runtime_state<Curve>& state,
+                                              bool first_round,
+                                              bool handle_edge_cases)
 {
 
     // std::chrono::steady_clock::time_point time_start = std::chrono::steady_clock::now();
@@ -519,7 +535,7 @@ g1::affine_element* reduce_buckets(affine_product_runtime_state& state, bool fir
     // modify `num_points` to reflect the new number of reduced points.
     // also swap around the `point_pairs` pointer; what used to be our temporary array
     // has now become our input point array
-    g1::affine_element* temp = state.point_pairs_1;
+    typename Curve::AffineElement* temp = state.point_pairs_1;
     state.num_points = new_num_points;
     state.points = state.point_pairs_1;
     state.point_pairs_1 = state.point_pairs_2;
@@ -531,8 +547,10 @@ g1::affine_element* reduce_buckets(affine_product_runtime_state& state, bool fir
     return reduce_buckets(state, false, handle_edge_cases);
 }
 
-uint32_t construct_addition_chains(affine_product_runtime_state& state, bool empty_bucket_counts)
+template <typename Curve>
+uint32_t construct_addition_chains(affine_product_runtime_state<Curve>& state, bool empty_bucket_counts)
 {
+    using Group = typename Curve::Group;
     // if this is the first call to `construct_addition_chains`, we need to count up our buckets
     if (empty_bucket_counts) {
         memset((void*)state.bucket_counts, 0x00, sizeof(uint32_t) * state.num_buckets);
@@ -618,30 +636,30 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
                 const uint64_t schedule_g = state.point_schedule[schedule_it + 6];
                 const uint64_t schedule_h = state.point_schedule[schedule_it + 7];
 
-                g1::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
-                                              state.point_pairs_1 + current_offset,
-                                              (schedule_a >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_b >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 1,
-                                              (schedule_b >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_c >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 2,
-                                              (schedule_c >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_d >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 3,
-                                              (schedule_d >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_e >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 4,
-                                              (schedule_e >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_f >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 5,
-                                              (schedule_f >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_g >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 6,
-                                              (schedule_g >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_h >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 7,
-                                              (schedule_h >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
+                                                 state.point_pairs_1 + current_offset,
+                                                 (schedule_a >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_b >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 1,
+                                                 (schedule_b >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_c >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 2,
+                                                 (schedule_c >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_d >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 3,
+                                                 (schedule_d >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_e >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 4,
+                                                 (schedule_e >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_f >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 5,
+                                                 (schedule_f >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_g >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 6,
+                                                 (schedule_g >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_h >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 7,
+                                                 (schedule_h >> 31ULL) & 1ULL);
 
                 current_offset += 8;
                 schedule_it += 8;
@@ -657,18 +675,18 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
                 const uint64_t schedule_c = state.point_schedule[schedule_it + 2];
                 const uint64_t schedule_d = state.point_schedule[schedule_it + 3];
 
-                g1::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
-                                              state.point_pairs_1 + current_offset,
-                                              (schedule_a >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_b >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 1,
-                                              (schedule_b >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_c >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 2,
-                                              (schedule_c >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_d >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 3,
-                                              (schedule_d >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
+                                                 state.point_pairs_1 + current_offset,
+                                                 (schedule_a >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_b >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 1,
+                                                 (schedule_b >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_c >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 2,
+                                                 (schedule_c >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_d >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 3,
+                                                 (schedule_d >> 31ULL) & 1ULL);
                 current_offset += 4;
                 schedule_it += 4;
                 break;
@@ -681,12 +699,12 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
                 const uint64_t schedule_a = state.point_schedule[schedule_it];
                 const uint64_t schedule_b = state.point_schedule[schedule_it + 1];
 
-                g1::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
-                                              state.point_pairs_1 + current_offset,
-                                              (schedule_a >> 31ULL) & 1ULL);
-                g1::conditional_negate_affine(state.points + (schedule_b >> 32ULL),
-                                              state.point_pairs_1 + current_offset + 1,
-                                              (schedule_b >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
+                                                 state.point_pairs_1 + current_offset,
+                                                 (schedule_a >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_b >> 32ULL),
+                                                 state.point_pairs_1 + current_offset + 1,
+                                                 (schedule_b >> 31ULL) & 1ULL);
                 current_offset += 2;
                 schedule_it += 2;
                 break;
@@ -698,9 +716,9 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
                 __builtin_prefetch(state.points + (state.point_schedule[schedule_it + 7] >> 32ULL));
                 const uint64_t schedule_a = state.point_schedule[schedule_it];
 
-                g1::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
-                                              state.point_pairs_1 + current_offset,
-                                              (schedule_a >> 31ULL) & 1ULL);
+                Group::conditional_negate_affine(state.points + (schedule_a >> 32ULL),
+                                                 state.point_pairs_1 + current_offset,
+                                                 (schedule_a >> 31ULL) & 1ULL);
                 ++current_offset;
                 ++schedule_it;
                 break;
@@ -715,7 +733,7 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
 
                     const uint64_t predicate = (schedule >> 31UL) & 1UL;
 
-                    g1::conditional_negate_affine(
+                    Group::conditional_negate_affine(
                         state.points + (schedule >> 32ULL), state.point_pairs_1 + current_offset, predicate);
                     ++current_offset;
                     ++schedule_it;
@@ -727,11 +745,14 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
     return max_bucket_bits;
 }
 
-g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
-                                      g1::affine_element* points,
-                                      const size_t num_points,
-                                      bool handle_edge_cases)
+template <typename Curve>
+typename Curve::Element evaluate_pippenger_rounds(pippenger_runtime_state<Curve>& state,
+                                                  typename Curve::AffineElement* points,
+                                                  const size_t num_points,
+                                                  bool handle_edge_cases)
 {
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
     const size_t num_rounds = get_num_rounds(num_points);
 #ifndef NO_MULTITHREADING
     const size_t num_threads = max_threads::compute_num_threads();
@@ -740,8 +761,8 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
 #endif
     const size_t bits_per_bucket = get_optimal_bucket_width(num_points / 2);
 
-    std::unique_ptr<g1::element[], decltype(&aligned_free)> thread_accumulators(
-        static_cast<g1::element*>(aligned_alloc(64, num_threads * sizeof(g1::element))), &aligned_free);
+    std::unique_ptr<Element[], decltype(&aligned_free)> thread_accumulators(
+        static_cast<Element*>(aligned_alloc(64, num_threads * sizeof(Element))), &aligned_free);
 
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
@@ -753,7 +774,7 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
 
             const uint64_t num_round_points = state.round_counts[i];
 
-            g1::element accumulator;
+            Element accumulator;
             accumulator.self_set_infinity();
 
             if ((num_round_points == 0) || (num_round_points < num_threads && j != num_threads - 1)) {
@@ -770,13 +791,14 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
                     thread_point_schedule[(num_round_points_per_thread - 1 + leftovers)] & 0x7fffffffU;
                 const size_t num_thread_buckets = (last_bucket - first_bucket) + 1;
 
-                affine_product_runtime_state product_state = state.get_affine_product_runtime_state(num_threads, j);
+                affine_product_runtime_state<Curve> product_state =
+                    state.get_affine_product_runtime_state(num_threads, j);
                 product_state.num_points = static_cast<uint32_t>(num_round_points_per_thread + leftovers);
                 product_state.points = points;
                 product_state.point_schedule = thread_point_schedule;
                 product_state.num_buckets = static_cast<uint32_t>(num_thread_buckets);
-                g1::affine_element* output_buckets = reduce_buckets(product_state, true, handle_edge_cases);
-                g1::element running_sum;
+                AffineElement* output_buckets = reduce_buckets(product_state, true, handle_edge_cases);
+                Element running_sum;
                 running_sum.self_set_infinity();
 
                 // one nice side-effect of the affine trick, is that half of the bucket concatenation
@@ -799,7 +821,7 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
                 if (first_bucket > 0) {
                     uint32_t multiplier = static_cast<uint32_t>(first_bucket << 1UL);
                     size_t shift = numeric::get_msb(multiplier);
-                    g1::element rolling_accumulator = g1::point_at_infinity;
+                    Element rolling_accumulator = Curve::Group::point_at_infinity;
                     bool init = false;
                     while (shift != static_cast<size_t>(-1)) {
                         if (init) {
@@ -820,8 +842,8 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
             if (i == (num_rounds - 1)) {
                 const size_t num_points_per_thread = num_points / num_threads;
                 bool* skew_table = &state.skew_table[j * num_points_per_thread];
-                g1::affine_element* point_table = &points[j * num_points_per_thread];
-                g1::affine_element addition_temporary;
+                AffineElement* point_table = &points[j * num_points_per_thread];
+                AffineElement addition_temporary;
                 for (size_t k = 0; k < num_points_per_thread; ++k) {
                     if (skew_table[k]) {
                         addition_temporary = -point_table[k];
@@ -839,7 +861,7 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
         }
     }
 
-    g1::element result;
+    Element result;
     result.self_set_infinity();
     for (size_t i = 0; i < num_threads; ++i) {
         result += thread_accumulators[i];
@@ -847,25 +869,31 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
     return result;
 }
 
-g1::element pippenger_internal(g1::affine_element* points,
-                               fr* scalars,
-                               const size_t num_initial_points,
-                               pippenger_runtime_state& state,
-                               bool handle_edge_cases)
+template <typename Curve>
+typename Curve::Element pippenger_internal(typename Curve::AffineElement* points,
+                                           typename Curve::ScalarField* scalars,
+                                           const size_t num_initial_points,
+                                           pippenger_runtime_state<Curve>& state,
+                                           bool handle_edge_cases)
 {
     // multiplication_runtime_state state;
-    compute_wnaf_states(state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
+    compute_wnaf_states<Curve>(state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     organize_buckets(state.point_schedule, state.round_counts, num_initial_points * 2);
-    g1::element result = evaluate_pippenger_rounds(state, points, num_initial_points * 2, handle_edge_cases);
+    typename Curve::Element result =
+        evaluate_pippenger_rounds<Curve>(state, points, num_initial_points * 2, handle_edge_cases);
     return result;
 }
 
-g1::element pippenger(fr* scalars,
-                      g1::affine_element* points,
-                      const size_t num_initial_points,
-                      pippenger_runtime_state& state,
-                      bool handle_edge_cases)
+template <typename Curve>
+typename Curve::Element pippenger(typename Curve::ScalarField* scalars,
+                                  typename Curve::AffineElement* points,
+                                  const size_t num_initial_points,
+                                  pippenger_runtime_state<Curve>& state,
+                                  bool handle_edge_cases)
 {
+    using Group = typename Curve::Group;
+    using Element = typename Curve::Element;
+
     // our windowed non-adjacent form algorthm requires that each thread can work on at least 8 points.
     // If we fall below this theshold, fall back to the traditional scalar multiplication algorithm.
     // For 8 threads, this neatly coincides with the threshold where Strauss scalar multiplication outperforms Pippenger
@@ -876,20 +904,20 @@ g1::element pippenger(fr* scalars,
 #endif
 
     if (num_initial_points == 0) {
-        g1::element out = g1::one;
+        Element out = Group::one;
         out.self_set_infinity();
         return out;
     }
 
     if (num_initial_points <= threshold) {
-        std::vector<g1::element> exponentiation_results(num_initial_points);
+        std::vector<Element> exponentiation_results(num_initial_points);
         // might as well multithread this...
         // Possible optimization: use group::batch_mul_with_endomorphism here.
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < num_initial_points; ++i) {
-            exponentiation_results[i] = g1::element(points[i * 2]) * scalars[i];
+            exponentiation_results[i] = Element(points[i * 2]) * scalars[i];
         }
 
         for (size_t i = num_initial_points - 1; i > 0; --i) {
@@ -901,7 +929,7 @@ g1::element pippenger(fr* scalars,
     const size_t slice_bits = static_cast<size_t>(numeric::get_msb(static_cast<uint64_t>(num_initial_points)));
     const size_t num_slice_points = static_cast<size_t>(1ULL << slice_bits);
 
-    g1::element result = pippenger_internal(points, scalars, num_slice_points, state, handle_edge_cases);
+    Element result = pippenger_internal(points, scalars, num_slice_points, state, handle_edge_cases);
 
     if (num_slice_points != num_initial_points) {
         const uint64_t leftover_points = num_initial_points - num_slice_points;
@@ -930,21 +958,120 @@ g1::element pippenger(fr* scalars,
  *would be a great idea!
  *
  **/
-g1::element pippenger_unsafe(fr* scalars,
-                             g1::affine_element* points,
-                             const size_t num_initial_points,
-                             pippenger_runtime_state& state)
+template <typename Curve>
+typename Curve::Element pippenger_unsafe(typename Curve::ScalarField* scalars,
+                                         typename Curve::AffineElement* points,
+                                         const size_t num_initial_points,
+                                         pippenger_runtime_state<Curve>& state)
 {
     return pippenger(scalars, points, num_initial_points, state, false);
 }
-g1::element pippenger_without_endomorphism_basis_points(fr* scalars,
-                                                        g1::affine_element* points,
-                                                        const size_t num_initial_points,
-                                                        pippenger_runtime_state& state)
+
+template <typename Curve>
+typename Curve::Element pippenger_without_endomorphism_basis_points(typename Curve::ScalarField* scalars,
+                                                                    typename Curve::AffineElement* points,
+                                                                    const size_t num_initial_points,
+                                                                    pippenger_runtime_state<Curve>& state)
 {
-    std::vector<g1::affine_element> G_mod(num_initial_points * 2);
-    barretenberg::scalar_multiplication::generate_pippenger_point_table(points, &G_mod[0], num_initial_points);
+    std::vector<typename Curve::AffineElement> G_mod(num_initial_points * 2);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, &G_mod[0], num_initial_points);
     return pippenger(scalars, &G_mod[0], num_initial_points, state, false);
 }
+
+// Explicit instantiation
+// BN254
+template uint32_t construct_addition_chains<curve::BN254>(affine_product_runtime_state<curve::BN254>& state,
+                                                          bool empty_bucket_counts = true);
+
+template void add_affine_points<curve::BN254>(curve::BN254::AffineElement* points,
+                                              const size_t num_points,
+                                              curve::BN254::BaseField* scratch_space);
+
+template void add_affine_points_with_edge_cases<curve::BN254>(curve::BN254::AffineElement* points,
+                                                              const size_t num_points,
+                                                              curve::BN254::BaseField* scratch_space);
+
+template void evaluate_addition_chains<curve::BN254>(affine_product_runtime_state<curve::BN254>& state,
+                                                     const size_t max_bucket_bits,
+                                                     bool handle_edge_cases);
+template curve::BN254::Element pippenger_internal<curve::BN254>(curve::BN254::AffineElement* points,
+                                                                curve::BN254::ScalarField* scalars,
+                                                                const size_t num_initial_points,
+                                                                pippenger_runtime_state<curve::BN254>& state,
+                                                                bool handle_edge_cases);
+
+template curve::BN254::Element evaluate_pippenger_rounds<curve::BN254>(pippenger_runtime_state<curve::BN254>& state,
+                                                                       curve::BN254::AffineElement* points,
+                                                                       const size_t num_points,
+                                                                       bool handle_edge_cases = false);
+
+template curve::BN254::AffineElement* reduce_buckets<curve::BN254>(affine_product_runtime_state<curve::BN254>& state,
+                                                                   bool first_round = true,
+                                                                   bool handle_edge_cases = false);
+
+template curve::BN254::Element pippenger<curve::BN254>(curve::BN254::ScalarField* scalars,
+                                                       curve::BN254::AffineElement* points,
+                                                       const size_t num_points,
+                                                       pippenger_runtime_state<curve::BN254>& state,
+                                                       bool handle_edge_cases = true);
+
+template curve::BN254::Element pippenger_unsafe<curve::BN254>(curve::BN254::ScalarField* scalars,
+                                                              curve::BN254::AffineElement* points,
+                                                              const size_t num_initial_points,
+                                                              pippenger_runtime_state<curve::BN254>& state);
+
+template curve::BN254::Element pippenger_without_endomorphism_basis_points<curve::BN254>(
+    curve::BN254::ScalarField* scalars,
+    curve::BN254::AffineElement* points,
+    const size_t num_initial_points,
+    pippenger_runtime_state<curve::BN254>& state);
+
+// Grumpkin
+template uint32_t construct_addition_chains<curve::Grumpkin>(affine_product_runtime_state<curve::Grumpkin>& state,
+                                                             bool empty_bucket_counts = true);
+
+template void add_affine_points<curve::Grumpkin>(curve::Grumpkin::AffineElement* points,
+                                                 const size_t num_points,
+                                                 curve::Grumpkin::BaseField* scratch_space);
+
+template void add_affine_points_with_edge_cases<curve::Grumpkin>(curve::Grumpkin::AffineElement* points,
+                                                                 const size_t num_points,
+                                                                 curve::Grumpkin::BaseField* scratch_space);
+
+template void evaluate_addition_chains<curve::Grumpkin>(affine_product_runtime_state<curve::Grumpkin>& state,
+                                                        const size_t max_bucket_bits,
+                                                        bool handle_edge_cases);
+template curve::Grumpkin::Element pippenger_internal<curve::Grumpkin>(curve::Grumpkin::AffineElement* points,
+                                                                      curve::Grumpkin::ScalarField* scalars,
+                                                                      const size_t num_initial_points,
+                                                                      pippenger_runtime_state<curve::Grumpkin>& state,
+                                                                      bool handle_edge_cases);
+
+template curve::Grumpkin::Element evaluate_pippenger_rounds<curve::Grumpkin>(
+    pippenger_runtime_state<curve::Grumpkin>& state,
+    curve::Grumpkin::AffineElement* points,
+    const size_t num_points,
+    bool handle_edge_cases = false);
+
+template curve::Grumpkin::AffineElement* reduce_buckets<curve::Grumpkin>(
+    affine_product_runtime_state<curve::Grumpkin>& state, bool first_round = true, bool handle_edge_cases = false);
+
+template curve::Grumpkin::Element pippenger<curve::Grumpkin>(curve::Grumpkin::ScalarField* scalars,
+                                                             curve::Grumpkin::AffineElement* points,
+                                                             const size_t num_points,
+                                                             pippenger_runtime_state<curve::Grumpkin>& state,
+                                                             bool handle_edge_cases = true);
+
+template curve::Grumpkin::Element pippenger_unsafe<curve::Grumpkin>(curve::Grumpkin::ScalarField* scalars,
+                                                                    curve::Grumpkin::AffineElement* points,
+                                                                    const size_t num_initial_points,
+                                                                    pippenger_runtime_state<curve::Grumpkin>& state);
+
+template curve::Grumpkin::Element pippenger_without_endomorphism_basis_points<curve::Grumpkin>(
+    curve::Grumpkin::ScalarField* scalars,
+    curve::Grumpkin::AffineElement* points,
+    const size_t num_initial_points,
+    pippenger_runtime_state<curve::Grumpkin>& state);
+
 } // namespace scalar_multiplication
 } // namespace barretenberg

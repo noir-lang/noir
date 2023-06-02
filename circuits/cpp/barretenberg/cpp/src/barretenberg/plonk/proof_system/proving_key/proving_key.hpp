@@ -1,14 +1,15 @@
 #pragma once
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/runtime_states.hpp"
 #include <map>
+#include <unordered_map>
+
+#include "barretenberg/ecc/scalar_multiplication/runtime_states.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-
 #include "barretenberg/proof_system/polynomial_store/polynomial_store.hpp"
 #include "barretenberg/srs/reference_string/reference_string.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
-#include <unordered_map>
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 
 namespace proof_system::plonk {
 
@@ -62,7 +63,7 @@ struct proving_key {
 
     barretenberg::polynomial quotient_polynomial_parts[plonk::NUM_QUOTIENT_PARTS];
 
-    barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
+    barretenberg::scalar_multiplication::pippenger_runtime_state<curve::BN254> pippenger_runtime_state;
 
     PolynomialManifest polynomial_manifest;
 

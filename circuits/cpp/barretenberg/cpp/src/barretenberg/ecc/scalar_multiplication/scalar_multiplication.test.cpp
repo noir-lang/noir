@@ -1,32 +1,65 @@
-#include "pippenger.hpp"
-#include "scalar_multiplication.hpp"
 #include <chrono>
-#include "barretenberg/common/test.hpp"
-#include "barretenberg/srs/io.hpp"
+#include <type_traits>
 #include <vector>
 
+#include "pippenger.hpp"
+#include "scalar_multiplication.hpp"
+#include "barretenberg/common/test.hpp"
+#include "barretenberg/srs/io.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-
 #include "barretenberg/common/mem.hpp"
-
-#define BARRETENBERG_SRS_PATH "../srs_db/ignition"
-
-using namespace barretenberg;
-using namespace barretenberg::scalar_multiplication;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-TEST(scalar_multiplication, reduce_buckets_simple)
+template <typename Curve> class SRSIO : public ::testing::Test {
+  public:
+    const std::string SRS_PATH = []() {
+        if constexpr (std::same_as<Curve, curve::BN254>) {
+            return "../srs_db/ignition";
+        } else if constexpr (std::same_as<Curve, curve::Grumpkin>) {
+            return "../srs_db/grumpkin";
+        }
+    }();
+
+    static void read_transcript_g2(std::string const& srs_path) requires srs::HasG2<Curve>
+    {
+        typename Curve::G2AffineElement g2_x;
+        srs::IO<Curve>::read_transcript_g2(g2_x, srs_path);
+    };
+
+    static void read_transcript(typename Curve::AffineElement* monomials, size_t degree, std::string const& srs_path)
+    {
+        if constexpr (srs::HasG2<Curve>) {
+            typename Curve::G2AffineElement g2_x;
+            srs::IO<Curve>::read_transcript(monomials, g2_x, degree, srs_path);
+        } else {
+            srs::IO<Curve>::read_transcript(monomials, degree, srs_path);
+        }
+    }
+};
+
+using Curves = ::testing::Types<curve::BN254, curve::Grumpkin>;
+
+TYPED_TEST_SUITE(SRSIO, Curves);
+
+TYPED_TEST(SRSIO, ReduceBucketsSimple)
 {
+    using Curve = TypeParam;
+    using Pippenger = barretenberg::scalar_multiplication::Pippenger<Curve>;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fq = typename Curve::BaseField;
+
     constexpr size_t num_points = 128;
-    g2::affine_element g2_x;
-    io::read_transcript_g2(g2_x, BARRETENBERG_SRS_PATH);
-    auto pippenger = Pippenger(BARRETENBERG_SRS_PATH, num_points / 2);
+    if constexpr (srs::HasG2<Curve>) {
+        TestFixture::read_transcript_g2(TestFixture::SRS_PATH);
+    }
+    auto pippenger = Pippenger(TestFixture::SRS_PATH, num_points / 2);
     auto monomials = pippenger.get_point_table();
 
-    std::vector<uint64_t> point_schedule(scalar_multiplication::point_table_size(num_points / 2));
+    std::vector<uint64_t> point_schedule(barretenberg::scalar_multiplication::point_table_size(num_points / 2));
     std::array<bool, num_points> bucket_empty_status;
     // 16 buckets, each bucket has one point
     std::array<uint64_t, num_points> transcript;
@@ -167,7 +200,7 @@ TEST(scalar_multiplication, reduce_buckets_simple)
     for (size_t i = 0; i < num_points; ++i) {
         point_schedule[i] = (static_cast<uint64_t>(transcript_points[i]) << 32ULL) + transcript[i];
     }
-    std::array<g1::element, num_points> expected;
+    std::array<Element, num_points> expected;
     for (size_t i = 0; i < num_points; ++i) {
         expected[i].self_set_infinity();
     }
@@ -179,20 +212,20 @@ TEST(scalar_multiplication, reduce_buckets_simple)
         }
     }
 
-    std::array<g1::affine_element, num_points> point_pairs;
-    std::array<g1::affine_element, num_points> output_buckets;
-    std::array<fq, num_points> scratch_space;
+    std::array<AffineElement, num_points> point_pairs;
+    std::array<AffineElement, num_points> output_buckets;
+    std::array<Fq, num_points> scratch_space;
     std::array<uint32_t, num_points> bucket_counts;
     std::array<uint32_t, num_points> bit_offsets = { 0 };
 
-    scalar_multiplication::affine_product_runtime_state product_state{
+    barretenberg::scalar_multiplication::affine_product_runtime_state<Curve> product_state{
         &monomials[0],          &point_pairs[0],   &output_buckets[0],
         &scratch_space[0],      &bucket_counts[0], &bit_offsets[0],
         &point_schedule[0],     num_points,        2,
         &bucket_empty_status[0]
     };
 
-    g1::affine_element* output = scalar_multiplication::reduce_buckets(product_state, true);
+    AffineElement* output = barretenberg::scalar_multiplication::reduce_buckets<Curve>(product_state, true);
 
     for (size_t i = 0; i < product_state.num_buckets; ++i) {
         expected[i] = expected[i].normalize();
@@ -201,54 +234,57 @@ TEST(scalar_multiplication, reduce_buckets_simple)
     }
 }
 
-TEST(scalar_multiplication, reduce_buckets)
+TYPED_TEST(SRSIO, ReduceBuckets)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+    using Fq = typename Curve::BaseField;
+
     constexpr size_t num_initial_points = 1 << 12;
     constexpr size_t num_points = num_initial_points * 2;
-    g1::affine_element* monomials =
-        (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points * 2)));
-    g1::affine_element* scratch_points =
-        (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points * 2)));
-    g1::affine_element* point_pairs =
-        (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points * 2)));
-    g1::element* expected_buckets = (g1::element*)(aligned_alloc(64, sizeof(g1::element) * (num_points * 2)));
+    AffineElement* monomials = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points * 2)));
+    AffineElement* scratch_points = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points * 2)));
+    AffineElement* point_pairs = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points * 2)));
+    Element* expected_buckets = (Element*)(aligned_alloc(64, sizeof(Element) * (num_points * 2)));
     bool* bucket_empty_status = (bool*)(aligned_alloc(64, sizeof(bool) * (num_points * 2)));
 
-    memset((void*)scratch_points, 0x00, (num_points * 2) * sizeof(g1::affine_element));
-    memset((void*)point_pairs, 0x00, (num_points * 2) * sizeof(g1::affine_element));
-    memset((void*)expected_buckets, 0x00, (num_points * 2) * sizeof(g1::element));
+    memset((void*)scratch_points, 0x00, (num_points * 2) * sizeof(AffineElement));
+    memset((void*)point_pairs, 0x00, (num_points * 2) * sizeof(AffineElement));
+    memset((void*)expected_buckets, 0x00, (num_points * 2) * sizeof(Element));
     memset((void*)bucket_empty_status, 0x00, (num_points * 2) * sizeof(bool));
 
-    fq* scratch_field = (fq*)(aligned_alloc(64, sizeof(fq) * (num_points)));
+    Fq* scratch_field = (Fq*)(aligned_alloc(64, sizeof(Fq) * (num_points)));
 
-    memset((void*)scratch_field, 0x00, num_points * sizeof(fq));
+    memset((void*)scratch_field, 0x00, num_points * sizeof(Fq));
 
-    g2::affine_element g2_x;
-    io::read_transcript(monomials, g2_x, num_initial_points, BARRETENBERG_SRS_PATH);
+    TestFixture::read_transcript(monomials, num_initial_points, TestFixture::SRS_PATH);
 
-    scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(
+        monomials, monomials, num_initial_points);
 
-    fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
+    Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * num_initial_points));
 
     for (size_t i = 0; i < num_initial_points; ++i) {
-        scalars[i] = fr::random_element();
+        scalars[i] = Fr::random_element();
     }
 
-    scalar_multiplication::pippenger_runtime_state state(num_initial_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    scalar_multiplication::compute_wnaf_states(
+    barretenberg::scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
+    barretenberg::scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
-    const size_t max_num_buckets = scalar_multiplication::get_num_buckets(num_points * 2);
+    const size_t max_num_buckets = barretenberg::scalar_multiplication::get_num_buckets(num_points * 2);
 
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * 100 * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
@@ -264,19 +300,21 @@ TEST(scalar_multiplication, reduce_buckets)
     const size_t last_bucket = point_schedule_copy[num_points - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
-    scalar_multiplication::affine_product_runtime_state product_state{ monomials,
-                                                                       point_pairs,
-                                                                       scratch_points,
-                                                                       scratch_field,
-                                                                       bucket_counts,
-                                                                       &bit_offsets[0],
-                                                                       &state.point_schedule[num_points],
-                                                                       num_points,
-                                                                       static_cast<uint32_t>(num_buckets),
-                                                                       bucket_empty_status };
+    barretenberg::scalar_multiplication::affine_product_runtime_state<Curve> product_state{
+        monomials,
+        point_pairs,
+        scratch_points,
+        scratch_field,
+        bucket_counts,
+        &bit_offsets[0],
+        &state.point_schedule[num_points],
+        num_points,
+        static_cast<uint32_t>(num_buckets),
+        bucket_empty_status
+    };
 
     start = std::chrono::steady_clock::now();
-    // scalar_multiplication::scalar_multiplication_internal<num_points>(state, monomials);
+    // barretenberg::scalar_multiplication::scalar_multiplication_internal<Curve><num_points>(state, monomials);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "scalar mul: " << diff.count() << "ms" << std::endl;
@@ -290,19 +328,19 @@ TEST(scalar_multiplication, reduce_buckets)
         uint64_t point_index = schedule >> 32ULL;
         uint64_t predicate = (schedule >> 31ULL) & 1ULL;
         // printf("expected bucket index = %lu \n", bucket_index - first_bucket);
-        g1::element& bucket = expected_buckets[bucket_index - first_bucket];
-        g1::affine_element& point = monomials[point_index];
+        Element& bucket = expected_buckets[bucket_index - first_bucket];
+        AffineElement& point = monomials[point_index];
         bucket.self_mixed_add_or_sub(point, predicate);
     }
 
     size_t it = 0;
 
-    g1::affine_element* result_buckets = scalar_multiplication::reduce_buckets(product_state, true);
+    AffineElement* result_buckets = barretenberg::scalar_multiplication::reduce_buckets<Curve>(product_state, true);
 
     printf("num buckets = %zu \n", num_buckets);
     for (size_t i = 0; i < num_buckets; ++i) {
         if (!bucket_empty_status[i]) {
-            g1::element expected = expected_buckets[i].normalize();
+            Element expected = expected_buckets[i].normalize();
             EXPECT_EQ((expected.x == result_buckets[it].x), true);
             EXPECT_EQ((expected.y == result_buckets[it].y), true);
             ++it;
@@ -322,51 +360,54 @@ TEST(scalar_multiplication, reduce_buckets)
 }
 
 // This test intermittenly fails.
-TEST(scalar_multiplication, DISABLED_reduce_buckets_basic)
+TYPED_TEST(SRSIO, DISABLED_ReduceBucketsBasic)
 {
+    using Curve = TypeParam;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+    using Fq = typename Curve::BaseField;
+
     constexpr size_t num_initial_points = 1 << 20;
     constexpr size_t num_points = num_initial_points * 2;
-    g1::affine_element* monomials = (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points)));
-    g1::affine_element* scratch_points =
-        (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points)));
-    g1::affine_element* point_pairs =
-        (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points)));
+    AffineElement* monomials = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points)));
+    AffineElement* scratch_points = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points)));
+    AffineElement* point_pairs = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points)));
     bool* bucket_empty_status = (bool*)(aligned_alloc(64, sizeof(bool) * (num_points)));
 
-    fq* scratch_field = (fq*)(aligned_alloc(64, sizeof(fq) * (num_points)));
+    Fq* scratch_field = (Fq*)(aligned_alloc(64, sizeof(Fq) * (num_points)));
 
-    memset((void*)scratch_points, 0x00, num_points * sizeof(g1::affine_element));
-    memset((void*)point_pairs, 0x00, num_points * sizeof(g1::affine_element));
-    memset((void*)scratch_field, 0x00, num_points * sizeof(fq));
+    memset((void*)scratch_points, 0x00, num_points * sizeof(AffineElement));
+    memset((void*)point_pairs, 0x00, num_points * sizeof(AffineElement));
+    memset((void*)scratch_field, 0x00, num_points * sizeof(Fq));
     memset((void*)bucket_empty_status, 0x00, num_points * sizeof(bool));
 
-    g2::affine_element g2_x;
-    io::read_transcript(monomials, g2_x, num_initial_points, BARRETENBERG_SRS_PATH);
+    TestFixture::read_transcript(monomials, num_initial_points, TestFixture::SRS_PATH);
 
-    fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
+    Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * num_initial_points));
 
-    fr source_scalar = fr::random_element();
+    Fr source_scalar = Fr::random_element();
     for (size_t i = 0; i < num_initial_points; ++i) {
         source_scalar.self_sqr();
-        fr::__copy(source_scalar, scalars[i]);
+        Fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::pippenger_runtime_state state(num_initial_points);
-    scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(
+        monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    scalar_multiplication::compute_wnaf_states(
+    barretenberg::scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
+    barretenberg::scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
-    const size_t max_num_buckets = scalar_multiplication::get_num_buckets(num_points * 2);
+    const size_t max_num_buckets = barretenberg::scalar_multiplication::get_num_buckets(num_points * 2);
 
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
@@ -375,20 +416,22 @@ TEST(scalar_multiplication, DISABLED_reduce_buckets_basic)
     const size_t last_bucket = state.point_schedule[num_points - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
-    scalar_multiplication::affine_product_runtime_state product_state{ monomials,
-                                                                       point_pairs,
-                                                                       scratch_points,
-                                                                       scratch_field,
-                                                                       bucket_counts,
-                                                                       &bit_offsets[0],
-                                                                       state.point_schedule,
-                                                                       (uint32_t)state.round_counts[0],
-                                                                       static_cast<uint32_t>(num_buckets),
-                                                                       bucket_empty_status };
+    barretenberg::scalar_multiplication::affine_product_runtime_state<Curve> product_state{
+        monomials,
+        point_pairs,
+        scratch_points,
+        scratch_field,
+        bucket_counts,
+        &bit_offsets[0],
+        state.point_schedule,
+        (uint32_t)state.round_counts[0],
+        static_cast<uint32_t>(num_buckets),
+        bucket_empty_status
+    };
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::reduce_buckets(product_state, true);
-    // scalar_multiplication::scalar_multiplication_internal<num_points>(state, monomials);
+    barretenberg::scalar_multiplication::reduce_buckets<Curve>(product_state, true);
+    // barretenberg::scalar_multiplication::scalar_multiplication_internal<Curve><num_points>(state, monomials);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "scalar mul: " << diff.count() << "ms" << std::endl;
@@ -402,19 +445,24 @@ TEST(scalar_multiplication, DISABLED_reduce_buckets_basic)
     aligned_free(bucket_counts);
 }
 
-TEST(scalar_multiplication, add_affine_points)
+TYPED_TEST(SRSIO, AddAffinePoints)
 {
-    constexpr size_t num_points = 20;
-    g1::affine_element* points = (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points)));
-    fq* scratch_space = (fq*)(aligned_alloc(64, sizeof(fq) * (num_points * 2)));
-    fq* lambda = (fq*)(aligned_alloc(64, sizeof(fq) * (num_points * 2)));
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fq = typename Curve::BaseField;
 
-    g1::element* points_copy = (g1::element*)(aligned_alloc(64, sizeof(g1::element) * (num_points)));
+    constexpr size_t num_points = 20;
+    AffineElement* points = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points)));
+    Fq* scratch_space = (Fq*)(aligned_alloc(64, sizeof(Fq) * (num_points * 2)));
+    Fq* lambda = (Fq*)(aligned_alloc(64, sizeof(Fq) * (num_points * 2)));
+
+    Element* points_copy = (Element*)(aligned_alloc(64, sizeof(Element) * (num_points)));
     for (size_t i = 0; i < num_points; ++i) {
-        points[i] = g1::affine_element(g1::element::random_element());
+        points[i] = AffineElement(Element::random_element());
         points_copy[i].x = points[i].x;
         points_copy[i].y = points[i].y;
-        points_copy[i].z = fq::one();
+        points_copy[i].z = Fq::one();
     }
 
     size_t count = num_points - 1;
@@ -423,7 +471,7 @@ TEST(scalar_multiplication, add_affine_points)
         points_copy[count + 1] = points_copy[count + 1].normalize();
     }
 
-    scalar_multiplication::add_affine_points(points, num_points, scratch_space);
+    barretenberg::scalar_multiplication::add_affine_points<Curve>(points, num_points, scratch_space);
     for (size_t i = num_points - 1; i > num_points - 1 - (num_points / 2); --i) {
         EXPECT_EQ((points[i].x == points_copy[i].x), true);
         EXPECT_EQ((points[i].y == points_copy[i].y), true);
@@ -434,39 +482,43 @@ TEST(scalar_multiplication, add_affine_points)
     aligned_free(scratch_space);
 }
 
-TEST(scalar_multiplication, construct_addition_chains)
+TYPED_TEST(SRSIO, ConstructAdditionChains)
 {
+    using Curve = TypeParam;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     constexpr size_t num_initial_points = 1 << 20;
     constexpr size_t num_points = num_initial_points * 2;
-    g1::affine_element* monomials = (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (num_points)));
+    AffineElement* monomials = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (num_points)));
 
-    g2::affine_element g2_x;
-    io::read_transcript(monomials, g2_x, num_initial_points, BARRETENBERG_SRS_PATH);
+    TestFixture::read_transcript(monomials, num_initial_points, TestFixture::SRS_PATH);
 
-    fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
+    Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * num_initial_points));
 
-    fr source_scalar = fr::random_element();
+    Fr source_scalar = Fr::random_element();
     for (size_t i = 0; i < num_initial_points; ++i) {
         source_scalar.self_sqr();
-        fr::__copy(source_scalar, scalars[i]);
+        Fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::pippenger_runtime_state state(num_initial_points);
-    scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(
+        monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    scalar_multiplication::compute_wnaf_states(
+    barretenberg::scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
+    barretenberg::scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
-    const size_t max_num_buckets = scalar_multiplication::get_num_buckets(num_points * 2);
+    const size_t max_num_buckets = barretenberg::scalar_multiplication::get_num_buckets(num_points * 2);
     bool* bucket_empty_status = static_cast<bool*>(aligned_alloc(64, num_points * sizeof(bool)));
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
@@ -475,19 +527,21 @@ TEST(scalar_multiplication, construct_addition_chains)
     const size_t last_bucket = state.point_schedule[state.round_counts[0] - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
-    scalar_multiplication::affine_product_runtime_state product_state{ monomials,
-                                                                       monomials,
-                                                                       monomials,
-                                                                       nullptr,
-                                                                       bucket_counts,
-                                                                       &bit_offsets[0],
-                                                                       state.point_schedule,
-                                                                       static_cast<uint32_t>(state.round_counts[0]),
-                                                                       static_cast<uint32_t>(num_buckets),
-                                                                       bucket_empty_status };
+    barretenberg::scalar_multiplication::affine_product_runtime_state<Curve> product_state{
+        monomials,
+        monomials,
+        monomials,
+        nullptr,
+        bucket_counts,
+        &bit_offsets[0],
+        state.point_schedule,
+        static_cast<uint32_t>(state.round_counts[0]),
+        static_cast<uint32_t>(num_buckets),
+        bucket_empty_status
+    };
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::construct_addition_chains(product_state, true);
+    barretenberg::scalar_multiplication::construct_addition_chains<Curve>(product_state, true);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     info("construct addition chains: ", diff.count(), "ms");
@@ -499,17 +553,24 @@ TEST(scalar_multiplication, construct_addition_chains)
     aligned_free(bucket_counts);
 }
 
-TEST(scalar_multiplication, endomorphism_split)
+TYPED_TEST(SRSIO, EndomorphismSplit)
 {
-    fr scalar = fr::random_element();
+    using Curve = TypeParam;
+    using Group = typename Curve::Group;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+    using Fq = typename Curve::BaseField;
 
-    g1::element expected = g1::one * scalar;
+    Fr scalar = Fr::random_element();
+
+    Element expected = Group::one * scalar;
 
     // we want to test that we can split a scalar into two half-length components, using the same location in memory.
-    fr* k1_t = &scalar;
-    fr* k2_t = (fr*)&scalar.data[2];
+    Fr* k1_t = &scalar;
+    Fr* k2_t = (Fr*)&scalar.data[2];
 
-    fr::split_into_endomorphism_scalars(scalar, *k1_t, *k2_t);
+    Fr::split_into_endomorphism_scalars(scalar, *k1_t, *k2_t);
     // The compiler really doesn't like what we're doing here,
     // and disabling the array-bounds error project-wide seems unsafe.
     // The large macro blocks are here to warn that we should be careful when
@@ -518,44 +579,47 @@ TEST(scalar_multiplication, endomorphism_split)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
 #endif
-    fr k1{ (*k1_t).data[0], (*k1_t).data[1], 0, 0 };
-    fr k2{ (*k2_t).data[0], (*k2_t).data[1], 0, 0 };
+    Fr k1{ (*k1_t).data[0], (*k1_t).data[1], 0, 0 };
+    Fr k2{ (*k2_t).data[0], (*k2_t).data[1], 0, 0 };
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-    g1::element result;
-    g1::element t1 = g1::affine_one * k1;
-    g1::affine_element generator = g1::affine_one;
-    fq beta = fq::cube_root_of_unity();
+    Element result;
+    Element t1 = Group::affine_one * k1;
+    AffineElement generator = Group::affine_one;
+    Fq beta = Fq::cube_root_of_unity();
     generator.x = generator.x * beta;
     generator.y = -generator.y;
-    g1::element t2 = generator * k2;
+    Element t2 = generator * k2;
     result = t1 + t2;
 
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, radix_sort)
+TYPED_TEST(SRSIO, RadixSort)
 {
+    using Curve = TypeParam;
+    using Fr = typename Curve::ScalarField;
+
     // check that our radix sort correctly sorts!
     constexpr size_t target_degree = 1 << 8;
-    constexpr size_t num_rounds = scalar_multiplication::get_num_rounds(target_degree * 2);
-    fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * target_degree));
+    constexpr size_t num_rounds = barretenberg::scalar_multiplication::get_num_rounds(target_degree * 2);
+    Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * target_degree));
 
-    fr source_scalar = fr::random_element();
+    Fr source_scalar = Fr::random_element();
     for (size_t i = 0; i < target_degree; ++i) {
         source_scalar.self_sqr();
-        fr::__copy(source_scalar, scalars[i]);
+        Fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::pippenger_runtime_state state(target_degree);
-    scalar_multiplication::compute_wnaf_states(
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(target_degree);
+    barretenberg::scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, target_degree);
 
     uint64_t* wnaf_copy = (uint64_t*)(aligned_alloc(64, sizeof(uint64_t) * target_degree * 2 * num_rounds));
     memcpy((void*)wnaf_copy, (void*)state.point_schedule, sizeof(uint64_t) * target_degree * 2 * num_rounds);
 
-    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, target_degree * 2);
+    barretenberg::scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, target_degree * 2);
     for (size_t i = 0; i < num_rounds; ++i) {
         uint64_t* unsorted_wnaf = &wnaf_copy[i * target_degree * 2];
         uint64_t* sorted_wnaf = &state.point_schedule[i * target_degree * 2];
@@ -580,45 +644,50 @@ TEST(scalar_multiplication, radix_sort)
     free(wnaf_copy);
 }
 
-HEAVY_TEST(scalar_multiplication, oversized_inputs)
+TYPED_TEST(SRSIO, OversizedInputs)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+    using Fq = typename Curve::BaseField;
+
     // for point ranges with more than 1 << 20 points, we split into chunks of smaller multi-exps.
     // Check that this is done correctly
     size_t transcript_degree = 1 << 20;
     size_t target_degree = 1200000;
-    g1::affine_element* monomials =
-        (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * (2 * target_degree)));
-    g2::affine_element g2_x;
-    io::read_transcript(monomials, g2_x, transcript_degree, BARRETENBERG_SRS_PATH);
+    AffineElement* monomials = (AffineElement*)(aligned_alloc(64, sizeof(AffineElement) * (2 * target_degree)));
+
+    TestFixture::read_transcript(monomials, transcript_degree, TestFixture::SRS_PATH);
 
     memcpy((void*)(monomials + (2 * transcript_degree)),
            (void*)monomials,
-           ((2 * target_degree - 2 * transcript_degree) * sizeof(g1::affine_element)));
-    scalar_multiplication::generate_pippenger_point_table(monomials, monomials, target_degree);
+           ((2 * target_degree - 2 * transcript_degree) * sizeof(AffineElement)));
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, target_degree);
 
-    fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * target_degree));
+    Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * target_degree));
 
-    fr source_scalar = fr::random_element();
-    fr accumulator = source_scalar;
+    Fr source_scalar = Fr::random_element();
+    Fr accumulator = source_scalar;
     for (size_t i = 0; i < target_degree; ++i) {
         accumulator *= source_scalar;
-        fr::__copy(accumulator, scalars[i]);
+        Fr::__copy(accumulator, scalars[i]);
     }
-    scalar_multiplication::pippenger_runtime_state state(target_degree);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(target_degree);
 
-    g1::element first = scalar_multiplication::pippenger(scalars, monomials, target_degree, state);
+    Element first = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, monomials, target_degree, state);
     first = first.normalize();
 
     for (size_t i = 0; i < target_degree; ++i) {
         scalars[i].self_neg();
     }
-    scalar_multiplication::pippenger_runtime_state state_2(target_degree);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state_2(target_degree);
 
-    g1::element second = scalar_multiplication::pippenger(scalars, monomials, target_degree, state_2);
+    Element second = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, monomials, target_degree, state_2);
     second = second.normalize();
 
     EXPECT_EQ((first.z == second.z), true);
-    EXPECT_EQ((first.z == fq::one()), true);
+    EXPECT_EQ((first.z == Fq::one()), true);
     EXPECT_EQ((first.x == second.x), true);
     EXPECT_EQ((first.y == -second.y), true);
 
@@ -626,34 +695,38 @@ HEAVY_TEST(scalar_multiplication, oversized_inputs)
     aligned_free(scalars);
 }
 
-TEST(scalar_multiplication, undersized_inputs)
+TYPED_TEST(SRSIO, UndersizedInputs)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     // we fall back to traditional scalar multiplication algorithm for small input sizes.
     // Check this is done correctly
     size_t num_points = 17;
 
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
 
     for (size_t i = 0; i < num_points; ++i) {
-        scalars[i] = fr::random_element();
-        points[i] = g1::affine_element(g1::element::random_element());
+        scalars[i] = Fr::random_element();
+        points[i] = AffineElement(Element::random_element());
     }
 
-    g1::element expected;
+    Element expected;
     expected.self_set_infinity();
     for (size_t i = 0; i < num_points; ++i) {
-        g1::element temp = points[i] * scalars[i];
+        Element temp = points[i] * scalars[i];
         expected += temp;
     }
     expected = expected.normalize();
-    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
 
-    scalar_multiplication::pippenger_runtime_state state(num_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
+    Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -662,31 +735,35 @@ TEST(scalar_multiplication, undersized_inputs)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, pippenger)
+TYPED_TEST(SRSIO, PippengerSmall)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     constexpr size_t num_points = 8192;
 
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
 
     for (size_t i = 0; i < num_points; ++i) {
-        scalars[i] = fr::random_element();
-        points[i] = g1::affine_element(g1::element::random_element());
+        scalars[i] = Fr::random_element();
+        points[i] = AffineElement(Element::random_element());
     }
 
-    g1::element expected;
+    Element expected;
     expected.self_set_infinity();
     for (size_t i = 0; i < num_points; ++i) {
-        g1::element temp = points[i] * scalars[i];
+        Element temp = points[i] * scalars[i];
         expected += temp;
     }
     expected = expected.normalize();
-    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
-    scalar_multiplication::pippenger_runtime_state state(num_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
+    Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -695,33 +772,37 @@ TEST(scalar_multiplication, pippenger)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, pippenger_edge_case_dbl)
+TYPED_TEST(SRSIO, PippengerEdgeCaseDbl)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     constexpr size_t num_points = 128;
 
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
 
-    g1::affine_element point = g1::affine_element(g1::element::random_element());
+    AffineElement point = AffineElement(Element::random_element());
     for (size_t i = 0; i < num_points; ++i) {
-        scalars[i] = fr::random_element();
+        scalars[i] = Fr::random_element();
         points[i] = point;
     }
 
-    g1::element expected;
+    Element expected;
     expected.self_set_infinity();
     for (size_t i = 0; i < num_points; ++i) {
-        g1::element temp = points[i] * scalars[i];
+        Element temp = points[i] * scalars[i];
         expected += temp;
     }
     if (!expected.is_point_at_infinity()) {
         expected = expected.normalize();
     }
-    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
-    scalar_multiplication::pippenger_runtime_state state(num_points);
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -730,16 +811,21 @@ TEST(scalar_multiplication, pippenger_edge_case_dbl)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, pippenger_short_inputs)
+TYPED_TEST(SRSIO, PippengerShortInputs)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     constexpr size_t num_points = 8192;
 
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    g1::affine_element* points = scalar_multiplication::point_table_alloc<g1::affine_element>(num_points);
+    AffineElement* points = barretenberg::scalar_multiplication::point_table_alloc<AffineElement>(num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
-        points[i] = g1::affine_element(g1::element::random_element());
+        points[i] = AffineElement(Element::random_element());
     }
     for (size_t i = 0; i < (num_points / 4); ++i) {
         scalars[i * 4].data[0] = engine.get_random_uint32();
@@ -764,17 +850,17 @@ TEST(scalar_multiplication, pippenger_short_inputs)
         scalars[i * 4 + 3] = scalars[i * 4 + 3].to_montgomery_form();
     }
 
-    g1::element expected;
+    Element expected;
     expected.self_set_infinity();
     for (size_t i = 0; i < num_points; ++i) {
-        g1::element temp = points[i] * scalars[i];
+        Element temp = points[i] * scalars[i];
         expected += temp;
     }
     expected = expected.normalize();
-    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
-    scalar_multiplication::pippenger_runtime_state state(num_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
+    Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -783,30 +869,35 @@ TEST(scalar_multiplication, pippenger_short_inputs)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, pippenger_unsafe)
+TYPED_TEST(SRSIO, PippengerUnsafe)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     constexpr size_t num_points = 8192;
 
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    g1::affine_element* points = scalar_multiplication::point_table_alloc<g1::affine_element>(num_points);
+    AffineElement* points = barretenberg::scalar_multiplication::point_table_alloc<AffineElement>(num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
-        scalars[i] = fr::random_element();
-        points[i] = g1::affine_element(g1::element::random_element());
+        scalars[i] = Fr::random_element();
+        points[i] = AffineElement(Element::random_element());
     }
 
-    g1::element expected;
+    Element expected;
     expected.self_set_infinity();
     for (size_t i = 0; i < num_points; ++i) {
-        g1::element temp = points[i] * scalars[i];
+        Element temp = points[i] * scalars[i];
         expected += temp;
     }
     expected = expected.normalize();
-    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
 
-    scalar_multiplication::pippenger_runtime_state state(num_points);
-    g1::element result = scalar_multiplication::pippenger_unsafe(scalars, points, num_points, state);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    Element result = barretenberg::scalar_multiplication::pippenger_unsafe<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -815,17 +906,21 @@ TEST(scalar_multiplication, pippenger_unsafe)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, pippenger_unsafe_short_inputs)
+TYPED_TEST(SRSIO, PippengerUnsafeShortInputs)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     constexpr size_t num_points = 8192;
 
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
 
     for (size_t i = 0; i < num_points; ++i) {
-        points[i] = g1::affine_element(g1::element::random_element());
+        points[i] = AffineElement(Element::random_element());
     }
     for (size_t i = 0; i < (num_points / 4); ++i) {
         scalars[i * 4].data[0] = engine.get_random_uint32();
@@ -850,17 +945,17 @@ TEST(scalar_multiplication, pippenger_unsafe_short_inputs)
         scalars[i * 4 + 3] = scalars[i * 4 + 3].to_montgomery_form();
     }
 
-    g1::element expected;
+    Element expected;
     expected.self_set_infinity();
     for (size_t i = 0; i < num_points; ++i) {
-        g1::element temp = points[i] * scalars[i];
+        Element temp = points[i] * scalars[i];
         expected += temp;
     }
     expected = expected.normalize();
-    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
-    scalar_multiplication::pippenger_runtime_state state(num_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    g1::element result = scalar_multiplication::pippenger_unsafe(scalars, points, num_points, state);
+    Element result = barretenberg::scalar_multiplication::pippenger_unsafe<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -869,31 +964,35 @@ TEST(scalar_multiplication, pippenger_unsafe_short_inputs)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, pippenger_one)
+TYPED_TEST(SRSIO, PippengerOne)
 {
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
+
     size_t num_points = 1;
 
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * 1);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * 1);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
 
     for (size_t i = 0; i < num_points; ++i) {
-        scalars[i] = fr::random_element();
-        points[i] = g1::affine_element(g1::element::random_element());
+        scalars[i] = Fr::random_element();
+        points[i] = AffineElement(Element::random_element());
     }
 
-    g1::element expected;
+    Element expected;
     expected.self_set_infinity();
     for (size_t i = 0; i < num_points; ++i) {
-        g1::element temp = points[i] * scalars[i];
+        Element temp = points[i] * scalars[i];
         expected += temp;
     }
     expected = expected.normalize();
-    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
-    scalar_multiplication::pippenger_runtime_state state(num_points);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
+    Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -902,14 +1001,19 @@ TEST(scalar_multiplication, pippenger_one)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(scalar_multiplication, pippenger_zero_points)
+TYPED_TEST(SRSIO, PippengerZeroPoints)
 {
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr));
+    using Curve = TypeParam;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
 
-    g1::affine_element* points = (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * 2 + 1);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr));
 
-    scalar_multiplication::pippenger_runtime_state state(0);
-    g1::element result = scalar_multiplication::pippenger(scalars, points, 0, state);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * 2 + 1);
+
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(0);
+    Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, 0, state);
 
     aligned_free(scalars);
     aligned_free(points);
@@ -917,18 +1021,24 @@ TEST(scalar_multiplication, pippenger_zero_points)
     EXPECT_EQ(result.is_point_at_infinity(), true);
 }
 
-TEST(scalar_multiplication, pippenger_mul_by_zero)
+TYPED_TEST(SRSIO, PippengerMulByZero)
 {
-    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr));
+    using Curve = TypeParam;
+    using Group = typename Curve::Group;
+    using Element = typename Curve::Element;
+    using AffineElement = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
 
-    g1::affine_element* points = (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * 2 + 1);
+    Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr));
 
-    scalars[0] = fr::zero();
-    points[0] = g1::affine_one;
-    scalar_multiplication::generate_pippenger_point_table(points, points, 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * 2 + 1);
 
-    scalar_multiplication::pippenger_runtime_state state(1);
-    g1::element result = scalar_multiplication::pippenger(scalars, points, 1, state);
+    scalars[0] = Fr::zero();
+    points[0] = Group::affine_one;
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, 1);
+
+    barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(1);
+    Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, 1, state);
 
     aligned_free(scalars);
     aligned_free(points);

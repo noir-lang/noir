@@ -11,7 +11,7 @@
 
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/curves/bn254/g2.hpp"
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/pippenger.hpp"
+#include "barretenberg/ecc/scalar_multiplication/pippenger.hpp"
 
 #include "barretenberg/env/crs.hpp"
 
@@ -32,7 +32,8 @@ class EnvReferenceString : public ProverReferenceString {
 
   private:
     size_t num_points;
-    scalar_multiplication::Pippenger pippenger_;
+    // TODO(#473)?
+    scalar_multiplication::Pippenger<curve::BN254> pippenger_;
 };
 
 class EnvReferenceStringFactory : public ReferenceStringFactory {

@@ -5,7 +5,7 @@
 #include "../../../transcript/transcript.hpp"
 #include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
 #include "verifier.hpp"
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
@@ -29,15 +29,15 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
     poly_coefficients[7] = circuit_proving_key->polynomial_store.get("sigma_3").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
-    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->circuit_size);
+    scalar_multiplication::pippenger_runtime_state<curve::BN254> state(circuit_proving_key->circuit_size);
     commitments.resize(8);
 
     for (size_t i = 0; i < 8; ++i) {
         commitments[i] = g1::affine_element(
-            scalar_multiplication::pippenger(poly_coefficients[i],
-                                             circuit_proving_key->reference_string->get_monomial_points(),
-                                             circuit_proving_key->circuit_size,
-                                             state));
+            scalar_multiplication::pippenger<curve::BN254>(poly_coefficients[i],
+                                                           circuit_proving_key->reference_string->get_monomial_points(),
+                                                           circuit_proving_key->circuit_size,
+                                                           state));
     }
 
     auto crs = std::make_shared<VerifierFileReferenceString>("../srs_db/ignition");

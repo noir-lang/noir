@@ -5,8 +5,6 @@
 
 #include "reference_string.hpp"
 
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/pippenger.hpp"
-
 namespace barretenberg::pairing {
 struct miller_lines;
 } // namespace barretenberg::pairing

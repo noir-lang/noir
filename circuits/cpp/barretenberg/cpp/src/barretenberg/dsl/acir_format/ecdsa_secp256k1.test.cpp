@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-using curve = proof_system::plonk::stdlib::secp256k1<acir_format::Composer>;
+using curve_ct = proof_system::plonk::stdlib::secp256k1<acir_format::Composer>;
 
 size_t generate_ecdsa_constraint(acir_format::EcdsaSecp256k1Constraint& ecdsa_constraint,
                                  std::vector<fr>& witness_values)
@@ -20,12 +20,13 @@ size_t generate_ecdsa_constraint(acir_format::EcdsaSecp256k1Constraint& ecdsa_co
     std::copy(message_string.begin(), message_string.end(), std::back_inserter(message_buffer));
     auto hashed_message = sha256::sha256(message_buffer);
 
-    crypto::ecdsa::key_pair<curve::fr, curve::g1> account;
-    account.private_key = curve::fr::random_element();
-    account.public_key = curve::g1::one * account.private_key;
+    crypto::ecdsa::key_pair<curve_ct::fr, curve_ct::g1> account;
+    account.private_key = curve_ct::fr::random_element();
+    account.public_key = curve_ct::g1::one * account.private_key;
 
     crypto::ecdsa::signature signature =
-        crypto::ecdsa::construct_signature<Sha256Hasher, curve::fq, curve::fr, curve::g1>(message_string, account);
+        crypto::ecdsa::construct_signature<Sha256Hasher, curve_ct::fq, curve_ct::fr, curve_ct::g1>(message_string,
+                                                                                                   account);
 
     uint256_t pub_x_value = account.public_key.x;
     uint256_t pub_y_value = account.public_key.y;

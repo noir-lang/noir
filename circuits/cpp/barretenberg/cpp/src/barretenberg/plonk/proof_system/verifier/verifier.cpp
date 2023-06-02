@@ -5,7 +5,7 @@
 #include "../utils/kate_verification.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
 using namespace barretenberg;
@@ -176,12 +176,13 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
-    barretenberg::scalar_multiplication::generate_pippenger_point_table(&elements[0], &elements[0], num_elements);
-    scalar_multiplication::pippenger_runtime_state state(num_elements);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table<curve::BN254>(
+        &elements[0], &elements[0], num_elements);
+    scalar_multiplication::pippenger_runtime_state<curve::BN254> state(num_elements);
 
     g1::element P[2];
 
-    P[0] = barretenberg::scalar_multiplication::pippenger(&scalars[0], &elements[0], num_elements, state);
+    P[0] = barretenberg::scalar_multiplication::pippenger<curve::BN254>(&scalars[0], &elements[0], num_elements, state);
     P[1] = -(g1::element(PI_Z_OMEGA) * separator_challenge + PI_Z);
 
     if (key->contains_recursive_proof) {

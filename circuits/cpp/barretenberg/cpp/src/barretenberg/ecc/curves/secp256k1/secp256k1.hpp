@@ -147,3 +147,14 @@ typedef barretenberg::
         g1;
 g1::affine_element get_generator(const size_t generator_index);
 } // namespace secp256k1
+
+namespace curve {
+class SECP256K1 {
+  public:
+    using ScalarField = secp256k1::fr;
+    using BaseField = secp256k1::fq;
+    using Group = secp256k1::g1;
+    using Element = typename Group::element;
+    using AffineElement = typename Group::affine_element;
+};
+} // namespace curve

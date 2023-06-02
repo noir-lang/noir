@@ -1,6 +1,5 @@
 #pragma once
 #include "barretenberg/common/mem.hpp"
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
 #include "barretenberg/transcript/transcript.hpp"
@@ -229,7 +228,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
         // Naive way of computing these coefficients would result in n inversions, which is pretty expensive.
         // Instead we use Montgomery's trick for batch inversion.
         // Montgomery's trick documentation:
-        // ./src/barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp/L286
+        // ./src/barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp/L286
 #ifndef NO_MULTITHREADING
 #pragma omp for
 #endif

@@ -16,6 +16,7 @@ WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
 RUN cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --build --preset default
+RUN cd build && ./bin/grumpkin_srs_gen 1048576 && cd ../
 
 FROM alpine:3.17
 RUN apk update && apk add curl openmp

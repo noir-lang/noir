@@ -72,7 +72,7 @@ size_t init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t const*
     auto proving_key = std::make_shared<plonk::proving_key>(std::move(pk_data), crs);
 
     auto crs_factory = std::make_unique<PippengerReferenceStringFactory>(
-        reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
+        reinterpret_cast<scalar_multiplication::Pippenger<curve::BN254>*>(pippenger), g2x);
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size);
 
     acir_format::Composer composer(proving_key, nullptr);
@@ -108,7 +108,7 @@ size_t new_proof(void* pippenger,
     auto witness = from_buffer<std::vector<fr>>(witness_buf);
 
     auto crs_factory = std::make_unique<PippengerReferenceStringFactory>(
-        reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
+        reinterpret_cast<scalar_multiplication::Pippenger<curve::BN254>*>(pippenger), g2x);
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size);
 
     acir_format::Composer composer(proving_key, nullptr);

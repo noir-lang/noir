@@ -54,6 +54,7 @@ add_subdirectory(barretenberg/join_split_example)
 add_subdirectory(barretenberg/dsl)
 add_subdirectory(barretenberg/serialize)
 add_subdirectory(barretenberg/solidity_helpers)
+add_subdirectory(barretenberg/grumpkin_srs_gen)
 
 if(BENCHMARKS)
     add_subdirectory(barretenberg/benchmark)

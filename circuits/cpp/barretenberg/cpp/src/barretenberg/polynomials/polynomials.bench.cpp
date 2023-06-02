@@ -5,7 +5,7 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/curves/bn254/g2.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/ecc/groups/wnaf.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
@@ -65,7 +65,7 @@ const auto init = []() {
     printf("generating test data\n");
     g2::affine_element g2_x;
     globals.monomials = (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) * MAX_GATES * 2));
-    io::read_transcript(&globals.monomials[0], g2_x, MAX_GATES, "../srs_db/ignition");
+    srs::IO<curve::BN254>::read_transcript(&globals.monomials[0], g2_x, MAX_GATES, "../srs_db/ignition");
     globals.scalars = (fr*)(aligned_alloc(32, sizeof(fr) * MAX_GATES * MAX_ROUNDS));
     globals.data = (fr*)(aligned_alloc(32, sizeof(fr) * (8 * 17 * MAX_GATES)));
     memset((void*)globals.monomials, 0x00, MAX_GATES * 2 * sizeof(globals.monomials));
@@ -122,10 +122,11 @@ void pippenger_bench(State& state) noexcept
     for (auto _ : state) {
         const size_t num_points = static_cast<size_t>(state.range(0));
         state.PauseTiming();
-        scalar_multiplication::pippenger_runtime_state run_state(num_points);
+        scalar_multiplication::pippenger_runtime_state<curve::BN254> run_state(num_points);
         state.ResumeTiming();
         // uint64_t before = rdtsc();
-        scalar_multiplication::pippenger(&globals.scalars[0], &globals.monomials[0], num_points, run_state);
+        scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[0], &globals.monomials[0], num_points, run_state);
         // uint64_t after = rdtsc();
         // count += (after - before);
         // ++i;
@@ -143,7 +144,7 @@ void unsafe_pippenger_bench(State& state) noexcept
     uint64_t i = 0;
     for (auto _ : state) {
         state.PauseTiming();
-        scalar_multiplication::pippenger_runtime_state run_state(num_points);
+        scalar_multiplication::pippenger_runtime_state<curve::BN254> run_state(num_points);
         state.ResumeTiming();
 
         uint64_t before = rdtsc();
@@ -164,28 +165,28 @@ void new_plonk_scalar_multiplications_bench(State& state) noexcept
     uint64_t k = 0;
     for (auto _ : state) {
         state.PauseTiming();
-        scalar_multiplication::pippenger_runtime_state run_state(MAX_GATES);
+        scalar_multiplication::pippenger_runtime_state<curve::BN254> run_state(MAX_GATES);
         state.ResumeTiming();
 
         uint64_t before = rdtsc();
-        g1::element a =
-            scalar_multiplication::pippenger(&globals.scalars[0], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element b =
-            scalar_multiplication::pippenger(&globals.scalars[1], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element c =
-            scalar_multiplication::pippenger(&globals.scalars[2], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element d =
-            scalar_multiplication::pippenger(&globals.scalars[3], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element e =
-            scalar_multiplication::pippenger(&globals.scalars[4], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element f =
-            scalar_multiplication::pippenger(&globals.scalars[5], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element g =
-            scalar_multiplication::pippenger(&globals.scalars[6], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element h =
-            scalar_multiplication::pippenger(&globals.scalars[7], &globals.monomials[0], MAX_GATES, run_state);
-        g1::element i =
-            scalar_multiplication::pippenger(&globals.scalars[8], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element a = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[0], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element b = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[1], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element c = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[2], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element d = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[3], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element e = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[4], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element f = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[5], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element g = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[6], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element h = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[7], &globals.monomials[0], MAX_GATES, run_state);
+        g1::element i = scalar_multiplication::pippenger<curve::BN254>(
+            &globals.scalars[8], &globals.monomials[0], MAX_GATES, run_state);
         uint64_t after = rdtsc();
         count += (after - before);
         ++k;

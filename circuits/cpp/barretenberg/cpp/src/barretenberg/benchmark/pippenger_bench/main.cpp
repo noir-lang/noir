@@ -1,7 +1,8 @@
 #include <chrono>
 #include "barretenberg/common/assert.hpp"
 #include <cstdlib>
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
@@ -63,9 +64,9 @@ const auto init = []() {
 
 int pippenger()
 {
-    scalar_multiplication::pippenger_runtime_state state(NUM_POINTS);
+    scalar_multiplication::pippenger_runtime_state<curve::BN254> state(NUM_POINTS);
     std::chrono::steady_clock::time_point time_start = std::chrono::steady_clock::now();
-    g1::element result = scalar_multiplication::pippenger_unsafe(
+    g1::element result = scalar_multiplication::pippenger_unsafe<curve::BN254>(
         &scalars[0], reference_string->get_monomial_points(), NUM_POINTS, state);
     std::chrono::steady_clock::time_point time_end = std::chrono::steady_clock::now();
     std::chrono::microseconds diff = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start);

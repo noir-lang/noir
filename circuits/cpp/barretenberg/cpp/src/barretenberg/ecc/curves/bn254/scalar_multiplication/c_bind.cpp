@@ -1,5 +1,6 @@
-#include "scalar_multiplication.hpp"
-#include "pippenger.hpp"
+#include "../bn254.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/ecc/scalar_multiplication/pippenger.hpp"
 #include "barretenberg/common/mem.hpp"
 
 using namespace barretenberg;
@@ -21,19 +22,19 @@ WASM_EXPORT void bbfree(void* ptr)
 
 WASM_EXPORT void* new_pippenger(uint8_t* points, size_t num_points)
 {
-    auto ptr = new scalar_multiplication::Pippenger(points, num_points);
+    auto ptr = new scalar_multiplication::Pippenger<curve::BN254>(points, num_points);
     return ptr;
 }
 
 WASM_EXPORT void delete_pippenger(void* pippenger)
 {
-    delete reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger);
+    delete reinterpret_cast<scalar_multiplication::Pippenger<curve::BN254>*>(pippenger);
 }
 
 WASM_EXPORT void pippenger_unsafe(void* pippenger_ptr, void* scalars_ptr, size_t from, size_t range, void* result_ptr)
 {
-    scalar_multiplication::pippenger_runtime_state state(range);
-    auto pippenger = reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger_ptr);
+    scalar_multiplication::pippenger_runtime_state<curve::BN254> state(range);
+    auto pippenger = reinterpret_cast<scalar_multiplication::Pippenger<curve::BN254>*>(pippenger_ptr);
     auto scalars = reinterpret_cast<fr*>(scalars_ptr);
     auto result = reinterpret_cast<g1::element*>(result_ptr);
     *result = pippenger->pippenger_unsafe(scalars, from, range);

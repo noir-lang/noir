@@ -11,13 +11,16 @@
 namespace barretenberg {
 namespace scalar_multiplication {
 
-pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points)
+template <typename Curve> pippenger_runtime_state<Curve>::pippenger_runtime_state(const size_t num_initial_points)
 {
+    using Fq = typename Curve::BaseField;
+    using AffineElement = typename Curve::AffineElement;
+
     constexpr size_t MAX_NUM_ROUNDS = 256;
     num_points = num_initial_points * 2;
     const size_t num_points_floor = static_cast<size_t>(1ULL << (numeric::get_msb(num_points)));
     const size_t num_buckets = static_cast<size_t>(
-        1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
+        1U << scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
 #ifndef NO_MULTITHREADING
     const size_t num_threads = max_threads::compute_num_threads();
 #else
@@ -25,15 +28,15 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
 #endif
     const size_t prefetch_overflow = 16 * num_threads;
     const size_t num_rounds =
-        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points_floor)));
+        static_cast<size_t>(scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points_floor)));
     point_schedule = (uint64_t*)(aligned_alloc(
         64, (static_cast<size_t>(num_points) * num_rounds + prefetch_overflow) * sizeof(uint64_t)));
     skew_table = (bool*)(aligned_alloc(64, pad(static_cast<size_t>(num_points) * sizeof(bool), 64)));
-    point_pairs_1 = (g1::affine_element*)(aligned_alloc(
-        64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));
-    point_pairs_2 = (g1::affine_element*)(aligned_alloc(
-        64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));
-    scratch_space = (fq*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(g1::affine_element)));
+    point_pairs_1 = (AffineElement*)(aligned_alloc(
+        64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(AffineElement)));
+    point_pairs_2 = (AffineElement*)(aligned_alloc(
+        64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(AffineElement)));
+    scratch_space = (Fq*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(AffineElement)));
     bucket_counts = (uint32_t*)(aligned_alloc(64, num_threads * num_buckets * sizeof(uint32_t)));
     bit_counts = (uint32_t*)(aligned_alloc(64, num_threads * num_buckets * sizeof(uint32_t)));
     bucket_empty_status = (bool*)(aligned_alloc(64, num_threads * num_buckets * sizeof(bool)));
@@ -45,13 +48,9 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
 #endif
     for (size_t i = 0; i < num_threads; ++i) {
         const size_t thread_offset = i * points_per_thread;
-        memset((void*)(point_pairs_1 + thread_offset + (i * 16)),
-               0,
-               (points_per_thread + 16) * sizeof(g1::affine_element));
-        memset((void*)(point_pairs_2 + thread_offset + (i * 16)),
-               0,
-               (points_per_thread + 16) * sizeof(g1::affine_element));
-        memset((void*)(scratch_space + thread_offset), 0, (points_per_thread) * sizeof(fq));
+        memset((void*)(point_pairs_1 + thread_offset + (i * 16)), 0, (points_per_thread + 16) * sizeof(AffineElement));
+        memset((void*)(point_pairs_2 + thread_offset + (i * 16)), 0, (points_per_thread + 16) * sizeof(AffineElement));
+        memset((void*)(scratch_space + thread_offset), 0, (points_per_thread) * sizeof(Fq));
         for (size_t j = 0; j < num_rounds; ++j) {
             const size_t round_offset = (j * static_cast<size_t>(num_points));
             memset((void*)(point_schedule + round_offset + thread_offset), 0, points_per_thread * sizeof(uint64_t));
@@ -65,7 +64,7 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
     memset((void*)round_counts, 0, MAX_NUM_ROUNDS * sizeof(uint64_t));
 }
 
-pippenger_runtime_state::pippenger_runtime_state(pippenger_runtime_state&& other)
+template <typename Curve> pippenger_runtime_state<Curve>::pippenger_runtime_state(pippenger_runtime_state&& other)
 {
     point_schedule = other.point_schedule;
     skew_table = other.skew_table;
@@ -90,7 +89,8 @@ pippenger_runtime_state::pippenger_runtime_state(pippenger_runtime_state&& other
     num_points = other.num_points;
 }
 
-pippenger_runtime_state& pippenger_runtime_state::operator=(pippenger_runtime_state&& other)
+template <typename Curve>
+pippenger_runtime_state<Curve>& pippenger_runtime_state<Curve>::operator=(pippenger_runtime_state<Curve>&& other)
 {
     if (point_schedule) {
         aligned_free(point_schedule);
@@ -152,14 +152,15 @@ pippenger_runtime_state& pippenger_runtime_state::operator=(pippenger_runtime_st
     return *this;
 }
 
-affine_product_runtime_state pippenger_runtime_state::get_affine_product_runtime_state(const size_t num_threads,
-                                                                                       const size_t thread_index)
+template <typename Curve>
+affine_product_runtime_state<Curve> pippenger_runtime_state<Curve>::get_affine_product_runtime_state(
+    const size_t num_threads, const size_t thread_index)
 {
     const size_t points_per_thread = static_cast<size_t>(num_points / num_threads);
-    const size_t num_buckets = static_cast<size_t>(
-        1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_points) / 2));
+    const size_t num_buckets =
+        static_cast<size_t>(1U << scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_points) / 2));
 
-    scalar_multiplication::affine_product_runtime_state product_state;
+    scalar_multiplication::affine_product_runtime_state<Curve> product_state;
 
     product_state.point_pairs_1 = point_pairs_1 + (thread_index * points_per_thread) + (thread_index * 16);
     product_state.point_pairs_2 = point_pairs_2 + (thread_index * points_per_thread) + (thread_index * 16);
@@ -170,7 +171,7 @@ affine_product_runtime_state pippenger_runtime_state::get_affine_product_runtime
     return product_state;
 }
 
-pippenger_runtime_state::~pippenger_runtime_state()
+template <typename Curve> pippenger_runtime_state<Curve>::~pippenger_runtime_state()
 {
     if (point_schedule) {
         aligned_free(point_schedule);
@@ -208,5 +209,10 @@ pippenger_runtime_state::~pippenger_runtime_state()
         aligned_free(round_counts);
     }
 }
+
+template struct affine_product_runtime_state<curve::BN254>;
+template struct affine_product_runtime_state<curve::Grumpkin>;
+template struct pippenger_runtime_state<curve::BN254>;
+template struct pippenger_runtime_state<curve::Grumpkin>;
 } // namespace scalar_multiplication
 } // namespace barretenberg

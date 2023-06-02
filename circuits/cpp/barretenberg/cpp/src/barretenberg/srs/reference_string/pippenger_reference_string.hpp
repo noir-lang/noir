@@ -15,7 +15,8 @@ using namespace barretenberg;
 
 class PippengerReferenceString : public ProverReferenceString {
   public:
-    PippengerReferenceString(scalar_multiplication::Pippenger* pippenger)
+    // TODO(#473)?
+    PippengerReferenceString(scalar_multiplication::Pippenger<curve::BN254>* pippenger)
         : pippenger_(pippenger)
     {}
 
@@ -23,12 +24,14 @@ class PippengerReferenceString : public ProverReferenceString {
     g1::affine_element* get_monomial_points() override { return pippenger_->get_point_table(); }
 
   private:
-    scalar_multiplication::Pippenger* pippenger_;
+    // TODO(#473)?
+    scalar_multiplication::Pippenger<curve::BN254>* pippenger_;
 };
 
 class PippengerReferenceStringFactory : public ReferenceStringFactory {
   public:
-    PippengerReferenceStringFactory(scalar_multiplication::Pippenger* pippenger, uint8_t const* g2x)
+    // TODO(#473)?
+    PippengerReferenceStringFactory(scalar_multiplication::Pippenger<curve::BN254>* pippenger, uint8_t const* g2x)
         : pippenger_(pippenger)
         , g2x_(g2x)
     {}
@@ -47,7 +50,8 @@ class PippengerReferenceStringFactory : public ReferenceStringFactory {
     }
 
   private:
-    scalar_multiplication::Pippenger* pippenger_;
+    // TODO(#473)?
+    scalar_multiplication::Pippenger<curve::BN254>* pippenger_;
     uint8_t const* g2x_;
 };
 

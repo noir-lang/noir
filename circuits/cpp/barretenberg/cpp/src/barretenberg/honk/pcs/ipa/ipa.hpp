@@ -2,9 +2,9 @@
 #include <cstddef>
 #include <numeric>
 #include <string>
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include <vector>
 #include "barretenberg/common/assert.hpp"
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
@@ -84,13 +84,17 @@ template <typename Params> class IPA {
                 inner_prod_R += a_vec[round_size + j] * b_vec[j];
             }
             // L_i = < a_vec_lo, G_vec_hi > + inner_prod_L * aux_generator
-            L_elements[i] = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-                &a_vec[0], &G_vec_local[round_size], round_size, ck->pippenger_runtime_state);
+            L_elements[i] =
+                // TODO(#473)
+                barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
+                    &a_vec[0], &G_vec_local[round_size], round_size, ck->pippenger_runtime_state);
             L_elements[i] += aux_generator * inner_prod_L;
 
             // R_i = < a_vec_hi, G_vec_lo > + inner_prod_R * aux_generator
-            R_elements[i] = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-                &a_vec[round_size], &G_vec_local[0], round_size, ck->pippenger_runtime_state);
+            // TODO(#473)
+            R_elements[i] =
+                barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
+                    &a_vec[round_size], &G_vec_local[0], round_size, ck->pippenger_runtime_state);
             R_elements[i] += aux_generator * inner_prod_R;
 
             std::string index = std::to_string(i);
@@ -163,8 +167,10 @@ template <typename Params> class IPA {
             msm_scalars[2 * i] = round_challenges[i].sqr();
             msm_scalars[2 * i + 1] = round_challenges_inv[i].sqr();
         }
-        GroupElement LR_sums = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-            &msm_scalars[0], &msm_elements[0], pippenger_size, vk->pippenger_runtime_state);
+        // TODO(#473)
+        GroupElement LR_sums =
+            barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
+                &msm_scalars[0], &msm_elements[0], pippenger_size, vk->pippenger_runtime_state);
         GroupElement C_zero = C_prime + LR_sums;
 
         /**
@@ -206,7 +212,8 @@ template <typename Params> class IPA {
         for (size_t i = 0; i < poly_degree * 2; i += 2) {
             G_vec_local[i >> 1] = srs_elements[i];
         }
-        auto G_zero = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
+        // TODO(#473)
+        auto G_zero = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
             &s_vec[0], &G_vec_local[0], poly_degree, vk->pippenger_runtime_state);
 
         auto a_zero = transcript.template receive_from_prover<Fr>("IPA:a_0");

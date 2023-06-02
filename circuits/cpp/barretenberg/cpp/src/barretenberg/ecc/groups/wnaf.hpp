@@ -7,7 +7,7 @@ namespace barretenberg {
 namespace wnaf {
 constexpr size_t SCALAR_BITS = 127;
 
-#define WNAF_SIZE(x) ((wnaf::SCALAR_BITS + x - 1) / (x))
+#define WNAF_SIZE(x) ((barretenberg::wnaf::SCALAR_BITS + x - 1) / (x))
 
 constexpr size_t get_optimal_bucket_width(const size_t num_points)
 {

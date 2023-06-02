@@ -1,5 +1,4 @@
 #include "turbo_circuit_constructor.hpp"
-#include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 
 using namespace barretenberg;

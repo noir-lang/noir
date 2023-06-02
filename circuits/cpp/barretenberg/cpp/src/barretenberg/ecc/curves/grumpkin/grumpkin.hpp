@@ -16,7 +16,7 @@ struct GrumpkinG1Params {
     static constexpr bool can_hash_to_curve = true;
     static constexpr bool small_elements = true;
     static constexpr bool has_a = false;
-    // have checked in grumpkin.test_b that b is Montgomery form of  -17
+    // have checked in grumpkin.test_b that b is Montgomery form of -17
     static constexpr barretenberg::fr b{
         0xdd7056026000005a, 0x223fa97acb319311, 0xcc388229877910c0, 0x34394632b724eaa
     };
@@ -31,4 +31,16 @@ struct GrumpkinG1Params {
 typedef barretenberg::group<barretenberg::fr, barretenberg::fq, GrumpkinG1Params> g1;
 
 g1::affine_element get_generator(const size_t generator_index);
-} // namespace grumpkin
+
+}; // namespace grumpkin
+
+namespace curve {
+class Grumpkin {
+  public:
+    using ScalarField = barretenberg::fq;
+    using BaseField = barretenberg::fr;
+    using Group = typename grumpkin::g1;
+    using Element = typename Group::element;
+    using AffineElement = typename Group::affine_element;
+};
+} // namespace curve
