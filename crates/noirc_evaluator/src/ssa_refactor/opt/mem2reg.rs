@@ -3,10 +3,11 @@
 //! mutable variables into values that are easier to manipulate.
 use std::collections::{BTreeMap, BTreeSet};
 
+use acvm::FieldElement;
+
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
-        constant::NumericConstantId,
         dfg::DataFlowGraph,
         instruction::{BinaryOp, Instruction, InstructionId},
         value::{Value, ValueId},
@@ -48,7 +49,7 @@ impl Ssa {
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
 enum Address {
     Zeroth(InstructionId),
-    Offset(InstructionId, NumericConstantId),
+    Offset(InstructionId, FieldElement),
 }
 
 impl Address {
