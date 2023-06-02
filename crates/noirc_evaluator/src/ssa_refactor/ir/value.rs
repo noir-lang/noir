@@ -13,7 +13,7 @@ pub(crate) type ValueId = Id<Value>;
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
@@ -35,6 +35,9 @@ pub(crate) enum Value {
     /// This Value originates from a numeric constant
     NumericConstant { constant: FieldElement, typ: Type },
 
+    /// Represents a constant array value
+    Array(im::Vector<ValueId>),
+
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
     /// If the argument or return types are needed, users should retrieve
@@ -54,6 +57,7 @@ impl Value {
             Value::Instruction { typ, .. } => *typ,
             Value::Param { typ, .. } => *typ,
             Value::NumericConstant { typ, .. } => *typ,
+            Value::Array(_) => Type::Reference,
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
         }

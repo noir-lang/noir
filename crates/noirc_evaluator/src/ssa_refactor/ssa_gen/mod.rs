@@ -101,8 +101,7 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let element_type = Self::convert_type(&array.element_type);
-                self.codegen_array(elements, element_type)
+                self.codegen_array(elements)
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -115,7 +114,7 @@ impl<'a> FunctionContext<'a> {
                 let elements = vecmap(string.as_bytes(), |byte| {
                     self.builder.numeric_constant(*byte as u128, Type::field()).into()
                 });
-                self.codegen_array(elements, Tree::Leaf(Type::field()))
+                self.codegen_array(elements)
             }
         }
     }
@@ -129,24 +128,17 @@ impl<'a> FunctionContext<'a> {
     /// stored the same as the array [1, 2, 3, 4].
     ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<Values>, element_type: Tree<Type>) -> Values {
-        let size = element_type.size_of_type() * elements.len();
-        let array = self.builder.insert_allocate(size.try_into().unwrap_or_else(|_| {
-            panic!("Cannot allocate {size} bytes for array, it does not fit into a u32")
-        }));
+    fn codegen_array(&mut self, elements: Vec<Values>) -> Values {
+        let mut array = im::Vector::new();
 
-        // Now we must manually store all the elements into the array
-        let mut i = 0u128;
         for element in elements {
             element.for_each(|element| {
-                let address = self.make_offset(array, i);
                 let element = element.eval(self);
-                self.builder.insert_store(address, element);
-                i += 1;
+                array.push_back(element);
             });
         }
 
-        array.into()
+        self.builder.array_constant(array).into()
     }
 
     fn codegen_block(&mut self, block: &[Expression]) -> Values {
@@ -205,8 +197,9 @@ impl<'a> FunctionContext<'a> {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
             if load_result {
-                self.builder.insert_load(array, offset, typ)
+                self.builder.insert_array_get(array, offset, typ)
             } else {
+                // TODO
                 self.builder.insert_binary(array, BinaryOp::Add, offset)
             }
             .into()

@@ -22,6 +22,9 @@ pub(crate) enum Type {
     /// A reference to some value, such as an array
     Reference,
 
+    /// An immutable array value
+    Array,
+
     /// A function that may be called directly
     Function,
 
@@ -56,6 +59,7 @@ impl std::fmt::Display for Type {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
             Type::Reference => write!(f, "reference"),
+            Type::Array => write!(f, "array"),
             Type::Function => write!(f, "function"),
             Type::Unit => write!(f, "unit"),
         }

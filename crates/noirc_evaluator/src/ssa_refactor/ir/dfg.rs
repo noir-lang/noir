@@ -8,7 +8,7 @@ use super::{
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
-    map::{DenseMap, Id},
+    map::DenseMap,
     types::Type,
     value::{Value, ValueId},
 };
@@ -157,7 +157,7 @@ impl DataFlowGraph {
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
     pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        let new_value = self.values[new_value];
+        let new_value = self.values[new_value].clone();
         self.values[value_to_replace] = new_value;
     }
 
@@ -170,6 +170,12 @@ impl DataFlowGraph {
         let id = self.values.insert(Value::NumericConstant { constant, typ });
         self.constants.insert(constant, id);
         id
+    }
+
+    /// Returns the field element represented by this value if it is a numeric constant.
+    /// Returns None if the given value is not a numeric constant.
+    pub(crate) fn make_array(&mut self, elements: im::Vector<ValueId>) -> ValueId {
+        self.make_value(Value::Array(elements))
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -265,7 +271,7 @@ impl DataFlowGraph {
     }
 
     /// Add a parameter to the given block
-    pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> Id<Value> {
+    pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> ValueId {
         let block = &mut self.blocks[block_id];
         let position = block.parameters().len();
         let parameter = self.values.insert(Value::Param { block: block_id, position, typ });
@@ -275,7 +281,7 @@ impl DataFlowGraph {
 
     /// Returns the field element represented by this value if it is a numeric constant.
     /// Returns None if the given value is not a numeric constant.
-    pub(crate) fn get_numeric_constant(&self, value: Id<Value>) -> Option<FieldElement> {
+    pub(crate) fn get_numeric_constant(&self, value: ValueId) -> Option<FieldElement> {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
@@ -283,10 +289,20 @@ impl DataFlowGraph {
     /// Returns None if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant_with_type(
         &self,
-        value: Id<Value>,
+        value: ValueId,
     ) -> Option<(FieldElement, Type)> {
         match self.values[value] {
             Value::NumericConstant { constant, typ } => Some((constant, typ)),
+            _ => None,
+        }
+    }
+
+    /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
+    /// Otherwise, this returns None.
+    pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<im::Vector<ValueId>> {
+        match &self.values[value] {
+            // Vectors are shared, so cloning them is cheap
+            Value::Array(array) => Some(array.clone()),
             _ => None,
         }
     }
@@ -397,7 +413,7 @@ mod tests {
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
-        let ins = Instruction::Allocate { size: 20 };
+        let ins = Instruction::Allocate;
         let ins_id = dfg.make_instruction(ins, None);
 
         let results = dfg.instruction_results(ins_id);

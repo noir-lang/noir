@@ -82,6 +82,11 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
+    /// Insert an array constant into the current function with the given element values
+    pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId>) -> ValueId {
+        self.current_function.dfg.make_array(elements)
+    }
+
     /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
         self.current_function.dfg.type_of_value(value)
@@ -132,8 +137,8 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self, size_to_allocate: u32) -> ValueId {
-        self.insert_instruction(Instruction::Allocate { size: size_to_allocate }, None).first()
+    pub(crate) fn insert_allocate(&mut self) -> ValueId {
+        self.insert_instruction(Instruction::Allocate, None).first()
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset
@@ -143,13 +148,7 @@ impl FunctionBuilder {
     /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
     /// an array will have an offset of 3.
     /// Returns the element that was loaded.
-    pub(crate) fn insert_load(
-        &mut self,
-        mut address: ValueId,
-        offset: ValueId,
-        type_to_load: Type,
-    ) -> ValueId {
-        address = self.insert_binary(address, BinaryOp::Add, offset);
+    pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
     }
 
@@ -198,6 +197,27 @@ impl FunctionBuilder {
         result_types: Vec<Type>,
     ) -> &[ValueId] {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Insert an instruction to extract an element from an array
+    pub(crate) fn insert_array_get(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        element_type: Type,
+    ) -> ValueId {
+        let element_type = Some(vec![element_type]);
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+    }
+
+    /// Insert an instruction to create a new array with the given index replaced with a new value
+    pub(crate) fn insert_array_set(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        value: ValueId,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
     /// Terminates the current block with the given terminator instruction

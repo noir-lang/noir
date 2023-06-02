@@ -41,10 +41,7 @@ impl Value {
     pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, typ) => {
-                let offset = ctx.builder.field_constant(0u128);
-                ctx.builder.insert_load(address, offset, typ)
-            }
+            Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
         }
     }
 

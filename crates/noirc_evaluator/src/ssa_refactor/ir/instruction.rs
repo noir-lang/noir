@@ -94,17 +94,21 @@ pub(crate) enum Instruction {
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
-    ///
-    /// `size` is the size of the region to be allocated by the number of FieldElements it
-    /// contains. Note that non-numeric types like Functions and References are counted as 1 field
-    /// each.
-    Allocate { size: u32 },
+    /// This is used for representing mutable variables and references.
+    Allocate,
 
     /// Loads a value from memory.
     Load { address: ValueId },
 
     /// Writes a value to memory.
     Store { address: ValueId, value: ValueId },
+
+    /// Retrieve a value from an array at the given index
+    ArrayGet { array: ValueId, index: ValueId },
+
+    /// Creates a new array with the new value at the given index. All other elements are identical
+    /// to those in the given array. This will not modify the original array.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId },
 }
 
 impl Instruction {
@@ -122,8 +126,11 @@ impl Instruction {
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
+            Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
+            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
+                InstructionResultType::Unknown
+            }
         }
     }
 
@@ -155,10 +162,16 @@ impl Instruction {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
             },
-            Instruction::Allocate { size } => Instruction::Allocate { size: *size },
+            Instruction::Allocate => Instruction::Allocate,
             Instruction::Load { address } => Instruction::Load { address: f(*address) },
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
+            }
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
+            }
+            Instruction::ArraySet { array, index, value } => {
+                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
         }
     }
@@ -168,11 +181,10 @@ impl Instruction {
     pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
-            Instruction::Binary(binary) => binary.simplify(dfg),
+            Instruction::Binary(binary) => return binary.simplify(dfg),
             Instruction::Cast(value, typ) => {
-                match (*typ == dfg.type_of_value(*value)).then_some(*value) {
-                    Some(value) => SimplifiedTo(value),
-                    _ => None,
+                if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                    return SimplifiedTo(value);
                 }
             }
             Instruction::Not(value) => {
@@ -182,16 +194,15 @@ impl Instruction {
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
                         let value = constant.is_zero() as u128;
-                        SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
+                        return SimplifiedTo(dfg.make_constant(value.into(), Type::bool()));
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
-                        match &dfg[*instruction] {
-                            Instruction::Not(value) => SimplifiedTo(*value),
-                            _ => None,
+                        if let Instruction::Not(value) = &dfg[*instruction] {
+                            return SimplifiedTo(*value);
                         }
                     }
-                    _ => None,
+                    _ => (),
                 }
             }
             Instruction::Constrain(value) => {
@@ -200,14 +211,32 @@ impl Instruction {
                         return Remove;
                     }
                 }
-                None
             }
-            Instruction::Truncate { .. } => None,
-            Instruction::Call { .. } => None,
-            Instruction::Allocate { .. } => None,
-            Instruction::Load { .. } => None,
-            Instruction::Store { .. } => None,
+            Instruction::ArrayGet { array, index } => {
+                let array = dfg.get_array_constant(*array);
+                if let (Some(array), Some(index)) = (array, dfg.get_numeric_constant(*index)) {
+                    let index =
+                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                    assert!(index < array.len());
+                    return SimplifiedTo(array[index]);
+                }
+            }
+            Instruction::ArraySet { array, index, value } => {
+                let array = dfg.get_array_constant(*array);
+                if let (Some(array), Some(index)) = (array, dfg.get_numeric_constant(*index)) {
+                    let index =
+                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                    assert!(index < array.len());
+                    return SimplifiedTo(dfg.make_array(array.update(index, *value)));
+                }
+            }
+            Instruction::Truncate { .. } => (),
+            Instruction::Call { .. } => (),
+            Instruction::Allocate { .. } => (),
+            Instruction::Load { .. } => (),
+            Instruction::Store { .. } => (),
         }
+        None
     }
 }
 

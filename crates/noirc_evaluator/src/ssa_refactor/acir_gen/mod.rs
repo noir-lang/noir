@@ -86,7 +86,7 @@ impl Context {
     ) {
         let mut param_array_lengths_iter = param_array_lengths.iter();
         for param_id in params {
-            let value = dfg[*param_id];
+            let value = &dfg[*param_id];
             let param_type = match value {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
@@ -220,6 +220,7 @@ impl Context {
         let acir_var = match value {
             Value::NumericConstant { constant, .. } => self.acir_context.add_constant(*constant),
             Value::Intrinsic(..) => todo!(),
+            Value::Array(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value:?}")
