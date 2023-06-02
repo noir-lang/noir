@@ -280,8 +280,13 @@ impl Context {
             return;
         }
 
-        for value_id in return_values {
-            let acir_var = self.convert_ssa_value(*value_id, dfg);
+        // The return value may or may not be an array reference. Calling `flatten_value_list`
+        // will expand the array if there is one.
+        let return_acir_vars = self
+            .flatten_value_list(return_values, dfg)
+            .expect("add Result types to all methods so errors bubble up");
+
+        for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }
     }
@@ -373,7 +378,7 @@ impl Context {
         allow_log_ops: bool,
     ) -> Vec<AcirVar> {
         let inputs = self
-            .flatten_arguments(arguments, dfg)
+            .flatten_value_list(arguments, dfg)
             .expect("add Result types to all methods so errors bubble up");
         match intrinsic {
             Intrinsic::BlackBox(black_box) => self
@@ -395,7 +400,7 @@ impl Context {
     /// Maps an ssa value list, for which some values may be references to arrays, by inlining
     /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
     /// that correspond to other values.
-    fn flatten_arguments(
+    fn flatten_value_list(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,

@@ -9,7 +9,8 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction, InstructionId},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        types::Type,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -66,7 +67,7 @@ struct PerBlockContext {
     last_stores: BTreeMap<Address, ValueId>,
     store_ids: Vec<InstructionId>,
     failed_substitutes: BTreeSet<Address>,
-    alloc_ids_in_calls: BTreeSet<InstructionId>,
+    alloc_ids_used_externally: BTreeSet<InstructionId>,
 }
 
 impl PerBlockContext {
@@ -76,7 +77,7 @@ impl PerBlockContext {
             last_stores: BTreeMap::new(),
             store_ids: Vec::new(),
             failed_substitutes: BTreeSet::new(),
-            alloc_ids_in_calls: BTreeSet::new(),
+            alloc_ids_used_externally: BTreeSet::new(),
         }
     }
 
@@ -112,12 +113,21 @@ impl PerBlockContext {
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
                         if let Some(address) = self.try_const_address(*arg, dfg) {
-                            self.alloc_ids_in_calls.insert(address.alloc_id());
+                            self.alloc_ids_used_externally.insert(address.alloc_id());
                         }
                     }
                 }
                 _ => {
                     // Nothing to do
+                }
+            }
+        }
+
+        // Identify any arrays that are returned from this function
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
+            for value in return_values {
+                if let Some(address) = self.try_const_address(*value, dfg) {
+                    self.alloc_ids_used_externally.insert(address.alloc_id());
                 }
             }
         }
@@ -150,7 +160,7 @@ impl PerBlockContext {
 
             if let Some(address) = self.try_const_address(address, dfg) {
                 if !self.failed_substitutes.contains(&address)
-                    && !self.alloc_ids_in_calls.contains(&address.alloc_id())
+                    && !self.alloc_ids_used_externally.contains(&address.alloc_id())
                 {
                     stores_to_remove.push(*instruction_id);
                 }
@@ -166,6 +176,9 @@ impl PerBlockContext {
 
     // Attempts to normalize the given value into a const address
     fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
+        if dfg.type_of_value(value_id) != Type::Reference {
+            return None;
+        }
         let value = &dfg[value_id];
         let instruction_id = match value {
             Value::Instruction { instruction, .. } => *instruction,
@@ -173,7 +186,10 @@ impl PerBlockContext {
         };
         let instruction = &dfg[instruction_id];
         match instruction {
-            Instruction::Allocate { .. } => Some(Address::Zeroth(instruction_id)),
+            // Arrays can be returned by allocations and function calls
+            Instruction::Allocate { .. } | Instruction::Call { .. } => {
+                Some(Address::Zeroth(instruction_id))
+            }
             Instruction::Binary(binary) => {
                 if binary.operator != BinaryOp::Add {
                     return None;
