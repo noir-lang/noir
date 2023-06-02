@@ -67,7 +67,11 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        _ => id.to_string(),
+        Value::Array(elements) => {
+            let elements = vecmap(elements, |element| value(function, *element));
+            format!("[{}]", elements.join(", "))
+        }
+        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
     }
 }
 

@@ -128,7 +128,7 @@ impl PerBlockContext {
                 .instruction_results(*instruction_id)
                 .first()
                 .expect("ICE: Load instructions should have single result");
-            dfg.set_value(result_value, *new_value);
+            dfg.set_value(result_value, new_value.clone());
         }
 
         // Delete load instructions
@@ -245,10 +245,12 @@ mod tests {
 
         builder.insert_store(v0, array);
         let v1 = builder.insert_load(v0, Type::Array);
-        let v2 = builder.insert_array_get(v1, one);
+        let v2 = builder.insert_array_get(v1, one, Type::field());
         builder.terminate_with_return(vec![v2]);
 
-        let ssa = builder.finish().mem2reg();
+        let ssa = builder.finish().mem2reg().fold_constants();
+
+        println!("{ssa}");
 
         let func = ssa.main();
         let block_id = func.entry_block();
