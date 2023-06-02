@@ -16,7 +16,7 @@ mod barretenberg_structures;
 #[cfg(feature = "bb_js")]
 use {
     self::barretenberg_structures::ConstraintSystem, base64, flate2::read::GzDecoder,
-    flate2::write::GzEncoder, flate2::Compression, std::io::prelude::*,
+    flate2::write::GzEncoder, flate2::Compression, std::io::prelude::*, acvm_backend_barretenberg::barretenberg_structures::ConstraintSystem
 };
 
 // TODO: move these down into ACVM.

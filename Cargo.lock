@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.13.1"
-source = "git+https://github.com/noir-lang/acvm.git?rev=b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6#b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6"
+source = "git+https://github.com/noir-lang/acvm.git?rev=fa4b0045cb00cc5cd52257f709ad16ed320692a1#fa4b0045cb00cc5cd52257f709ad16ed320692a1"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -18,7 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.13.1"
-source = "git+https://github.com/noir-lang/acvm.git?rev=b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6#b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6"
+source = "git+https://github.com/noir-lang/acvm.git?rev=fa4b0045cb00cc5cd52257f709ad16ed320692a1#fa4b0045cb00cc5cd52257f709ad16ed320692a1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,7 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.13.1"
-source = "git+https://github.com/noir-lang/acvm.git?rev=b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6#b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6"
+source = "git+https://github.com/noir-lang/acvm.git?rev=fa4b0045cb00cc5cd52257f709ad16ed320692a1#fa4b0045cb00cc5cd52257f709ad16ed320692a1"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -49,7 +49,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.3.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg.git?rev=08fe7fecbaeb101fc7018acb7aceda510b0e99a2#08fe7fecbaeb101fc7018acb7aceda510b0e99a2"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg.git?rev=c375fd656bcd342c4ce87067a57a09d503bd71c8#c375fd656bcd342c4ce87067a57a09d503bd71c8"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -68,7 +68,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.13.1"
-source = "git+https://github.com/noir-lang/acvm.git?rev=b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6#b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6"
+source = "git+https://github.com/noir-lang/acvm.git?rev=fa4b0045cb00cc5cd52257f709ad16ed320692a1#fa4b0045cb00cc5cd52257f709ad16ed320692a1"
 dependencies = [
  "acir",
 ]
@@ -494,7 +494,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.13.1"
-source = "git+https://github.com/noir-lang/acvm.git?rev=b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6#b8198aad513f2ee8c4b4fa1bf11543f09d53d6e6"
+source = "git+https://github.com/noir-lang/acvm.git?rev=fa4b0045cb00cc5cd52257f709ad16ed320692a1#fa4b0045cb00cc5cd52257f709ad16ed320692a1"
 dependencies = [
  "acir_field",
  "num-bigint",
@@ -1852,6 +1852,7 @@ name = "nargo"
 version = "0.6.0"
 dependencies = [
  "acvm",
+ "acvm-backend-barretenberg",
  "base64 0.13.1",
  "flate2",
  "noirc_abi",
