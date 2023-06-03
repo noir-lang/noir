@@ -6,57 +6,57 @@ on:
       - jb/noir-wasm-workflow
 
 jobs:
-  release-please:
-    name: Create Release
-    outputs:
-      release-pr: ${{ steps.release.outputs.pr }}
-      tag-name: ${{ steps.release.outputs.tag_name }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run release-please
-        id: release
-        uses: google-github-actions/release-please-action@v3
-        with:
-          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
-          release-type: simple
-          package-name: noir
-          bump-minor-pre-major: true
-          bump-patch-for-minor-pre-major: true
-          prerelease: true # Marks GitHub Releases for 0.x.x versions as "Pre-release"
-          pull-request-title-pattern: "chore(noir): Release ${version}"
-          extra-files: |
-            Cargo.toml
-            flake.nix
+  # release-please:
+  #   name: Create Release
+  #   outputs:
+  #     release-pr: ${{ steps.release.outputs.pr }}
+  #     tag-name: ${{ steps.release.outputs.tag_name }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Run release-please
+  #       id: release
+  #       uses: google-github-actions/release-please-action@v3
+  #       with:
+  #         token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+  #         release-type: simple
+  #         package-name: noir
+  #         bump-minor-pre-major: true
+  #         bump-patch-for-minor-pre-major: true
+  #         prerelease: true # Marks GitHub Releases for 0.x.x versions as "Pre-release"
+  #         pull-request-title-pattern: "chore(noir): Release ${version}"
+  #         extra-files: |
+  #           Cargo.toml
+  #           flake.nix
 
-  update-lockfile:
-    name: Update lockfile
-    needs: [release-please]
-    # if: ${{ needs.release-please.outputs.release-pr }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout release branch
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
-          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+  # update-lockfile:
+  #   name: Update lockfile
+  #   needs: [release-please]
+  #   if: ${{ needs.release-please.outputs.release-pr }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout release branch
+  #       uses: actions/checkout@v3
+  #       with:
+  #         ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+  #         token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.65.0
+  #     - name: Setup toolchain
+  #       uses: dtolnay/rust-toolchain@1.65.0
 
-      - name: Update lockfile
-        run: |
-          cargo update --workspace
+  #     - name: Update lockfile
+  #       run: |
+  #         cargo update --workspace
 
-      - name: Configure git
-        run: |
-          git config user.name kevaundray
-          git config user.email kevtheappdev@gmail.com
+  #     - name: Configure git
+  #       run: |
+  #         git config user.name kevaundray
+  #         git config user.email kevtheappdev@gmail.com
 
-      - name: Commit updates
-        run: |
-          git add Cargo.lock
-          git commit -m 'chore: Update lockfile'
-          git push
+  #     - name: Commit updates
+  #       run: |
+  #         git add Cargo.lock
+  #         git commit -m 'chore: Update lockfile'
+  #         git push
 
   # build-binaries:
   #   name: Build binaries
@@ -75,7 +75,7 @@ jobs:
 
   dispatch-noir_wasm:
     name: Dispatch to noir_wasm
-    needs: [release-please]
+    # needs: [release-please]
     # if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
@@ -87,18 +87,3 @@ jobs:
           ref: jb-nix-flake
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
-
-  # publish-wasm:
-  #   name: Publish noir_wasm package
-  #   needs: [release-please]
-  #   if: ${{ needs.release-please.outputs.tag-name }}
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Dispatch to noir_wasm
-  #       uses: benc-uk/workflow-dispatch@v1
-  #       with:
-  #         workflow: update.yml
-  #         repo: noir-lang/noir_wasm
-  #         ref: master
-  #         token: ${{ secrets.NOIR_REPO_TOKEN }}
-  #         inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
