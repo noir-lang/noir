@@ -13,7 +13,7 @@ use acvm::{
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
@@ -150,6 +150,44 @@ impl GeneratedAcir {
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
         outputs_clone
+    }
+
+    /// Takes an input expression and returns witnesses that are constrained to be limbs
+    /// decomposed from the input for the given radix and limb count.
+    ///
+    /// Only radix that are a power of two are supported
+    pub(crate) fn radix_le_decompose(
+        &mut self,
+        input_expr: &Expression,
+        radix: u32,
+        limb_count: u32,
+    ) -> Result<Vec<Witness>, AcirGenError> {
+        let bit_size = u32::BITS - (radix - 1).leading_zeros();
+        assert_eq!(2_u32.pow(bit_size), radix, "ICE: Radix must be a power of 2");
+
+        let mut composed_limbs = Expression::default();
+
+        let mut radix_pow: u128 = 1;
+        let limb_witnesses = try_vecmap(0..limb_count, |_| {
+            let limb_witness = self.next_witness_index();
+            self.range_constraint(limb_witness, bit_size)?;
+
+            composed_limbs = composed_limbs
+                .add_mul(FieldElement::from(radix_pow), &Expression::from(limb_witness));
+
+            radix_pow *= radix as u128;
+            Ok(limb_witness)
+        })?;
+
+        self.assert_is_zero(input_expr - &composed_limbs);
+
+        self.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
+            a: input_expr.clone(),
+            b: limb_witnesses.clone(),
+            radix,
+        }));
+
+        Ok(limb_witnesses)
     }
 
     /// Adds a log directive to print the provided witnesses.
