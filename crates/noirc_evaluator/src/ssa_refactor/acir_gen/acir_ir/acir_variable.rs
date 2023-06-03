@@ -1,5 +1,5 @@
-use crate::brillig::acvm_brillig::BrilligOpcode;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
 use super::{
     errors::AcirGenError,
