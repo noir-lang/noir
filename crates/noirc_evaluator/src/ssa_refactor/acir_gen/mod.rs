@@ -360,7 +360,10 @@ impl Context {
                 .acir_context
                 .or_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
-            _ => todo!(),
+            BinaryOp::Mod => self
+                .acir_context
+                .modulo_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
         }
     }
     /// Returns an `AcirVar` that is constrained to be
