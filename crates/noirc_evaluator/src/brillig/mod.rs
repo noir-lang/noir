@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use self::{artefact::BrilligArtefact, brillig_gen::BrilligGen};
 
-pub(crate) mod acvm_brillig;
 pub(crate) mod artefact;
 pub(crate) mod brillig_gen;
 
