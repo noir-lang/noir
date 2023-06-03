@@ -236,9 +236,33 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the division of `lhs` and `rhs`
-    pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
-        let inv_rhs = self.inv_var(rhs);
-        self.mul_var(lhs, inv_rhs)
+    pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        // First we need to check if these two variables represent integers or fields.
+        let lhs_bit_size = self.integer_bit_size(&lhs);
+        let rhs_bit_size = self.integer_bit_size(&rhs);
+        assert_eq!(
+            lhs_bit_size, rhs_bit_size,
+            "cannot divide two variables of differing bit sizes"
+        );
+
+        match lhs_bit_size {
+            Some(_) => self.unsigned_div_var(lhs, rhs),
+            None => {
+                // This means it was a Field and so we should do field division
+                let inv_rhs = self.inv_var(rhs);
+                Ok(self.mul_var(lhs, inv_rhs))
+            }
+        }
+    }
+
+    /// Returns the known bit size of the variable if it is an integer.
+    ///  
+    /// If the variable represents a u32, then 32 will
+    /// be returned.
+    ///
+    /// If the variable represents a `Field`, then None is returned.
+    fn integer_bit_size(&self, var: &AcirVar) -> Option<u32> {
+        self.variables_to_bit_sizes.get(var).copied()
     }
 
     /// Adds a new Variable to context whose value will
@@ -409,6 +433,19 @@ impl AcirContext {
         let (_, remainder) = self.euclidean_division_var(lhs, rhs)?;
         Ok(remainder)
     }
+
+    /// Returns a variable which is constrained to be `lhs / rhs`.
+    ///
+    /// The `/` here means an unsigned integer division.
+    pub(crate) fn unsigned_div_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, AcirGenError> {
+        let (quotient, _) = self.euclidean_division_var(lhs, rhs)?;
+        Ok(quotient)
+    }
+
     /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
     ///
     /// We convert right shifts to divisions, so this is equivalent to
@@ -419,7 +456,11 @@ impl AcirContext {
     ///
     /// This code is doing a field division instead of an integer division,
     /// see #1479 about how this is expected to change.
-    pub(crate) fn shift_right_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+    pub(crate) fn shift_right_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, AcirGenError> {
         let rhs_data = &self.data[&rhs];
 
         // Compute 2^{rhs}
@@ -428,8 +469,9 @@ impl AcirContext {
             None => unimplemented!("rhs must be a constant when doing a right shift"),
         };
         let two_pow_rhs_var = self.add_constant(two_pow_rhs);
-
-        self.div_var(lhs, two_pow_rhs_var)
+        // TODO: This will fail because `two_pow_rhs_var` and `lhs` are not the same bit size
+        // TODO: we should patch `two_pow_rhs_var` to be the right type.
+        self.unsigned_div_var(lhs, two_pow_rhs_var)
     }
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
