@@ -431,6 +431,20 @@ impl AcirContext {
         Ok(variable)
     }
 
+    /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
+    pub(crate) fn truncate_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: u32,
+        max_bit_size: u32,
+    ) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.data[&lhs];
+        let lhs_expr = lhs_data.to_expression();
+
+        let result_expr = self.acir_ir.truncate(&lhs_expr, rhs, max_bit_size)?;
+
+        Ok(self.add_data(AcirVarData::Expr(result_expr)))
+    }
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
     fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
