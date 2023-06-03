@@ -25,11 +25,13 @@ jobs:
         run: |
           nix build -L .#wasm --extra-experimental-features nix-command --extra-experimental-features flakes
           ls -la
+
       - name: Copy wasm build result
         run: |
           mkdir -p ./pkg
           ls -la
           cp -r -L ./result/* ./pkg
+
       - name: Output results
         run: ls -la ./result
 
