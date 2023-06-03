@@ -325,7 +325,7 @@ impl GeneratedAcir {
     /// If the above is constrained to zero, then it can only be
     /// true, iff x equals zero or one.
     fn boolean_expr(&mut self, expr: &Expression) -> Expression {
-        let expr_as_witness = self.expression_to_witness(&expr);
+        let expr_as_witness = self.expression_to_witness(expr);
         let mut expr_squared = Expression::default();
         expr_squared.push_multiplication_term(
             FieldElement::one(),
