@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use self::{artefact::BrilligArtefact, brillig_gen::BrilligGen};
+use self::{artifact::BrilligArtifact, brillig_gen::BrilligGen};
 
-pub(crate) mod artefact;
+pub(crate) mod artifact;
 pub(crate) mod brillig_gen;
 
 use crate::ssa_refactor::{
@@ -14,11 +14,11 @@ use crate::ssa_refactor::{
 #[derive(Default)]
 pub struct Brillig {
     /// Maps SSA functions to their brillig opcode
-    ssa_function_to_brillig: HashMap<FunctionId, BrilligArtefact>,
+    ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact>,
 }
 
 impl Brillig {
-    /// Compiles a function into brillig and store the compilation artefacts
+    /// Compiles a function into brillig and store the compilation artifacts
     pub(crate) fn compile(&mut self, func: &Function) {
         let obj = BrilligGen::compile(func);
         self.ssa_function_to_brillig.insert(func.id(), obj);
@@ -26,14 +26,14 @@ impl Brillig {
 }
 
 impl std::ops::Index<FunctionId> for Brillig {
-    type Output = BrilligArtefact;
+    type Output = BrilligArtifact;
     fn index(&self, id: FunctionId) -> &Self::Output {
         &self.ssa_function_to_brillig[&id]
     }
 }
 
 impl Ssa {
-    /// Generate compilation artefacts for brillig functions
+    /// Generate compilation artifacts for brillig functions
     pub(crate) fn to_brillig(&self) -> Brillig {
         let mut brillig = Brillig::default();
         for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
