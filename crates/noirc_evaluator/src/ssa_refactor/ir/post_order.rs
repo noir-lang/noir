@@ -67,12 +67,14 @@ impl PostOrder {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa_refactor::ir::{
-        function::{Function, RuntimeType},
-        instruction::TerminatorInstruction,
-        map::Id,
-        post_order::PostOrder,
-        types::Type,
+    use crate::ssa_refactor::{
+        ir::{
+            function::{Function, RuntimeType},
+            map::Id,
+            post_order::PostOrder,
+            types::Type,
+        },
+        ssa_builder::FunctionBuilder,
     };
 
     #[test]
@@ -106,61 +108,44 @@ mod tests {
         // D, F, E, B, A, (C dropped as unreachable)
 
         let func_id = Id::test_new(0);
-        let mut func = Function::new("func".into(), func_id);
-        let block_a_id = func.entry_block();
-        let block_b_id = func.dfg.make_block();
-        let block_c_id = func.dfg.make_block();
-        let block_d_id = func.dfg.make_block();
-        let block_e_id = func.dfg.make_block();
-        let block_f_id = func.dfg.make_block();
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let block_b_id = builder.insert_block();
+        let block_c_id = builder.insert_block();
+        let block_d_id = builder.insert_block();
+        let block_e_id = builder.insert_block();
+        let block_f_id = builder.insert_block();
+        let cond_a = builder.add_parameter(Type::unsigned(1));
+        let cond_e = builder.add_parameter(Type::unsigned(1));
 
         // A → B   •
         // ↓
         // D   •   •
-        let cond_a = func.dfg.add_block_parameter(block_a_id, Type::unsigned(1));
-        func.dfg.set_block_terminator(
-            block_a_id,
-            TerminatorInstruction::JmpIf {
-                condition: cond_a,
-                then_destination: block_b_id,
-                else_destination: block_d_id,
-            },
-        );
+        builder.terminate_with_jmpif(cond_a, block_b_id, block_d_id);
         //  •   B   •
         //  •   ↓   •
         //  •   E   •
-        func.dfg.set_block_terminator(
-            block_b_id,
-            TerminatorInstruction::Jmp { destination: block_e_id, arguments: vec![] },
-        );
+        builder.switch_to_block(block_b_id);
+        builder.terminate_with_jmp(block_e_id, vec![]);
         // •   •   •
         //
         // D ← E → F
-        let cond_e = func.dfg.add_block_parameter(block_e_id, Type::unsigned(1));
-        func.dfg.set_block_terminator(
-            block_e_id,
-            TerminatorInstruction::JmpIf {
-                condition: cond_e,
-                then_destination: block_d_id,
-                else_destination: block_f_id,
-            },
-        );
+        builder.switch_to_block(block_e_id);
+        builder.terminate_with_jmpif(cond_e, block_d_id, block_f_id);
         // •   B   •
         //   ↗
         // D   •   •
-        func.dfg.set_block_terminator(
-            block_d_id,
-            TerminatorInstruction::Jmp { destination: block_b_id, arguments: vec![] },
-        );
+        builder.switch_to_block(block_d_id);
+        builder.terminate_with_jmp(block_b_id, vec![]);
         // •   •   C
         // •   •   ↓
         // •   •   F
-        func.dfg.set_block_terminator(
-            block_c_id,
-            TerminatorInstruction::Jmp { destination: block_f_id, arguments: vec![] },
-        );
+        builder.switch_to_block(block_c_id);
+        builder.terminate_with_jmp(block_f_id, vec![]);
 
-        let post_order = PostOrder::with_function(&func);
+        let ssa = builder.finish();
+        let func = ssa.main();
+        let post_order = PostOrder::with_function(func);
+        let block_a_id = func.entry_block();
         assert_eq!(post_order.0, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
     }
 }
