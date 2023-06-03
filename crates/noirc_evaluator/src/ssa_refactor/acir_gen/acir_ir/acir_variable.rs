@@ -382,7 +382,7 @@ impl AcirContext {
         let rhs_expr = rhs_data.to_expression();
 
         let lhs_bit_size = self.variables_to_bit_sizes.get(&lhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend");
-        let rhs_bit_size = self.variables_to_bit_sizes.get(&lhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend");
+        let rhs_bit_size = self.variables_to_bit_sizes.get(&rhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend");
 
         assert_eq!(
             lhs_bit_size, rhs_bit_size,
