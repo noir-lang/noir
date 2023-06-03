@@ -285,7 +285,7 @@ impl Driver {
 
         let np_language = self.language.clone();
 
-        let circuit_abi = if options.experimental_ssa {
+        let circuit_abi = if true {
             experimental_create_circuit(
                 program,
                 np_language,
