@@ -270,7 +270,17 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
-            _ => todo!("{instruction:?}"),
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let var = self.convert_ssa_value(*value, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+
+                let result_acir_var = self
+                    .acir_context
+                    .truncate_var(var, *bit_size, *max_bit_size)
+                    .expect("add Result types to all methods so errors bubble up");
+
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
         };
 
         // Map the results of the instructions to Acir variables
