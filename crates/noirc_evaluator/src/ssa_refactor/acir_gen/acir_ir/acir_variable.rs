@@ -274,7 +274,7 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the division of `lhs` and `rhs`
-    pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar, typ: AcirType) -> AcirVar {
+    pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar, _typ: AcirType) -> AcirVar {
         let inv_rhs = self.inv_var(rhs);
         self.mul_var(lhs, inv_rhs)
     }
@@ -392,7 +392,7 @@ impl AcirContext {
     ///
     /// We currently require `rhs` to be a constant
     /// however this can be extended, see #1478.
-    pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar, typ: AcirType) -> AcirVar {
+    pub(crate) fn shift_left_var(&mut self, lhs: AcirVar, rhs: AcirVar, _typ: AcirType) -> AcirVar {
         let rhs_data = &self.data[&rhs];
 
         // Compute 2^{rhs}
