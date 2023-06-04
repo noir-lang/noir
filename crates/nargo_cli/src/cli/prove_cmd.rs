@@ -113,8 +113,12 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         preprocessed_program;
 
     // Parse the initial witness values from Prover.toml
-    let (inputs_map, _) =
-        read_inputs_from_file(&program_dir, prover_name.as_deref().unwrap_or(PROVER_INPUT_FILE), Format::Toml, &abi)?;
+    let (inputs_map, _) = read_inputs_from_file(
+        &program_dir,
+        prover_name.as_deref().unwrap_or(PROVER_INPUT_FILE),
+        Format::Toml,
+        &abi,
+    )?;
 
     let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map)?;
 
