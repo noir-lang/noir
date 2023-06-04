@@ -334,6 +334,14 @@ impl Context {
     fn convert_ssa_binary(&mut self, binary: &Binary, dfg: &DataFlowGraph) -> AcirVar {
         let lhs = self.convert_ssa_value(binary.lhs, dfg);
         let rhs = self.convert_ssa_value(binary.rhs, dfg);
+
+        let lhs_type = dfg.type_of_value(binary.lhs);
+        let rhs_type = dfg.type_of_value(binary.rhs);
+        assert_eq!(
+            lhs_type, rhs_type,
+            "lhs and rhs types in a binary operation are always the same"
+        );
+
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
@@ -346,9 +354,7 @@ impl Context {
                 .acir_context
                 .less_than_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Shl => {
-                self.acir_context.shift_left_var(lhs, rhs, dfg.type_of_value(binary.lhs).into())
-            }
+            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, lhs_type.into()),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs),
             BinaryOp::Xor => self
                 .acir_context
