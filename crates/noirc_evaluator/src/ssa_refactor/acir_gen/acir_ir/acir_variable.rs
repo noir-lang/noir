@@ -274,7 +274,7 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the division of `lhs` and `rhs`
-    pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+    pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar, typ: AcirType) -> AcirVar {
         let inv_rhs = self.inv_var(rhs);
         self.mul_var(lhs, inv_rhs)
     }
@@ -415,7 +415,7 @@ impl AcirContext {
     ///
     /// This code is doing a field division instead of an integer division,
     /// see #1479 about how this is expected to change.
-    pub(crate) fn shift_right_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+    pub(crate) fn shift_right_var(&mut self, lhs: AcirVar, rhs: AcirVar, typ: AcirType) -> AcirVar {
         let rhs_data = &self.data[&rhs];
 
         // Compute 2^{rhs}
@@ -425,7 +425,7 @@ impl AcirContext {
         };
         let two_pow_rhs_var = self.add_constant(two_pow_rhs);
 
-        self.div_var(lhs, two_pow_rhs_var)
+        self.div_var(lhs, two_pow_rhs_var, typ)
     }
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
