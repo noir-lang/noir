@@ -72,6 +72,7 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     backend: &B,
     proof_name: Option<String>,
