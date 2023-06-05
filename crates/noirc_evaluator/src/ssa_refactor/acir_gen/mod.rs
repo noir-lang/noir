@@ -21,7 +21,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::{artefact::BrilligArtefact, Brillig};
+use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -215,7 +215,7 @@ impl Context {
                             ),
                             RuntimeType::Brillig => {
                                 // Generate the brillig code of the function
-                                let code = BrilligArtefact::default().link(&brillig[*id]);
+                                let code = BrilligArtifact::default().link(&brillig[*id]);
                                 self.acir_context.brillig(code);
                                 (result_ids.to_vec(), Vec::new())
                             }
@@ -228,8 +228,22 @@ impl Context {
                             dfg,
                             allow_log_ops,
                         );
-                        let result_ids = dfg.instruction_results(instruction_id);
-                        (result_ids.to_vec(), outputs)
+                        if Self::value_is_array_address(result_ids[0], dfg) {
+                            // Some intrinsics return arrays - these require an allocation
+                            if result_ids.len() != 1 {
+                                todo!("Complex return type encountered. Restructuring required to provide info on how to repackage result");
+                            }
+                            let array_id = self.acir_context.allocate_array(outputs.len());
+                            self.ssa_value_to_array_address.insert(result_ids[0], (array_id, 0));
+                            for (index, element) in outputs.iter().enumerate() {
+                                self.acir_context
+                                    .array_store(array_id, index, *element)
+                                    .expect("add Result types to all methods so errors bubble up");
+                            }
+                            (Vec::new(), Vec::new())
+                        } else {
+                            (result_ids.to_vec(), outputs)
+                        }
                     }
                     _ => unreachable!("expected calling a function"),
                 }
@@ -256,7 +270,17 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
-            _ => todo!("{instruction:?}"),
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let var = self.convert_ssa_value(*value, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+
+                let result_acir_var = self
+                    .acir_context
+                    .truncate_var(var, *bit_size, *max_bit_size)
+                    .expect("add Result types to all methods so errors bubble up");
+
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
         };
 
         // Map the results of the instructions to Acir variables
@@ -380,6 +404,18 @@ impl Context {
                 .acir_context
                 .black_box_function(black_box, inputs)
                 .expect("add Result types to all methods so errors bubble up"),
+            Intrinsic::ToRadix(endian) => {
+                // inputs = [field, radix, limb_size]; (see noir_stdlib/src/field.nr)
+                self.acir_context
+                    .radix_decompose(endian, inputs[0], inputs[1], inputs[2])
+                    .expect("add Result types to all methods so errors bubble up")
+            }
+            Intrinsic::ToBits(endian) => {
+                // inputs = [field, bit_size]; (see noir_stdlib/src/field.nr)
+                self.acir_context
+                    .bit_decompose(endian, inputs[0], inputs[1])
+                    .expect("add Result types to all methods so errors bubble up")
+            }
             Intrinsic::Println => {
                 if allow_log_ops {
                     self.acir_context

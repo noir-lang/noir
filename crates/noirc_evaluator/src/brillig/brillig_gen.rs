@@ -1,11 +1,12 @@
 use crate::ssa_refactor::ir::function::Function;
 
-use super::{acvm_brillig::BrilligOpcode, artefact::BrilligArtefact};
+use super::artifact::BrilligArtifact;
 
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 #[derive(Default)]
-/// Generate the compilation artefacts for compiling a function into brillig bytecode.
+/// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
-    obj: BrilligArtefact,
+    obj: BrilligArtifact,
 }
 
 impl BrilligGen {
@@ -14,7 +15,7 @@ impl BrilligGen {
         self.obj.byte_code.push(code);
     }
 
-    pub(crate) fn compile(func: &Function) -> BrilligArtefact {
+    pub(crate) fn compile(func: &Function) -> BrilligArtifact {
         let mut brillig = BrilligGen::default();
         // we only support empty functions for now
         assert_eq!(func.dfg.num_instructions(), 0);

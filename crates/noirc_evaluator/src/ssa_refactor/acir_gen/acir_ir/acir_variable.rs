@@ -1,6 +1,5 @@
-use crate::brillig::acvm_brillig::BrilligOpcode;
-
-use crate::ssa_refactor::ir::types::NumericType;
+use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
 use super::{
     errors::AcirGenError,
@@ -432,6 +431,20 @@ impl AcirContext {
         Ok(variable)
     }
 
+    /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
+    pub(crate) fn truncate_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: u32,
+        max_bit_size: u32,
+    ) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.data[&lhs];
+        let lhs_expr = lhs_data.to_expression();
+
+        let result_expr = self.acir_ir.truncate(&lhs_expr, rhs, max_bit_size)?;
+
+        Ok(self.add_data(AcirVarData::Expr(result_expr)))
+    }
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
     fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
@@ -568,6 +581,52 @@ impl AcirContext {
             witnesses.push(FunctionInput { witness, num_bits });
         }
         Ok(witnesses)
+    }
+
+    /// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
+    /// over given radix.
+    ///
+    /// The `AcirVar`s for the `radix_var` and `limb_count_var` must be a constant
+    ///
+    /// TODO: support radix larger than field modulus
+    pub(crate) fn radix_decompose(
+        &mut self,
+        endian: Endian,
+        input_var: AcirVar,
+        radix_var: AcirVar,
+        limb_count_var: AcirVar,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        let radix =
+            self.data[&radix_var].as_constant().expect("ICE: radix should be a constant").to_u128()
+                as u32;
+
+        let limb_count = self.data[&limb_count_var]
+            .as_constant()
+            .expect("ICE: limb_size should be a constant")
+            .to_u128() as u32;
+
+        let input_expr = &self.data[&input_var].to_expression();
+
+        let limbs = self.acir_ir.radix_le_decompose(input_expr, radix, limb_count)?;
+
+        let mut limb_vars = vecmap(limbs, |witness| self.add_data(AcirVarData::Witness(witness)));
+
+        if endian == Endian::Big {
+            limb_vars.reverse();
+        }
+
+        Ok(limb_vars)
+    }
+
+    /// Returns `AcirVar`s constrained to be the bit decomposition of the provided input
+    pub(crate) fn bit_decompose(
+        &mut self,
+        endian: Endian,
+        input_var: AcirVar,
+        limb_count_var: AcirVar,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        let two_var = self.add_constant(FieldElement::from(2_u128));
+        self.radix_decompose(endian, input_var, two_var, limb_count_var)
     }
 
     /// Prints the given `AcirVar`s as witnesses.
