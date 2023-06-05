@@ -21,7 +21,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::{artefact::BrilligArtefact, Brillig};
+use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -215,7 +215,7 @@ impl Context {
                             ),
                             RuntimeType::Brillig => {
                                 // Generate the brillig code of the function
-                                let code = BrilligArtefact::default().link(&brillig[*id]);
+                                let code = BrilligArtifact::default().link(&brillig[*id]);
                                 self.acir_context.brillig(code);
                                 (result_ids.to_vec(), Vec::new())
                             }
@@ -270,7 +270,17 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
-            _ => todo!("{instruction:?}"),
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let var = self.convert_ssa_value(*value, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+
+                let result_acir_var = self
+                    .acir_context
+                    .truncate_var(var, *bit_size, *max_bit_size)
+                    .expect("add Result types to all methods so errors bubble up");
+
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
         };
 
         // Map the results of the instructions to Acir variables
