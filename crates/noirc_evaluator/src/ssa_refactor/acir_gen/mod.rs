@@ -304,8 +304,13 @@ impl Context {
             return;
         }
 
-        for value_id in return_values {
-            let acir_var = self.convert_ssa_value(*value_id, dfg);
+        // The return value may or may not be an array reference. Calling `flatten_value_list`
+        // will expand the array if there is one.
+        let return_acir_vars = self
+            .flatten_value_list(return_values, dfg)
+            .expect("add Result types to all methods so errors bubble up");
+
+        for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }
     }
@@ -448,7 +453,7 @@ impl Context {
         allow_log_ops: bool,
     ) -> Vec<AcirVar> {
         let inputs = self
-            .flatten_arguments(arguments, dfg)
+            .flatten_value_list(arguments, dfg)
             .expect("add Result types to all methods so errors bubble up");
         match intrinsic {
             Intrinsic::BlackBox(black_box) => self
@@ -482,7 +487,7 @@ impl Context {
     /// Maps an ssa value list, for which some values may be references to arrays, by inlining
     /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
     /// that correspond to other values.
-    fn flatten_arguments(
+    fn flatten_value_list(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
@@ -549,5 +554,51 @@ impl Context {
             _ => unreachable!("Invalid array address arithmetic operand"),
         };
         self.ssa_value_to_array_address.insert(value_id, (*array_id, new_offset));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::{
+        acir::{
+            circuit::Opcode,
+            native_types::{Expression, Witness},
+        },
+        FieldElement,
+    };
+
+    use crate::{
+        brillig::Brillig,
+        ssa_refactor::{
+            ir::{function::RuntimeType, map::Id},
+            ssa_builder::FunctionBuilder,
+        },
+    };
+
+    use super::Context;
+
+    #[test]
+    fn returns_body_scoped_arrays() {
+        // fn main {
+        //   b0():
+        //     v0 = alloc 1
+        //     store v0, Field 1
+        //     return v0
+        // }
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let v0 = builder.insert_allocate(1);
+        let const_one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, const_one);
+        builder.terminate_with_return(vec![v0]);
+        let ssa = builder.finish();
+
+        let context = Context::default();
+        let acir = context.convert_ssa(ssa, &[], Brillig::default(), false);
+
+        let expected_opcodes =
+            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
+        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }
