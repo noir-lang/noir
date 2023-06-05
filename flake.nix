@@ -293,6 +293,7 @@
         ];
 
         buildPhaseCargoCommand = ''
+          # REPLACE WITH:
           # bash ./buildPhaseCargoCommand.sh
           
           RUST_LOG="debug"
@@ -306,9 +307,25 @@
           wasm-bindgen ./target/x86_64-unknown-linux-gnu/release/acvm_simulator.wasm --out-dir ./pkg/web --typescript --target web
           wasm-opt ./pkg/nodejs/acvm_simulator_bg.wasm -o ./pkg/nodejs/acvm_simulator_bg.wasm -O
           wasm-opt ./pkg/web/acvm_simulator_bg.wasm -o ./pkg/web/acvm_simulator_bg.wasm -O
+
+          if [ -n ${COMMIT_SHORT} ]; then
+              VERSION_APPENDIX="-${COMMIT_SHORT}"
+          else
+              VERSION_APPENDIX="-NOGIT"
+          fi
+
+          # NOTE: This is not working
+          echo "VERSION_APPENDIX = ${VERSION_APPENDIX}"
+
+          jq -s '.[0] * .[1]' ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"${VERSION_APPENDIX}\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types | .peerDependencies = { "@noir-lang/noir-source-resolver": "1.1.2" }' | tee ${PKG_PATH}/package.json
+
+          rm ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/nodejs/.gitignore
+          rm ${PKG_PATH}/web/package.json ${PKG_PATH}/web/.gitignore
+          cat ${PKG_PATH}/package.json
         '';
 
         installPhase = ''
+          # REPLACE WITH:
           # bash ./installPhase.sh
 
           mkdir -p $out
