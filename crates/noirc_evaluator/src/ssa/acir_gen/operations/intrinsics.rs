@@ -172,16 +172,14 @@ pub(crate) fn evaluate(
                         Some(resolve_array(&args[4], acir_gen, ctx, evaluator))
                     };
 
-                    let bb_func = BlackBoxFuncCall::RecursiveAggregation {
+                    BlackBoxFuncCall::RecursiveAggregation {
                         verification_key: resolve_array(&args[0], acir_gen, ctx, evaluator),
                         proof: resolve_array(&args[1], acir_gen, ctx, evaluator),
                         public_inputs: resolve_array(&args[2], acir_gen, ctx, evaluator),
                         key_hash: resolve_variable(&args[3], acir_gen, ctx, evaluator).unwrap(),
                         input_aggregation_object,
                         output_aggregation_object: outputs.to_vec(),
-                    };
-                    dbg!(bb_func.clone());
-                    bb_func
+                    }
                 }
                 _ => panic!("Unsupported low level function {:?}", op),
             };
