@@ -5,7 +5,6 @@ on:
       - opened
       - reopened
       - edited
-      - synchronize
 
 permissions:
   pull-requests: write
@@ -15,10 +14,32 @@ jobs:
   triage:
     runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v2.6
-        # We continue-on-error because the action is buggy and tries to remove labels when they don't exist
-        continue-on-error: true
+      - name: Label pull request
+        # We can switch hash to release number once it is tagged
+        uses: github/issue-labeler@6ae80f5cf189fd96d96a4a4125c60e87cba0578d
+        id: issue-labeler
         with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
           configuration-path: .github/labeler.yml
           enable-versioned-regex: 0
+          sync-labels: 1
+
+      - name: Create documentation issue
+        if: ${{ steps.issue-labeler.outputs.labels-added }}
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: new-migrated-issue.yml
+          repo: noir-lang/docs
+          ref: master
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+          inputs: '{ "pr-number": "${{ github.event.pull_request.number }}" }'
+
+      - name: Close documentation issue
+        if: ${{ steps.issue-labeler.outputs.labels-removed }}
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: delete-migrated-issue.yml
+          repo: noir-lang/docs
+          ref: master
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+          inputs: '{ "pr-number": "${{ github.event.pull_request.number }}" }'
