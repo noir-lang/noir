@@ -144,7 +144,7 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         offset += KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * 2;
 
         auto const contract_leaf = kernel_data[i].public_inputs.end.new_contracts[0];
-        calldata_hash_inputs[offset + i] = contract_leaf.is_empty() ? NT::fr::zero() : contract_leaf.hash();
+        calldata_hash_inputs[offset + i] = contract_leaf.hash();
 
         offset += KERNEL_NEW_CONTRACTS_LENGTH * 2;
 

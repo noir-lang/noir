@@ -155,7 +155,7 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted)
     // The remaining leafs should be 0 leafs, (not empty leafs);
 
     // Create a "mock" contract deployment
-    NewContractData<NT> new_contract = {
+    NewContractData<NT> const new_contract = {
         .contract_address = fr(1),
         .portal_contract_address = fr(3),
         .function_tree_root = fr(2),
@@ -168,11 +168,8 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted)
     };
 
     // create expected end contract tree snapshot
-    auto expected_contract_leaf = crypto::pedersen_commitment::compress_native(
-        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
-        GeneratorIndex::CONTRACT_LEAF);
     auto expected_end_contracts_snapshot_tree = stdlib::merkle_tree::MemoryTree(CONTRACT_TREE_HEIGHT);
-    expected_end_contracts_snapshot_tree.update_element(0, expected_contract_leaf);
+    expected_end_contracts_snapshot_tree.update_element(0, new_contract.hash());
 
     AppendOnlyTreeSnapshot<NT> const expected_end_contracts_snapshot = {
         .root = expected_end_contracts_snapshot_tree.root(),

@@ -73,6 +73,10 @@ template <typename NCT> struct NewContractData {
 
     fr hash() const
     {
+        // as per the circuit implementation, if contract address == zero then return a zero leaf
+        if (is_empty()) {
+            return fr(0);
+        }
         std::vector<fr> const inputs = {
             fr(contract_address),
             fr(portal_contract_address),

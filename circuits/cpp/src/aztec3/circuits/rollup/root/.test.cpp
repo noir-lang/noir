@@ -200,21 +200,13 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     // @todo @LHerskind: Add public data writes
 
     // Contract tree
-    NewContractData<NT> new_contract = {
+    NewContractData<NT> const new_contract = {
         .contract_address = fr(1),
         .portal_contract_address = fr(3),
         .function_tree_root = fr(2),
     };
-    auto contract_leaf = crypto::pedersen_commitment::compress_native(
-        {
-            new_contract.contract_address,
-            new_contract.portal_contract_address,
-            new_contract.function_tree_root,
-        },
-        GeneratorIndex::CONTRACT_LEAF);
-
     // Update contract tree
-    contract_tree.update_element(2, contract_leaf);
+    contract_tree.update_element(2, new_contract.hash());
     kernels[2].public_inputs.end.new_contracts[0] = new_contract;
 
     // l1 to l2 messages snapshot
