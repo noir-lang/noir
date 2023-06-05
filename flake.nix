@@ -262,7 +262,6 @@
           nixpkgs-fmt
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
           wasm-bindgen-cli
-          wasm-pack
         ];
 
         shellHook = ''
@@ -271,7 +270,7 @@
         '';
       });
 
-      packages.wasm = craneLib.mkCargoDerivation rec {
+      packages.wasm = craneLib.mkCargoDerivation (wasmArgs // rec {
         pname = "noir_wasm";
         version = "1.0.0";
 
@@ -283,7 +282,7 @@
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
         PKG_PATH = "crates/wasm/pkg";
 
-        src = craneLib.cleanCargoSource (craneLib.path ./.);
+        src = ./.;
 
         nativeBuildInputs = with pkgs; [
           which
@@ -291,46 +290,32 @@
           jq
           rustToolchain
           wasm-bindgen-cli
-          wasm-pack
         ];
 
         buildPhaseCargoCommand = ''
-          RUST_LOG="debug"
+          # bash ./buildPhaseCargoCommand.sh
           
+          RUST_LOG="debug"
+
           if [ -d ${PKG_PATH} ]; then
               rm -rf ${PKG_PATH}
           fi
 
-          wasm-pack build crates/wasm --mode no-install --scope noir-lang --target web --out-dir pkg/web --release
-          echo "Web build complete. Directory contents:"
-          ls -la ${PKG_PATH}/web
-
-          wasm-pack build crates/wasm --mode no-install --scope noir-lang --target nodejs --out-dir pkg/nodejs --release
-          echo "NodeJS build complete. Directory contents:"
-          ls -la ${PKG_PATH}/nodejs
-
-          if [ -n ${COMMIT_SHORT} ]; then
-              VERSION_APPENDIX="-${COMMIT_SHORT}"
-          else
-              VERSION_APPENDIX="-NOGIT"
-          fi
-
-          # NOTE: This is not working
-          echo "VERSION_APPENDIX = ${VERSION_APPENDIX}"
-
-          jq -s '.[0] * .[1]' ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"${VERSION_APPENDIX}\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types | .peerDependencies = { "@noir-lang/noir-source-resolver": "1.1.2" }' | tee ${PKG_PATH}/package.json
-
-          rm ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/nodejs/.gitignore
-          rm ${PKG_PATH}/web/package.json ${PKG_PATH}/web/.gitignore
-          cat ${PKG_PATH}/package.json
+          cargo build --lib --release --target x86_64-unknown-linux-gnu
+          wasm-bindgen ./target/x86_64-unknown-linux-gnu/release/acvm_simulator.wasm --out-dir ./pkg/nodejs --typescript --target nodejs
+          wasm-bindgen ./target/x86_64-unknown-linux-gnu/release/acvm_simulator.wasm --out-dir ./pkg/web --typescript --target web
+          wasm-opt ./pkg/nodejs/acvm_simulator_bg.wasm -o ./pkg/nodejs/acvm_simulator_bg.wasm -O
+          wasm-opt ./pkg/web/acvm_simulator_bg.wasm -o ./pkg/web/acvm_simulator_bg.wasm -O
         '';
 
         installPhase = ''
+          # bash ./installPhase.sh
+
           mkdir -p $out
           cp -r ${PKG_PATH}/* $out
         '';
 
-      };
+      });
     });
 }
 
