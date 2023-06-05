@@ -346,7 +346,7 @@ accumulator_triple StandardCircuitConstructor::create_logic_constraint(const uin
         create_bool_gate(out_lo_idx);
 
         // a & b = ab
-        // a ^ b = a + b - ab
+        // a ^ b = a + b - 2ab
         create_poly_gate(poly_triple{ left_hi_idx,
                                       right_hi_idx,
                                       out_hi_idx,
