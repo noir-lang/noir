@@ -24,7 +24,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.13.0"
+acvm = "=0.13.3"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -50,7 +50,3 @@ toml = "0.7.2"
 url = "2.2.0"
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
-
-
-[patch.crates-io]
-acvm = { git = "https://github.com/noir-lang/acvm", rev = "3d2a6705854514ed5189b7ad21552d9578245948" }
