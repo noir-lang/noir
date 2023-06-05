@@ -21,7 +21,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::{artefact::BrilligArtefact, Brillig};
+use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -215,7 +215,7 @@ impl Context {
                             ),
                             RuntimeType::Brillig => {
                                 // Generate the brillig code of the function
-                                let code = BrilligArtefact::default().link(&brillig[*id]);
+                                let code = BrilligArtifact::default().link(&brillig[*id]);
                                 self.acir_context.brillig(code);
                                 (result_ids.to_vec(), Vec::new())
                             }
