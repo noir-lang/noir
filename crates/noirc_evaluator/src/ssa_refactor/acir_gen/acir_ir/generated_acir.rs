@@ -254,6 +254,8 @@ impl GeneratedAcir {
     ///
     /// Next lets create a new variable `y` which will be the Witness that we will ultimately
     /// return indicating whether `lhs == rhs`.
+    /// Note: During this process we need to apply constraints that ensure that it is a boolean.
+    /// But right now with no constraints applied to it, it is essentially a free variable.
     ///
     /// Next we apply the following constraint `y * t == 0`.
     /// This implies that either `y` or `t` or both is `0`.
