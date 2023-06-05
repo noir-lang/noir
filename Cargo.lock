@@ -32,9 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.13.1"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ef2fb115fd5b52adc06c7a62ce44d19da746d39b858415750eaf72c763e1b88"
+checksum = "19b488b1c232263a74149999220c0e4ff46974139c4bbbcf7bae698edc1a5344"
 dependencies = [
  "acir",
  "acvm_stdlib",
