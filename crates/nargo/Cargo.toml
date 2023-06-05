@@ -21,7 +21,7 @@ base64 = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 serde-big-array = { version = "0.5.1", optional = true }
 # Backend only needed by bb.js
-acvm-backend-barretenberg = { optional = true, version = "0.3.0", default-features = false }
+acvm-backend-barretenberg = { optional = true, version = "0.3.0", features = ["native"] }
 
 [features]
 default = []
@@ -29,5 +29,5 @@ bb_js = [
     "dep:base64",
     "dep:flate2",
     "dep:serde-big-array",
-    "acvm-backend-barretenberg/native"
+    "dep:acvm-backend-barretenberg"
 ]
