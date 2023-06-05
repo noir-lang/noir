@@ -52,21 +52,29 @@ impl GeneratedAcir {
         Witness(self.current_witness_index)
     }
 
-    /// Converts an expression into a Witness.
+    /// Converts [`Expression`] `expr` into a [`Witness`].
     ///
-    /// This is done by creating a new Witness and creating an opcode which
-    /// sets the Witness to be equal to the expression.
+    /// If `expr` can be represented as a `Witness` then this function will return it,
+    /// else a new opcode will be added to create a `Witness` that is equal to `expr`.
+    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression) -> Witness {
+        match expr.to_witness() {
+            Some(witness) => witness,
+            None => self.create_witness_for_expression(expr),
+        }
+    }
+
+    /// Creates a new [`Witness`] which is constrained to be equal to the passed [`Expression`].
     ///
     /// The reason we do this is because _constraints_ in ACIR have a degree limit
-    /// This means you cannot multiply an infinite amount of Expressions together.
-    /// Once the expression goes over degree-2, then it needs to be reduced to a Witness
+    /// This means you cannot multiply an infinite amount of `Expression`s together.
+    /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    fn expression_to_witness(&mut self, expression: &Expression) -> Witness {
+    fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
         // Then return the witness as this can now be used in places
-        // where we would have used the Witness.
+        // where we would have used the `Expression`.
         let constraint = expression - fresh_witness;
         // This assertion means that verification of this
         // program will fail if expression != witness.
@@ -251,15 +259,6 @@ impl GeneratedAcir {
         self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
     }
 
-    /// If `expr` can be represented as a `Witness` this function will
-    /// return it, else a new opcode will be added to create a Witness
-    /// that is equal to `expr`.
-    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression) -> Witness {
-        match expr.to_witness() {
-            Some(witness) => witness,
-            None => self.expression_to_witness(expr),
-        }
-    }
     /// Adds an inversion directive.
     ///
     /// This directive will invert `expr` without applying constraints
