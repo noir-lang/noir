@@ -433,9 +433,7 @@ fn path() -> impl NoirParser<Path> {
 
 fn empty_path() -> impl NoirParser<Path> {
     let make_path = |kind| move |_| Path { segments: Vec::new(), kind };
-
-    let prefix = |key| keyword(key);
-    let path_kind = |key, kind| prefix(key).map(make_path(kind));
+    let path_kind = |key, kind| keyword(key).map(make_path(kind));
 
     choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
 }
