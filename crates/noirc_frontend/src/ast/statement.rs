@@ -239,56 +239,63 @@ pub enum PathKind {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct UseTree {
-    pub prefix: Path,
-    pub kind: UseTreeKind,
+pub struct UsePath {
+    pub path_kind: PathKind,
+    pub tree: UseTree,
+}
+
+impl Display for UsePath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.path_kind, self.tree)
+    }
 }
 
 impl Display for UseTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.prefix)?;
-
-        match &self.kind {
-            UseTreeKind::Path(name, alias) => {
-                write!(f, "{name}")?;
-
-                while let Some(alias) = alias {
-                    write!(f, " as {}", alias)?;
-                }
-
-                Ok(())
+        match &self {
+            UseTree::Path { name, rest } => {
+                write!(f, "::{name}{rest}")
             }
-            UseTreeKind::List(trees) => {
+            UseTree::List { branches } => {
                 write!(f, "::{{")?;
-                let tree = vecmap(trees, ToString::to_string).join(", ");
+                let tree = vecmap(branches, ToString::to_string).join(", ");
                 write!(f, "{tree}}}")
+            }
+            UseTree::End { alias } => {
+                if let Some(alias) = alias {
+                    write!(f, " as {alias}")?;
+                }
+                Ok(())
             }
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum UseTreeKind {
-    Path(Ident, Option<Ident>),
-    List(Vec<UseTree>),
+pub enum UseTree {
+    Path { name: Ident, rest: Box<UseTree> },
+    List { branches: Vec<UseTree> },
+    End { alias: Option<Ident> },
+}
+
+impl UsePath {
+    pub fn desugar(self) -> Vec<ImportStatement> {
+        let root = Path { segments: vec![], kind: self.path_kind };
+        self.tree.desugar(root)
+    }
 }
 
 impl UseTree {
-    pub fn desugar(self, root: Option<Path>) -> Vec<ImportStatement> {
-        let prefix = if let Some(mut root) = root {
-            root.segments.extend(self.prefix.segments);
-            root
-        } else {
-            self.prefix
-        };
-
-        match self.kind {
-            UseTreeKind::Path(name, alias) => {
-                vec![ImportStatement { path: prefix.join(name), alias }]
+    pub fn desugar(self, mut path: Path) -> Vec<ImportStatement> {
+        match self {
+            UseTree::Path { name, rest } => {
+                path = path.join(name);
+                rest.desugar(path)
             }
-            UseTreeKind::List(trees) => {
-                trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()
+            UseTree::List { branches } => {
+                branches.into_iter().flat_map(|tree| tree.desugar(path.clone())).collect()
             }
+            UseTree::End { alias } => vec![ImportStatement { path, alias }],
         }
     }
 }

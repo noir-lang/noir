@@ -36,7 +36,7 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct, Path,
-    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UsePath, UseTree,
 };
 
 use chumsky::prelude::*;
@@ -396,7 +396,7 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
+    keyword(Keyword::Use).ignore_then(use_path()).map(TopLevelStatement::Import)
 }
 
 fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
@@ -431,39 +431,40 @@ fn path() -> impl NoirParser<Path> {
     ))
 }
 
-fn empty_path() -> impl NoirParser<Path> {
-    let make_path = |kind| move |_| Path { segments: Vec::new(), kind };
-
-    let prefix = |key| keyword(key);
-    let path_kind = |key, kind| prefix(key).map(make_path(kind));
-
-    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
-}
-
 fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
 
-fn use_tree() -> impl NoirParser<UseTree> {
-    recursive(|use_tree| {
-        let simple = path().then(rename()).map(|(mut prefix, alias)| {
-            let ident = prefix.pop();
-            UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
-        });
-
-        let list = {
-            let prefix = path().or(empty_path()).then_ignore(just(Token::DoubleColon));
-            let tree = use_tree
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
-                .map(UseTreeKind::List);
-
-            prefix.then(tree).map(|(prefix, kind)| UseTree { prefix, kind })
-        };
-
-        choice((list, simple))
+fn path_kind() -> impl NoirParser<PathKind> {
+    keyword(Keyword::Crate).or(keyword(Keyword::Dep)).or_not().map(|token| match token {
+        Some(Token::Keyword(Keyword::Crate)) => PathKind::Crate,
+        Some(Token::Keyword(Keyword::Dep)) => PathKind::Dep,
+        None => PathKind::Plain,
+        Some(other) => unreachable!("Unexpected token {other} parsed as path kind"),
     })
+}
+
+fn use_path() -> impl NoirParser<UsePath> {
+    path_kind()
+        .then(recursive(|use_tree| {
+            let path = ident()
+                .then(use_tree.clone())
+                .map(|(name, rest)| UseTree::Path { name, rest: Box::new(rest) });
+
+            let end = rename().map(|alias| UseTree::End { alias });
+
+            let list = {
+                use_tree
+                    .separated_by(just(Token::Comma))
+                    .allow_trailing()
+                    .at_least(1)
+                    .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
+                    .map(|branches| UseTree::List { branches })
+            };
+
+            just(Token::DoubleColon).ignore_then(path.or(list)).or(end)
+        }))
+        .map(|(path_kind, tree)| UsePath { path_kind, tree })
 }
 
 fn ident() -> impl NoirParser<Ident> {

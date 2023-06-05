@@ -18,7 +18,7 @@ use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
     BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
     MethodCallExpression, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
-    UnresolvedType, UseTree,
+    UnresolvedType, UsePath,
 };
 
 use acvm::FieldElement;
@@ -38,7 +38,7 @@ static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub(crate) enum TopLevelStatement {
     Function(NoirFunction),
     Module(Ident),
-    Import(UseTree),
+    Import(UsePath),
     Struct(NoirStruct),
     Impl(NoirImpl),
     SubModule(SubModule),
@@ -252,8 +252,8 @@ impl ParsedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_import(&mut self, import_stmt: UseTree) {
-        self.imports.extend(import_stmt.desugar(None));
+    fn push_import(&mut self, import_stmt: UsePath) {
+        self.imports.extend(import_stmt.desugar());
     }
 
     fn push_module_decl(&mut self, mod_name: Ident) {
