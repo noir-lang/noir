@@ -62,22 +62,28 @@ impl GeneratedAcir {
     /// Once the expression goes over degree-2, then it needs to be reduced to a Witness
     /// which has degree-1 in order to be able to continue the multiplication chain.
     fn expression_to_witness(&mut self, expression: &Expression) -> Witness {
-        let fresh_witness = self.next_witness_index();
+        if let Some(witness) = expression.to_witness() {
+            // If `expression` consists of a single witness then we can perform a simple coercion.
+            return witness;
+        } else {
+            // Otherwise we must create a new witness and constrain it to be equal to `expression`.
+            let fresh_witness = self.next_witness_index();
 
-        // Create a constraint that sets them to be equal to each other
-        // Then return the witness as this can now be used in places
-        // where we would have used the Witness.
-        let constraint = expression - fresh_witness;
-        // This assertion means that verification of this
-        // program will fail if expression != witness.
-        //
-        // This is because we have:
-        //  => constraint == 0
-        //  => expression - fresh_witness == 0
-        //  => expression == fresh_witness
-        self.assert_is_zero(constraint);
+            // Create a constraint that sets them to be equal to each other
+            // Then return the witness as this can now be used in places
+            // where we would have used the Witness.
+            let constraint = expression - fresh_witness;
+            // This assertion means that verification of this
+            // program will fail if expression != witness.
+            //
+            // This is because we have:
+            //  => constraint == 0
+            //  => expression - fresh_witness == 0
+            //  => expression == fresh_witness
+            self.assert_is_zero(constraint);
 
-        fresh_witness
+            fresh_witness
+        }
     }
 
     /// Adds a witness index to the program's return witnesses.
