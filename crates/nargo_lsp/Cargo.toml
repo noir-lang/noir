@@ -1,0 +1,17 @@
+[package]
+name = "nargo_lsp"
+description = "Language server for Noir"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-lsp.workspace = true
+serde_json.workspace = true
+tower.workspace = true
+lsp-types = "0.94"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["macros"] }
