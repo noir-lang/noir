@@ -335,13 +335,13 @@ impl Context {
         let lhs = self.convert_ssa_value(binary.lhs, dfg);
         let rhs = self.convert_ssa_value(binary.rhs, dfg);
 
-        let lhs_type = self.type_of_binary_operation(binary, dfg);
+        let binary_type = self.type_of_binary_operation(binary, dfg);
 
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, lhs_type.into()),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.into()),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
@@ -349,8 +349,8 @@ impl Context {
                 .acir_context
                 .less_than_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, lhs_type.into()),
-            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, lhs_type.into()),
+            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type.into()),
             BinaryOp::Xor => self
                 .acir_context
                 .xor_var(lhs, rhs)
