@@ -9,7 +9,7 @@ use clap::Args;
 use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
-use noirc_errors::{reporter, ReportedError};
+use noirc_errors::{reporter, Error, ReportedError};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -77,7 +77,7 @@ impl Driver {
         root_file: PathBuf,
         language: &Language,
         is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
-    ) -> Result<CompiledProgram, ReportedError> {
+    ) -> Result<CompiledProgram, Error> {
         let mut driver = Driver::new(language, is_opcode_supported);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.compile_main(&CompileOptions::default())
@@ -186,16 +186,12 @@ impl Driver {
     }
 
     /// Run the frontend to check the crate for errors then compile the main function if there were none
-    pub fn compile_main(
-        &mut self,
-        options: &CompileOptions,
-    ) -> Result<CompiledProgram, ReportedError> {
+    pub fn compile_main(&mut self, options: &CompileOptions) -> Result<CompiledProgram, Error> {
         self.check_crate(options)?;
         let main = match self.main_function() {
             Ok(m) => m,
-            Err(e) => {
-                println!("cannot compile a program with no main function");
-                return Err(e);
+            Err(_) => {
+                return Err(Error::message("cannot compile a program with no main function"));
             }
         };
         let compiled_program = self.compile_no_check(options, main)?;
@@ -259,19 +255,18 @@ impl Driver {
     /// Returns the FuncId of the 'main' function.
     /// - Expects check_crate to be called beforehand
     /// - Panics if no main function is found
-    pub fn main_function(&self) -> Result<FuncId, ReportedError> {
+    pub fn main_function(&self) -> Result<FuncId, Error> {
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries which will do nothing
         if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
-            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
-            return Err(ReportedError);
+            return Err(Error::message("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command"));
         };
 
         // All Binaries should have a main function
-        local_crate.main_function().ok_or(ReportedError)
+        local_crate.main_function().ok_or(Error::Reported)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
