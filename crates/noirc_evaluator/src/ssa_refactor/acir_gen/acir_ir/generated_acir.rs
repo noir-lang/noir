@@ -54,21 +54,29 @@ impl GeneratedAcir {
         Witness(self.current_witness_index)
     }
 
-    /// Converts an expression into a Witness.
+    /// Converts [`Expression`] `expr` into a [`Witness`].
     ///
-    /// This is done by creating a new Witness and creating an opcode which
-    /// sets the Witness to be equal to the expression.
+    /// If `expr` can be represented as a `Witness` then this function will return it,
+    /// else a new opcode will be added to create a `Witness` that is equal to `expr`.
+    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression) -> Witness {
+        match expr.to_witness() {
+            Some(witness) => witness,
+            None => self.create_witness_for_expression(expr),
+        }
+    }
+
+    /// Creates a new [`Witness`] which is constrained to be equal to the passed [`Expression`].
     ///
     /// The reason we do this is because _constraints_ in ACIR have a degree limit
-    /// This means you cannot multiply an infinite amount of Expressions together.
-    /// Once the expression goes over degree-2, then it needs to be reduced to a Witness
+    /// This means you cannot multiply an infinite amount of `Expression`s together.
+    /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    fn expression_to_witness(&mut self, expression: &Expression) -> Witness {
+    fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
         // Then return the witness as this can now be used in places
-        // where we would have used the Witness.
+        // where we would have used the `Expression`.
         let constraint = expression - fresh_witness;
         // This assertion means that verification of this
         // program will fail if expression != witness.
@@ -253,15 +261,6 @@ impl GeneratedAcir {
         self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
     }
 
-    /// If `expr` can be represented as a `Witness` this function will
-    /// return it, else a new opcode will be added to create a Witness
-    /// that is equal to `expr`.
-    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression) -> Witness {
-        match expr.to_witness() {
-            Some(witness) => witness,
-            None => self.expression_to_witness(expr),
-        }
-    }
     /// Adds an inversion directive.
     ///
     /// This directive will invert `expr` without applying constraints
@@ -297,11 +296,11 @@ impl GeneratedAcir {
     }
 
     /// Returns a `Witness` that is constrained to be:
-    /// - `1` if lhs == rhs
+    /// - `1` if `lhs == rhs`
     /// - `0` otherwise
     ///
     /// Intuition: the equality of two Expressions is linked to whether
-    /// their difference has an inverse; a == b implies that a - b == 0
+    /// their difference has an inverse; `a == b` implies that `a - b == 0`
     /// which implies that a - b has no inverse. So if two variables are equal,
     /// their difference will have no inverse.
     ///
@@ -309,17 +308,17 @@ impl GeneratedAcir {
     /// of the two expressions: `t = lhs - rhs` (constraint has been applied)
     ///
     /// Next lets create a new variable `y` which will be the Witness that we will ultimately
-    /// return indicating whether lhs == rhs.
-    /// Note: We eventually need to apply constraints that ensure that it is a boolean.
+    /// return indicating whether `lhs == rhs`.
+    /// Note: During this process we need to apply constraints that ensure that it is a boolean.
     /// But right now with no constraints applied to it, it is essentially a free variable.
     ///
     /// Next we apply the following constraint `y * t == 0`.
     /// This implies that either `y` or `t` or both is `0`.
-    /// - If t == 0, then this means that lhs == rhs.
-    /// - If y == 0, this does not mean anything at this point in time, due to it having no
+    /// - If `t == 0`, then this means that `lhs == rhs`.
+    /// - If `y == 0`, this does not mean anything at this point in time, due to it having no
     /// constraints.
     ///
-    /// Naively, we could apply the following constraint: y == 1 - t.
+    /// Naively, we could apply the following constraint: `y == 1 - t`.
     /// This along with the previous `y * t == 0` constraint means that
     /// `y` or `t` needs to be zero, but they both cannot be zero.
     ///
@@ -328,32 +327,32 @@ impl GeneratedAcir {
     /// `y == 1 - t` and the equation `y * t == 0` fails.  
     ///
     /// To fix, we introduce another free variable called `z` and apply the following
-    /// constraint instead: y == 1 - t * z.
+    /// constraint instead: `y == 1 - t * z`.
     ///
-    /// When lhs == rhs, t is zero and so `y` is `1`.
-    /// When lhs != rhs, t is non-zero, however the prover can set `z = 1/t`
-    /// which will make `y` = 1 - t * 1/t =  `0`.
+    /// When `lhs == rhs`, `t` is `0` and so `y` is `1`.
+    /// When `lhs != rhs`, `t` is non-zero, however the prover can set `z = 1/t`
+    /// which will make `y = 1 - t * 1/t = 0`.
     ///
-    /// We now arrive at the conclusion that when lhs == rhs, `y` is `1` and when
-    /// lhs != rhs, then `y` is `0`.
+    /// We now arrive at the conclusion that when `lhs == rhs`, `y` is `1` and when
+    /// `lhs != rhs`, then `y` is `0`.
     ///  
     /// Bringing it all together, We introduce three variables `y`, `t` and `z`,
     /// With the following equations:
-    /// - t == lhs - rhs
-    /// - y == 1 - tz (z is a value that is chosen to be the inverse by the prover)
-    /// - y * t == 0
+    /// - `t == lhs - rhs`
+    /// - `y == 1 - tz` (`z` is a value that is chosen to be the inverse of `t` by the prover)
+    /// - `y * t == 0`
     ///
     /// Lets convince ourselves that the prover cannot prove an untrue statement.
     ///
-    /// Assume that lhs == rhs, can the prover return y == 0 ?
+    /// Assume that `lhs == rhs`, can the prover return `y == 0`?
     ///
-    /// When lhs == rhs, `t` is 0. There is no way to make `y` be zero
+    /// When `lhs == rhs`, `t` is 0. There is no way to make `y` be zero
     /// since `y = 1 - 0 * z = 1`.
     ///
-    /// Assume that lhs != rhs, can the prover return y == 1 ?
+    /// Assume that `lhs != rhs`, can the prover return `y == 1`?
     ///
-    /// When lhs != rhs, then `t` is non-zero.
-    /// By setting `z` to be 0, we can make `y` equal to `1`.
+    /// When `lhs != rhs`, then `t` is non-zero.
+    /// By setting `z` to be `0`, we can make `y` equal to `1`.
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
     pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
@@ -372,12 +371,12 @@ impl GeneratedAcir {
         let y = self.next_witness_index();
 
         // Add constraint y == 1 - tz => y + tz - 1 == 0
-        let y_booleanity_constraint = Expression {
+        let y_is_boolean_constraint = Expression {
             mul_terms: vec![(FieldElement::one(), t_witness, z)],
             linear_combinations: vec![(FieldElement::one(), y)],
             q_c: -FieldElement::one(),
         };
-        self.assert_is_zero(y_booleanity_constraint);
+        self.assert_is_zero(y_is_boolean_constraint);
 
         // Add constraint that y * t == 0;
         let ty_zero_constraint = Expression {
