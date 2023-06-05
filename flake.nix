@@ -71,7 +71,7 @@
         extensions = [ "rust-src" ];
         # possible fix for "section too large"
         # targets = [ "aarch64-apple-darwin" "wasm32-unknown-unknown" ];
-        targets = [ "x86_64-unknown-linux-gnu" ];
+        targets = [ "wasm32-unknown-unknown" ];
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -108,8 +108,9 @@
       # filter to include those files in addition to usual rust/cargo source files
       noirFilter = path: _type: builtins.match ".*nr$" path != null;
       tomlFilter = path: _type: builtins.match ".*toml$" path != null;
+      shFilter = path: _type: builtins.match ".*sh$" path != null;
       sourceFilter = path: type:
-        (noirFilter path type) || (tomlFilter path type) || (craneLib.filterCargoSources path type);
+        (noirFilter path type) || (tomlFilter path type) || (shFilter path type) || (craneLib.filterCargoSources path type);
 
       # As per https://discourse.nixos.org/t/gcc11stdenv-and-clang/17734/7 since it seems that aarch64-linux uses
       # gcc9 instead of gcc11 for the C++ stdlib, while all other targets we support provide the correct libstdc++
@@ -270,19 +271,19 @@
         '';
       });
 
-      packages.wasm = craneLib.mkCargoDerivation (wasmArgs // rec {
+      packages.wasm = craneLib.buildPackage rec {
         pname = "noir_wasm";
         version = "1.0.0";
 
-        cargoArtifacts = native-cargo-artifacts;
         inherit GIT_COMMIT;
         inherit GIT_DIRTY;
+        doCheck = false;
 
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
         PKG_PATH = "crates/wasm/pkg";
 
-        src = craneLib.cleanCargoSource (craneLib.path ./.);
+        src = ./.;
 
         nativeBuildInputs = with pkgs; [
           which
@@ -292,21 +293,14 @@
           wasm-bindgen-cli
         ];
 
-        buildPhaseCargoCommand = ''
-          # REPLACE WITH:
-          # bash ./buildPhaseCargoCommand.sh
-          
-          RUST_LOG="debug"
+        cargoExtraArgs = "--package noir_wasm --target wasm32-unknown-unknown";
 
-          if [ -d ${PKG_PATH} ]; then
-              rm -rf ${PKG_PATH}
-          fi
-
-          cargo build --lib --release --target x86_64-unknown-linux-gnu
+        postBuild = ''
+          bash ./postBuild.sh
           # wasm-bindgen ./target/x86_64-unknown-linux-gnu/release/noir.wasm --out-dir ./pkg/nodejs --typescript --target nodejs
           # wasm-bindgen ./target/x86_64-unknown-linux-gnu/release/noir.wasm --out-dir ./pkg/web --typescript --target web
-          # wasm-opt ./pkg/nodejs/noir_wasm.wasm -o ./pkg/nodejs/noir_wasm.wasm -O
-          # wasm-opt ./pkg/web/noir_wasm.wasm -o ./pkg/web/noir_wasm.wasm -O
+          # wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
+          # wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
 
           # if [ -n ${COMMIT_SHORT} ]; then
           #     VERSION_APPENDIX="-${COMMIT_SHORT}"
@@ -331,8 +325,7 @@
           mkdir -p $out
           cp -r ${PKG_PATH}/* $out
         '';
-
-      });
+      };
     });
 }
 
