@@ -12,8 +12,8 @@ pub mod program;
 
 #[cfg(feature = "bb_js")]
 use {
-    base64, flate2::read::GzDecoder,
-    flate2::write::GzEncoder, flate2::Compression, std::io::prelude::*, acvm_backend_barretenberg::ConstraintSystem,
+    acvm_backend_barretenberg::ConstraintSystem, base64, flate2::read::GzDecoder,
+    flate2::write::GzEncoder, flate2::Compression, std::io::prelude::*,
 };
 
 // TODO: move these down into ACVM.
