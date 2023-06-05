@@ -6,6 +6,6 @@
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
-void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LENGTH> const& _args);
+void function_1_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const& _args);
 
 }  // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

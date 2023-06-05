@@ -2,18 +2,19 @@ import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { EcdsaSignature, KERNEL_NEW_COMMITMENTS_LENGTH, PrivateHistoricTreeRoots, TxRequest } from '@aztec/circuits.js';
+import { EcdsaSignature, KERNEL_NEW_COMMITMENTS_LENGTH, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import { FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ConstantKeyPair, KeyPair } from '@aztec/key-store';
-import { FunctionType } from '@aztec/foundation/abi';
 import {
   EncodedContractFunction,
   INITIAL_L2_BLOCK_NUM,
   L2BlockContext,
   MerkleTreeId,
   Tx,
+  TxExecutionRequest,
   UnverifiedData,
 } from '@aztec/types';
 import { NotePreimage, TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
@@ -134,7 +135,7 @@ export class AccountState {
    * @param contractDataOracle - An instance of ContractDataOracle used to fetch the necessary data.
    * @returns An object containing the contract address, function ABI, portal contract address, and historic tree roots.
    */
-  private async getSimulationParameters(txRequest: TxRequest, contractDataOracle: ContractDataOracle) {
+  private async getSimulationParameters(txRequest: TxExecutionRequest, contractDataOracle: ContractDataOracle) {
     const contractAddress = txRequest.to;
     const functionAbi = await contractDataOracle.getFunctionAbi(
       contractAddress,
@@ -169,7 +170,7 @@ export class AccountState {
    * @param contractDataOracle - Optional parameter, an instance of ContractDataOracle class for retrieving contract data.
    * @returns A promise that resolves to an object containing the simulation results, including expected output notes and any error messages.
    */
-  public async simulate(txRequest: TxRequest, contractDataOracle?: ContractDataOracle) {
+  public async simulate(txRequest: TxExecutionRequest, contractDataOracle?: ContractDataOracle) {
     // TODO - Pause syncing while simulating.
     if (!contractDataOracle) {
       contractDataOracle = new ContractDataOracle(this.db, this.node);
@@ -197,7 +198,7 @@ export class AccountState {
    * @param contractDataOracle - Optional instance of ContractDataOracle for fetching and caching contract information.
    * @returns The simulation result containing the outputs of the unconstrained function.
    */
-  public async simulateUnconstrained(txRequest: TxRequest, contractDataOracle?: ContractDataOracle) {
+  public async simulateUnconstrained(txRequest: TxExecutionRequest, contractDataOracle?: ContractDataOracle) {
     if (!contractDataOracle) {
       contractDataOracle = new ContractDataOracle(this.db, this.node);
     }
@@ -229,16 +230,27 @@ export class AccountState {
    * transaction object with the generated proof and public inputs. If a new contract address is provided,
    * the function will also include the new contract's public functions in the transaction object.
    *
-   * @param txRequest - The transaction request to be simulated and proved.
+   * @param txExecutionRequest - The transaction request to be simulated and proved.
    * @param signature - The ECDSA signature for the transaction request.
    * @param newContractAddress - Optional. The address of a new contract to be included in the transaction object.
    * @returns A private transaction object containing the proof, public inputs, and unverified data.
    */
-  public async simulateAndProve(txRequest: TxRequest, signature: EcdsaSignature, newContractAddress?: AztecAddress) {
+  public async simulateAndProve(
+    txExecutionRequest: TxExecutionRequest,
+    signature: EcdsaSignature,
+    newContractAddress?: AztecAddress,
+  ) {
     // TODO - Pause syncing while simulating.
 
     const contractDataOracle = new ContractDataOracle(this.db, this.node);
-    const executionResult = await this.simulate(txRequest, contractDataOracle);
+    const executionResult = await this.simulate(txExecutionRequest, contractDataOracle);
+
+    // TODO(#664) We are deriving the txRequest from the argsHash computed by the contract. However,
+    // we need the txRequest earlier in order to produce the signature, which is being requested as an
+    // argument to this function. Today this is not a problem since signatures are faked, and when we
+    // go full AA, we'll remove the signature as a first-class citizen altogether.
+    const argsHash = executionResult.callStackItem.publicInputs.argsHash;
+    const txRequest = txExecutionRequest.toTxRequestUsingArgsHash(argsHash);
 
     const kernelProver = new KernelProver(contractDataOracle);
     this.log('Executing Prover...');

@@ -1,6 +1,5 @@
-import { ARGS_LENGTH, Fr, FunctionData, FunctionLeafPreimage, NewContractData } from '../index.js';
-import { makeEthAddress } from '../tests/factories.js';
-import { makeAztecAddress, makeBytes, makeTxRequest, makeVerificationKey } from '../tests/factories.js';
+import { Fr, FunctionData, FunctionLeafPreimage, NewContractData } from '../index.js';
+import { makeAztecAddress, makeBytes, makeEthAddress, makeTxRequest, makeVerificationKey } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import {
   computeContractAddress,
@@ -66,28 +65,12 @@ describe('abis wasm bindings', () => {
     expect(res).toMatchSnapshot();
   });
 
-  it('hash constructor info 2 args', async () => {
+  it('hashes constructor info', async () => {
     const functionData = new FunctionData(Buffer.alloc(4), true, true);
-    // args needs to have a FIXED length of 8, due to a circuit constant `aztec3::ARGS_SIZE`.
-    const args = [new Fr(0n), new Fr(1n)];
+    const argsHash = new Fr(42);
     const vkHash = Buffer.alloc(32);
-    const res = await hashConstructor(wasm, functionData, args, vkHash);
+    const res = await hashConstructor(wasm, functionData, argsHash, vkHash);
     expect(res).toMatchSnapshot();
-  });
-
-  it('hash constructor info (max args)', async () => {
-    const functionData = new FunctionData(Buffer.alloc(4), true, true);
-    const args = Array.from({ length: ARGS_LENGTH }, (v, i) => new Fr(BigInt(i)));
-    const vkHash = Buffer.alloc(32);
-    const res = await hashConstructor(wasm, functionData, args, vkHash);
-    expect(res).toMatchSnapshot();
-  });
-
-  it('hash constructor throws (>max args)', async () => {
-    const functionData = new FunctionData(Buffer.alloc(4), true, true);
-    const args = Array.from({ length: ARGS_LENGTH + 1 }, (v, i) => new Fr(BigInt(i)));
-    const vkHash = Buffer.alloc(32);
-    await expect(hashConstructor(wasm, functionData, args, vkHash)).rejects.toThrow();
   });
 
   it('computes a contract address', async () => {

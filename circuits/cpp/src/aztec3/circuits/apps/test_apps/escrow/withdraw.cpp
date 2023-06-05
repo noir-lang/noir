@@ -3,6 +3,7 @@
 #include "contract.hpp"
 
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
+#include "aztec3/circuits/hash.hpp"
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
@@ -80,12 +81,7 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext& exec_c
 
     // Push args to the public inputs.
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
-
-    public_inputs.args[0] = amount;
-    public_inputs.args[1] = asset_id;
-    public_inputs.args[2] = memo;
-    public_inputs.args[3] = l1_withdrawal_address;
-    public_inputs.args[4] = fee;
+    public_inputs.args_hash = compute_var_args_hash<CT>({ amount, asset_id, memo, l1_withdrawal_address, fee });
 
     // Emit events
     public_inputs.emitted_events[0] = CT::fr::copy_as_new_witness(composer, l1_withdrawal_address);

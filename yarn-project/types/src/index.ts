@@ -10,5 +10,6 @@ export * from './merkle_tree_id.js';
 export * from './public_data_write.js';
 export * from './tx.js';
 export * from './tx_hash.js';
+export * from './tx_execution_request.js';
 export * from './unverified_data.js';
 export * from './unverified_data_source.js';

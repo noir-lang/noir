@@ -1,19 +1,11 @@
-import {
-  AztecAddress,
-  AztecRPCClient,
-  DeployedContract,
-  EthAddress,
-  Tx,
-  TxHash,
-  TxReceipt,
-  TxRequest,
-} from '@aztec/aztec-rpc';
+import { AztecAddress, AztecRPCClient, DeployedContract, EthAddress, Tx, TxHash, TxReceipt } from '@aztec/aztec-rpc';
 import { mock } from 'jest-mock-extended';
 
 import { EcdsaSignature } from '@aztec/circuits.js';
-import { Contract } from './contract.js';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
+import { TxExecutionRequest } from '@aztec/types';
+import { Contract } from './contract.js';
 
 describe('Contract Class', () => {
   let arc: ReturnType<typeof mock<AztecRPCClient>>;
@@ -21,7 +13,7 @@ describe('Contract Class', () => {
   const contractAddress = AztecAddress.random();
   const account = AztecAddress.random();
 
-  const mockTxRequest = { type: 'TxRequest' } as any as TxRequest;
+  const mockTxRequest = { type: 'TxRequest' } as any as TxExecutionRequest;
   const mockSignature = { type: 'EcdsaSignature' } as any as EcdsaSignature;
   const mockTx = { type: 'Tx' } as any as Tx;
   const mockTxHash = { type: 'TxHash' } as any as TxHash;

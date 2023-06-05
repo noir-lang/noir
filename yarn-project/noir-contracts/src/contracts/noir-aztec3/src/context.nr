@@ -43,9 +43,12 @@ impl PrivateFunctionContext {
 
     // When noir uses user-defined serialization of fields, we can return public inputs instead
     fn finish(self, inputs: abi::Inputs) -> [Field; abi::PUBLIC_INPUTS_LENGTH] {
+        // TODO hash_index
+        let args_hash = dep::std::hash::pedersen(self.args.storage)[0];
+
         let priv_circuit_pub_inputs = abi::PrivateCircuitPublicInputs {
             call_context: inputs.call_context,
-            args: self.args.storage,
+            args_hash: args_hash,
             return_values: self.return_values.storage,
             emitted_events: self.logs.storage,
             new_commitments: self.new_commitments.storage,

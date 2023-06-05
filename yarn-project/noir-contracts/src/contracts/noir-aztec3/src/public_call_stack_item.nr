@@ -41,7 +41,7 @@ impl PublicCallStackItem {
                     storage_contract_address : fields[8],
                     portal_contract_address : fields[9],
                 },
-                args: arr_copy_slice(fields, [0; crate::abi::MAX_ARGS], 10),
+                args_hash: fields[10],
                 return_values: [0; crate::abi::MAX_RETURN_VALUES],
                 emitted_events: [0; crate::abi::MAX_LOGS],
                 contract_storage_update_requests: [crate::abi::empty_contract_storage_update_request(); crate::abi::CONTRACT_STORAGE_UPDATE_REQUESTS_LENGTH],
@@ -55,9 +55,10 @@ impl PublicCallStackItem {
         };
         constrain contract_address == item.contract_address;
         constrain function_selector == item.function_data.function_selector;
-        for i in 0..crate::abi::MAX_ARGS {
-            constrain args[i] == item.public_inputs.args[i];
-        }
+        
+        // TODO hash_index
+        // let args_hash = dep::std::hash::pedersen(args)[0];
+        // constrain args_hash == item.public_inputs.args_hash;
 
         constrain item.public_inputs.call_context.is_delegate_call == false;
         constrain item.public_inputs.call_context.is_static_call == false;

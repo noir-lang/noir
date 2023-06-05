@@ -65,8 +65,8 @@ export function toACVMContractDeploymentData(contractDeploymentData: ContractDep
 export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): ACVMField[] {
   return [
     ...toACVMCallContext(publicInputs.callContext),
+    toACVMField(publicInputs.argsHash),
 
-    ...publicInputs.args.map(toACVMField),
     ...publicInputs.returnValues.map(toACVMField),
     ...publicInputs.emittedEvents.map(toACVMField),
     ...publicInputs.newCommitments.map(toACVMField),
@@ -106,12 +106,12 @@ export function toAcvmCallPrivateStackItem(item: PrivateCallStackItem): ACVMFiel
  * @param item - The public call stack item to serialize to be passed onto Noir.
  * @returns The fields expected by the enqueue_public_function_call_oracle Noir function.
  */
-export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVMField[] {
+export async function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): Promise<ACVMField[]> {
   return [
     toACVMField(item.contractAddress),
     ...toACVMFunctionData(item.functionData),
     ...toACVMCallContext(item.callContext),
-    ...item.args.map(toACVMField),
+    toACVMField(await item.getArgsHash()),
   ];
 }
 

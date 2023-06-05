@@ -26,7 +26,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
     CallContext<NCT> call_context{};
 
-    std::array<fr, ARGS_LENGTH> args = zero_array<fr, ARGS_LENGTH>();
+    fr args_hash = 0;
     std::array<fr, RETURN_VALUES_LENGTH> return_values = zero_array<fr, RETURN_VALUES_LENGTH>();
 
     std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = zero_array<fr, EMITTED_EVENTS_LENGTH>();
@@ -44,7 +44,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
     // for serialization, update with new fields
     MSGPACK_FIELDS(call_context,
-                   args,
+                   args_hash,
                    return_values,
                    emitted_events,
                    contract_storage_update_requests,
@@ -70,7 +70,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         PublicCircuitPublicInputs<CircuitTypes<Composer>> pis = {
             .call_context = to_circuit_type(call_context),
 
-            .args = to_ct(args),
+            .args_hash = to_ct(args_hash),
             .return_values = to_ct(return_values),
 
             .emitted_events = to_ct(emitted_events),
@@ -99,7 +99,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         // efficiency, so that fewer hashes are needed to 'unwrap' the call_context in the kernel circuit.
         // inputs.push_back(call_context.hash());
 
-        spread_arr_into_vec(args, inputs);
+        inputs.push_back(args_hash);
         spread_arr_into_vec(return_values, inputs);
 
         spread_arr_into_vec(emitted_events, inputs);
@@ -128,7 +128,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicCircuitPublicInputs<
 
     PublicCircuitPublicInputs<NCT>& pis = public_circuit_public_inputs;
     read(it, pis.call_context);
-    read(it, pis.args);
+    read(it, pis.args_hash);
     read(it, pis.return_values);
     read(it, pis.emitted_events);
 
@@ -151,7 +151,7 @@ void write(std::vector<uint8_t>& buf, PublicCircuitPublicInputs<NCT> const& publ
     PublicCircuitPublicInputs<NCT> const& pis = public_circuit_public_inputs;
 
     write(buf, pis.call_context);
-    write(buf, pis.args);
+    write(buf, pis.args_hash);
     write(buf, pis.return_values);
     write(buf, pis.emitted_events);
 

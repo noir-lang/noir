@@ -1,6 +1,7 @@
-import { AztecAddress, CallContext, EthAddress, Fr, FunctionData, TxRequest } from '@aztec/circuits.js';
+import { AztecAddress, CallContext, EthAddress, Fr, FunctionData } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { TxExecutionRequest } from '@aztec/types';
 import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-lang/noir_util_wasm';
 import { acvm, frToAztecAddress, frToSelector, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { PublicContractsDB, PublicStateDB } from './db.js';
@@ -98,7 +99,7 @@ export class PublicExecutor {
    * @param input - The TxRequest calling a public function.
    * @returns A PublicExecution object that can be run via execute.
    */
-  public async getPublicExecution(input: TxRequest): Promise<PublicExecution> {
+  public async getPublicExecution(input: TxExecutionRequest): Promise<PublicExecution> {
     const contractAddress = input.to;
     const portalContractAddress = (await this.contractsDb.getPortalContractAddress(contractAddress)) ?? EthAddress.ZERO;
     const callContext: CallContext = new CallContext(input.from, input.to, portalContractAddress, false, false, false);

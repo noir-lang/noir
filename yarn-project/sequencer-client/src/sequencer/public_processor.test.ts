@@ -11,30 +11,36 @@ import {
   PUBLIC_DATA_TREE_HEIGHT,
   Proof,
   PublicCallRequest,
-  TxRequest,
   makeEmptyProof,
   makeTuple,
 } from '@aztec/circuits.js';
+import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 import {
   makeAztecAddress,
   makeKernelPublicInputs,
   makePublicCallRequest,
   makeSelector,
 } from '@aztec/circuits.js/factories';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { SiblingPath } from '@aztec/merkle-tree';
-import { ContractDataSource, ContractPublicData, EncodedContractFunction, Tx, UnverifiedData } from '@aztec/types';
+import {
+  ContractDataSource,
+  ContractPublicData,
+  EncodedContractFunction,
+  Tx,
+  TxExecutionRequest,
+  UnverifiedData,
+} from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import pick from 'lodash.pick';
 import times from 'lodash.times';
 import { makePrivateTx, makePublicTx } from '../index.js';
+import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { PublicProcessor } from './public_processor.js';
-import { PublicProver } from '../prover/index.js';
-import { padArrayEnd } from '@aztec/foundation/collection';
-import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 
 describe('public_processor', () => {
   let db: MockProxy<MerkleTreeOperations>;
@@ -234,7 +240,8 @@ describe('public_processor', () => {
 
     it('runs a private tx with enqueued calls', async function () {
       const callRequests: PublicCallRequest[] = [makePublicCallRequest(0x100), makePublicCallRequest(0x100)];
-      const callStackHashes = callRequests.map(call => computeCallStackItemHash(wasm, call.toPublicCallStackItem()));
+      const callStackItems = await Promise.all(callRequests.map(call => call.toPublicCallStackItem()));
+      const callStackHashes = callStackItems.map(call => computeCallStackItemHash(wasm, call));
 
       const kernelOutput = makeKernelPublicInputs(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
@@ -274,7 +281,7 @@ function makePublicExecutionResultFromRequest(item: PublicCallRequest): PublicEx
 }
 
 function makePublicExecutionResult(
-  tx: Pick<TxRequest, 'from' | 'to' | 'functionData' | 'args'>,
+  tx: Pick<TxExecutionRequest, 'from' | 'to' | 'functionData' | 'args'>,
   nestedExecutions: PublicExecutionResult[] = [],
 ): PublicExecutionResult {
   const callContext = new CallContext(tx.from, tx.to, EthAddress.ZERO, false, false, false);

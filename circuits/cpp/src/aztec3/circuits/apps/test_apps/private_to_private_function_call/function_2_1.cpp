@@ -3,11 +3,12 @@
 #include "contract.hpp"
 
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
+#include "aztec3/circuits/hash.hpp"
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
 
-void function_2_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LENGTH> const& _args)
+void function_2_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const& _args)
 {
     /****************************************************************
      * Initialisation
@@ -58,10 +59,7 @@ void function_2_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
     // Push args to the public inputs.
 
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
-
-    public_inputs.args[0] = a;
-    public_inputs.args[1] = b;
-    public_inputs.args[2] = c;
+    public_inputs.args_hash = compute_var_args_hash<CT>({ a, b, c });
 
     public_inputs.return_values[0] = product;
 

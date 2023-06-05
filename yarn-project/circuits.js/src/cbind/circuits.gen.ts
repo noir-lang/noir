@@ -974,7 +974,7 @@ export function fromContractStorageRead(o: ContractStorageRead): MsgpackContract
 
 interface MsgpackPublicCircuitPublicInputs {
   call_context: MsgpackCallContext;
-  args: Tuple<Buffer, 8>;
+  args_hash: Buffer;
   return_values: Tuple<Buffer, 4>;
   emitted_events: Tuple<Buffer, 4>;
   contract_storage_update_requests: Tuple<MsgpackContractStorageUpdateRequest, 4>;
@@ -989,8 +989,8 @@ export function toPublicCircuitPublicInputs(o: MsgpackPublicCircuitPublicInputs)
   if (o.call_context === undefined) {
     throw new Error('Expected call_context in PublicCircuitPublicInputs deserialization');
   }
-  if (o.args === undefined) {
-    throw new Error('Expected args in PublicCircuitPublicInputs deserialization');
+  if (o.args_hash === undefined) {
+    throw new Error('Expected args_hash in PublicCircuitPublicInputs deserialization');
   }
   if (o.return_values === undefined) {
     throw new Error('Expected return_values in PublicCircuitPublicInputs deserialization');
@@ -1018,7 +1018,7 @@ export function toPublicCircuitPublicInputs(o: MsgpackPublicCircuitPublicInputs)
   }
   return new PublicCircuitPublicInputs(
     toCallContext(o.call_context),
-    mapTuple(o.args, (v: Buffer) => Fr.fromBuffer(v)),
+    Fr.fromBuffer(o.args_hash),
     mapTuple(o.return_values, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.emitted_events, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.contract_storage_update_requests, (v: MsgpackContractStorageUpdateRequest) =>
@@ -1036,8 +1036,8 @@ export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): Msg
   if (o.callContext === undefined) {
     throw new Error('Expected callContext in PublicCircuitPublicInputs serialization');
   }
-  if (o.args === undefined) {
-    throw new Error('Expected args in PublicCircuitPublicInputs serialization');
+  if (o.argsHash === undefined) {
+    throw new Error('Expected argsHash in PublicCircuitPublicInputs serialization');
   }
   if (o.returnValues === undefined) {
     throw new Error('Expected returnValues in PublicCircuitPublicInputs serialization');
@@ -1065,7 +1065,7 @@ export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): Msg
   }
   return {
     call_context: fromCallContext(o.callContext),
-    args: mapTuple(o.args, (v: Fr) => v.toBuffer()),
+    args_hash: o.argsHash.toBuffer(),
     return_values: mapTuple(o.returnValues, (v: Fr) => v.toBuffer()),
     emitted_events: mapTuple(o.emittedEvents, (v: Fr) => v.toBuffer()),
     contract_storage_update_requests: mapTuple(o.contractStorageUpdateRequests, (v: ContractStorageUpdateRequest) =>
@@ -1259,6 +1259,9 @@ export async function abisComputeContractAddress(
       arg3.toBuffer(),
     ]),
   );
+}
+export async function abisComputeVarArgsHash(wasm: CircuitsWasm, arg0: Fr[]): Promise<Fr> {
+  return Fr.fromBuffer(await callCbind(wasm, 'abis__compute_var_args_hash', [arg0.map((v: Fr) => v.toBuffer())]));
 }
 export async function privateKernelDummyPreviousKernel(wasm: CircuitsWasm): Promise<PreviousKernelData> {
   return toPreviousKernelData(await callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));

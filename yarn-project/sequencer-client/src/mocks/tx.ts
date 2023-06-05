@@ -1,6 +1,20 @@
-import { KernelCircuitPublicInputs, KERNEL_PUBLIC_CALL_STACK_LENGTH, makeEmptyProof } from '@aztec/circuits.js';
-import { makeKernelPublicInputs, makePublicCallRequest, makeSignedTxRequest } from '@aztec/circuits.js/factories';
-import { UnverifiedData, PrivateTx, Tx, PublicTx } from '@aztec/types';
+import {
+  FunctionData,
+  KERNEL_PUBLIC_CALL_STACK_LENGTH,
+  KernelCircuitPublicInputs,
+  makeEmptyProof,
+  range,
+} from '@aztec/circuits.js';
+import {
+  fr,
+  makeAztecAddress,
+  makeEcdsaSignature,
+  makeKernelPublicInputs,
+  makePublicCallRequest,
+  makeSelector,
+  makeTxContext,
+} from '@aztec/circuits.js/factories';
+import { PrivateTx, PublicTx, SignedTxExecutionRequest, Tx, TxExecutionRequest, UnverifiedData } from '@aztec/types';
 import times from 'lodash.times';
 
 /**
@@ -35,5 +49,23 @@ export function makePrivateTx(seed = 0): PrivateTx {
  * Testing utility to create a tx with a request to execute a public function.
  */
 export function makePublicTx(seed = 0): PublicTx {
-  return Tx.createPublic(makeSignedTxRequest(seed));
+  return Tx.createPublic(makeSignedTxExecutionRequest(seed));
+}
+
+/**
+ * Testing utility to create a signed tx execution request.
+ * @param seed - Number to derive values of this object.
+ * @returns A SignedTxExecutionRequest.
+ */
+function makeSignedTxExecutionRequest(seed: number) {
+  const txRequest = TxExecutionRequest.from({
+    from: makeAztecAddress(seed),
+    to: makeAztecAddress(seed + 0x10),
+    functionData: new FunctionData(makeSelector(seed + 0x100), true, true),
+    args: range(8, seed + 0x200).map(fr),
+    nonce: fr(seed + 0x300),
+    txContext: makeTxContext(seed + 0x400),
+    chainId: fr(seed + 0x500),
+  });
+  return new SignedTxExecutionRequest(txRequest, makeEcdsaSignature(seed + 0x200));
 }

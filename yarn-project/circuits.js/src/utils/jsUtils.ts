@@ -1,4 +1,5 @@
 import { Tuple } from '@aztec/foundation/serialize';
+export type { FieldsOf } from '@aztec/foundation/types';
 
 /**
  * Create an array over an integer range.
@@ -71,11 +72,3 @@ export function assertItemsLength<
     }
   }
 }
-
-/**
- * Strips methods of a type.
- */
-export type FieldsOf<T> = {
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  [P in keyof T as T[P] extends Function ? never : P]: T[P];
-};

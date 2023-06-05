@@ -17,6 +17,7 @@ import {
   computeContractLeaf,
   computeFunctionLeaf,
   computeFunctionTreeRoot,
+  computeVarArgsHash,
   hashConstructor,
   hashVK,
 } from '@aztec/circuits.js/abis';
@@ -195,7 +196,8 @@ export class ContractTree {
     const constructorSelector = generateFunctionSelector(constructorAbi.name, constructorAbi.parameters);
     const functionData = new FunctionData(constructorSelector, true, true);
     const vkHash = await hashVKStr(constructorAbi.verificationKey, wasm);
-    const constructorHash = await hashConstructor(wasm, functionData, args, vkHash);
+    const argsHash = await computeVarArgsHash(wasm, args);
+    const constructorHash = await hashConstructor(wasm, functionData, argsHash, vkHash);
     const address = await computeContractAddress(wasm, from, contractAddressSalt, root, constructorHash);
     const contractDao: ContractDao = {
       ...abi,

@@ -1,16 +1,15 @@
 import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
 
 import {
-  ARGS_LENGTH,
   CallContext,
   ContractDeploymentData,
   EMITTED_EVENTS_LENGTH,
-  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_COMMITMENTS_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
-  PrivateCircuitPublicInputs,
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
+  PrivateCircuitPublicInputs,
   RETURN_VALUES_LENGTH,
 } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -110,7 +109,7 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
     frToBoolean(witnessReader.readField()),
   );
 
-  const args = witnessReader.readFieldArray(ARGS_LENGTH);
+  const argsHash = witnessReader.readField();
   const returnValues = witnessReader.readFieldArray(RETURN_VALUES_LENGTH);
   const emittedEvents = witnessReader.readFieldArray(EMITTED_EVENTS_LENGTH);
   const newCommitments = witnessReader.readFieldArray(NEW_COMMITMENTS_LENGTH);
@@ -133,7 +132,7 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
 
   return new PrivateCircuitPublicInputs(
     callContext,
-    args,
+    argsHash,
     returnValues,
     emittedEvents,
     newCommitments,

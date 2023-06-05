@@ -9,6 +9,7 @@
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/types.hpp"
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/types/convert.hpp"
 
@@ -156,8 +157,8 @@ template <typename Composer> class FunctionExecutionContext {
     std::array<fr, RETURN_VALUES_LENGTH> call(
         address const& f_contract_address,
         std::string const& f_name,
-        std::function<void(FunctionExecutionContext<Composer>&, std::array<NT::fr, ARGS_LENGTH>)> f,
-        std::array<fr, ARGS_LENGTH> const& args)
+        std::function<void(FunctionExecutionContext<Composer>&, std::vector<NT::fr>)> f,
+        std::vector<fr> const& args)
     {
         // Convert function name to bytes and use the first 4 bytes as the function encoding, for now:
         std::vector<uint8_t> f_name_bytes(f_name.begin(), f_name.end());
@@ -230,9 +231,8 @@ template <typename Composer> class FunctionExecutionContext {
         auto f_public_inputs_ct = f_public_inputs_nt.to_circuit_type(composer);
 
         // Constrain that the arguments of the executed function match those we expect:
-        for (size_t i = 0; i < f_public_inputs_ct.args.size(); ++i) {
-            args[i].assert_equal(f_public_inputs_ct.args[i]);
-        }
+        auto args_hash_ct = compute_var_args_hash<CT>(args);
+        args_hash_ct.assert_equal(f_public_inputs_ct.args_hash);
 
         CallStackItem<CT, PrivateTypes> const f_call_stack_item_ct{
             .contract_address = f_contract_address,

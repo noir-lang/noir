@@ -132,7 +132,7 @@ void common_contract_logic(DummyComposer& composer,
     // input storage contract address must be 0 if its a constructor call and non-zero otherwise
     if (is_contract_deployment) {
         auto constructor_hash =
-            compute_constructor_hash(function_data, private_call_public_inputs.args, private_call_vk_hash);
+            compute_constructor_hash(function_data, private_call_public_inputs.args_hash, private_call_vk_hash);
 
         auto const new_contract_address = compute_contract_address<NT>(deployer_address,
                                                                        contract_dep_data.contract_address_salt,

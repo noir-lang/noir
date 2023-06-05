@@ -291,7 +291,7 @@ export function makePublicCircuitPublicInputs(
 ): PublicCircuitPublicInputs {
   return new PublicCircuitPublicInputs(
     makeCallContext(seed, storageContractAddress),
-    makeTuple(ARGS_LENGTH, fr, seed + 0x100),
+    fr(seed + 0x100),
     makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
     makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x300),
     makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeContractStorageUpdateRequest, seed + 0x400),
@@ -546,7 +546,7 @@ export function makeTxRequest(seed = 1): TxRequest {
     from: makeAztecAddress(seed),
     to: makeAztecAddress(seed + 0x10),
     functionData: new FunctionData(makeSelector(seed + 0x100), true, true),
-    args: makeTuple(ARGS_LENGTH, x => fr(x), seed + 0x200),
+    argsHash: fr(seed + 0x200),
     nonce: fr(seed + 0x300),
     txContext: makeTxContext(seed + 0x400),
     chainId: fr(seed + 0x500),
@@ -599,7 +599,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
       true,
       true,
     ),
-    args: makeTuple(ARGS_LENGTH, fr, seed + 0x100),
+    argsHash: fr(seed + 0x100),
     emittedEvents: makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x200), // TODO not in spec
     returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x300),
     newCommitments: makeTuple(NEW_COMMITMENTS_LENGTH, fr, seed + 0x400),

@@ -6,15 +6,13 @@ import {
   EcdsaSignature,
   EthAddress,
   FunctionData,
-  SignedTxRequest,
   TxContext,
-  TxRequest,
 } from '@aztec/circuits.js';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { KeyStore } from '@aztec/key-store';
-import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
-import { Tx, TxHash } from '@aztec/types';
+import { SignedTxExecutionRequest, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
 import { toContractDao } from '../contract_database/index.js';
 import { ContractTree } from '../contract_tree/index.js';
@@ -182,7 +180,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const contract = contractTree.contract;
     await this.db.addContract(contract);
 
-    return new TxRequest(
+    return new TxExecutionRequest(
       fromAddress,
       contract.address,
       functionData,
@@ -232,7 +230,7 @@ export class AztecRPCServer implements AztecRPCClient {
       new ContractDeploymentData(Fr.ZERO, Fr.ZERO, Fr.ZERO, new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES))),
     );
 
-    return new TxRequest(
+    return new TxExecutionRequest(
       fromAddress,
       to,
       functionData,
@@ -251,7 +249,7 @@ export class AztecRPCServer implements AztecRPCClient {
    * @param txRequest - The TxRequest instance containing necessary information for signing.
    * @returns An EcdsaSignature instance representing the signed transaction.
    */
-  public signTxRequest(txRequest: TxRequest) {
+  public signTxRequest(txRequest: TxExecutionRequest) {
     this.ensureAccount(txRequest.from);
     return this.keyStore.signTxRequest(txRequest);
   }
@@ -266,7 +264,7 @@ export class AztecRPCServer implements AztecRPCClient {
    * @param signature - The ECDSA signature of the transaction request.
    * @returns A transaction object that can be sent to the network.
    */
-  public async createTx(txRequest: TxRequest, signature: EcdsaSignature) {
+  public async createTx(txRequest: TxExecutionRequest, signature: EcdsaSignature) {
     let toContract: AztecAddress | undefined;
     let newContract: AztecAddress | undefined;
     const accountState = this.ensureAccount(txRequest.from);
@@ -275,7 +273,7 @@ export class AztecRPCServer implements AztecRPCClient {
     let tx: Tx;
     if (!txRequest.functionData.isPrivate) {
       // Note: there is no simulation being performed client-side for public functions execution.
-      tx = Tx.createPublic(new SignedTxRequest(txRequest, signature));
+      tx = Tx.createPublic(new SignedTxExecutionRequest(txRequest, signature));
     } else if (txRequest.functionData.isConstructor) {
       newContract = contractAddress;
 

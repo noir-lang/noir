@@ -267,24 +267,26 @@ WASM_EXPORT void abis__compute_function_tree(uint8_t const* function_leaves_in, 
  * @param output buffer that will contain the output. The serialized constructor_vk_hash.
  */
 WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
-                                        uint8_t const* args_buf,
+                                        uint8_t const* args_hash_buf,
                                         uint8_t const* constructor_vk_hash_buf,
                                         uint8_t* output)
 {
     FunctionData<NT> function_data;
-    std::array<NT::fr, aztec3::ARGS_LENGTH> args;
+    NT::fr args_hash;
     NT::fr constructor_vk_hash;
 
     read(function_data_buf, function_data);
-    read(args_buf, args);
+    read(args_hash_buf, args_hash);
     read(constructor_vk_hash_buf, constructor_vk_hash);
 
-    NT::fr const constructor_hash = compute_constructor_hash(function_data, args, constructor_vk_hash);
+    NT::fr const constructor_hash = compute_constructor_hash(function_data, args_hash, constructor_vk_hash);
 
     NT::fr::serialize_to_buffer(constructor_hash, output);
 }
 
 CBIND(abis__compute_contract_address, compute_contract_address<NT>);
+
+CBIND(abis__compute_var_args_hash, aztec3::circuits::compute_var_args_hash<NT>);
 
 /**
  * @brief Generates a function tree leaf from its preimage.

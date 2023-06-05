@@ -3,13 +3,13 @@
 #include "contract.hpp"
 
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
+#include "aztec3/circuits/hash.hpp"
 
 namespace aztec3::circuits::apps::test_apps::basic_contract_deployment {
 
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exec_ctx,
-                                                   std::array<NT::fr, ARGS_LENGTH> const& args)
+OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const& args)
 {
     /****************************************************************
      * PREAMBLE
@@ -41,10 +41,7 @@ OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exe
     // Push args to the public inputs.
     // TODO: don't give function direct access to the exec_ctx?
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
-
-    public_inputs.args[0] = arg0;
-    public_inputs.args[1] = arg1;
-    public_inputs.args[2] = arg2;
+    public_inputs.args_hash = compute_var_args_hash<CT>({ arg0, arg1, arg2 });
 
     exec_ctx.finalise();
 

@@ -4,10 +4,11 @@
 #include "function_2_1.hpp"
 
 #include "aztec3/circuits/apps/function_execution_context.hpp"
+#include "aztec3/circuits/hash.hpp"
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
-void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LENGTH> const& _args)
+void function_1_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const& _args)
 {
     /****************************************************************
      * Initialisation
@@ -62,7 +63,7 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
     auto return_values =
         exec_ctx.call(fn_2_1_contract_address,
                       "function_2_1",
-                      std::function<void(FunctionExecutionContext&, std::array<NT::fr, ARGS_LENGTH>)>(function_2_1),
+                      std::function<void(FunctionExecutionContext&, std::vector<NT::fr>)>(function_2_1),
                       { a, b, c, 0, 0, 0, 0, 0 });
 
     // Use the return value in some way, just for fun:
@@ -77,10 +78,7 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
 
     // Push args to the public inputs.
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
-
-    public_inputs.args[0] = a;
-    public_inputs.args[1] = b;
-    public_inputs.args[2] = c;
+    public_inputs.args_hash = compute_var_args_hash<CT>({ a, b, c });
 
     exec_ctx.finalise();
 };

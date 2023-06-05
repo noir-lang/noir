@@ -1,6 +1,7 @@
-import { AztecRPCClient, Tx, TxHash, TxRequest } from '@aztec/aztec-rpc';
+import { AztecRPCClient, Tx, TxHash } from '@aztec/aztec-rpc';
 import { AztecAddress, EcdsaSignature, Fr } from '@aztec/circuits.js';
 import { FunctionType } from '@aztec/foundation/abi';
+import { TxExecutionRequest } from '@aztec/types';
 import { SentTx } from './sent_tx.js';
 
 /**
@@ -34,7 +35,7 @@ export interface ViewMethodOptions {
  * It contains available interactions one can call on a method.
  */
 export class ContractFunctionInteraction {
-  protected txRequest?: TxRequest;
+  protected txRequest?: TxExecutionRequest;
   private signature?: EcdsaSignature;
   private tx?: Tx;
 

@@ -1,6 +1,6 @@
-import { BufferReader } from '@aztec/foundation/serialize';
-import { Tuple } from '@aztec/foundation/serialize';
-import { FieldsOf } from '../index.js';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+import { computeVarArgsHash } from '../abis/abis.js';
+import { CircuitsWasm, FieldsOf } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import {
   ARGS_LENGTH,
@@ -78,27 +78,21 @@ export class PublicCallRequest {
   }
 
   /**
-   * Creates a new instance out of a PublicCallStackItem, dropping all fields related to execution result.
-   * @param item - Input item to copy.
-   * @returns A PublicCallRequest instance with the same contract address, function data, call context, and args.
-   */
-  static fromPublicCallStackItem(item: PublicCallStackItem): PublicCallRequest {
-    return PublicCallRequest.from({
-      contractAddress: item.contractAddress,
-      functionData: item.functionData,
-      callContext: item.publicInputs.callContext,
-      args: item.publicInputs.args,
-    });
-  }
-
-  /**
    * Creates a new PublicCallStackItem by populating with zeroes all fields related to result in the public circuit output.
    * @returns A PublicCallStackItem instance with the same contract address, function data, call context, and args.
    */
-  toPublicCallStackItem(): PublicCallStackItem {
+  async toPublicCallStackItem(): Promise<PublicCallStackItem> {
     const publicInputs = PublicCircuitPublicInputs.empty();
     publicInputs.callContext = this.callContext;
-    publicInputs.args = this.args;
+    publicInputs.argsHash = await this.getArgsHash();
     return new PublicCallStackItem(this.contractAddress, this.functionData, publicInputs, true);
+  }
+
+  /**
+   * Returns the hash of the arguments for this request.
+   * @returns Hash of the arguments for this request.
+   */
+  async getArgsHash() {
+    return computeVarArgsHash(await CircuitsWasm.get(), this.args);
   }
 }

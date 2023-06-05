@@ -235,7 +235,8 @@
     "dependencies": [
       "barretenberg.js",
       "circuits.js",
-      "foundation"
+      "foundation",
+      "types"
     ]
   },
   "merkle-tree": {

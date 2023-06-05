@@ -71,7 +71,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     await archiver.stop();
     await aztecNode?.stop();
     await aztecRpcServer?.stop();
-  });
+  }, 30_000);
 
   const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
     const ownerPublicKey = await aztecRpcServer.getAccountPublicKey(owner);
@@ -89,7 +89,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     const wasm = await CircuitsWasm.get();
     const secret = Fr.random();
     const claimSecretHash = computeSecretMessageHash(wasm, secret);
-    logger('Generated claim secret: ', claimSecretHash);
+    logger('Generated claim secret: ', claimSecretHash.toString());
 
     logger('Minting tokens on L1');
     await underlyingERC20.write.mint([ethAccount.toString(), 1000000n], {} as any);

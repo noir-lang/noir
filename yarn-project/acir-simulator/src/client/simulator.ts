@@ -1,14 +1,15 @@
-import { CallContext, PrivateHistoricTreeRoots, TxRequest } from '@aztec/circuits.js';
-import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
-import { DBOracle } from './db_oracle.js';
-import { PrivateFunctionExecution, ExecutionResult } from './private_execution.js';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { pedersenCompressInputs, pedersenCompressWithHashIndex } from '@aztec/barretenberg.js/crypto';
-import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
-import { ClientTxExecutionContext } from './client_execution_context.js';
-import { Fr } from '@aztec/foundation/fields';
+import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { CallContext, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
+import { TxExecutionRequest } from '@aztec/types';
+import { ClientTxExecutionContext } from './client_execution_context.js';
+import { DBOracle } from './db_oracle.js';
+import { ExecutionResult, PrivateFunctionExecution } from './private_execution.js';
+import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
 
 export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);
@@ -32,7 +33,7 @@ export class AcirSimulator {
    * @returns The result of the execution.
    */
   public run(
-    request: TxRequest,
+    request: TxExecutionRequest,
     entryPointABI: FunctionAbi,
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
@@ -56,7 +57,7 @@ export class AcirSimulator {
       entryPointABI,
       contractAddress,
       request.functionData,
-      request.getExpandedArgs(),
+      request.args,
       callContext,
     );
 
@@ -73,7 +74,7 @@ export class AcirSimulator {
    * @returns The return values of the function.
    */
   public runUnconstrained(
-    request: TxRequest,
+    request: TxExecutionRequest,
     entryPointABI: FunctionAbi,
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
@@ -96,7 +97,7 @@ export class AcirSimulator {
       entryPointABI,
       contractAddress,
       request.functionData,
-      request.getExpandedArgs(),
+      request.args,
       callContext,
     );
 

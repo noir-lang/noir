@@ -73,9 +73,6 @@ void validate_this_private_call_against_tx_request(DummyComposer& composer,
     const auto& tx_request = private_inputs.signed_tx_request.tx_request;
     const auto& call_stack_item = private_inputs.private_call.call_stack_item;
 
-    const auto tx_request_args_hash = NT::compress<ARGS_LENGTH>(tx_request.args, FUNCTION_ARGS);
-    const auto call_args_hash = NT::compress<ARGS_LENGTH>(call_stack_item.public_inputs.args, FUNCTION_ARGS);
-
     composer.do_assert(
         tx_request.to == call_stack_item.contract_address,
         "user's intent does not match initial private call (tx_request.to must match call_stack_item.contract_address)",
@@ -86,7 +83,7 @@ void validate_this_private_call_against_tx_request(DummyComposer& composer,
                        "call_stack_item.function_data)",
                        CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
 
-    composer.do_assert(tx_request_args_hash == call_args_hash,
+    composer.do_assert(tx_request.args_hash == call_stack_item.public_inputs.args_hash,
                        "user's intent does not match initial private call (tx_request.args must match "
                        "call_stack_item.public_inputs.args)",
                        CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);

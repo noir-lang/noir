@@ -1,10 +1,10 @@
 
-// 1 +
+// contract_address + 
+// args_hash +
 // crate::abi::FUNCTION_DATA_SIZE +
 // crate::abi::CALL_CONTEXT_SIZE +
-// crate::abi::MAX_ARGS
-// = 1 + 3 + 6 + 8
-global ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE: comptime Field = 18;
+// = 2 + 3 + 6
+global ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE: comptime Field = 11;
 
 #[oracle(enqueuePublicFunctionCall)]
 fn enqueue_public_function_call_oracle(

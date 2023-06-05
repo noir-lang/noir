@@ -3,10 +3,9 @@ import { assertMemberLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
 import {
-  ARGS_LENGTH,
   EMITTED_EVENTS_LENGTH,
-  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_COMMITMENTS_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
@@ -26,9 +25,9 @@ export class PrivateCircuitPublicInputs {
      */
     public callContext: CallContext,
     /**
-     * Function arguments.
+     * Pedersen hash of function arguments.
      */
-    public args: Fr[],
+    public argsHash: Fr,
     /**
      * Return values of the corresponding function call.
      */
@@ -78,7 +77,6 @@ export class PrivateCircuitPublicInputs {
      */
     public contractDeploymentData: ContractDeploymentData,
   ) {
-    assertMemberLength(this, 'args', ARGS_LENGTH);
     assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
     assertMemberLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
     assertMemberLength(this, 'newCommitments', NEW_COMMITMENTS_LENGTH);
@@ -107,7 +105,7 @@ export class PrivateCircuitPublicInputs {
         .map(() => Fr.ZERO);
     return new PrivateCircuitPublicInputs(
       CallContext.empty(),
-      frArray(ARGS_LENGTH),
+      Fr.ZERO,
       frArray(RETURN_VALUES_LENGTH),
       frArray(EMITTED_EVENTS_LENGTH),
       frArray(NEW_COMMITMENTS_LENGTH),
@@ -131,7 +129,7 @@ export class PrivateCircuitPublicInputs {
     return [
       // NOTE: Must have same order as CPP.
       fields.callContext,
-      fields.args,
+      fields.argsHash,
       fields.returnValues,
       fields.emittedEvents,
       fields.newCommitments,
