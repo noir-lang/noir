@@ -2,7 +2,9 @@
 //! program as it is being converted from SSA form.
 use super::errors::AcirGenError;
 use acvm::acir::{
+    brillig_vm::Opcode as BrilligOpcode,
     circuit::{
+        brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         directives::{LogInfo, QuotientDirective},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
@@ -13,7 +15,8 @@ use acvm::{
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
+use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
@@ -86,6 +89,59 @@ impl GeneratedAcir {
 }
 
 impl GeneratedAcir {
+    /// Computes lhs mod 2^rhs
+    ///
+    /// `max_bits` is the upper-bound on the bit_size of the object that `lhs` is representing.
+
+    /// An example; max_bits would be 32, if lhs was representing a u32 at a higher level.
+    pub(crate) fn truncate(
+        &mut self,
+        lhs: &Expression,
+        rhs: u32,
+        max_bits: u32,
+    ) -> Result<Expression, AcirGenError> {
+        assert!(max_bits > rhs, "max_bits = {max_bits}, rhs = {rhs}");
+        let exp_big = BigUint::from(2_u32).pow(rhs);
+
+        // 0. Check for constant expression.
+        if let Some(a_c) = lhs.to_const() {
+            let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
+            a_big %= exp_big;
+            return Ok(Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be())));
+        }
+        let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
+
+        // 1. Generate witnesses a,b,c
+        let b_witness = self.next_witness_index();
+        let c_witness = self.next_witness_index();
+        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
+            a: lhs.clone(),
+            b: Expression::from_field(exp),
+            q: c_witness,
+            r: b_witness,
+            predicate: None,
+        })));
+
+        self.range_constraint(b_witness, rhs)?;
+        self.range_constraint(c_witness, max_bits - rhs)?;
+
+        // 2. Add the constraint a = b + 2^{rhs} * c
+        //
+        // 2^{rhs}
+        let mut two_pow_rhs_bits = FieldElement::from(2_i128);
+        two_pow_rhs_bits = two_pow_rhs_bits.pow(&FieldElement::from(rhs as i128));
+
+        let b_arith = Expression::from(b_witness);
+        let c_arith = Expression::from(c_witness);
+
+        let res = &b_arith + &(two_pow_rhs_bits * &c_arith);
+        let my_constraint = &res - lhs;
+
+        self.push_opcode(AcirOpcode::Arithmetic(my_constraint));
+
+        Ok(Expression::from(b_witness))
+    }
+
     /// Calls a black box function and returns the output
     /// of said blackbox function.
     pub(crate) fn call_black_box(
@@ -150,6 +206,44 @@ impl GeneratedAcir {
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
         outputs_clone
+    }
+
+    /// Takes an input expression and returns witnesses that are constrained to be limbs
+    /// decomposed from the input for the given radix and limb count.
+    ///
+    /// Only radix that are a power of two are supported
+    pub(crate) fn radix_le_decompose(
+        &mut self,
+        input_expr: &Expression,
+        radix: u32,
+        limb_count: u32,
+    ) -> Result<Vec<Witness>, AcirGenError> {
+        let bit_size = u32::BITS - (radix - 1).leading_zeros();
+        assert_eq!(2_u32.pow(bit_size), radix, "ICE: Radix must be a power of 2");
+
+        let mut composed_limbs = Expression::default();
+
+        let mut radix_pow: u128 = 1;
+        let limb_witnesses = try_vecmap(0..limb_count, |_| {
+            let limb_witness = self.next_witness_index();
+            self.range_constraint(limb_witness, bit_size)?;
+
+            composed_limbs = composed_limbs
+                .add_mul(FieldElement::from(radix_pow), &Expression::from(limb_witness));
+
+            radix_pow *= radix as u128;
+            Ok(limb_witness)
+        })?;
+
+        self.assert_is_zero(input_expr - &composed_limbs);
+
+        self.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
+            a: input_expr.clone(),
+            b: limb_witnesses.clone(),
+            radix,
+        }));
+
+        Ok(limb_witnesses)
     }
 
     /// Adds a log directive to print the provided witnesses.
@@ -372,6 +466,22 @@ impl GeneratedAcir {
         self.range_constraint(q_witness, 1)?;
 
         Ok(q_witness)
+    }
+
+    pub(crate) fn brillig(
+        &mut self,
+        code: Vec<BrilligOpcode>,
+        inputs: Vec<BrilligInputs>,
+        outputs: Vec<BrilligOutputs>,
+    ) {
+        let opcode = AcirOpcode::Brillig(AcvmBrillig {
+            inputs,
+            outputs,
+            foreign_call_results: Vec::new(),
+            bytecode: code,
+            predicate: None,
+        });
+        self.push_opcode(opcode);
     }
 }
 
