@@ -106,7 +106,7 @@ impl AcirContext {
     /// be constrained to be the negation of `var`.
     ///
     /// Note: `Variables` are immutable.
-    pub(crate) fn neg_var(&mut self, var: AcirVar) -> AcirVar {
+    pub(crate) fn neg_var(&mut self, var: AcirVar, _typ: AcirType) -> AcirVar {
         let var_data = &self.data[&var];
         match var_data {
             AcirVarData::Witness(witness) => {
@@ -122,7 +122,7 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the inverse of `var`.
-    pub(crate) fn inv_var(&mut self, var: AcirVar) -> AcirVar {
+    pub(crate) fn inv_var(&mut self, var: AcirVar, _typ: AcirType) -> AcirVar {
         let var_data = &self.data[&var];
         let inverted_witness = match var_data {
             AcirVarData::Witness(witness) => {
@@ -137,7 +137,7 @@ impl AcirContext {
         };
         let inverted_var = self.add_data(AcirVarData::Witness(inverted_witness));
 
-        let should_be_one = self.mul_var(inverted_var, var);
+        let should_be_one = self.mul_var(inverted_var, var, _typ);
         self.assert_eq_one(should_be_one);
 
         inverted_var
@@ -151,7 +151,7 @@ impl AcirContext {
 
     /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
     /// 0 otherwise.
-    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar, _typ: AcirType) -> AcirVar {
         let lhs_data = &self.data[&lhs];
         let rhs_data = &self.data[&rhs];
 
@@ -163,76 +163,62 @@ impl AcirContext {
     }
 
     /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
-    pub(crate) fn xor_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_bit_size = *self
-            .variables_to_types
-            .get(&lhs)
-            .expect("ICE: XOR applied to field type, this should be caught by the type system");
-        let rhs_bit_size = *self
-            .variables_to_types
-            .get(&lhs)
-            .expect("ICE: XOR applied to field type, this should be caught by the type system");
-        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to XOR require equal bit size");
-
-        let outputs = self.black_box_function(BlackBoxFunc::XOR, vec![lhs, rhs])?;
+    pub(crate) fn xor_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        _typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let outputs =
+            self.black_box_function(BlackBoxFunc::XOR, vec![lhs, rhs], vec![_typ, _typ])?;
         let result = outputs[0];
-        self.variables_to_types.insert(result, lhs_bit_size);
         Ok(result)
     }
 
     /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
-    pub(crate) fn and_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_bit_size = *self
-            .variables_to_types
-            .get(&lhs)
-            .expect("ICE: AND applied to field type, this should be caught by the type system");
-        let rhs_bit_size = *self
-            .variables_to_types
-            .get(&lhs)
-            .expect("ICE: AND applied to field type, this should be caught by the type system");
-        assert_eq!(lhs_bit_size, rhs_bit_size, "ICE: Operands to AND require equal bit size");
-
-        let outputs = self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs])?;
+    pub(crate) fn and_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        _typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let outputs =
+            self.black_box_function(BlackBoxFunc::AND, vec![lhs, rhs], vec![_typ, _typ])?;
         let result = outputs[0];
-        self.variables_to_types.insert(result, lhs_bit_size);
         Ok(result)
     }
 
     /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
-    pub(crate) fn or_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_type = *self
-            .variables_to_types
-            .get(&lhs)
-            .expect("all variables should have a type attached to them");
-        let rhs_type = *self
-            .variables_to_types
-            .get(&lhs)
-            .expect("all variables should have a type attached to them");
-        assert_eq!(lhs_type, rhs_type, "types in or expressions should be the same");
-        let bit_size = lhs_type.bit_size();
+    pub(crate) fn or_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        _typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let bit_size = _typ.bit_size();
 
         let result = if bit_size == 1 {
             // Operands are booleans
             // a + b - ab
-            let sum = self.add_var(lhs, rhs);
-            let mul = self.mul_var(lhs, rhs);
-            self.sub_var(sum, mul)
+            let sum = self.add_var(lhs, rhs, _typ);
+            let mul = self.mul_var(lhs, rhs, _typ);
+            self.sub_var(sum, mul, _typ)
         } else {
             // Implement OR in terms of AND
             // max - ((max - a) AND (max -b))
             // Subtracting from max flips the bits, so this is effectively:
             // (NOT a) NAND (NOT b)
             let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
-            let a = self.sub_var(max, lhs);
-            let b = self.sub_var(max, rhs);
+            let a = self.sub_var(max, lhs, _typ);
+            let b = self.sub_var(max, rhs, _typ);
             // We track the bit sizes of these intermediaries so that blackbox input generation
             // infers them correctly.
-            self.variables_to_types.insert(a, lhs_type);
-            self.variables_to_types.insert(b, lhs_type);
-            let output = self.black_box_function(BlackBoxFunc::AND, vec![a, b])?;
-            self.sub_var(max, output[0])
+            self.variables_to_types.insert(a, _typ);
+            self.variables_to_types.insert(b, _typ);
+            let output =
+                self.black_box_function(BlackBoxFunc::AND, vec![a, b], vec![_typ, _typ])?;
+            self.sub_var(max, output[0], _typ)
         };
-        self.variables_to_types.insert(result, lhs_type);
         Ok(result)
     }
 
@@ -275,13 +261,13 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the division of `lhs` and `rhs`
     pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar, _typ: AcirType) -> AcirVar {
-        let inv_rhs = self.inv_var(rhs);
-        self.mul_var(lhs, inv_rhs)
+        let inv_rhs = self.inv_var(rhs, _typ);
+        self.mul_var(lhs, inv_rhs, _typ)
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the multiplication of `lhs` and `rhs`
-    pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+    pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar, _typ: AcirType) -> AcirVar {
         let lhs_data = &self.data[&lhs];
         let rhs_data = &self.data[&rhs];
         match (lhs_data, rhs_data) {
@@ -327,14 +313,14 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the subtraction of `lhs` and `rhs`
-    pub(crate) fn sub_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
-        let neg_rhs = self.neg_var(rhs);
-        self.add_var(lhs, neg_rhs)
+    pub(crate) fn sub_var(&mut self, lhs: AcirVar, rhs: AcirVar, _typ: AcirType) -> AcirVar {
+        let neg_rhs = self.neg_var(rhs, _typ);
+        self.add_var(lhs, neg_rhs, _typ)
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the addition of `lhs` and `rhs`
-    pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+    pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar, _typ: AcirType) -> AcirVar {
         let lhs_data = &self.data[&lhs];
         let rhs_data = &self.data[&rhs];
         match (lhs_data, rhs_data) {
@@ -366,7 +352,7 @@ impl AcirContext {
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
     ///
     /// `x` must be a 1-bit integer (i.e. a boolean)
-    pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
+    pub(crate) fn not_var(&mut self, x: AcirVar, _typ: AcirType) -> AcirVar {
         assert_eq!(
             self.variables_to_types.get(&x),
             Some(&AcirType::boolean()),
@@ -402,7 +388,7 @@ impl AcirContext {
         };
         let two_pow_rhs_var = self.add_constant(two_pow_rhs);
 
-        self.mul_var(lhs, two_pow_rhs_var)
+        self.mul_var(lhs, two_pow_rhs_var, _typ)
     }
 
     /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
@@ -496,13 +482,14 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
+        _typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
         // Flip the result of calling more than equal method to
         // compute less than.
         let comparison = self.more_than_eq_var(lhs, rhs)?;
 
         let one = self.add_constant(FieldElement::one());
-        let comparison_negated = self.sub_var(one, comparison);
+        let comparison_negated = self.sub_var(one, comparison, _typ);
 
         Ok(comparison_negated)
     }
@@ -513,6 +500,7 @@ impl AcirContext {
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirVar>,
+        types: Vec<AcirType>,
     ) -> Result<Vec<AcirVar>, AcirGenError> {
         // Separate out any arguments that should be constants
         let constants = match name {
@@ -529,7 +517,7 @@ impl AcirContext {
         };
 
         // Convert `AcirVar` to `FunctionInput`
-        let inputs = self.prepare_inputs_for_black_box_func_call(&inputs)?;
+        let inputs = self.prepare_inputs_for_black_box_func_call(&inputs, &types)?;
 
         // Call Black box with `FunctionInput`
         let outputs = self.acir_ir.call_black_box(name, inputs, constants);
@@ -551,9 +539,10 @@ impl AcirContext {
     fn prepare_inputs_for_black_box_func_call(
         &mut self,
         inputs: &[AcirVar],
+        types: &[AcirType],
     ) -> Result<Vec<FunctionInput>, AcirGenError> {
         let mut witnesses = Vec::new();
-        for input in inputs {
+        for (input, acir_type) in inputs.into_iter().zip(types) {
             let var_data = &self.data[input];
 
             // Intrinsics only accept Witnesses. This is not a limitation of the
@@ -562,37 +551,7 @@ impl AcirContext {
             let expr = var_data.to_expression();
             let witness = self.acir_ir.get_or_create_witness(&expr);
 
-            // Fetch the number of bits for this variable
-            // If it has never been constrained before, then we will
-            // encounter None, and so we take the max number of bits for a
-            // field element.
-            let num_bits = match self.variables_to_types.get(input) {
-                Some(typ) => {
-                    // In Noir, we specify the number of bits to take from the input
-                    // by doing the following:
-                    //
-                    // ```
-                    // call_intrinsic(x as u8)
-                    // ```
-                    //
-                    // The `as u8` specifies that we want to take 8 bits from the `x`
-                    // variable.
-                    //
-                    // There were discussions about the SSA IR optimizing out range
-                    // constraints. We would want to be careful with it here. For example:
-                    //
-                    // ```
-                    // let x : u32 = y as u32
-                    // call_intrinsic(x as u64)
-                    // ```
-                    // The `x as u64` is redundant since we know that `x` fits within a u32.
-                    // However, since the `x as u64` line is being used to tell the intrinsic
-                    // to take 64 bits, we cannot remove it.
-
-                    typ.bit_size()
-                }
-                None => FieldElement::max_num_bits(),
-            };
+            let num_bits = acir_type.bit_size();
 
             witnesses.push(FunctionInput { witness, num_bits });
         }
@@ -777,8 +736,8 @@ fn repeat_op() {
 
     // Multiplying the same variables twice should yield
     // the same output.
-    let var_c = ctx.mul_var(var_a, var_b);
-    let should_be_var_c = ctx.mul_var(var_a, var_b);
+    let var_c = ctx.mul_var(var_a, var_b, AcirType(NumericType::NativeField));
+    let should_be_var_c = ctx.mul_var(var_a, var_b, AcirType(NumericType::NativeField));
 
     assert_eq!(var_c, should_be_var_c);
 }

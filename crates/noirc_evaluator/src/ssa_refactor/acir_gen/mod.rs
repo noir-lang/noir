@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use self::acir_ir::{
-    acir_variable::{AcirContext, AcirVar},
+    acir_variable::{AcirContext, AcirType, AcirVar},
     errors::AcirGenError,
     memory::ArrayId,
 };
@@ -250,7 +250,8 @@ impl Context {
             }
             Instruction::Not(value_id) => {
                 let boolean_var = self.convert_ssa_value(*value_id, dfg);
-                let result_acir_var = self.acir_context.not_var(boolean_var);
+                let operand_type = dfg.type_of_value(*value_id);
+                let result_acir_var = self.acir_context.not_var(boolean_var, operand_type.into());
 
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
@@ -338,30 +339,30 @@ impl Context {
         let binary_type = self.type_of_binary_operation(binary, dfg);
 
         match binary.operator {
-            BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
-            BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
-            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
+            BinaryOp::Add => self.acir_context.add_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs, binary_type.into()),
             BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.into()),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
-            BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
+            BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs, binary_type.into()),
             BinaryOp::Lt => self
                 .acir_context
-                .less_than_var(lhs, rhs)
+                .less_than_var(lhs, rhs, binary_type.into())
                 .expect("add Result types to all methods so errors bubble up"),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type.into()),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type.into()),
             BinaryOp::Xor => self
                 .acir_context
-                .xor_var(lhs, rhs)
+                .xor_var(lhs, rhs, binary_type.into())
                 .expect("add Result types to all methods so errors bubble up"),
             BinaryOp::And => self
                 .acir_context
-                .and_var(lhs, rhs)
+                .and_var(lhs, rhs, binary_type.into())
                 .expect("add Result types to all methods so errors bubble up"),
             BinaryOp::Or => self
                 .acir_context
-                .or_var(lhs, rhs)
+                .or_var(lhs, rhs, binary_type.into())
                 .expect("add Result types to all methods so errors bubble up"),
             _ => todo!(),
         }
@@ -440,10 +441,12 @@ impl Context {
         let inputs = self
             .flatten_arguments(arguments, dfg)
             .expect("add Result types to all methods so errors bubble up");
+        let input_types: Vec<_> =
+            arguments.iter().map(|argument| AcirType::from(dfg.type_of_value(*argument))).collect();
         match intrinsic {
             Intrinsic::BlackBox(black_box) => self
                 .acir_context
-                .black_box_function(black_box, inputs)
+                .black_box_function(black_box, inputs, input_types)
                 .expect("add Result types to all methods so errors bubble up"),
             Intrinsic::ToRadix(endian) => {
                 // inputs = [field, radix, limb_size]; (see noir_stdlib/src/field.nr)
