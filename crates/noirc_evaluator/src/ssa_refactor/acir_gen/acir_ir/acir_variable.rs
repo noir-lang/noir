@@ -1,4 +1,4 @@
-use crate::ssa_refactor::ir::types::Type as SSAType;
+use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
@@ -21,7 +21,7 @@ use std::{borrow::Cow, collections::HashMap, hash::Hash};
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.
 ///
-/// Once can think of Expression/Witness/Const
+/// One can think of Expression/Witness/Const
 /// as low level types which can represent high level types.
 ///
 /// An Expression can represent a u32 for example.
@@ -45,10 +45,10 @@ impl AcirType {
         AcirType(NumericType::Unsigned { bit_size: 1 })
     }
 }
-impl From<SSAType> for AcirType {
-    fn from(value: SSAType) -> Self {
+impl From<SsaType> for AcirType {
+    fn from(value: SsaType) -> Self {
         match value {
-            SSAType::Numeric(numeric_type) => AcirType(numeric_type),
+            SsaType::Numeric(numeric_type) => AcirType(numeric_type),
             _ => unreachable!("The type {value}  cannot be represented in ACIR"),
         }
     }

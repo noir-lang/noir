@@ -375,7 +375,7 @@ impl Context {
     /// There are some edge cases to consider:
     /// - Constants are not explicitly type casted, so we need to check for this and
     /// return the type of the other operand, if we have a constant.
-    /// - 0 is not seen ad `Field 0` but instead as `Unit 0`
+    /// - 0 is not seen as `Field 0` but instead as `Unit 0`
     /// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
     /// TODO nothing and a 0.
     ///
@@ -390,20 +390,20 @@ impl Context {
             (Type::Function, _) | (_, Type::Function) => {
                 unreachable!("all functions should be inlined")
             }
+            (_, Type::Reference) | (Type::Reference, _) => {
+                unreachable!(
+                    "operations involving references are handled separately in `convert_ssa_instruction`."
+                )
+            }
             // Unit type currently can mean a 0 constant, so we return the
             // other type.
             (typ, Type::Unit) | (Type::Unit, typ) => typ,
-            // If either side is a constant then, we coerce into the type
+            // If either side is a Field constant then, we coerce into the type
             // of the other operand
             (Type::Numeric(NumericType::NativeField), typ)
             | (typ, Type::Numeric(NumericType::NativeField)) => typ,
-            // This should not be possible, if we are adding a reference
-            // it will be to a constant. This may not be true for dynamic arrays.
-            (Type::Numeric(_), Type::Reference) | (Type::Reference, Type::Numeric(_)) => {
-                unreachable!(
-                    "operations involving references should have a constant as the other operand."
-                )
-            }
+            // If either side is a numeric type, then we expect their types to be
+            // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(
                     lhs_type, rhs_type,
@@ -411,7 +411,6 @@ impl Context {
                 );
                 Type::Numeric(lhs_type)
             }
-            (Type::Reference, Type::Reference) => Type::Reference,
         }
     }
 
