@@ -329,13 +329,15 @@ impl<'f> Context<'f> {
     fn push_condition(&mut self, start_block: BasicBlockId, condition: ValueId) {
         let end_block = self.branch_ends[&start_block];
 
-        if let Some((_, previous_condition)) = self.conditions.last() {
+        let active_condition = if let Some((_, previous_condition)) = self.conditions.last() {
             let and = Instruction::binary(BinaryOp::And, *previous_condition, condition);
-            let new_condition = self.insert_instruction(and);
-            self.conditions.push((end_block, new_condition));
+            self.insert_instruction(and)
         } else {
-            self.conditions.push((end_block, condition));
-        }
+            condition
+        };
+        self.conditions.push((end_block, active_condition));
+        let side_effects_enabled = Instruction::EnableSideEffects { condition: active_condition };
+        self.insert_instruction_with_typevars(side_effects_enabled, None);
     }
 
     /// Insert a new instruction into the function's entry block.
@@ -807,10 +809,12 @@ mod test {
         // Expected output:
         // fn main f0 {
         //   b0(v0: u1, v1: reference):
+        //     enable_side_effects v0
         //     v8 = add v1, Field 1
         //     v9 = load v8
         //     store Field 5 at v8
         //     v10 = not v0
+        //     enable_side_effects v10
         //     v12 = add v1, Field 1
         //     v13 = load v12
         //     store Field 6 at v12

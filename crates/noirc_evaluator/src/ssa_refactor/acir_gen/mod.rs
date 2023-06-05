@@ -46,6 +46,9 @@ struct Context {
     /// of such instructions are stored, in effect capturing any further values that refer to
     /// addresses.
     ssa_value_to_array_address: HashMap<ValueId, (ArrayId, usize)>,
+    /// The `AcirVar` that describes the condition belonging to the most recently invoked
+    /// `SideEffectsEnabled` instruction.
+    current_side_effects_enabled_var: Option<AcirVar>,
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
 }
@@ -281,6 +284,11 @@ impl Context {
 
                 (vec![result_ids[0]], vec![result_acir_var])
             }
+            Instruction::EnableSideEffects { condition } => {
+                let acir_var = self.convert_ssa_value(*condition, dfg);
+                self.current_side_effects_enabled_var = Some(acir_var);
+                (Vec::new(), Vec::new())
+            }
         };
 
         // Map the results of the instructions to Acir variables
@@ -357,7 +365,7 @@ impl Context {
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt => self
                 .acir_context
-                .less_than_var(lhs, rhs)
+                .less_than_var(lhs, rhs, self.current_side_effects_enabled_var)
                 .expect("add Result types to all methods so errors bubble up"),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type.into()),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type.into()),

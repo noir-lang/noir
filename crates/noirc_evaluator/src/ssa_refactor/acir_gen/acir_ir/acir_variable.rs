@@ -484,7 +484,12 @@ impl AcirContext {
     }
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
-    fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+    fn more_than_eq_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        predicate: Option<AcirVar>,
+    ) -> Result<AcirVar, AcirGenError> {
         let lhs_data = &self.data[&lhs];
         let rhs_data = &self.data[&rhs];
 
@@ -498,8 +503,17 @@ impl AcirContext {
         // TODO: The frontend should shout in this case
         assert_eq!(lhs_type, rhs_type, "types in a more than eq comparison should be the same");
 
-        let is_greater_than_eq =
-            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, lhs_type.bit_size())?;
+        let predicate = predicate.map(|acir_var| {
+            let predicate_data = &self.data[&acir_var];
+            predicate_data.to_expression().into_owned()
+        });
+
+        let is_greater_than_eq = self.acir_ir.more_than_eq_comparison(
+            &lhs_expr,
+            &rhs_expr,
+            lhs_type.bit_size(),
+            predicate,
+        )?;
 
         Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
     }
@@ -510,10 +524,11 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
+        predicate: Option<AcirVar>,
     ) -> Result<AcirVar, AcirGenError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, predicate)?;
 
         let one = self.add_constant(FieldElement::one());
         let comparison_negated = self.sub_var(one, comparison);

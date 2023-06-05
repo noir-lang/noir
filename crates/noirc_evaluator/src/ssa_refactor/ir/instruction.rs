@@ -105,6 +105,15 @@ pub(crate) enum Instruction {
 
     /// Writes a value to memory.
     Store { address: ValueId, value: ValueId },
+
+    /// Provides a context for all instructions that follow up until the next
+    /// `EnableSideEffects` is encountered, for stating a condition that determines whether
+    /// such instructions are allowed to have side-effects.
+    ///
+    /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
+    /// instruction regions with an condition that corresponds to their position in the CFG's
+    /// if-branching structure.
+    EnableSideEffects { condition: ValueId },
 }
 
 impl Instruction {
@@ -122,7 +131,9 @@ impl Instruction {
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
-            Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
+            Instruction::Constrain(_)
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
@@ -159,6 +170,9 @@ impl Instruction {
             Instruction::Load { address } => Instruction::Load { address: f(*address) },
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
+            }
+            Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffects { condition: f(*condition) }
             }
         }
     }
@@ -207,6 +221,7 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::EnableSideEffects { .. } => None,
         }
     }
 }
