@@ -497,9 +497,8 @@ library Decoder {
         remainingLogsLength := sub(remainingLogsLength, add(iterationLogsLength, 0x4))
       }
 
-      // Compute current iteration's logs hash and truncate the hash to field
-      // See: https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426/2
-      logsHash = Hash.sha256ToField(temp);
+      // Compute current iteration's logs hash
+      logsHash = sha256(temp);
     }
 
     return (logsHash, offset);
