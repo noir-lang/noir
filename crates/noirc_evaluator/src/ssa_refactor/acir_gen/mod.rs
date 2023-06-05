@@ -495,3 +495,49 @@ impl Context {
         self.ssa_value_to_array_address.insert(value_id, (*array_id, new_offset));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use acvm::{
+        acir::{
+            circuit::Opcode,
+            native_types::{Expression, Witness},
+        },
+        FieldElement,
+    };
+
+    use crate::{
+        brillig::Brillig,
+        ssa_refactor::{
+            ir::{function::RuntimeType, map::Id},
+            ssa_builder::FunctionBuilder,
+        },
+    };
+
+    use super::Context;
+
+    #[test]
+    fn returns_body_scoped_arrays() {
+        // fn main {
+        //   b0():
+        //     v0 = alloc 1
+        //     store v0, Field 1
+        //     return v0
+        // }
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let v0 = builder.insert_allocate(1);
+        let const_one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, const_one);
+        builder.terminate_with_return(vec![v0]);
+        let ssa = builder.finish();
+
+        let context = Context::default();
+        let acir = context.convert_ssa(ssa, &[], Brillig::default(), false);
+
+        let expected_opcodes =
+            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
+        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
+    }
+}

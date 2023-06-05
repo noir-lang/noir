@@ -318,6 +318,37 @@ mod tests {
         assert_eq!(func.dfg[*ret_val_id], func.dfg[const_one]);
     }
 
+    #[test]
+    fn test_simple_with_return() {
+        // fn func {
+        //   b0():
+        //     v0 = alloc 1
+        //     store v0, Field 1
+        //     return v0
+        // }
+
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let v0 = builder.insert_allocate(2);
+        let const_one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, const_one);
+        builder.terminate_with_return(vec![v0]);
+
+        let ssa = builder.finish().mem2reg();
+
+        let func = ssa.main();
+        let block_id = func.entry_block();
+
+        // Store affects outcome of returned array, and can't be removed
+        assert_eq!(count_stores(block_id, &func.dfg), 1);
+
+        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
+            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            _ => unreachable!(),
+        };
+        assert_eq!(func.dfg[*ret_val_id], func.dfg[v0]);
+    }
+
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
         dfg[block]
             .instructions()
