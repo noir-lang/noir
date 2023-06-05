@@ -52,10 +52,10 @@ impl GeneratedAcir {
         Witness(self.current_witness_index)
     }
 
-    /// Converts an expression into a Witness.
+    /// Converts an [`Expression`] into a [`Witness`].
     ///
     /// This is done by creating a new Witness and creating an opcode which
-    /// sets the Witness to be equal to the expression.
+    /// sets the Witness to be equal to the Expression.
     ///
     /// The reason we do this is because _constraints_ in ACIR have a degree limit
     /// This means you cannot multiply an infinite amount of Expressions together.
