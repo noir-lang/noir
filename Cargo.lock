@@ -1880,6 +1880,7 @@ dependencies = [
  "acvm",
  "build-data",
  "console_error_panic_hook",
+ "getrandom",
  "gloo-utils",
  "log",
  "noirc_driver",
