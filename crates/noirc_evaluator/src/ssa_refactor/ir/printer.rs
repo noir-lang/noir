@@ -67,7 +67,7 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        _ => id.to_string(),
+        _ => function.dfg.resolve_replaced_value_id(id).to_string(),
     }
 }
 

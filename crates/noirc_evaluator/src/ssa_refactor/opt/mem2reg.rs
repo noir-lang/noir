@@ -102,8 +102,7 @@ impl PerBlockContext {
                 Instruction::Load { address } => {
                     if let Some(address) = self.try_const_address(*address, dfg) {
                         if let Some(last_value) = self.last_stores.get(&address) {
-                            let last_value = dfg[*last_value];
-                            loads_to_substitute.push((*instruction_id, last_value));
+                            loads_to_substitute.push((*instruction_id, *last_value));
                         } else {
                             self.failed_substitutes.insert(address);
                         }
@@ -128,7 +127,7 @@ impl PerBlockContext {
                 .instruction_results(*instruction_id)
                 .first()
                 .expect("ICE: Load instructions should have single result");
-            dfg.set_value(result_value, *new_value);
+            dfg.set_value_from_id(result_value, *new_value);
         }
 
         // Delete load instructions
