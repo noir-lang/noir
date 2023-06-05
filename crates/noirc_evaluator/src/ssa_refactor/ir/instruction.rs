@@ -108,6 +108,11 @@ pub(crate) enum Instruction {
 }
 
 impl Instruction {
+    /// Returns a binary instruction with the given operator, lhs, and rhs
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+        Instruction::Binary(Binary { lhs, operator, rhs })
+    }
+
     /// Returns the type that this instruction will return.
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
@@ -176,7 +181,7 @@ impl Instruction {
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
-                        let value = dfg[*constant].value().is_zero() as u128;
+                        let value = constant.is_zero() as u128;
                         SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
                     }
                     Value::Instruction { instruction, .. } => {
@@ -350,6 +355,10 @@ impl Binary {
                 }
                 if rhs_is_one {
                     return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+                if lhs_is_zero || rhs_is_zero {
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::Div => {

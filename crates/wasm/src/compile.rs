@@ -79,7 +79,7 @@ pub fn compile(args: JsValue) -> JsValue {
     let mut driver = noirc_driver::Driver::new(
         &language,
         #[allow(deprecated)]
-        Box::new(acvm::default_is_opcode_supported(language.clone())),
+        Box::new(acvm::pwg::default_is_opcode_supported(language.clone())),
     );
 
     let path = PathBuf::from(&options.entry_point);
