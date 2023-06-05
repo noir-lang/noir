@@ -71,7 +71,7 @@ impl GeneratedAcir {
 
             // Create a constraint that sets them to be equal to each other
             // Then return the witness as this can now be used in places
-            // where we would have used the Witness.
+            // where we would have used the `Expression`.
             let constraint = expression - fresh_witness;
             // This assertion means that verification of this
             // program will fail if expression != witness.
