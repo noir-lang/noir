@@ -39,6 +39,10 @@ pub(crate) struct ProveCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
+    /// The name of the toml file which contains the inputs for the verifier
+    #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
+    verifier_name: String,
+
     /// Verify proof after proving
     #[arg(short, long)]
     verify: bool,
@@ -62,6 +66,7 @@ pub(crate) fn run<B: Backend>(
         backend,
         args.proof_name,
         args.prover_name,
+        args.verifier_name,
         config.program_dir,
         proof_dir,
         circuit_build_path,
@@ -77,6 +82,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     backend: &B,
     proof_name: Option<String>,
     prover_name: String,
+    verifier_name: String,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
@@ -126,7 +132,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         &public_inputs,
         &return_value,
         &program_dir,
-        VERIFIER_INPUT_FILE,
+        verifier_name.as_str(),
         Format::Toml,
     )?;
 
