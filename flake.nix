@@ -281,7 +281,7 @@
 
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
-        PKG_PATH = "crates/wasm/pkg";
+        PKG_PATH = "./pkg";
 
         src = ./.;
 
@@ -291,39 +291,45 @@
           jq
           rustToolchain
           wasm-bindgen-cli
+          binaryen
+          toml2json
         ];
 
-        cargoExtraArgs = "--package noir_wasm --target wasm32-unknown-unknown";
+        cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
 
         postBuild = ''
-          bash ./postBuild.sh
-          # wasm-bindgen ./target/x86_64-unknown-linux-gnu/release/noir.wasm --out-dir ./pkg/nodejs --typescript --target nodejs
-          # wasm-bindgen ./target/x86_64-unknown-linux-gnu/release/noir.wasm --out-dir ./pkg/web --typescript --target web
-          # wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
-          # wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
-
-          # if [ -n ${COMMIT_SHORT} ]; then
-          #     VERSION_APPENDIX="-${COMMIT_SHORT}"
-          # else
-          #     VERSION_APPENDIX="-NOGIT"
-          # fi
-
-          # # NOTE: This is not working
-          # echo "VERSION_APPENDIX = ${VERSION_APPENDIX}"
-
-          # jq -s '.[0] * .[1]' ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"${VERSION_APPENDIX}\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types | .peerDependencies = { "@noir-lang/noir-source-resolver": "1.1.2" }' | tee ${PKG_PATH}/package.json
-
-          # rm ${PKG_PATH}/nodejs/package.json ${PKG_PATH}/nodejs/.gitignore
-          # rm ${PKG_PATH}/web/package.json ${PKG_PATH}/web/.gitignore
-          # cat ${PKG_PATH}/package.json
+          # Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
+          if [ -d ./pkg/ ]; then
+              rm -rf ./pkg/
+          fi
+          wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/nodejs --typescript --target nodejs
+          wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/web --typescript --target web
+          wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
+          wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
         '';
 
         installPhase = ''
-          # REPLACE WITH:
-          # bash ./installPhase.sh
+          # Extract version from Cargo.toml using toml2json
+          PACKAGE_VERSION=$(toml2json < Cargo.toml | jq -r .package.version)
+          if [ -z "$PACKAGE_VERSION" ]; then
+              echo "Could not extract version from Cargo.toml"
+              exit 1
+          fi
+          PACKAGE_VERSION+=$VERSION_APPENDIX
 
           mkdir -p $out
-          cp -r ${PKG_PATH}/* $out
+          cp README.md $out/
+          cp -r ./pkg/* $out/
+          jq -n --arg ver "$PACKAGE_VERSION" \
+              '{
+                "version": $ver, 
+                "repository": {"type": "git","url": "https://github.com/noir-lang/acvm-simulator-wasm.git"},
+                "sideEffects": false, 
+                "files": ["nodejs","web","package.json"], 
+                "main": "./nodejs/noir_wasm.js", 
+                "types": "./web/noir_wasm.d.ts",
+                "module": "./web/noir_wasm.js"
+              }' > $out/package.json
         '';
       };
     });
