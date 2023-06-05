@@ -29,5 +29,5 @@ bb_js = [
     "dep:base64",
     "dep:flate2",
     "dep:serde-big-array",
-    "acvm-backend-barretenberg/wasm"
+    "acvm-backend-barretenberg/native"
 ]
