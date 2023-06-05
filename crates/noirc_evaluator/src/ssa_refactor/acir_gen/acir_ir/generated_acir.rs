@@ -64,7 +64,7 @@ impl GeneratedAcir {
     fn expression_to_witness(&mut self, expression: &Expression) -> Witness {
         if let Some(witness) = expression.to_witness() {
             // If `expression` consists of a single witness then we can perform a simple coercion.
-            return witness;
+            witness
         } else {
             // Otherwise we must create a new witness and constrain it to be equal to `expression`.
             let fresh_witness = self.next_witness_index();
