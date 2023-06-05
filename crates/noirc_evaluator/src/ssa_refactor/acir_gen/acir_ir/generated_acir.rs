@@ -316,12 +316,12 @@ impl GeneratedAcir {
         let y = self.next_witness_index();
 
         // Add constraint y == 1 - tz => y + tz - 1 == 0
-        let y_booleanity_constraint = Expression {
+        let y_is_boolean_constraint = Expression {
             mul_terms: vec![(FieldElement::one(), t_witness, z)],
             linear_combinations: vec![(FieldElement::one(), y)],
             q_c: -FieldElement::one(),
         };
-        self.assert_is_zero(y_booleanity_constraint);
+        self.assert_is_zero(y_is_boolean_constraint);
 
         // Add constraint that y * t == 0;
         let ty_zero_constraint = Expression {
