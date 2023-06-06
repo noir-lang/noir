@@ -9,6 +9,8 @@ compile_error!(
     "feature \"plonk_bn254\"  and feature \"plonk_bn254_wasm\" cannot be enabled at the same time"
 );
 
+// TODO(#1569): The bb.js impls in this file currently fulfill the interface to enable compiling nargo, but
+// removing all `todo!()` statements inside this file requires full communication between nargo and bb.js
 #[cfg(feature = "bb_js")]
 use acvm::{
     acir::circuit::opcodes::BlackBoxFuncCall, Backend, CommonReferenceString,
@@ -134,7 +136,7 @@ impl ProofSystemCompiler for ConcreteBackend {
     fn supports_opcode(&self, opcode: &acvm::acir::circuit::Opcode) -> bool {
         match opcode {
             acvm::acir::circuit::Opcode::BlackBoxFuncCall(black_box_func_call) => {
-                // TODO: bb.js does not currently support ACVM simulation with a backend
+                // TODO(#1569): bb.js does not currently support ACVM simulation with a backend
                 // ACVM simulation with bb.js is necessary to support these opcodes
                 match black_box_func_call {
                     BlackBoxFuncCall::SchnorrVerify { .. }

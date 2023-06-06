@@ -9,7 +9,7 @@ pub fn verify_proof<B: ProofSystemCompiler>(
     public_inputs: WitnessMap,
     verification_key: &[u8],
 ) -> Result<bool, B::Error> {
-    // TODO: update from not just accepting `false` once we get nargo to interop with dynamic backend
+    // TODO(#1569): update from not just accepting `false` once we get nargo to interop with dynamic backend
     backend.verify_with_vk(
         common_reference_string,
         proof,
