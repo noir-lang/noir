@@ -304,8 +304,8 @@
           fi
           wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/nodejs --typescript --target nodejs
           wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/web --typescript --target web
-          wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
-          wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
+          # wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
+          # wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
         '';
 
         installPhase = ''
