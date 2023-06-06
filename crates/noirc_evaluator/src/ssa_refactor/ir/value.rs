@@ -57,7 +57,7 @@ impl Value {
             Value::Instruction { typ, .. } => *typ,
             Value::Param { typ, .. } => *typ,
             Value::NumericConstant { typ, .. } => *typ,
-            Value::Array(_) => Type::Reference,
+            Value::Array(_) => Type::Array,
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
         }
