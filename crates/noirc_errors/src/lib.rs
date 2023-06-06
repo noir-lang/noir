@@ -9,16 +9,26 @@ pub use position::{Location, Position, Span, Spanned};
 pub use reporter::{CustomDiagnostic, DiagnosticKind};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Indicates that the error has already been reported.
     Reported,
     /// Represents a custom diagnostic error.
-    Diagnostic(CustomDiagnostic),
+    Diagnostic(&'static str),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Reported => Ok(()),
+            Error::Diagnostic(diagnostic) => f.write_str(diagnostic),
+        }
+    }
 }
 
 impl Error {
-    pub fn message(msg: &str) -> Error {
-        Error::Diagnostic(CustomDiagnostic::from_message(msg))
+    pub fn message(message: &'static str) -> Error {
+        Error::Diagnostic(message)
     }
 }
 

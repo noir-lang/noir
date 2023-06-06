@@ -45,7 +45,7 @@ pub(crate) enum CliError<B: Backend> {
 
     /// Error while compiling Noir into ACIR.
     #[error("Failed to compile circuit")]
-    CompilationError,
+    CompilationError(#[from] noirc_errors::Error),
 
     /// ABI encoding/decoding error
     #[error(transparent)]

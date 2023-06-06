@@ -51,7 +51,7 @@ pub(crate) fn run<B: Backend>(
         let mut driver = setup_driver(backend, &config.program_dir)?;
         let compiled_contracts = driver
             .compile_contracts(&args.compile_options)
-            .map_err(|_| CliError::CompilationError)?;
+            .map_err(|err| CliError::CompilationError(err.into()))?;
 
         // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
         // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
@@ -118,5 +118,5 @@ pub(crate) fn compile_circuit<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
-    driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
+    driver.compile_main(compile_options).map_err(CliError::CompilationError)
 }

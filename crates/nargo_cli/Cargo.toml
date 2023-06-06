@@ -24,6 +24,7 @@ dirs.workspace = true
 url.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
+noirc_errors.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_abi.workspace = true

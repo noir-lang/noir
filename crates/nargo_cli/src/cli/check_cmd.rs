@@ -34,7 +34,7 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
 ) -> Result<(), CliError<B>> {
     let mut driver = setup_driver(backend, program_dir.as_ref())?;
 
-    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
+    driver.check_crate(compile_options).map_err(|err| CliError::CompilationError(err.into()))?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = driver.compute_function_signature() {

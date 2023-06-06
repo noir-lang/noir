@@ -1879,6 +1879,7 @@ dependencies = [
  "nargo",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "noirc_frontend",
  "predicates 2.1.5",
  "rustc_version",
@@ -1946,6 +1947,7 @@ dependencies = [
  "codespan-reporting",
  "fm",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

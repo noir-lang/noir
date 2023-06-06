@@ -9,7 +9,7 @@ use clap::Args;
 use fm::FileType;
 use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
-use noirc_errors::{reporter, Error, ReportedError};
+use noirc_errors::{reporter, Error, FileDiagnostic, ReportedError};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -89,8 +89,7 @@ impl Driver {
     pub fn file_compiles(&mut self) -> bool {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        reporter::report_all(&self.context.file_manager, &errs, false);
-        errs.is_empty()
+        self.report_errors(&errs)
     }
 
     /// Adds the File with the local crate root to the file system
@@ -335,6 +334,11 @@ impl Driver {
 
     pub fn function_name(&self, id: FuncId) -> &str {
         self.context.def_interner.function_name(&id)
+    }
+
+    pub fn report_errors(&self, errs: &[FileDiagnostic]) -> bool {
+        reporter::report_all(&self.context.file_manager, errs, false);
+        errs.is_empty()
     }
 }
 

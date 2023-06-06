@@ -12,3 +12,4 @@ codespan.workspace = true
 fm.workspace = true
 chumsky.workspace = true
 serde.workspace = true
+thiserror.workspace = true
