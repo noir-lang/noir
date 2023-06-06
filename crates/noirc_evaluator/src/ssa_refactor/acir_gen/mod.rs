@@ -359,7 +359,8 @@ impl Context {
 
         let binary_type = self.type_of_binary_operation(binary, dfg);
         match binary_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            Type::Numeric(NumericType::Unsigned { bit_size })
+            | Type::Numeric(NumericType::Signed { bit_size }) => {
                 // Conservative max bit size that is small enough such that two operands can be
                 // multiplied and still fit within the field modulus. This is necessary for the
                 // truncation technique: result % 2^bit_size to be valid.
@@ -370,9 +371,6 @@ impl Context {
                         max_num_bits: max_integer_bit_size,
                     });
                 }
-            }
-            Type::Numeric(NumericType::Signed { .. }) => {
-                todo!()
             }
             _ => {}
         }
