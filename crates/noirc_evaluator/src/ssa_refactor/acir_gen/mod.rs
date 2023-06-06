@@ -22,6 +22,7 @@ use super::{
     ssa_gen::Ssa,
 };
 use crate::brillig::{artifact::BrilligArtifact, Brillig};
+use iter_extended::vecmap;
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -90,11 +91,6 @@ impl Context {
         brillig: Brillig,
         allow_log_ops: bool,
     ) -> GeneratedAcir {
-        assert_eq!(
-            ssa.functions.len(),
-            1,
-            "expected only a single function to be present with all other functions being inlined."
-        );
         let main_func = ssa.main();
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
@@ -214,10 +210,11 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
+                                let inputs = vecmap(arguments, |&a| {self.convert_ssa_value(a, dfg)});
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
-                                self.acir_context.brillig(code);
-                                (result_ids.to_vec(), Vec::new())
+                                let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
+                                (result_ids.to_vec(), outputs)
                             }
                         }
                     }

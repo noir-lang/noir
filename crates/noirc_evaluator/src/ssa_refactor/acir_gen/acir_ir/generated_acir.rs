@@ -2,7 +2,9 @@
 //! program as it is being converted from SSA form.
 use super::errors::AcirGenError;
 use acvm::acir::{
+    brillig_vm::Opcode as BrilligOpcode,
     circuit::{
+        brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         directives::{LogInfo, QuotientDirective},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
@@ -463,6 +465,22 @@ impl GeneratedAcir {
         self.range_constraint(q_witness, 1)?;
 
         Ok(q_witness)
+    }
+
+    pub(crate) fn brillig(
+        &mut self,
+        code: Vec<BrilligOpcode>,
+        inputs: Vec<BrilligInputs>,
+        outputs: Vec<BrilligOutputs>,
+    ) {
+        let opcode = AcirOpcode::Brillig(AcvmBrillig {
+            inputs,
+            outputs,
+            foreign_call_results: Vec::new(),
+            bytecode: code,
+            predicate: None,
+        });
+        self.push_opcode(opcode);
     }
 }
 
