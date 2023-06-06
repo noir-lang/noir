@@ -25,6 +25,8 @@ impl Ssa {
     }
 }
 
+/// The structure of this pass is simple:
+/// Go through each block and re-insert all instructions.
 fn constant_fold(function: &mut Function) {
     let mut context = Context::default();
     context.block_queue.push(function.entry_block());
@@ -40,11 +42,8 @@ fn constant_fold(function: &mut Function) {
 
 #[derive(Default)]
 struct Context {
-    /// Maps pre-unrolled ValueIds to unrolled ValueIds.
-    /// These will often be the exact same as before, unless the ValueId was
-    /// dependent on the loop induction variable which is changing on each iteration.
+    /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values: HashMap<ValueId, ValueId>,
-
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
 }
