@@ -22,6 +22,7 @@ use super::{
     ssa_gen::Ssa,
 };
 use crate::brillig::{artifact::BrilligArtifact, Brillig};
+use acvm::FieldElement;
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -362,7 +363,7 @@ impl Context {
                 // Conservative max bit size that is small enough such that two operands can be
                 // multiplied and still fit within the field modulus. This is necessary for the
                 // truncation technique: result % 2^bit_size to be valid.
-                let max_integer_bit_size = 127;
+                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
                 if bit_size > max_integer_bit_size {
                     return Err(AcirGenError::UnsupportedIntegerSize {
                         num_bits: bit_size,
