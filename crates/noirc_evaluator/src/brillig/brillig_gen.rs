@@ -34,16 +34,16 @@ impl BrilligGen {
     /// or creates a new `RegisterIndex` using the latest available
     /// free register.
     fn get_or_create_register(&mut self, value: ValueId) -> RegisterIndex {
-        match self.ssa_value_to_register.get(&value) {
-            Some(register) => *register,
-            None => {
-                let register = self.latest_register;
-                self.latest_register += 1;
-                let register = RegisterIndex::from(register);
-                self.ssa_value_to_register.insert(value, register);
-                register
-            }
+        if let Some(register_index) = self.ssa_value_to_register.get(&value) {
+            return *register_index;
         }
+
+        let register = RegisterIndex::from(self.latest_register);
+        self.ssa_value_to_register.insert(value, register);
+
+        self.latest_register += 1;
+
+        register
     }
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
@@ -173,7 +173,7 @@ impl BrilligGen {
                         BinaryOp::Xor => BinaryIntOp::Xor,
                         BinaryOp::Or => BinaryIntOp::Or,
                         BinaryOp::And => BinaryIntOp::And,
-                        _ => todo!(),
+                        BinaryOp::Mod => todo!("modulo operation does not have a 1-1 binary operation and so we delay this implementation"),
                     };
                     BrilligOpcode::BinaryIntOp {
                         op,
