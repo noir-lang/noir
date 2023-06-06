@@ -30,11 +30,13 @@ impl NargoLspService {
         let mut router = Router::new(state);
         router
             .request::<request::Initialize, _>(on_initialize)
+            .request::<request::Shutdown, _>(on_shutdown)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
             .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
-            .notification::<notification::DidCloseTextDocument>(on_did_close_text_document);
+            .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
+            .notification::<notification::Exit>(on_exit);
         Self { router }
     }
 }
@@ -98,6 +100,13 @@ fn on_initialize(
     }
 }
 
+fn on_shutdown(
+    _state: &mut LspState,
+    _params: (),
+) -> impl Future<Output = Result<(), ResponseError>> {
+    async { Ok(()) }
+}
+
 fn on_initialized(
     _state: &mut LspState,
     _params: InitializedParams,
@@ -130,6 +139,10 @@ fn on_did_close_text_document(
     _state: &mut LspState,
     _params: DidCloseTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    ControlFlow::Continue(())
+}
+
+fn on_exit(_state: &mut LspState, _params: ()) -> ControlFlow<Result<(), async_lsp::Error>> {
     ControlFlow::Continue(())
 }
 
