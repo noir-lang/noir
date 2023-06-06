@@ -108,9 +108,10 @@ impl Opcode {
                     }
                     BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
-                    // TODO: enable usage of variable number of outputs
-                    // there should not be a hardcoded `16` here
-                    BlackBoxFunc::RecursiveAggregation => (16, ObjectType::native_field()),
+                    BlackBoxFunc::RecursiveAggregation => {
+                        let a = super::mem::Memory::deref(ctx, args[4]).unwrap();
+                        (ctx.mem[a].len, ctx.mem[a].element_type)
+                    }
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unreachable!("ICE: these opcodes do not have Noir builtin functions")
                     }

@@ -334,7 +334,9 @@ impl IrGenerator {
         args: Vec<NodeId>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
         let (len, elem_type) = op.get_result_type(&args, &self.context);
-
+        dbg!(op.clone());
+        dbg!(len);
+        dbg!(elem_type.clone());
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
             let result_index = self.new_array(&format!("{op}_result"), elem_type, len, None).1;
