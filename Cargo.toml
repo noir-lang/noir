@@ -24,7 +24,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.13.0"
+acvm = "=0.13.3"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -40,7 +40,7 @@ base64 = "0.13"
 flate2 = "1.0"
 
 cfg-if = "1.0.0"
-clap = { version = "4.1.4", features = ["derive"]}
+clap = { version = "4.1.4", features = ["derive"] }
 codespan = "0.9.5"
 codespan-reporting = "0.9.5"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }

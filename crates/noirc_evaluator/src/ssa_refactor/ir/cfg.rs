@@ -39,9 +39,10 @@ impl ControlFlowGraph {
         cfg
     }
 
-    /// Compute all of the edges between each block in the function
+    /// Compute all of the edges between each reachable block in the function
     fn compute(&mut self, func: &Function) {
-        for (basic_block_id, basic_block) in func.dfg.basic_blocks_iter() {
+        for basic_block_id in func.reachable_blocks() {
+            let basic_block = &func.dfg[basic_block_id];
             self.compute_block(basic_block_id, basic_block);
         }
     }
@@ -127,9 +128,7 @@ impl ControlFlowGraph {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa_refactor::ir::{
-        function::RuntimeType, instruction::TerminatorInstruction, map::Id, types::Type,
-    };
+    use crate::ssa_refactor::ir::{instruction::TerminatorInstruction, map::Id, types::Type};
 
     use super::{super::function::Function, ControlFlowGraph};
 
