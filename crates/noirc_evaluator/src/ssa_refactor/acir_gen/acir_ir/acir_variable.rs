@@ -414,6 +414,48 @@ impl AcirContext {
         self.mul_var(lhs, two_pow_rhs_var)
     }
 
+    /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
+    fn euclidean_division_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<(AcirVar, AcirVar), AcirGenError> {
+        let predicate = Expression::one();
+
+        let lhs_data = &self.data[&lhs];
+        let rhs_data = &self.data[&rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let lhs_bit_size = self.variables_to_types.get(&lhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend").bit_size();
+        let rhs_bit_size = self.variables_to_types.get(&rhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend").bit_size();
+
+        assert_eq!(
+            lhs_bit_size, rhs_bit_size,
+            // This makes the assumption that the bit size is the last known integer
+            // type for this variable and that we are not getting the smallest range for example.
+            "Euclidean division can only be applied to variables of the same type"
+        );
+
+        let (quotient, remainder) =
+            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, lhs_bit_size, &predicate)?;
+
+        let quotient_var = self.add_data(AcirVarData::Witness(quotient));
+        let remainder_var = self.add_data(AcirVarData::Witness(remainder));
+
+        Ok((quotient_var, remainder_var))
+    }
+
+    /// Returns a variable which is constrained to be `lhs mod rhs`
+    pub(crate) fn modulo_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, AcirGenError> {
+        let (_, remainder) = self.euclidean_division_var(lhs, rhs)?;
+        Ok(remainder)
+    }
     /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
     ///
     /// We convert right shifts to divisions, so this is equivalent to

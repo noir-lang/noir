@@ -389,7 +389,7 @@ impl Context {
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type.into()),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs),
-            _ => todo!(),
+            BinaryOp::Mod => self.acir_context.modulo_var(lhs, rhs),
         }
     }
 
