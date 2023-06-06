@@ -49,12 +49,7 @@
   };
 
   outputs =
-    { self, nixpkgs, crane, flake-utils, rust-overlay, barretenberg, ... }: let
-      wasm-bindgen-cli-src = builtins.fetchGit {
-        url = "https://github.com/rustwasm/wasm-bindgen.git";
-        rev = "2d882c97b005c7b512b364ccd0fed8280bf8f821";
-      };
-    in
+    { self, nixpkgs, crane, flake-utils, rust-overlay, barretenberg, ... }:
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs {
@@ -108,9 +103,8 @@
       # filter to include those files in addition to usual rust/cargo source files
       noirFilter = path: _type: builtins.match ".*nr$" path != null;
       tomlFilter = path: _type: builtins.match ".*toml$" path != null;
-      shFilter = path: _type: builtins.match ".*sh$" path != null;
       sourceFilter = path: type:
-        (noirFilter path type) || (tomlFilter path type) || (shFilter path type) || (craneLib.filterCargoSources path type);
+        (noirFilter path type) || (tomlFilter path type) || (craneLib.filterCargoSources path type);
 
       # As per https://discourse.nixos.org/t/gcc11stdenv-and-clang/17734/7 since it seems that aarch64-linux uses
       # gcc9 instead of gcc11 for the C++ stdlib, while all other targets we support provide the correct libstdc++
@@ -219,6 +213,37 @@
         # We don't want to run checks or tests when just building the project
         doCheck = false;
       });
+
+      rustPlatform = pkgs.makeRustPlatform {
+        rustc = rustToolchain;
+        cargo = rustToolchain;
+      };
+
+      wasm-bindgen-cli = rustPlatform.buildRustPackage rec {
+        pname = "wasm-bindgen-cli";
+        version = "0.2.86";
+
+        src = pkgs.fetchCrate {
+          inherit pname version;
+          sha256 = "sha256-56EOiLbdgAcoTrkyvB3t9TjtLaRvGxFUXx4haLwE2QY=";
+        };
+
+        cargoSha256 = "sha256-4CPBmz92PuPN6KeGDTdYPAf5+vTFk9EN5Cmx4QJy6yI=";
+
+        nativeBuildInputs = [ pkgs.pkg-config ];
+
+        buildInputs = [ pkgs.openssl ] ++ pkgs.lib.optionals stdenv.isDarwin [ pkgs.curl pkgs.darwin.apple_sdk.frameworks.Security ];
+
+        doCheck = false;
+
+        meta = with pkgs.lib; {
+          homepage = "https://rustwasm.github.io/docs/wasm-bindgen/";
+          license = with licenses; [ asl20 /* or */ mit ];
+          description = "Facilitating high-level interactions between wasm modules and JavaScript";
+          maintainers = with maintainers; [ nitsky rizary ];
+          mainProgram = "wasm-bindgen";
+        };
+      };
     in
     rec {
       checks = {
@@ -304,8 +329,8 @@
           fi
           wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/nodejs --typescript --target nodejs
           wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/web --typescript --target web
-          # wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
-          # wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
+          wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
+          wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
         '';
 
         installPhase = ''
