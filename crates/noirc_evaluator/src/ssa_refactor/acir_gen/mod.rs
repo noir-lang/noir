@@ -408,9 +408,15 @@ impl Context {
         match (lhs_type, rhs_type) {
             // Function type should not be possible, since all functions
             // have been inlined.
-            (_, Type::Function) | (Type::Function, _) => unreachable!("all functions should be inlined"),
-            (_, Type::Reference) | (Type::Reference, _) => unreachable!("References are invalid in binary operations"),
-            (_, Type::Array) | (Type::Array, _) => unreachable!("Arrays are invalid in binary operations"),
+            (_, Type::Function) | (Type::Function, _) => {
+                unreachable!("all functions should be inlined")
+            }
+            (_, Type::Reference) | (Type::Reference, _) => {
+                unreachable!("References are invalid in binary operations")
+            }
+            (_, Type::Array) | (Type::Array, _) => {
+                unreachable!("Arrays are invalid in binary operations")
+            }
             // Unit type currently can mean a 0 constant, so we return the
             // other type.
             (typ, Type::Unit) | (Type::Unit, typ) => typ,

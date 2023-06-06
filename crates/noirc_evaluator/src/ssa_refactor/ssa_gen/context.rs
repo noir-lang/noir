@@ -422,7 +422,7 @@ impl<'a> FunctionContext<'a> {
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
-                self.assign_new_value(*object_lvalue, new_object)
+                self.assign_new_value(*object_lvalue, new_object);
             }
         }
     }
