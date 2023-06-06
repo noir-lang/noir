@@ -231,6 +231,7 @@ export async function computeContractAddress(
  */
 export function computeVarArgsHash(wasm: CircuitsWasm, args: Fr[]): Promise<Fr> {
   if (args.length === 0) return Promise.resolve(Fr.ZERO);
+  if (args.length > 32 ** 2) throw new Error(`Cannot hash more than 1024 arguments`);
   wasm.call('pedersen__init');
 
   const wasmComputeVarArgs = (args: Fr[]) =>
