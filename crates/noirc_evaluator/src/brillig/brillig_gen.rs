@@ -5,9 +5,8 @@ use crate::ssa_refactor::ir::{
     dfg::DataFlowGraph,
     function::Function,
     instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-    map::Id,
     types::{NumericType, Type},
-    value::Value,
+    value::{Value, ValueId},
 };
 
 use super::artifact::BrilligArtifact;
@@ -19,17 +18,22 @@ use acvm::acir::brillig_vm::{
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
     obj: BrilligArtifact,
+    /// A usize indicating the latest un-used register.
     latest_register: usize,
-    ssa_value_to_register: HashMap<Id<Value>, RegisterIndex>,
+    /// Map from SSA values to Register Indices.
+    ssa_value_to_register: HashMap<ValueId, RegisterIndex>,
 }
 
 impl BrilligGen {
-    /// Adds a brillig instruction to the brillig code base
+    /// Adds a brillig instruction to the brillig byte code
     fn push_code(&mut self, code: BrilligOpcode) {
         self.obj.byte_code.push(code);
     }
 
-    fn get_or_create_register(&mut self, value: Id<Value>) -> RegisterIndex {
+    /// Gets a `RegisterIndex` for a `ValueId`, if one already exists
+    /// or creates a new `RegisterIndex` using the latest available
+    /// free register.
+    fn get_or_create_register(&mut self, value: ValueId) -> RegisterIndex {
         match self.ssa_value_to_register.get(&value) {
             Some(register) => *register,
             None => {
@@ -42,6 +46,7 @@ impl BrilligGen {
         }
     }
 
+    /// Converts an SSA Basic block into a sequence of Brillig opcodes
     fn convert_block(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
         self.convert_block_params(block, dfg);
 
@@ -52,6 +57,12 @@ impl BrilligGen {
         self.convert_ssa_return(block, dfg);
     }
 
+    /// Converts the SSA return instruction into the necessary BRillig return
+    /// opcode.
+    ///
+    /// For Brillig, the return is implicit; The caller will take `N` values from
+    /// the Register starting at register index 0. `N` indicates the number of
+    /// return values expected.
     fn convert_ssa_return(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
         let return_values = match block.terminator().unwrap() {
             TerminatorInstruction::Return { return_values } => return_values,
@@ -78,6 +89,7 @@ impl BrilligGen {
         }
     }
 
+    /// Converts SSA Block parameters into Brillig Registers.
     fn convert_block_params(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
         for param_id in block.parameters() {
             let value = &dfg[*param_id];
@@ -96,6 +108,7 @@ impl BrilligGen {
         }
     }
 
+    /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
 
@@ -109,6 +122,7 @@ impl BrilligGen {
         };
     }
 
+    /// Converts the Binary instruction into a sequence of Brillig opcodes.
     fn convert_ssa_binary(
         &mut self,
         binary: &Binary,
@@ -178,7 +192,8 @@ impl BrilligGen {
         self.push_code(opcode);
     }
 
-    fn convert_ssa_value(&mut self, value_id: Id<Value>, dfg: &DataFlowGraph) -> RegisterIndex {
+    /// Converts an SSA `ValueId` into a `RegisterIndex`.
+    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterIndex {
         let value = &dfg[value_id];
 
         let register = match value {
@@ -202,6 +217,8 @@ impl BrilligGen {
         register
     }
 
+    /// Compiles an SSA function into a Brillig artifact which
+    /// contains a sequence of SSA opcodes.
     pub(crate) fn compile(func: &Function) -> BrilligArtifact {
         let mut brillig = BrilligGen::default();
 
