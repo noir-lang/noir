@@ -214,14 +214,13 @@ impl BrilligBinaryOp {
     /// - Brillig Binary Integer Op, if it is a integer type
     /// - Brillig Binary Field Op, if it is a field type
     fn convert_ssa_binary_op_to_brillig_binary_op(ssa_op: BinaryOp, typ: Type) -> BrilligBinaryOp {
-        // First get the bit size, if it is a numeric type
+        // First get the bit size and whether its a signed integer, if it is a numeric type
         // if it is not,then we return None, indicating that
         // it is a Field.
-        let bit_size = match typ {
+        let bit_size_signedness = match typ {
             Type::Numeric(numeric_type) => match numeric_type {
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    Some(bit_size)
-                }
+                NumericType::Signed { bit_size } => Some((bit_size, true)),
+                NumericType::Unsigned { bit_size } => Some((bit_size, false)),
                 NumericType::NativeField => None,
             },
             _ => unreachable!("only numeric types are allowed in binary operations. References are handled separately"),
@@ -239,12 +238,18 @@ impl BrilligBinaryOp {
             ),
             }
         }
-        fn binary_op_to_int_op(op: BinaryOp) -> BinaryIntOp {
+        fn binary_op_to_int_op(op: BinaryOp, is_signed: bool) -> BinaryIntOp {
             match op {
                 BinaryOp::Add => BinaryIntOp::Add,
                 BinaryOp::Sub => BinaryIntOp::Sub,
                 BinaryOp::Mul => BinaryIntOp::Mul,
-                BinaryOp::Div => BinaryIntOp::UnsignedDiv,
+                BinaryOp::Div => {
+                    if is_signed {
+                        BinaryIntOp::SignedDiv
+                    } else {
+                        BinaryIntOp::UnsignedDiv
+                    }
+                },
                 BinaryOp::Mod => todo!("This is not supported by Brillig. It should either be added into Brillig or legalized by the SSA IR"),
                 BinaryOp::Eq => BinaryIntOp::Equals,
                 BinaryOp::Lt => BinaryIntOp::LessThan,
@@ -256,9 +261,9 @@ impl BrilligBinaryOp {
             }
         }
         // If bit size is available then it is a binary integer operation
-        match bit_size {
-            Some(bit_size) => {
-                let binary_int_op = binary_op_to_int_op(ssa_op);
+        match bit_size_signedness {
+            Some((bit_size, is_signed)) => {
+                let binary_int_op = binary_op_to_int_op(ssa_op, is_signed);
                 BrilligBinaryOp::Integer { op: binary_int_op, bit_size }
             }
             None => {
