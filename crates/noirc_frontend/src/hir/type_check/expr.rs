@@ -153,9 +153,12 @@ impl<'interner> TypeChecker<'interner> {
                 let start_span = self.interner.expr_span(&for_expr.start_range);
                 let end_span = self.interner.expr_span(&for_expr.end_range);
 
-                let mut unify_loop_range = |actual_type, span| {
+                let mut unify_loop_range = |actual_type: &Type, span: Span| {
                     let expected_type = if self.is_unconstrained() {
-                        Type::FieldElement(CompTime::new(self.interner))
+                        Type::PolymorphicInteger(
+                            CompTime::new(self.interner),
+                            Shared::new(TypeBinding::Bound(actual_type.clone())),
+                        )
                     } else {
                         Type::comp_time(Some(span))
                     };
