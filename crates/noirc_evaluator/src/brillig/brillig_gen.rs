@@ -138,58 +138,29 @@ impl BrilligGen {
         let left = self.convert_ssa_value(binary.lhs, dfg);
         let right = self.convert_ssa_value(binary.rhs, dfg);
 
-        let opcode = match left_type {
-            Type::Numeric(numeric_type) => match numeric_type {
-                NumericType::NativeField => {
-                    let op = match binary.operator {
-                        BinaryOp::Add => BinaryFieldOp::Add,
-                        BinaryOp::Sub => BinaryFieldOp::Sub,
-                        BinaryOp::Mul => BinaryFieldOp::Mul,
-                        BinaryOp::Div => BinaryFieldOp::Div,
-                        BinaryOp::Eq => BinaryFieldOp::Equals,
-                        _ => todo!("ICE: Binary operator not supported for field type"),
-                    };
-                    BrilligOpcode::BinaryFieldOp {
-                        op,
-                        destination: result_register,
-                        lhs: left,
-                        rhs: right,
-                    }
-                }
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    let op = match binary.operator {
-                        BinaryOp::Add => BinaryIntOp::Add,
-                        BinaryOp::Sub => BinaryIntOp::Sub,
-                        BinaryOp::Mul => BinaryIntOp::Mul,
-                        BinaryOp::Div => match numeric_type {
-                            NumericType::Signed { .. } => BinaryIntOp::SignedDiv,
-                            NumericType::Unsigned { .. } => BinaryIntOp::UnsignedDiv,
-                            _ => unreachable!("ICE: Binary type not supported"),
-                        },
-                        BinaryOp::Eq => BinaryIntOp::Equals,
-                        BinaryOp::Lt => BinaryIntOp::LessThan,
-                        BinaryOp::Shl => BinaryIntOp::Shl,
-                        BinaryOp::Shr => BinaryIntOp::Shr,
-                        BinaryOp::Xor => BinaryIntOp::Xor,
-                        BinaryOp::Or => BinaryIntOp::Or,
-                        BinaryOp::And => BinaryIntOp::And,
-                        BinaryOp::Mod => todo!("modulo operation does not have a 1-1 binary operation and so we delay this implementation"),
-                    };
-                    BrilligOpcode::BinaryIntOp {
-                        op,
-                        destination: result_register,
-                        bit_size,
-                        lhs: left,
-                        rhs: right,
-                    }
-                }
-            },
-            _ => {
-                todo!("ICE: Binary type not supported")
+        let brillig_binary_op =
+            BrilligBinaryOp::convert_ssa_binary_op_to_brillig_binary_op(binary.operator, left_type);
+        match brillig_binary_op {
+            BrilligBinaryOp::Field { op } => {
+                let opcode = BrilligOpcode::BinaryFieldOp {
+                    op,
+                    destination: result_register,
+                    lhs: left,
+                    rhs: right,
+                };
+                self.push_code(opcode);
             }
-        };
-
-        self.push_code(opcode);
+            BrilligBinaryOp::Integer { op, bit_size } => {
+                let opcode = BrilligOpcode::BinaryIntOp {
+                    op,
+                    destination: result_register,
+                    bit_size,
+                    lhs: left,
+                    rhs: right,
+                };
+                self.push_code(opcode);
+            }
+        }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
@@ -229,5 +200,76 @@ impl BrilligGen {
         brillig.push_code(BrilligOpcode::Stop);
 
         brillig.obj
+    }
+}
+
+/// Type to encapsulate the binary operation types in Brillig
+pub(crate) enum BrilligBinaryOp {
+    Field { op: BinaryFieldOp },
+    Integer { op: BinaryIntOp, bit_size: u32 },
+}
+
+impl BrilligBinaryOp {
+    /// Convert an SSA binary operation into:
+    /// - Brillig Binary Integer Op, if it is a integer type
+    /// - Brillig Binary Field Op, if it is a field type
+    fn convert_ssa_binary_op_to_brillig_binary_op(ssa_op: BinaryOp, typ: Type) -> BrilligBinaryOp {
+        // First get the bit size and whether its a signed integer, if it is a numeric type
+        // if it is not,then we return None, indicating that
+        // it is a Field.
+        let bit_size_signedness = match typ {
+            Type::Numeric(numeric_type) => match numeric_type {
+                NumericType::Signed { bit_size } => Some((bit_size, true)),
+                NumericType::Unsigned { bit_size } => Some((bit_size, false)),
+                NumericType::NativeField => None,
+            },
+            _ => unreachable!("only numeric types are allowed in binary operations. References are handled separately"),
+        };
+
+        fn binary_op_to_field_op(op: BinaryOp) -> BinaryFieldOp {
+            match op {
+                BinaryOp::Add => BinaryFieldOp::Add,
+                BinaryOp::Sub => BinaryFieldOp::Sub,
+                BinaryOp::Mul => BinaryFieldOp::Mul,
+                BinaryOp::Div => BinaryFieldOp::Div,
+                BinaryOp::Eq => BinaryFieldOp::Equals,
+                _ => unreachable!(
+                "Field type cannot be used with {op}. This should have been caught by the frontend"
+            ),
+            }
+        }
+        fn binary_op_to_int_op(op: BinaryOp, is_signed: bool) -> BinaryIntOp {
+            match op {
+                BinaryOp::Add => BinaryIntOp::Add,
+                BinaryOp::Sub => BinaryIntOp::Sub,
+                BinaryOp::Mul => BinaryIntOp::Mul,
+                BinaryOp::Div => {
+                    if is_signed {
+                        BinaryIntOp::SignedDiv
+                    } else {
+                        BinaryIntOp::UnsignedDiv
+                    }
+                },
+                BinaryOp::Mod => todo!("This is not supported by Brillig. It should either be added into Brillig or legalized by the SSA IR"),
+                BinaryOp::Eq => BinaryIntOp::Equals,
+                BinaryOp::Lt => BinaryIntOp::LessThan,
+                BinaryOp::And => BinaryIntOp::And,
+                BinaryOp::Or => BinaryIntOp::Or,
+                BinaryOp::Xor => BinaryIntOp::Xor,
+                BinaryOp::Shl => BinaryIntOp::Shl,
+                BinaryOp::Shr => BinaryIntOp::Shr,
+            }
+        }
+        // If bit size is available then it is a binary integer operation
+        match bit_size_signedness {
+            Some((bit_size, is_signed)) => {
+                let binary_int_op = binary_op_to_int_op(ssa_op, is_signed);
+                BrilligBinaryOp::Integer { op: binary_int_op, bit_size }
+            }
+            None => {
+                let binary_field_op = binary_op_to_field_op(ssa_op);
+                BrilligBinaryOp::Field { op: binary_field_op }
+            }
+        }
     }
 }
