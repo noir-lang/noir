@@ -172,8 +172,7 @@ impl DataFlowGraph {
         id
     }
 
-    /// Returns the field element represented by this value if it is a numeric constant.
-    /// Returns None if the given value is not a numeric constant.
+    /// Create a new constant array value from the given elements
     pub(crate) fn make_array(&mut self, elements: im::Vector<ValueId>) -> ValueId {
         self.make_value(Value::Array(elements))
     }
