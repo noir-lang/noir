@@ -6,9 +6,11 @@
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
+#include "barretenberg/common/throw_or_abort.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 #include <array>
+#include <vector>
 
 namespace aztec3::circuits {
 
@@ -18,6 +20,10 @@ using aztec3::circuits::abis::FunctionLeafPreimage;
 
 template <typename NCT> typename NCT::fr compute_var_args_hash(std::vector<typename NCT::fr> args)
 {
+    auto const MAX_ARGS = 32;
+    if (args.size() > MAX_ARGS) {
+        throw_or_abort("Too many arguments in call to compute_var_args_hash");
+    }
     return NCT::compress(args, FUNCTION_ARGS);
 }
 

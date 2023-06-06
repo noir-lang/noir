@@ -1260,9 +1260,6 @@ export async function abisComputeContractAddress(
     ]),
   );
 }
-export async function abisComputeVarArgsHash(wasm: CircuitsWasm, arg0: Fr[]): Promise<Fr> {
-  return Fr.fromBuffer(await callCbind(wasm, 'abis__compute_var_args_hash', [arg0.map((v: Fr) => v.toBuffer())]));
-}
 export async function privateKernelDummyPreviousKernel(wasm: CircuitsWasm): Promise<PreviousKernelData> {
   return toPreviousKernelData(await callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));
 }

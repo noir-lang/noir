@@ -286,7 +286,19 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
 
 CBIND(abis__compute_contract_address, compute_contract_address<NT>);
 
-CBIND(abis__compute_var_args_hash, aztec3::circuits::compute_var_args_hash<NT>);
+/**
+ * @brief Hash args for a function call.
+ *
+ * @param args_buf array of args (fields), with the length on the first position
+ * @param output buffer that will contain the output
+ */
+WASM_EXPORT void abis__compute_var_args_hash(uint8_t const* args_buf, uint8_t* output)
+{
+    std::vector<NT::fr> args;
+    read(args_buf, args);
+    NT::fr const args_hash = aztec3::circuits::compute_var_args_hash<NT>(args);
+    NT::fr::serialize_to_buffer(args_hash, output);
+}
 
 /**
  * @brief Generates a function tree leaf from its preimage.

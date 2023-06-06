@@ -51,7 +51,7 @@ describe('ACIR public execution simulator', () => {
         const contractAddress = AztecAddress.random();
         const mintAbi = PublicTokenContractAbi.functions.find(f => f.name === 'mint')!;
         const functionData = new FunctionData(Buffer.alloc(4), false, false);
-        const args = encodeArguments(mintAbi, [140, recipient], false);
+        const args = encodeArguments(mintAbi, [140, recipient]);
 
         const callContext = CallContext.from({
           msgSender: AztecAddress.random(),
@@ -98,7 +98,7 @@ describe('ACIR public execution simulator', () => {
         contractAddress = AztecAddress.random();
         abi = PublicTokenContractAbi.functions.find(f => f.name === 'transfer')!;
         functionData = new FunctionData(Buffer.alloc(4), false, false);
-        args = encodeArguments(abi, [140, recipient], false);
+        args = encodeArguments(abi, [140, recipient]);
         sender = AztecAddress.random();
 
         callContext = CallContext.from({
@@ -186,11 +186,11 @@ describe('ACIR public execution simulator', () => {
       const initialValue = 3n;
 
       const functionData = new FunctionData(parentEntryPointFnSelector, false, false);
-      const args = encodeArguments(
-        parentEntryPointFn,
-        [childContractAddress.toField().value, toBigInt(childValueFnSelector), initialValue],
-        false,
-      );
+      const args = encodeArguments(parentEntryPointFn, [
+        childContractAddress.toField().value,
+        toBigInt(childValueFnSelector),
+        initialValue,
+      ]);
 
       const callContext = CallContext.from({
         msgSender: AztecAddress.random(),

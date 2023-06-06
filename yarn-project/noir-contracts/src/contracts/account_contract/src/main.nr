@@ -39,7 +39,8 @@ contract Account {
                 for j in 0..abi::MAX_ARGS {
                     args[j] = payload.flattened_args[i * abi::MAX_ARGS + j];
                 }
-                let (_callStackItem, _context) = PrivateCallStackItem::call(target_address, function_selector, args, context);
+                let (_callStackItem, updated_context) = PrivateCallStackItem::call(target_address, function_selector, args, context);
+                context = updated_context;
             }
         }
 
@@ -51,25 +52,30 @@ contract Account {
                 for j in 0..abi::MAX_ARGS {
                     args[j] = payload.flattened_args[i * abi::MAX_ARGS + j];
                 }
-                let (_callStackItem, _context) = PublicCallStackItem::call(target_address, function_selector, args, context);
+                let (_callStackItem, updated_context) = PublicCallStackItem::call(target_address, function_selector, args, context);
+                context = updated_context;
             }
         }
 
-        // Create args_hash manually since we exceed the MAX_ARGS in PrivateFunctionContext.
-        // Alternatively, we could make PrivateFunctionContext generic on the args size.
-        // ENTRYPOINT_PAYLOAD_SIZE + size_of(signature) = 21 + 64 = 85
-        let mut args: BoundedVec<Field, 85> = BoundedVec::new(0);
-        args = args.push_array(payload.flattened_args);
-        args = args.push_array(payload.flattened_selectors);
-        args = args.push(payload.nonce);
-        for byte in signature {
-            args = args.push(byte as Field);
-        }
-        // TODO hash_index
-        let args_hash = dep::std::hash::pedersen(args.storage)[0];
+        // // Create args_hash manually since we exceed the MAX_ARGS in PrivateFunctionContext.
+        // // Alternatively, we could make PrivateFunctionContext generic on the args size.
+        // // ENTRYPOINT_PAYLOAD_SIZE + size_of(signature) = 21 + 64 = 85
+        // let mut args: BoundedVec<Field, 85> = BoundedVec::new(0);
+        // args = args.push_array(payload.flattened_args);
+        // args = args.push_array(payload.flattened_selectors);
+        // args = args.push(payload.nonce);
+        // for byte in signature {
+        //     args = args.push(byte as Field);
+        // }
+        // TODO(#499): Use hash index
+        // let args_hash = dep::std::hash::pedersen(args.storage)[0];
+        
+        // TODO(#754): Pedersen is throwing a panic in wasm when computing the hash for too many args.
+        let args_hash = 0;
 
         // Finish returns the already serialized payload, so we just tweak the corresponding field
         // Horrible, yes. But we need to rethink the private function context api anyway.
+        // TODO(#745): Do not store args, set hash directly in context API
         let mut ret = context.finish(inputs);
         ret[dep::aztec3::abi::CALL_CONTEXT_SIZE] = args_hash;
         ret

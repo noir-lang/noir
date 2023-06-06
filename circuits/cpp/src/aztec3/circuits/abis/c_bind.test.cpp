@@ -11,6 +11,8 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 namespace {
 
 using NT = aztec3::utils::types::NativeTypes;
@@ -264,6 +266,29 @@ TEST(abi_tests, hash_constructor)
     // Calculate the expected hash in-test
     NT::fr const expected_hash =
         NT::compress({ func_data.hash(), args_hash, constructor_vk_hash }, aztec3::GeneratorIndex::CONSTRUCTOR);
+
+    // Confirm cbind output == expected hash
+    EXPECT_EQ(got_hash, expected_hash);
+}
+
+TEST(abi_tests, hash_var_args)
+{
+    // Initialize test data and write to buffer
+    std::vector<NT::fr> const args(32, NT::fr::random_element());
+    std::vector<uint8_t> buf;
+    write(buf, args);
+
+    // Prepare output buffer
+    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
+
+    // Make the c_bind call to hash the constructor values
+    abis__compute_var_args_hash(buf.data(), output.data());
+
+    // Convert buffer to `fr` for comparison to in-test calculated hash
+    NT::fr const got_hash = NT::fr::serialize_from_buffer(output.data());
+
+    // Calculate the expected hash in-test
+    NT::fr const expected_hash = NT::compress(args, aztec3::GeneratorIndex::FUNCTION_ARGS);
 
     // Confirm cbind output == expected hash
     EXPECT_EQ(got_hash, expected_hash);

@@ -27,3 +27,4 @@ WASM_EXPORT void abis__compute_message_secret_hash(uint8_t const* secret, uint8_
 WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preimage_buf, uint8_t* output);
 WASM_EXPORT void abis__compute_transaction_hash(uint8_t const* signed_tx_request_buf, uint8_t* output);
 WASM_EXPORT void abis__compute_call_stack_item_hash(uint8_t const* call_stack_item_buf, uint8_t* output);
+WASM_EXPORT void abis__compute_var_args_hash(uint8_t const* args_buf, uint8_t* output);

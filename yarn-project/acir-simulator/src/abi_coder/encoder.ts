@@ -1,6 +1,5 @@
-import { ARGS_LENGTH } from '@aztec/circuits.js';
-import { Fr } from '@aztec/foundation/fields';
 import { ABIType, FunctionAbi } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Encodes arguments for a function call.
@@ -44,6 +43,9 @@ class ArgumentEncoder {
           this.encodeArgument(field.type, arg[field.name]);
         }
         break;
+      case 'integer':
+        this.flattened.push(new Fr(arg));
+        break;
       default:
         throw new Error(`Unsupported type: ${abiType.kind}`);
     }
@@ -66,15 +68,8 @@ class ArgumentEncoder {
  * Encodes all the arguments for a function call.
  * @param abi - The function ABI entry.
  * @param args - The arguments to encode.
- * @param pad - Whether to pad the arguments to the MAX_ARGS_LENGTH.
  * @returns The encoded arguments.
  */
-export function encodeArguments(abi: FunctionAbi, args: any[], pad = true) {
-  const flatArgs = new ArgumentEncoder(abi, args).encode();
-  if (!pad) return flatArgs;
-
-  if (flatArgs.length > ARGS_LENGTH) {
-    throw new Error(`Too many arguments: ${flatArgs.length}`);
-  }
-  return flatArgs.concat(new Array(ARGS_LENGTH - flatArgs.length).fill(Fr.ZERO));
+export function encodeArguments(abi: FunctionAbi, args: any[]) {
+  return new ArgumentEncoder(abi, args).encode();
 }

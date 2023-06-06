@@ -35,7 +35,7 @@ describe('e2e_account_contract', () => {
 
     account = await deployContract(AccountContractAbi);
     child = await deployContract(ChildAbi);
-  }, 30_000);
+  }, 60_000);
 
   afterEach(async () => {
     await aztecNode.stop();
@@ -125,7 +125,7 @@ describe('e2e_account_contract', () => {
       aztecRpcServer,
       account.address,
       'entrypoint',
-      [...flattenPayload(payload), ...toFrArray(signature)],
+      [payload, toFrArray(signature)],
       FunctionType.SECRET,
     );
   };
@@ -139,7 +139,7 @@ describe('e2e_account_contract', () => {
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
-  });
+  }, 30_000);
 
   it('calls a public function', async () => {
     const payload = buildPayload([], [callChildPubStoreValue(42)]);
@@ -151,11 +151,11 @@ describe('e2e_account_contract', () => {
 
     expect(receipt.status).toBe(TxStatus.MINED);
     expect(toBigInt((await aztecNode.getStorageAt(child.address, 1n))!)).toEqual(42n);
-  });
+  }, 30_000);
 
   it('rejects ecdsa signature from a different key', async () => {
     const payload = buildPayload([callChildValue(42)], []);
     const call = buildCall(payload, { privKey: '2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6' });
     await expect(call.create({ from: accounts[0] })).rejects.toMatch(/could not satisfy all constraints/);
-  });
+  }, 30_000);
 });

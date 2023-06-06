@@ -191,3 +191,21 @@ exports[`abis wasm bindings hashes constructor info 1`] = `
   "type": "Buffer",
 }
 `;
+
+exports[`abis wasm bindings hashes empty function args 1`] = `
+Fr {
+  "value": 0n,
+}
+`;
+
+exports[`abis wasm bindings hashes function args 1`] = `
+Fr {
+  "value": 12125610727223956800302813404878728417440563546649886466255076581695454329514n,
+}
+`;
+
+exports[`abis wasm bindings hashes many function args 1`] = `
+Fr {
+  "value": 8955236039943388976259759391839453100491522182218493180262383122788045296302n,
+}
+`;
