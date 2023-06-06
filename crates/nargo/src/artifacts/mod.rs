@@ -43,11 +43,9 @@ fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    println!("CUR WIT IDX: {:?}", circuit.current_witness_index);
     let cs: ConstraintSystem =
         ConstraintSystem::try_from(circuit).expect("should have no malformed bb funcs");
     let circuit_bytes = cs.to_bytes();
-    println!("{:?}", circuit_bytes.capacity());
 
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(&circuit_bytes).unwrap();
@@ -62,14 +60,8 @@ fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
 where
     D: Deserializer<'de>,
 {
-    // panic!("Not supported");
-    let b64_string = String::deserialize(deserializer)?;
-    let compressed_bytes = base64::decode(b64_string).map_err(serde::de::Error::custom)?;
-
-    let mut decoder = GzDecoder::new(&compressed_bytes[..]);
-    let mut circuit_bytes = Vec::new();
-    decoder.read_to_end(&mut circuit_bytes).unwrap();
-
-    let circuit = Circuit::read(&*circuit_bytes).unwrap();
-    Ok(circuit)
+    // TODO(#1569): bb.js expects a serialized ConstraintSystem. For bb.js to fully interop with nargo, 
+    // it will have to break out of the normal nargo deserialization process for a circuit.
+    // Handle this elsewhere when reading in a program for proving/verifying with bb.js
+    panic!("Not supported");
 }

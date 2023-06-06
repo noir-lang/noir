@@ -49,7 +49,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.3.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg.git?rev=ae47e5c2b5f834888059fc5f32853ba4430e7478#ae47e5c2b5f834888059fc5f32853ba4430e7478"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg.git?rev=8f56a684a5cad3d88371f91f8a8a01d1b7bf40a4#8f56a684a5cad3d88371f91f8a8a01d1b7bf40a4"
 dependencies = [
  "acvm",
  "barretenberg-sys",

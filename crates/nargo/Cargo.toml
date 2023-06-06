@@ -17,6 +17,7 @@ noirc_driver.workspace = true
 toml.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+# These three dependencies below are only needed to maintain the correct serialization for bb.js
 base64 = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 serde-big-array = { version = "0.5.1", optional = true }

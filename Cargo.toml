@@ -36,6 +36,7 @@ noirc_errors = { path = "crates/noirc_errors" }
 noirc_evaluator = { path = "crates/noirc_evaluator" }
 noirc_frontend = { path = "crates/noirc_frontend" }
 noir_wasm = { path = "crates/wasm" }
+# `base64` and `flate2` are only needed by bb.js
 base64 = "0.13"
 flate2 = "1.0"
 
@@ -55,4 +56,4 @@ wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
 acvm = { git = "https://github.com/noir-lang/acvm.git", rev = "71e50173957794e9f2547c12e217b913e648244b" }
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg.git", rev = "ae47e5c2b5f834888059fc5f32853ba4430e7478" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg.git", rev = "8f56a684a5cad3d88371f91f8a8a01d1b7bf40a4" }
