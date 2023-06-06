@@ -253,6 +253,10 @@ impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
 
         key
     }
+
+    pub(crate) fn get(&self, key: &K) -> Option<&V> {
+        self.key_to_value.get(key)
+    }
 }
 
 impl<K, V> Default for TwoWayMap<K, V> {
@@ -261,7 +265,7 @@ impl<K, V> Default for TwoWayMap<K, V> {
     }
 }
 
-// Note that there is no impl for IndexMut<Id<T>>,
+// Note that there is no impl for IndexMut<T>,
 // if we allowed mutable access to map elements they may be
 // mutated such that elements are no longer unique
 impl<K: Eq + Hash, V> std::ops::Index<K> for TwoWayMap<K, V> {
@@ -269,6 +273,14 @@ impl<K: Eq + Hash, V> std::ops::Index<K> for TwoWayMap<K, V> {
 
     fn index(&self, id: K) -> &Self::Output {
         &self.key_to_value[&id]
+    }
+}
+
+impl<K: Eq + Hash, V> std::ops::Index<&K> for TwoWayMap<K, V> {
+    type Output = V;
+
+    fn index(&self, id: &K) -> &Self::Output {
+        &self.key_to_value[id]
     }
 }
 
