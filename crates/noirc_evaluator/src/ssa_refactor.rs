@@ -42,6 +42,8 @@ pub(crate) fn optimize_into_acir(program: Program) -> GeneratedAcir {
         .print("After Flattening:")
         .mem2reg()
         .print("After Mem2Reg:")
+        .fold_constants()
+        .print("After Constant Folding:")
         .into_acir(func_signature)
 }
 
