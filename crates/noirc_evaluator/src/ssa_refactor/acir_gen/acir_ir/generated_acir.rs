@@ -145,7 +145,10 @@ impl GeneratedAcir {
                 let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
             }
-            BlackBoxFunc::RecursiveAggregation => todo!(),
+            // TODO(#1570): Generate ACIR for recursive aggregation
+            BlackBoxFunc::RecursiveAggregation => {
+                panic!("ICE: Cannot generate ACIR for recursive aggregation")
+            }
         };
 
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -438,7 +441,12 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // Inputs for fixed based scalar multiplication
         // is just a scalar
         BlackBoxFunc::FixedBaseScalarMul => Some(1),
-        BlackBoxFunc::RecursiveAggregation => None,
+        // TODO(#1570): Generate ACIR for recursive aggregation
+        // RecursiveAggregation has variable inputs and we could return `None` here,
+        // but as it is not fully implemented we panic for now
+        BlackBoxFunc::RecursiveAggregation => {
+            panic!("ICE: Cannot generate ACIR for recursive aggregation")
+        }
     }
 }
 
@@ -463,8 +471,10 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
         // Output of fixed based scalar mul over the embedded curve
         // will be 2 field elements representing the point.
         BlackBoxFunc::FixedBaseScalarMul => 2,
-        // TODO: change this func to return an option
-        BlackBoxFunc::RecursiveAggregation => 16,
+        // TODO(#1570): Generate ACIR for recursive aggregation
+        BlackBoxFunc::RecursiveAggregation => {
+            panic!("ICE: Cannot generate ACIR for recursive aggregation")
+        }
     }
 }
 
