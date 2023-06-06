@@ -4,20 +4,25 @@ use std::collections::HashMap;
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirVar},
+    errors::AcirGenError,
     memory::ArrayId,
 };
 use super::{
-    abi_gen::collate_array_lengths,
+    abi_gen::collate_array_info,
     ir::{
         dfg::DataFlowGraph,
-        instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        function::RuntimeType,
+        instruction::{
+            Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
+        },
         map::Id,
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
-use noirc_abi::FunctionSignature;
+use crate::brillig::{artifact::BrilligArtifact, Brillig};
+use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
@@ -46,16 +51,45 @@ struct Context {
 }
 
 impl Ssa {
-    pub(crate) fn into_acir(self, main_function_signature: FunctionSignature) -> GeneratedAcir {
-        let param_array_lengths = collate_array_lengths(&main_function_signature.0);
+    pub(crate) fn into_acir(
+        self,
+        main_function_signature: FunctionSignature,
+        brillig: Brillig,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
+        let param_arrays_info: Vec<_> = collate_array_info(&main_function_signature.0)
+            .iter()
+            .map(|(size, abi_type)| (*size, numeric_type_for_abi_array_element_type(abi_type)))
+            .collect();
+
         let context = Context::default();
-        context.convert_ssa(self, &param_array_lengths)
+        context.convert_ssa(self, &param_arrays_info, brillig, allow_log_ops)
+    }
+}
+
+/// Gives the equivalent ssa numeric type for the given abi type. We are dealing in the context of
+/// arrays - hence why only numerics are supported.
+fn numeric_type_for_abi_array_element_type(abi_type: &AbiType) -> NumericType {
+    match abi_type {
+        AbiType::Boolean => NumericType::Unsigned { bit_size: 1 },
+        AbiType::Integer { sign, width } => match sign {
+            Sign::Signed => NumericType::Signed { bit_size: *width },
+            Sign::Unsigned => NumericType::Unsigned { bit_size: *width },
+        },
+        AbiType::Field => NumericType::NativeField,
+        _ => unreachable!("Non-numeric cannot be array element"),
     }
 }
 
 impl Context {
     /// Converts SSA into ACIR
-    fn convert_ssa(mut self, ssa: Ssa, param_array_lengths: &[usize]) -> GeneratedAcir {
+    fn convert_ssa(
+        mut self,
+        ssa: Ssa,
+        param_array_info: &[(usize, NumericType)],
+        brillig: Brillig,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         assert_eq!(
             ssa.functions.len(),
             1,
@@ -65,10 +99,10 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
 
-        self.convert_ssa_block_params(entry_block.parameters(), dfg, param_array_lengths);
+        self.convert_ssa_block_params(entry_block.parameters(), dfg, param_array_info);
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg);
+            self.convert_ssa_instruction(*instruction_id, dfg, &ssa, &brillig, allow_log_ops);
         }
 
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
@@ -82,9 +116,9 @@ impl Context {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-        param_array_lengths: &[usize],
+        param_arrays_info: &[(usize, NumericType)],
     ) {
-        let mut param_array_lengths_iter = param_array_lengths.iter();
+        let mut param_arrays_info_iter = param_arrays_info.iter();
         for param_id in params {
             let value = &dfg[*param_id];
             let param_type = match value {
@@ -93,25 +127,17 @@ impl Context {
             };
             match param_type {
                 Type::Numeric(numeric_type) => {
-                    let acir_var = self.acir_context.add_variable();
-                    if matches!(
-                        numeric_type,
-                        NumericType::Signed { .. } | NumericType::Unsigned { .. }
-                    ) {
-                        self.acir_context
-                            .numeric_cast_var(acir_var, &numeric_type)
-                            .expect("invalid range constraint was applied {numeric_type}");
-                    }
+                    let acir_var = self.add_numeric_input_var(numeric_type);
                     self.ssa_value_to_acir_var.insert(*param_id, acir_var);
                 }
                 Type::Reference => {
-                    let array_length = param_array_lengths_iter
+                    let (array_length, numeric_type) = param_arrays_info_iter
                         .next()
                         .expect("ICE: fewer arrays in abi than in block params");
                     let array_id = self.acir_context.allocate_array(*array_length);
                     self.ssa_value_to_array_address.insert(*param_id, (array_id, 0));
                     for index in 0..*array_length {
-                        let acir_var = self.acir_context.add_variable();
+                        let acir_var = self.add_numeric_input_var(numeric_type);
                         self.acir_context
                             .array_store(array_id, index, acir_var)
                             .expect("invalid array store");
@@ -125,14 +151,36 @@ impl Context {
             }
         }
         assert_eq!(
-            param_array_lengths_iter.next(),
+            param_arrays_info_iter.next(),
             None,
             "ICE: more arrays in abi than in block params"
         );
     }
 
+    /// Creates an `AcirVar` corresponding to a parameter witness to appears in the abi. A range
+    /// constraint is added if the numeric type requires it.
+    ///
+    /// This function is used not only for adding numeric block parameters, but also for adding
+    /// any array elements that belong to reference type block parameters.
+    fn add_numeric_input_var(&mut self, numeric_type: &NumericType) -> AcirVar {
+        let acir_var = self.acir_context.add_variable();
+        if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
+            self.acir_context
+                .numeric_cast_var(acir_var, numeric_type)
+                .expect("invalid range constraint was applied {numeric_type}");
+        }
+        acir_var
+    }
+
     /// Converts an SSA instruction into its ACIR representation
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+        brillig: &Brillig,
+        allow_log_ops: bool,
+    ) {
         let instruction = &dfg[instruction_id];
 
         let (results_id, results_vars) = match instruction {
@@ -140,11 +188,11 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 if Self::value_is_array_address(result_ids[0], dfg) {
                     self.track_array_address(result_ids[0], binary, dfg);
-                    return;
+                    (Vec::new(), Vec::new())
+                } else {
+                    let result_acir_var = self.convert_ssa_binary(binary, dfg);
+                    (vec![result_ids[0]], vec![result_acir_var])
                 }
-                let result_acir_var = self.convert_ssa_binary(binary, dfg);
-                self.ssa_value_to_acir_var.insert(result_ids[0], result_acir_var);
-                (vec![result_ids[0]], vec![result_acir_var])
             }
             Instruction::Constrain(value_id) => {
                 let constrain_condition = self.convert_ssa_value(*value_id, dfg);
@@ -156,20 +204,85 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
-            Instruction::Load { address } => {
-                let result_acir_var = self.convert_ssa_load(address);
+            Instruction::Call { func, arguments } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                (vec![result_ids[0]], vec![result_acir_var])
+                match &dfg[*func] {
+                    Value::Function(id) => {
+                        let func = &ssa.functions[id];
+                        match func.runtime() {
+                            RuntimeType::Acir => unimplemented!(
+                                "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
+                            ),
+                            RuntimeType::Brillig => {
+                                // Generate the brillig code of the function
+                                let code = BrilligArtifact::default().link(&brillig[*id]);
+                                self.acir_context.brillig(code);
+                                (result_ids.to_vec(), Vec::new())
+                            }
+                        }
+                    }
+                    Value::Intrinsic(intrinsic) => {
+                        let outputs = self.convert_ssa_intrinsic_call(
+                            *intrinsic,
+                            arguments,
+                            dfg,
+                            allow_log_ops,
+                        );
+                        if Self::value_is_array_address(result_ids[0], dfg) {
+                            // Some intrinsics return arrays - these require an allocation
+                            if result_ids.len() != 1 {
+                                todo!("Complex return type encountered. Restructuring required to provide info on how to repackage result");
+                            }
+                            let array_id = self.acir_context.allocate_array(outputs.len());
+                            self.ssa_value_to_array_address.insert(result_ids[0], (array_id, 0));
+                            for (index, element) in outputs.iter().enumerate() {
+                                self.acir_context
+                                    .array_store(array_id, index, *element)
+                                    .expect("add Result types to all methods so errors bubble up");
+                            }
+                            (Vec::new(), Vec::new())
+                        } else {
+                            (result_ids.to_vec(), outputs)
+                        }
+                    }
+                    _ => unreachable!("expected calling a function"),
+                }
             }
             Instruction::Not(value_id) => {
                 let boolean_var = self.convert_ssa_value(*value_id, dfg);
                 let result_acir_var = self.acir_context.not_var(boolean_var);
 
                 let result_ids = dfg.instruction_results(instruction_id);
-                assert_eq!(result_ids.len(), 1, "Not ops have a single result");
                 (vec![result_ids[0]], vec![result_acir_var])
             }
-            _ => todo!("{instruction:?}"),
+            Instruction::Allocate => {
+                let array_id = self.acir_context.allocate_array(1);
+                let result_ids = dfg.instruction_results(instruction_id);
+                self.ssa_value_to_array_address.insert(result_ids[0], (array_id, 0));
+                (Vec::new(), Vec::new())
+            }
+            Instruction::Store { address, value } => {
+                self.convert_ssa_store(address, value, dfg);
+                (Vec::new(), Vec::new())
+            }
+            Instruction::Load { address } => {
+                let result_acir_var = self.convert_ssa_load(address);
+                let result_ids = dfg.instruction_results(instruction_id);
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let var = self.convert_ssa_value(*value, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+
+                let result_acir_var = self
+                    .acir_context
+                    .truncate_var(var, *bit_size, *max_bit_size)
+                    .expect("add Result types to all methods so errors bubble up");
+
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
+            Instruction::ArrayGet { .. } => todo!(),
+            Instruction::ArraySet { .. } => todo!(),
         };
 
         // Map the results of the instructions to Acir variables
@@ -193,8 +306,13 @@ impl Context {
             return;
         }
 
-        for value_id in return_values {
-            let acir_var = self.convert_ssa_value(*value_id, dfg);
+        // The return value may or may not be an array reference. Calling `flatten_value_list`
+        // will expand the array if there is one.
+        let return_acir_vars = self
+            .flatten_value_list(return_values, dfg)
+            .expect("add Result types to all methods so errors bubble up");
+
+        for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }
     }
@@ -234,11 +352,14 @@ impl Context {
     fn convert_ssa_binary(&mut self, binary: &Binary, dfg: &DataFlowGraph) -> AcirVar {
         let lhs = self.convert_ssa_value(binary.lhs, dfg);
         let rhs = self.convert_ssa_value(binary.rhs, dfg);
+
+        let binary_type = self.type_of_binary_operation(binary, dfg);
+
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(lhs, rhs),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.into()),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
@@ -246,9 +367,69 @@ impl Context {
                 .acir_context
                 .less_than_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
-            _ => todo!(),
+            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Xor => self
+                .acir_context
+                .xor_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::And => self
+                .acir_context
+                .and_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Or => self
+                .acir_context
+                .or_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Mod => self
+                .acir_context
+                .modulo_var(lhs, rhs)
+                .expect("add Result types to all methods so errors bubble up"),
         }
     }
+
+    /// Operands in a binary operation are checked to have the same type.
+    ///
+    /// In Noir, binary operands should have the same type due to the language
+    /// semantics.
+    ///
+    /// There are some edge cases to consider:
+    /// - Constants are not explicitly type casted, so we need to check for this and
+    /// return the type of the other operand, if we have a constant.
+    /// - 0 is not seen as `Field 0` but instead as `Unit 0`
+    /// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
+    /// TODO nothing and a 0.
+    ///
+    /// TODO: This constant coercion should ideally be done in the type checker.
+    fn type_of_binary_operation(&self, binary: &Binary, dfg: &DataFlowGraph) -> Type {
+        let lhs_type = dfg.type_of_value(binary.lhs);
+        let rhs_type = dfg.type_of_value(binary.rhs);
+
+        match (lhs_type, rhs_type) {
+            // Function type should not be possible, since all functions
+            // have been inlined.
+            (_, Type::Function) | (Type::Function, _) => unreachable!("all functions should be inlined"),
+            (_, Type::Reference) | (Type::Reference, _) => unreachable!("References are invalid in binary operations"),
+            (_, Type::Array) | (Type::Array, _) => unreachable!("Arrays are invalid in binary operations"),
+            // Unit type currently can mean a 0 constant, so we return the
+            // other type.
+            (typ, Type::Unit) | (Type::Unit, typ) => typ,
+            // If either side is a Field constant then, we coerce into the type
+            // of the other operand
+            (Type::Numeric(NumericType::NativeField), typ)
+            | (typ, Type::Numeric(NumericType::NativeField)) => typ,
+            // If either side is a numeric type, then we expect their types to be
+            // the same.
+            (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
+                assert_eq!(
+                    lhs_type, rhs_type,
+                    "lhs and rhs types in a binary operation are always the same"
+                );
+                Type::Numeric(lhs_type)
+            }
+        }
+    }
+
     /// Returns an `AcirVar` that is constrained to be
     fn convert_ssa_cast(&mut self, value_id: &ValueId, typ: &Type, dfg: &DataFlowGraph) -> AcirVar {
         let variable = self.convert_ssa_value(*value_id, dfg);
@@ -260,6 +441,82 @@ impl Context {
                 .expect("invalid range constraint was applied {numeric_type}"),
             _ => unimplemented!("The cast operation is only valid for integers."),
         }
+    }
+
+    /// Returns a vector of `AcirVar`s constrained to be result of the function call.
+    ///
+    /// The function being called is required to be intrinsic.
+    fn convert_ssa_intrinsic_call(
+        &mut self,
+        intrinsic: Intrinsic,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+        allow_log_ops: bool,
+    ) -> Vec<AcirVar> {
+        let inputs = self
+            .flatten_value_list(arguments, dfg)
+            .expect("add Result types to all methods so errors bubble up");
+        match intrinsic {
+            Intrinsic::BlackBox(black_box) => self
+                .acir_context
+                .black_box_function(black_box, inputs)
+                .expect("add Result types to all methods so errors bubble up"),
+            Intrinsic::ToRadix(endian) => {
+                // inputs = [field, radix, limb_size]; (see noir_stdlib/src/field.nr)
+                self.acir_context
+                    .radix_decompose(endian, inputs[0], inputs[1], inputs[2])
+                    .expect("add Result types to all methods so errors bubble up")
+            }
+            Intrinsic::ToBits(endian) => {
+                // inputs = [field, bit_size]; (see noir_stdlib/src/field.nr)
+                self.acir_context
+                    .bit_decompose(endian, inputs[0], inputs[1])
+                    .expect("add Result types to all methods so errors bubble up")
+            }
+            Intrinsic::Println => {
+                if allow_log_ops {
+                    self.acir_context
+                        .print(inputs)
+                        .expect("add Result types to all methods so errors bubble up");
+                }
+                Vec::new()
+            }
+            _ => todo!("expected a black box function"),
+        }
+    }
+
+    /// Maps an ssa value list, for which some values may be references to arrays, by inlining
+    /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
+    /// that correspond to other values.
+    fn flatten_value_list(
+        &mut self,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        let mut acir_vars = Vec::new();
+        for value_id in arguments {
+            if Self::value_is_array_address(*value_id, dfg) {
+                let (array_id, index) = self
+                    .ssa_value_to_array_address
+                    .get(value_id)
+                    .expect("ICE: Call argument of undeclared array");
+                assert_eq!(index, &0, "ICE: Call arguments only accept arrays in their entirety");
+                let elements = self.acir_context.array_load_all(*array_id)?;
+                acir_vars.extend(elements);
+            } else {
+                acir_vars.push(self.convert_ssa_value(*value_id, dfg));
+            }
+        }
+        Ok(acir_vars)
+    }
+
+    /// Stores the `AcirVar` corresponding to `value` at the `ArrayId` and index corresponding to
+    /// `address`.
+    fn convert_ssa_store(&mut self, address: &ValueId, value: &ValueId, dfg: &DataFlowGraph) {
+        let element_var = self.convert_ssa_value(*value, dfg);
+        let (array_id, index) =
+            self.ssa_value_to_array_address.get(address).expect("ICE: Load from undeclared array");
+        self.acir_context.array_store(*array_id, *index, element_var).expect("invalid array load");
     }
 
     /// Returns the `AcirVar` that was previously stored at the given address.
@@ -298,5 +555,51 @@ impl Context {
             _ => unreachable!("Invalid array address arithmetic operand"),
         };
         self.ssa_value_to_array_address.insert(value_id, (*array_id, new_offset));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::{
+        acir::{
+            circuit::Opcode,
+            native_types::{Expression, Witness},
+        },
+        FieldElement,
+    };
+
+    use crate::{
+        brillig::Brillig,
+        ssa_refactor::{
+            ir::{function::RuntimeType, map::Id},
+            ssa_builder::FunctionBuilder,
+        },
+    };
+
+    use super::Context;
+
+    #[test]
+    fn returns_body_scoped_arrays() {
+        // fn main {
+        //   b0():
+        //     v0 = allocate
+        //     store v0, Field 1
+        //     return v0
+        // }
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let v0 = builder.insert_allocate();
+        let const_one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, const_one);
+        builder.terminate_with_return(vec![v0]);
+        let ssa = builder.finish();
+
+        let context = Context::default();
+        let acir = context.convert_ssa(ssa, &[], Brillig::default(), false);
+
+        let expected_opcodes =
+            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
+        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }

@@ -9,7 +9,8 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction, InstructionId},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        types::Type,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -66,7 +67,7 @@ struct PerBlockContext {
     last_stores: BTreeMap<Address, ValueId>,
     store_ids: Vec<InstructionId>,
     failed_substitutes: BTreeSet<Address>,
-    alloc_ids_in_calls: BTreeSet<InstructionId>,
+    alloc_ids_used_externally: BTreeSet<InstructionId>,
 }
 
 impl PerBlockContext {
@@ -76,7 +77,7 @@ impl PerBlockContext {
             last_stores: BTreeMap::new(),
             store_ids: Vec::new(),
             failed_substitutes: BTreeSet::new(),
-            alloc_ids_in_calls: BTreeSet::new(),
+            alloc_ids_used_externally: BTreeSet::new(),
         }
     }
 
@@ -112,12 +113,21 @@ impl PerBlockContext {
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
                         if let Some(address) = self.try_const_address(*arg, dfg) {
-                            self.alloc_ids_in_calls.insert(address.alloc_id());
+                            self.alloc_ids_used_externally.insert(address.alloc_id());
                         }
                     }
                 }
                 _ => {
                     // Nothing to do
+                }
+            }
+        }
+
+        // Identify any arrays that are returned from this function
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
+            for value in return_values {
+                if let Some(address) = self.try_const_address(*value, dfg) {
+                    self.alloc_ids_used_externally.insert(address.alloc_id());
                 }
             }
         }
@@ -150,7 +160,7 @@ impl PerBlockContext {
 
             if let Some(address) = self.try_const_address(address, dfg) {
                 if !self.failed_substitutes.contains(&address)
-                    && !self.alloc_ids_in_calls.contains(&address.alloc_id())
+                    && !self.alloc_ids_used_externally.contains(&address.alloc_id())
                 {
                     stores_to_remove.push(*instruction_id);
                 }
@@ -166,6 +176,9 @@ impl PerBlockContext {
 
     // Attempts to normalize the given value into a const address
     fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
+        if dfg.type_of_value(value_id) != Type::Reference {
+            return None;
+        }
         let value = &dfg[value_id];
         let instruction_id = match value {
             Value::Instruction { instruction, .. } => *instruction,
@@ -173,7 +186,10 @@ impl PerBlockContext {
         };
         let instruction = &dfg[instruction_id];
         match instruction {
-            Instruction::Allocate { .. } => Some(Address::Zeroth(instruction_id)),
+            // Arrays can be returned by allocations and function calls
+            Instruction::Allocate { .. } | Instruction::Call { .. } => {
+                Some(Address::Zeroth(instruction_id))
+            }
             Instruction::Binary(binary) => {
                 if binary.operator != BinaryOp::Add {
                     return None;
@@ -218,6 +234,7 @@ mod tests {
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
+            function::RuntimeType,
             instruction::{Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -237,7 +254,7 @@ mod tests {
         // }
 
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
         let v0 = builder.insert_allocate();
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
@@ -277,7 +294,7 @@ mod tests {
         // }
 
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
         let v0 = builder.insert_allocate();
         let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
@@ -299,6 +316,37 @@ mod tests {
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
+    }
+
+    #[test]
+    fn test_simple_with_return() {
+        // fn func {
+        //   b0():
+        //     v0 = allocate
+        //     store v0, Field 1
+        //     return v0
+        // }
+
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let v0 = builder.insert_allocate();
+        let const_one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, const_one);
+        builder.terminate_with_return(vec![v0]);
+
+        let ssa = builder.finish().mem2reg();
+
+        let func = ssa.main();
+        let block_id = func.entry_block();
+
+        // Store affects outcome of returned array, and can't be removed
+        assert_eq!(count_stores(block_id, &func.dfg), 1);
+
+        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
+            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            _ => unreachable!(),
+        };
+        assert_eq!(func.dfg[*ret_val_id], func.dfg[v0]);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -333,7 +381,7 @@ mod tests {
         //     return v2, v3, v4
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let v0 = builder.insert_allocate();
 
@@ -360,7 +408,7 @@ mod tests {
         // Expected result:
         // fn main {
         //   b0():
-        //     v0 = alloc 1
+        //     v0 = allocate
         //     store v0, Field 5
         //     jmp b1(Field 5):  // Optimized to constant 5
         //   b1(v2: Field):

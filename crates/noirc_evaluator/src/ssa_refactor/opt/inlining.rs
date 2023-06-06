@@ -10,7 +10,7 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -92,7 +92,7 @@ impl InlineContext {
     /// that could not be inlined calling it.
     fn new(ssa: &Ssa) -> InlineContext {
         let main_name = ssa.main().name().to_owned();
-        let builder = FunctionBuilder::new(main_name, ssa.next_id.next());
+        let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Acir);
         Self { builder, recursion_level: 0, failed_to_inline_a_call: false }
     }
 
@@ -328,7 +328,10 @@ impl<'function> PerFunctionContext<'function> {
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(function) => self.inline_function(ssa, *id, function, arguments),
+                    Some(function) => match ssa.functions[&function].runtime() {
+                        RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
+                        RuntimeType::Brillig => self.push_instruction(*id),
+                    },
                     None => self.push_instruction(*id),
                 },
                 _ => self.push_instruction(*id),
@@ -444,6 +447,7 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use crate::ssa_refactor::{
         ir::{
+            function::RuntimeType,
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -463,7 +467,7 @@ mod test {
         //     return 72
         // }
         let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id, RuntimeType::Acir);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
@@ -512,7 +516,7 @@ mod test {
         let id2_id = Id::test_new(3);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
         let main_v0 = builder.add_parameter(Type::field());
 
         let main_f1 = builder.import_function(square_id);
@@ -568,7 +572,7 @@ mod test {
         //     return v4
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let factorial_id = Id::test_new(1);
         let factorial = builder.import_function(factorial_id);

@@ -482,7 +482,7 @@ impl<'f> LoopIteration<'f> {
 #[cfg(test)]
 mod tests {
     use crate::ssa_refactor::{
-        ir::{instruction::BinaryOp, map::Id, types::Type},
+        ir::{function::RuntimeType, instruction::BinaryOp, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
     };
 
@@ -522,7 +522,7 @@ mod tests {
         let main_id = Id::test_new(0);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -624,7 +624,7 @@ mod tests {
         //     return Field 0
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();

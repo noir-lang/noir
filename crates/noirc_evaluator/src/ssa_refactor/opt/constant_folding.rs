@@ -11,6 +11,12 @@ use crate::ssa_refactor::{
 };
 
 impl Ssa {
+    /// Performs constant folding on each instruction.
+    ///
+    /// This is generally done automatically but this pass can become needed
+    /// if `DataFlowGraph::set_value` or `DataFlowGraph::set_value_from_id` are
+    /// used on a value which enables instructions dependent on the value to
+    /// now be simplified.
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             constant_fold(function);
@@ -19,6 +25,8 @@ impl Ssa {
     }
 }
 
+/// The structure of this pass is simple:
+/// Go through each block and re-insert all instructions.
 fn constant_fold(function: &mut Function) {
     let mut context = Context::default();
     context.block_queue.push(function.entry_block());
@@ -34,11 +42,8 @@ fn constant_fold(function: &mut Function) {
 
 #[derive(Default)]
 struct Context {
-    /// Maps pre-unrolled ValueIds to unrolled ValueIds.
-    /// These will often be the exact same as before, unless the ValueId was
-    /// dependent on the loop induction variable which is changing on each iteration.
+    /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values: HashMap<ValueId, ValueId>,
-
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
 }
@@ -100,6 +105,75 @@ impl Context {
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ssa_refactor::{
+        ir::{
+            function::RuntimeType,
+            instruction::{BinaryOp, TerminatorInstruction},
+            map::Id,
+            types::Type,
+        },
+        ssa_builder::FunctionBuilder,
+    };
+
+    #[test]
+    fn simple_constant_fold() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = add v0, Field 1
+        //     v2 = mul v1, Field 3
+        //     return v2
+        // }
+        //
+        // After constructing this IR, we set the value of v0 to 2.
+        // The expected return afterwards should be 9.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::field());
+
+        let one = builder.field_constant(1u128);
+        let two = builder.field_constant(2u128);
+        let three = builder.field_constant(3u128);
+
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);
+        builder.terminate_with_return(vec![v2]);
+
+        let mut ssa = builder.finish();
+        let main = ssa.main_mut();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 2); // The final return is not counted
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     return Field 9
+        // }
+        main.dfg.set_value_from_id(v0, two);
+
+        let ssa = ssa.fold_constants();
+        let main = ssa.main();
+        let block = &main.dfg[main.entry_block()];
+        assert_eq!(block.instructions().len(), 0);
+
+        match block.terminator() {
+            Some(TerminatorInstruction::Return { return_values }) => {
+                let value = main
+                    .dfg
+                    .get_numeric_constant(return_values[0])
+                    .expect("Expected constant 9")
+                    .to_u128();
+                assert_eq!(value, 9);
+            }
+            _ => unreachable!("b0 should have a return terminator"),
         }
     }
 }
