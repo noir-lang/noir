@@ -64,8 +64,8 @@ impl Service<AnyRequest> for NargoLspService {
 // This trait implemented as a passthrough to the router, which makes
 // our `NargoLspService` able to accept the `async-lsp` middleware.
 impl LspService for NargoLspService {
-    fn notify(&mut self, notif: AnyNotification) -> ControlFlow<Result<(), Error>> {
-        self.router.notify(notif)
+    fn notify(&mut self, notification: AnyNotification) -> ControlFlow<Result<(), Error>> {
+        self.router.notify(notification)
     }
 
     fn emit(&mut self, event: AnyEvent) -> ControlFlow<Result<(), Error>> {
