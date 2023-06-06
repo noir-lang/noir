@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, RwLock};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
@@ -10,7 +11,7 @@ use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::function::{Function, RuntimeType};
 use crate::ssa_refactor::ir::instruction::BinaryOp;
 use crate::ssa_refactor::ir::map::AtomicCounter;
-use crate::ssa_refactor::ir::types::Type;
+use crate::ssa_refactor::ir::types::{NumericType, Type};
 use crate::ssa_refactor::ir::value::ValueId;
 use crate::ssa_refactor::ssa_builder::FunctionBuilder;
 
@@ -226,6 +227,22 @@ impl<'a> FunctionContext<'a> {
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 
+        let lhs_type = self.builder.current_function.dfg.type_of_value(lhs);
+        let rhs_type = self.builder.current_function.dfg.type_of_value(rhs);
+        if let Some(max_bit_size) =
+            operator_result_max_bit_size_to_truncate(operator, lhs_type, rhs_type)
+        {
+            let result_type = self.builder.current_function.dfg.type_of_value(result);
+            let bit_size = match result_type {
+                Type::Numeric(NumericType::Signed { bit_size })
+                | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                _ => {
+                    unreachable!("ICE: Truncation attempted on non-integer");
+                }
+            };
+            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+        }
+
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
         }
@@ -332,6 +349,38 @@ fn operator_requires_not(op: noirc_frontend::BinaryOpKind) -> bool {
 fn operator_requires_swapped_operands(op: noirc_frontend::BinaryOpKind) -> bool {
     use noirc_frontend::BinaryOpKind::*;
     matches!(op, Greater | LessEqual)
+}
+
+/// If the operation requires its result to be truncated because it is an integer, the maximum
+/// number of bits that result may occupy is returned.
+fn operator_result_max_bit_size_to_truncate(
+    op: noirc_frontend::BinaryOpKind,
+    lhs_type: Type,
+    rhs_type: Type,
+) -> Option<u32> {
+    let lhs_numeric = match lhs_type {
+        Type::Numeric(numeric) => numeric,
+        _ => return None,
+    };
+    let rhs_numeric = match rhs_type {
+        Type::Numeric(numeric) => numeric,
+        _ => return None,
+    };
+    let lhs_bit_size = match lhs_numeric {
+        NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => bit_size,
+        _ => return None,
+    };
+    let rhs_bit_size = match rhs_numeric {
+        NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => bit_size,
+        _ => return None,
+    };
+    use noirc_frontend::BinaryOpKind::*;
+    match op {
+        Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
+        Multiply => Some(lhs_bit_size + rhs_bit_size),
+        ShiftRight => Some(FieldElement::max_num_bits()),
+        _ => None,
+    }
 }
 
 /// Converts the given operator to the appropriate BinaryOp.
