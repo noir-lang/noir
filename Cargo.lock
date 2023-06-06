@@ -1950,7 +1950,7 @@ dependencies = [
  "hex",
  "iter-extended",
  "nargo",
- "nargo_lsp",
+ "noir_lsp",
  "noirc_abi",
  "noirc_driver",
  "noirc_frontend",
@@ -1968,7 +1968,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nargo_lsp"
+name = "noir_lsp"
 version = "0.6.0"
 dependencies = [
  "async-lsp",

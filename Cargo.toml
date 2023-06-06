@@ -30,7 +30,7 @@ fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
 nargo = { path = "crates/nargo" }
 nargo_cli = { path = "crates/nargo_cli" }
-nargo_lsp = { path = "crates/nargo_lsp" }
+noir_lsp = { path = "crates/lsp" }
 noirc_abi = { path = "crates/noirc_abi" }
 noirc_driver = { path = "crates/noirc_driver" }
 noirc_errors = { path = "crates/noirc_errors" }

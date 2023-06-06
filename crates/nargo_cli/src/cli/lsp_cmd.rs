@@ -4,7 +4,7 @@ use async_lsp::{
     panic::CatchUnwindLayer, server::LifecycleLayer, stdio::PipeStdin, tracing::TracingLayer,
 };
 use clap::Args;
-use nargo_lsp::NargoLspService;
+use noir_lsp::NargoLspService;
 use noirc_driver::CompileOptions;
 use tokio::io::BufReader;
 use tower::ServiceBuilder;

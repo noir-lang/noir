@@ -1,5 +1,5 @@
 [package]
-name = "nargo_lsp"
+name = "noir_lsp"
 description = "Language server for Noir"
 version.workspace = true
 authors.workspace = true
