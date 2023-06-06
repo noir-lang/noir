@@ -12,12 +12,14 @@ use crate::ssa_refactor::ir::{
 
 use super::artifact::BrilligArtifact;
 
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex};
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
+};
 #[derive(Default)]
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
     obj: BrilligArtifact,
-    max_register: usize,
+    latest_register: usize,
     ssa_value_to_register: HashMap<Id<Value>, RegisterIndex>,
 }
 
@@ -27,12 +29,17 @@ impl BrilligGen {
         self.obj.byte_code.push(code);
     }
 
-    fn assign_register(&mut self, value: Id<Value>) -> RegisterIndex {
-        let register = self.max_register;
-        self.max_register += 1;
-        let register: RegisterIndex = register.into();
-        self.ssa_value_to_register.insert(value, register);
-        register
+    fn get_or_create_register(&mut self, value: Id<Value>) -> RegisterIndex {
+        match self.ssa_value_to_register.get(&value) {
+            Some(register) => *register,
+            None => {
+                let register = self.latest_register;
+                self.latest_register += 1;
+                let register = RegisterIndex::from(register);
+                self.ssa_value_to_register.insert(value, register);
+                register
+            }
+        }
     }
 
     fn convert_block(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
@@ -59,13 +66,13 @@ impl BrilligGen {
             return;
         }
 
-        for (destination, value_id) in return_values.iter().enumerate() {
+        for (destination_index, value_id) in return_values.iter().enumerate() {
             let return_register = self.convert_ssa_value(*value_id, dfg);
-            if destination > self.max_register {
-                self.max_register = destination;
+            if destination_index > self.latest_register {
+                self.latest_register = destination_index;
             }
             self.push_code(BrilligOpcode::Mov {
-                destination: destination.into(),
+                destination: destination_index.into(),
                 source: return_register,
             });
         }
@@ -80,7 +87,7 @@ impl BrilligGen {
             };
             match param_type {
                 Type::Numeric(_) => {
-                    self.assign_register(*param_id);
+                    self.get_or_create_register(*param_id);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -95,7 +102,7 @@ impl BrilligGen {
         match instruction {
             Instruction::Binary(binary) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let result_register = self.assign_register(result_ids[0]);
+                let result_register = self.get_or_create_register(result_ids[0]);
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
             _ => todo!("ICE: Instruction not supported"),
@@ -173,18 +180,20 @@ impl BrilligGen {
 
     fn convert_ssa_value(&mut self, value_id: Id<Value>, dfg: &DataFlowGraph) -> RegisterIndex {
         let value = &dfg[value_id];
-        if self.ssa_value_to_register.contains_key(&value_id) {
-            return self.ssa_value_to_register[&value_id];
-        }
 
         let register = match value {
+            Value::Param { .. } | Value::Instruction { .. } => {
+                // All block parameters and instruction results should have already been
+                // converted to registers so we fetch from the cache.
+                self.ssa_value_to_register[&value_id]
+            }
             Value::NumericConstant { constant, .. } => {
-                let register = self.assign_register(value_id);
+                let register_index = self.get_or_create_register(value_id);
                 self.push_code(BrilligOpcode::Const {
-                    destination: register,
-                    value: (*constant).into(),
+                    destination: register_index,
+                    value: BrilligValue::from(*constant),
                 });
-                register
+                register_index
             }
             _ => {
                 todo!("ICE: Should have been in cache {value:?}")
@@ -195,7 +204,7 @@ impl BrilligGen {
 
     pub(crate) fn compile(func: &Function) -> BrilligArtifact {
         let mut brillig = BrilligGen::default();
-        // we only support empty functions for now
+
         let dfg = &func.dfg;
 
         brillig.convert_block(&dfg[func.entry_block()], dfg);
