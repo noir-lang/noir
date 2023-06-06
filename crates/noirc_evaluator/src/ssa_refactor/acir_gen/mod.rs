@@ -352,7 +352,7 @@ impl Context {
 
         let binary_type = self.type_of_binary_operation(binary, dfg);
 
-        match binary.operator {
+        let result = match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
@@ -379,6 +379,29 @@ impl Context {
                 .or_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
             _ => todo!(),
+        };
+        match binary_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                // We proactively truncate all arithmetic operations on integers. Once we have an
+                // SSA pass for inserting only necessary truncations, with proactive approach can
+                // removed.
+                match binary.operator {
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Shl
+                    | BinaryOp::Shr => self
+                        .acir_context
+                        .truncate_var(result, bit_size, bit_size)
+                        .expect("add Result types to all methods so errors bubble up"),
+                    _ => result,
+                }
+            }
+            Type::Numeric(NumericType::Signed { .. }) => {
+                todo!("Determine truncation strategy for signed integers");
+            }
+            _ => result,
         }
     }
 
