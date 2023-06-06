@@ -753,8 +753,7 @@ impl AcirContext {
     /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
         let id = AcirVar(self.vars.len());
-        self.vars.insert(id, data);
-        id
+        self.vars.insert(id, data)
     }
 
     pub(crate) fn brillig(&mut self, _code: Vec<BrilligOpcode>) {
