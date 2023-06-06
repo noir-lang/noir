@@ -63,7 +63,7 @@ pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(command, NargoCommand::New(_)) && !matches!(command, NargoCommand::Lsp(_)) {
+    if !matches!(command, NargoCommand::New(_) | NargoCommand::Lsp(_)) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
