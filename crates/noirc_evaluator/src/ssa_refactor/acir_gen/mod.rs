@@ -21,7 +21,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::{artefact::BrilligArtefact, Brillig};
+use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -215,7 +215,7 @@ impl Context {
                             ),
                             RuntimeType::Brillig => {
                                 // Generate the brillig code of the function
-                                let code = BrilligArtefact::default().link(&brillig[*id]);
+                                let code = BrilligArtifact::default().link(&brillig[*id]);
                                 self.acir_context.brillig(code);
                                 (result_ids.to_vec(), Vec::new())
                             }
@@ -270,7 +270,17 @@ impl Context {
                 let result_ids = dfg.instruction_results(instruction_id);
                 (vec![result_ids[0]], vec![result_acir_var])
             }
-            _ => todo!("{instruction:?}"),
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let var = self.convert_ssa_value(*value, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+
+                let result_acir_var = self
+                    .acir_context
+                    .truncate_var(var, *bit_size, *max_bit_size)
+                    .expect("add Result types to all methods so errors bubble up");
+
+                (vec![result_ids[0]], vec![result_acir_var])
+            }
         };
 
         // Map the results of the instructions to Acir variables
@@ -294,8 +304,13 @@ impl Context {
             return;
         }
 
-        for value_id in return_values {
-            let acir_var = self.convert_ssa_value(*value_id, dfg);
+        // The return value may or may not be an array reference. Calling `flatten_value_list`
+        // will expand the array if there is one.
+        let return_acir_vars = self
+            .flatten_value_list(return_values, dfg)
+            .expect("add Result types to all methods so errors bubble up");
+
+        for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }
     }
@@ -334,11 +349,14 @@ impl Context {
     fn convert_ssa_binary(&mut self, binary: &Binary, dfg: &DataFlowGraph) -> AcirVar {
         let lhs = self.convert_ssa_value(binary.lhs, dfg);
         let rhs = self.convert_ssa_value(binary.rhs, dfg);
+
+        let binary_type = self.type_of_binary_operation(binary, dfg);
+
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(lhs, rhs),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.into()),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
@@ -346,8 +364,8 @@ impl Context {
                 .acir_context
                 .less_than_var(lhs, rhs)
                 .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs),
-            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs),
+            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type.into()),
             BinaryOp::Xor => self
                 .acir_context
                 .xor_var(lhs, rhs)
@@ -366,6 +384,54 @@ impl Context {
                 .expect("add Result types to all methods so errors bubble up"),
         }
     }
+
+    /// Operands in a binary operation are checked to have the same type.
+    ///
+    /// In Noir, binary operands should have the same type due to the language
+    /// semantics.
+    ///
+    /// There are some edge cases to consider:
+    /// - Constants are not explicitly type casted, so we need to check for this and
+    /// return the type of the other operand, if we have a constant.
+    /// - 0 is not seen as `Field 0` but instead as `Unit 0`
+    /// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
+    /// TODO nothing and a 0.
+    ///
+    /// TODO: This constant coercion should ideally be done in the type checker.
+    fn type_of_binary_operation(&self, binary: &Binary, dfg: &DataFlowGraph) -> Type {
+        let lhs_type = dfg.type_of_value(binary.lhs);
+        let rhs_type = dfg.type_of_value(binary.rhs);
+
+        match (lhs_type, rhs_type) {
+            // Function type should not be possible, since all functions
+            // have been inlined.
+            (Type::Function, _) | (_, Type::Function) => {
+                unreachable!("all functions should be inlined")
+            }
+            (_, Type::Reference) | (Type::Reference, _) => {
+                unreachable!(
+                    "operations involving references are handled separately in `convert_ssa_instruction`."
+                )
+            }
+            // Unit type currently can mean a 0 constant, so we return the
+            // other type.
+            (typ, Type::Unit) | (Type::Unit, typ) => typ,
+            // If either side is a Field constant then, we coerce into the type
+            // of the other operand
+            (Type::Numeric(NumericType::NativeField), typ)
+            | (typ, Type::Numeric(NumericType::NativeField)) => typ,
+            // If either side is a numeric type, then we expect their types to be
+            // the same.
+            (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
+                assert_eq!(
+                    lhs_type, rhs_type,
+                    "lhs and rhs types in a binary operation are always the same"
+                );
+                Type::Numeric(lhs_type)
+            }
+        }
+    }
+
     /// Returns an `AcirVar` that is constrained to be
     fn convert_ssa_cast(&mut self, value_id: &ValueId, typ: &Type, dfg: &DataFlowGraph) -> AcirVar {
         let variable = self.convert_ssa_value(*value_id, dfg);
@@ -390,7 +456,7 @@ impl Context {
         allow_log_ops: bool,
     ) -> Vec<AcirVar> {
         let inputs = self
-            .flatten_arguments(arguments, dfg)
+            .flatten_value_list(arguments, dfg)
             .expect("add Result types to all methods so errors bubble up");
         match intrinsic {
             Intrinsic::BlackBox(black_box) => self
@@ -424,7 +490,7 @@ impl Context {
     /// Maps an ssa value list, for which some values may be references to arrays, by inlining
     /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
     /// that correspond to other values.
-    fn flatten_arguments(
+    fn flatten_value_list(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
@@ -491,5 +557,51 @@ impl Context {
             _ => unreachable!("Invalid array address arithmetic operand"),
         };
         self.ssa_value_to_array_address.insert(value_id, (*array_id, new_offset));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::{
+        acir::{
+            circuit::Opcode,
+            native_types::{Expression, Witness},
+        },
+        FieldElement,
+    };
+
+    use crate::{
+        brillig::Brillig,
+        ssa_refactor::{
+            ir::{function::RuntimeType, map::Id},
+            ssa_builder::FunctionBuilder,
+        },
+    };
+
+    use super::Context;
+
+    #[test]
+    fn returns_body_scoped_arrays() {
+        // fn main {
+        //   b0():
+        //     v0 = alloc 1
+        //     store v0, Field 1
+        //     return v0
+        // }
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let v0 = builder.insert_allocate(1);
+        let const_one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, const_one);
+        builder.terminate_with_return(vec![v0]);
+        let ssa = builder.finish();
+
+        let context = Context::default();
+        let acir = context.convert_ssa(ssa, &[], Brillig::default(), false);
+
+        let expected_opcodes =
+            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
+        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }

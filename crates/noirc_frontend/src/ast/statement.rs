@@ -238,6 +238,61 @@ pub enum PathKind {
     Plain,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UseTree {
+    pub prefix: Path,
+    pub kind: UseTreeKind,
+}
+
+impl Display for UseTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.prefix)?;
+
+        match &self.kind {
+            UseTreeKind::Path(name, alias) => {
+                write!(f, "{name}")?;
+
+                while let Some(alias) = alias {
+                    write!(f, " as {}", alias)?;
+                }
+
+                Ok(())
+            }
+            UseTreeKind::List(trees) => {
+                write!(f, "::{{")?;
+                let tree = vecmap(trees, ToString::to_string).join(", ");
+                write!(f, "{tree}}}")
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UseTreeKind {
+    Path(Ident, Option<Ident>),
+    List(Vec<UseTree>),
+}
+
+impl UseTree {
+    pub fn desugar(self, root: Option<Path>) -> Vec<ImportStatement> {
+        let prefix = if let Some(mut root) = root {
+            root.segments.extend(self.prefix.segments);
+            root
+        } else {
+            self.prefix
+        };
+
+        match self.kind {
+            UseTreeKind::Path(name, alias) => {
+                vec![ImportStatement { path: prefix.join(name), alias }]
+            }
+            UseTreeKind::List(trees) => {
+                trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()
+            }
+        }
+    }
+}
+
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
@@ -248,6 +303,15 @@ pub struct Path {
 }
 
 impl Path {
+    pub fn pop(&mut self) -> Ident {
+        self.segments.pop().unwrap()
+    }
+
+    fn join(mut self, ident: Ident) -> Path {
+        self.segments.push(ident);
+        self
+    }
+
     /// Construct a PathKind::Plain from this single
     pub fn from_single(name: String, span: Span) -> Path {
         let segment = Ident::from(Spanned::from(span, name));
