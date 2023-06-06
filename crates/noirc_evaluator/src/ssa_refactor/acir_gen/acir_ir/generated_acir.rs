@@ -347,10 +347,10 @@ impl GeneratedAcir {
                     }
                     2 => {
                         let aof_boolean_expr = self.boolean_expr(&aof);
-                        let y = self.expression_to_witness(&aof_boolean_expr);
+                        let y = self.create_witness_for_expression(&aof_boolean_expr);
                         let neg_two = -FieldElement::from(2_i128);
 
-                        let aof_witness = self.expression_to_witness(&aof);
+                        let aof_witness = self.create_witness_for_expression(&aof);
                         let mut eee = Expression::default();
                         eee.push_multiplication_term(FieldElement::one(), y, aof_witness);
                         eee.push_addition_term(neg_two, y);
@@ -369,14 +369,14 @@ impl GeneratedAcir {
                 let mut aor = aof.clone();
                 aor.q_c += FieldElement::from(r);
 
-                let witness = self.expression_to_witness(&aor);
+                let witness = self.create_witness_for_expression(&aor);
                 self.range_constraint(witness, bit_size)?;
                 return Ok(());
             }
         }
 
         let sub_expression = b - &aof; //b-(a+offset)
-        let w = self.expression_to_witness(&sub_expression);
+        let w = self.create_witness_for_expression(&sub_expression);
         self.range_constraint(w, bits)?;
 
         Ok(())
@@ -387,7 +387,7 @@ impl GeneratedAcir {
     /// If the above is constrained to zero, then it can only be
     /// true, iff x equals zero or one.
     fn boolean_expr(&mut self, expr: &Expression) -> Expression {
-        let expr_as_witness = self.expression_to_witness(expr);
+        let expr_as_witness = self.create_witness_for_expression(expr);
         let mut expr_squared = Expression::default();
         expr_squared.push_multiplication_term(
             FieldElement::one(),

@@ -419,8 +419,8 @@ impl AcirContext {
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
 
-        let lhs_bit_size = self.variables_to_bit_sizes.get(&lhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend");
-        let rhs_bit_size = self.variables_to_bit_sizes.get(&rhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend");
+        let lhs_bit_size = self.variables_to_types.get(&lhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend").bit_size();
+        let rhs_bit_size = self.variables_to_types.get(&rhs).expect("euclidean division cannot be made on variables with no known bit size. This should have been caught by the frontend").bit_size();
 
         assert_eq!(
             lhs_bit_size, rhs_bit_size,
@@ -430,7 +430,7 @@ impl AcirContext {
         );
 
         let (quotient, remainder) =
-            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, *lhs_bit_size, &predicate)?;
+            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, lhs_bit_size, &predicate)?;
 
         let quotient_var = self.add_data(AcirVarData::Witness(quotient));
         let remainder_var = self.add_data(AcirVarData::Witness(remainder));
