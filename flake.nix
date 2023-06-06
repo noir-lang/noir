@@ -52,7 +52,7 @@
     { self, nixpkgs, crane, flake-utils, rust-overlay, barretenberg, ... }: let
       wasm-bindgen-cli-src = builtins.fetchGit {
         url = "https://github.com/rustwasm/wasm-bindgen.git";
-        rev = "4caa98165c65984e3eba3dd7825f3bf44955d127";
+        rev = "2d882c97b005c7b512b364ccd0fed8280bf8f821";
       };
     in
     flake-utils.lib.eachDefaultSystem (system:
