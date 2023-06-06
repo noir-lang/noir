@@ -840,6 +840,7 @@ fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Typ
     Ok(rhs_type.clone())
 }
 
+/// Taken from: https://stackoverflow.com/a/47127500
 fn sort_by_key_ref<T, F, K>(xs: &mut [T], key: F)
 where
     F: Fn(&T) -> &K,
