@@ -18,7 +18,6 @@ build-data = "0.1.3"
 toml.workspace = true
 
 [dependencies]
-async-lsp.workspace = true
 cfg-if.workspace = true
 clap.workspace = true
 dirs.workspace = true
@@ -35,6 +34,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tower.workspace = true
+async-lsp = { version = "0.0.4", default-features = false, features = ["client-monitor", "stdio", "tracing"] }
 const_format = "0.2.30"
 hex = "0.4.2"
 termcolor = "1.1.2"
@@ -53,15 +53,5 @@ predicates = "2.1.5"
 [features]
 default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
-plonk_bn254 = [
-    "acvm-backend-barretenberg/native",
-    "async-lsp/client-monitor",
-    "async-lsp/stdio",
-    "async-lsp/tracing"
-]
-plonk_bn254_wasm = [
-    "acvm-backend-barretenberg/wasm",
-    "async-lsp/client-monitor",
-    "async-lsp/stdio",
-    "async-lsp/tracing"
-]
+plonk_bn254 = ["acvm-backend-barretenberg/native"]
+plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]

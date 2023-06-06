@@ -38,7 +38,6 @@ noirc_evaluator = { path = "crates/noirc_evaluator" }
 noirc_frontend = { path = "crates/noirc_frontend" }
 noir_wasm = { path = "crates/wasm" }
 
-async-lsp = { version = "0.0.4", default-features = false, features = ["omni-trait"] }
 cfg-if = "1.0.0"
 clap = { version = "4.1.4", features = ["derive"]}
 codespan = "0.9.5"
