@@ -1,5 +1,5 @@
 use crate::ssa_refactor::ir::types::Type as SsaType;
-use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
+use crate::ssa_refactor::ir::{instruction::Endian, map::TwoWayMap, types::NumericType};
 use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
 use super::{
@@ -59,16 +59,10 @@ impl From<SsaType> for AcirType {
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
 pub(crate) struct AcirContext {
-    /// Map which links Variables to AcirVarData.
+    /// Two-way map that links `AcirVar` to `AcirVarData`.
     ///
-    /// This is a common pattern in this codebase
-    /// where `AcirVar` can be seen as a pointer to
-    /// `AcirVarData`.
-    data: HashMap<AcirVar, AcirVarData>,
-    /// Map which links `AcirVarData` to Variables.
-    ///
-    /// This is so that we can lookup
-    data_reverse_map: HashMap<AcirVarData, AcirVar>,
+    /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
+    vars: TwoWayMap<AcirVar, AcirVarData>,
 
     /// An in-memory representation of ACIR.
     ///
@@ -107,7 +101,7 @@ impl AcirContext {
     ///
     /// Note: `Variables` are immutable.
     pub(crate) fn neg_var(&mut self, var: AcirVar) -> AcirVar {
-        let var_data = &self.data[&var];
+        let var_data = &self.vars[var];
         match var_data {
             AcirVarData::Witness(witness) => {
                 let mut expr = Expression::default();
@@ -123,7 +117,7 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the inverse of `var`.
     pub(crate) fn inv_var(&mut self, var: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let var_data = &self.data[&var];
+        let var_data = &self.vars[var];
         let inverted_witness = match var_data {
             AcirVarData::Witness(witness) => {
                 let expr = Expression::from(*witness);
@@ -153,8 +147,8 @@ impl AcirContext {
     /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
     /// 0 otherwise.
     pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
 
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
@@ -236,8 +230,8 @@ impl AcirContext {
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
         // TODO: could use sub_var and then assert_eq_zero
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
 
         match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
@@ -284,8 +278,8 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the multiplication of `lhs` and `rhs`
     pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
         let result = match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
@@ -338,8 +332,8 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the addition of `lhs` and `rhs`
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
         let result = match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
@@ -376,7 +370,7 @@ impl AcirContext {
             Some(&AcirType::boolean()),
             "ICE: NOT op applied to non-boolean type"
         );
-        let data = &self.data[&x];
+        let data = &self.vars[x];
         // Since `x` can only be 0 or 1, we can derive NOT as 1 - x
         match data {
             AcirVarData::Const(constant) => {
@@ -402,7 +396,7 @@ impl AcirContext {
         rhs: AcirVar,
         _typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let rhs_data = &self.data[&rhs];
+        let rhs_data = &self.vars[rhs];
 
         // Compute 2^{rhs}
         let two_pow_rhs = match rhs_data.as_constant() {
@@ -422,8 +416,8 @@ impl AcirContext {
     ) -> Result<(AcirVar, AcirVar), AcirGenError> {
         let predicate = Expression::one();
 
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
 
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
@@ -472,7 +466,7 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let rhs_data = &self.data[&rhs];
+        let rhs_data = &self.vars[rhs];
 
         // Compute 2^{rhs}
         let two_pow_rhs = match rhs_data.as_constant() {
@@ -487,7 +481,7 @@ impl AcirContext {
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) {
-        let acir_var_data = self.data.get(&acir_var).expect("ICE: return of undeclared AcirVar");
+        let acir_var_data = self.vars.get(&acir_var).expect("ICE: return of undeclared AcirVar");
         // TODO: Add caching to prevent expressions from being needlessly duplicated
         let witness = match acir_var_data {
             AcirVarData::Const(constant) => {
@@ -505,7 +499,7 @@ impl AcirContext {
         variable: AcirVar,
         numeric_type: &NumericType,
     ) -> Result<AcirVar, AcirGenError> {
-        let data = &self.data[&variable];
+        let data = &self.vars[variable];
         match numeric_type {
             NumericType::Signed { .. } => todo!("signed integer conversion is unimplemented"),
             NumericType::Unsigned { bit_size } => {
@@ -531,7 +525,7 @@ impl AcirContext {
         rhs: u32,
         max_bit_size: u32,
     ) -> Result<AcirVar, AcirGenError> {
-        let lhs_data = &self.data[&lhs];
+        let lhs_data = &self.vars[lhs];
         let lhs_expr = lhs_data.to_expression();
 
         let result_expr = self.acir_ir.truncate(&lhs_expr, rhs, max_bit_size)?;
@@ -541,8 +535,8 @@ impl AcirContext {
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
     fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
 
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
@@ -588,7 +582,7 @@ impl AcirContext {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var =
                     inputs.pop().expect("ICE: Pedersen call requires domain separator");
-                let domain_constant = self.data[&domain_var]
+                let domain_constant = self.vars[domain_var]
                     .as_constant()
                     .expect("ICE: Domain separator must be a constant");
                 vec![domain_constant]
@@ -622,7 +616,7 @@ impl AcirContext {
     ) -> Result<Vec<FunctionInput>, AcirGenError> {
         let mut witnesses = Vec::new();
         for input in inputs {
-            let var_data = &self.data[input];
+            let var_data = &self.vars[input];
 
             // Intrinsics only accept Witnesses. This is not a limitation of the
             // intrinsics, its just how we have defined things. Ideally, we allow
@@ -681,15 +675,15 @@ impl AcirContext {
         limb_count_var: AcirVar,
     ) -> Result<Vec<AcirVar>, AcirGenError> {
         let radix =
-            self.data[&radix_var].as_constant().expect("ICE: radix should be a constant").to_u128()
+            self.vars[&radix_var].as_constant().expect("ICE: radix should be a constant").to_u128()
                 as u32;
 
-        let limb_count = self.data[&limb_count_var]
+        let limb_count = self.vars[limb_count_var]
             .as_constant()
             .expect("ICE: limb_size should be a constant")
             .to_u128() as u32;
 
-        let input_expr = &self.data[&input_var].to_expression();
+        let input_expr = &self.vars[input_var].to_expression();
 
         let limbs = self.acir_ir.radix_le_decompose(input_expr, radix, limb_count)?;
 
@@ -716,7 +710,7 @@ impl AcirContext {
     /// Prints the given `AcirVar`s as witnesses.
     pub(crate) fn print(&mut self, input: Vec<AcirVar>) -> Result<(), AcirGenError> {
         let witnesses = vecmap(input, |acir_var| {
-            let var_data = &self.data[&acir_var];
+            let var_data = &self.vars[acir_var];
             let expr = var_data.to_expression();
             self.acir_ir.get_or_create_witness(&expr)
         });
@@ -768,17 +762,8 @@ impl AcirContext {
     /// We use a two-way map so that it is efficient to lookup
     /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
-        assert_eq!(self.data.len(), self.data_reverse_map.len());
-        if let Some(acir_var) = self.data_reverse_map.get(&data) {
-            return *acir_var;
-        }
-
-        let id = AcirVar(self.data.len());
-
-        self.data.insert(id, data.clone());
-        self.data_reverse_map.insert(data, id);
-
-        id
+        let id = AcirVar(self.vars.len());
+        self.vars.insert(id, data)
     }
 
     pub(crate) fn brillig(&mut self, _code: Vec<BrilligOpcode>) {
