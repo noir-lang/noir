@@ -1,6 +1,6 @@
 // Tests a very simple program.
 // 
-// The features being tested is basic arithmetics on brillig
+// The features being tested is basic conditonal on brillig
 fn main(x: Field)  {
     assert(4 == conditional(x as bool));
 }
