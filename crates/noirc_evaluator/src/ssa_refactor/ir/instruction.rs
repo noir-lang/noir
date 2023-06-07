@@ -218,7 +218,9 @@ impl Instruction {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
                     assert!(index < array.len());
-                    return SimplifiedTo(array[index]);
+                    SimplifiedTo(array[index])
+                } else {
+                    None
                 }
             }
             Instruction::ArraySet { array, index, value } => {
@@ -227,7 +229,9 @@ impl Instruction {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
                     assert!(index < array.len());
-                    return SimplifiedTo(dfg.make_array(array.update(index, *value)));
+                    SimplifiedTo(dfg.make_array(array.update(index, *value)))
+                } else {
+                    None
                 }
             }
             Instruction::Truncate { .. } => (),
