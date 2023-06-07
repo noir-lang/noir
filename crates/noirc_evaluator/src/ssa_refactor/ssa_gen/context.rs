@@ -377,6 +377,7 @@ fn operator_result_max_bit_size_to_truncate(
     use noirc_frontend::BinaryOpKind::*;
     match op {
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
+        Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Multiply => Some(lhs_bit_size + rhs_bit_size),
         ShiftRight => Some(FieldElement::max_num_bits()),
         _ => None,
