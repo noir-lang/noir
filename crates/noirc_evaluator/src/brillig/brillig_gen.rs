@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use crate::ssa_refactor::ir::{
-    basic_block::BasicBlock,
+    basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
     function::Function,
     instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, ValueId}, post_order::PostOrder,
 };
 
 use super::artifact::BrilligArtifact;
@@ -47,14 +47,46 @@ impl BrilligGen {
     }
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
-    fn convert_block(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
+    fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
+        self.obj.start(block_id);
+        let block = &dfg[block_id];
         self.convert_block_params(block, dfg);
 
         for instruction_id in block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
 
-        self.convert_ssa_return(block, dfg);
+                // Jump to the next block
+                let jump = block.terminator().expect("block is expected to be constructed");
+                match jump {
+                    TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+                        let condition = self.convert_ssa_value(*condition, dfg);
+                        self.jump_if(condition, *then_destination);
+                        self.jump(*else_destination);
+                    }
+                    TerminatorInstruction::Jmp { destination, arguments } => {
+                        let target = &dfg[*destination];
+                        for (src,dest) in arguments.iter().zip(target.parameters()) {
+                            let destination = self.convert_ssa_value(*dest, dfg);
+                            let source = self.convert_ssa_value(*src, dfg);
+                            self.push_code(BrilligOpcode::Mov { destination, source });
+                        }
+                        self.jump(*destination);
+                    }
+                    TerminatorInstruction::Return { return_values } => {
+                        self.convert_ssa_return(return_values, dfg);
+                    } ,
+                }
+    }
+
+    fn jump(&mut self, target: BasicBlockId) {
+        self.obj.fix_jump(target);
+        self.push_code(BrilligOpcode::Jump { location: 0 });
+    }
+
+    fn jump_if(&mut self, condition: RegisterIndex, target: BasicBlockId) {
+        self.obj.fix_jump(target);
+        self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
     }
 
     /// Converts the SSA return instruction into the necessary BRillig return
@@ -63,12 +95,7 @@ impl BrilligGen {
     /// For Brillig, the return is implicit; The caller will take `N` values from
     /// the Register starting at register index 0. `N` indicates the number of
     /// return values expected.
-    fn convert_ssa_return(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
-        let return_values = match block.terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values,
-            _ => todo!("ICE: Unsupported return"),
-        };
-
+    fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
         // Check if the program returns the `Unit/None` type.
         // This type signifies that the program returns nothing.
         let is_return_unit_type =
@@ -193,13 +220,21 @@ impl BrilligGen {
     pub(crate) fn compile(func: &Function) -> BrilligArtifact {
         let mut brillig = BrilligGen::default();
 
-        let dfg = &func.dfg;
-
-        brillig.convert_block(&dfg[func.entry_block()], dfg);
+        brillig.convert_blocks(func);
 
         brillig.push_code(BrilligOpcode::Stop);
 
         brillig.obj
+    }
+
+    fn convert_blocks(&mut self, func: &Function)
+    {
+        let mut rpo = Vec::new();
+        rpo.extend_from_slice(PostOrder::with_function(func).as_slice());
+        rpo.reverse();
+        for b in rpo {
+            self.convert_block(b, &func.dfg);
+        }
     }
 }
 
