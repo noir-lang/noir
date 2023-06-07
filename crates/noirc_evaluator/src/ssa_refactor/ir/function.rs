@@ -27,6 +27,10 @@ pub(crate) struct Function {
     /// Name of the function for debugging only
     name: String,
 
+    /// Marks if this has an oracle attribute.
+    /// Note if is given, dfg will be empty.
+    oracle_name: Option<String>,
+
     id: FunctionId,
 
     runtime: RuntimeType,
@@ -39,11 +43,11 @@ pub(crate) struct Function {
 impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
-    /// Note that any parameters to the function must be manually added later.
+    /// Note that any parameters or attributes of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir }
+        Self { name, oracle_name: None, id, entry_block, dfg, runtime: RuntimeType::Acir }
     }
 
     /// The name of the function.
@@ -65,6 +69,11 @@ impl Function {
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         self.runtime = runtime;
+    }
+
+    /// Set oracle name of the function (comes from oracle attribute).
+    pub(crate) fn set_oracle_name(&mut self, oracle_name: Option<String>) {
+        self.oracle_name = oracle_name;
     }
 
     /// Retrieves the entry block of a function.

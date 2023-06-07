@@ -13,6 +13,7 @@ pub fn execute_circuit(
     let solver_status = solve(backend, &mut initial_witness, &mut blocks, circuit.opcodes)?;
     if matches!(solver_status, PartialWitnessGeneratorStatus::RequiresOracleData { .. }) {
         todo!("Add oracle support to nargo execute")
+        // TODO 1557
     }
 
     Ok(initial_witness)
