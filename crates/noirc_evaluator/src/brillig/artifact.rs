@@ -4,52 +4,72 @@ use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
 
+/// Pointer to a unresolved Jump instruction in
+/// the bytecode.
+pub(crate) type JumpLabel = usize;
+
+/// Pointer to a position in the bytecode where a
+/// particular basic block starts.
+pub(crate) type BlockLabel = usize;
+
 #[derive(Default, Debug, Clone)]
-/// Artifacts resulting from the compilation of a function into brillig byte code
-/// Currently it is just the brillig bytecode of the function
+/// Artifacts resulting from the compilation of a function into brillig byte code.
+/// Currently it is just the brillig bytecode of the function.
 pub(crate) struct BrilligArtifact {
     pub(crate) byte_code: Vec<BrilligOpcode>,
-    to_fix: Vec<(usize, BasicBlockId)>,
-    blocks: HashMap<BasicBlockId, usize>, //processed blocks and their entry point
+    /// The set of jumps that need to have their locations
+    /// resolved.
+    unresolved_jumps: Vec<(JumpLabel, BasicBlockId)>,
+    /// A map of the basic blocks to their positions
+    /// in the bytecode.
+    blocks: HashMap<BasicBlockId, BlockLabel>,
 }
 
 impl BrilligArtifact {
-    // Link some compiled brillig bytecode with its referenced artifacts
+    /// Link some compiled brillig bytecode with its referenced artifacts
     pub(crate) fn link(&mut self, obj: &BrilligArtifact) -> Vec<BrilligOpcode> {
         self.link_with(obj);
-        self.fix_jumps();
+        self.resolve_jumps();
         self.byte_code.clone()
     }
 
-    // Link with a brillig artifact
+    /// Link with a brillig artifact
     fn link_with(&mut self, obj: &BrilligArtifact) {
         if obj.byte_code.is_empty() {
             panic!("ICE: unresolved symbol");
         }
+
         let offset = self.code_len();
-        for i in &obj.to_fix {
-            self.to_fix.push((i.0 + offset, i.1));
+        for i in &obj.unresolved_jumps {
+            self.unresolved_jumps.push((i.0 + offset, i.1));
         }
         for i in &obj.blocks {
             self.blocks.insert(*i.0, i.1 + offset);
         }
         self.byte_code.extend_from_slice(&obj.byte_code);
     }
-    
-    pub(crate) fn fix_jump(&mut self, destination: BasicBlockId) {
-        self.to_fix.push((self.code_len(), destination));
-     }
 
-    pub(crate) fn start(&mut self, block: BasicBlockId) {
+    /// Adds a unresolved jump to be fixed at the end of bytecode processing.
+    pub(crate) fn add_unresolved_jump(&mut self, destination: BasicBlockId) {
+        self.unresolved_jumps.push((self.code_len(), destination));
+    }
+
+    /// Adds a label in the bytecode to specify where this block's
+    /// opcodes will start.
+    pub(crate) fn add_block_label(&mut self, block: BasicBlockId) {
         self.blocks.insert(block, self.code_len());
-     }
+    }
 
-     pub(crate) fn code_len(&self) -> usize {
+    /// Number of the opcodes currently in the bytecode
+    pub(crate) fn code_len(&self) -> usize {
         self.byte_code.len()
     }
 
-    fn fix_jumps(&mut self) {
-        for (jump, block) in &self.to_fix {
+    /// Resolves all of the unresolved jumps in the program.
+    ///
+    /// Note: This should only be called once all blocks are processed.
+    fn resolve_jumps(&mut self) {
+        for (jump, block) in &self.unresolved_jumps {
             match self.byte_code[*jump] {
                 BrilligOpcode::Jump { location } => {
                     assert_eq!(location, 0);
@@ -68,8 +88,7 @@ impl BrilligArtifact {
                 BrilligOpcode::JumpIf { condition, location } => {
                     assert_eq!(location, 0);
                     let current = self.blocks[block];
-                    self.byte_code[*jump] =
-                        BrilligOpcode::JumpIf { condition, location: current };
+                    self.byte_code[*jump] = BrilligOpcode::JumpIf { condition, location: current };
                 }
                 _ => unreachable!(),
             }
