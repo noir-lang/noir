@@ -200,28 +200,10 @@ impl Context {
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::ArrayGet { array, index } => {
-                let array = self.convert_array_value(*array, dfg);
-                let index = dfg
-                    .get_numeric_constant(*index)
-                    .expect("Expected array index to be a known constant")
-                    .try_to_u64()
-                    .expect("Expected array index to fit into a u64")
-                    as usize;
-
-                self.define_result(dfg, instruction_id, array[index].clone());
+                self.handle_array_operation(instruction_id, *array, *index, None, dfg)
             }
             Instruction::ArraySet { array, index, value } => {
-                let array = self.convert_array_value(*array, dfg);
-                let index = dfg
-                    .get_numeric_constant(*index)
-                    .expect("Expected array index to be a known constant")
-                    .try_to_u64()
-                    .expect("Expected array index to fit into a u64")
-                    as usize;
-
-                let value = self.convert_value(*value, dfg);
-                let new_array = AcirValue::Array(array.update(index, value));
-                self.define_result(dfg, instruction_id, new_array);
+                self.handle_array_operation(instruction_id, *array, *index, Some(*value), dfg)
             }
             Instruction::Allocate => {
                 unreachable!("Expected all allocate instructions to be removed before acir_gen")
@@ -233,6 +215,35 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
+    }
+
+    /// Handles an ArrayGet or ArraySet instruction.
+    /// To set an index of the array (and create a new array in doing so), pass Some(value) for
+    /// store_value. To just retrieve an index of the array, pass None for store_value.
+    fn handle_array_operation(
+        &mut self,
+        instruction: InstructionId,
+        array: ValueId,
+        index: ValueId,
+        store_value: Option<ValueId>,
+        dfg: &DataFlowGraph,
+    ) {
+        let array = self.convert_array_value(array, dfg);
+        let index = dfg
+            .get_numeric_constant(index)
+            .expect("Expected array index to be a known constant")
+            .try_to_u64()
+            .expect("Expected array index to fit into a u64") as usize;
+
+        let value = match store_value {
+            Some(store_value) => {
+                let store_value = self.convert_value(store_value, dfg);
+                AcirValue::Array(array.update(index, store_value))
+            }
+            None => array[index].clone(),
+        };
+
+        self.define_result(dfg, instruction, value);
     }
 
     /// Remember the result of an instruction returning a single value
