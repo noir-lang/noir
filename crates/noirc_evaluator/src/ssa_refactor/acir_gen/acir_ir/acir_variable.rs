@@ -613,7 +613,7 @@ impl AcirContext {
             limb_vars.reverse();
         }
 
-        Ok(limb_vars)
+        Ok(vec![AcirValue::Array(limb_vars.into())])
     }
 
     /// Returns `AcirVar`s constrained to be the bit decomposition of the provided input
