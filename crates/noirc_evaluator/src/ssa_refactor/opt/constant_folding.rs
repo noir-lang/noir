@@ -154,7 +154,7 @@ mod test {
         // Expected output:
         //
         // fn main f0 {
-        //   b0(v0: Field):
+        //   b0(Field 2: Field):
         //     return Field 9
         // }
         main.dfg.set_value_from_id(v0, two);
