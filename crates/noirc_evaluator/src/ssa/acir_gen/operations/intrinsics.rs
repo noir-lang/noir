@@ -95,6 +95,11 @@ pub(crate) fn evaluate(
                 | BlackBoxFunc::HashToField128Security => {
                     prepare_outputs(&mut acir_gen.memory, instruction_id, 1, ctx, evaluator)
                 }
+                // There are some low level functions that have variable outputs and 
+                // should not have a set output count in Noir
+                BlackBoxFunc::RecursiveAggregation => {
+                    prepare_outputs_no_count(&mut acir_gen.memory, instruction_id, ctx, evaluator)
+                }
                 _ => panic!("Unsupported low level function {:?}", op),
             };
             let func_call = match op {
@@ -151,6 +156,31 @@ pub(crate) fn evaluate(
                     inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
                     output: outputs[0],
                 },
+                BlackBoxFunc::RecursiveAggregation => {
+                    let has_previous_aggregation = evaluator.opcodes.iter().any(|op| {
+                        matches!(
+                            op,
+                            AcirOpcode::BlackBoxFuncCall(
+                                BlackBoxFuncCall::RecursiveAggregation { .. }
+                            )
+                        )
+                    });
+
+                    let input_aggregation_object = if !has_previous_aggregation {
+                        None
+                    } else {
+                        Some(resolve_array(&args[4], acir_gen, ctx, evaluator))
+                    };
+
+                    BlackBoxFuncCall::RecursiveAggregation {
+                        verification_key: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        proof: resolve_array(&args[1], acir_gen, ctx, evaluator),
+                        public_inputs: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                        key_hash: resolve_variable(&args[3], acir_gen, ctx, evaluator).unwrap(),
+                        input_aggregation_object,
+                        output_aggregation_object: outputs.to_vec(),
+                    }
+                }
                 _ => panic!("Unsupported low level function {:?}", op),
             };
             evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
@@ -278,6 +308,25 @@ fn prepare_outputs(
         memory_map.map_array(a, &outputs, ctx);
     }
     outputs
+}
+
+fn prepare_outputs_no_count(
+    memory_map: &mut AcirMem,
+    pointer: NodeId,
+    ctx: &SsaContext,
+    evaluator: &mut Evaluator,
+) -> Vec<Witness> {
+    // Create fresh variables that will link to the output
+    let l_obj = ctx.try_get_node(pointer).unwrap();
+    if let node::ObjectType::ArrayPointer(a) = l_obj.get_type() {
+        let mem_array = &ctx.mem[a];
+        let output_nb = mem_array.len;
+        let outputs = vecmap(0..output_nb, |_| evaluator.add_witness_to_cs());
+        memory_map.map_array(a, &outputs, ctx);
+        outputs
+    } else {
+        vec![evaluator.add_witness_to_cs()]
+    }
 }
 
 fn evaluate_println(
