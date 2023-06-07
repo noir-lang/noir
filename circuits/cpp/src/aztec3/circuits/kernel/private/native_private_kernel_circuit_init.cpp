@@ -140,11 +140,10 @@ void update_end_values(DummyComposer& composer,
     // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
     array_push(composer, public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.hash());
 
-    // Nonce nullifier
-    // DANGER: This is terrible. This should not be part of the protocol. This is an intentional bodge to reach a
-    // milestone. This must not be the way we derive nonce nullifiers in production. It can be front-run by other
-    // users. It is not domain separated. Naughty.
-    array_push(composer, public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.tx_request.nonce);
+    // Note that we do not need to nullify the transaction request nonce anymore.
+    // Should an account want to additionally use nonces for replay protection or handling cancellations,
+    // they will be able to do so in the account contract logic:
+    // https://github.com/AztecProtocol/aztec-packages/issues/660
 }
 
 // NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
