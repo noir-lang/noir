@@ -320,17 +320,17 @@ library Decoder {
         // TODO: Uncomment once the logs functionality is added in other places
         // /**
         //  * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
-        //  * Note: `_computeKernelLogsHash` will advance offsets by the number of bytes processed.
+        //  * Note: `computeKernelLogsHash` will advance offsets by the number of bytes processed.
         //  */
         // (vars.encrypedLogsHashKernel1, offsets.encryptedLogsOffset) =
-        //   _computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
+        //   computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
         // (vars.encrypedLogsHashKernel2, offsets.encryptedLogsOffset) =
-        //   _computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
+        //   computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
 
         // (vars.unencryptedLogsHashKernel1, offsets.unencryptedLogsOffset) =
-        //   _computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
+        //   computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
         // (vars.unencryptedLogsHashKernel2, offsets.unencryptedLogsOffset) =
-        //   _computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
+        //   computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
 
         assembly {
           let baseLeaf := mload(add(vars, 0x40)) // Load the pointer to `vars.baseLeaf`
@@ -428,17 +428,23 @@ library Decoder {
   }
 
   /**
-   * @notice Computes the hash of logs in a kernel.
+   * @notice Computes logs hash as is done in the kernel and app circuits.
    * @param _offset - The offset of kernel's logs in calldata.
    * @param - The L2 block calldata.
    * @return The hash of the logs and offset pointing to the end of the logs in calldata.
-   * @dev We have logs preimages on the input and we need to perform the same hashing process as is done in the kernel.
-   *      In each iteration of kernel, the kernel computes a hash of the previous iteration's logs hash and the current
-   *      iteration's logs. E.g. for resulting logs hash of a kernel with 3 iterations would be computed as:
+   * @dev We have logs preimages on the input and we need to perform the same hashing process as is done in the app
+   *      circuit (hashing the logs) and in the kernel circuit (accumulating the logs hashes). In each iteration of
+   *      kernel, the kernel computes a hash of the previous iteration's logs hash (the hash in the previous kernel's
+   *      public inputs) and the the current iteration private circuit public inputs logs hash.
    *
-   *        logsHash = sha256(sha256(sha256(I1_LOGS), I2_LOGS), I3_LOGS)
+   *      E.g. for resulting logs hash of a kernel with 3 iterations would be computed as:
    *
-   *      where I1_LOGS, I2_LOGS and I3_LOGS are logs emitted in the first, second and third iterations respectively.
+   *        kernelPublicInputsLogsHash = sha256(sha256(sha256(I1_LOGS), sha256(I2_LOGS)), sha256(I3_LOGS))
+   *
+   *      where I1_LOGS, I2_LOGS and I3_LOGS are logs emitted in the first, second and third function call.
+   *
+   *      Note that `sha256(I1_LOGS)`, `sha256(I2_LOGS)` and `sha256(I3_LOGS)` are computed in the app circuit and not
+   *      in the kernel circuit. The kernel circuit only accumulates the hashes.
    *
    * @dev For the example above, the logs are encoded in the following way:
    *
@@ -468,40 +474,44 @@ library Decoder {
       offset := add(_offset, 0x4)
     }
 
-    bytes32 logsHash;
-    uint256 iterationLogsLength;
-    uint256 tempLength;
+    bytes32[2] memory logsHashes; // A memory to which we will write the 2 logs hashes to be accumulated
+    bytes32 kernelPublicInputsLogsHash; // The hash on the output of kernel iteration
+    // The length of the logs emitted by Noir from the function call corresponding to this kernel iteration
+    uint256 privateCircuitPublicInputLogsLength;
 
     // Iterate until all the logs were processed
     while (remainingLogsLength > 0) {
       assembly {
         // Load this iteration's logs length
-        iterationLogsLength := and(shr(224, calldataload(offset)), 0xffffffff)
+        privateCircuitPublicInputLogsLength := and(shr(224, calldataload(offset)), 0xffffffff)
         offset := add(offset, 0x4)
-        tempLength := add(0x20, iterationLogsLength) // len(logsHash) + iterationLogsLength
       }
 
       // TODO: Allocating memory in each iteration is expensive. Should we somehow set it to max length of all the
       //       iterations? (e.g. We could do that by first searching for max length in a loop or by modifying
       //       the encoding and storing max length on a predefined position)
-      bytes memory temp = new bytes(tempLength);
+      bytes memory privateCircuitPublicInputLogs = new bytes(privateCircuitPublicInputLogsLength);
       assembly {
-        // Copy logsHash from stack to temp
-        mstore(add(temp, 0x20), logsHash)
-
-        // Load this iteration's logs to memory
-        calldatacopy(add(temp, 0x40), offset, iterationLogsLength)
-        offset := add(offset, iterationLogsLength)
-
-        // Decrease remaining logs length by this iteration's logs length (len(I?_LOGS)) and 4 bytes for I?_LOGS_LEN
-        remainingLogsLength := sub(remainingLogsLength, add(iterationLogsLength, 0x4))
+        // Load logs corresponding to this iteration's function call to memory
+        calldatacopy(
+          add(privateCircuitPublicInputLogs, 0x20), offset, privateCircuitPublicInputLogsLength
+        )
+        offset := add(offset, privateCircuitPublicInputLogsLength)
       }
 
-      // Compute current iteration's logs hash
-      logsHash = sha256(temp);
+      // Hash the logs
+      bytes32 privateCircuitPublicInputsLogsHash = sha256(privateCircuitPublicInputLogs);
+
+      logsHashes[0] = kernelPublicInputsLogsHash;
+      logsHashes[1] = privateCircuitPublicInputsLogsHash;
+      // Decrease remaining logs length by this privateCircuitPublicInputsLogs's length (len(I?_LOGS)) and 4 bytes for I?_LOGS_LEN
+      remainingLogsLength -= (privateCircuitPublicInputLogsLength + 0x4); // 0x4 is the length of the logs length
+
+      // Hash logs hash from the public inputs of previous kernel iteration and logs hash from private circuit public inputs
+      kernelPublicInputsLogsHash = sha256(abi.encodePacked(logsHashes));
     }
 
-    return (logsHash, offset);
+    return (kernelPublicInputsLogsHash, offset);
   }
 
   /**
