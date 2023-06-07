@@ -1,19 +1,18 @@
-use std::collections::HashMap;
-
+use super::artifact::BrilligArtifact;
 use crate::ssa_refactor::ir::{
-    basic_block::BasicBlock,
+    basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
     function::Function,
     instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+    post_order::PostOrder,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-
-use super::artifact::BrilligArtifact;
-
 use acvm::acir::brillig_vm::{
     BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
 };
+use std::collections::HashMap;
+
 #[derive(Default)]
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
@@ -47,14 +46,48 @@ impl BrilligGen {
     }
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
-    fn convert_block(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
+    fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
+        self.obj.add_block_label(block_id);
+        let block = &dfg[dbg!(block_id)];
         self.convert_block_params(block, dfg);
 
         for instruction_id in block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
 
-        self.convert_ssa_return(block, dfg);
+        // Jump to the next block
+        let jump = block.terminator().expect("block is expected to be constructed");
+        match jump {
+            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+                let condition = self.convert_ssa_value(*condition, dfg);
+                self.jump_if(condition, *then_destination);
+                self.jump(*else_destination);
+            }
+            TerminatorInstruction::Jmp { destination, arguments } => {
+                let target = &dfg[*destination];
+                for (src, dest) in arguments.iter().zip(target.parameters()) {
+                    let destination = self.convert_ssa_value(*dest, dfg);
+                    let source = self.convert_ssa_value(*src, dfg);
+                    self.push_code(BrilligOpcode::Mov { destination, source });
+                }
+                self.jump(*destination);
+            }
+            TerminatorInstruction::Return { return_values } => {
+                self.convert_ssa_return(return_values, dfg);
+            }
+        }
+    }
+
+    /// Adds a unresolved `Jump` instruction to the bytecode.
+    fn jump(&mut self, target: BasicBlockId) {
+        self.obj.add_unresolved_jump(target);
+        self.push_code(BrilligOpcode::Jump { location: 0 });
+    }
+
+    /// Adds a unresolved `JumpIf` instruction to the bytecode.
+    fn jump_if(&mut self, condition: RegisterIndex, target: BasicBlockId) {
+        self.obj.add_unresolved_jump(target);
+        self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
     }
 
     /// Converts the SSA return instruction into the necessary BRillig return
@@ -63,12 +96,7 @@ impl BrilligGen {
     /// For Brillig, the return is implicit; The caller will take `N` values from
     /// the Register starting at register index 0. `N` indicates the number of
     /// return values expected.
-    fn convert_ssa_return(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
-        let return_values = match block.terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values,
-            _ => todo!("ICE: Unsupported return"),
-        };
-
+    fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
         // Check if the program returns the `Unit/None` type.
         // This type signifies that the program returns nothing.
         let is_return_unit_type =
@@ -171,7 +199,7 @@ impl BrilligGen {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.ssa_value_to_register[&value_id]
+                self.get_or_create_register(value_id)
             }
             Value::NumericConstant { constant, .. } => {
                 let register_index = self.get_or_create_register(value_id);
@@ -193,13 +221,26 @@ impl BrilligGen {
     pub(crate) fn compile(func: &Function) -> BrilligArtifact {
         let mut brillig = BrilligGen::default();
 
-        let dfg = &func.dfg;
-
-        brillig.convert_block(&dfg[func.entry_block()], dfg);
+        brillig.convert_ssa_function(func);
 
         brillig.push_code(BrilligOpcode::Stop);
 
         brillig.obj
+    }
+
+    /// Converting an SSA function into Brillig bytecode.
+    ///
+    /// TODO: Change this to use `dfg.basic_blocks_iter` which will return an
+    /// TODO iterator of all of the basic blocks.
+    /// TODO(Jake): what order is this ^
+    fn convert_ssa_function(&mut self, func: &Function) {
+        let mut reverse_post_order = Vec::new();
+        reverse_post_order.extend_from_slice(PostOrder::with_function(func).as_slice());
+        reverse_post_order.reverse();
+
+        for block in reverse_post_order {
+            self.convert_block(block, &func.dfg);
+        }
     }
 }
 
