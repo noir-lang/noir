@@ -184,7 +184,9 @@ impl Instruction {
             Instruction::Binary(binary) => return binary.simplify(dfg),
             Instruction::Cast(value, typ) => {
                 if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
-                    return SimplifiedTo(value);
+                    SimplifiedTo(value)
+                } else {
+                    None
                 }
             }
             Instruction::Not(value) => {
@@ -194,15 +196,17 @@ impl Instruction {
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
                         let value = constant.is_zero() as u128;
-                        return SimplifiedTo(dfg.make_constant(value.into(), Type::bool()));
+                        SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
                         if let Instruction::Not(value) = &dfg[*instruction] {
-                            return SimplifiedTo(*value);
+                            SimplifiedTo(*value)
+                        } else {
+                            None
                         }
                     }
-                    _ => (),
+                    _ => None,
                 }
             }
             Instruction::Constrain(value) => {
@@ -211,6 +215,7 @@ impl Instruction {
                         return Remove;
                     }
                 }
+                None
             }
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
@@ -234,13 +239,12 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Truncate { .. } => (),
-            Instruction::Call { .. } => (),
-            Instruction::Allocate { .. } => (),
-            Instruction::Load { .. } => (),
-            Instruction::Store { .. } => (),
+            Instruction::Truncate { .. } => None,
+            Instruction::Call { .. } => None,
+            Instruction::Allocate { .. } => None,
+            Instruction::Load { .. } => None,
+            Instruction::Store { .. } => None,
         }
-        None
     }
 }
 
