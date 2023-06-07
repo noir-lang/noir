@@ -431,7 +431,7 @@ impl<'f> Context<'f> {
         condition_value: FieldElement,
     ) -> Branch {
         self.push_condition(jmpif_block, new_condition);
-        self.insert_current_side_effects_enabled(); // Instruction to annotate condition was pushed
+        self.insert_current_side_effects_enabled();
         let old_stores = std::mem::take(&mut self.store_values);
 
         // Remember the old condition value is now known to be true/false within this branch
@@ -441,7 +441,7 @@ impl<'f> Context<'f> {
         let final_block = self.inline_block(destination, &[]);
 
         self.conditions.pop();
-        self.insert_current_side_effects_enabled(); // Instruction to annotate condition was popped
+        self.insert_current_side_effects_enabled();
         let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
 
         Branch { condition: new_condition, last_block: final_block, store_values: stores_in_branch }
