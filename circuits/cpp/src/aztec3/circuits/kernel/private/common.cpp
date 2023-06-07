@@ -81,16 +81,16 @@ void common_update_end_values(DummyComposer& composer,
                 new_nullifiers[i] == 0 ? 0 : silo_nullifier<NT>(storage_contract_address, new_nullifiers[i]);
         }
 
-        push_array_to_array(siloed_new_commitments, public_inputs.end.new_commitments);
-        push_array_to_array(siloed_new_nullifiers, public_inputs.end.new_nullifiers);
+        push_array_to_array(composer, siloed_new_commitments, public_inputs.end.new_commitments);
+        push_array_to_array(composer, siloed_new_nullifiers, public_inputs.end.new_nullifiers);
     }
 
     {  // call stacks
         const auto& this_private_call_stack = private_call_public_inputs.private_call_stack;
-        push_array_to_array(this_private_call_stack, public_inputs.end.private_call_stack);
+        push_array_to_array(composer, this_private_call_stack, public_inputs.end.private_call_stack);
 
         const auto& this_public_call_stack = private_call_public_inputs.public_call_stack;
-        push_array_to_array(this_public_call_stack, public_inputs.end.public_call_stack);
+        push_array_to_array(composer, this_public_call_stack, public_inputs.end.public_call_stack);
     }
 
     {  // new l2 to l1 messages
@@ -109,7 +109,7 @@ void common_update_end_values(DummyComposer& composer,
                                                                            new_l2_to_l1_msgs[i]);
             }
         }
-        push_array_to_array(new_l2_to_l1_msgs_to_insert, public_inputs.end.new_l2_to_l1_msgs);
+        push_array_to_array(composer, new_l2_to_l1_msgs_to_insert, public_inputs.end.new_l2_to_l1_msgs);
     }
 
     {  // logs hashes
@@ -169,8 +169,7 @@ void common_contract_logic(DummyComposer& composer,
                                                             portal_contract_address,
                                                             contract_dep_data.function_tree_root };
 
-        array_push<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(public_inputs.end.new_contracts,
-                                                                     native_new_contract_data);
+        array_push(composer, public_inputs.end.new_contracts, native_new_contract_data);
         composer.do_assert(contract_dep_data.constructor_vk_hash == private_call_vk_hash,
                            "constructor_vk_hash doesn't match private_call_vk_hash",
                            CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
@@ -185,7 +184,7 @@ void common_contract_logic(DummyComposer& composer,
         auto const new_contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake3s(blake_input).data());
 
         // push the contract address nullifier to nullifier vector
-        array_push(public_inputs.end.new_nullifiers, new_contract_address_nullifier);
+        array_push(composer, public_inputs.end.new_nullifiers, new_contract_address_nullifier);
     } else {
         // non-contract deployments must specify contract address being interacted with
         composer.do_assert(storage_contract_address != 0,

@@ -1,6 +1,9 @@
 #pragma once
 #include "./types/native_types.hpp"
 
+#include "aztec3/utils/circuit_errors.hpp"
+
+#include "barretenberg/proof_system/types/composer_type.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 /**
@@ -97,10 +100,12 @@ template <typename T, size_t SIZE> T array_pop(std::array<T, SIZE>& arr)
 /**
  * @brief Helper method to push an item into the first empty slot in an array
  * @tparam The type of the value stored in the array
+ * @tparam The composer type
  * @tparam The size of the array
  * @param The array into which we want to store the value
  */
-template <typename T, size_t SIZE> void array_push(std::array<T, SIZE>& arr, T const& value)
+template <typename T, typename Composer, size_t SIZE>
+void array_push(Composer& composer, std::array<T, SIZE>& arr, T const& value)
 {
     for (size_t i = 0; i < arr.size(); ++i) {
         if (is_empty(arr[i])) {
@@ -108,7 +113,7 @@ template <typename T, size_t SIZE> void array_push(std::array<T, SIZE>& arr, T c
             return;
         }
     }
-    throw_or_abort("array_push cannot push to a full array");
+    composer.do_assert(false, "array_push cannot push to a full array", CircuitErrorCode::ARRAY_OVERFLOW);
 };
 
 /**
@@ -137,17 +142,22 @@ template <typename T, size_t SIZE> NT::boolean is_array_empty(std::array<T, SIZE
  * @param The `source` array
  * @param The `target` array
  */
-template <size_t size_1, size_t size_2, typename T>
-void push_array_to_array(std::array<T, size_1> const& source, std::array<T, size_2>& target)
+template <size_t size_1, size_t size_2, typename T, typename Composer>
+void push_array_to_array(Composer& composer, std::array<T, size_1> const& source, std::array<T, size_2>& target)
 {
     // Check if the `source` array is too large vs the remaining capacity of the `target` array
     size_t const source_size = static_cast<size_t>(uint256_t(array_length(source)));
     size_t const target_size = static_cast<size_t>(uint256_t(array_length(target)));
-    ASSERT(source_size <= size_2 - target_size);
+
+    composer.do_assert(source_size <= size_2 - target_size,
+                       "push_array_to_array cannot overflow the target",
+                       CircuitErrorCode::ARRAY_OVERFLOW);
 
     // Ensure that there are no non-zero values in the `target` array after the first zero-valued index
     for (size_t i = target_size; i < size_2; i++) {
-        ASSERT(is_empty(target[i]));
+        composer.do_assert(is_empty(target[i]),
+                           "push_array_to_array inserting new array into a non empty space",
+                           CircuitErrorCode::ARRAY_OVERFLOW);
     }
     // Copy the non-zero elements of the `source` array to the `target` array at the first zero-valued index
     auto zero_index = target_size;

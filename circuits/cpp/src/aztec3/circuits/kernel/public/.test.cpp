@@ -1116,4 +1116,5 @@ TEST(public_kernel_tests, previous_public_kernel_fails_if_incorrect_storage_cont
     ASSERT_EQ(dummyComposer.get_first_failure().code,
               CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
 }
+
 }  // namespace aztec3::circuits::kernel::public_kernel

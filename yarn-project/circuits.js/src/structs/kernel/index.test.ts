@@ -45,9 +45,9 @@ describe('structs/kernel', () => {
       'abis__test_roundtrip_serialize_signed_tx_request',
     );
   });
-  it(`serializes and prints CombinedAccumulatedData`, async () => {
+  it(`serializes and prints CombinedAccumulatedData`, async (seed = 1) => {
     await expectSerializeToMatchSnapshot(
-      makeAccumulatedData().toBuffer(),
+      makeAccumulatedData(seed, true).toBuffer(),
       'abis__test_roundtrip_serialize_combined_accumulated_data',
     );
   });

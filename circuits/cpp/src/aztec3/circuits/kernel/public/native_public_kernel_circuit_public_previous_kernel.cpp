@@ -60,7 +60,7 @@ KernelCircuitPublicInputs<NT> native_public_kernel_circuit_public_previous_kerne
     validate_this_public_call_hash(composer, public_kernel_inputs, public_inputs);
 
     // update the public end state of the circuit
-    common_update_public_end_values(public_kernel_inputs, public_inputs);
+    common_update_public_end_values(composer, public_kernel_inputs, public_inputs);
 
     return public_inputs;
 };

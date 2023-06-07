@@ -202,8 +202,9 @@ void common_validate_inputs(DummyComposer& composer, KernelInput const& public_k
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput>
-void propagate_valid_public_data_update_requests(KernelInput const& public_kernel_inputs,
+template <typename KernelInput, typename Composer>
+void propagate_valid_public_data_update_requests(Composer& composer,
+                                                 KernelInput const& public_kernel_inputs,
                                                  KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
@@ -219,7 +220,7 @@ void propagate_valid_public_data_update_requests(KernelInput const& public_kerne
             .old_value = compute_public_data_tree_value<NT>(update_request.old_value),
             .new_value = compute_public_data_tree_value<NT>(update_request.new_value),
         };
-        array_push(circuit_outputs.end.public_data_update_requests, new_write);
+        array_push(composer, circuit_outputs.end.public_data_update_requests, new_write);
     }
 }
 
@@ -229,8 +230,10 @@ void propagate_valid_public_data_update_requests(KernelInput const& public_kerne
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput> void propagate_valid_public_data_reads(KernelInput const& public_kernel_inputs,
-                                                                       KernelCircuitPublicInputs<NT>& circuit_outputs)
+template <typename KernelInput, typename Composer>
+void propagate_valid_public_data_reads(Composer& composer,
+                                       KernelInput const& public_kernel_inputs,
+                                       KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
     const auto& reads = public_kernel_inputs.public_call.call_stack_item.public_inputs.contract_storage_reads;
@@ -243,28 +246,31 @@ template <typename KernelInput> void propagate_valid_public_data_reads(KernelInp
             .leaf_index = compute_public_data_tree_index<NT>(contract_address, contract_storage_read.storage_slot),
             .value = compute_public_data_tree_value<NT>(contract_storage_read.current_value),
         };
-        array_push(circuit_outputs.end.public_data_reads, new_read);
+        array_push(composer, circuit_outputs.end.public_data_reads, new_read);
     }
 }
 
 /**
  * @brief Propagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
  * @tparam The type of kernel input
+ * @tparam The current composer
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput> void common_update_public_end_values(KernelInput const& public_kernel_inputs,
-                                                                     KernelCircuitPublicInputs<NT>& circuit_outputs)
+template <typename KernelInput, typename Composer>
+void common_update_public_end_values(Composer& composer,
+                                     KernelInput const& public_kernel_inputs,
+                                     KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
     // Updates the circuit outputs with new state changes, call stack etc
     circuit_outputs.is_private = false;
 
     const auto& stack = public_kernel_inputs.public_call.call_stack_item.public_inputs.public_call_stack;
-    push_array_to_array(stack, circuit_outputs.end.public_call_stack);
+    push_array_to_array(composer, stack, circuit_outputs.end.public_call_stack);
 
-    propagate_valid_public_data_update_requests(public_kernel_inputs, circuit_outputs);
+    propagate_valid_public_data_update_requests(composer, public_kernel_inputs, circuit_outputs);
 
-    propagate_valid_public_data_reads(public_kernel_inputs, circuit_outputs);
+    propagate_valid_public_data_reads(composer, public_kernel_inputs, circuit_outputs);
 }
 
 /**

@@ -715,6 +715,7 @@ TEST(private_kernel_tests, circuit_create_proof_cbinds)
     free((void*)public_inputs_buf);
 }
 
+
 /**
  * @brief Test this dummy cbind
  */
@@ -728,6 +729,30 @@ TEST(private_kernel_tests, cbind_private_kernel__dummy_previous_kernel)
     actual_ss << actual;
     expected_ss << expected;
     EXPECT_EQ(actual_ss.str(), expected_ss.str());
+}
+
+TEST(private_kernel_tests, private_kernel_should_fail_if_aggregating_too_many_commitments)
+{
+    // Negative test to check if push_array_to_array fails if two many commitments are merged together
+    DummyComposer composer = DummyComposer("should_fail_if_aggregating_too_many_commitments");
+
+    NT::fr const& amount = 5;
+    NT::fr const& asset_id = 1;
+    NT::fr const& memo = 999;
+
+    PrivateKernelInputsInner<NT> private_inputs =
+        do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+
+    // Mock the previous new commitments to be full, therefore no need commitments can be added
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> full_new_commitments{};
+    for (size_t i = 0; i < KERNEL_NEW_COMMITMENTS_LENGTH; ++i) {
+        full_new_commitments[i] = i + 1;
+    }
+    private_inputs.previous_kernel.public_inputs.end.new_commitments = full_new_commitments;
+    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+
+    ASSERT_TRUE(composer.failed());
+    ASSERT_EQ(composer.get_first_failure().code, CircuitErrorCode::ARRAY_OVERFLOW);
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

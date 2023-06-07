@@ -87,28 +87,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
+[ leaf_index: 0xc01
+old_value: 0xc02
+new_value: 0xc03
+ leaf_index: 0xc02
+old_value: 0xc03
+new_value: 0xc04
+ leaf_index: 0xc03
+old_value: 0xc04
+new_value: 0xc05
+ leaf_index: 0xc04
+old_value: 0xc05
+new_value: 0xc06
  ]
 public_data_reads:
-[ leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
+[ leaf_index: 0xd01
+value: 0xd02
+ leaf_index: 0xd02
+value: 0xd03
+ leaf_index: 0xd03
+value: 0xd04
+ leaf_index: 0xd04
+value: 0xd05
  ]
 "
 `;
@@ -228,28 +228,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
+[ leaf_index: 0xc01
+old_value: 0xc02
+new_value: 0xc03
+ leaf_index: 0xc02
+old_value: 0xc03
+new_value: 0xc04
+ leaf_index: 0xc03
+old_value: 0xc04
+new_value: 0xc05
+ leaf_index: 0xc04
+old_value: 0xc05
+new_value: 0xc06
  ]
 public_data_reads:
-[ leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
+[ leaf_index: 0xd01
+value: 0xd02
+ leaf_index: 0xd02
+value: 0xd03
+ leaf_index: 0xd03
+value: 0xd04
+ leaf_index: 0xd04
+value: 0xd05
  ]
 
 constants:
@@ -602,28 +602,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
+[ leaf_index: 0xc01
+old_value: 0xc02
+new_value: 0xc03
+ leaf_index: 0xc02
+old_value: 0xc03
+new_value: 0xc04
+ leaf_index: 0xc03
+old_value: 0xc04
+new_value: 0xc05
+ leaf_index: 0xc04
+old_value: 0xc05
+new_value: 0xc06
  ]
 public_data_reads:
-[ leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
+[ leaf_index: 0xd01
+value: 0xd02
+ leaf_index: 0xd02
+value: 0xd03
+ leaf_index: 0xd03
+value: 0xd04
+ leaf_index: 0xd04
+value: 0xd05
  ]
 
 constants:
@@ -949,28 +949,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
+[ leaf_index: 0xc01
+old_value: 0xc02
+new_value: 0xc03
+ leaf_index: 0xc02
+old_value: 0xc03
+new_value: 0xc04
+ leaf_index: 0xc03
+old_value: 0xc04
+new_value: 0xc05
+ leaf_index: 0xc04
+old_value: 0xc05
+new_value: 0xc06
  ]
 public_data_reads:
-[ leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
+[ leaf_index: 0xd01
+value: 0xd02
+ leaf_index: 0xd02
+value: 0xd03
+ leaf_index: 0xd03
+value: 0xd04
+ leaf_index: 0xd04
+value: 0xd05
  ]
 
 constants:
@@ -1084,28 +1084,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
+[ leaf_index: 0xc01
+old_value: 0xc02
+new_value: 0xc03
+ leaf_index: 0xc02
+old_value: 0xc03
+new_value: 0xc04
+ leaf_index: 0xc03
+old_value: 0xc04
+new_value: 0xc05
+ leaf_index: 0xc04
+old_value: 0xc05
+new_value: 0xc06
  ]
 public_data_reads:
-[ leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
+[ leaf_index: 0xd01
+value: 0xd02
+ leaf_index: 0xd02
+value: 0xd03
+ leaf_index: 0xd03
+value: 0xd04
+ leaf_index: 0xd04
+value: 0xd05
  ]
 
 constants:

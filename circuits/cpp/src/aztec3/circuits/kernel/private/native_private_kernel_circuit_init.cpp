@@ -123,7 +123,9 @@ void validate_inputs(DummyComposer& composer, PrivateKernelInputsInit<NT> const&
     // hard-coded into the circuit and assert that that is the one which has been used in the base case).
 }
 
-void update_end_values(PrivateKernelInputsInit<NT> const& private_inputs, KernelCircuitPublicInputs<NT>& public_inputs)
+void update_end_values(DummyComposer& composer,
+                       PrivateKernelInputsInit<NT> const& private_inputs,
+                       KernelCircuitPublicInputs<NT>& public_inputs)
 {
     // We only initialized constants member of public_inputs so far. Therefore, there must not be any
     // new nullifiers or logs as part of public_inputs.
@@ -136,13 +138,13 @@ void update_end_values(PrivateKernelInputsInit<NT> const& private_inputs, Kernel
     ASSERT(public_inputs.end.unencrypted_log_preimages_length == fr(0));
 
     // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
-    array_push(public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.hash());
+    array_push(composer, public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.hash());
 
     // Nonce nullifier
     // DANGER: This is terrible. This should not be part of the protocol. This is an intentional bodge to reach a
     // milestone. This must not be the way we derive nonce nullifiers in production. It can be front-run by other
     // users. It is not domain separated. Naughty.
-    array_push(public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.tx_request.nonce);
+    array_push(composer, public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.tx_request.nonce);
 }
 
 // NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
@@ -167,7 +169,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_initial(DummyCompose
     // TODO(jeanmon) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/671
     // common_validate_call_stack(composer, private_inputs.private_call);
 
-    update_end_values(private_inputs, public_inputs);
+    update_end_values(composer, private_inputs, public_inputs);
 
     common_update_end_values(composer, private_inputs.private_call, public_inputs);
 

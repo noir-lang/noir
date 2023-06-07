@@ -89,28 +89,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
+[ leaf_index: 0xd00
+old_value: 0xd01
+new_value: 0xd02
+ leaf_index: 0xd01
+old_value: 0xd02
+new_value: 0xd03
+ leaf_index: 0xd02
+old_value: 0xd03
+new_value: 0xd04
+ leaf_index: 0xd03
+old_value: 0xd04
+new_value: 0xd05
  ]
 public_data_reads:
-[ leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
+[ leaf_index: 0xe00
+value: 0xe01
+ leaf_index: 0xe01
+value: 0xe02
+ leaf_index: 0xe02
+value: 0xe03
+ leaf_index: 0xe03
+value: 0xe04
  ]
 
 constants:
@@ -233,28 +233,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
- leaf_index: 0x0
-old_value: 0x0
-new_value: 0x0
+[ leaf_index: 0xe00
+old_value: 0xe01
+new_value: 0xe02
+ leaf_index: 0xe01
+old_value: 0xe02
+new_value: 0xe03
+ leaf_index: 0xe02
+old_value: 0xe03
+new_value: 0xe04
+ leaf_index: 0xe03
+old_value: 0xe04
+new_value: 0xe05
  ]
 public_data_reads:
-[ leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
- leaf_index: 0x0
-value: 0x0
+[ leaf_index: 0xf00
+value: 0xf01
+ leaf_index: 0xf01
+value: 0xf02
+ leaf_index: 0xf02
+value: 0xf03
+ leaf_index: 0xf03
+value: 0xf04
  ]
 
 constants:
