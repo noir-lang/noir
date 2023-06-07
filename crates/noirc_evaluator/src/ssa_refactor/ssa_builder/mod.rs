@@ -40,11 +40,9 @@ impl FunctionBuilder {
         function_name: String,
         function_id: FunctionId,
         runtime: RuntimeType,
-        oracle_name: Option<String>,
     ) -> Self {
         let mut new_function = Function::new(function_name, function_id);
         new_function.set_runtime(runtime);
-        new_function.set_oracle_name(oracle_name);
         let current_block = new_function.entry_block();
 
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }

@@ -92,7 +92,7 @@ impl InlineContext {
     /// that could not be inlined calling it.
     fn new(ssa: &Ssa) -> InlineContext {
         let main_name = ssa.main().name().to_owned();
-        let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Acir, None);
+        let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Acir);
         Self { builder, recursion_level: 0, failed_to_inline_a_call: false }
     }
 

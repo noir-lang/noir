@@ -89,7 +89,7 @@ impl<'a> FunctionContext<'a> {
             .expect("No function in queue for the FunctionContext to compile")
             .1;
 
-        let builder = FunctionBuilder::new(function_name, function_id, runtime, None);
+        let builder = FunctionBuilder::new(function_name, function_id, runtime);
         let mut this = Self { definitions: HashMap::new(), builder, shared_context };
         this.add_parameters_to_scope(parameters);
         this
