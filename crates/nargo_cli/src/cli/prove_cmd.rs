@@ -1,26 +1,9 @@
 use acvm::Backend;
 use clap::Args;
-// use nargo::artifacts::program::PreprocessedProgram;
-// use nargo::ops::{preprocess_program, prove_execution, verify_proof};
-// use noirc_abi::input_parser::Format;
-
 
 use super::NargoConfig;
-// use super::{
-//     compile_cmd::compile_circuit,
-//     fs::{
-//         common_reference_string::{
-//             read_cached_common_reference_string, update_common_reference_string,
-//             write_cached_common_reference_string,
-//         },
-//         inputs::{read_inputs_from_file, write_inputs_to_file},
-//         program::read_program_from_file,
-//         proof::save_proof_to_dir,
-//     },
-// };
 use crate::{
-    // cli::execute_cmd::execute_program,
-    constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
+    // constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 
@@ -47,8 +30,9 @@ pub(crate) struct ProveCommand {
     #[arg(long, env)]
     recursive: Option<bool>,
     
-    #[clap(raw=true)]
-    others: Option<String>,
+    // Thise option should allow for -- --args to pass to backend
+    #[clap(last=true)]
+    raw_pass_through: Option<Vec<String>>,
 }
 
 pub(crate) fn run<B: Backend>(
@@ -56,13 +40,10 @@ pub(crate) fn run<B: Backend>(
     args: ProveCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    use tracing::{info, debug};
-    // use tracing_subscriber;
+    use tracing::{debug};
     use std::process::{Command, Stdio};
     use std::io::{BufRead, BufReader};
     use which::which;
-
-    tracing_subscriber::fmt::init();
 
     let backend_executable_path = if let Some(backend_executable) = args.backend_executable {
         debug!("Backend path specified as argument or environment variable `{}`", backend_executable);
@@ -78,25 +59,27 @@ pub(crate) fn run<B: Backend>(
         }
     };
 
-    let mut bb_args = vec!["prove", "-v"];
-    if let Some(is_recursive) = args.recursive {
-        if is_recursive {
-            debug!("Is recursive `{}`", is_recursive);
-            bb_args.push("--recursive");
-        }
-    }
-    debug!("About to spawn new command `{}`", backend_executable_path);
+    let mut raw_pass_through= args.raw_pass_through.unwrap();
+    let mut backend_args = vec!["prove".to_string()];
+    backend_args.append(&mut raw_pass_through);
+
+    debug!("About to spawn new command `{} {}`", backend_executable_path, backend_args.join(" "));
     let mut backend = Command::new(backend_executable_path.to_owned())
-    .args(bb_args)
+    .args(backend_args)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
         .spawn().expect(format!("Failed to execute backend with `{}`, specify with `--backend-executable` argument", backend_executable_path).as_str());
 
-    let stdout = backend.stderr.take().expect("no stdout");
-    let result = BufReader::new(stdout)
+    let stderr = backend.stderr.take().expect("no stderr");
+    BufReader::new(stderr)
         .lines()
         .for_each(|line| debug!("{}", line.unwrap_or_default().to_string()));
 
+    let stdout = backend.stdout.take().expect("no stdout");
+    BufReader::new(stdout)
+        .lines()
+        .for_each(|line| debug!("{}", line.unwrap_or_default().to_string()));
+    
     Ok(())
 }
 
