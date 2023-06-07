@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
-use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
-
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
+use std::collections::HashMap;
 
 /// Pointer to a unresolved Jump instruction in
 /// the bytecode.
@@ -26,7 +24,7 @@ pub(crate) struct BrilligArtifact {
 }
 
 impl BrilligArtifact {
-    /// Link some compiled brillig bytecode with its referenced artifacts
+    /// Link some compiled brillig bytecode with its referenced artifacts.
     pub(crate) fn link(&mut self, obj: &BrilligArtifact) -> Vec<BrilligOpcode> {
         self.link_with(obj);
         self.resolve_jumps();
@@ -35,17 +33,15 @@ impl BrilligArtifact {
 
     /// Link with a brillig artifact
     fn link_with(&mut self, obj: &BrilligArtifact) {
-        if obj.byte_code.is_empty() {
-            panic!("ICE: unresolved symbol");
+        let offset = self.code_len();
+        for (jump_label, block_id) in &obj.unresolved_jumps {
+            self.unresolved_jumps.push((jump_label + offset, *block_id));
         }
 
-        let offset = self.code_len();
-        for i in &obj.unresolved_jumps {
-            self.unresolved_jumps.push((i.0 + offset, i.1));
+        for (block_id, block_label) in &obj.blocks {
+            self.blocks.insert(*block_id, block_label + offset);
         }
-        for i in &obj.blocks {
-            self.blocks.insert(*i.0, i.1 + offset);
-        }
+
         self.byte_code.extend_from_slice(&obj.byte_code);
     }
 
@@ -69,28 +65,33 @@ impl BrilligArtifact {
     ///
     /// Note: This should only be called once all blocks are processed.
     fn resolve_jumps(&mut self) {
-        for (jump, block) in &self.unresolved_jumps {
-            match self.byte_code[*jump] {
+        for (jump_label, block) in &self.unresolved_jumps {
+            let jump_instruction = self.byte_code[*jump_label].clone();
+
+            let actual_block_location = self.blocks[block];
+
+            match jump_instruction {
                 BrilligOpcode::Jump { location } => {
-                    assert_eq!(location, 0);
-                    let current = self.blocks[block];
-                    self.byte_code[*jump] = BrilligOpcode::Jump { location: current };
+                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+
+                    self.byte_code[*jump_label] =
+                        BrilligOpcode::Jump { location: actual_block_location };
                 }
                 BrilligOpcode::JumpIfNot { condition, location } => {
-                    let current = if location == 0 {
-                        self.blocks[block]
-                    } else {
-                        location + self.byte_code.len()
-                    };
-                    self.byte_code[*jump] =
-                        BrilligOpcode::JumpIfNot { condition, location: current };
+                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+
+                    self.byte_code[*jump_label] =
+                        BrilligOpcode::JumpIfNot { condition, location: actual_block_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
-                    assert_eq!(location, 0);
-                    let current = self.blocks[block];
-                    self.byte_code[*jump] = BrilligOpcode::JumpIf { condition, location: current };
+                    assert_eq!(location, 0,"location is not zero, which means that the jump label does not need resolving");
+
+                    self.byte_code[*jump_label] =
+                        BrilligOpcode::JumpIf { condition, location: actual_block_location };
                 }
-                _ => unreachable!(),
+                _ => unreachable!(
+                    "all jump labels should point to a jump instruction in the bytecode"
+                ),
             }
         }
     }
