@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use super::artifact::BrilligArtifact;
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -9,12 +8,11 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-
-use super::artifact::BrilligArtifact;
-
 use acvm::acir::brillig_vm::{
     BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
 };
+use std::collections::HashMap;
+
 #[derive(Default)]
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
