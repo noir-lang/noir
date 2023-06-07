@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e011212158b81a8bbe6c9f7f4713fbf8b9542076a49ba916769436833b5d738f"
+source = "git+https://github.com/noir-lang/acvm.git?rev=885b978d56edab75f6fe4268c2d91a9508560d45#885b978d56edab75f6fe4268c2d91a9508560d45"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -19,8 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08e3bbb98412bdcb65b7b688269cbc04db0710e25f3c32e99cf3923026ea3941"
+source = "git+https://github.com/noir-lang/acvm.git?rev=885b978d56edab75f6fe4268c2d91a9508560d45#885b978d56edab75f6fe4268c2d91a9508560d45"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -33,8 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5b5a910c6dcbea83195107368805911a02b2ed3453a1516e15fa2bc89e4d1c2"
+source = "git+https://github.com/noir-lang/acvm.git?rev=885b978d56edab75f6fe4268c2d91a9508560d45#885b978d56edab75f6fe4268c2d91a9508560d45"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -72,8 +69,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffe3837b19bcbf11cecd61083e088a49c2d7911abedd0585cc62bf77bb47a384"
+source = "git+https://github.com/noir-lang/acvm.git?rev=885b978d56edab75f6fe4268c2d91a9508560d45#885b978d56edab75f6fe4268c2d91a9508560d45"
 dependencies = [
  "acir",
 ]
@@ -485,8 +481,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b690fd9d34b8653edf286c03982433e80e6e3878a8fc6289b680997c3e80925b"
+source = "git+https://github.com/noir-lang/acvm.git?rev=885b978d56edab75f6fe4268c2d91a9508560d45#885b978d56edab75f6fe4268c2d91a9508560d45"
 dependencies = [
  "acir_field",
  "num-bigint",
