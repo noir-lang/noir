@@ -3,7 +3,6 @@
 // In future: structured serialization?
 export const ARGS_LENGTH = 8;
 export const RETURN_VALUES_LENGTH = 4;
-export const EMITTED_EVENTS_LENGTH = 4;
 
 export const NEW_COMMITMENTS_LENGTH = 4;
 export const NEW_NULLIFIERS_LENGTH = 4;

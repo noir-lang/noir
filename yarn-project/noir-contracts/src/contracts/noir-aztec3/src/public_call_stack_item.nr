@@ -43,7 +43,6 @@ impl PublicCallStackItem {
                 },
                 args_hash: fields[10],
                 return_values: [0; crate::abi::MAX_RETURN_VALUES],
-                emitted_events: [0; crate::abi::MAX_LOGS],
                 contract_storage_update_requests: [crate::abi::empty_contract_storage_update_request(); crate::abi::CONTRACT_STORAGE_UPDATE_REQUESTS_LENGTH],
                 contract_storage_read: [crate::abi::empty_contract_storage_read(); crate::abi::CONTRACT_STORAGE_READS_LENGTH],
                 public_call_stack: [0; crate::abi::MAX_PUBLIC_CALL_STACK],

@@ -25,63 +25,63 @@ public_call_stack:
 [ 0x500 0x501 0x502 0x503 0x504 0x505 0x506 0x507 ]
 new_l2_to_l1_msgs:
 [ 0x600 0x601 ]
+encrypted_logs_hash:
+[ 0x700 0x701 ]
+unencrypted_logs_hash:
+[ 0x800 0x801 ]
+encrypted_log_preimages_length:
+0x900
+unencrypted_log_preimages_length:
+0xa00
 new_contracts:
-[ contract_address: 0x700
+[ contract_address: 0xb00
 portal_contract_address: 0x101010101010101010101010101010101010101
-function_tree_root: 0x702
+function_tree_root: 0xb02
  ]
 optionally_revealed_data:
-[ call_stack_item_hash: 0x800
+[ call_stack_item_hash: 0xc00
 function_data:
-function_selector: 801
+function_selector: c01
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0x900 0x901 0x902 0x903 ]
-vk_hash: 0x802
+vk_hash: 0xc02
 portal_contract_address: 0x303030303030303030303030303030303030303
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
- call_stack_item_hash: 0x801
+ call_stack_item_hash: 0xc01
 function_data:
-function_selector: 802
+function_selector: c02
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0x901 0x902 0x903 0x904 ]
-vk_hash: 0x803
+vk_hash: 0xc03
 portal_contract_address: 0x404040404040404040404040404040404040404
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
- call_stack_item_hash: 0x802
+ call_stack_item_hash: 0xc02
 function_data:
-function_selector: 803
+function_selector: c03
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0x902 0x903 0x904 0x905 ]
-vk_hash: 0x804
+vk_hash: 0xc04
 portal_contract_address: 0x505050505050505050505050505050505050505
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
- call_stack_item_hash: 0x803
+ call_stack_item_hash: 0xc03
 function_data:
-function_selector: 804
+function_selector: c04
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0x903 0x904 0x905 0x906 ]
-vk_hash: 0x805
+vk_hash: 0xc05
 portal_contract_address: 0x606060606060606060606060606060606060606
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
@@ -89,28 +89,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0x900
-old_value: 0x901
-new_value: 0x902
- leaf_index: 0x901
-old_value: 0x902
-new_value: 0x903
- leaf_index: 0x902
-old_value: 0x903
-new_value: 0x904
- leaf_index: 0x903
-old_value: 0x904
-new_value: 0x905
+[ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
+ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
+ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
+ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
  ]
 public_data_reads:
-[ leaf_index: 0xa00
-value: 0xa01
- leaf_index: 0xa01
-value: 0xa02
- leaf_index: 0xa02
-value: 0xa03
- leaf_index: 0xa03
-value: 0xa04
+[ leaf_index: 0x0
+value: 0x0
+ leaf_index: 0x0
+value: 0x0
+ leaf_index: 0x0
+value: 0x0
+ leaf_index: 0x0
+value: 0x0
  ]
 
 constants:
@@ -169,63 +169,63 @@ public_call_stack:
 [ 0x600 0x601 0x602 0x603 0x604 0x605 0x606 0x607 ]
 new_l2_to_l1_msgs:
 [ 0x700 0x701 ]
+encrypted_logs_hash:
+[ 0x800 0x801 ]
+unencrypted_logs_hash:
+[ 0x900 0x901 ]
+encrypted_log_preimages_length:
+0xa00
+unencrypted_log_preimages_length:
+0xb00
 new_contracts:
-[ contract_address: 0x800
+[ contract_address: 0xc00
 portal_contract_address: 0x101010101010101010101010101010101010101
-function_tree_root: 0x802
+function_tree_root: 0xc02
  ]
 optionally_revealed_data:
-[ call_stack_item_hash: 0x900
+[ call_stack_item_hash: 0xd00
 function_data:
-function_selector: 901
+function_selector: d01
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0xa00 0xa01 0xa02 0xa03 ]
-vk_hash: 0x902
+vk_hash: 0xd02
 portal_contract_address: 0x303030303030303030303030303030303030303
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
- call_stack_item_hash: 0x901
+ call_stack_item_hash: 0xd01
 function_data:
-function_selector: 902
+function_selector: d02
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0xa01 0xa02 0xa03 0xa04 ]
-vk_hash: 0x903
+vk_hash: 0xd03
 portal_contract_address: 0x404040404040404040404040404040404040404
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
- call_stack_item_hash: 0x902
+ call_stack_item_hash: 0xd02
 function_data:
-function_selector: 903
+function_selector: d03
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0xa02 0xa03 0xa04 0xa05 ]
-vk_hash: 0x904
+vk_hash: 0xd04
 portal_contract_address: 0x505050505050505050505050505050505050505
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
- call_stack_item_hash: 0x903
+ call_stack_item_hash: 0xd03
 function_data:
-function_selector: 904
+function_selector: d04
 is_private: 1
 is_constructor: 1
 
-emitted_events:
-[ 0xa03 0xa04 0xa05 0xa06 ]
-vk_hash: 0x905
+vk_hash: 0xd05
 portal_contract_address: 0x606060606060606060606060606060606060606
 pay_fee_from_l1: 1
 pay_fee_from_public_l2: 0
@@ -233,28 +233,28 @@ called_from_l1: 1
 called_from_public_l2: 0
  ]
 public_data_update_requests:
-[ leaf_index: 0xa00
-old_value: 0xa01
-new_value: 0xa02
- leaf_index: 0xa01
-old_value: 0xa02
-new_value: 0xa03
- leaf_index: 0xa02
-old_value: 0xa03
-new_value: 0xa04
- leaf_index: 0xa03
-old_value: 0xa04
-new_value: 0xa05
+[ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
+ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
+ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
+ leaf_index: 0x0
+old_value: 0x0
+new_value: 0x0
  ]
 public_data_reads:
-[ leaf_index: 0xb00
-value: 0xb01
- leaf_index: 0xb01
-value: 0xb02
- leaf_index: 0xb02
-value: 0xb03
- leaf_index: 0xb03
-value: 0xb04
+[ leaf_index: 0x0
+value: 0x0
+ leaf_index: 0x0
+value: 0x0
+ leaf_index: 0x0
+value: 0x0
+ leaf_index: 0x0
+value: 0x0
  ]
 
 constants:

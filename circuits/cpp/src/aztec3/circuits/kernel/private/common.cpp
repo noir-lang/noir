@@ -111,6 +111,31 @@ void common_update_end_values(DummyComposer& composer,
         }
         push_array_to_array(new_l2_to_l1_msgs_to_insert, public_inputs.end.new_l2_to_l1_msgs);
     }
+
+    {  // logs hashes
+        // See the following thread if not clear:
+        // https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426
+        const auto& previous_encrypted_logs_hash = public_inputs.end.encrypted_logs_hash;
+        const auto& current_encrypted_logs_hash = private_call_public_inputs.encrypted_logs_hash;
+        public_inputs.end.encrypted_logs_hash = accumulate_sha256<NT>({ previous_encrypted_logs_hash[0],
+                                                                        previous_encrypted_logs_hash[1],
+                                                                        current_encrypted_logs_hash[0],
+                                                                        current_encrypted_logs_hash[1] });
+
+        const auto& previous_unencrypted_logs_hash = public_inputs.end.unencrypted_logs_hash;
+        const auto& current_unencrypted_logs_hash = private_call_public_inputs.unencrypted_logs_hash;
+        public_inputs.end.unencrypted_logs_hash = accumulate_sha256<NT>({ previous_unencrypted_logs_hash[0],
+                                                                          previous_unencrypted_logs_hash[1],
+                                                                          current_unencrypted_logs_hash[0],
+                                                                          current_unencrypted_logs_hash[1] });
+
+        // Add log preimages lengths from current iteration to accumulated lengths
+        public_inputs.end.encrypted_log_preimages_length = public_inputs.end.encrypted_log_preimages_length +
+                                                           private_call_public_inputs.encrypted_log_preimages_length;
+        public_inputs.end.unencrypted_log_preimages_length =
+            public_inputs.end.unencrypted_log_preimages_length +
+            private_call_public_inputs.unencrypted_log_preimages_length;
+    }
 }
 
 void common_contract_logic(DummyComposer& composer,

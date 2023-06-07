@@ -3,9 +3,8 @@ import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
 import {
   CallContext,
   ContractDeploymentData,
-  EMITTED_EVENTS_LENGTH,
-  NEW_COMMITMENTS_LENGTH,
   NEW_L2_TO_L1_MSGS_LENGTH,
+  NEW_COMMITMENTS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
@@ -111,12 +110,21 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
 
   const argsHash = witnessReader.readField();
   const returnValues = witnessReader.readFieldArray(RETURN_VALUES_LENGTH);
-  const emittedEvents = witnessReader.readFieldArray(EMITTED_EVENTS_LENGTH);
   const newCommitments = witnessReader.readFieldArray(NEW_COMMITMENTS_LENGTH);
   const newNullifiers = witnessReader.readFieldArray(NEW_NULLIFIERS_LENGTH);
   const privateCallStack = witnessReader.readFieldArray(PRIVATE_CALL_STACK_LENGTH);
   const publicCallStack = witnessReader.readFieldArray(PUBLIC_CALL_STACK_LENGTH);
   const newL2ToL1Msgs = witnessReader.readFieldArray(NEW_L2_TO_L1_MSGS_LENGTH);
+
+  // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
+  // const encryptedLogsHash = witnessReader.readFieldArray(2);
+  // const unencryptedLogsHash = witnessReader.readFieldArray(2);
+  // const encryptedLogPreimagesLength = witnessReader.readField();
+  // const unencryptedLogPreimagesLength = witnessReader.readField();
+  const encryptedLogsHash = [new Fr(0), new Fr(0)] as [Fr, Fr];
+  const unencryptedLogsHash = [new Fr(0), new Fr(0)] as [Fr, Fr];
+  const encryptedLogPreimagesLength = new Fr(0);
+  const unencryptedLogPreimagesLength = new Fr(0);
 
   const privateDataTreeRoot = witnessReader.readField();
   const nullifierTreeRoot = witnessReader.readField();
@@ -134,12 +142,15 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
     callContext,
     argsHash,
     returnValues,
-    emittedEvents,
     newCommitments,
     newNullifiers,
     privateCallStack,
     publicCallStack,
     newL2ToL1Msgs,
+    encryptedLogsHash,
+    unencryptedLogsHash,
+    encryptedLogPreimagesLength,
+    unencryptedLogPreimagesLength,
     privateDataTreeRoot,
     nullifierTreeRoot,
     contractTreeRoot,

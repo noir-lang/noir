@@ -6,7 +6,6 @@ import { FieldsOf, assertMemberLength, makeTuple } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
 import {
-  EMITTED_EVENTS_LENGTH,
   KERNEL_PUBLIC_DATA_READS_LENGTH,
   KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   NEW_L2_TO_L1_MSGS_LENGTH,
@@ -146,10 +145,6 @@ export class PublicCircuitPublicInputs {
      */
     public returnValues: Tuple<Fr, typeof RETURN_VALUES_LENGTH>,
     /**
-     * Events emitted during the call.
-     */
-    public emittedEvents: Tuple<Fr, typeof EMITTED_EVENTS_LENGTH>,
-    /**
      * Contract storage update requests executed during the call.
      */
     public contractStorageUpdateRequests: Tuple<
@@ -178,7 +173,6 @@ export class PublicCircuitPublicInputs {
     public proverAddress: AztecAddress,
   ) {
     assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
-    assertMemberLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
     assertMemberLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
     assertMemberLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
     assertMemberLength(this, 'contractStorageUpdateRequests', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);
@@ -203,7 +197,6 @@ export class PublicCircuitPublicInputs {
       CallContext.empty(),
       Fr.ZERO,
       makeTuple(RETURN_VALUES_LENGTH, Fr.zero),
-      makeTuple(EMITTED_EVENTS_LENGTH, Fr.zero),
       makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, ContractStorageUpdateRequest.empty),
       makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, ContractStorageRead.empty),
       makeTuple(PUBLIC_CALL_STACK_LENGTH, Fr.zero),
@@ -219,7 +212,6 @@ export class PublicCircuitPublicInputs {
       this.callContext.isEmpty() &&
       this.argsHash.isZero() &&
       isFrArrayEmpty(this.returnValues) &&
-      isFrArrayEmpty(this.emittedEvents) &&
       isArrayEmpty(this.contractStorageUpdateRequests, item => item.isEmpty()) &&
       isArrayEmpty(this.contractStorageReads, item => item.isEmpty()) &&
       isFrArrayEmpty(this.publicCallStack) &&
@@ -239,7 +231,6 @@ export class PublicCircuitPublicInputs {
       fields.callContext,
       fields.argsHash,
       fields.returnValues,
-      fields.emittedEvents,
       fields.contractStorageUpdateRequests,
       fields.contractStorageReads,
       fields.publicCallStack,

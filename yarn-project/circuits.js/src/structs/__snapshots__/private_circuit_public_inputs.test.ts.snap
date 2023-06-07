@@ -10,16 +10,19 @@ is_contract_deployment: 1
 
 args_hash: 0x100
 return_values: [ 0x300 0x301 0x302 0x303 ]
-emitted_events: [ 0x200 0x201 0x202 0x203 ]
 new_commitments: [ 0x400 0x401 0x402 0x403 ]
 new_nullifiers: [ 0x500 0x501 0x502 0x503 ]
 private_call_stack: [ 0x600 0x601 0x602 0x603 ]
 public_call_stack: [ 0x700 0x701 0x702 0x703 ]
 new_l2_to_l1_msgs: [ 0x800 0x801 ]
-historic_private_data_tree_root: 0x1000
-historic_nullifier_tree_root: 0x1100
-historic_contract_tree_root: 0x900
-historic_l1_to_l2_messages_tree_root: 0x1200
+encrypted_logs_hash: [ 0x900 0x901 ]
+unencrypted_logs_hash: [ 0xa00 0xa01 ]
+encrypted_log_preimages_length: 0xb00
+unencrypted_log_preimages_length: 0xc00
+historic_private_data_tree_root: 0xe00
+historic_nullifier_tree_root: 0xf00
+historic_contract_tree_root: 0xd00
+historic_l1_to_l2_messages_tree_root: 0x1000
 contract_deployment_data: constructor_vk_hash: 0x1
 function_tree_root: 0x2
 contract_address_salt: 0x3

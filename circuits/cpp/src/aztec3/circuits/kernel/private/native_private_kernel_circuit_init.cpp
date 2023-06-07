@@ -125,9 +125,15 @@ void validate_inputs(DummyComposer& composer, PrivateKernelInputsInit<NT> const&
 
 void update_end_values(PrivateKernelInputsInit<NT> const& private_inputs, KernelCircuitPublicInputs<NT>& public_inputs)
 {
-    // We only initialzed constants member of public_inputs so far. Therefore, there must not be any
-    // new nullifiers as part of public_inputs.
+    // We only initialized constants member of public_inputs so far. Therefore, there must not be any
+    // new nullifiers or logs as part of public_inputs.
     ASSERT(is_array_empty(public_inputs.end.new_nullifiers));
+    ASSERT(public_inputs.end.encrypted_logs_hash[0] == fr(0));
+    ASSERT(public_inputs.end.encrypted_logs_hash[1] == fr(0));
+    ASSERT(public_inputs.end.unencrypted_logs_hash[0] == fr(0));
+    ASSERT(public_inputs.end.unencrypted_logs_hash[1] == fr(0));
+    ASSERT(public_inputs.end.encrypted_log_preimages_length == fr(0));
+    ASSERT(public_inputs.end.unencrypted_log_preimages_length == fr(0));
 
     // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
     array_push(public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.hash());

@@ -83,11 +83,6 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext& exec_c
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
     public_inputs.args_hash = compute_var_args_hash<CT>({ amount, asset_id, memo, l1_withdrawal_address, fee });
 
-    // Emit events
-    public_inputs.emitted_events[0] = CT::fr::copy_as_new_witness(composer, l1_withdrawal_address);
-    public_inputs.emitted_events[1] = CT::fr::copy_as_new_witness(composer, asset_id);
-    public_inputs.emitted_events[2] = CT::fr::copy_as_new_witness(composer, fee);
-
     exec_ctx.finalise();
 
     /// TODO: merkle membership check

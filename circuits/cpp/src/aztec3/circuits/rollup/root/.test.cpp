@@ -294,7 +294,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     // Compute the expected calldata hash for the root rollup (including the l2 -> l1 messages)
     auto left = components::compute_kernels_calldata_hash({ kernels[0], kernels[1] });
     auto right = components::compute_kernels_calldata_hash({ kernels[2], kernels[3] });
-    auto root = components::compute_calldata_hash({ left[0], left[1], right[0], right[1] });
+    auto root = accumulate_sha256<NT>({ left[0], left[1], right[0], right[1] });
     ASSERT_EQ(outputs.calldata_hash, root);
 
     EXPECT_FALSE(composer.failed());

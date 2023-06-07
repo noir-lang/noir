@@ -13,7 +13,6 @@ struct PrivateFunctionContext {
     // inputs: abi::Inputs,
     args : BoundedVec<Field, abi::MAX_ARGS>,
     return_values : BoundedVec<Field, abi::MAX_RETURN_VALUES>,
-    logs : BoundedVec<Field, abi::MAX_LOGS>,
 
     new_commitments: BoundedVec<Field, abi::MAX_NEW_COMMITMENTS>,
     new_nullifiers: BoundedVec<Field, abi::MAX_NEW_NULLIFIERS>,
@@ -21,6 +20,12 @@ struct PrivateFunctionContext {
     private_call_stack : BoundedVec<Field, abi::MAX_PRIVATE_CALL_STACK>,
     public_call_stack : BoundedVec<Field, abi::MAX_PUBLIC_CALL_STACK>,
     new_l2_to_l1_msgs : BoundedVec<Field, abi::MAX_L1_MSG_STACK>,
+
+    // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
+    // encrypted_logs_hash : BoundedVec<Field, abi::LOGS_HASH_SIZE>,
+    // unencrypted_logs_hash : BoundedVec<Field, abi::LOGS_HASH_SIZE>,
+    // encrypted_log_preimages_length : Field,
+    // unencrypted_log_preimages_length : Field,
 }
 
 impl PrivateFunctionContext {
@@ -30,7 +35,6 @@ impl PrivateFunctionContext {
             // inputs: inputs,
             args: BoundedVec::new(0),
             return_values: BoundedVec::new(0),
-            logs: BoundedVec::new(0),
 
             new_commitments: BoundedVec::new(0),
             new_nullifiers: BoundedVec::new(0),
@@ -38,6 +42,12 @@ impl PrivateFunctionContext {
             private_call_stack: BoundedVec::new(0),
             public_call_stack: BoundedVec::new(0),
             new_l2_to_l1_msgs: BoundedVec::new(0),
+
+            // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
+            // encrypted_logs_hash: BoundedVec::new(0),
+            // unencrypted_logs_hash: BoundedVec::new(0),
+            // encrypted_log_preimages_length: 0,
+            // unencrypted_log_preimages_length: 0,
         }
     }
 
@@ -50,12 +60,16 @@ impl PrivateFunctionContext {
             call_context: inputs.call_context,
             args_hash: args_hash,
             return_values: self.return_values.storage,
-            emitted_events: self.logs.storage,
             new_commitments: self.new_commitments.storage,
             new_nullifiers: self.new_nullifiers.storage,
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
+            // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
+            // encrypted_logs_hash: self.encrypted_logs_hash.storage,
+            // unencrypted_logs_hash: self.unencrypted_logs_hash.storage,
+            // encrypted_log_preimages_length: self.encrypted_log_preimages_length,
+            // unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historic_private_data_tree_root: inputs.old_private_data_tree_root,
             historic_private_nullifier_tree_root: inputs.old_nullifier_tree_root,
             historic_contract_tree_root: inputs.old_contract_tree_root,

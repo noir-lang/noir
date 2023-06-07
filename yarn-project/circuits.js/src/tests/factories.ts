@@ -27,7 +27,6 @@ import {
   NewContractData,
   OptionallyRevealedData,
   FunctionData,
-  EMITTED_EVENTS_LENGTH,
   AggregationObject,
   G1AffineElement,
   Fq,
@@ -200,10 +199,14 @@ export function makeEmptyAccumulatedData(seed = 1): CombinedAccumulatedData {
     makeTuple(KERNEL_PRIVATE_CALL_STACK_LENGTH, Fr.zero), // private call stack must be empty
     makeTuple(KERNEL_PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x400),
     makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x500),
-    makeTuple(KERNEL_NEW_CONTRACTS_LENGTH, makeNewContractData, seed + 0x600),
-    makeTuple(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, makeOptionallyRevealedData, seed + 0x700),
-    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeEmptyPublicDataUpdateRequest, seed + 0x800),
-    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeEmptyPublicDataRead, seed + 0x900),
+    makeTuple(2, fr, seed + 0x600), // encrypted logs hash
+    makeTuple(2, fr, seed + 0x700), // unencrypted logs hash
+    fr(seed + 0x800), // encrypted_log_preimages_length
+    fr(seed + 0x900), // unencrypted_log_preimages_length
+    makeTuple(KERNEL_NEW_CONTRACTS_LENGTH, makeNewContractData, seed + 0xa00),
+    makeTuple(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, makeOptionallyRevealedData, seed + 0xb00),
+    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeEmptyPublicDataUpdateRequest, seed + 0xc00),
+    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeEmptyPublicDataRead, seed + 0xd00),
   );
 }
 
@@ -220,10 +223,14 @@ export function makeAccumulatedData(seed = 1): CombinedAccumulatedData {
     makeTuple(KERNEL_PRIVATE_CALL_STACK_LENGTH, fr, seed + 0x300),
     makeTuple(KERNEL_PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x400),
     makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x500),
-    makeTuple(KERNEL_NEW_CONTRACTS_LENGTH, makeNewContractData, seed + 0x600),
-    makeTuple(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, makeOptionallyRevealedData, seed + 0x700),
-    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makePublicDataUpdateRequest, seed + 0x800),
-    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makePublicDataRead, seed + 0x900),
+    makeTuple(2, fr, seed + 0x600), // encrypted logs hash
+    makeTuple(2, fr, seed + 0x700), // unencrypted logs hash
+    fr(seed + 0x800), // encrypted_log_preimages_length
+    fr(seed + 0x900), // unencrypted_log_preimages_length
+    makeTuple(KERNEL_NEW_CONTRACTS_LENGTH, makeNewContractData, seed + 0xa00),
+    makeTuple(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, makeOptionallyRevealedData, seed + 0xb00),
+    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeEmptyPublicDataUpdateRequest, seed + 0xc00),
+    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeEmptyPublicDataRead, seed + 0xd00),
   );
 }
 
@@ -245,7 +252,6 @@ export function makeOptionallyRevealedData(seed = 1): OptionallyRevealedData {
   return new OptionallyRevealedData(
     fr(seed),
     new FunctionData(makeSelector(seed + 1), true, true),
-    makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x100),
     fr(seed + 2),
     makeEthAddress(seed + 3),
     true,
@@ -293,13 +299,12 @@ export function makePublicCircuitPublicInputs(
     makeCallContext(seed, storageContractAddress),
     fr(seed + 0x100),
     makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
-    makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x300),
-    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeContractStorageUpdateRequest, seed + 0x400),
-    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeContractStorageRead, seed + 0x500),
-    makeTuple(PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x600),
-    makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x700),
-    fr(seed + 0x800),
-    makeAztecAddress(seed + 0x801),
+    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeContractStorageUpdateRequest, seed + 0x300),
+    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeContractStorageRead, seed + 0x400),
+    makeTuple(PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x500),
+    makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x600),
+    fr(seed + 0x700),
+    makeAztecAddress(seed + 0x800),
   );
 }
 
@@ -600,17 +605,20 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
       true,
     ),
     argsHash: fr(seed + 0x100),
-    emittedEvents: makeTuple(EMITTED_EVENTS_LENGTH, fr, seed + 0x200), // TODO not in spec
     returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x300),
     newCommitments: makeTuple(NEW_COMMITMENTS_LENGTH, fr, seed + 0x400),
     newNullifiers: makeTuple(NEW_NULLIFIERS_LENGTH, fr, seed + 0x500),
     privateCallStack: makeTuple(PRIVATE_CALL_STACK_LENGTH, fr, seed + 0x600),
     publicCallStack: makeTuple(PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x700),
     newL2ToL1Msgs: makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x800),
-    historicContractTreeRoot: fr(seed + 0x900), // TODO not in spec
-    historicPrivateDataTreeRoot: fr(seed + 0x1000),
-    historicPrivateNullifierTreeRoot: fr(seed + 0x1100), // TODO not in spec
-    historicL1ToL2MessagesTreeRoot: fr(seed + 0x1200),
+    encryptedLogsHash: makeTuple(2, fr, seed + 0x900),
+    unencryptedLogsHash: makeTuple(2, fr, seed + 0xa00),
+    encryptedLogPreimagesLength: fr(seed + 0xb00),
+    unencryptedLogPreimagesLength: fr(seed + 0xc00),
+    historicContractTreeRoot: fr(seed + 0xd00),
+    historicPrivateDataTreeRoot: fr(seed + 0xe00),
+    historicPrivateNullifierTreeRoot: fr(seed + 0xf00),
+    historicL1ToL2MessagesTreeRoot: fr(seed + 0x1000),
     contractDeploymentData: makeContractDeploymentData(),
   });
 }

@@ -4,7 +4,6 @@ import {
   CircuitsWasm,
   ContractStorageRead,
   ContractStorageUpdateRequest,
-  EMITTED_EVENTS_LENGTH,
   Fr,
   KERNEL_PUBLIC_DATA_READS_LENGTH,
   KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
@@ -217,7 +216,6 @@ export class PublicProcessor {
       callContext: result.execution.callContext,
       proverAddress: AztecAddress.random(),
       argsHash: await computeVarArgsHash(wasm, result.execution.args),
-      emittedEvents: padArrayEnd([], Fr.ZERO, EMITTED_EVENTS_LENGTH),
       newL2ToL1Msgs: padArrayEnd([], Fr.ZERO, NEW_L2_TO_L1_MSGS_LENGTH),
       returnValues: padArrayEnd(result.returnValues, Fr.ZERO, RETURN_VALUES_LENGTH),
       contractStorageReads: padArrayEnd(
