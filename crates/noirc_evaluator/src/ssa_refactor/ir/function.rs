@@ -39,7 +39,7 @@ pub(crate) struct Function {
 impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
-    /// Note that any parameters to the function must be manually added later.
+    /// Note that any parameters or attributes of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
