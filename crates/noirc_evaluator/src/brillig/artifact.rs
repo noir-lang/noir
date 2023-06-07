@@ -17,6 +17,7 @@ impl BrilligArtifact {
     // Link some compiled brillig bytecode with its referenced artifacts
     pub(crate) fn link(&mut self, obj: &BrilligArtifact) -> Vec<BrilligOpcode> {
         self.link_with(obj);
+        self.fix_jumps();
         self.byte_code.clone()
     }
 
@@ -45,5 +46,33 @@ impl BrilligArtifact {
 
      pub(crate) fn code_len(&self) -> usize {
         self.byte_code.len()
+    }
+
+    fn fix_jumps(&mut self) {
+        for (jump, block) in &self.to_fix {
+            match self.byte_code[*jump] {
+                BrilligOpcode::Jump { location } => {
+                    assert_eq!(location, 0);
+                    let current = self.blocks[block];
+                    self.byte_code[*jump] = BrilligOpcode::Jump { location: current };
+                }
+                BrilligOpcode::JumpIfNot { condition, location } => {
+                    let current = if location == 0 {
+                        self.blocks[block]
+                    } else {
+                        location + self.byte_code.len()
+                    };
+                    self.byte_code[*jump] =
+                        BrilligOpcode::JumpIfNot { condition, location: current };
+                }
+                BrilligOpcode::JumpIf { condition, location } => {
+                    assert_eq!(location, 0);
+                    let current = self.blocks[block];
+                    self.byte_code[*jump] =
+                        BrilligOpcode::JumpIf { condition, location: current };
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 }
