@@ -70,6 +70,7 @@ impl Driver {
         Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
     }
 
+    // TODO(#1599): Move control of the FileManager into nargo
     pub fn file_manager(&self) -> &FileManager {
         &self.context.file_manager
     }
