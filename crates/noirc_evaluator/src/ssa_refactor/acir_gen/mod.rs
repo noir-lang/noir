@@ -200,10 +200,10 @@ impl Context {
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::ArrayGet { array, index } => {
-                self.handle_array_operation(instruction_id, *array, *index, None, dfg)
+                self.handle_array_operation(instruction_id, *array, *index, None, dfg);
             }
             Instruction::ArraySet { array, index, value } => {
-                self.handle_array_operation(instruction_id, *array, *index, Some(*value), dfg)
+                self.handle_array_operation(instruction_id, *array, *index, Some(*value), dfg);
             }
             Instruction::Allocate => {
                 unreachable!("Expected all allocate instructions to be removed before acir_gen")
