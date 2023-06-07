@@ -163,6 +163,34 @@ impl Instruction {
         }
     }
 
+    /// Applies a function to each input value this instruction holds.
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        match self {
+            Instruction::Binary(binary) => {
+                f(binary.lhs);
+                f(binary.rhs);
+            }
+            Instruction::Call { func, arguments } => {
+                f(*func);
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Instruction::Cast(value, _)
+            | Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::Constrain(value)
+            | Instruction::Load { address: value } => {
+                f(*value);
+            }
+            Instruction::Store { address, value } => {
+                f(*address);
+                f(*value);
+            }
+            Instruction::Allocate { .. } => (),
+        }
+    }
+
     /// Try to simplify this instruction. If the instruction can be simplified to a known value,
     /// that value is returned. Otherwise None is returned.
     pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
@@ -276,6 +304,26 @@ impl TerminatorInstruction {
             }
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }
+            }
+        }
+    }
+
+    /// Apply a function to each value
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                f(*condition);
+            }
+            Jmp { arguments, .. } => {
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Return { return_values } => {
+                for return_value in return_values {
+                    f(*return_value);
+                }
             }
         }
     }
