@@ -50,3 +50,6 @@ toml = "0.7.2"
 url = "2.2.0"
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
+
+[patch.crates-io]
+acvm = { git = "https://github.com/noir-lang/acvm.git", rev="885b978d56edab75f6fe4268c2d91a9508560d45" }
