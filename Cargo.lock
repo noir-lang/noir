@@ -1934,6 +1934,7 @@ dependencies = [
  "noir_lsp",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "noirc_frontend",
  "predicates 2.1.5",
  "rustc_version",
@@ -1997,7 +1998,6 @@ dependencies = [
  "acvm",
  "clap",
  "fm",
- "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
@@ -2013,7 +2013,6 @@ dependencies = [
  "codespan",
  "codespan-reporting",
  "fm",
- "serde",
 ]
 
 [[package]]
