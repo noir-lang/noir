@@ -121,7 +121,7 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) => InstructionResultType::Known(*typ),
+            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
             Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
@@ -150,7 +150,7 @@ impl Instruction {
                 rhs: f(binary.rhs),
                 operator: binary.operator,
             }),
-            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
             Instruction::Not(value) => Instruction::Not(f(*value)),
             Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
                 value: f(*value),
@@ -181,7 +181,7 @@ impl Instruction {
     pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
-            Instruction::Binary(binary) => return binary.simplify(dfg),
+            Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => {
                 if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
                     SimplifiedTo(value)
@@ -219,7 +219,9 @@ impl Instruction {
             }
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
-                if let (Some(array), Some(index)) = (array, dfg.get_numeric_constant(*index)) {
+                let index = dfg.get_numeric_constant(*index);
+
+                if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
                     assert!(index < array.len());
@@ -230,11 +232,13 @@ impl Instruction {
             }
             Instruction::ArraySet { array, index, value } => {
                 let array = dfg.get_array_constant(*array);
-                if let (Some(array), Some(index)) = (array, dfg.get_numeric_constant(*index)) {
+                let index = dfg.get_numeric_constant(*index);
+
+                if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
                     assert!(index < array.len());
-                    SimplifiedTo(dfg.make_array(array.update(index, *value)))
+                    SimplifiedTo(dfg.make_array(array.update(index, *value), element_type))
                 } else {
                     None
                 }

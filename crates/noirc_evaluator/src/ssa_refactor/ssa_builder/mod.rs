@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 
 use crate::ssa_refactor::ir::{
@@ -14,6 +16,7 @@ use super::{
         dfg::InsertInstructionResult,
         function::RuntimeType,
         instruction::{InstructionId, Intrinsic},
+        types::CompositeType,
     },
     ssa_gen::Ssa,
 };
@@ -104,9 +107,13 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
-    /// Insert an array constant into the current function with the given element values
-    pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId>) -> ValueId {
-        self.current_function.dfg.make_array(elements)
+    /// Insert an array constant into the current function with the given element values.
+    pub(crate) fn array_constant(
+        &mut self,
+        elements: im::Vector<ValueId>,
+        element_types: Rc<CompositeType>,
+    ) -> ValueId {
+        self.current_function.dfg.make_array(elements, element_types)
     }
 
     /// Returns the type of the given value.

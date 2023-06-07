@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::ssa_refactor::ir::instruction::SimplifyResult;
 
@@ -9,7 +9,7 @@ use super::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
     map::DenseMap,
-    types::Type,
+    types::{CompositeType, Type},
     value::{Value, ValueId},
 };
 
@@ -173,8 +173,12 @@ impl DataFlowGraph {
     }
 
     /// Create a new constant array value from the given elements
-    pub(crate) fn make_array(&mut self, elements: im::Vector<ValueId>) -> ValueId {
-        self.make_value(Value::Array(elements))
+    pub(crate) fn make_array(
+        &mut self,
+        array: im::Vector<ValueId>,
+        element_type: Rc<CompositeType>,
+    ) -> ValueId {
+        self.make_value(Value::Array { array, element_type })
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -290,18 +294,21 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, Type)> {
-        match self.values[value] {
-            Value::NumericConstant { constant, typ } => Some((constant, typ)),
+        match &self.values[value] {
+            Value::NumericConstant { constant, typ } => Some((*constant, typ.clone())),
             _ => None,
         }
     }
 
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
-    pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<im::Vector<ValueId>> {
+    pub(crate) fn get_array_constant(
+        &self,
+        value: ValueId,
+    ) -> Option<(im::Vector<ValueId>, Rc<CompositeType>)> {
         match &self.values[value] {
             // Vectors are shared, so cloning them is cheap
-            Value::Array(array) => Some(array.clone()),
+            Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
             _ => None,
         }
     }

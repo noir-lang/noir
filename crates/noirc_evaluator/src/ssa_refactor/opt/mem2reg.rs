@@ -227,6 +227,8 @@ impl PerBlockContext {
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use acvm::FieldElement;
     use im::vector;
 
@@ -258,10 +260,12 @@ mod tests {
         let v0 = builder.insert_allocate();
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
-        let array = builder.array_constant(vector![one, two]);
+
+        let element_type = Rc::new(vec![Type::field()]);
+        let array = builder.array_constant(vector![one, two], element_type.clone());
 
         builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, Type::Array);
+        let v1 = builder.insert_load(v0, Type::Array(element_type, 2));
         let v2 = builder.insert_array_get(v1, one, Type::field());
         builder.terminate_with_return(vec![v2]);
 

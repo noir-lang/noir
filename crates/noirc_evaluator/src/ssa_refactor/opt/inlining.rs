@@ -203,13 +203,13 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, *typ)
+                self.context.builder.numeric_constant(*constant, typ.clone())
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
-            Value::Array(array) => {
+            Value::Array { array, element_type } => {
                 let elements = array.iter().map(|value| self.translate_value(*value)).collect();
-                self.context.builder.array_constant(elements)
+                self.context.builder.array_constant(elements, element_type.clone())
             }
         };
 
