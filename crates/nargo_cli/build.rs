@@ -15,6 +15,9 @@ fn check_rustc_version() {
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
+    // Rebuild if the tests have changed
+    println!("cargo:rerun-if-changed=tests");
+
     check_rustc_version();
 
     // Only use build_data if the environment variable isn't set

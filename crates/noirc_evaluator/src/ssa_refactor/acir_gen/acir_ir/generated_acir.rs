@@ -252,6 +252,151 @@ impl GeneratedAcir {
         Ok(limb_witnesses)
     }
 
+    /// Computes lhs/rhs by using euclidean division.
+    ///
+    /// Returns `q` for quotient and `r` for remainder such
+    /// that lhs = rhs * q + r
+    pub(crate) fn euclidean_division(
+        &mut self,
+        lhs: &Expression,
+        rhs: &Expression,
+        bit_size: u32,
+        predicate: &Expression,
+    ) -> Result<(Witness, Witness), AcirGenError> {
+        let q_witness = self.next_witness_index();
+        let r_witness = self.next_witness_index();
+
+        let pa = lhs * predicate;
+        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
+            a: lhs.clone(),
+            b: rhs.clone(),
+            q: q_witness,
+            r: r_witness,
+            predicate: Some(predicate.clone()),
+        })));
+
+        //r<b
+        let r_expr = Expression::from(r_witness);
+        self.range_constraint(r_witness, bit_size)?;
+        self.bound_constraint_with_offset(&r_expr, rhs, predicate, bit_size)?;
+        //range check q<=a
+        self.range_constraint(q_witness, bit_size)?;
+        // a-b*q-r = 0
+        let mut d = rhs * &Expression::from(q_witness);
+        d = &d + r_witness;
+        d = &d * predicate;
+        let div_euclidean = &pa - &d;
+
+        self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
+
+        Ok((q_witness, r_witness))
+    }
+
+    /// Generate constraints that are satisfied iff
+    /// a < b , when offset is 1, or
+    /// a <= b, when offset is 0
+    /// bits is the bit size of a and b (or an upper bound of the bit size)
+    ///
+    /// a<=b is done by constraining b-a to a bit size of 'bits':
+    /// if a<=b, 0 <= b-a <= b < 2^bits
+    /// if a>b, b-a = p+b-a > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
+    /// n.b: we do NOT check here that a and b are indeed 'bits' size
+    /// a < b <=> a+1<=b
+    /// TODO: Consolidate this with bounds_check function.
+    fn bound_constraint_with_offset(
+        &mut self,
+        a: &Expression,
+        b: &Expression,
+        offset: &Expression,
+        bits: u32,
+    ) -> Result<(), AcirGenError> {
+        const fn num_bits<T>() -> usize {
+            std::mem::size_of::<T>() * 8
+        }
+
+        fn bit_size_u128(a: u128) -> u32 where {
+            num_bits::<u128>() as u32 - a.leading_zeros()
+        }
+
+        fn bit_size_u32(a: u32) -> u32 where {
+            num_bits::<u32>() as u32 - a.leading_zeros()
+        }
+
+        assert!(
+            bits < FieldElement::max_num_bits(),
+            "range check with bit size of the prime field is not implemented yet"
+        );
+
+        let mut aof = a + offset;
+
+        if b.is_const() && b.q_c.fits_in_u128() {
+            let f = if *offset == Expression::one() {
+                aof = a.clone();
+                assert!(b.q_c.to_u128() >= 1);
+                b.q_c.to_u128() - 1
+            } else {
+                b.q_c.to_u128()
+            };
+
+            if f < 3 {
+                match f {
+                    0 => self.push_opcode(AcirOpcode::Arithmetic(aof)),
+                    1 => {
+                        let expr = self.boolean_expr(&aof);
+                        self.push_opcode(AcirOpcode::Arithmetic(expr));
+                    }
+                    2 => {
+                        let aof_boolean_expr = self.boolean_expr(&aof);
+                        let y = self.create_witness_for_expression(&aof_boolean_expr);
+                        let neg_two = -FieldElement::from(2_i128);
+
+                        let aof_witness = self.create_witness_for_expression(&aof);
+                        let mut eee = Expression::default();
+                        eee.push_multiplication_term(FieldElement::one(), y, aof_witness);
+                        eee.push_addition_term(neg_two, y);
+
+                        self.push_opcode(AcirOpcode::Arithmetic(eee));
+                    }
+                    _ => unreachable!(),
+                }
+                return Ok(());
+            }
+            let bit_size = bit_size_u128(f);
+            if bit_size < 128 {
+                let r = (1_u128 << bit_size) - f - 1;
+                assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure a+r does not overflow
+
+                let mut aor = aof.clone();
+                aor.q_c += FieldElement::from(r);
+
+                let witness = self.create_witness_for_expression(&aor);
+                self.range_constraint(witness, bit_size)?;
+                return Ok(());
+            }
+        }
+
+        let sub_expression = b - &aof; //b-(a+offset)
+        let w = self.create_witness_for_expression(&sub_expression);
+        self.range_constraint(w, bits)?;
+
+        Ok(())
+    }
+
+    /// Computes the expression x(x-1)
+    ///
+    /// If the above is constrained to zero, then it can only be
+    /// true, iff x equals zero or one.
+    fn boolean_expr(&mut self, expr: &Expression) -> Expression {
+        let expr_as_witness = self.create_witness_for_expression(expr);
+        let mut expr_squared = Expression::default();
+        expr_squared.push_multiplication_term(
+            FieldElement::one(),
+            expr_as_witness,
+            expr_as_witness,
+        );
+        &expr_squared - expr
+    }
+
     /// Adds a log directive to print the provided witnesses.
     ///
     /// Logging of strings is currently unsupported.
