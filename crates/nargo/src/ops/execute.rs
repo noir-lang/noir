@@ -14,7 +14,7 @@ pub fn execute_circuit(
     let mut blocks = Blocks::default();
     let solver_status = solve(backend, &mut initial_witness, &mut blocks, circuit.opcodes)?;
 
-    // TODO: Nargo only supports "oracle_print_impl" functions that print a singular value and nothing else
+    // TODO(#1615): Nargo only supports "oracle_print_impl" functions that print a singular value and nothing else
     // expand this in a general logging refactor
     if let PartialWitnessGeneratorStatus::RequiresOracleData {
         unresolved_brillig_calls,
@@ -33,7 +33,7 @@ pub fn execute_circuit(
             // Execute foreign call "oracle_print_impl"
             println!("{:?}", value.to_field().to_hex());
 
-            // TODO: "oracle_print_impl" is just an identity func
+            // TODO(#1615): "oracle_print_impl" is just an identity func
             brillig.foreign_call_results.push(ForeignCallResult { values: vec![value] });
 
             let mut next_opcodes_for_solving = vec![Opcode::Brillig(brillig)];
