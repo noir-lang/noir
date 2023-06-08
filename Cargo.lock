@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfcc9e8065170b7d47cf6718e7788c65c01609a86127eacd885a952b16f46b72"
+source = "git+https://github.com/noir-lang/acvm?rev=24ad48ecf149d3c04a325166392bc5910f4d3f1e#24ad48ecf149d3c04a325166392bc5910f4d3f1e"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -19,8 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a43b59e8419f485a2a15ababa828e27fd20c00ba2ce90e78efe165df7d47ac0"
+source = "git+https://github.com/noir-lang/acvm?rev=24ad48ecf149d3c04a325166392bc5910f4d3f1e#24ad48ecf149d3c04a325166392bc5910f4d3f1e"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -33,8 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce0a3b770cf70b29fd41313bb0baf2a920475fd782bd7a37822f5ee1406b2231"
+source = "git+https://github.com/noir-lang/acvm?rev=24ad48ecf149d3c04a325166392bc5910f4d3f1e#24ad48ecf149d3c04a325166392bc5910f4d3f1e"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -72,8 +69,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c9adc16581262b8571551d029a48118c05b5d02371eb2d10af6a633bb670aec"
+source = "git+https://github.com/noir-lang/acvm?rev=24ad48ecf149d3c04a325166392bc5910f4d3f1e#24ad48ecf149d3c04a325166392bc5910f4d3f1e"
 dependencies = [
  "acir",
 ]
@@ -506,8 +502,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f81af1fa12f95a86b2c1a1c15aadc186265853698e3098f5ce9966d1aa64cca"
+source = "git+https://github.com/noir-lang/acvm?rev=24ad48ecf149d3c04a325166392bc5910f4d3f1e#24ad48ecf149d3c04a325166392bc5910f4d3f1e"
 dependencies = [
  "acir_field",
  "num-bigint",

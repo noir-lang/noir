@@ -4,7 +4,7 @@ use iter_extended::vecmap;
 
 use crate::ssa_refactor::{
     ir::{
-        basic_block::BasicBlockId, dfg::InsertInstructionResult, function::Function,
+        basic_block::BasicBlockId, dfg::InsertInstructionResult, function::{Function, RuntimeType},
         instruction::InstructionId, value::ValueId,
     },
     ssa_gen::Ssa,
@@ -19,7 +19,12 @@ impl Ssa {
     /// now be simplified.
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function);
+            match function.runtime() {
+                RuntimeType::Acir => {
+                    constant_fold(function);
+                }
+                RuntimeType::Brillig => {}
+            }
         }
         self
     }
