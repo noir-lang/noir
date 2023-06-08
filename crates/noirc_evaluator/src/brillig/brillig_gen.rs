@@ -146,6 +146,10 @@ impl BrilligGen {
                 let result_register = self.get_or_create_register(result_ids[0]);
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
+            Instruction::Constrain(value) => {
+                let condition = self.convert_ssa_value(*value, dfg);
+                self.push_code(BrilligOpcode::JumpIfNot { condition, location: 1 });
+            }
             _ => todo!("ICE: Instruction not supported"),
         };
     }
