@@ -128,7 +128,9 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::Call { .. } | Instruction::ForeignCall { .. } => InstructionResultType::Unknown,
+            Instruction::Load { .. }
+            | Instruction::Call { .. }
+            | Instruction::ForeignCall { .. } => InstructionResultType::Unknown,
         }
     }
 

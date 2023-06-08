@@ -353,7 +353,7 @@ impl<'a> FunctionContext<'a> {
 
         if let ast::Expression::Ident(ident) = call.func.as_ref() {
             if let ast::Definition::Oracle(func) = &ident.definition {
-                return self.insert_foreign_call(func.to_owned(), arguments, &call.return_type)
+                return self.insert_foreign_call(func.to_owned(), arguments, &call.return_type);
             }
         }
 

@@ -341,7 +341,9 @@ impl Context {
             Value::NumericConstant { constant, .. } => self.acir_context.add_constant(*constant),
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
-            Value::ForeignFunction(_) => unimplemented!("Oracle calls directly in constrained functions are not yet available."),
+            Value::ForeignFunction(_) => unimplemented!(
+                "Oracle calls directly in constrained functions are not yet available."
+            ),
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value:?}")
             }

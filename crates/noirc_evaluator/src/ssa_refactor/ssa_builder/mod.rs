@@ -230,7 +230,8 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> &[ValueId] {
-        self.insert_instruction(Instruction::ForeignCall { func, arguments }, Some(result_types)).results()
+        self.insert_instruction(Instruction::ForeignCall { func, arguments }, Some(result_types))
+            .results()
     }
 
     /// Terminates the current block with the given terminator instruction
