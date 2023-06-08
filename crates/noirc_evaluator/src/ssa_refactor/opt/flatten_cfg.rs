@@ -308,6 +308,8 @@ impl<'f> Context<'f> {
                 let else_branch =
                     self.inline_branch(block, else_block, old_condition, else_condition, zero);
 
+                self.insert_current_side_effects_enabled();
+
                 // While there is a condition on the stack we don't compile outside the condition
                 // until it is popped. This ensures we inline the full then and else branches
                 // before continuing from the end of the conditional here where they can be merged properly.
@@ -441,7 +443,6 @@ impl<'f> Context<'f> {
         let final_block = self.inline_block(destination, &[]);
 
         self.conditions.pop();
-        self.insert_current_side_effects_enabled();
         let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
 
         Branch { condition: new_condition, last_block: final_block, store_values: stores_in_branch }
@@ -680,7 +681,6 @@ mod test {
         // fn main f0 {
         //   b0(v0: u1):
         //     enable_side_effects v0
-        //     enable_side_effects u1 1
         //     v5 = not v0
         //     enable_side_effects v5
         //     enable_side_effects u1 1
@@ -732,14 +732,12 @@ mod test {
         //     v3 = mul v1, v0
         //     v4 = eq v3, v0
         //     constrain v4
-        //     enable_side_effects u1 1
         //     v5 = not v0
         //     enable_side_effects v5
         //     enable_side_effects u1 1
         //     return
         // }
         let ssa = ssa.flatten_cfg();
-        println!("{ssa}");
         assert_eq!(ssa.main().reachable_blocks().len(), 1);
     }
 
@@ -781,7 +779,6 @@ mod test {
         //     enable_side_effects v0
         //     v4 = load v1
         //     store Field 5 at v1
-        //     enable_side_effects u1 1
         //     v5 = not v0
         //     enable_side_effects v5
         //     enable_side_effects u1 1
@@ -792,7 +789,6 @@ mod test {
         //     return
         // }
         let ssa = ssa.flatten_cfg();
-        println!("{ssa}");
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 1);
 
@@ -860,7 +856,6 @@ mod test {
         //     v7 = add v1, Field 1
         //     v8 = load v7
         //     store Field 5 at v7
-        //     enable_side_effects Field 1
         //     v9 = not v0
         //     enable_side_effects v9
         //     v11 = add v1, Field 1
@@ -1062,8 +1057,6 @@ mod test {
 
         let ssa = builder.finish().flatten_cfg().mem2reg();
 
-        println!("{ssa}");
-
         // Expected results after mem2reg removes the allocation and each load and store:
         //
         // fn main f0 {
@@ -1076,7 +1069,6 @@ mod test {
         //     v29 = and v0, v1
         //     enable_side_effects v29
         //     call println(Field 5, Field 5)
-        //     enable_side_effects v0
         //     v32 = not v1
         //     v33 = and v0, v32
         //     enable_side_effects v33
@@ -1089,7 +1081,6 @@ mod test {
         //     v40 = mul v32, Field 6
         //     v41 = add v39, v40
         //     call println(Field 7, v42)
-        //     enable_side_effects Field 1
         //     v43 = not v0
         //     enable_side_effects v43
         //     store Field 3 at v2
