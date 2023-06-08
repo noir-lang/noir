@@ -1,9 +1,7 @@
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, computeMessageSecretHash } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -84,12 +82,11 @@ describe('archiver integration with l1 to l2 messages', () => {
     // create a message, then cancel it
 
     // Generate a claim secret using pedersen
-    // TODO (#741): make this into an aztec.js utility function
     logger("Generating a claim secret using pedersen's hash function");
-    const wasm = await CircuitsWasm.get();
     const secret = Fr.random();
-    const claimSecretHash = computeSecretMessageHash(wasm, secret);
-    logger('Generated claim secret: ', claimSecretHash.toString());
+    const secretHash = await computeMessageSecretHash(secret);
+    const secretString = `0x${secretHash.toBuffer().toString('hex')}` as `0x${string}`;
+    logger('Generated claim secret: ', secretString);
 
     logger('Minting tokens on L1');
     await underlyingERC20.write.mint([ethAccount.toString(), 1000000n], {} as any);
@@ -98,7 +95,6 @@ describe('archiver integration with l1 to l2 messages', () => {
     expect(await underlyingERC20.read.balanceOf([ethAccount.toString()])).toBe(1000000n);
 
     // Deposit tokens to the TokenPortal
-    const secretString = `0x${claimSecretHash.toBuffer().toString('hex')}` as `0x${string}`;
     const deadline = Number((await publicClient.getBlock()).timestamp + 1000n);
     const mintAmount = 100n;
 

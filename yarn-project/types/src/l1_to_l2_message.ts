@@ -2,8 +2,6 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
-import { sha256 } from '@aztec/foundation/crypto';
-import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 /**
  * Interface of classes allowing for the retrieval of L1 to L2 messages.
@@ -73,13 +71,6 @@ export class L1ToL2Message {
      */
     public readonly entryKey?: Fr,
   ) {}
-
-  // TODO: (#646) - sha256 hash of the message packed the same as solidity
-  hash(): Fr {
-    const buf = this.toBuffer();
-    const temp = toBigIntBE(sha256(buf));
-    return Fr.fromBuffer(toBufferBE(temp % Fr.MODULUS, 32));
-  }
 
   /**
    * Returns each element within its own field so that it can be consumed by an acvm oracle call.

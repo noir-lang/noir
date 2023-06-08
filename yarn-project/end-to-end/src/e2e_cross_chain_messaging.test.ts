@@ -1,9 +1,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, TxStatus } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, TxStatus, computeMessageSecretHash } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
@@ -88,12 +86,11 @@ describe('e2e_cross_chain_messaging', () => {
 
   it('Milestone 2: Deposit funds from L1 -> L2 and withdraw back to L1', async () => {
     // Generate a claim secret using pedersen
-    // TODO (#741): make this into an aztec.js utility function
     logger("Generating a claim secret using pedersen's hash function");
-    const wasm = await CircuitsWasm.get();
     const secret = Fr.random();
-    const claimSecretHash = computeSecretMessageHash(wasm, secret);
-    logger('Generated claim secret: ', claimSecretHash.toString());
+    const secretHash = await computeMessageSecretHash(secret);
+    const secretString = `0x${secretHash.toBuffer().toString('hex')}` as `0x${string}`;
+    logger('Generated claim secret: ', secretString);
 
     logger('Minting tokens on L1');
     await underlyingERC20.write.mint([ethAccount.toString(), 1000000n], {} as any);
@@ -102,7 +99,6 @@ describe('e2e_cross_chain_messaging', () => {
     expect(await underlyingERC20.read.balanceOf([ethAccount.toString()])).toBe(1000000n);
 
     // Deposit tokens to the TokenPortal
-    const secretString = `0x${claimSecretHash.toBuffer().toString('hex')}` as `0x${string}`;
     const deadline = 2 ** 32 - 1; // max uint32 - 1
 
     const mintAmount = 100n;

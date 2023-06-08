@@ -400,7 +400,8 @@ describe('Private Execution test suite', () => {
       const secret = new Fr(1n);
       const preimage = await buildL1ToL2Message([new Fr(bridgedAmount), new Fr(recipient.x)], contractAddress, secret);
 
-      const messageKey = preimage.hash();
+      // stub message key
+      const messageKey = Fr.random();
 
       const tree: AppendOnlyTree = await newTree(
         StandardTree,
