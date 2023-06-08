@@ -358,22 +358,13 @@ fn operator_result_max_bit_size_to_truncate(
     lhs_type: Type,
     rhs_type: Type,
 ) -> Option<u32> {
-    let lhs_numeric = match lhs_type {
-        Type::Numeric(numeric) => numeric,
-        _ => return None,
+    let get_bit_size = |typ| match typ {
+        Type::Numerc(NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size }) => Some(bit_size),
+        _ => None,
     };
-    let rhs_numeric = match rhs_type {
-        Type::Numeric(numeric) => numeric,
-        _ => return None,
-    };
-    let lhs_bit_size = match lhs_numeric {
-        NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => bit_size,
-        _ => return None,
-    };
-    let rhs_bit_size = match rhs_numeric {
-        NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => bit_size,
-        _ => return None,
-    };
+    
+    let lhs_bit_size = get_bit_size(lhs_type)?;
+    let rhs_bit_size = get_bit_size(rhs_type)?;
     use noirc_frontend::BinaryOpKind::*;
     match op {
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
