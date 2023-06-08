@@ -45,6 +45,7 @@ fn constant_fold(function: &mut Function) {
             continue;
         }
 
+        context.visited_blocks.insert(block);
         context.fold_constants_in_block(function, block);
     }
 }
