@@ -359,10 +359,12 @@ fn operator_result_max_bit_size_to_truncate(
     rhs_type: Type,
 ) -> Option<u32> {
     let get_bit_size = |typ| match typ {
-        Type::Numerc(NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size }) => Some(bit_size),
+        Type::Numeric(NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size }) => {
+            Some(bit_size)
+        }
         _ => None,
     };
-    
+
     let lhs_bit_size = get_bit_size(lhs_type)?;
     let rhs_bit_size = get_bit_size(rhs_type)?;
     use noirc_frontend::BinaryOpKind::*;
@@ -370,7 +372,7 @@ fn operator_result_max_bit_size_to_truncate(
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Multiply => Some(lhs_bit_size + rhs_bit_size),
-        ShiftRight => Some(FieldElement::max_num_bits()),
+        ShiftLeft => Some(lhs_bit_size + 2_u32.pow(rhs_bit_size)),
         _ => None,
     }
 }
