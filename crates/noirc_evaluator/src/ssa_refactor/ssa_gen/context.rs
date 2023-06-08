@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
 use iter_extended::vecmap;
@@ -186,7 +187,10 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn convert_non_tuple_type(typ: &ast::Type) -> Type {
         match typ {
             ast::Type::Field => Type::field(),
-            ast::Type::Array(_, _) => Type::Reference,
+            ast::Type::Array(len, element) => {
+                let element_types = Self::convert_type(element).flatten();
+                Type::Array(Rc::new(element_types), *len as usize)
+            }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed(*bits),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned(*bits),
             ast::Type::Bool => Type::unsigned(1),
