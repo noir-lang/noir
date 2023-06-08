@@ -6,12 +6,14 @@ use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir,
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
     Brillig,
+    // Oracle function, to be compiled to an external/foreign call
+    Oracle(String),
 }
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
@@ -39,7 +41,7 @@ pub(crate) struct Function {
 impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
-    /// Note that any parameters or attributes of the function must be manually added later.
+    /// Note that any parameters of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
@@ -59,7 +61,7 @@ impl Function {
 
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
-        self.runtime
+        self.runtime.clone()
     }
 
     /// Set runtime type of the function.

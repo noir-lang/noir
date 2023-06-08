@@ -61,7 +61,7 @@ impl Value {
 /// A tree of values.
 ///
 /// Compared to Value alone, the addition of being able to represent structs/tuples as
-/// a Tree::Branch means this type can hold any kind of value an frontend expression may return.
+/// a Tree::Branch means this type can hold any kind of value a frontend expression may return.
 /// This is why it is used as the return type for every codegen_* function in ssa_gen/mod.rs.
 pub(super) type Values = Tree<Value>;
 

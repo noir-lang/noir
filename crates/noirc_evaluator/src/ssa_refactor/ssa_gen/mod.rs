@@ -85,11 +85,13 @@ impl<'a> FunctionContext<'a> {
         self.codegen_expression(expr).into_leaf().eval(self)
     }
 
+    /// Codegen for identifiers
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id).map(|value| value.eval(self).into()),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
-            ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) | ast::Definition::Oracle(name, _) => {
+            ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
+            ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
                 match self.builder.import_intrinsic(name) {
                     Some(builtin) => builtin.into(),
                     None => panic!("No builtin function named '{name}' found"),

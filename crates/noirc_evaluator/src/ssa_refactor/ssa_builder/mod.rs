@@ -263,11 +263,29 @@ impl FunctionBuilder {
         self.current_function.dfg.import_function(function)
     }
 
+    /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
+    /// into the current function if it was not already, and returns that ID.
+    pub(crate) fn import_foreign_function(&mut self, function: &String) -> ValueId {
+        self.current_function.dfg.import_foreign_function(function)
+    }
+
     /// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
         Intrinsic::lookup(name).map(|intrinsic| self.import_intrinsic_id(intrinsic))
     }
+
+    // TODO remove
+    // /// Insert a foreign call instruction at the end of the current block and return
+    // /// the results of the call. Used to implement oracles.
+    // pub(crate) fn insert_foreign_function(
+    //     &mut self,
+    //     func: String,
+    //     arguments: Vec<ValueId>,
+    //     result_types: Vec<Type>,
+    // ) -> &[ValueId] {
+    //     self.insert_instruction(Instruction::ForeignCall { func, arguments }, Some(result_types)).results()
+    // }
 
     /// Retrieve a value reference to the given intrinsic operation.
     pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> ValueId {

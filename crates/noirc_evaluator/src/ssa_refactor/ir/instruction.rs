@@ -92,6 +92,12 @@ pub(crate) enum Instruction {
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
 
+    // TODO NEEDED?
+    // /// Performs an "oracle" - an external function call with a list of its arguments.
+    // /// These are generally unconstrained functions that provide some value lookup.
+    // /// They may result in constraints outside of the context known to Noir.
+    // ForeignCall { func: String, arguments: Vec<ValueId> },
+
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
     ///
@@ -123,7 +129,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
+            Instruction::Load { .. } | Instruction::Call { .. } /*| Instruction::ForeignCall { .. }*/ => InstructionResultType::Unknown,
         }
     }
 
@@ -151,6 +157,10 @@ impl Instruction {
                 max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
+            // Instruction::ForeignCall { func, arguments } => Instruction::ForeignCall {
+            //     func: *func,
+            //     arguments: vecmap(arguments.iter().copied(), f),
+            // },
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -204,6 +214,7 @@ impl Instruction {
             }
             Instruction::Truncate { .. } => None,
             Instruction::Call { .. } => None,
+            // Instruction::ForeignCall { .. } => None,
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,

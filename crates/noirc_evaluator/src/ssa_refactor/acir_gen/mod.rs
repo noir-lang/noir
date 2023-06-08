@@ -216,6 +216,9 @@ impl Context {
                                 let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
                                 (result_ids.to_vec(), outputs)
                             }
+                            RuntimeType::Oracle(oracle_name)  => unimplemented!(
+                                "Oracle calls currently must occur from unconstrained functions!"
+                            ),
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
@@ -334,6 +337,7 @@ impl Context {
             Value::NumericConstant { constant, .. } => self.acir_context.add_constant(*constant),
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
+            Value::ForeignFunction(..) => unimplemented!("Not yet supported from ACIR."),
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value:?}")
             }
