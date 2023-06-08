@@ -2,6 +2,8 @@ mod context;
 mod program;
 mod value;
 
+use std::rc::Rc;
+
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
@@ -14,7 +16,12 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::{function::RuntimeType, instruction::BinaryOp, types::Type, value::ValueId};
+use super::ir::{
+    function::RuntimeType,
+    instruction::BinaryOp,
+    types::{CompositeType, Type},
+    value::ValueId,
+};
 
 /// Generates SSA for the given monomorphized program.
 ///
@@ -102,8 +109,8 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let element_type = Self::convert_type(&array.element_type);
-                self.codegen_array(elements, element_type)
+                let element_types = Self::convert_type(&array.element_type).flatten();
+                self.codegen_array(elements, element_types)
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -116,7 +123,7 @@ impl<'a> FunctionContext<'a> {
                 let elements = vecmap(string.as_bytes(), |byte| {
                     self.builder.numeric_constant(*byte as u128, Type::field()).into()
                 });
-                self.codegen_array(elements, Tree::Leaf(Type::field()))
+                self.codegen_array(elements, vec![Type::char()])
             }
         }
     }
@@ -130,24 +137,17 @@ impl<'a> FunctionContext<'a> {
     /// stored the same as the array [1, 2, 3, 4].
     ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<Values>, element_type: Tree<Type>) -> Values {
-        let size = element_type.size_of_type() * elements.len();
-        let array = self.builder.insert_allocate(size.try_into().unwrap_or_else(|_| {
-            panic!("Cannot allocate {size} bytes for array, it does not fit into a u32")
-        }));
+    fn codegen_array(&mut self, elements: Vec<Values>, element_types: CompositeType) -> Values {
+        let mut array = im::Vector::new();
 
-        // Now we must manually store all the elements into the array
-        let mut i = 0u128;
         for element in elements {
             element.for_each(|element| {
-                let address = self.make_offset(array, i);
                 let element = element.eval(self);
-                self.builder.insert_store(address, element);
-                i += 1;
+                array.push_back(element);
             });
         }
 
-        array.into()
+        self.builder.array_constant(array, Rc::new(element_types)).into()
     }
 
     fn codegen_block(&mut self, block: &[Expression]) -> Values {
@@ -178,7 +178,8 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array = self.codegen_non_tuple_expression(&index.collection);
-        self.codegen_array_index(array, &index.index, &index.element_type, true)
+        let index_value = self.codegen_non_tuple_expression(&index.index);
+        self.codegen_array_index(array, index_value, &index.element_type)
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -190,27 +191,19 @@ impl<'a> FunctionContext<'a> {
     fn codegen_array_index(
         &mut self,
         array: super::ir::value::ValueId,
-        index: &ast::Expression,
+        index: super::ir::value::ValueId,
         element_type: &ast::Type,
-        load_result: bool,
     ) -> Values {
-        let base_offset = self.codegen_non_tuple_expression(index);
-
-        // base_index = base_offset * type_size
+        // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
-        let base_index = self.builder.insert_binary(base_offset, BinaryOp::Mul, type_size);
+        let base_index = self.builder.insert_binary(index, BinaryOp::Mul, type_size);
 
         let mut field_index = 0u128;
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
-            if load_result {
-                self.builder.insert_load(array, offset, typ)
-            } else {
-                self.builder.insert_binary(array, BinaryOp::Add, offset)
-            }
-            .into()
+            self.builder.insert_array_get(array, offset, typ).into()
         })
     }
 
@@ -362,7 +355,7 @@ impl<'a> FunctionContext<'a> {
         let mut values = self.codegen_expression(&let_expr.expression);
 
         if let_expr.mutable {
-            values.map_mut(|value| {
+            values = values.map(|value| {
                 let value = value.eval(self);
                 Tree::Leaf(self.new_mutable_variable(value))
             });
@@ -379,36 +372,11 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Values {
-        let lhs = self.codegen_lvalue(&assign.lvalue);
+        let lhs = self.extract_current_value(&assign.lvalue);
         let rhs = self.codegen_expression(&assign.expression);
 
-        self.assign(lhs, rhs);
+        self.assign_new_value(lhs, rhs);
         self.unit_value()
-    }
-
-    fn codegen_lvalue(&mut self, lvalue: &ast::LValue) -> Values {
-        match lvalue {
-            ast::LValue::Ident(ident) => {
-                // Do not .eval the Values here! We do not want to load from any references within
-                // since we want to return the references instead
-                match &ident.definition {
-                    ast::Definition::Local(id) => self.lookup(*id),
-                    other => panic!("Unexpected definition found for mutable value: {other}"),
-                }
-            }
-            ast::LValue::Index { array, index, element_type, location: _ } => {
-                // Note that unlike the Ident case, we're .eval'ing the array here.
-                // This is because arrays are already references and thus a mutable reference
-                // to an array would be a Value::Mutable( Value::Mutable ( address ) ), and we
-                // only need the inner mutable value.
-                let array = self.codegen_lvalue(array).into_leaf().eval(self);
-                self.codegen_array_index(array, index, element_type, false)
-            }
-            ast::LValue::MemberAccess { object, field_index } => {
-                let object = self.codegen_lvalue(object);
-                Self::get_field(object, *field_index)
-            }
-        }
     }
 
     fn codegen_semi(&mut self, expr: &Expression) -> Values {
