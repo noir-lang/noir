@@ -106,9 +106,15 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
     // 8 public data update requests (4 per kernel) -> 16 fields
     // 4 l2 -> l1 messages (2 per kernel) -> 4 fields
     // 2 contract deployments (1 per kernel) -> 6 fields
+    // 2 encrypted logs hashes (1 per kernel) -> 4 fields
+    // 2 unencrypted logs hashes (1 per kernel) -> 4 fields
     auto const number_of_inputs =
         (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 +
-         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3) *
+         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3
+         // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
+         //  + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2
+         //  + KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2
+         ) *
         2;
     std::array<NT::fr, number_of_inputs> calldata_hash_inputs;
 
@@ -117,6 +123,8 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         auto new_nullifiers = kernel_data[i].public_inputs.end.new_nullifiers;
         auto public_data_update_requests = kernel_data[i].public_inputs.end.public_data_update_requests;
         auto newL2ToL1msgs = kernel_data[i].public_inputs.end.new_l2_to_l1_msgs;
+        auto encryptedLogsHash = kernel_data[i].public_inputs.end.encrypted_logs_hash;
+        // auto unencryptedLogsHash = kernel_data[i].public_inputs.end.unencrypted_logs_hash;
 
         size_t offset = 0;
 
@@ -151,6 +159,16 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         auto new_contracts = kernel_data[i].public_inputs.end.new_contracts;
         calldata_hash_inputs[offset + i * 2] = new_contracts[0].contract_address;
         calldata_hash_inputs[offset + i * 2 + 1] = new_contracts[0].portal_contract_address;
+
+        // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
+        // offset += KERNEL_NEW_CONTRACTS_LENGTH * 2 * 2;
+        // calldata_hash_inputs[offset + i * 2] = encryptedLogsHash[0];
+        // calldata_hash_inputs[offset + i * 2 + 1] = encryptedLogsHash[1];
+
+        // offset += KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2;
+
+        // calldata_hash_inputs[offset + i * 2] = unencryptedLogsHash[0];
+        // calldata_hash_inputs[offset + i * 2 + 1] = unencryptedLogsHash[1];
     }
 
     constexpr auto num_bytes = calldata_hash_inputs.size() * 32;
