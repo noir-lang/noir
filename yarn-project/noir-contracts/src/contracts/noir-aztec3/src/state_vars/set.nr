@@ -83,6 +83,7 @@ impl Set {
         constrain note_getter_data.1.root == inputs.old_private_data_tree_root;
 
         let notes = (note_getter_data.0.note, note_getter_data.1.note);
+
         (context, notes)
     }
 

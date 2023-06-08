@@ -8,6 +8,7 @@ import { ClientTxExecutionContext } from './client_execution_context.js';
 import { select_return_flattened as selectReturnFlattened } from '@noir-lang/noir_util_wasm';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
+import { fieldsToFormattedStr } from './debug.js';
 
 const notAvailable = () => {
   return Promise.reject(new Error(`Not available for unconstrained function execution`));
@@ -55,9 +56,8 @@ export class UnconstrainedFunctionExecution {
           frToNumber(fromACVMField(acvmLimit)),
           frToNumber(fromACVMField(acvmOffset)),
         ),
-      debugLog: ([data]: ACVMField[]) => {
-        // eslint-disable-next-line
-        console.log(data);
+      debugLog: (fields: ACVMField[]) => {
+        this.log(fieldsToFormattedStr(fields));
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },
       getL1ToL2Message: ([msgKey]: ACVMField[]) => this.context.getL1ToL2Message(fromACVMField(msgKey)),
