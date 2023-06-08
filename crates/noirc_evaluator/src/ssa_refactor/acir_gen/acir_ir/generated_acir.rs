@@ -110,13 +110,13 @@ impl GeneratedAcir {
     ///   }
     /// ``
     ///
-    ///  Call truncate on L1:
+    ///  Call truncate only on L1:
     ///     - `rhs` would be `32`
     ///     - `max_bits` would be `33` due to the addition of two u32s
-    ///  Call truncate on L2:
+    ///  Call truncate only on L2:
     ///     - `rhs` would be `32`
     ///     - `max_bits` would be `66` due to the multiplication of two u33s `a`
-    ///  Call truncate on L3:
+    ///  Call truncate only on L3:
     ///     -  `rhs` would be `32`
     ///     - `max_bits` would be `67` due to the addition of two u66s `b`
     ///
@@ -127,15 +127,17 @@ impl GeneratedAcir {
     /// where:
     ///     - a = `lhs`
     ///     - b = 2^{max_bits}
-    /// The prover will supply the quotient and the remainder.
+    /// The prover will supply the quotient and the remainder, where the remainder
+    /// is the truncated value that we will return since it is enforced to be
+    /// in the range:  0 <= r < 2^{rhs}
     pub(crate) fn truncate(
         &mut self,
         lhs: &Expression,
-        rhs: u32,
+        rhs_bit_size: u32,
         max_bits: u32,
     ) -> Result<Expression, AcirGenError> {
-        assert!(max_bits > rhs, "max_bits = {max_bits}, rhs = {rhs}");
-        let exp_big = BigUint::from(2_u32).pow(rhs);
+        assert!(max_bits > rhs_bit_size, "max_bits = {max_bits}, rhs = {rhs_bit_size} -- The caller should ensure that truncation is only called when the value needs to be truncated");
+        let exp_big = BigUint::from(2_u32).pow(rhs_bit_size);
 
         // 0. Check for constant expression.
         if let Some(a_c) = lhs.to_const() {
@@ -163,17 +165,17 @@ impl GeneratedAcir {
             predicate: None,
         })));
 
-        // According to the division theorem, the remainder needs to be 0 <= r < 2^{rhs}
-        self.range_constraint(remainder_witness, rhs)?;
+        // According to the division theorem, the remainder needs to be 0 <= r < 2^{rhs_bit_size}
+        self.range_constraint(remainder_witness, rhs_bit_size)?;
 
         // According to the formula above, the quotient should be within the range 0 <= q < 2^{max_bits - rhs}
-        self.range_constraint(quotient_witness, max_bits - rhs)?;
+        self.range_constraint(quotient_witness, max_bits - rhs_bit_size)?;
 
         // 2. Add the constraint a == r + (q * 2^{rhs})
         //
         // 2^{rhs}
         let mut two_pow_rhs_bits = FieldElement::from(2_i128);
-        two_pow_rhs_bits = two_pow_rhs_bits.pow(&FieldElement::from(rhs as i128));
+        two_pow_rhs_bits = two_pow_rhs_bits.pow(&FieldElement::from(rhs_bit_size as i128));
 
         let remainder_expr = Expression::from(remainder_witness);
         let quotient_expr = Expression::from(quotient_witness);
@@ -624,7 +626,7 @@ impl GeneratedAcir {
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < FieldElement::max_num_bits());
 
-        // Compute : 2^max_bits + a - b
+        // Compute : 2^{max_bits} + a - b
         let mut comparison_evaluation = a - b;
         let two = FieldElement::from(2_i128);
         let two_max_bits = two.pow(&FieldElement::from(max_bits as i128));
@@ -636,20 +638,23 @@ impl GeneratedAcir {
         // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
         // case: a == b
-        // 2^{max_bits} == q *  2^{max_bits} + r
-        //   - This is only the case when q == 1 and r == 0 (assuming r is bounded to be less than 2^{max_bits})
         //
-        // case a > b
+        //   let k = 0;
+        // - 2^{max_bits} == q *  2^{max_bits} + r
+        // - This is only the case when q == 1 and r == 0 (assuming r is bounded to be less than 2^{max_bits})
         //
-        // let k = a - b;
-        // k + 2^{max_bits} = q * 2^{max_bits} + r
-        //  - This is the case when q == 1 and r = k
+        // case: a > b
         //
-        // case a < b
+        //   let k = a - b;
+        // - k + 2^{max_bits} == q * 2^{max_bits} + r
+        // - This is the case when q == 1 and r = k
         //
-        // let k = b - a
-        // - k + 2^{max_bits} = q * 2^{max_bits} + r
+        // case: a < b
+        //
+        //   let k = b - a
+        // - 2^{max_bits} - k == q * 2^{max_bits} + r
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
+        //
         let mut expr = Expression::default();
         expr.push_addition_term(two_max_bits, q_witness);
         expr.push_addition_term(FieldElement::one(), r_witness);
