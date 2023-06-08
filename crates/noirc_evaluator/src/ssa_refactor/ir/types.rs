@@ -52,9 +52,9 @@ impl Type {
         Type::unsigned(1)
     }
 
-    /// Creates the char type, represented as just a field to avoid extra range constraints.
+    /// Creates the char type, represented as u8.
     pub(crate) fn char() -> Type {
-        Type::field()
+        Type::unsigned(8)
     }
 
     /// Creates the native field type.

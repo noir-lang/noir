@@ -485,17 +485,18 @@ impl Context {
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
         allow_log_ops: bool,
-        result_ids: &[ValueId]
+        result_ids: &[ValueId],
     ) -> Vec<AcirValue> {
         match intrinsic {
             Intrinsic::BlackBox(black_box) => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                let vars = self.acir_context
+                let vars = self
+                    .acir_context
                     .black_box_function(black_box, inputs)
                     .expect("add Result types to all methods so errors bubble up");
 
-                self.convert_vars_to_values(vars, dfg, result_ids)
+                Self::convert_vars_to_values(vars, dfg, result_ids)
             }
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var();
@@ -550,8 +551,48 @@ impl Context {
         }
     }
 
-    fn convert_vars_to_values(&self, vars: Vec<AcirVar>, dfg: &DataFlowGraph, result_ids: &[ValueId]) -> Vec<AcirValue> {
+    /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
+    /// If the type of a result id is an array, several acirvars are collected into
+    /// a single AcirValue::Array of the same length.
+    fn convert_vars_to_values(
+        vars: Vec<AcirVar>,
+        dfg: &DataFlowGraph,
+        result_ids: &[ValueId],
+    ) -> Vec<AcirValue> {
         let mut values = vec![];
+        let mut vars = vars.into_iter();
+
+        for result in result_ids {
+            Self::convert_var_type_to_values(
+                dfg,
+                &dfg.type_of_value(*result),
+                &mut values,
+                &mut vars,
+            );
+        }
+
+        values
+    }
+
+    fn convert_var_type_to_values(
+        dfg: &DataFlowGraph,
+        result_type: &Type,
+        values: &mut Vec<AcirValue>,
+        vars: &mut impl Iterator<Item = AcirVar>,
+    ) {
+        match result_type {
+            Type::Array(elements, size) => {
+                for _ in 0..*size {
+                    for element_type in elements.iter() {
+                        Self::convert_var_type_to_values(dfg, element_type, values, vars);
+                    }
+                }
+            }
+            typ => {
+                let var = vars.next().unwrap();
+                values.push(AcirValue::Var(var, typ.into()));
+            }
+        }
     }
 }
 

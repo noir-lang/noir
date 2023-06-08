@@ -554,10 +554,8 @@ impl AcirContext {
         let constants = match name {
             BlackBoxFunc::Pedersen => {
                 // The last argument of pedersen is the domain separator, which must be a constant
-                let domain_var = inputs
-                    .pop()
-                    .expect("ICE: Pedersen call requires domain separator")
-                    .into_var();
+                let domain_var =
+                    inputs.pop().expect("ICE: Pedersen call requires domain separator").into_var();
 
                 let domain_constant = self.vars[domain_var]
                     .as_constant()
@@ -579,9 +577,7 @@ impl AcirContext {
         //
         // We do not apply range information on the output of the black box function.
         // See issue #1439
-        Ok(vecmap(&outputs, |witness_index| {
-            self.add_data(AcirVarData::Witness(*witness_index))
-        }))
+        Ok(vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index))))
     }
 
     /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
@@ -635,11 +631,10 @@ impl AcirContext {
 
         let limbs = self.acir_ir.radix_le_decompose(input_expr, radix, limb_count)?;
 
-        let mut limb_vars =
-            vecmap(limbs, |witness| {
-                let witness = self.add_data(AcirVarData::Witness(witness));
-                AcirValue::Var(witness, result_element_type)
-            });
+        let mut limb_vars = vecmap(limbs, |witness| {
+            let witness = self.add_data(AcirVarData::Witness(witness));
+            AcirValue::Var(witness, result_element_type)
+        });
 
         if endian == Endian::Big {
             limb_vars.reverse();
