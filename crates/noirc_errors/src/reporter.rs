@@ -1,4 +1,4 @@
-use crate::{FileDiagnostic, ReportedError, Span};
+use crate::{FileDiagnostic, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{
@@ -6,7 +6,7 @@ use codespan_reporting::term::termcolor::{
 };
 use std::io::Write;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
     message: String,
     secondaries: Vec<CustomLabel>,
@@ -89,7 +89,7 @@ impl std::fmt::Display for CustomDiagnostic {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct CustomLabel {
     message: String,
     span: Span,
@@ -156,7 +156,7 @@ fn convert_diagnostic(
     diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())
 }
 
-pub fn finish_report(error_count: u32) -> Result<(), ReportedError> {
+pub fn finish_report(error_count: u32) {
     if error_count != 0 {
         let writer = StandardStream::stderr(ColorChoice::Always);
         let mut writer = writer.lock();
@@ -164,9 +164,5 @@ pub fn finish_report(error_count: u32) -> Result<(), ReportedError> {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
         writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
         writer.reset().ok();
-
-        Err(ReportedError)
-    } else {
-        Ok(())
     }
 }
