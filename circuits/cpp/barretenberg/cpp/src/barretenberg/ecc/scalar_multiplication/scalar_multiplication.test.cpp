@@ -25,7 +25,8 @@ template <typename Curve> class SRSIO : public ::testing::Test {
         }
     }();
 
-    static void read_transcript_g2(std::string const& srs_path) requires srs::HasG2<Curve>
+    static void read_transcript_g2(std::string const& srs_path)
+        requires srs::HasG2<Curve>
     {
         typename Curve::G2AffineElement g2_x;
         srs::IO<Curve>::read_transcript_g2(g2_x, srs_path);

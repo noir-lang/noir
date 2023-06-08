@@ -61,14 +61,9 @@ class Bn254FrParams {
         0x463456c802275bedULL, 0x543ece899c2f3b1cULL, 0x180a96573d3d9f8ULL,  0xf8b21270ddbb927ULL,
         0x1d9598e8a7e39857ULL, 0x2ba010aa41eb7786ULL, 0x39aa886bdbf356b5ULL, 0x47b5002d75fb35e5ULL,
     };
+    static constexpr char schema_name[] = "fr";
 };
 
 typedef field<Bn254FrParams> fr;
 
 } // namespace barretenberg
-
-// define this as a named alias in msgpack schema generation
-inline void msgpack_schema_pack(auto& packer, barretenberg::fr const&)
-{
-    packer.pack_alias("Fr", "bin32");
-}

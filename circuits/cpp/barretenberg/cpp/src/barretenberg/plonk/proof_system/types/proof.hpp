@@ -10,9 +10,10 @@ namespace proof_system::plonk {
 
 struct proof {
     std::vector<uint8_t> proof_data;
+    // For serialization, serialize as a buffer alias
     void msgpack_pack(auto& packer) const { packer.pack(proof_data); }
     void msgpack_unpack(auto object) { proof_data = (std::vector<uint8_t>)object; }
-
+    void msgpack_schema(auto& packer) const { packer.pack_alias("Proof", "bin32"); }
     bool operator==(proof const& other) const = default;
 };
 
@@ -45,9 +46,3 @@ inline std::ostream& operator<<(std::ostream& os, proof const& data)
 }
 
 } // namespace proof_system::plonk
-
-// help our msgpack schema compiler with this typedef
-inline void msgpack_schema_pack(auto& packer, proof_system::plonk::proof const&)
-{
-    packer.pack_alias("Proof", "bin32");
-}

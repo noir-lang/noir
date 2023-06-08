@@ -46,10 +46,8 @@ struct Manifest {
 };
 
 // Detect whether a curve has a G2AffineElement defined
-template <typename Curve> concept HasG2 = requires
-{
-    typename Curve::G2AffineElement;
-};
+template <typename Curve>
+concept HasG2 = requires { typename Curve::G2AffineElement; };
 
 // If Curve has a G2AffineElement type, check whether T is this type.
 template <typename Curve, typename T>
@@ -323,7 +321,8 @@ template <typename Curve> class IO {
         }
     }
 
-    static void read_transcript_g2(auto& g2_x, std::string const& dir) requires HasG2<Curve>
+    static void read_transcript_g2(auto& g2_x, std::string const& dir)
+        requires HasG2<Curve>
     {
         const size_t g2_size = sizeof(typename Curve::G2BaseField) * 2;
         std::string path = format(dir, "/g2.dat");
@@ -356,10 +355,8 @@ template <typename Curve> class IO {
         byteswap(&g2_x, size);
     }
 
-    static void read_transcript(AffineElement* monomials,
-                                auto& g2_x,
-                                size_t degree,
-                                std::string const& path) requires HasG2<Curve>
+    static void read_transcript(AffineElement* monomials, auto& g2_x, size_t degree, std::string const& path)
+        requires HasG2<Curve>
     {
         read_transcript_g1(monomials, degree, path);
         read_transcript_g2(g2_x, path);
@@ -374,7 +371,8 @@ template <typename Curve> class IO {
     static void write_transcript(AffineElement const* g1_x,
                                  auto const* g2_x,
                                  Manifest const& manifest,
-                                 std::string const& dir) requires HasG2<Curve>
+                                 std::string const& dir)
+        requires HasG2<Curve>
     {
         const size_t num_g1_x = manifest.num_g1_points;
         const size_t num_g2_x = manifest.num_g2_points;

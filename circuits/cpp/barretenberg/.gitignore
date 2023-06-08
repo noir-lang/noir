@@ -1,0 +1,8 @@
+result
+node_modules
+.yarn/cache
+.yarn/install-state.gz
+ts/dest
+.tsbuildinfo
+.idea
+cmake-build-debug

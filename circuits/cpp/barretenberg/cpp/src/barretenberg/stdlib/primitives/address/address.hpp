@@ -51,6 +51,8 @@ class address {
     // delegate serialization to field
     void msgpack_pack(auto& packer) const { address_.msgpack_pack(packer); }
     void msgpack_unpack(auto const& o) { address_.msgpack_unpack(o); }
+    // help our msgpack schema compiler with this buffer alias (as far as wire representation is concerned) class
+    void msgpack_schema(auto& packer) const { packer.pack_alias("Address", "bin32"); }
 };
 
 template <typename B> void read(B& it, address& addr)
@@ -144,9 +146,3 @@ template <typename Composer> class address_t {
 
 } // namespace stdlib
 } // namespace proof_system::plonk
-
-// help our msgpack schema compiler with this buffer alias (as far as wire representation is concerned) class
-inline void msgpack_schema_pack(auto& packer, proof_system::plonk::stdlib::address const&)
-{
-    packer.pack_alias("Address", "bin32");
-}

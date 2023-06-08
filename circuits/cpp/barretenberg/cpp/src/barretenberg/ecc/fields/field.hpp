@@ -418,6 +418,7 @@ template <class Params> struct alignas(32) field {
     // For serialization
     void msgpack_pack(auto& packer) const;
     void msgpack_unpack(auto o);
+    void msgpack_schema(auto& packer) const { packer.pack_alias(Params::schema_name, "bin32"); }
 
   private:
     static constexpr uint256_t twice_modulus = modulus + modulus;

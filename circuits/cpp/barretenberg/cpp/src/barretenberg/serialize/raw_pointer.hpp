@@ -18,13 +18,18 @@ template <typename T> struct RawPointer {
     // The object is first cast to an integer type (uintptr_t), and then to a pointer of type T.
     void msgpack_unpack(auto object) { ptr = reinterpret_cast<T*>((uintptr_t)object); }
 
+    // help our msgpack schema compiler with this struct
+    void msgpack_schema(auto& packer) const
+    {
+        // Manually make an ['alias', [type, 'int']] structure (without calling pack_alias as it is too restricting)
+        packer.pack_array(2); // 2 elements in our outer tuple
+        packer.pack("alias");
+        packer.pack_array(2); // 2 elements in our inner tuple
+        packer.template pack_template_type<T>("RawPointer");
+        packer.pack("int");
+    }
+
     // Overload the arrow operator to return the raw pointer.
     // This allows users to directly access the object pointed to by the raw pointer.
     T* operator->() { return ptr; }
 };
-
-// help our msgpack schema compiler with this struct
-template <typename T> inline void msgpack_schema_pack(auto& packer, RawPointer<T> const&)
-{
-    packer.pack_alias(msgpack_schema_name(T{}) + "Ptr", "int");
-}
