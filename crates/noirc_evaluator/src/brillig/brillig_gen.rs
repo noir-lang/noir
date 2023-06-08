@@ -205,7 +205,7 @@ impl BrilligGen {
                 };
                 self.push_code(opcode);
             }
-            _ => todo!("ICE: Instruction not supported"),
+            _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
     }
 
