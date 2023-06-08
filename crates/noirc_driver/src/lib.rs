@@ -254,8 +254,8 @@ impl Driver {
         contract: Contract,
         options: &CompileOptions,
     ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
-        let mut functions = vec![];
-        let mut errs = vec![];
+        let mut functions = Vec::new();
+        let mut errs = Vec::new();
         for function_id in &contract.functions {
             let name = self.function_name(*function_id).to_owned();
             let function = match self.compile_no_check(options, *function_id) {
