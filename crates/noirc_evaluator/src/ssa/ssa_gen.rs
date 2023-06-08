@@ -189,7 +189,9 @@ impl IrGenerator {
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
                     Ok(Value::Node(function_node_id))
                 }
-                Definition::Oracle(_, _) => unimplemented!("oracles not supported by deprecated SSA")
+                Definition::Oracle(_, _) => {
+                    unimplemented!("oracles not supported by deprecated SSA")
+                }
             }
         }
     }
