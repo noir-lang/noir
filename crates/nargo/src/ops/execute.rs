@@ -22,7 +22,7 @@ pub fn execute_circuit(
         unsolved_opcodes,
     } = solver_status
     {
-        if required_oracle_data.is_empty() {
+        if !required_oracle_data.is_empty() {
             unreachable!("oracles are not supported by nargo execute")
         }
         for unresolved_brillig_call in unresolved_brillig_calls {
