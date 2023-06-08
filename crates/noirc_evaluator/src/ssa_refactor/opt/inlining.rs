@@ -207,7 +207,9 @@ impl<'function> PerFunctionContext<'function> {
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
-            Value::ForeignFunction(function) => self.context.builder.import_foreign_function(function),
+            Value::ForeignFunction(function) => {
+                self.context.builder.import_foreign_function(function)
+            }
         };
 
         self.values.insert(id, new_value);

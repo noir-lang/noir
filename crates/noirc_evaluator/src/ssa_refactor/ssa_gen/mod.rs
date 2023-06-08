@@ -345,14 +345,19 @@ impl<'a> FunctionContext<'a> {
     /// Generate SSA for a function call. Note that calls to built-in functions
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
-        let function = self.codegen_non_tuple_expression(&call.func);
-
         let arguments = call
             .arguments
             .iter()
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
             .collect();
 
+        if let ast::Expression::Ident(ident) = call.func.as_ref() {
+            if let ast::Definition::Oracle(func) = &ident.definition {
+                return self.insert_foreign_call(func.to_owned(), arguments, &call.return_type);
+            }
+        }
+
+        let function = self.codegen_non_tuple_expression(&call.func);
         self.insert_call(function, arguments, &call.return_type)
     }
 
