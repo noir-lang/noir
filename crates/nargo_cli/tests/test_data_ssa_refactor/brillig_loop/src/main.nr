@@ -1,8 +1,8 @@
 // Tests a very simple program.
 // 
 // The features being tested is basic looping on brillig
-fn main(iterations: u32, sum: u32){
-    assert(sum == loop(iterations));
+fn main(sum: u32){
+    assert(loop(4) == sum);
 }
 
 unconstrained fn loop(x: u32) -> u32 {

@@ -122,7 +122,7 @@ use crate::ssa_refactor::{
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
         dom::DominatorTree,
-        function::Function,
+        function::{Function, RuntimeType},
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
@@ -140,7 +140,12 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            flatten_function_cfg(function);
+            match function.runtime() {
+                RuntimeType::Acir => {
+                    flatten_function_cfg(function);
+                }
+                RuntimeType::Brillig => {}
+            }
         }
         self
     }

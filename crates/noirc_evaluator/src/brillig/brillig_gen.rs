@@ -101,14 +101,6 @@ impl BrilligGen {
     /// the Register starting at register index 0. `N` indicates the number of
     /// return values expected.
     fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
-        // Check if the program returns the `Unit/None` type.
-        // This type signifies that the program returns nothing.
-        let is_return_unit_type =
-            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
-        if is_return_unit_type {
-            return;
-        }
-
         for (destination_index, value_id) in return_values.iter().enumerate() {
             let return_register = self.convert_ssa_value(*value_id, dfg);
             if destination_index > self.latest_register {
@@ -119,6 +111,7 @@ impl BrilligGen {
                 source: return_register,
             });
         }
+        self.push_code(BrilligOpcode::Stop);
     }
 
     /// Converts SSA Block parameters into Brillig Registers.
@@ -177,10 +170,10 @@ impl BrilligGen {
     }
 
     fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
-        let free_pointer = self.memory.allocate(size as usize);
+        let array_pointer = self.memory.allocate(size as usize);
         self.push_code(BrilligOpcode::Const {
             destination: pointer_register,
-            value: BrilligValue::from(free_pointer),
+            value: BrilligValue::from(array_pointer),
         });
     }
 
@@ -256,8 +249,6 @@ impl BrilligGen {
 
         brillig.convert_ssa_function(func);
 
-        brillig.push_code(BrilligOpcode::Stop);
-
         brillig.obj
     }
 
@@ -274,7 +265,5 @@ impl BrilligGen {
         for block in reverse_post_order {
             self.convert_block(block, &func.dfg);
         }
-
-        println!("Brillig gen done");
     }
 }
