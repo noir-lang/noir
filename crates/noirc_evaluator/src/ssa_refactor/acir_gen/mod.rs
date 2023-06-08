@@ -22,6 +22,7 @@ use super::{
     ssa_gen::Ssa,
 };
 use crate::brillig::{artifact::BrilligArtifact, Brillig};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_abi::{AbiType, FunctionSignature, Sign};
 
@@ -186,7 +187,9 @@ impl Context {
                     self.track_array_address(result_ids[0], binary, dfg);
                     (Vec::new(), Vec::new())
                 } else {
-                    let result_acir_var = self.convert_ssa_binary(binary, dfg);
+                    let result_acir_var = self
+                        .convert_ssa_binary(binary, dfg)
+                        .expect("add Result types to all methods so errors bubble up");
                     (vec![result_ids[0]], vec![result_acir_var])
                 }
             }
@@ -343,11 +346,31 @@ impl Context {
     }
 
     /// Processes a binary operation and converts the result into an `AcirVar`
-    fn convert_ssa_binary(&mut self, binary: &Binary, dfg: &DataFlowGraph) -> AcirVar {
+    fn convert_ssa_binary(
+        &mut self,
+        binary: &Binary,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirVar, AcirGenError> {
         let lhs = self.convert_ssa_value(binary.lhs, dfg);
         let rhs = self.convert_ssa_value(binary.rhs, dfg);
 
         let binary_type = self.type_of_binary_operation(binary, dfg);
+        match binary_type {
+            Type::Numeric(NumericType::Unsigned { bit_size })
+            | Type::Numeric(NumericType::Signed { bit_size }) => {
+                // Conservative max bit size that is small enough such that two operands can be
+                // multiplied and still fit within the field modulus. This is necessary for the
+                // truncation technique: result % 2^bit_size to be valid.
+                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
+                if bit_size > max_integer_bit_size {
+                    return Err(AcirGenError::UnsupportedIntegerSize {
+                        num_bits: bit_size,
+                        max_num_bits: max_integer_bit_size,
+                    });
+                }
+            }
+            _ => {}
+        }
 
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
@@ -357,28 +380,13 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self
-                .acir_context
-                .less_than_var(lhs, rhs)
-                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Lt => self.acir_context.less_than_var(lhs, rhs),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type.into()),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type.into()),
-            BinaryOp::Xor => self
-                .acir_context
-                .xor_var(lhs, rhs)
-                .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::And => self
-                .acir_context
-                .and_var(lhs, rhs)
-                .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Or => self
-                .acir_context
-                .or_var(lhs, rhs)
-                .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Mod => self
-                .acir_context
-                .modulo_var(lhs, rhs)
-                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs),
+            BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Or => self.acir_context.or_var(lhs, rhs),
+            BinaryOp::Mod => self.acir_context.modulo_var(lhs, rhs),
         }
     }
 
