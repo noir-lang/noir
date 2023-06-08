@@ -160,12 +160,15 @@ impl<'interner> TypeChecker<'interner> {
                             Shared::new(TypeBinding::Bound(actual_type.clone())),
                         )
                     } else {
-                        Type::comp_time(Some(span))
+                        Type::PolymorphicInteger(
+                            CompTime::Yes(Some(span)),
+                            Shared::new(TypeBinding::Bound(actual_type.clone())),
+                        )
                     };
 
                     self.unify(actual_type, &expected_type, span, || {
                         TypeCheckError::TypeCannotBeUsed {
-                            typ: start_range_type.clone(),
+                            typ: actual_type.clone(),
                             place: "for loop",
                             span,
                         }
@@ -175,6 +178,16 @@ impl<'interner> TypeChecker<'interner> {
 
                 unify_loop_range(&start_range_type, start_span);
                 unify_loop_range(&end_range_type, end_span);
+
+                // Check that start range and end range have the same types
+                let range_span = start_span.merge(end_span);
+                self.unify(&start_range_type, &end_range_type, range_span, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: start_range_type.to_string(),
+                        expr_typ: end_range_type.to_string(),
+                        expr_span: range_span,
+                    }
+                });
 
                 self.interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
