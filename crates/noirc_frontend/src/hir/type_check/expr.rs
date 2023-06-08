@@ -163,17 +163,14 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 });
 
-                let expected_type = if self.is_unconstrained() {
-                    Type::PolymorphicInteger(
-                        CompTime::new(self.interner),
-                        Shared::new(TypeBinding::Bound(start_range_type.clone())),
-                    )
+                let expected_comptime = if self.is_unconstrained() {
+                    CompTime::new(self.interner)
                 } else {
-                    Type::PolymorphicInteger(
-                        CompTime::Yes(Some(range_span)),
-                        Shared::new(TypeBinding::Bound(start_range_type.clone())),
-                    )
+                    CompTime::Yes(Some(range_span))
                 };
+                let fresh_id = self.interner.next_type_variable_id();
+                let type_variable = Shared::new(TypeBinding::Unbound(fresh_id));
+                let expected_type = Type::PolymorphicInteger(expected_comptime, type_variable);
 
                 self.unify(&start_range_type, &expected_type, range_span, || {
                     TypeCheckError::TypeCannotBeUsed {
