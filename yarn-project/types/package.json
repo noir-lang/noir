@@ -27,13 +27,7 @@
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "testRegex": "./src/.*\\.test\\.ts$",
-    "rootDir": "./src",
-    "globals": {
-      "ts-jest": {
-        "useESM": true,
-        "tsconfig": "../tsconfig.json"
-      }
-    }
+    "rootDir": "./src"
   },
   "dependencies": {
     "@aztec/circuits.js": "workspace:^",

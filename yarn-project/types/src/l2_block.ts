@@ -506,7 +506,6 @@ export class L2Block {
    * and inside the circuit, it is part of the public inputs.
    * @returns The calldata hash.
    */
-  // TODO: add newEncryptedLogs to this hash once it's been propagated through circuits.
   getCalldataHash() {
     const computeRoot = (leafs: Buffer[]): Buffer => {
       const layers: Buffer[][] = [leafs];
@@ -534,19 +533,19 @@ export class L2Block {
     const leafs: Buffer[] = [];
 
     for (let i = 0; i < leafCount; i++) {
-      const commitmentPerBase = KERNEL_NEW_COMMITMENTS_LENGTH * 2;
-      const nullifierPerBase = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
-      const publicDataWritesPerBase = KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2; // @note why is this constant named differently?
+      const commitmentsPerBase = KERNEL_NEW_COMMITMENTS_LENGTH * 2;
+      const nullifiersPerBase = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
+      const publicDataUpdateRequestsPerBase = KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2;
       const l2ToL1MsgsPerBase = KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * 2;
-      const commitmentBuffer = Buffer.concat(
-        this.newCommitments.slice(i * commitmentPerBase, (i + 1) * commitmentPerBase).map(x => x.toBuffer()),
+      const commitmentsBuffer = Buffer.concat(
+        this.newCommitments.slice(i * commitmentsPerBase, (i + 1) * commitmentsPerBase).map(x => x.toBuffer()),
       );
-      const nullifierBuffer = Buffer.concat(
-        this.newNullifiers.slice(i * nullifierPerBase, (i + 1) * nullifierPerBase).map(x => x.toBuffer()),
+      const nullifiersBuffer = Buffer.concat(
+        this.newNullifiers.slice(i * nullifiersPerBase, (i + 1) * nullifiersPerBase).map(x => x.toBuffer()),
       );
-      const dataWritesBuffer = Buffer.concat(
+      const publicDataUpdateRequestsBuffer = Buffer.concat(
         this.newPublicDataWrites
-          .slice(i * publicDataWritesPerBase, (i + 1) * publicDataWritesPerBase)
+          .slice(i * publicDataUpdateRequestsPerBase, (i + 1) * publicDataUpdateRequestsPerBase)
           .map(x => x.toBuffer()),
       );
       const newL2ToL1MsgsBuffer = Buffer.concat(
@@ -554,9 +553,9 @@ export class L2Block {
       );
 
       const inputValue = Buffer.concat([
-        commitmentBuffer,
-        nullifierBuffer,
-        dataWritesBuffer,
+        commitmentsBuffer,
+        nullifiersBuffer,
+        publicDataUpdateRequestsBuffer,
         newL2ToL1MsgsBuffer,
         this.newContracts[i * 2].toBuffer(),
         this.newContracts[i * 2 + 1].toBuffer(),
@@ -564,6 +563,10 @@ export class L2Block {
         this.newContractData[i * 2].portalContractAddress.toBuffer32(),
         this.newContractData[i * 2 + 1].contractAddress.toBuffer(),
         this.newContractData[i * 2 + 1].portalContractAddress.toBuffer32(),
+        // The following 2 are encrypted logs hashes from kernel 0 and kernel 1 of base rollup circuit
+        // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
+        // L2Block.computeKernelLogsHash(this.newEncryptedLogs.dataChunks[i * 2]),
+        // L2Block.computeKernelLogsHash(this.newEncryptedLogs.dataChunks[i * 2 + 1]),
       ]);
       leafs.push(sha256(inputValue));
     }
@@ -683,5 +686,38 @@ export class L2Block {
       `newPublicDataWrite: ${inspectPublicDataWriteArray(this.newPublicDataWrites)}`,
       `newL1ToL2Messages: ${inspectFrArray(this.newL1ToL2Messages)}`,
     ].join('\n');
+  }
+
+  /**
+   * Computes logs hash as is done in the kernel and app circuits.
+   * @param encodedLogs - Encoded logs to be hashed.
+   * @returns The hash of the logs.
+   * Note: This is a TS implementation of `computeKernelLogsHash` function in Decoder.sol. See that function documentation
+   *       for more details.
+   */
+  static computeKernelLogsHash(encodedLogs: Buffer): Buffer {
+    const reader = new BufferReader(encodedLogs);
+
+    let remainingLogsLength = reader.readNumber();
+    const logsHashes: [Buffer, Buffer] = [Buffer.alloc(32), Buffer.alloc(32)];
+    let kernelPublicInputsLogsHash = Buffer.alloc(32);
+
+    while (remainingLogsLength > 0) {
+      const iterationLogsLength = reader.readNumber();
+      const iterationLogs = reader.readBytes(iterationLogsLength);
+
+      const privateCircuitPublicInputsLogsHash = sha256(iterationLogs);
+
+      logsHashes[0] = kernelPublicInputsLogsHash;
+      logsHashes[1] = privateCircuitPublicInputsLogsHash;
+
+      // Hash logs hash from the public inputs of previous kernel iteration and logs hash from private circuit public inputs
+      kernelPublicInputsLogsHash = sha256(Buffer.concat(logsHashes));
+
+      // Decrease remaining logs length by this iteration's logs length (len(I?_LOGS)) and 4 bytes for I?_LOGS_LEN
+      remainingLogsLength -= iterationLogsLength + 4;
+    }
+
+    return kernelPublicInputsLogsHash;
   }
 }

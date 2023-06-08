@@ -317,7 +317,7 @@ library Decoder {
          * Zero values.
          */
 
-        // TODO: Uncomment once the logs functionality is added in other places
+        // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
         // /**
         //  * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
         //  * Note: `computeKernelLogsHash` will advance offsets by the number of bytes processed.
@@ -376,7 +376,7 @@ library Decoder {
           dstPtr := add(dstPtr, 0xc)
           calldatacopy(dstPtr, add(_l2Block.offset, add(contractDataOffset, 0x54)), 0x14)
 
-          // TODO: Uncomment once the logs functionality is added in other places
+          // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
           // // encryptedLogsHashKernel1
           // dstPtr := add(dstPtr, 0x14)
           // mstore(dstPtr, mload(add(vars, 0x60))) // `encryptedLogsHashKernel1` starts at 0x60 in `vars`
