@@ -497,8 +497,8 @@ impl IrGenerator {
         match expr {
             Expression::Ident(ident) => self.ssa_gen_identifier(ident),
             Expression::Binary(binary) => {
-                // Note: we disallows structs/tuples in infix expressions.
-                // The type checker currently disallows this as well but not if they come from generic type
+                // Note: we disallow structs/tuples in infix expressions.
+                // The type checker currently disallows this as well but not if they come from a generic type
                 // We could allow some in the future, e.g. struct == struct
                 let lhs = self.ssa_gen_expression(&binary.lhs)?.to_node_ids();
                 let rhs = self.ssa_gen_expression(&binary.rhs)?.to_node_ids();

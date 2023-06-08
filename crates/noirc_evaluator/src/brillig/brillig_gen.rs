@@ -8,8 +8,11 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
+use acvm::{
+    acir::brillig_vm::{
+        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
+    },
+    FieldElement,
 };
 use std::collections::HashMap;
 
@@ -37,11 +40,23 @@ impl BrilligGen {
             return *register_index;
         }
 
-        let register = RegisterIndex::from(self.latest_register);
+        let register = self.create_register();
+
+        // Cache the `ValueId` so that if we call it again, it will
+        // return the register that has just been created.
+        //
+        // WARNING: This assumes that a register has not been
+        // modified. If a MOV instruction has overwritten the value
+        // at a register, then this cache will be invalid.
         self.ssa_value_to_register.insert(value, register);
 
-        self.latest_register += 1;
+        register
+    }
 
+    /// Creates a new register.
+    fn create_register(&mut self) -> RegisterIndex {
+        let register = RegisterIndex::from(self.latest_register);
+        self.latest_register += 1;
         register
     }
 
@@ -146,8 +161,42 @@ impl BrilligGen {
                 let result_register = self.get_or_create_register(result_ids[0]);
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            _ => todo!("ICE: Instruction not supported"),
+            Instruction::Not(value) => {
+                let result_ids = dfg.instruction_results(instruction_id);
+                let result_register = self.get_or_create_register(result_ids[0]);
+
+                assert_eq!(
+                    dfg.type_of_value(*value),
+                    Type::bool(),
+                    "not operator can only be applied to boolean values"
+                );
+
+                let one = self.make_constant(FieldElement::one());
+                let condition = self.convert_ssa_value(*value, dfg);
+
+                // Compile !x as (1 - x)
+                let opcode = BrilligOpcode::BinaryIntOp {
+                    destination: result_register,
+                    op: BinaryIntOp::Sub,
+                    bit_size: 1,
+                    lhs: one,
+                    rhs: condition,
+                };
+                self.push_code(opcode);
+            }
+            _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+    }
+
+    /// Returns a register which holds the value of a constant
+    fn make_constant(&mut self, constant: FieldElement) -> RegisterIndex {
+        let register = self.create_register();
+
+        let const_opcode =
+            BrilligOpcode::Const { destination: register, value: BrilligValue::from(constant) };
+        self.push_code(const_opcode);
+
+        register
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
