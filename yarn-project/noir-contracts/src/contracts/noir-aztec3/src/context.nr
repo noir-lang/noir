@@ -19,7 +19,7 @@ struct PrivateFunctionContext {
 
     private_call_stack : BoundedVec<Field, abi::MAX_PRIVATE_CALL_STACK>,
     public_call_stack : BoundedVec<Field, abi::MAX_PUBLIC_CALL_STACK>,
-    new_l2_to_l1_msgs : BoundedVec<Field, abi::MAX_L1_MSG_STACK>,
+    new_l2_to_l1_msgs : BoundedVec<Field, abi::MAX_L2_TO_L1_MSGS>,
 
     // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
     // encrypted_logs_hash : BoundedVec<Field, abi::LOGS_HASH_SIZE>,

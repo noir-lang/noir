@@ -196,6 +196,26 @@ void common_validate_inputs(DummyComposer& composer, KernelInput const& public_k
                        CircuitErrorCode::PUBLIC_KERNEL__BYTECODE_HASH_INVALID);
 }
 
+template <typename KernelInput, typename Composer>
+void perform_static_call_checks(Composer& composer, KernelInput const& public_kernel_inputs)
+{
+    // If the call is a static call, there should be no new commitments or nullifiers.
+    const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
+
+    const auto& is_static_call = public_call_public_inputs.call_context.is_static_call;
+    const auto& new_commitments = public_call_public_inputs.new_commitments;
+    const auto& new_nullifiers = public_call_public_inputs.new_nullifiers;
+
+    if (is_static_call) {
+        composer.do_assert(utils::is_array_empty(new_commitments) == true,
+                           "perform_static_call_checks in static call new commitments must be empty",
+                           CircuitErrorCode::PUBLIC_KERNEL__NEW_COMMITMENTS_PROHIBITED_IN_STATIC_CALL);
+        composer.do_assert(utils::is_array_empty(new_nullifiers) == true,
+                           "perform_static_call_checks in static call new nullifiers must be empty",
+                           CircuitErrorCode::PUBLIC_KERNEL__NEW_NULLIFIERS_PROHIBITED_IN_STATIC_CALL);
+    }
+}
+
 /**
  * @brief Proagates valid (i.e. non-empty) update requests from this iteration to the circuit output
  * @tparam The type of kernel input
@@ -251,6 +271,99 @@ void propagate_valid_public_data_reads(Composer& composer,
 }
 
 /**
+ * @brief Propagates new commitments from this iteration to the circuit output.
+ *
+ * @tparam The type of the kernel input
+ * @tparam The composer type
+ * @param public_kernel_inputs The inputs to this iteration to the kernel circuit.
+ * @param circuit_outputs The circuit outputs to be populated
+ */
+template <typename KernelInput, typename Composer>
+void propagate_new_commitments(Composer& composer,
+                               KernelInput const& public_kernel_inputs,
+                               KernelCircuitPublicInputs<NT>& circuit_outputs)
+{
+    // Get the new commitments
+    const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
+
+    const auto& new_commitments = public_call_public_inputs.new_commitments;
+    const auto& storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
+
+    std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> siloed_new_commitments{};
+    for (size_t i = 0; i < new_commitments.size(); ++i) {
+        if (!new_commitments[i].is_zero()) {
+            siloed_new_commitments[i] = silo_commitment<NT>(storage_contract_address, new_commitments[i]);
+        }
+    }
+
+    push_array_to_array(composer, siloed_new_commitments, circuit_outputs.end.new_commitments);
+}
+
+/**
+ * @brief Propagates new nullifiers from this iteration to the circuit output.
+ *
+ * @tparam The type of the kernel input
+ * @tparam The composer type
+ * @param public_kernel_inputs The inputs to this iteration to the kernel circuit.
+ * @param circuit_outputs The circuit outputs to be populated
+ */
+template <typename KernelInput, typename Composer>
+void propagate_new_nullifiers(Composer& composer,
+                              KernelInput const& public_kernel_inputs,
+                              KernelCircuitPublicInputs<NT>& circuit_outputs)
+{
+    // Get the new commitments
+    const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
+
+    const auto& new_nullifiers = public_call_public_inputs.new_nullifiers;
+    const auto& storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
+
+    std::array<NT::fr, KERNEL_NEW_NULLIFIERS_LENGTH> siloed_new_nullifiers{};
+    for (size_t i = 0; i < new_nullifiers.size(); ++i) {
+        if (!new_nullifiers[i].is_zero()) {
+            siloed_new_nullifiers[i] = silo_nullifier<NT>(storage_contract_address, new_nullifiers[i]);
+        }
+    }
+
+    push_array_to_array(composer, siloed_new_nullifiers, circuit_outputs.end.new_nullifiers);
+}
+
+/**
+ * @brief Propagates new l2 to l1 messages from this iteration to the circuit output.
+ *
+ * @tparam The type of the kernel input
+ * @param public_kernel_inputs The inputs to this iteration to the kernel circuit.
+ * @param circuit_outputs The circuit outputs to be populated
+ */
+template <typename KernelInput, typename Composer>
+void propagate_new_l2_to_l1_messages(Composer& composer,
+                                     KernelInput const& public_kernel_inputs,
+                                     KernelCircuitPublicInputs<NT>& circuit_outputs)
+{
+    // Get the new l2 messages
+    const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
+
+    const auto& portal_contract_address = public_kernel_inputs.public_call.portal_contract_address;
+    const auto& storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
+    const auto& new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
+
+    std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs_to_insert{};
+    for (size_t i = 0; i < new_l2_to_l1_msgs.size(); ++i) {
+        if (!new_l2_to_l1_msgs[i].is_zero()) {
+            // @todo @lherskind chain-ids and rollup version id should be added here. right now, just hard coded.
+            // @todo @lherskind chain-id is hardcoded for foundry
+            const auto chain_id = fr(31337);
+            new_l2_to_l1_msgs_to_insert[i] = compute_l2_to_l1_hash<NT>(storage_contract_address,
+                                                                       fr(1),  // rollup version id
+                                                                       portal_contract_address,
+                                                                       chain_id,
+                                                                       new_l2_to_l1_msgs[i]);
+        }
+    }
+    push_array_to_array(composer, new_l2_to_l1_msgs_to_insert, circuit_outputs.end.new_l2_to_l1_msgs);
+}
+
+/**
  * @brief Propagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
  * @tparam The type of kernel input
  * @tparam The current composer
@@ -265,8 +378,16 @@ void common_update_public_end_values(Composer& composer,
     // Updates the circuit outputs with new state changes, call stack etc
     circuit_outputs.is_private = false;
 
+    // If this call is a static call, certain operations are disallowed, such as creating new state.
+    perform_static_call_checks(composer, public_kernel_inputs);
+
     const auto& stack = public_kernel_inputs.public_call.call_stack_item.public_inputs.public_call_stack;
     push_array_to_array(composer, stack, circuit_outputs.end.public_call_stack);
+
+    propagate_new_commitments(composer, public_kernel_inputs, circuit_outputs);
+    propagate_new_nullifiers(composer, public_kernel_inputs, circuit_outputs);
+
+    propagate_new_l2_to_l1_messages(composer, public_kernel_inputs, circuit_outputs);
 
     propagate_valid_public_data_update_requests(composer, public_kernel_inputs, circuit_outputs);
 

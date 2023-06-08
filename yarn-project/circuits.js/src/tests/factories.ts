@@ -299,17 +299,22 @@ export function makeCallContext(seed = 0, storageContractAddress = makeAztecAddr
 export function makePublicCircuitPublicInputs(
   seed = 0,
   storageContractAddress?: AztecAddress,
+  full = false,
 ): PublicCircuitPublicInputs {
+  const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
+
   return new PublicCircuitPublicInputs(
     makeCallContext(seed, storageContractAddress),
     fr(seed + 0x100),
-    makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
-    makeTuple(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeContractStorageUpdateRequest, seed + 0x300),
-    makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makeContractStorageRead, seed + 0x400),
-    makeTuple(PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x500),
-    makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x600),
-    fr(seed + 0x700),
-    makeAztecAddress(seed + 0x800),
+    tupleGenerator(RETURN_VALUES_LENGTH, fr, seed + 0x200),
+    tupleGenerator(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, makeContractStorageUpdateRequest, seed + 0x400),
+    tupleGenerator(KERNEL_PUBLIC_DATA_READS_LENGTH, makeContractStorageRead, seed + 0x500),
+    tupleGenerator(PUBLIC_CALL_STACK_LENGTH, fr, seed + 0x600),
+    tupleGenerator(NEW_COMMITMENTS_LENGTH, fr, seed + 0x700),
+    tupleGenerator(NEW_NULLIFIERS_LENGTH, fr, seed + 0x800),
+    tupleGenerator(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x900),
+    fr(seed + 0xa00),
+    makeAztecAddress(seed + 0xb01),
   );
 }
 
@@ -430,12 +435,12 @@ export function makePrivateKernelInputsInner(seed = 1): PrivateKernelInputsInner
  * @param seed - The seed to use for generating the public call stack item.
  * @returns A public call stack item.
  */
-export function makePublicCallStackItem(seed = 1): PublicCallStackItem {
+export function makePublicCallStackItem(seed = 1, full = false): PublicCallStackItem {
   const callStackItem = new PublicCallStackItem(
     makeAztecAddress(seed),
     // in the public kernel, function can't be a constructor or private
     new FunctionData(makeSelector(seed + 0x1), false, false),
-    makePublicCircuitPublicInputs(seed + 0x10),
+    makePublicCircuitPublicInputs(seed + 0x10, undefined, full),
     false,
   );
   callStackItem.publicInputs.callContext.storageContractAddress = callStackItem.contractAddress;
@@ -447,9 +452,9 @@ export function makePublicCallStackItem(seed = 1): PublicCallStackItem {
  * @param seed - The seed to use for generating the public call data.
  * @returns A public call data.
  */
-export async function makePublicCallData(seed = 1): Promise<PublicCallData> {
+export async function makePublicCallData(seed = 1, full = false): Promise<PublicCallData> {
   const publicCallData = new PublicCallData(
-    makePublicCallStackItem(seed),
+    makePublicCallStackItem(seed, full),
     makeTuple(PUBLIC_CALL_STACK_LENGTH, makePublicCallStackItem, seed + 0x300),
     makeProof(),
     fr(seed + 1),
