@@ -5,7 +5,6 @@
 #include "aztec3/circuits/abis/public_data_update_request.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_rollup_inputs.hpp"
-#include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/constants.hpp"
@@ -188,17 +187,14 @@ void perform_historical_l1_to_l2_message_tree_membership_checks(DummyComposer& c
     }
 }
 
-NT::fr create_nullifier_subtree(std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> const& nullifier_leaves)
+NT::fr create_nullifier_subtree(
+    std::array<NullifierLeafPreimage, KERNEL_NEW_NULLIFIERS_LENGTH * 2> const& nullifier_leaves)
 {
     // Build a merkle tree of the nullifiers
     MerkleTree nullifier_subtree = MerkleTree(NULLIFIER_SUBTREE_DEPTH);
     for (size_t i = 0; i < nullifier_leaves.size(); i++) {
-        // check if the nullifier is zero, if so dont insert
-        if (uint256_t(nullifier_leaves[i].value) == uint256_t(0)) {
-            nullifier_subtree.update_element(i, fr::zero());
-        } else {
-            nullifier_subtree.update_element(i, nullifier_leaves[i].hash());
-        }
+        // hash() checks if nullifier is empty (and if so returns 0)
+        nullifier_subtree.update_element(i, nullifier_leaves[i].hash());
     }
 
     return nullifier_subtree.root();
@@ -227,7 +223,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     // 2. If we receive the 0 nullifier leaf (where all values are 0, we skip insertion and leave a sparse subtree)
 
     // New nullifier subtree
-    std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifier_insertion_subtree;
+    std::array<NullifierLeafPreimage, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifier_insertion_subtree;
 
     // This will update on each iteration
     auto current_nullifier_tree_root = baseRollupInputs.start_nullifier_tree_snapshot.root;
@@ -253,33 +249,33 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
             // TODO(maddiaa): reason about this more strongly, can this cause issues?
             if (nullifier != 0) {
                 // Create the nullifier leaf of the new nullifier to be inserted
-                NullifierLeaf new_nullifier_leaf = {
-                    .value = nullifier,
-                    .nextIndex = low_nullifier_preimage.next_index,
-                    .nextValue = low_nullifier_preimage.next_value,
+                NullifierLeafPreimage new_nullifier_leaf = {
+                    .leaf_value = nullifier,
+                    .next_index = low_nullifier_preimage.next_index,
+                    .next_value = low_nullifier_preimage.next_value,
                 };
 
                 // Assuming populated premier subtree
-                if (low_nullifier_preimage.leaf_value == 0 && low_nullifier_preimage.next_value == 0) {
+                if (low_nullifier_preimage.is_empty()) {
                     // check previous nullifier leaves
                     bool matched = false;
 
                     for (size_t k = 0; k < nullifier_index && !matched; k++) {
-                        if (nullifier_insertion_subtree[k].value == 0) {
+                        if (nullifier_insertion_subtree[k].is_empty()) {
                             continue;
                         }
 
-                        if ((uint256_t(nullifier_insertion_subtree[k].value) < uint256_t(nullifier)) &&
-                            (uint256_t(nullifier_insertion_subtree[k].nextValue) > uint256_t(nullifier) ||
-                             nullifier_insertion_subtree[k].nextValue == 0)) {
+                        if ((uint256_t(nullifier_insertion_subtree[k].leaf_value) < uint256_t(nullifier)) &&
+                            (uint256_t(nullifier_insertion_subtree[k].next_value) > uint256_t(nullifier) ||
+                             nullifier_insertion_subtree[k].next_value == 0)) {
                             matched = true;
                             // Update pointers
-                            new_nullifier_leaf.nextIndex = nullifier_insertion_subtree[k].nextIndex;
-                            new_nullifier_leaf.nextValue = nullifier_insertion_subtree[k].nextValue;
+                            new_nullifier_leaf.next_index = nullifier_insertion_subtree[k].next_index;
+                            new_nullifier_leaf.next_value = nullifier_insertion_subtree[k].next_value;
 
                             // Update child
-                            nullifier_insertion_subtree[k].nextIndex = new_index;
-                            nullifier_insertion_subtree[k].nextValue = nullifier;
+                            nullifier_insertion_subtree[k].next_index = new_index;
+                            nullifier_insertion_subtree[k].next_value = nullifier;
                         }
                     }
 
@@ -300,10 +296,10 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                     }
 
                     // Recreate the original low nullifier from the preimage
-                    auto const original_low_nullifier = NullifierLeaf{
-                        .value = low_nullifier_preimage.leaf_value,
-                        .nextIndex = low_nullifier_preimage.next_index,
-                        .nextValue = low_nullifier_preimage.next_value,
+                    auto const original_low_nullifier = NullifierLeafPreimage{
+                        .leaf_value = low_nullifier_preimage.leaf_value,
+                        .next_index = low_nullifier_preimage.next_index,
+                        .next_value = low_nullifier_preimage.next_value,
                     };
 
                     // perform membership check for the low nullifier against the original root
@@ -315,9 +311,10 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                                                                                "low nullifier membership check");
 
                     // Calculate the new value of the low_nullifier_leaf
-                    auto const updated_low_nullifier = NullifierLeaf{ .value = low_nullifier_preimage.leaf_value,
-                                                                      .nextIndex = new_index,
-                                                                      .nextValue = nullifier };
+                    auto const updated_low_nullifier =
+                        NullifierLeafPreimage{ .leaf_value = low_nullifier_preimage.leaf_value,
+                                               .next_index = new_index,
+                                               .next_value = nullifier };
 
                     // We need another set of witness values for this
                     current_nullifier_tree_root = root_from_sibling_path<NT>(
@@ -327,10 +324,10 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                 nullifier_insertion_subtree[nullifier_index] = new_nullifier_leaf;
             } else {
                 // 0 case
-                NullifierLeaf const new_nullifier_leaf = {
-                    .value = 0,
-                    .nextIndex = 0,
-                    .nextValue = 0,
+                NullifierLeafPreimage const new_nullifier_leaf = {
+                    .leaf_value = 0,
+                    .next_index = 0,
+                    .next_value = 0,
                 };
                 nullifier_insertion_subtree[nullifier_index] = new_nullifier_leaf;
             }
