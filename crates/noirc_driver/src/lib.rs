@@ -37,7 +37,7 @@ pub struct CompileOptions {
     pub show_ssa: bool,
 
     /// Display the ACIR for compiled circuit
-    #[arg(short, long)]
+    #[arg(long)]
     pub print_acir: bool,
 
     /// Treat all warnings as errors
