@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 
 use crate::ssa_refactor::ir::{
@@ -12,7 +14,9 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         dfg::InsertInstructionResult,
+        function::RuntimeType,
         instruction::{InstructionId, Intrinsic},
+        types::CompositeType,
     },
     ssa_gen::Ssa,
 };
@@ -35,8 +39,13 @@ impl FunctionBuilder {
     ///
     /// This creates the new function internally so there is no need to call .new_function()
     /// right after constructing a new FunctionBuilder.
-    pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
-        let new_function = Function::new(function_name, function_id);
+    pub(crate) fn new(
+        function_name: String,
+        function_id: FunctionId,
+        runtime: RuntimeType,
+    ) -> Self {
+        let mut new_function = Function::new(function_name, function_id);
+        new_function.set_runtime(runtime);
         let current_block = new_function.entry_block();
 
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }
@@ -47,12 +56,28 @@ impl FunctionBuilder {
     /// A FunctionBuilder can always only work on one function at a time, so care
     /// should be taken not to finish a function that is still in progress by calling
     /// new_function before the current function is finished.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
-        let new_function = Function::new(name, function_id);
+    fn new_function_with_type(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        runtime_type: RuntimeType,
+    ) {
+        let mut new_function = Function::new(name, function_id);
+        new_function.set_runtime(runtime_type);
         self.current_block = new_function.entry_block();
 
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         self.finished_functions.push(old_function);
+    }
+
+    /// Finish the current function and create a new ACIR function.
+    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir);
+    }
+
+    /// Finish the current function and create a new unconstrained function.
+    pub(crate) fn new_brillig_function(&mut self, name: String, function_id: FunctionId) {
+        self.new_function_with_type(name, function_id, RuntimeType::Brillig);
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
@@ -80,6 +105,15 @@ impl FunctionBuilder {
     /// Insert a numeric constant into the current function of type Field
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), Type::field())
+    }
+
+    /// Insert an array constant into the current function with the given element values.
+    pub(crate) fn array_constant(
+        &mut self,
+        elements: im::Vector<ValueId>,
+        element_types: Rc<CompositeType>,
+    ) -> ValueId {
+        self.current_function.dfg.make_array(elements, element_types)
     }
 
     /// Returns the type of the given value.
@@ -132,8 +166,8 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self, size_to_allocate: u32) -> ValueId {
-        self.insert_instruction(Instruction::Allocate { size: size_to_allocate }, None).first()
+    pub(crate) fn insert_allocate(&mut self) -> ValueId {
+        self.insert_instruction(Instruction::Allocate, None).first()
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset
@@ -143,13 +177,7 @@ impl FunctionBuilder {
     /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
     /// an array will have an offset of 3.
     /// Returns the element that was loaded.
-    pub(crate) fn insert_load(
-        &mut self,
-        mut address: ValueId,
-        offset: ValueId,
-        type_to_load: Type,
-    ) -> ValueId {
-        address = self.insert_binary(address, BinaryOp::Add, offset);
+    pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
     }
 
@@ -198,6 +226,27 @@ impl FunctionBuilder {
         result_types: Vec<Type>,
     ) -> &[ValueId] {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Insert an instruction to extract an element from an array
+    pub(crate) fn insert_array_get(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        element_type: Type,
+    ) -> ValueId {
+        let element_type = Some(vec![element_type]);
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+    }
+
+    /// Insert an instruction to create a new array with the given index replaced with a new value
+    pub(crate) fn insert_array_set(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        value: ValueId,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
     /// Terminates the current block with the given terminator instruction

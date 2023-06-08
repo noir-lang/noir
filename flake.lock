@@ -10,11 +10,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1683909802,
-        "narHash": "sha256-2CL8NYKLYwwy6n0RyldvH86ULgrSvfzHrgq2Qf0ZUkE=",
+        "lastModified": 1685812470,
+        "narHash": "sha256-sJYVipq1EthnjSxVIZnZF15wy9LDMHNPfIJKRHyZrws=",
         "owner": "AztecProtocol",
         "repo": "barretenberg",
-        "rev": "97c9bc72aebab850b4a647d6e6cc50085226eafb",
+        "rev": "193ce1a45ef5eab6a8522178cf918e45320f3de8",
         "type": "github"
       },
       "original": {

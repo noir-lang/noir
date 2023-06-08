@@ -1,31 +1,76 @@
-use crate::ssa_refactor::ir::types::NumericType;
+use crate::ssa_refactor::acir_gen::AcirValue;
+use crate::ssa_refactor::ir::types::Type as SsaType;
+use crate::ssa_refactor::ir::{instruction::Endian, map::TwoWayMap, types::NumericType};
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 
-use super::{
-    errors::AcirGenError,
-    generated_acir::GeneratedAcir,
-    memory::{ArrayId, Memory},
-};
+use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use acvm::{
-    acir::native_types::{Expression, Witness},
+    acir::{
+        circuit::opcodes::FunctionInput,
+        native_types::{Expression, Witness},
+        BlackBoxFunc,
+    },
     FieldElement,
 };
-use std::{borrow::Cow, collections::HashMap, hash::Hash};
+use iter_extended::vecmap;
+use std::{borrow::Cow, hash::Hash};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+/// High level Type descriptor for Variables.
+///
+/// One can think of Expression/Witness/Const
+/// as low level types which can represent high level types.
+///
+/// An Expression can represent a u32 for example.
+/// We could store this information when we do a range constraint
+/// but this information is readily available by the caller so
+/// we allow the user to pass it in.
+pub(crate) struct AcirType(NumericType);
+
+impl AcirType {
+    pub(crate) fn new(typ: NumericType) -> Self {
+        Self(typ)
+    }
+
+    /// Returns the bit size of the underlying type
+    pub(crate) fn bit_size(&self) -> u32 {
+        match self.0 {
+            NumericType::Signed { bit_size } => bit_size,
+            NumericType::Unsigned { bit_size } => bit_size,
+            NumericType::NativeField => FieldElement::max_num_bits(),
+        }
+    }
+
+    /// Returns a boolean type
+    fn boolean() -> Self {
+        AcirType(NumericType::Unsigned { bit_size: 1 })
+    }
+}
+
+impl From<SsaType> for AcirType {
+    fn from(value: SsaType) -> Self {
+        AcirType::from(&value)
+    }
+}
+
+impl<'a> From<&'a SsaType> for AcirType {
+    fn from(value: &SsaType) -> Self {
+        match value {
+            SsaType::Numeric(numeric_type) => AcirType(*numeric_type),
+            _ => unreachable!("The type {value}  cannot be represented in ACIR"),
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
 pub(crate) struct AcirContext {
-    /// Map which links Variables to AcirVarData.
+    /// Two-way map that links `AcirVar` to `AcirVarData`.
     ///
-    /// This is a common pattern in this codebase
-    /// where `AcirVar` can be seen as a pointer to
-    /// `AcirVarData`.
-    data: HashMap<AcirVar, AcirVarData>,
-    /// Map which links `AcirVarData` to Variables.
-    ///
-    /// This is so that we can lookup
-    data_reverse_map: HashMap<AcirVarData, AcirVar>,
+    /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
+    vars: TwoWayMap<AcirVar, AcirVarData>,
 
     /// An in-memory representation of ACIR.
     ///
@@ -35,22 +80,12 @@ pub(crate) struct AcirContext {
     /// then the `acir_ir` will be populated to assert this
     /// addition.
     acir_ir: GeneratedAcir,
-
-    /// Maps an `AcirVar` to its known bit size.
-    variables_to_bit_sizes: HashMap<AcirVar, u32>,
-    /// Maps the elements of virtual arrays to their `AcirVar` elements
-    memory: Memory,
 }
 
 impl AcirContext {
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
-
-        if let Some(var) = self.data_reverse_map.get(&constant_data) {
-            return *var;
-        };
-
         self.add_data(constant_data)
     }
 
@@ -69,7 +104,7 @@ impl AcirContext {
     ///
     /// Note: `Variables` are immutable.
     pub(crate) fn neg_var(&mut self, var: AcirVar) -> AcirVar {
-        let var_data = &self.data[&var];
+        let var_data = &self.vars[var];
         match var_data {
             AcirVarData::Witness(witness) => {
                 let mut expr = Expression::default();
@@ -84,8 +119,8 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the inverse of `var`.
-    pub(crate) fn inv_var(&mut self, var: AcirVar) -> AcirVar {
-        let var_data = &self.data[&var];
+    pub(crate) fn inv_var(&mut self, var: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let var_data = &self.vars[var];
         let inverted_witness = match var_data {
             AcirVarData::Witness(witness) => {
                 let expr = Expression::from(*witness);
@@ -94,15 +129,16 @@ impl AcirContext {
             AcirVarData::Expr(expr) => self.acir_ir.directive_inverse(expr),
             AcirVarData::Const(constant) => {
                 // Note that this will return a 0 if the inverse is not available
-                return self.add_data(AcirVarData::Const(constant.inverse()));
+                let result_var = self.add_data(AcirVarData::Const(constant.inverse()));
+                return Ok(result_var);
             }
         };
         let inverted_var = self.add_data(AcirVarData::Witness(inverted_witness));
 
-        let should_be_one = self.mul_var(inverted_var, var);
+        let should_be_one = self.mul_var(inverted_var, var)?;
         self.assert_eq_one(should_be_one);
 
-        inverted_var
+        Ok(inverted_var)
     }
 
     /// Constrains the lhs to be equal to the constant value `1`
@@ -113,21 +149,75 @@ impl AcirContext {
 
     /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
     /// 0 otherwise.
-    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+    pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
 
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
 
         let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
-        self.add_data(AcirVarData::Witness(is_equal_witness))
+        let result_var = self.add_data(AcirVarData::Witness(is_equal_witness));
+        Ok(result_var)
     }
+
+    /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
+    pub(crate) fn xor_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs)?;
+        Ok(outputs[0])
+    }
+
+    /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
+    pub(crate) fn and_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
+        Ok(outputs[0])
+    }
+
+    /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
+    pub(crate) fn or_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let bit_size = typ.bit_size();
+        if bit_size == 1 {
+            // Operands are booleans
+            // a + b - ab
+            let sum = self.add_var(lhs, rhs)?;
+            let mul = self.mul_var(lhs, rhs)?;
+            self.sub_var(sum, mul)
+        } else {
+            // Implement OR in terms of AND
+            // max - ((max - a) AND (max -b))
+            // Subtracting from max flips the bits, so this is effectively:
+            // (NOT a) NAND (NOT b)
+            let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
+            let a = self.sub_var(max, lhs)?;
+            let b = self.sub_var(max, rhs)?;
+            let inputs = vec![AcirValue::Var(a, typ), AcirValue::Var(b, typ)];
+            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
+            self.sub_var(max, outputs[0])
+        }
+    }
+
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
         // TODO: could use sub_var and then assert_eq_zero
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
 
         match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
@@ -161,17 +251,22 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the division of `lhs` and `rhs`
-    pub(crate) fn div_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
-        let inv_rhs = self.inv_var(rhs);
+    pub(crate) fn div_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        _typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let inv_rhs = self.inv_var(rhs)?;
         self.mul_var(lhs, inv_rhs)
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the multiplication of `lhs` and `rhs`
-    pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
-        match (lhs_data, rhs_data) {
+    pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
+        let result = match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
                 let expr_as_witness = self.acir_ir.get_or_create_witness(expr);
@@ -209,22 +304,23 @@ impl AcirContext {
                 );
                 self.add_data(AcirVarData::Expr(expr))
             }
-        }
+        };
+        Ok(result)
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the subtraction of `lhs` and `rhs`
-    pub(crate) fn sub_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
+    pub(crate) fn sub_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
         let neg_rhs = self.neg_var(rhs);
         self.add_var(lhs, neg_rhs)
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the addition of `lhs` and `rhs`
-    pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> AcirVar {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
-        match (lhs_data, rhs_data) {
+    pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
+        let result = match (lhs_data, rhs_data) {
             (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
                 self.add_data(AcirVarData::Expr(expr + &Expression::from(*witness)))
@@ -247,21 +343,16 @@ impl AcirContext {
             (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) => {
                 self.add_data(AcirVarData::Const(*lhs_const + *rhs_const))
             }
-        }
+        };
+        Ok(result)
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
     ///
     /// `x` must be a 1-bit integer (i.e. a boolean)
     pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
-        assert_eq!(
-            self.variables_to_bit_sizes.get(&x),
-            Some(&1),
-            "ICE: NOT op applied to non-bool"
-        );
-        let data = &self.data[&x];
         // Since `x` can only be 0 or 1, we can derive NOT as 1 - x
-        match data {
+        match &self.vars[x] {
             AcirVarData::Const(constant) => {
                 self.add_data(AcirVarData::Expr(&Expression::one() - &Expression::from(*constant)))
             }
@@ -272,10 +363,98 @@ impl AcirContext {
         }
     }
 
+    /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
+    ///
+    /// We convert left shifts to multiplications, so this is equivalent to
+    /// `lhs * 2^rhs`.
+    ///
+    /// We currently require `rhs` to be a constant
+    /// however this can be extended, see #1478.
+    pub(crate) fn shift_left_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        _typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let rhs_data = &self.vars[rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.mul_var(lhs, two_pow_rhs_var)
+    }
+
+    /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
+    fn euclidean_division_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        bit_size: u32,
+    ) -> Result<(AcirVar, AcirVar), AcirGenError> {
+        let predicate = Expression::one();
+
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+
+        let (quotient, remainder) =
+            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, bit_size, &predicate)?;
+
+        let quotient_var = self.add_data(AcirVarData::Witness(quotient));
+        let remainder_var = self.add_data(AcirVarData::Witness(remainder));
+
+        Ok((quotient_var, remainder_var))
+    }
+
+    /// Returns a variable which is constrained to be `lhs mod rhs`
+    pub(crate) fn modulo_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        bit_size: u32,
+    ) -> Result<AcirVar, AcirGenError> {
+        let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size)?;
+        Ok(remainder)
+    }
+
+    /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
+    ///
+    /// We convert right shifts to divisions, so this is equivalent to
+    /// `lhs / 2^rhs`.
+    ///
+    /// We currently require `rhs` to be a constant
+    /// however this can be extended, see #1478.
+    ///
+    /// This code is doing a field division instead of an integer division,
+    /// see #1479 about how this is expected to change.
+    pub(crate) fn shift_right_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        typ: AcirType,
+    ) -> Result<AcirVar, AcirGenError> {
+        let rhs_data = &self.vars[rhs];
+
+        // Compute 2^{rhs}
+        let two_pow_rhs = match rhs_data.as_constant() {
+            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
+            None => unimplemented!("rhs must be a constant when doing a right shift"),
+        };
+        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
+
+        self.div_var(lhs, two_pow_rhs_var, typ)
+    }
+
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
     pub(crate) fn return_var(&mut self, acir_var: AcirVar) {
-        let acir_var_data = self.data.get(&acir_var).expect("ICE: return of undeclared AcirVar");
+        let acir_var_data = self.vars.get(&acir_var).expect("ICE: return of undeclared AcirVar");
         // TODO: Add caching to prevent expressions from being needlessly duplicated
         let witness = match acir_var_data {
             AcirVarData::Const(constant) => {
@@ -293,15 +472,13 @@ impl AcirContext {
         variable: AcirVar,
         numeric_type: &NumericType,
     ) -> Result<AcirVar, AcirGenError> {
-        let data = &self.data[&variable];
+        let data = &self.vars[variable];
         match numeric_type {
             NumericType::Signed { .. } => todo!("signed integer conversion is unimplemented"),
             NumericType::Unsigned { bit_size } => {
                 let data_expr = data.to_expression();
                 let witness = self.acir_ir.get_or_create_witness(&data_expr);
                 self.acir_ir.range_constraint(witness, *bit_size)?;
-                // Log the bit size for this variable
-                self.variables_to_bit_sizes.insert(variable, *bit_size);
             }
             NumericType::NativeField => {
                 // If someone has made a cast to a `Field` type then this is a Noop.
@@ -313,29 +490,37 @@ impl AcirContext {
         Ok(variable)
     }
 
+    /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
+    pub(crate) fn truncate_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: u32,
+        max_bit_size: u32,
+    ) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.vars[lhs];
+        let lhs_expr = lhs_data.to_expression();
+
+        let result_expr = self.acir_ir.truncate(&lhs_expr, rhs, max_bit_size)?;
+
+        Ok(self.add_data(AcirVarData::Expr(result_expr)))
+    }
+
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
-    fn more_than_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
-        let lhs_data = &self.data[&lhs];
-        let rhs_data = &self.data[&rhs];
+    fn more_than_eq_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        bit_size: u32,
+    ) -> Result<AcirVar, AcirGenError> {
+        let lhs_data = &self.vars[lhs];
+        let rhs_data = &self.vars[rhs];
 
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
 
-        let lhs_bit_size = self.variables_to_bit_sizes.get(&lhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
-        let rhs_bit_size = self.variables_to_bit_sizes.get(&rhs).expect("comparisons cannot be made on variables with no known max bit size. This should have been caught by the frontend");
-
-        // This is a conservative choice. Technically, we should just be able to take
-        // the bit size of the `lhs` (upper bound), but we need to check/document what happens
-        // if the bit_size is not enough to represent both witnesses.
-        // An example is the following: (a as u8) >= (b as u32)
-        // If the equality is true, then it means that `b` also fits inside
-        // of a u8.
-        // But its not clear what happens if the equality is false,
-        // and we 8 bits to `more_than_eq_comparison`. The conservative
-        // choice chosen is to use 32.
-        let bit_size = *std::cmp::max(lhs_bit_size, rhs_bit_size);
-
+        // TODO: check what happens when we do (a as u8) >= (b as u32)
+        // TODO: The frontend should shout in this case
         let is_greater_than_eq =
             self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size)?;
 
@@ -348,46 +533,167 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
+        bit_size: u32,
     ) -> Result<AcirVar, AcirGenError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
 
         let one = self.add_constant(FieldElement::one());
-        let comparison_negated = self.sub_var(one, comparison);
+        self.sub_var(one, comparison) // comparison_negated
+    }
 
-        Ok(comparison_negated)
+    /// Calls a Blackbox function on the given inputs and returns a given set of outputs
+    /// to represent the result of the blackbox function.
+    pub(crate) fn black_box_function(
+        &mut self,
+        name: BlackBoxFunc,
+        mut inputs: Vec<AcirValue>,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        // Separate out any arguments that should be constants
+        let constants = match name {
+            BlackBoxFunc::Pedersen => {
+                // The last argument of pedersen is the domain separator, which must be a constant
+                let domain_var =
+                    inputs.pop().expect("ICE: Pedersen call requires domain separator").into_var();
+
+                let domain_constant = self.vars[domain_var]
+                    .as_constant()
+                    .expect("ICE: Domain separator must be a constant");
+
+                vec![domain_constant]
+            }
+            _ => vec![],
+        };
+
+        // Convert `AcirVar` to `FunctionInput`
+        let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
+
+        // Call Black box with `FunctionInput`
+        let outputs = self.acir_ir.call_black_box(name, inputs, constants);
+
+        // Convert `Witness` values which are now constrained to be the output of the
+        // black box function call into `AcirVar`s.
+        //
+        // We do not apply range information on the output of the black box function.
+        // See issue #1439
+        Ok(vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index))))
+    }
+
+    /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
+    ///
+    /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
+    fn prepare_inputs_for_black_box_func_call(
+        &mut self,
+        inputs: Vec<AcirValue>,
+    ) -> Result<Vec<FunctionInput>, AcirGenError> {
+        let mut witnesses = Vec::new();
+        for input in inputs {
+            for (input, typ) in input.flatten() {
+                let var_data = &self.vars[input];
+
+                // Intrinsics only accept Witnesses. This is not a limitation of the
+                // intrinsics, its just how we have defined things. Ideally, we allow
+                // constants too.
+                let expr = var_data.to_expression();
+                let witness = self.acir_ir.get_or_create_witness(&expr);
+                let num_bits = typ.bit_size();
+                witnesses.push(FunctionInput { witness, num_bits });
+            }
+        }
+        Ok(witnesses)
+    }
+
+    /// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
+    /// over given radix.
+    ///
+    /// The `AcirVar`s for the `radix_var` and `limb_count_var` must be a constant
+    ///
+    /// TODO: support radix larger than field modulus
+    pub(crate) fn radix_decompose(
+        &mut self,
+        endian: Endian,
+        input_var: AcirVar,
+        radix_var: AcirVar,
+        limb_count_var: AcirVar,
+        result_element_type: AcirType,
+    ) -> Result<Vec<AcirValue>, AcirGenError> {
+        let radix =
+            self.vars[&radix_var].as_constant().expect("ICE: radix should be a constant").to_u128()
+                as u32;
+
+        let limb_count = self.vars[limb_count_var]
+            .as_constant()
+            .expect("ICE: limb_size should be a constant")
+            .to_u128() as u32;
+
+        let input_expr = &self.vars[input_var].to_expression();
+
+        let limbs = self.acir_ir.radix_le_decompose(input_expr, radix, limb_count)?;
+
+        let mut limb_vars = vecmap(limbs, |witness| {
+            let witness = self.add_data(AcirVarData::Witness(witness));
+            AcirValue::Var(witness, result_element_type)
+        });
+
+        if endian == Endian::Big {
+            limb_vars.reverse();
+        }
+
+        Ok(vec![AcirValue::Array(limb_vars.into())])
+    }
+
+    /// Returns `AcirVar`s constrained to be the bit decomposition of the provided input
+    pub(crate) fn bit_decompose(
+        &mut self,
+        endian: Endian,
+        input_var: AcirVar,
+        limb_count_var: AcirVar,
+        result_element_type: AcirType,
+    ) -> Result<Vec<AcirValue>, AcirGenError> {
+        let two_var = self.add_constant(FieldElement::from(2_u128));
+        self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
+    }
+
+    /// Prints the given `AcirVar`s as witnesses.
+    pub(crate) fn print(&mut self, input: Vec<AcirValue>) -> Result<(), AcirGenError> {
+        let input = Self::flatten_values(input);
+
+        let witnesses = vecmap(input, |acir_var| {
+            let var_data = &self.vars[acir_var];
+            let expr = var_data.to_expression();
+            self.acir_ir.get_or_create_witness(&expr)
+        });
+        self.acir_ir.call_print(witnesses);
+        Ok(())
+    }
+
+    /// Flatten the given Vector of AcirValues into a single vector of only variables.
+    /// Each AcirValue::Array in the vector is recursively flattened, so each element
+    /// will flattened into the resulting Vec. E.g. flatten_values([1, [2, 3]) == [1, 2, 3].
+    fn flatten_values(values: Vec<AcirValue>) -> Vec<AcirVar> {
+        let mut acir_vars = Vec::with_capacity(values.len());
+        for value in values {
+            Self::flatten_value(&mut acir_vars, value);
+        }
+        acir_vars
+    }
+
+    /// Recursive helper for flatten_values to flatten a single AcirValue into the result vector.
+    pub(crate) fn flatten_value(acir_vars: &mut Vec<AcirVar>, value: AcirValue) {
+        match value {
+            AcirValue::Var(acir_var, _) => acir_vars.push(acir_var),
+            AcirValue::Array(array) => {
+                for value in array {
+                    Self::flatten_value(acir_vars, value);
+                }
+            }
+        }
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(self) -> GeneratedAcir {
         self.acir_ir
-    }
-
-    /// Allocates an array of size `size` and returns a pointer to the array in memory.
-    pub(crate) fn allocate_array(&mut self, size: usize) -> ArrayId {
-        self.memory.allocate(size)
-    }
-
-    /// Stores the given `AcirVar` at the specified address in memory
-    pub(crate) fn array_store(
-        &mut self,
-        array_id: ArrayId,
-        index: usize,
-        element: AcirVar,
-    ) -> Result<(), AcirGenError> {
-        self.memory.constant_set(array_id, index, element)
-    }
-
-    /// Gets the last stored `AcirVar` at the specified address in memory.
-    ///
-    /// This errors if nothing was previously stored at the address.
-    pub(crate) fn array_load(
-        &mut self,
-        array_id: ArrayId,
-        index: usize,
-    ) -> Result<AcirVar, AcirGenError> {
-        self.memory.constant_get(array_id, index)
     }
 
     /// Adds `Data` into the context and assigns it a Variable.
@@ -396,14 +702,12 @@ impl AcirContext {
     /// We use a two-way map so that it is efficient to lookup
     /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData) -> AcirVar {
-        assert_eq!(self.data.len(), self.data_reverse_map.len());
+        let id = AcirVar(self.vars.len());
+        self.vars.insert(id, data)
+    }
 
-        let id = AcirVar(self.data.len());
-
-        self.data.insert(id, data.clone());
-        self.data_reverse_map.insert(data, id);
-
-        id
+    pub(crate) fn brillig(&mut self, _code: Vec<BrilligOpcode>) {
+        todo!();
     }
 }
 
@@ -456,3 +760,18 @@ impl AcirVarData {
 /// A Reference to an `AcirVarData`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
+
+#[test]
+fn repeat_op() {
+    let mut ctx = AcirContext::default();
+
+    let var_a = ctx.add_variable();
+    let var_b = ctx.add_variable();
+
+    // Multiplying the same variables twice should yield
+    // the same output.
+    let var_c = ctx.mul_var(var_a, var_b);
+    let should_be_var_c = ctx.mul_var(var_a, var_b);
+
+    assert_eq!(var_c, should_be_var_c);
+}

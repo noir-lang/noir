@@ -592,6 +592,7 @@ mod test {
         ir::{
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
+            function::RuntimeType,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -613,7 +614,7 @@ mod test {
         //     return v1
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -665,7 +666,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -709,7 +710,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -774,7 +775,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -852,7 +853,7 @@ mod test {
         //      ↘   ↙
         //       b9
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -931,7 +932,7 @@ mod test {
         //      ↘   ↙
         //       b9
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -946,7 +947,7 @@ mod test {
         let c1 = builder.add_parameter(Type::bool());
         let c4 = builder.add_parameter(Type::bool());
 
-        let r1 = builder.insert_allocate(1);
+        let r1 = builder.insert_allocate();
 
         let store_value = |builder: &mut FunctionBuilder, value: u128| {
             let value = builder.field_constant(value);
@@ -956,9 +957,8 @@ mod test {
         let println = builder.import_intrinsic_id(Intrinsic::Println);
 
         let call_println = |builder: &mut FunctionBuilder, block: u128| {
-            let zero = builder.field_constant(0u128);
             let block = builder.field_constant(block);
-            let load = builder.insert_load(r1, zero, Type::field());
+            let load = builder.insert_load(r1, Type::field());
             builder.insert_call(println, vec![block, load], Vec::new());
         };
 
@@ -1002,13 +1002,10 @@ mod test {
         builder.terminate_with_jmp(b9, vec![]);
 
         switch_and_print(&mut builder, b9, 9);
-        let zero = builder.field_constant(0u128);
-        let load = builder.insert_load(r1, zero, Type::field());
+        let load = builder.insert_load(r1, Type::field());
         builder.terminate_with_return(vec![load]);
 
         let ssa = builder.finish().flatten_cfg().mem2reg();
-
-        println!("{ssa}");
 
         // Expected results after mem2reg removes the allocation and each load and store:
         //

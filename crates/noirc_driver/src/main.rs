@@ -9,7 +9,7 @@ fn main() {
     let mut driver = Driver::new(
         &Language::R1CS,
         #[allow(deprecated)]
-        Box::new(acvm::default_is_opcode_supported(Language::R1CS)),
+        Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)),
     );
 
     // Add local crate to dep graph
