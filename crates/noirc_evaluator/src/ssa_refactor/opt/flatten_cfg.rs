@@ -122,7 +122,7 @@ use crate::ssa_refactor::{
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
         dom::DominatorTree,
-        function::{Function, RuntimeType},
+        function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,

@@ -4,11 +4,8 @@ use iter_extended::vecmap;
 
 use crate::ssa_refactor::{
     ir::{
-        basic_block::BasicBlockId,
-        dfg::InsertInstructionResult,
-        function::{Function, RuntimeType},
-        instruction::InstructionId,
-        value::ValueId,
+        basic_block::BasicBlockId, dfg::InsertInstructionResult, function::Function,
+        instruction::InstructionId, value::ValueId,
     },
     ssa_gen::Ssa,
 };
