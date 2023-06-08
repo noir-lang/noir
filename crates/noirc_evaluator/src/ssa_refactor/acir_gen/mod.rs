@@ -219,6 +219,9 @@ impl Context {
                                 let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
                                 (result_ids.to_vec(), outputs)
                             }
+                            RuntimeType::Oracle(_) => unimplemented!(
+                                "expected an intrinsic/brillig call, but found {func:?}. All Oracle methods should be wrapped in an unconstrained fn"
+                            ),
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
