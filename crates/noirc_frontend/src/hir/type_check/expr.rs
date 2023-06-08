@@ -153,32 +153,6 @@ impl<'interner> TypeChecker<'interner> {
                 let start_span = self.interner.expr_span(&for_expr.start_range);
                 let end_span = self.interner.expr_span(&for_expr.end_range);
 
-                let mut unify_loop_range = |actual_type: &Type, span: Span| {
-                    let expected_type = if self.is_unconstrained() {
-                        Type::PolymorphicInteger(
-                            CompTime::new(self.interner),
-                            Shared::new(TypeBinding::Bound(actual_type.clone())),
-                        )
-                    } else {
-                        Type::PolymorphicInteger(
-                            CompTime::Yes(Some(span)),
-                            Shared::new(TypeBinding::Bound(actual_type.clone())),
-                        )
-                    };
-
-                    self.unify(actual_type, &expected_type, span, || {
-                        TypeCheckError::TypeCannotBeUsed {
-                            typ: actual_type.clone(),
-                            place: "for loop",
-                            span,
-                        }
-                        .add_context("The range of a loop must be known at compile-time")
-                    });
-                };
-
-                unify_loop_range(&start_range_type, start_span);
-                unify_loop_range(&end_range_type, end_span);
-
                 // Check that start range and end range have the same types
                 let range_span = start_span.merge(end_span);
                 self.unify(&start_range_type, &end_range_type, range_span, || {
@@ -187,6 +161,27 @@ impl<'interner> TypeChecker<'interner> {
                         expr_typ: end_range_type.to_string(),
                         expr_span: range_span,
                     }
+                });
+
+                let expected_type = if self.is_unconstrained() {
+                    Type::PolymorphicInteger(
+                        CompTime::new(self.interner),
+                        Shared::new(TypeBinding::Bound(start_range_type.clone())),
+                    )
+                } else {
+                    Type::PolymorphicInteger(
+                        CompTime::Yes(Some(range_span)),
+                        Shared::new(TypeBinding::Bound(start_range_type.clone())),
+                    )
+                };
+
+                self.unify(&start_range_type, &expected_type, range_span, || {
+                    TypeCheckError::TypeCannotBeUsed {
+                        typ: start_range_type.clone(),
+                        place: "for loop",
+                        span: range_span,
+                    }
+                    .add_context("The range of a loop must be known at compile-time")
                 });
 
                 self.interner.push_definition_type(for_expr.identifier.id, start_range_type);
