@@ -6,6 +6,6 @@ fn main(x: Field)  {
 }
 
 unconstrained fn conditional(x : bool) -> Field {
-    assert(!x);
+    assert(x);
     1
 }
