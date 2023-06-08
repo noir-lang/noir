@@ -23,7 +23,7 @@ jobs:
 
       - name: Build wasm package
         run: |
-          nix build -L .#wasm --extra-experimental-features nix-command --extra-experimental-features flakes
+          nix build -L .#wasm
           ls -la
 
       - name: Copy wasm build result
