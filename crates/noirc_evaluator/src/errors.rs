@@ -1,4 +1,4 @@
-use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use thiserror::Error;
 
 #[derive(Debug)]
@@ -35,6 +35,13 @@ impl RuntimeError {
 impl From<RuntimeErrorKind> for RuntimeError {
     fn from(kind: RuntimeErrorKind) -> RuntimeError {
         RuntimeError { location: None, kind }
+    }
+}
+
+impl From<RuntimeError> for FileDiagnostic {
+    fn from(err: RuntimeError) -> Self {
+        let file_id = err.location.map(|loc| loc.file).unwrap();
+        FileDiagnostic { file_id, diagnostic: err.into() }
     }
 }
 

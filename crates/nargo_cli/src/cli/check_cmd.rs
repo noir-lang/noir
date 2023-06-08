@@ -4,6 +4,7 @@ use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::CompileOptions;
+use noirc_errors::reporter;
 use std::path::{Path, PathBuf};
 
 use super::NargoConfig;
@@ -34,7 +35,15 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
 ) -> Result<(), CliError<B>> {
     let mut driver = setup_driver(backend, program_dir.as_ref())?;
 
-    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
+    let result = driver.check_crate();
+    if let Err(errs) = result {
+        let file_manager = driver.file_manager();
+        let error_count = reporter::report_all(file_manager, &errs, compile_options.deny_warnings);
+        if error_count != 0 {
+            reporter::finish_report(error_count);
+            return Err(CliError::CompilationError);
+        }
+    }
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = driver.compute_function_signature() {
