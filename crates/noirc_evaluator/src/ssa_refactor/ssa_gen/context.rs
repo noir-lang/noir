@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, RwLock};
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
