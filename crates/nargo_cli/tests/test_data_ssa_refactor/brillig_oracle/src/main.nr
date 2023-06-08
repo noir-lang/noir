@@ -6,7 +6,7 @@ fn main(x: Field)  {
 
 
 #[oracle(oracle_print_impl)]
-unconstrained fn oracle_print(x : Field) -> Field {}
+unconstrained fn oracle_print(_x : Field) {}
 
 unconstrained fn oracle_print_wrapper(x: Field) {
     oracle_print(x);

@@ -186,8 +186,8 @@ impl DataFlowGraph {
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
-    pub(crate) fn import_foreign_function(&mut self, function: &String) -> ValueId {
-        self.values.insert(Value::ForeignFunction(function.clone()))
+    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+        self.values.insert(Value::ForeignFunction(function.to_owned()))
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.

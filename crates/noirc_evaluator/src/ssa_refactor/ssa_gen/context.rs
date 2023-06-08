@@ -256,6 +256,25 @@ impl<'a> FunctionContext<'a> {
         reshaped_return_values
     }
 
+    pub(super) fn insert_foreign_call(
+        &mut self,
+        function: String,
+        arguments: Vec<ValueId>,
+        result_type: &ast::Type,
+    ) -> Values {
+        let result_types = Self::convert_type(result_type).flatten();
+        let results = self.builder.insert_foreign_call(function, arguments, result_types);
+
+        let mut i = 0;
+        let reshaped_return_values = Self::map_type(result_type, |_| {
+            let result = results[i].into();
+            i += 1;
+            result
+        });
+        assert_eq!(i, results.len());
+        reshaped_return_values
+    }
+
     /// Create a const offset of an address for an array load or store
     pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
         if offset != 0 {

@@ -284,6 +284,7 @@ impl Context {
 
                 (vec![result_ids[0]], vec![result_acir_var])
             }
+            _ => unreachable!("instruction cannot be converted to ACIR"),
         };
 
         // Map the results of the instructions to Acir variables
