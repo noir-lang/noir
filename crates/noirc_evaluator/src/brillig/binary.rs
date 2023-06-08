@@ -78,37 +78,16 @@ impl BrilligBinaryOp {
     }
 }
 
-/// Operands in a binary operation are checked to have the same type.
-///
-/// In Noir, binary operands should have the same type due to the language
-/// semantics.
-///
-/// There are some edge cases to consider:
-/// - Constants are not explicitly type casted, so we need to check for this and
-/// return the type of the other operand, if we have a constant.
-/// - 0 is not seen as `Field 0` but instead as `Unit 0`
-/// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
-/// TODO nothing and a 0.
-///
-/// TODO: This constant coercion should ideally be done in the type checker.
+/// Returns the type of the operation considering the types of the operands
+/// TODO: SSA issues binary operations between fields and integers.
+/// This probably should be explicitely casted in SSA to avoid having to coerce at this level.
 pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
     match (lhs_type, rhs_type) {
-        // Function type should not be possible, since all functions
-        // have been inlined.
-        (Type::Function, _) | (_, Type::Function) => {
-            unreachable!("ICE: Function type not allowed in binary operations")
-        }
-        (_, Type::Reference) | (Type::Reference, _) => {
-            unreachable!("ICE: Reference reached a binary operation")
-        }
-        // Unit type currently can mean a 0 constant, so we return the
-        // other type.
-        (typ, Type::Unit) | (Type::Unit, typ) => typ,
         // If either side is a Field constant then, we coerce into the type
         // of the other operand
         (Type::Numeric(NumericType::NativeField), typ)
         | (typ, Type::Numeric(NumericType::NativeField)) => typ,
-        // If either side is a numeric type, then we expect their types to be
+        // If both sides are numeric type, then we expect their types to be
         // the same.
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
             assert_eq!(
@@ -116,6 +95,12 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 "lhs and rhs types in a binary operation are always the same"
             );
             Type::Numeric(lhs_type)
+        }
+        _ => {
+            unreachable!(
+                "ICE: Binary operation between types {:?} and {:?} is not allowed",
+                lhs_type, rhs_type
+            )
         }
     }
 }

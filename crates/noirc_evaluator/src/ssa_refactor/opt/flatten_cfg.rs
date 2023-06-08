@@ -144,6 +144,7 @@ impl Ssa {
                 RuntimeType::Acir => {
                     flatten_function_cfg(function);
                 }
+                // Brillig is already generated at this step, so we cannot operate on brillig functions anymore.
                 RuntimeType::Brillig => {}
             }
         }
