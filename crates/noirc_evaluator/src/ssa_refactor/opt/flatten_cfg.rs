@@ -140,13 +140,7 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            match function.runtime() {
-                RuntimeType::Acir => {
-                    flatten_function_cfg(function);
-                }
-                // Brillig is already generated at this step, so we cannot operate on brillig functions anymore.
-                RuntimeType::Brillig => {}
-            }
+            flatten_function_cfg(function);
         }
         self
     }

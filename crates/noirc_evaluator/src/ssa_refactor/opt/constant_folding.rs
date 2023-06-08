@@ -22,13 +22,7 @@ impl Ssa {
     /// now be simplified.
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            match function.runtime() {
-                RuntimeType::Acir => {
-                    constant_fold(function);
-                }
-                // Brillig is already generated at this step, so we cannot operate on brillig functions anymore.
-                RuntimeType::Brillig => {}
-            }
+            constant_fold(function);
         }
         self
     }
