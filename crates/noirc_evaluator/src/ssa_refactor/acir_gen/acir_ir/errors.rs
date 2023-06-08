@@ -2,6 +2,7 @@
 pub(crate) enum AcirGenError {
     InvalidRangeConstraint { num_bits: u32 },
     IndexOutOfBounds { index: usize, array_size: usize },
+    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32 },
 }
 
 impl AcirGenError {
@@ -14,6 +15,9 @@ impl AcirGenError {
             }
             AcirGenError::IndexOutOfBounds { index, array_size } => {
                 format!("Index out of bounds, array has size {array_size}, but index was {index}")
+            }
+            AcirGenError::UnsupportedIntegerSize { num_bits, max_num_bits } => {
+                format!("Integer sized {num_bits} is over the max supported size of {max_num_bits}")
             }
         }
     }

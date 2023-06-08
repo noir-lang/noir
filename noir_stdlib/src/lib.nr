@@ -15,3 +15,6 @@ mod compat;
 
 #[builtin(println)]
 fn println<T>(_input : T) {}
+
+#[foreign(recursive_aggregation)]
+fn verify_proof(_verification_key : [Field], _proof : [Field], _public_inputs : [Field], _key_hash : Field, _input_aggregation_object : [Field]) -> [Field] {}

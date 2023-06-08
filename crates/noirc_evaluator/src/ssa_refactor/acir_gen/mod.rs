@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use self::acir_ir::acir_variable::{AcirContext, AcirVar};
+use self::acir_ir::{
+    acir_variable::{AcirContext, AcirType, AcirVar},
+    errors::AcirGenError,
+};
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -140,7 +143,9 @@ impl Context {
 
         match instruction {
             Instruction::Binary(binary) => {
-                let result_acir_var = self.convert_ssa_binary(binary, dfg);
+                let result_acir_var = self
+                    .convert_ssa_binary(binary, dfg)
+                    .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Constrain(value_id) => {
@@ -350,43 +355,50 @@ impl Context {
     }
 
     /// Processes a binary operation and converts the result into an `AcirVar`
-    fn convert_ssa_binary(&mut self, binary: &Binary, dfg: &DataFlowGraph) -> AcirVar {
+    fn convert_ssa_binary(
+        &mut self,
+        binary: &Binary,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirVar, AcirGenError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg);
         let rhs = self.convert_numeric_value(binary.rhs, dfg);
-        let bits = self.bit_count(binary.lhs, dfg);
 
         let binary_type = self.type_of_binary_operation(binary, dfg);
+        match &binary_type {
+            Type::Numeric(NumericType::Unsigned { bit_size })
+            | Type::Numeric(NumericType::Signed { bit_size }) => {
+                // Conservative max bit size that is small enough such that two operands can be
+                // multiplied and still fit within the field modulus. This is necessary for the
+                // truncation technique: result % 2^bit_size to be valid.
+                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
+                if *bit_size > max_integer_bit_size {
+                    return Err(AcirGenError::UnsupportedIntegerSize {
+                        num_bits: *bit_size,
+                        max_num_bits: max_integer_bit_size,
+                    });
+                }
+            }
+            _ => {}
+        }
+
+        let binary_type = AcirType::from(binary_type);
+        let bit_count = binary_type.bit_size();
 
         match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.into()),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self
-                .acir_context
-                .less_than_var(lhs, rhs, bits)
-                .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type.into()),
-            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type.into()),
-            BinaryOp::Xor => self
-                .acir_context
-                .xor_var(lhs, rhs, bits)
-                .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::And => self
-                .acir_context
-                .and_var(lhs, rhs, bits)
-                .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Or => self
-                .acir_context
-                .or_var(lhs, rhs, bits)
-                .expect("add Result types to all methods so errors bubble up"),
-            BinaryOp::Mod => self
-                .acir_context
-                .modulo_var(lhs, rhs, bits)
-                .expect("add Result types to all methods so errors bubble up"),
+            BinaryOp::Lt => self.acir_context.less_than_var(lhs, rhs, bit_count),
+            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
+            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type),
+            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, bit_count),
+            BinaryOp::And => self.acir_context.and_var(lhs, rhs, bit_count),
+            BinaryOp::Or => self.acir_context.or_var(lhs, rhs, bit_count),
+            BinaryOp::Mod => self.acir_context.modulo_var(lhs, rhs, bit_count),
         }
     }
 

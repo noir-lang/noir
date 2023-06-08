@@ -42,7 +42,7 @@ pub(crate) struct DataFlowGraph {
 
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
-    constants: HashMap<FieldElement, ValueId>,
+    constants: HashMap<(FieldElement, Type), ValueId>,
 
     /// Contains each function that has been imported into the current function.
     /// Each function's Value::Function is uniqued here so any given FunctionId
@@ -164,11 +164,11 @@ impl DataFlowGraph {
     /// Creates a new constant value, or returns the Id to an existing one if
     /// one already exists.
     pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: Type) -> ValueId {
-        if let Some(id) = self.constants.get(&constant) {
+        if let Some(id) = self.constants.get(&(constant, typ.clone())) {
             return *id;
         }
-        let id = self.values.insert(Value::NumericConstant { constant, typ });
-        self.constants.insert(constant, id);
+        let id = self.values.insert(Value::NumericConstant { constant, typ: typ.clone() });
+        self.constants.insert((constant, typ), id);
         id
     }
 
