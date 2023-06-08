@@ -668,6 +668,9 @@ impl AcirContext {
         Ok(())
     }
 
+    /// Flatten the given Vector of AcirValues into a single vector of only variables.
+    /// Each AcirValue::Array in the vector is recursively flattened, so each element
+    /// will flattened into the resulting Vec. E.g. flatten_values([1, [2, 3]) == [1, 2, 3].
     fn flatten_values(values: Vec<AcirValue>) -> Vec<AcirVar> {
         let mut acir_vars = Vec::with_capacity(values.len());
         for value in values {
@@ -676,6 +679,7 @@ impl AcirContext {
         acir_vars
     }
 
+    /// Recursive helper for flatten_values to flatten a single AcirValue into the result vector.
     pub(crate) fn flatten_value(acir_vars: &mut Vec<AcirVar>, value: AcirValue) {
         match value {
             AcirValue::Var(acir_var, _) => acir_vars.push(acir_var),

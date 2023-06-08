@@ -571,32 +571,35 @@ impl Context {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Vec<AcirValue> {
-        let mut values = vec![];
         let mut vars = vars.into_iter();
-
-        for result in result_ids {
-            Self::convert_var_type_to_values(&dfg.type_of_value(*result), &mut values, &mut vars);
-        }
-
-        values
+        vecmap(result_ids, |result| {
+            let result_type = dfg.type_of_value(*result);
+            Self::convert_var_type_to_values(&result_type, &mut vars)
+        })
     }
 
+    /// Recursive helper for convert_vars_to_values.
+    /// If the given result_type is an array of length N, this will create an AcirValue::Array with
+    /// the first N elements of the given iterator. Otherwise, the result is a single
+    /// AcirValue::Var wrapping the first element of the iterator.
     fn convert_var_type_to_values(
         result_type: &Type,
-        values: &mut Vec<AcirValue>,
         vars: &mut impl Iterator<Item = AcirVar>,
-    ) {
+    ) -> AcirValue {
         match result_type {
             Type::Array(elements, size) => {
+                let mut element_values = im::Vector::new();
                 for _ in 0..*size {
                     for element_type in elements.iter() {
-                        Self::convert_var_type_to_values(element_type, values, vars);
+                        let element = Self::convert_var_type_to_values(element_type, vars);
+                        element_values.push_back(element);
                     }
                 }
+                AcirValue::Array(element_values)
             }
             typ => {
                 let var = vars.next().unwrap();
-                values.push(AcirValue::Var(var, typ.into()));
+                AcirValue::Var(var, typ.into())
             }
         }
     }
