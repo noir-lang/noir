@@ -49,9 +49,9 @@ barretenberg::fr compress_native_evaluation_domain(barretenberg::evaluation_doma
  * @param hash_index generator index to use during pedersen compression
  * @returns a field containing the compression
  */
-barretenberg::fr verification_key_data::compress_native(const size_t hash_index)
+barretenberg::fr verification_key_data::compress_native(const size_t hash_index) const
 {
-    barretenberg::evaluation_domain eval_domain = evaluation_domain(circuit_size);
+    barretenberg::evaluation_domain eval_domain = barretenberg::evaluation_domain(circuit_size);
 
     std::vector<uint8_t> preimage_data;
 
@@ -87,7 +87,7 @@ barretenberg::fr verification_key_data::compress_native(const size_t hash_index)
 
 verification_key::verification_key(const size_t num_gates,
                                    const size_t num_inputs,
-                                   std::shared_ptr<VerifierReferenceString> const& crs,
+                                   std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& crs,
                                    uint32_t composer_type_)
     : composer_type(composer_type_)
     , circuit_size(num_gates)
@@ -98,7 +98,8 @@ verification_key::verification_key(const size_t num_gates,
     , polynomial_manifest(composer_type)
 {}
 
-verification_key::verification_key(verification_key_data&& data, std::shared_ptr<VerifierReferenceString> const& crs)
+verification_key::verification_key(verification_key_data&& data,
+                                   std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& crs)
     : composer_type(data.composer_type)
     , circuit_size(data.circuit_size)
     , log_circuit_size(numeric::get_msb(data.circuit_size))

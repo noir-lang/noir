@@ -3,7 +3,7 @@
 #include "barretenberg/plonk/flavor/flavor.hpp"
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
 #include "barretenberg/plonk/composer/composer_helper/composer_helper_lib.hpp"
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
@@ -24,7 +24,7 @@ class UltraPlonkComposerHelper {
     std::shared_ptr<plonk::verification_key> circuit_verification_key;
     // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
     // at all
-    std::shared_ptr<ReferenceStringFactory> crs_factory_;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
@@ -36,7 +36,7 @@ class UltraPlonkComposerHelper {
     // vanishing_polynomial cannot be trivially fetched here, I am directly setting this to 4 - 1 = 3.
     static constexpr size_t s_randomness = 3;
 
-    explicit UltraPlonkComposerHelper(std::shared_ptr<ReferenceStringFactory> crs_factory)
+    explicit UltraPlonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
@@ -93,11 +93,29 @@ class UltraPlonkComposerHelper {
             recursive_proof_public_input_indices.push_back((uint32_t)(circuit_constructor.public_inputs.size() - 1));
         }
     }
+
+    /**
+     * @brief Update recursive_proof_public_input_indices with existing public inputs that represent a recursive proof
+     *
+     * @param proof_output_witness_indices
+     */
+    void set_recursive_proof(CircuitConstructor& circuit_constructor,
+                             const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+        if (contains_recursive_proof) {
+            circuit_constructor.failure("added recursive proof when one already exists");
+        }
+        contains_recursive_proof = true;
+        for (size_t i = 0; i < proof_output_witness_indices.size(); ++i) {
+            recursive_proof_public_input_indices.push_back(circuit_constructor.get_public_input_index(
+                circuit_constructor.real_variable_index[proof_output_witness_indices[i]]));
+        }
+    }
+
     void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
     std::shared_ptr<plonk::proving_key> compute_proving_key(CircuitConstructor& circuit_constructor);
-    std::shared_ptr<plonk::verification_key> compute_verification_key(
-        CircuitConstructor& circuit_constructor, std::string const& srs_path = "../srs_db/ignition");
+    std::shared_ptr<plonk::verification_key> compute_verification_key(CircuitConstructor& circuit_constructor);
 
     void compute_witness(CircuitConstructor& circuit_constructor);
 

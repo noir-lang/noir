@@ -9,7 +9,7 @@
 #include <string_view>
 
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 
 #include "../oracle/oracle.hpp"
@@ -19,22 +19,21 @@
 #include "commitment_key.hpp"
 
 namespace proof_system::honk::pcs {
-namespace {
-constexpr std::string_view kzg_srs_path = "../srs_db/ignition";
-}
 
 template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 
 template <> inline std::shared_ptr<kzg::Params::CommitmentKey> CreateCommitmentKey<kzg::Params::CommitmentKey>()
 {
-    const size_t n = 128;
-    return std::make_shared<kzg::Params::CommitmentKey>(n, kzg_srs_path);
+    constexpr size_t n = 128;
+    barretenberg::srs::factories::FileCrsFactory kzg_srs("../srs_db/ignition");
+    return std::make_shared<kzg::Params::CommitmentKey>(n, kzg_srs.get_prover_crs(n));
 }
 // For IPA
 template <> inline std::shared_ptr<ipa::Params::CommitmentKey> CreateCommitmentKey<ipa::Params::CommitmentKey>()
 {
-    const size_t n = 128;
-    return std::make_shared<ipa::Params::CommitmentKey>(n, kzg_srs_path);
+    constexpr size_t n = 128;
+    barretenberg::srs::factories::FileCrsFactory kzg_srs("../srs_db/ignition");
+    return std::make_shared<ipa::Params::CommitmentKey>(n, kzg_srs.get_prover_crs(n));
 }
 
 template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
@@ -47,15 +46,16 @@ template <class VK> inline std::shared_ptr<VK> CreateVerificationKey();
 
 template <> inline std::shared_ptr<kzg::Params::VerificationKey> CreateVerificationKey<kzg::Params::VerificationKey>()
 {
-    const size_t n = 128;
-    return std::make_shared<kzg::Params::VerificationKey>(n, kzg_srs_path);
+    constexpr size_t n = 128;
+    barretenberg::srs::factories::FileCrsFactory kzg_srs("../srs_db/ignition");
+    return std::make_shared<kzg::Params::VerificationKey>(n, kzg_srs.get_verifier_crs());
 }
 // For IPA
 template <> inline std::shared_ptr<ipa::Params::VerificationKey> CreateVerificationKey<ipa::Params::VerificationKey>()
 {
-    const size_t n = 128;
-    //
-    return std::make_shared<ipa::Params::VerificationKey>(n, kzg_srs_path);
+    constexpr size_t n = 128;
+    barretenberg::srs::factories::FileCrsFactory kzg_srs("../srs_db/ignition");
+    return std::make_shared<ipa::Params::VerificationKey>(n, kzg_srs.get_prover_crs(n));
 }
 template <typename VK> inline std::shared_ptr<VK> CreateVerificationKey()
 // requires std::default_initializable<VK>

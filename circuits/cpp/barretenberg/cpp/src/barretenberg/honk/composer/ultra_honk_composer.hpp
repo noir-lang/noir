@@ -38,13 +38,15 @@ class UltraHonkComposer {
     std::vector<uint32_t>& recursive_proof_public_input_indices;
 
     UltraHonkComposer()
-        : UltraHonkComposer("../srs_db/ignition", 0){};
+        : UltraHonkComposer(barretenberg::srs::get_crs_factory(), 0){};
 
     UltraHonkComposer(std::string const& crs_path, const size_t size_hint)
-        : UltraHonkComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)),
+        : UltraHonkComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>(
+                                new barretenberg::srs::factories::FileCrsFactory(crs_path)),
                             size_hint){};
 
-    UltraHonkComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint)
+    UltraHonkComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
+                      const size_t size_hint)
         : circuit_constructor(size_hint)
         , composer_helper(crs_factory)
         , num_gates(circuit_constructor.num_gates)

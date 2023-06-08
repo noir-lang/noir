@@ -18,15 +18,18 @@ class StandardCircuitConstructor : public CircuitConstructorBase<arithmetization
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
 
-    std::vector<uint32_t>& w_l = std::get<0>(wires);
-    std::vector<uint32_t>& w_r = std::get<1>(wires);
-    std::vector<uint32_t>& w_o = std::get<2>(wires);
+    using WireVector = std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>;
+    using SelectorVector = std::vector<barretenberg::fr, barretenberg::ContainerSlabAllocator<barretenberg::fr>>;
 
-    std::vector<barretenberg::fr>& q_m = selectors.q_m;
-    std::vector<barretenberg::fr>& q_1 = selectors.q_1;
-    std::vector<barretenberg::fr>& q_2 = selectors.q_2;
-    std::vector<barretenberg::fr>& q_3 = selectors.q_3;
-    std::vector<barretenberg::fr>& q_c = selectors.q_c;
+    WireVector& w_l = std::get<0>(wires);
+    WireVector& w_r = std::get<1>(wires);
+    WireVector& w_o = std::get<2>(wires);
+
+    SelectorVector& q_m = selectors.q_m;
+    SelectorVector& q_1 = selectors.q_1;
+    SelectorVector& q_2 = selectors.q_2;
+    SelectorVector& q_3 = selectors.q_3;
+    SelectorVector& q_c = selectors.q_c;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
 
@@ -58,7 +61,12 @@ class StandardCircuitConstructor : public CircuitConstructorBase<arithmetization
     StandardCircuitConstructor(const StandardCircuitConstructor& other) = delete;
     StandardCircuitConstructor(StandardCircuitConstructor&& other) = default;
     StandardCircuitConstructor& operator=(const StandardCircuitConstructor& other) = delete;
-    StandardCircuitConstructor& operator=(StandardCircuitConstructor&& other) = delete;
+    StandardCircuitConstructor& operator=(StandardCircuitConstructor&& other)
+    {
+        CircuitConstructorBase<arithmetization::Standard<barretenberg::fr>>::operator=(std::move(other));
+        constant_variable_indices = other.constant_variable_indices;
+        return *this;
+    };
     ~StandardCircuitConstructor() override = default;
 
     void assert_equal_constant(uint32_t const a_idx,

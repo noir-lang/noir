@@ -13,6 +13,8 @@
 
 namespace proof_system {
 
+using namespace barretenberg;
+
 class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::Ultra<barretenberg::fr>> {
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
@@ -230,6 +232,9 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
      * restore the circuit to the state before the finalization.
      */
     struct CircuitDataBackup {
+        using WireVector = std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>;
+        using SelectorVector = std::vector<barretenberg::fr, barretenberg::ContainerSlabAllocator<barretenberg::fr>>;
+
         std::vector<uint32_t> public_inputs;
         std::vector<barretenberg::fr> variables;
         // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
@@ -240,21 +245,21 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
         std::vector<uint32_t> real_variable_index;
         std::vector<uint32_t> real_variable_tags;
         std::map<barretenberg::fr, uint32_t> constant_variable_indices;
-        std::vector<uint32_t> w_l;
-        std::vector<uint32_t> w_r;
-        std::vector<uint32_t> w_o;
-        std::vector<uint32_t> w_4;
-        std::vector<barretenberg::fr> q_m;
-        std::vector<barretenberg::fr> q_c;
-        std::vector<barretenberg::fr> q_1;
-        std::vector<barretenberg::fr> q_2;
-        std::vector<barretenberg::fr> q_3;
-        std::vector<barretenberg::fr> q_4;
-        std::vector<barretenberg::fr> q_arith;
-        std::vector<barretenberg::fr> q_sort;
-        std::vector<barretenberg::fr> q_elliptic;
-        std::vector<barretenberg::fr> q_aux;
-        std::vector<barretenberg::fr> q_lookup_type;
+        WireVector w_l;
+        WireVector w_r;
+        WireVector w_o;
+        WireVector w_4;
+        SelectorVector q_m;
+        SelectorVector q_c;
+        SelectorVector q_1;
+        SelectorVector q_2;
+        SelectorVector q_3;
+        SelectorVector q_4;
+        SelectorVector q_arith;
+        SelectorVector q_sort;
+        SelectorVector q_elliptic;
+        SelectorVector q_aux;
+        SelectorVector q_lookup_type;
         uint32_t current_tag = DUMMY_TAG;
         std::map<uint32_t, uint32_t> tau;
 
@@ -519,22 +524,25 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
         }
     };
 
-    std::vector<uint32_t>& w_l = std::get<0>(wires);
-    std::vector<uint32_t>& w_r = std::get<1>(wires);
-    std::vector<uint32_t>& w_o = std::get<2>(wires);
-    std::vector<uint32_t>& w_4 = std::get<3>(wires);
+    using WireVector = std::vector<uint32_t, ContainerSlabAllocator<uint32_t>>;
+    using SelectorVector = std::vector<barretenberg::fr, ContainerSlabAllocator<barretenberg::fr>>;
 
-    std::vector<barretenberg::fr>& q_m = selectors.q_m;
-    std::vector<barretenberg::fr>& q_c = selectors.q_c;
-    std::vector<barretenberg::fr>& q_1 = selectors.q_1;
-    std::vector<barretenberg::fr>& q_2 = selectors.q_2;
-    std::vector<barretenberg::fr>& q_3 = selectors.q_3;
-    std::vector<barretenberg::fr>& q_4 = selectors.q_4;
-    std::vector<barretenberg::fr>& q_arith = selectors.q_arith;
-    std::vector<barretenberg::fr>& q_sort = selectors.q_sort;
-    std::vector<barretenberg::fr>& q_elliptic = selectors.q_elliptic;
-    std::vector<barretenberg::fr>& q_aux = selectors.q_aux;
-    std::vector<barretenberg::fr>& q_lookup_type = selectors.q_lookup_type;
+    WireVector& w_l = std::get<0>(wires);
+    WireVector& w_r = std::get<1>(wires);
+    WireVector& w_o = std::get<2>(wires);
+    WireVector& w_4 = std::get<3>(wires);
+
+    SelectorVector& q_m = selectors.q_m;
+    SelectorVector& q_c = selectors.q_c;
+    SelectorVector& q_1 = selectors.q_1;
+    SelectorVector& q_2 = selectors.q_2;
+    SelectorVector& q_3 = selectors.q_3;
+    SelectorVector& q_4 = selectors.q_4;
+    SelectorVector& q_arith = selectors.q_arith;
+    SelectorVector& q_sort = selectors.q_sort;
+    SelectorVector& q_elliptic = selectors.q_elliptic;
+    SelectorVector& q_aux = selectors.q_aux;
+    SelectorVector& q_lookup_type = selectors.q_lookup_type;
 
     // These are variables that we have used a gate on, to enforce that they are
     // equal to a defined value.

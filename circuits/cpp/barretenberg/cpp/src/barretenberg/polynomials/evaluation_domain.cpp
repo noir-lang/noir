@@ -2,14 +2,11 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/common/mem.hpp"
-#include <math.h>
 #include <memory.h>
+#include <memory>
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/common/max_threads.hpp"
-
-#ifndef NO_MULTITHREADING
-#include "omp.h"
-#endif
+#include "barretenberg/common/thread.hpp"
+#include "barretenberg/common/slab_allocator.hpp"
 
 namespace barretenberg {
 
@@ -18,11 +15,7 @@ constexpr size_t MIN_GROUP_PER_THREAD = 4;
 
 size_t compute_num_threads(const size_t size)
 {
-#ifndef NO_MULTITHREADING
-    size_t num_threads = max_threads::compute_num_threads();
-#else
-    size_t num_threads = 1;
-#endif
+    size_t num_threads = get_num_cpus_pow2();
     if (size <= (num_threads * MIN_GROUP_PER_THREAD)) {
         num_threads = 1;
     }
@@ -100,12 +93,12 @@ EvaluationDomain<Fr>::EvaluationDomain(const EvaluationDomain& other)
     ASSERT((1UL << log2_num_threads) == num_threads);
     if (other.roots != nullptr) {
         const size_t mem_size = sizeof(Fr) * size * 2;
-        roots = static_cast<Fr*>(aligned_alloc(32, mem_size));
-        memcpy(static_cast<void*>(roots), static_cast<void*>(other.roots), mem_size);
+        roots = std::static_pointer_cast<Fr[]>(get_mem_slab(mem_size));
+        memcpy(static_cast<void*>(roots.get()), static_cast<void*>(other.roots.get()), mem_size);
         round_roots.resize(log2_size - 1);
         inverse_round_roots.resize(log2_size - 1);
         round_roots[0] = &roots[0];
-        inverse_round_roots[0] = &roots[size];
+        inverse_round_roots[0] = &roots.get()[size];
         for (size_t i = 1; i < log2_size - 1; ++i) {
             round_roots[i] = round_roots[i - 1] + (1UL << i);
             inverse_round_roots[i] = inverse_round_roots[i - 1] + (1UL << i);
@@ -154,9 +147,6 @@ template <typename Fr> EvaluationDomain<Fr>& EvaluationDomain<Fr>::operator=(Eva
     Fr::__copy(other.generator, generator);
     Fr::__copy(other.generator_inverse, generator_inverse);
     Fr::__copy(other.four_inverse, four_inverse);
-    if (roots != nullptr) {
-        aligned_free(roots);
-    }
     roots = nullptr;
     if (other.roots != nullptr) {
         roots = other.roots;
@@ -167,19 +157,15 @@ template <typename Fr> EvaluationDomain<Fr>& EvaluationDomain<Fr>::operator=(Eva
     return *this;
 }
 
-template <typename Fr> EvaluationDomain<Fr>::~EvaluationDomain()
-{
-    if (roots != nullptr) {
-        aligned_free(roots);
-    }
-}
+template <typename Fr> EvaluationDomain<Fr>::~EvaluationDomain() {}
 
 template <typename Fr> void EvaluationDomain<Fr>::compute_lookup_table()
 {
     ASSERT(roots == nullptr);
-    roots = (Fr*)(aligned_alloc(32, sizeof(Fr) * size * 2));
-    compute_lookup_table_single(root, size, roots, round_roots);
-    compute_lookup_table_single(root_inverse, size, &roots[size], inverse_round_roots);
+    // roots = (Fr*)(aligned_alloc(32, sizeof(Fr) * size * 2));
+    roots = std::static_pointer_cast<Fr[]>(get_mem_slab(sizeof(Fr) * size * 2));
+    compute_lookup_table_single(root, size, roots.get(), round_roots);
+    compute_lookup_table_single(root_inverse, size, &roots.get()[size], inverse_round_roots);
 }
 
 // explicitly instantiate both EvaluationDomain

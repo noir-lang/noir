@@ -1,0 +1,6 @@
+#!/bin/sh
+# Add a symlink to this somewhere in your path.
+# Now you can run bb.js-dev anywhere to execute latest code, no 'yarn build' required.
+SCRIPT_PATH=$(dirname $(realpath $0))
+export TS_NODE_PROJECT="$SCRIPT_PATH/tsconfig.json"
+NODE_OPTIONS="--loader $SCRIPT_PATH/node_modules/ts-node/esm/transpile-only.mjs --no-warnings" node $SCRIPT_PATH/src/main.ts $@

@@ -77,7 +77,8 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
     for (size_t i = 0; i < end; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
         std::string commit_tag = "W_" + std::to_string(i + 1);
-        barretenberg::fr* coefficients = key->polynomial_store.get(wire_tag).get_coefficients();
+        auto poly = key->polynomial_store.get(wire_tag);
+        auto coefficients = poly.data();
 
         // This automatically saves the computed point to the transcript
         fr domain_size_flag = i > 2 ? key->circuit_size : (key->circuit_size + 1);
@@ -134,7 +135,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_commitm
     // computing the commitments to these polynomials.
     //
     for (size_t i = 0; i < settings::program_width; ++i) {
-        fr* coefficients = key->quotient_polynomial_parts[i].get_coefficients();
+        auto coefficients = key->quotient_polynomial_parts[i].data();
         std::string quotient_tag = "T_" + std::to_string(i + 1);
         // Set flag that determines domain size (currently n or n+1) in pippenger (see process_queue()).
         // Note: After blinding, all t_i have size n+1 representation (degree n) except t_4 in Turbo/Ultra.
@@ -177,7 +178,7 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
     const size_t end = settings::is_plookup ? (settings::program_width - 1) : settings::program_width;
     for (size_t i = 0; i < end; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        barretenberg::polynomial wire_lagrange = key->polynomial_store.get(wire_tag + "_lagrange");
+        auto wire_lagrange = key->polynomial_store.get(wire_tag + "_lagrange");
 
         /*
         Adding zero knowledge to the witness polynomials.
@@ -290,7 +291,7 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
     if (settings::is_plookup) {
         add_plookup_memory_records_to_w_4();
         std::string wire_tag = "w_4";
-        barretenberg::polynomial& w_4_lagrange(key->polynomial_store.get(wire_tag + "_lagrange"));
+        auto w_4_lagrange = key->polynomial_store.get(wire_tag + "_lagrange");
 
         // add randomness to w_4_lagrange
         const size_t w_randomness = 3;
@@ -306,11 +307,12 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
         barretenberg::polynomial_arithmetic::copy_polynomial(&w_4_lagrange[0], &w_4[0], circuit_size, circuit_size);
         w_4.ifft(key->small_domain);
         key->polynomial_store.put(wire_tag, std::move(w_4));
+        key->polynomial_store.put(wire_tag + "_lagrange", std::move(w_4_lagrange));
 
         // commit to w_4 using the monomial srs.
         queue.add_to_queue({
             .work_type = work_queue::WorkType::SCALAR_MULTIPLICATION,
-            .mul_scalars = key->polynomial_store.get(wire_tag).get_coefficients(),
+            .mul_scalars = key->polynomial_store.get(wire_tag).data(),
             .tag = "W_4",
             .constant = key->circuit_size + 1,
             .index = 0,
@@ -334,17 +336,6 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 
     transcript.apply_fiat_shamir("beta");
 
-#ifdef DEBUG_TIMING
-    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-#endif
-#ifdef DEBUG_TIMING
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "compute z coefficients: " << diff.count() << "ms" << std::endl;
-#endif
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
     for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 3, queue);
     }
@@ -359,11 +350,6 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
             .index = 0,
         });
     }
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "compute z commitment: " << diff.count() << "ms" << std::endl;
-#endif
 }
 
 /**
@@ -373,54 +359,18 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("alpha");
-#ifdef DEBUG_TIMING
-    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-#endif
-#ifdef DEBUG_TIMING
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "compute wire ffts: " << diff.count() << "ms" << std::endl;
-#endif
-
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "copy z: " << diff.count() << "ms" << std::endl;
-#endif
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "compute permutation grand product coeffs: " << diff.count() << "ms" << std::endl;
-#endif
     fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
     // Compute FFT of lagrange polynomial L_1 (needed in random widgets only)
     compute_lagrange_1_fft();
 
     for (auto& widget : random_widgets) {
-#ifdef DEBUG_TIMING
-        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-#endif
         alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
-#ifdef DEBUG_TIMING
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cerr << "widget " << i << " quotient compute time: " << diff.count() << "ms" << std::endl;
-#endif
     }
 
     for (auto& widget : transition_widgets) {
         alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
     }
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
 
     // The parts of the quotient polynomial t(X) are stored as 4 separate polynomials in
     // the code. However, operations such as dividing by the pseudo vanishing polynomial
@@ -435,14 +385,6 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     barretenberg::polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(
         quotient_poly_parts, key->small_domain, key->large_domain);
 
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "divide by vanishing polynomial: " << diff.count() << "ms" << std::endl;
-#endif
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
     polynomial_arithmetic::coset_ifft(quotient_poly_parts, key->large_domain);
 
     // Manually copy the (n + 1)th coefficient of t_3 for StandardPlonk from t_4.
@@ -452,23 +394,9 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
         key->quotient_polynomial_parts[3][0] = 0;
     }
 
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "final inverse fourier transforms: " << diff.count() << "ms" << std::endl;
-#endif
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
-
     add_blinding_to_quotient_polynomial_parts();
 
     compute_quotient_commitments();
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "compute quotient commitment: " << diff.count() << "ms" << std::endl;
-#endif
 } // namespace proof_system::plonk
 
 template <typename settings> void ProverBase<settings>::execute_fifth_round()
@@ -551,7 +479,7 @@ template <typename settings> void ProverBase<settings>::compute_lagrange_1_fft()
 {
     polynomial lagrange_1_fft(4 * circuit_size + 8);
     polynomial_arithmetic::compute_lagrange_polynomial_fft(
-        lagrange_1_fft.get_coefficients(), key->small_domain, key->large_domain);
+        lagrange_1_fft.data().get(), key->small_domain, key->large_domain);
     for (size_t i = 0; i < 8; i++) {
         lagrange_1_fft[4 * circuit_size + i] = lagrange_1_fft[i];
     }
@@ -567,28 +495,35 @@ template <typename settings> plonk::proof& ProverBase<settings>::export_proof()
 template <typename settings> plonk::proof& ProverBase<settings>::construct_proof()
 {
     // Execute init round. Randomize witness polynomials.
+    // info("preamble");
     execute_preamble_round();
     queue.process_queue();
 
     // Compute wire precommitments and sometimes random widget round commitments
+    // info("first");
     execute_first_round();
     queue.process_queue();
 
     // Fiat-Shamir eta + execute random widgets.
+    // info("second");
     execute_second_round();
     queue.process_queue();
 
     // Fiat-Shamir beta & gamma, execute random widgets (Permutation widget is executed here)
     // and fft the witnesses
+    // info("third");
     execute_third_round();
     queue.process_queue();
 
     // Fiat-Shamir alpha, compute & commit to quotient polynomial.
+    // info("fourth");
     execute_fourth_round();
     queue.process_queue();
 
+    // info("fifth");
     execute_fifth_round();
 
+    // info("sixth");
     execute_sixth_round();
     queue.process_queue();
 
@@ -613,10 +548,10 @@ template <typename settings> void ProverBase<settings>::add_plookup_memory_recor
     // We need the lagrange-base forms of the first 3 wires to compute the plookup memory record
     // value. w4 = w3 * eta^3 + w2 * eta^2 + w1 * eta + read_write_flag;
     // a RAM write. See plookup_auxiliary_widget.hpp for details)
-    std::span<const fr> w_1 = key->polynomial_store.get("w_1_lagrange");
-    std::span<const fr> w_2 = key->polynomial_store.get("w_2_lagrange");
-    std::span<const fr> w_3 = key->polynomial_store.get("w_3_lagrange");
-    std::span<fr> w_4 = key->polynomial_store.get("w_4_lagrange");
+    auto w_1 = key->polynomial_store.get("w_1_lagrange");
+    auto w_2 = key->polynomial_store.get("w_2_lagrange");
+    auto w_3 = key->polynomial_store.get("w_3_lagrange");
+    auto w_4 = key->polynomial_store.get("w_4_lagrange");
     for (const auto& gate_idx : key->memory_read_records) {
         w_4[gate_idx] += w_3[gate_idx];
         w_4[gate_idx] *= eta;
@@ -634,6 +569,7 @@ template <typename settings> void ProverBase<settings>::add_plookup_memory_recor
         w_4[gate_idx] *= eta;
         w_4[gate_idx] += 1;
     }
+    key->polynomial_store.put("w_4_lagrange", std::move(w_4));
 }
 
 template class ProverBase<standard_settings>;

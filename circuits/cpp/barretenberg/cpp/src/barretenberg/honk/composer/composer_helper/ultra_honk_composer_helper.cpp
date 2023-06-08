@@ -143,8 +143,7 @@ UltraProver UltraHonkComposerHelper::create_prover(CircuitConstructor& circuit_c
 
     UltraProver output_state(proving_key);
 
-    auto pcs_commitment_key =
-        std::make_unique<PCSParams::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");
+    auto pcs_commitment_key = std::make_unique<PCSParams::CommitmentKey>(proving_key->circuit_size, proving_key->crs);
 
     output_state.pcs_commitment_key = std::move(pcs_commitment_key);
 
@@ -163,8 +162,8 @@ UltraVerifier UltraHonkComposerHelper::create_verifier(const CircuitConstructor&
 
     UltraVerifier output_state(verification_key);
 
-    auto pcs_verification_key =
-        std::make_unique<PCSVerificationKey>(verification_key->circuit_size, "../srs_db/ignition");
+    auto pcs_verification_key = std::make_unique<PCSVerificationKey>(
+        verification_key->circuit_size, crs_factory_->get_prover_crs(verification_key->circuit_size));
 
     output_state.pcs_verification_key = std::move(pcs_verification_key);
 
@@ -318,7 +317,7 @@ std::shared_ptr<UltraHonkComposerHelper::VerificationKey> UltraHonkComposerHelpe
     verification_key = std::make_shared<UltraHonkComposerHelper::VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, proving_key->composer_type);
 
-    auto commitment_key = PCSCommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
+    auto commitment_key = PCSCommitmentKey(proving_key->circuit_size, proving_key->crs);
 
     // Compute and store commitments to all precomputed polynomials
     verification_key->q_m = commitment_key.commit(proving_key->q_m);

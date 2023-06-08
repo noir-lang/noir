@@ -22,7 +22,9 @@ template <typename Composer> class VerificationKeyFixture : public testing::Test
     using Curve = stdlib::bn254<Composer>;
     using RecursVk = plonk::stdlib::recursion::verification_key<Curve>;
 
-    static Composer init_composer() { return Composer("../srs_db/ignition"); }
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+
+    static Composer init_composer() { return Composer(barretenberg::srs::get_crs_factory()); }
 
     /**
      * @brief generate a random vk data for use in tests
@@ -58,7 +60,7 @@ TYPED_TEST(VerificationKeyFixture, vk_data_vs_recursion_compress_native)
     verification_key_data vk_data = TestFixture::rand_vk_data();
     verification_key_data vk_data_copy = vk_data;
 
-    auto file_crs = std::make_unique<proof_system::FileReferenceStringFactory>("../srs_db/ignition");
+    auto file_crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
     auto file_verifier = file_crs->get_verifier_crs();
 
     auto native_vk = std::make_shared<verification_key>(std::move(vk_data_copy), file_verifier);
@@ -78,7 +80,7 @@ TYPED_TEST(VerificationKeyFixture, compress_vs_compress_native)
 
     verification_key_data vk_data = TestFixture::rand_vk_data();
 
-    auto file_crs = std::make_unique<proof_system::FileReferenceStringFactory>("../srs_db/ignition");
+    auto file_crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
     auto file_verifier = file_crs->get_verifier_crs();
 
     auto native_vk = std::make_shared<verification_key>(std::move(vk_data), file_verifier);

@@ -7,7 +7,7 @@
 
 struct test_vector {
     std::string input;
-    std::vector<uint8_t> output;
+    std::array<uint8_t, 32> output;
 };
 
 test_vector test_vectors[] = {

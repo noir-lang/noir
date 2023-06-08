@@ -18,12 +18,12 @@ namespace proof_system::honk {
 template <typename Flavor>
 std::shared_ptr<typename Flavor::VerificationKey> compute_verification_key_common(
     std::shared_ptr<typename Flavor::ProvingKey> const& proving_key,
-    std::shared_ptr<VerifierReferenceString> const& vrs)
+    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& vrs)
 {
     auto verification_key = std::make_shared<typename Flavor::VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
 
-    auto commitment_key = typename Flavor::PCSParams::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
+    auto commitment_key = typename Flavor::PCSParams::CommitmentKey(proving_key->circuit_size, proving_key->crs);
 
     size_t poly_idx = 0; // TODO(#391) zip
     for (auto& polynomial : proving_key) {

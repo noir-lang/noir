@@ -3,6 +3,7 @@
 #include "memory.h"
 #include <memory>
 #include <stdlib.h>
+// #include <malloc.h>
 
 #define pad(size, alignment) (size - (size % alignment) + ((size % alignment) == 0 ? 0 : alignment))
 
@@ -56,3 +57,19 @@ inline void aligned_free(void* mem)
     _aligned_free(mem);
 }
 #endif
+
+// inline void print_malloc_info()
+// {
+//     struct mallinfo minfo = mallinfo();
+
+//     info("Total non-mmapped bytes (arena): ", minfo.arena);
+//     info("Number of free chunks (ordblks): ", minfo.ordblks);
+//     info("Number of fastbin blocks (smblks): ", minfo.smblks);
+//     info("Number of mmapped regions (hblks): ", minfo.hblks);
+//     info("Space allocated in mmapped regions (hblkhd): ", minfo.hblkhd);
+//     info("Maximum total allocated space (usmblks): ", minfo.usmblks);
+//     info("Space available in freed fastbin blocks (fsmblks): ", minfo.fsmblks);
+//     info("Total allocated space (uordblks): ", minfo.uordblks);
+//     info("Total free space (fordblks): ", minfo.fordblks);
+//     info("Top-most, releasable space (keepcost): ", minfo.keepcost);
+// }

@@ -1,11 +1,12 @@
 
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "prover.hpp"
 #include "prover_library.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <array>
 #include <string>
 #include <vector>
@@ -56,7 +57,8 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         // Define some mock inputs for proving key constructor
         static const size_t num_gates = 8;
         static const size_t num_public_inputs = 0;
-        auto reference_string = std::make_shared<FileReferenceString>(num_gates + 1, "../srs_db/ignition");
+        auto reference_string = std::make_shared<barretenberg::srs::factories::FileProverCrs<curve::BN254>>(
+            num_gates + 1, "../srs_db/ignition");
 
         // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
         auto proving_key = std::make_shared<typename Flavor::ProvingKey>(
@@ -169,7 +171,8 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         // Define some mock inputs for proving key constructor
         static const size_t circuit_size = 8;
         static const size_t num_public_inputs = 0;
-        auto reference_string = std::make_shared<FileReferenceString>(circuit_size + 1, "../srs_db/ignition");
+        auto reference_string = std::make_shared<barretenberg::srs::factories::FileProverCrs<curve::BN254>>(
+            circuit_size + 1, "../srs_db/ignition");
 
         // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
         using Flavor = honk::flavor::Ultra;
@@ -305,7 +308,8 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         // Construct a proving_key
         static const size_t circuit_size = 8;
         static const size_t num_public_inputs = 0;
-        auto reference_string = std::make_shared<FileReferenceString>(circuit_size + 1, "../srs_db/ignition");
+        auto reference_string = std::make_shared<barretenberg::srs::factories::FileProverCrs<curve::BN254>>(
+            circuit_size + 1, "../srs_db/ignition");
         using Flavor = honk::flavor::Ultra;
         auto proving_key = std::make_shared<typename Flavor::ProvingKey>(
             circuit_size, num_public_inputs, reference_string, ComposerType::STANDARD_HONK);

@@ -5,6 +5,8 @@
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 #include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <optional>
 
 namespace proof_system::plonk {
@@ -43,10 +45,10 @@ class UltraPlonkComposer {
         : UltraPlonkComposer("../srs_db/ignition", 0){};
 
     UltraPlonkComposer(std::string const& crs_path, const size_t size_hint = 0)
-        : UltraPlonkComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)),
-                             size_hint){};
+        : UltraPlonkComposer(std::make_unique<barretenberg::srs::factories::FileCrsFactory>(crs_path), size_hint){};
 
-    UltraPlonkComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
+    UltraPlonkComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
+                       const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
@@ -66,11 +68,23 @@ class UltraPlonkComposer {
         , contains_recursive_proof(composer_helper.contains_recursive_proof)
         , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
 
-    UltraPlonkComposer(UltraPlonkComposer&& other) = default;
+    UltraPlonkComposer(UltraPlonkComposer&& other)
+        : circuit_constructor(std::move(other.circuit_constructor))
+        , num_gates(circuit_constructor.num_gates)
+        , variables(circuit_constructor.variables)
+        , zero_idx(circuit_constructor.zero_idx)
+        , composer_helper(std::move(other.composer_helper))
+        , contains_recursive_proof(composer_helper.contains_recursive_proof)
+        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
     UltraPlonkComposer& operator=(UltraPlonkComposer&& other)
     {
         circuit_constructor = std::move(other.circuit_constructor);
         composer_helper = std::move(other.composer_helper);
+        num_gates = circuit_constructor.num_gates;
+        variables = circuit_constructor.variables;
+        zero_idx = circuit_constructor.zero_idx;
+        contains_recursive_proof = composer_helper.contains_recursive_proof;
+        recursive_proof_public_input_indices = composer_helper.recursive_proof_public_input_indices;
         return *this;
     };
     ~UltraPlonkComposer() = default;
@@ -142,9 +156,11 @@ class UltraPlonkComposer {
 
     uint32_t add_public_variable(const barretenberg::fr& in) { return circuit_constructor.add_public_variable(in); }
 
-    virtual void set_public_input(const uint32_t witness_index)
+    void set_public_input(const uint32_t witness_index) { return circuit_constructor.set_public_input(witness_index); }
+
+    uint32_t get_public_input_index(const uint32_t witness_index) const
     {
-        return circuit_constructor.set_public_input(witness_index);
+        return circuit_constructor.get_public_input_index(witness_index);
     }
 
     uint32_t put_constant_variable(const barretenberg::fr& variable)
@@ -155,6 +171,11 @@ class UltraPlonkComposer {
     size_t get_num_constant_gates() const { return circuit_constructor.get_num_constant_gates(); }
 
     size_t get_total_circuit_size() const { return circuit_constructor.get_total_circuit_size(); }
+
+    size_t get_circuit_subgroup_size(size_t gates) const
+    {
+        return circuit_constructor.get_circuit_subgroup_size(gates);
+    }
 
     bool check_circuit() { return circuit_constructor.check_circuit(); }
 
@@ -172,11 +193,11 @@ class UltraPlonkComposer {
         return composer_helper.compute_proving_key(circuit_constructor);
     }
 
-    std::shared_ptr<plonk::verification_key> compute_verification_key(
-        std::string const& srs_path = "../srs_db/ignition")
+    std::shared_ptr<plonk::verification_key> compute_verification_key()
     {
-        return composer_helper.compute_verification_key(circuit_constructor, srs_path);
+        return composer_helper.compute_verification_key(circuit_constructor);
     }
+
     UltraProver create_prover() { return composer_helper.create_prover(circuit_constructor); };
     UltraVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); };
 
@@ -207,6 +228,11 @@ class UltraPlonkComposer {
     void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
     {
         composer_helper.add_recursive_proof(circuit_constructor, proof_output_witness_indices);
+    }
+
+    void set_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+        composer_helper.set_recursive_proof(circuit_constructor, proof_output_witness_indices);
     }
 
     void create_new_range_constraint(const uint32_t variable_index,

@@ -290,8 +290,7 @@ plonk::UltraVerifier UltraPlonkComposerHelper::create_verifier(CircuitConstructo
     plonk::UltraVerifier output_state(circuit_verification_key,
                                       create_manifest(circuit_constructor.public_inputs.size()));
 
-    std::unique_ptr<plonk::KateCommitmentScheme<plonk::ultra_settings>> kate_commitment_scheme =
-        std::make_unique<plonk::KateCommitmentScheme<plonk::ultra_settings>>();
+    auto kate_commitment_scheme = std::make_unique<plonk::KateCommitmentScheme<plonk::ultra_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
@@ -480,7 +479,7 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper::compute_proving_key(Circu
  * */
 
 std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper::compute_verification_key(
-    CircuitConstructor& circuit_constructor, std::string const& srs_path)
+    CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
         return circuit_verification_key;
@@ -489,8 +488,7 @@ std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper::compute_verif
     if (!circuit_proving_key) {
         compute_proving_key(circuit_constructor);
     }
-    circuit_verification_key =
-        compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs(), srs_path);
+    circuit_verification_key = compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
 
     circuit_verification_key->composer_type = ComposerType::PLOOKUP; // Invariably plookup for this class.
 

@@ -1,9 +1,10 @@
 #include <array>
 #include <gtest/gtest.h>
+#include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/honk/flavor/standard.hpp" // TODO: needed?
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
-#include "barretenberg/srs/reference_string/reference_string.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
 
 namespace proof_system::test_composer_lib {
 
@@ -13,7 +14,7 @@ class ComposerLibTests : public ::testing::Test {
     using FF = typename Flavor::FF;
     Flavor::CircuitConstructor circuit_constructor;
     Flavor::ProvingKey proving_key = []() {
-        auto crs_factory = ReferenceStringFactory();
+        auto crs_factory = barretenberg::srs::factories::CrsFactory();
         auto crs = crs_factory.get_prover_crs(4);
         return Flavor::ProvingKey(/*circuit_size=*/4, /*num_public_inputs=*/0, crs, ComposerType::STANDARD);
     }();
@@ -25,7 +26,7 @@ TEST_F(ComposerLibTests, InitializeProvingKey)
 
     EXPECT_EQ(circuit_constructor.get_circuit_subgroup_size(7), 8);
 
-    ReferenceStringFactory crs_factory;
+    barretenberg::srs::factories::CrsFactory crs_factory;
 
     auto pk = initialize_proving_key<Flavor>(circuit_constructor,
                                              &crs_factory,
@@ -38,11 +39,11 @@ TEST_F(ComposerLibTests, InitializeProvingKey)
 
 TEST_F(ComposerLibTests, ConstructSelectors)
 {
-    circuit_constructor.q_m = std::vector<FF>{ 1, 2, 3, 4 };
-    circuit_constructor.q_1 = std::vector<FF>{ 5, 6, 7, 8 };
-    circuit_constructor.q_2 = std::vector<FF>{ 9, 10, 11, 12 };
-    circuit_constructor.q_3 = std::vector<FF>{ 13, 14, 15, 16 };
-    circuit_constructor.q_c = std::vector<FF>{ 17, 18, 19, 20 };
+    circuit_constructor.q_m = { 1, 2, 3, 4 };
+    circuit_constructor.q_1 = { 5, 6, 7, 8 };
+    circuit_constructor.q_2 = { 9, 10, 11, 12 };
+    circuit_constructor.q_3 = { 13, 14, 15, 16 };
+    circuit_constructor.q_c = { 17, 18, 19, 20 };
 
     construct_selector_polynomials<Flavor>(circuit_constructor, &proving_key);
 
@@ -74,11 +75,11 @@ TEST_F(ComposerLibTests, ConstructSelectors)
 
 TEST_F(ComposerLibTests, EnforceNonzeroSelectors)
 {
-    circuit_constructor.q_m = std::vector<FF>{ 0, 0, 0, 0 };
-    circuit_constructor.q_1 = std::vector<FF>{ 0, 0, 0, 0 };
-    circuit_constructor.q_2 = std::vector<FF>{ 0, 0, 0, 0 };
-    circuit_constructor.q_3 = std::vector<FF>{ 0, 0, 0, 0 };
-    circuit_constructor.q_c = std::vector<FF>{ 0, 0, 0, 0 };
+    circuit_constructor.q_m = { 0, 0, 0, 0 };
+    circuit_constructor.q_1 = { 0, 0, 0, 0 };
+    circuit_constructor.q_2 = { 0, 0, 0, 0 };
+    circuit_constructor.q_3 = { 0, 0, 0, 0 };
+    circuit_constructor.q_c = { 0, 0, 0, 0 };
 
     construct_selector_polynomials<Flavor>(circuit_constructor, &proving_key);
     enforce_nonzero_selector_polynomials<Flavor>(circuit_constructor, &proving_key);

@@ -3,7 +3,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/srs/reference_string/reference_string.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -47,7 +47,7 @@ std::shared_ptr<StandardHonkComposerHelper::VerificationKey> StandardHonkCompose
 {
     auto key = std::make_shared<VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, proving_key->composer_type);
-    auto commitment_key = PCSParams::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
+    auto commitment_key = PCSParams::CommitmentKey(proving_key->circuit_size, proving_key->crs);
 
     // Compute and store commitments to all precomputed polynomials
     key->q_m = commitment_key.commit(proving_key->q_m);
@@ -145,7 +145,7 @@ StandardVerifier StandardHonkComposerHelper::create_verifier(const CircuitConstr
     StandardVerifier output_state(verification_key);
 
     auto pcs_verification_key =
-        std::make_unique<PCSParams::VerificationKey>(verification_key->circuit_size, "../srs_db/ignition");
+        std::make_unique<PCSParams::VerificationKey>(verification_key->circuit_size, crs_factory_->get_verifier_crs());
 
     output_state.pcs_verification_key = std::move(pcs_verification_key);
 
@@ -158,8 +158,8 @@ StandardProver StandardHonkComposerHelper::create_prover(const CircuitConstructo
     compute_witness(circuit_constructor);
     StandardProver output_state(proving_key);
 
-    auto pcs_commitment_key =
-        std::make_unique<PCSParams::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");
+    auto pcs_commitment_key = std::make_unique<PCSParams::CommitmentKey>(
+        proving_key->circuit_size, crs_factory_->get_prover_crs(proving_key->circuit_size));
 
     output_state.pcs_commitment_key = std::move(pcs_commitment_key);
 

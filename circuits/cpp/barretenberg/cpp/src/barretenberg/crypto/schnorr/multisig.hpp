@@ -47,6 +47,11 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
      *
      */
     struct MultiSigPublicKey {
+        typedef uint8_t const* in_buf;
+        typedef uint8_t const* vec_in_buf;
+        typedef uint8_t* out_buf;
+        typedef uint8_t** vec_out_buf;
+
         affine_element public_key = G1::affine_point_at_infinity;
         // proof of knowledge of the secret_key for public_key
         ProofOfPossession<G1, HashRegNon> proof_of_possession;
@@ -61,11 +66,19 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
     };
 
     struct RoundOnePrivateOutput {
+        typedef uint8_t const* in_buf;
+        typedef uint8_t* out_buf;
+
         Fr r;
         Fr s;
     };
 
     struct RoundOnePublicOutput {
+        typedef uint8_t const* in_buf;
+        typedef uint8_t const* vec_in_buf;
+        typedef uint8_t* out_buf;
+        typedef uint8_t** vec_out_buf;
+
         // R = r⋅G
         affine_element R;
         // S = s⋅G

@@ -4,7 +4,6 @@ target_link_libraries(
   pippenger_bench
   polynomials
   srs
-  env
 )
 
 add_custom_target(

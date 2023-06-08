@@ -21,29 +21,37 @@ class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::T
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
-    std::vector<uint32_t>& w_l = std::get<0>(wires);
-    std::vector<uint32_t>& w_r = std::get<1>(wires);
-    std::vector<uint32_t>& w_o = std::get<2>(wires);
-    std::vector<uint32_t>& w_4 = std::get<3>(wires);
+    using WireVector = std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>;
+    using SelectorVector = std::vector<barretenberg::fr, barretenberg::ContainerSlabAllocator<barretenberg::fr>>;
 
-    std::vector<barretenberg::fr>& q_m = selectors.q_m;
-    std::vector<barretenberg::fr>& q_c = selectors.q_c;
-    std::vector<barretenberg::fr>& q_1 = selectors.q_1;
-    std::vector<barretenberg::fr>& q_2 = selectors.q_2;
-    std::vector<barretenberg::fr>& q_3 = selectors.q_3;
-    std::vector<barretenberg::fr>& q_4 = selectors.q_4;
-    std::vector<barretenberg::fr>& q_5 = selectors.q_5;
-    std::vector<barretenberg::fr>& q_arith = selectors.q_arith;
-    std::vector<barretenberg::fr>& q_fixed_base = selectors.q_fixed_base;
-    std::vector<barretenberg::fr>& q_range = selectors.q_range;
-    std::vector<barretenberg::fr>& q_logic = selectors.q_logic;
+    WireVector& w_l = std::get<0>(wires);
+    WireVector& w_r = std::get<1>(wires);
+    WireVector& w_o = std::get<2>(wires);
+    WireVector& w_4 = std::get<3>(wires);
+
+    SelectorVector& q_m = selectors.q_m;
+    SelectorVector& q_c = selectors.q_c;
+    SelectorVector& q_1 = selectors.q_1;
+    SelectorVector& q_2 = selectors.q_2;
+    SelectorVector& q_3 = selectors.q_3;
+    SelectorVector& q_4 = selectors.q_4;
+    SelectorVector& q_5 = selectors.q_5;
+    SelectorVector& q_arith = selectors.q_arith;
+    SelectorVector& q_fixed_base = selectors.q_fixed_base;
+    SelectorVector& q_range = selectors.q_range;
+    SelectorVector& q_logic = selectors.q_logic;
 
     TurboCircuitConstructor(const size_t size_hint = 0);
     // This constructor is needed to simplify switching between circuit constructor and composer
     TurboCircuitConstructor(std::string const&, const size_t size_hint = 0)
         : TurboCircuitConstructor(size_hint){};
     TurboCircuitConstructor(TurboCircuitConstructor&& other) = default;
-    TurboCircuitConstructor& operator=(TurboCircuitConstructor&& other) = delete;
+    TurboCircuitConstructor& operator=(TurboCircuitConstructor&& other)
+    {
+        CircuitConstructorBase<arithmetization::Turbo<barretenberg::fr>>::operator=(std::move(other));
+        constant_variable_indices = other.constant_variable_indices;
+        return *this;
+    };
     ~TurboCircuitConstructor() {}
 
     void create_add_gate(const add_triple& in);

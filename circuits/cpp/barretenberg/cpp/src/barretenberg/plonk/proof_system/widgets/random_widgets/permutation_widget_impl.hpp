@@ -2,6 +2,8 @@
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
@@ -63,201 +65,198 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     // Allocate scratch space in memory for computation of lagrange form of permutation polynomial
     // 'z_perm'. Elements 2,...,n of z_perm are constructed in place in accumulators[0]. (The first
     // element of z_perm is one, i.e. z_perm[0] == 1). The remaining accumulators are used only as scratch
-    // space. All memory allocated for the accumulators is freed before termination of this function.
+    // space.
     size_t num_accumulators = (program_width == 1) ? 3 : program_width * 2;
+    std::shared_ptr<void> accumulators_ptrs[num_accumulators];
     fr* accumulators[num_accumulators];
     // Allocate the required number of length n scratch space arrays
     for (size_t k = 0; k < num_accumulators; ++k) {
-        accumulators[k] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * key->circuit_size));
+        accumulators_ptrs[k] = get_mem_slab(key->circuit_size * sizeof(fr));
+        accumulators[k] = (fr*)accumulators_ptrs[k].get();
     }
 
     barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
     barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
-    std::array<std::span<const fr>, program_width> lagrange_base_wires;
-    std::array<std::span<const fr>, program_width> lagrange_base_sigmas;
-    [[maybe_unused]] std::array<std::span<const fr>, program_width> lagrange_base_ids;
+    std::array<std::shared_ptr<fr[]>, program_width> lagrange_base_wires_ptr;
+    std::array<std::shared_ptr<fr[]>, program_width> lagrange_base_sigmas_ptr;
+    [[maybe_unused]] std::array<std::shared_ptr<fr[]>, program_width> lagrange_base_ids_ptr;
+
+    std::array<fr*, program_width> lagrange_base_wires;
+    std::array<fr*, program_width> lagrange_base_sigmas;
+    [[maybe_unused]] std::array<fr*, program_width> lagrange_base_ids;
 
     for (size_t i = 0; i < program_width; ++i) {
-        lagrange_base_wires[i] = key->polynomial_store.get("w_" + std::to_string(i + 1) + "_lagrange");
-        lagrange_base_sigmas[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_lagrange");
+        lagrange_base_wires_ptr[i] = key->polynomial_store.get("w_" + std::to_string(i + 1) + "_lagrange").data();
+        lagrange_base_wires[i] = lagrange_base_wires_ptr[i].get();
+        lagrange_base_sigmas_ptr[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_lagrange").data();
+        lagrange_base_sigmas[i] = lagrange_base_sigmas_ptr[i].get();
 
         // If idpolys = true, it implies that we do NOT use the identity permutation
         // S_ID1(X) = X, S_ID2(X) = k_1X, S_ID3(X) = k_2X.
-        if constexpr (idpolys)
-            lagrange_base_ids[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_lagrange");
+        if constexpr (idpolys) {
+            lagrange_base_ids_ptr[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_lagrange").data();
+            lagrange_base_ids[i] = lagrange_base_ids_ptr[i].get();
+        }
     }
 
-#ifndef NO_MULTITHREADING
-#pragma omp parallel
-#endif
-    {
-        // When we write w_i it means the evaluation of witness polynomial at i-th index.
-        // When we write w^{i} it means the generator of the subgroup to the i-th power.
-        //
-        // step 1: compute the individual terms in the permutation poylnomial.
-        //
-        // Consider the case in which we use identity permutation polynomials and let program width = 3.
-        // (extending it to the case when the permutation polynomials is not identity is trivial).
-        //
-        // coefficient of L_1: 1
-        //
-        // coefficient of L_2:
-        //
-        //  coeff_of_L1 *   (w_1 + γ + β.ω^{0}) . (w_{n+1} + γ + β.k_1.ω^{0}) . (w_{2n+1} + γ + β.k_2.ω^{0})
-        //                  ---------------------------------------------------------------------------------
-        //                  (w_1 + γ + β.σ(1) ) . (w_{n+1} + γ + β.σ(n+1)   ) . (w_{2n+1} + γ + β.σ(2n+1)  )
-        //
-        // coefficient of L_3:
-        //
-        //  coeff_of_L2 *   (w_2 + γ + β.ω^{1}) . (w_{n+2} + γ + β.k_1.ω^{1}) . (w_{2n+2} + γ + β.k_2.ω^{1})
-        //                  --------------------------------------------------------------------------------
-        //                  (w_2 + γ + β.σ(2) ) . (w_{n+2} + γ + β.σ(n+2)   ) . (w_{2n+2} + γ + β.σ(2n+2)  )
-        // and so on...
-        //
-        // accumulator data structure:
-        // numerators are stored in accumulator[0: program_width-1],
-        // denominators are stored in accumulator[program_width:]
-        //
-        //      0                                1                                      (n-1)
-        // 0 -> (w_1      + γ + β.ω^{0}    ),    (w_2      + γ + β.ω^{1}    ),    ...., (w_n      + γ + β.ω^{n-1}    )
-        // 1 -> (w_{n+1}  + γ + β.k_1.ω^{0}),    (w_{n+1}  + γ + β.k_1.ω^{2}),    ...., (w_{n+1}  + γ + β.k_1.ω^{n-1})
-        // 2 -> (w_{2n+1} + γ + β.k_2.ω^{0}),    (w_{2n+1} + γ + β.k_2.ω^{0}),    ...., (w_{2n+1} + γ + β.k_2.ω^{n-1})
-        //
-        // 3 -> (w_1      + γ + β.σ(1)     ),    (w_2      + γ + β.σ(2)     ),    ...., (w_n      + γ + β.σ(n)       )
-        // 4 -> (w_{n+1}  + γ + β.σ(n+1)   ),    (w_{n+1}  + γ + β.σ{n+2}   ),    ...., (w_{n+1}  + γ + β.σ{n+n}     )
-        // 5 -> (w_{2n+1} + γ + β.σ(2n+1)  ),    (w_{2n+1} + γ + β.σ(2n+2)  ),    ...., (w_{2n+1} + γ + β.σ(2n+n)    )
-        //
-        // Thus, to obtain coefficient_of_L2, we need to use accumulators[:][0]:
-        //    acc[0][0]*acc[1][0]*acc[2][0] / acc[program_width][0]*acc[program_width+1][0]*acc[program_width+2][0]
-        //
-        // To obtain coefficient_of_L3, we need to use accumulator[:][0] and accumulator[:][1]
-        // and so on upto coefficient_of_Ln.
-#ifndef NO_MULTITHREADING
-#pragma omp for
-#endif
-        // Recall: In a domain: num_threads * thread_size = size (= subgroup_size)
-        //        |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |  8 |  9 | 10 | 11 | 12 | 13 | 14 | 15 | <-- n = 16
-        //    j:  |    0    |    1    |    2    |    3    |    4    |    5    |    6    |    7    | num_threads = 8
-        //    i:     0    1    0    1    0    1    0    1    0    1    0    1    0    1    0    1   thread_size = 2
-        // So i will access a different element from 0..(n-1) each time.
-        // Commented maths notation mirrors the indexing from the giant comment immediately above.
-        for (size_t j = 0; j < key->small_domain.num_threads; ++j) {
-            barretenberg::fr thread_root = key->small_domain.root.pow(
-                static_cast<uint64_t>(j * key->small_domain.thread_size)); // effectively ω^{i} in inner loop
-            [[maybe_unused]] barretenberg::fr cur_root_times_beta = thread_root * beta; // β.ω^{i}
-            barretenberg::fr T0;
-            barretenberg::fr wire_plus_gamma;
-            size_t start = j * key->small_domain.thread_size;
-            size_t end = (j + 1) * key->small_domain.thread_size;
-            for (size_t i = start; i < end; ++i) {
-                wire_plus_gamma = gamma + lagrange_base_wires[0][i]; // w_{i + 1} + γ
+    // When we write w_i it means the evaluation of witness polynomial at i-th index.
+    // When we write w^{i} it means the generator of the subgroup to the i-th power.
+    //
+    // step 1: compute the individual terms in the permutation poylnomial.
+    //
+    // Consider the case in which we use identity permutation polynomials and let program width = 3.
+    // (extending it to the case when the permutation polynomials is not identity is trivial).
+    //
+    // coefficient of L_1: 1
+    //
+    // coefficient of L_2:
+    //
+    //  coeff_of_L1 *   (w_1 + γ + β.ω^{0}) . (w_{n+1} + γ + β.k_1.ω^{0}) . (w_{2n+1} + γ + β.k_2.ω^{0})
+    //                  ---------------------------------------------------------------------------------
+    //                  (w_1 + γ + β.σ(1) ) . (w_{n+1} + γ + β.σ(n+1)   ) . (w_{2n+1} + γ + β.σ(2n+1)  )
+    //
+    // coefficient of L_3:
+    //
+    //  coeff_of_L2 *   (w_2 + γ + β.ω^{1}) . (w_{n+2} + γ + β.k_1.ω^{1}) . (w_{2n+2} + γ + β.k_2.ω^{1})
+    //                  --------------------------------------------------------------------------------
+    //                  (w_2 + γ + β.σ(2) ) . (w_{n+2} + γ + β.σ(n+2)   ) . (w_{2n+2} + γ + β.σ(2n+2)  )
+    // and so on...
+    //
+    // accumulator data structure:
+    // numerators are stored in accumulator[0: program_width-1],
+    // denominators are stored in accumulator[program_width:]
+    //
+    //      0                                1                                      (n-1)
+    // 0 -> (w_1      + γ + β.ω^{0}    ),    (w_2      + γ + β.ω^{1}    ),    ...., (w_n      + γ + β.ω^{n-1}    )
+    // 1 -> (w_{n+1}  + γ + β.k_1.ω^{0}),    (w_{n+1}  + γ + β.k_1.ω^{2}),    ...., (w_{n+1}  + γ + β.k_1.ω^{n-1})
+    // 2 -> (w_{2n+1} + γ + β.k_2.ω^{0}),    (w_{2n+1} + γ + β.k_2.ω^{0}),    ...., (w_{2n+1} + γ + β.k_2.ω^{n-1})
+    //
+    // 3 -> (w_1      + γ + β.σ(1)     ),    (w_2      + γ + β.σ(2)     ),    ...., (w_n      + γ + β.σ(n)       )
+    // 4 -> (w_{n+1}  + γ + β.σ(n+1)   ),    (w_{n+1}  + γ + β.σ{n+2}   ),    ...., (w_{n+1}  + γ + β.σ{n+n}     )
+    // 5 -> (w_{2n+1} + γ + β.σ(2n+1)  ),    (w_{2n+1} + γ + β.σ(2n+2)  ),    ...., (w_{2n+1} + γ + β.σ(2n+n)    )
+    //
+    // Thus, to obtain coefficient_of_L2, we need to use accumulators[:][0]:
+    //    acc[0][0]*acc[1][0]*acc[2][0] / acc[program_width][0]*acc[program_width+1][0]*acc[program_width+2][0]
+    //
+    // To obtain coefficient_of_L3, we need to use accumulator[:][0] and accumulator[:][1]
+    // and so on upto coefficient_of_Ln.
+    //
+    // Recall: In a domain: num_threads * thread_size = size (= subgroup_size)
+    //        |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |  8 |  9 | 10 | 11 | 12 | 13 | 14 | 15 | <-- n = 16
+    //    j:  |    0    |    1    |    2    |    3    |    4    |    5    |    6    |    7    | num_threads = 8
+    //    i:     0    1    0    1    0    1    0    1    0    1    0    1    0    1    0    1   thread_size = 2
+    // So i will access a different element from 0..(n-1) each time.
+    // Commented maths notation mirrors the indexing from the giant comment immediately above.
+    parallel_for(key->small_domain.num_threads, [&](size_t j) {
+        barretenberg::fr thread_root = key->small_domain.root.pow(
+            static_cast<uint64_t>(j * key->small_domain.thread_size));              // effectively ω^{i} in inner loop
+        [[maybe_unused]] barretenberg::fr cur_root_times_beta = thread_root * beta; // β.ω^{i}
+        barretenberg::fr T0;
+        barretenberg::fr wire_plus_gamma;
+        size_t start = j * key->small_domain.thread_size;
+        size_t end = (j + 1) * key->small_domain.thread_size;
+        for (size_t i = start; i < end; ++i) {
+            wire_plus_gamma = gamma + lagrange_base_wires[0][i]; // w_{i + 1} + γ
+                                                                 // i in 0..(n-1)
+            if constexpr (!idpolys) {
+                accumulators[0][i] = wire_plus_gamma + cur_root_times_beta; // w_{i + 1} + γ + β.ω^{i}
+            }
+            if constexpr (idpolys) {
+                T0 = lagrange_base_ids[0][i] * beta;       // β.id(i + 1)
+                accumulators[0][i] = T0 + wire_plus_gamma; // w_{i + 1} + γ + β.id(i + 1)
+            }
+
+            T0 = lagrange_base_sigmas[0][i] * beta;                // β.σ(i + 1)
+            accumulators[program_width][i] = T0 + wire_plus_gamma; // w_{i + 1} + γ + β.σ(i + 1)
+
+            for (size_t k = 1; k < program_width; ++k) {
+                wire_plus_gamma = gamma + lagrange_base_wires[k][i]; // w_{k.n + i + 1} + γ
                                                                      // i in 0..(n-1)
-                if constexpr (!idpolys) {
-                    accumulators[0][i] = wire_plus_gamma + cur_root_times_beta; // w_{i + 1} + γ + β.ω^{i}
-                }
                 if constexpr (idpolys) {
-                    T0 = lagrange_base_ids[0][i] * beta;       // β.id(i + 1)
-                    accumulators[0][i] = T0 + wire_plus_gamma; // w_{i + 1} + γ + β.id(i + 1)
+                    T0 = lagrange_base_ids[k][i] * beta; // β.id(k.n + i + 1)
+                } else {
+                    T0 = fr::coset_generator(k - 1) * cur_root_times_beta; // β.k_{k}.ω^{i}
+                                                                           //   ^coset generator k
                 }
+                accumulators[k][i] = T0 + wire_plus_gamma; // w_{k.n + i + 1} + γ + β.id(k.n + i + 1)
 
-                T0 = lagrange_base_sigmas[0][i] * beta;                // β.σ(i + 1)
-                accumulators[program_width][i] = T0 + wire_plus_gamma; // w_{i + 1} + γ + β.σ(i + 1)
-
-                for (size_t k = 1; k < program_width; ++k) {
-                    wire_plus_gamma = gamma + lagrange_base_wires[k][i]; // w_{k.n + i + 1} + γ
-                                                                         // i in 0..(n-1)
-                    if constexpr (idpolys) {
-                        T0 = lagrange_base_ids[k][i] * beta; // β.id(k.n + i + 1)
-                    } else {
-                        T0 = fr::coset_generator(k - 1) * cur_root_times_beta; // β.k_{k}.ω^{i}
-                                                                               //   ^coset generator k
-                    }
-                    accumulators[k][i] = T0 + wire_plus_gamma; // w_{k.n + i + 1} + γ + β.id(k.n + i + 1)
-
-                    T0 = lagrange_base_sigmas[k][i] * beta;                    // β.σ(k.n + i + 1)
-                    accumulators[k + program_width][i] = T0 + wire_plus_gamma; // w_{k.n + i + 1} + γ + β.σ(k.n + i + 1)
-                }
-                if constexpr (!idpolys)
-                    cur_root_times_beta *= key->small_domain.root; // β.ω^{i + 1}
+                T0 = lagrange_base_sigmas[k][i] * beta;                    // β.σ(k.n + i + 1)
+                accumulators[k + program_width][i] = T0 + wire_plus_gamma; // w_{k.n + i + 1} + γ + β.σ(k.n + i + 1)
             }
+            if constexpr (!idpolys)
+                cur_root_times_beta *= key->small_domain.root; // β.ω^{i + 1}
         }
+    });
 
-        // Step 2: compute the constituent components of z(X). This is a small multithreading bottleneck, as we have
-        // program_width * 2 non-parallelizable processes
-        //
-        // Update the accumulator matrix a[:][:] to contain the left products like so:
-        //      0           1                     2                          (n-1)
-        // 0 -> (a[0][0]),  (a[0][1] * a[0][0]),  (a[0][2] * a[0][1]), ...,  (a[0][n-1] * a[0][n-2])
-        // 1 -> (a[1][0]),  (a[1][1] * a[1][0]),  (a[1][2] * a[1][1]), ...,  (a[1][n-1] * a[1][n-2])
-        // 2 -> (a[2][0]),  (a[2][1] * a[2][0]),  (a[2][2] * a[2][1]), ...,  (a[2][n-1] * a[2][n-2])
-        //
-        // 3 -> (a[3][0]),  (a[3][1] * a[3][0]),  (a[3][2] * a[3][1]), ...,  (a[3][n-1] * a[3][n-2])
-        // 4 -> (a[4][0]),  (a[4][1] * a[4][0]),  (a[4][2] * a[4][1]), ...,  (a[4][n-1] * a[4][n-2])
-        // 5 -> (a[5][0]),  (a[5][1] * a[5][0]),  (a[5][2] * a[5][1]), ...,  (a[5][n-1] * a[5][n-2])
-        //
-        // and so on...
-#ifndef NO_MULTITHREADING
-#pragma omp for
-#endif
-        for (size_t i = 0; i < program_width * 2; ++i) {
-            fr* coeffs = &accumulators[i][0]; // start from the beginning of a row
-            for (size_t j = 0; j < key->small_domain.size - 1; ++j) {
-                coeffs[j + 1] *= coeffs[j]; // iteratively update elements in subsequent columns
-            }
+    // Step 2: compute the constituent components of z(X). This is a small multithreading bottleneck, as we have
+    // program_width * 2 non-parallelizable processes
+    //
+    // Update the accumulator matrix a[:][:] to contain the left products like so:
+    //      0           1                     2                          (n-1)
+    // 0 -> (a[0][0]),  (a[0][1] * a[0][0]),  (a[0][2] * a[0][1]), ...,  (a[0][n-1] * a[0][n-2])
+    // 1 -> (a[1][0]),  (a[1][1] * a[1][0]),  (a[1][2] * a[1][1]), ...,  (a[1][n-1] * a[1][n-2])
+    // 2 -> (a[2][0]),  (a[2][1] * a[2][0]),  (a[2][2] * a[2][1]), ...,  (a[2][n-1] * a[2][n-2])
+    //
+    // 3 -> (a[3][0]),  (a[3][1] * a[3][0]),  (a[3][2] * a[3][1]), ...,  (a[3][n-1] * a[3][n-2])
+    // 4 -> (a[4][0]),  (a[4][1] * a[4][0]),  (a[4][2] * a[4][1]), ...,  (a[4][n-1] * a[4][n-2])
+    // 5 -> (a[5][0]),  (a[5][1] * a[5][0]),  (a[5][2] * a[5][1]), ...,  (a[5][n-1] * a[5][n-2])
+    //
+    // and so on...
+    parallel_for(program_width * 2, [&](size_t i) {
+        fr* coeffs = &accumulators[i][0]; // start from the beginning of a row
+        for (size_t j = 0; j < key->small_domain.size - 1; ++j) {
+            coeffs[j + 1] *= coeffs[j]; // iteratively update elements in subsequent columns
         }
+    });
 
-        // step 3: concatenate together the accumulator elements into z(X)
-        //
-        // Update each element of the accumulator row a[0] to be the product of itself with the 'numerator' rows beneath
-        // it, and update each element of a[program_width] to be the product of itself with the 'denominator' rows
-        // beneath it.
-        //
-        //       0                                     1                                           (n-1)
-        // 0 ->  (a[0][0] * a[1][0] * a[2][0]),        (a[0][1] * a[1][1] * a[2][1]),        ...., (a[0][n-1] *
-        // a[1][n-1] * a[2][n-1])
-        //
-        // pw -> (a[pw][0] * a[pw+1][0] * a[pw+2][0]), (a[pw][1] * a[pw+1][1] * a[pw+2][1]), ...., (a[pw][n-1] *
-        // a[pw+1][n-1] * a[pw+2][n-1])
-        //
-        // Note that pw = program_width
-        //
-        // Hereafter, we can compute
-        // coefficient_Lj = a[0][j]/a[pw][j]
-        //
-        // Naive way of computing these coefficients would result in n inversions, which is pretty expensive.
-        // Instead we use Montgomery's trick for batch inversion.
-        // Montgomery's trick documentation:
-        // ./src/barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp/L286
-#ifndef NO_MULTITHREADING
-#pragma omp for
-#endif
-        for (size_t j = 0; j < key->small_domain.num_threads; ++j) {
-            const size_t start = j * key->small_domain.thread_size;
-            const size_t end =
-                ((j + 1) * key->small_domain.thread_size) - ((j == key->small_domain.num_threads - 1) ? 1 : 0);
-            barretenberg::fr inversion_accumulator = fr::one();
-            constexpr size_t inversion_index = (program_width == 1) ? 2 : program_width * 2 - 1;
-            fr* inversion_coefficients = &accumulators[inversion_index][0];
-            for (size_t i = start; i < end; ++i) {
+    // step 3: concatenate together the accumulator elements into z(X)
+    //
+    // Update each element of the accumulator row a[0] to be the product of itself with the 'numerator' rows beneath
+    // it, and update each element of a[program_width] to be the product of itself with the 'denominator' rows
+    // beneath it.
+    //
+    //       0                                     1                                           (n-1)
+    // 0 ->  (a[0][0] * a[1][0] * a[2][0]),        (a[0][1] * a[1][1] * a[2][1]),        ...., (a[0][n-1] *
+    // a[1][n-1] * a[2][n-1])
+    //
+    // pw -> (a[pw][0] * a[pw+1][0] * a[pw+2][0]), (a[pw][1] * a[pw+1][1] * a[pw+2][1]), ...., (a[pw][n-1] *
+    // a[pw+1][n-1] * a[pw+2][n-1])
+    //
+    // Note that pw = program_width
+    //
+    // Hereafter, we can compute
+    // coefficient_Lj = a[0][j]/a[pw][j]
+    //
+    // Naive way of computing these coefficients would result in n inversions, which is pretty expensive.
+    // Instead we use Montgomery's trick for batch inversion.
+    // Montgomery's trick documentation:
+    // ./src/barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp/L286
+    parallel_for(key->small_domain.num_threads, [&](size_t j) {
+        const size_t start = j * key->small_domain.thread_size;
+        const size_t end =
+            ((j + 1) * key->small_domain.thread_size) - ((j == key->small_domain.num_threads - 1) ? 1 : 0);
+        barretenberg::fr inversion_accumulator = fr::one();
+        constexpr size_t inversion_index = (program_width == 1) ? 2 : program_width * 2 - 1;
+        fr* inversion_coefficients = &accumulators[inversion_index][0];
+        for (size_t i = start; i < end; ++i) {
 
-                for (size_t k = 1; k < program_width; ++k) {
-                    accumulators[0][i] *= accumulators[k][i];
-                    accumulators[program_width][i] *= accumulators[program_width + k][i];
-                }
-                inversion_coefficients[i] = accumulators[0][i] * inversion_accumulator;
-                inversion_accumulator *= accumulators[program_width][i];
+            for (size_t k = 1; k < program_width; ++k) {
+                accumulators[0][i] *= accumulators[k][i];
+                accumulators[program_width][i] *= accumulators[program_width + k][i];
             }
-            inversion_accumulator = inversion_accumulator.invert();
-            for (size_t i = end - 1; i != start - 1; --i) {
-
-                // N.B. accumulators[0][i] = z_perm[i + 1]
-                // We can avoid fully reducing z_perm[i + 1] as the inverse fft will take care of that for us
-                accumulators[0][i] = inversion_accumulator * inversion_coefficients[i];
-                inversion_accumulator *= accumulators[program_width][i];
-            }
+            inversion_coefficients[i] = accumulators[0][i] * inversion_accumulator;
+            inversion_accumulator *= accumulators[program_width][i];
         }
-    }
+        inversion_accumulator = inversion_accumulator.invert();
+        for (size_t i = end - 1; i != start - 1; --i) {
+
+            // N.B. accumulators[0][i] = z_perm[i + 1]
+            // We can avoid fully reducing z_perm[i + 1] as the inverse fft will take care of that for us
+            accumulators[0][i] = inversion_accumulator * inversion_coefficients[i];
+            inversion_accumulator *= accumulators[program_width][i];
+        }
+    });
 
     // Construct permutation polynomial 'z' in lagrange form as:
     // z = [1 accumulators[0][0] accumulators[0][1] ... accumulators[0][n-2]]
@@ -299,7 +298,8 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     // Note: The number of coefficients in the permutation polynomial z(X) is (n - k + 1) DOCTODO: elaborate on why.
     // (refer to Round 2 in the PLONK paper). Hence, if we cut 3 roots out of the vanishing polynomial,
     // we are left with only 2 places (coefficients) in the z array to add randomness. To have the last 3 places
-    // available for adding random scalars, we therefore need to cut at least 4 roots out of the vanishing polynomial.
+    // available for adding random scalars, we therefore need to cut at least 4 roots out of the vanishing
+    // polynomial.
     //
     // Since we have valid z coefficients in positions from 0 to (n - k), we can start adding random scalars
     // from position (n - k + 1) upto (n - k + 3).
@@ -315,15 +315,10 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
 
     z_perm.ifft(key->small_domain);
 
-    // free memory allocated for scratch space
-    for (size_t k = 0; k < num_accumulators; ++k) {
-        aligned_free(accumulators[k]);
-    }
-
     // Commit to z:
     queue.add_to_queue({
         work_queue::WorkType::SCALAR_MULTIPLICATION,
-        z_perm.get_coefficients(),
+        z_perm.data(),
         "Z_PERM",
         key->circuit_size,
         0,
@@ -374,22 +369,30 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     // (w_l(X) + β.σ_1(X) + γ).(w_r(X) + β.σ_2(X) + γ).(w_o(X) + β.σ_3(X) + γ).z(X).α
     // Once we divide by the vanishing polynomial, this will be a degree 3n polynomial. (4 * (n-1) - (n-4)).
 
-    std::array<std::span<const fr>, program_width> wire_ffts;
-    std::array<std::span<const fr>, program_width> sigma_ffts;
-    [[maybe_unused]] std::array<std::span<const fr>, program_width> id_ffts;
+    std::array<std::shared_ptr<fr[]>, program_width> wire_ffts_ptr;
+    std::array<std::shared_ptr<fr[]>, program_width> sigma_ffts_ptr;
+    [[maybe_unused]] std::array<std::shared_ptr<fr[]>, program_width> id_ffts_ptr;
+
+    std::array<fr*, program_width> wire_ffts;
+    std::array<fr*, program_width> sigma_ffts;
+    [[maybe_unused]] std::array<fr*, program_width> id_ffts;
 
     for (size_t i = 0; i < program_width; ++i) {
 
         // wire_fft[0] contains the fft of the wire polynomial w_1
         // sigma_fft[0] contains the fft of the permutation selector polynomial \sigma_1
-        wire_ffts[i] = key->polynomial_store.get("w_" + std::to_string(i + 1) + "_fft");
-        sigma_ffts[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_fft");
+        wire_ffts_ptr[i] = key->polynomial_store.get("w_" + std::to_string(i + 1) + "_fft").data();
+        sigma_ffts_ptr[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_fft").data();
+        wire_ffts[i] = wire_ffts_ptr[i].get();
+        sigma_ffts[i] = sigma_ffts_ptr[i].get();
 
         // idpolys is FALSE iff the "identity permutation" is used as a monomial
         // as a part of the permutation polynomial
         // <=> idpolys = FALSE
-        if constexpr (idpolys)
-            id_ffts[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_fft");
+        if constexpr (idpolys) {
+            id_ffts_ptr[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_fft").data();
+            id_ffts[i] = id_ffts_ptr[i].get();
+        }
     }
 
     // we start with lagrange polynomial L_1(X)
@@ -403,10 +406,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
 
     const size_t block_mask = key->large_domain.size - 1;
     // Step 4: Set the quotient polynomial to be equal to
-#ifndef NO_MULTITHREADING
-#pragma omp parallel for
-#endif
-    for (size_t j = 0; j < key->large_domain.num_threads; ++j) {
+    parallel_for(key->large_domain.num_threads, [&](size_t j) {
         const size_t start = j * key->large_domain.thread_size;
         const size_t end = (j + 1) * key->large_domain.thread_size;
 
@@ -474,14 +474,14 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
             // The α^3 term is so that we can subsume this polynomial into the quotient polynomial,
             // whilst ensuring the term is linearly independent form the other terms in the quotient polynomial
 
-            // We want to verify that z(X) equals `1` when evaluated at `ω_n`, the 'last' element of our multiplicative
-            // subgroup H. But PLONK's 'vanishing polynomial', Z*_H(X), isn't the true vanishing polynomial of subgroup
-            // H. We need to cut a root of unity out of Z*_H(X), specifically `ω_n`, for our grand product argument.
-            // When evaluating z(X) has been constructed correctly, we verify that z(X.ω).(identity permutation product)
-            // = z(X).(sigma permutation product), for all X \in H. But this relationship breaks down for X = ω_n,
-            // because z(X.ω) will evaluate to the *first* element of our grand product argument. The last element of
-            // z(X) has a dependency on the first element, so the first element cannot have a dependency on the last
-            // element.
+            // We want to verify that z(X) equals `1` when evaluated at `ω_n`, the 'last' element of our
+            // multiplicative subgroup H. But PLONK's 'vanishing polynomial', Z*_H(X), isn't the true vanishing
+            // polynomial of subgroup H. We need to cut a root of unity out of Z*_H(X), specifically `ω_n`, for our
+            // grand product argument. When evaluating z(X) has been constructed correctly, we verify that
+            // z(X.ω).(identity permutation product) = z(X).(sigma permutation product), for all X \in H. But this
+            // relationship breaks down for X = ω_n, because z(X.ω) will evaluate to the *first* element of our
+            // grand product argument. The last element of z(X) has a dependency on the first element, so the first
+            // element cannot have a dependency on the last element.
 
             // TODO: With the reduction from 2 z polynomials to a single z(X), the above no longer applies
             // TODO: Fix this to remove the (z(X.ω) - 1).L_{n-1}(X) check
@@ -514,7 +514,8 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
             // Step 2: Compute (z(X) - 1).(α^4).L1(X)
             // We need to verify that z(X) equals `1` when evaluated at the first element of our subgroup H
             // i.e. z(X) starts at 1 and ends at 1
-            // The `alpha^4` term is so that we can add this as a linearly independent term in our quotient polynomial
+            // The `alpha^4` term is so that we can add this as a linearly independent term in our quotient
+            // polynomial
             T0 = z_perm_fft[i] - fr(1); // T0 = (Z(X) - 1).(\alpha^2)
             T0 *= alpha_squared;        // T0 = (Z(X) - 1).(\alpha^4)
             T0 *= l_start[i];           // T0 = (Z(X) - 1).(\alpha^2).L1(X)
@@ -528,7 +529,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
             // Update our working root of unity
             cur_root_times_beta *= key->large_domain.root;
         }
-    }
+    });
     return alpha_base.sqr().sqr();
 }
 
@@ -544,18 +545,18 @@ VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishi
  * argument.
  *
  * @details Earlier in the life of this function was written, the linearization trick to reduce proof size was
- * implemented in Barretenberg. Using a boolean switch, the function could be used for in both the linearized protocol
- * (as described in the PlonK paper) and the naive protocol (which was called "unrolled" in the code) where a purported
- * value of the quotient polynomial is assembled from purported evaluations of all of the prover polynomials. To reduce
- * code complexity, we have subsequently remoted support for the linearized version, but for a variety of reasons we
- * have left the structure of this function largely intact.
+ * implemented in Barretenberg. Using a boolean switch, the function could be used for in both the linearized
+ * protocol (as described in the PlonK paper) and the naive protocol (which was called "unrolled" in the code) where
+ * a purported value of the quotient polynomial is assembled from purported evaluations of all of the prover
+ * polynomials. To reduce code complexity, we have subsequently remoted support for the linearized version, but for
+ * a variety of reasons we have left the structure of this function largely intact.
  *
  * @param key the verification key
  * @param alpha the quotient challenge (same name as in the Plonk paper)
  * @param transcript
  * @param  quotient_numerator_eval this will be mutated by this function.
- * @param idpolys describes whether we're using Vitalik's trick of using the trivial identity polys (idpolys=false), or
- *        whether the identity polys are circuit-specific and stored in the proving/verification key (idpolys=true).
+ * @param idpolys describes whether we're using Vitalik's trick of using the trivial identity polys (idpolys=false),
+ * or whether the identity polys are circuit-specific and stored in the proving/verification key (idpolys=true).
  */
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
 Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::

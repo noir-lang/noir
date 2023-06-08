@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"

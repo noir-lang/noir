@@ -11,8 +11,6 @@
 #
 # The docker executor uses a custom image build in `build_image`. It's specifically streamlined for fast download
 # with just enough tools to execute the build system, and launch EC2 instances etc.
-#
-# There are some `join` steps that are just noops. They are just used to produce cleaner graph rendering in CCI.
 
 version: 2.1
 
@@ -36,11 +34,6 @@ checkout: &checkout
       mkdir -p .ssh
       chmod 0700 .ssh
       ssh-keyscan -t rsa github.com >> .ssh/known_hosts
-
-      # A read only key for cloning the repository.
-      echo $GIT_CHECKOUT_KEY | base64 -d > .ssh/id_rsa
-
-      chmod 0600 .ssh/id_rsa
 
       # IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: build-system/remote_build/remote_build
       # Shallow checkout this commit.
@@ -246,6 +239,28 @@ jobs:
           name: "Test"
           command: store_test_benchmark_logs barretenberg-x86_64-linux-clang-assert
 
+  bb-js:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: build bb.js
+
+  bb-js-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests bb.js
+
   ###################################
   # Aztec integration tests
   circuits-wasm-linux-clang-builder-runner:
@@ -348,8 +363,16 @@ workflows:
               only:
                 - master
           <<: *defaults
+      - bb-js:
+          requires:
+            - wasm-linux-clang
+          <<: *defaults
+      - bb-js-tests:
+          requires:
+            - bb-js
+          <<: *defaults
       - circuits-wasm-linux-clang-builder-runner: *notmaster
-      - circuits-x86_64-linux-clang-builder-runner:  *notmaster
+      - circuits-x86_64-linux-clang-builder-runner: *notmaster
       - circuits-wasm-tests:
           requires:
             - circuits-wasm-linux-clang-builder-runner

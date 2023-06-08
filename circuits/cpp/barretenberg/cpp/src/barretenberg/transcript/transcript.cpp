@@ -94,7 +94,10 @@ Transcript::Transcript(const std::vector<uint8_t>& input_transcript,
     }
     // Check that the total required size is equal to the size of the input_transcript
     if (totalRequiredSize != input_transcript.size())
-        throw_or_abort("Serialized transcript does not contain the required number of bytes");
+        throw_or_abort(format("Serialized transcript does not contain the required number of bytes: ",
+                              totalRequiredSize,
+                              " != ",
+                              input_transcript.size()));
 
     for (size_t i = 0; i < num_rounds; ++i) {
         for (auto manifest_element : input_manifest.get_round_manifest(i).elements) {

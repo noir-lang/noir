@@ -116,6 +116,9 @@ class DebugEngine : public Engine {
     std::uniform_int_distribution<uint64_t> dist = std::uniform_int_distribution<uint64_t>{ 0ULL, UINT64_MAX };
 };
 
+/**
+ * Used by tests to ensure consistent behaviour.
+ */
 Engine& get_debug_engine(bool reset)
 {
     // static std::seed_seq seed({ 1, 2, 3, 4, 5 });
@@ -126,8 +129,12 @@ Engine& get_debug_engine(bool reset)
     return debug_engine;
 }
 
+/**
+ * Default engine. If wanting consistent proof construction, uncomment the line to return the debug engine.
+ */
 Engine& get_engine()
 {
+    // return get_debug_engine();
     static RandomEngine engine;
     return engine;
 }

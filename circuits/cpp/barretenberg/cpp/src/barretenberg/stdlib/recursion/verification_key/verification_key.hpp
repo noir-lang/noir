@@ -1,6 +1,6 @@
 #pragma once
 #include <map>
-#include "barretenberg/srs/reference_string/reference_string.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
@@ -178,6 +178,20 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
 };
 
 template <typename Composer> struct evaluation_domain {
+    static evaluation_domain from_field_elements(const std::vector<field_t<Composer>>& fields)
+    {
+        evaluation_domain domain;
+        domain.root = fields[0];
+
+        domain.root_inverse = domain.root.invert();
+        domain.domain = fields[1];
+        domain.domain_inverse = domain.domain.invert();
+        domain.generator = fields[2];
+        domain.generator_inverse = domain.generator.invert();
+        domain.size = domain.domain;
+        return domain;
+    }
+
     static evaluation_domain from_witness(Composer* ctx, const barretenberg::evaluation_domain& input)
     {
         evaluation_domain domain;
@@ -213,20 +227,63 @@ template <typename Composer> struct evaluation_domain {
     uint32<Composer> size;
 };
 
-/**
- * @brief Converts a 'native' verification key into a standard library type, instantiating the `input_key` parameter as
- * circuit variables. This allows the recursive verifier to accept arbitrary verification keys, where the circuit being
- * verified is not fixed as part of the recursive circuit.
- */
 template <typename Curve> struct verification_key {
     using Composer = typename Curve::Composer;
+
+    static std::shared_ptr<verification_key> from_field_elements(
+        Composer* ctx,
+        const std::vector<field_t<Composer>>& fields,
+        bool inner_proof_contains_recursive_proof = false,
+        std::array<uint32_t, 16> recursive_proof_public_input_indices = {})
+    {
+        std::vector<fr> fields_raw;
+        std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
+        key->context = ctx;
+
+        key->polynomial_manifest = PolynomialManifest(Composer::type);
+        key->domain = evaluation_domain<Composer>::from_field_elements({ fields[0], fields[1], fields[2] });
+
+        key->n = fields[3];
+        key->num_public_inputs = fields[4];
+
+        // NOTE: For now `contains_recursive_proof` and `recursive_proof_public_input_indices` need to be circuit
+        // constants!
+        key->contains_recursive_proof = inner_proof_contains_recursive_proof;
+        for (size_t i = 0; i < 16; ++i) {
+            auto x = recursive_proof_public_input_indices[i];
+            key->recursive_proof_public_input_indices.emplace_back(x);
+        }
+
+        size_t count = 22;
+        for (const auto& descriptor : key->polynomial_manifest.get()) {
+            if (descriptor.source == PolynomialSource::SELECTOR || descriptor.source == PolynomialSource::PERMUTATION) {
+
+                const auto x_lo = fields[count++];
+                const auto x_hi = fields[count++];
+                const auto y_lo = fields[count++];
+                const auto y_hi = fields[count++];
+                const typename Curve::fq_ct x(x_lo, x_hi);
+                const typename Curve::fq_ct y(y_lo, y_hi);
+                const typename Curve::g1_ct element(x, y);
+
+                key->commitments.insert({ std::string(descriptor.commitment_label), element });
+            }
+        }
+
+        return key;
+    }
+
+    /**
+     * @brief Converts a 'native' verification key into a standard library type, instantiating the `input_key` parameter
+     * as circuit variables. This allows the recursive verifier to accept arbitrary verification keys, where the circuit
+     * being verified is not fixed as part of the recursive circuit.
+     */
     static std::shared_ptr<verification_key> from_witness(Composer* ctx,
                                                           const std::shared_ptr<plonk::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         // Native data:
         key->context = ctx;
-        key->base_key = input_key;
         key->reference_string = input_key->reference_string;
         key->polynomial_manifest = input_key->polynomial_manifest;
 
@@ -234,7 +291,8 @@ template <typename Curve> struct verification_key {
         key->n = witness_t<Composer>(ctx, barretenberg::fr(input_key->circuit_size));
         key->num_public_inputs = witness_t<Composer>(ctx, input_key->num_public_inputs);
         key->domain = evaluation_domain<Composer>::from_witness(ctx, input_key->domain);
-        key->contains_recursive_proof = witness_t<Composer>(ctx, input_key->contains_recursive_proof);
+        key->contains_recursive_proof = input_key->contains_recursive_proof;
+        key->recursive_proof_public_input_indices = input_key->recursive_proof_public_input_indices;
         for (const auto& [tag, value] : input_key->commitments) {
             // We do not perform on_curve() circuit checks when constructing the Curve::g1_ct element.
             // The assumption is that the circuit creator is honest and that the verification key hash (or some other
@@ -254,19 +312,18 @@ template <typename Curve> struct verification_key {
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
-        key->base_key = input_key;
         key->n = field_t<Composer>(ctx, input_key->circuit_size);
         key->num_public_inputs = field_t<Composer>(ctx, input_key->num_public_inputs);
-        key->contains_recursive_proof = bool_t<Composer>(ctx, input_key->contains_recursive_proof);
+        key->contains_recursive_proof = input_key->contains_recursive_proof;
+        key->recursive_proof_public_input_indices = input_key->recursive_proof_public_input_indices;
 
         key->domain = evaluation_domain<Composer>::from_constants(ctx, input_key->domain);
-
-        key->reference_string = input_key->reference_string;
 
         for (const auto& [tag, value] : input_key->commitments) {
             key->commitments.insert({ tag, typename Curve::g1_ct(value) });
         }
 
+        key->reference_string = input_key->reference_string;
         key->polynomial_manifest = input_key->polynomial_manifest;
 
         return key;
@@ -380,23 +437,19 @@ template <typename Curve> struct verification_key {
     field_t<Composer> num_public_inputs;
     field_t<Composer> z_pow_n;
 
-    // NOTE: This does not strictly need to be a circuit type. It can be used to check in the circuit
-    // if a proof contains any aggregated state.
-    bool_t<Composer> contains_recursive_proof;
-
     evaluation_domain<Composer> domain;
 
     std::map<std::string, typename Curve::g1_ct> commitments;
 
     // Native data:
 
-    std::shared_ptr<VerifierReferenceString> reference_string;
+    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> reference_string;
 
     PolynomialManifest polynomial_manifest;
-
+    // Used to check in the circuit if a proof contains any aggregated state.
+    bool contains_recursive_proof = false;
+    std::vector<uint32_t> recursive_proof_public_input_indices;
     size_t program_width = 4;
-
-    std::shared_ptr<plonk::verification_key> base_key;
     Composer* context;
 };
 

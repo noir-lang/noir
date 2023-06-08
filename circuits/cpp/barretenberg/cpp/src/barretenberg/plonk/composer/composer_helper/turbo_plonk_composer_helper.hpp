@@ -3,7 +3,7 @@
 #include "barretenberg/plonk/flavor/flavor.hpp"
 #include "barretenberg/plonk/composer/composer_helper/composer_helper_lib.hpp"
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
@@ -22,21 +22,21 @@ class TurboPlonkComposerHelper {
 
     // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
     // at all
-    std::shared_ptr<ReferenceStringFactory> crs_factory_;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
 
     bool computed_witness = false;
     TurboPlonkComposerHelper()
-        : TurboPlonkComposerHelper(std::shared_ptr<ReferenceStringFactory>(
-              new proof_system::FileReferenceStringFactory("../srs_db/ignition")))
+        : TurboPlonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory>(
+              new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition")))
     {}
 
-    TurboPlonkComposerHelper(std::shared_ptr<ReferenceStringFactory> crs_factory)
+    TurboPlonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
-    TurboPlonkComposerHelper(std::unique_ptr<ReferenceStringFactory>&& crs_factory)
+    TurboPlonkComposerHelper(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
     TurboPlonkComposerHelper(std::shared_ptr<plonk::proving_key> p_key, std::shared_ptr<plonk::verification_key> v_key)

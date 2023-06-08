@@ -1,9 +1,9 @@
 #include <chrono>
 #include "barretenberg/common/assert.hpp"
 #include <cstdlib>
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
 // #include <valgrind/callgrind.h>
@@ -42,7 +42,8 @@ constexpr size_t NUM_POINTS = 1 << 16;
 std::vector<fr> scalars;
 static barretenberg::evaluation_domain small_domain;
 static barretenberg::evaluation_domain large_domain;
-auto reference_string = std::make_shared<proof_system::FileReferenceString>(NUM_POINTS, "../srs_db/ignition");
+auto reference_string =
+    std::make_shared<barretenberg::srs::factories::FileProverCrs<curve::BN254>>(NUM_POINTS, "../srs_db/ignition");
 
 const auto init = []() {
     small_domain = barretenberg::evaluation_domain(NUM_POINTS);

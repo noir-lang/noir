@@ -24,6 +24,11 @@
 namespace barretenberg {
 template <class Params> struct alignas(32) field {
   public:
+    typedef uint8_t const* in_buf;
+    typedef uint8_t const* vec_in_buf;
+    typedef uint8_t* out_buf;
+    typedef uint8_t** vec_out_buf;
+
     // We don't initialize data in the default constructor since we'd lose a lot of time on huge array initializations.
     // Other alternatives have been noted, such as casting to get around constructors where they matter,
     // however it is felt that sanitizer tools (e.g. MSAN) can detect garbage well, whereas doing

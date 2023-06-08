@@ -1111,7 +1111,7 @@ TEST(polynomials, factor_roots)
         EXPECT_EQ(roots_eval * q_t, p_t);
 
         for (size_t i = N - NUM_ROOTS; i < N; ++i) {
-            EXPECT_EQ(quotient.coefficients_[i], fr::zero());
+            EXPECT_EQ(quotient[i], fr::zero());
         }
         if (NUM_ROOTS == 0) {
             EXPECT_EQ(poly, quotient);
@@ -1144,17 +1144,15 @@ TEST(polynomials, move_construct_and_assign)
     polynomial polynomial_b(std::move(polynomial_a));
 
     // verifiy that source poly is appropriately destroyed
-    EXPECT_EQ(polynomial_a.coefficients_, nullptr);
+    EXPECT_EQ(polynomial_a.begin(), nullptr);
     EXPECT_EQ(polynomial_a.size(), 0);
-    EXPECT_EQ(polynomial_a.mapped_, false);
 
     // construct another poly; this will also use the move constructor!
     auto polynomial_c = std::move(polynomial_b);
 
     // verifiy that source poly is appropriately destroyed
-    EXPECT_EQ(polynomial_b.coefficients_, nullptr);
+    EXPECT_EQ(polynomial_b.begin(), nullptr);
     EXPECT_EQ(polynomial_b.size(), 0);
-    EXPECT_EQ(polynomial_b.mapped_, false);
 
     // define a poly with some arbitrary coefficients
     polynomial polynomial_d(num_coeffs);
@@ -1166,9 +1164,8 @@ TEST(polynomials, move_construct_and_assign)
     polynomial_d = std::move(polynomial_c);
 
     // verifiy that source poly is appropriately destroyed
-    EXPECT_EQ(polynomial_c.coefficients_, nullptr);
+    EXPECT_EQ(polynomial_c.begin(), nullptr);
     EXPECT_EQ(polynomial_c.size(), 0);
-    EXPECT_EQ(polynomial_c.mapped_, false);
 }
 
 TEST(polynomials, default_construct_then_assign)

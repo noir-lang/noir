@@ -78,11 +78,16 @@ template <typename Curve> struct affine_product_runtime_state {
 };
 
 template <typename Curve> struct pippenger_runtime_state {
+    std::shared_ptr<void> point_schedule_ptr;
+    std::shared_ptr<void> point_pairs_1_ptr;
+    std::shared_ptr<void> point_pairs_2_ptr;
+    std::shared_ptr<void> scratch_space_ptr;
     uint64_t* point_schedule;
-    bool* skew_table;
     typename Curve::AffineElement* point_pairs_1;
     typename Curve::AffineElement* point_pairs_2;
     typename Curve::BaseField* scratch_space;
+
+    bool* skew_table;
     uint32_t* bucket_counts;
     uint32_t* bit_counts;
     bool* bucket_empty_status;

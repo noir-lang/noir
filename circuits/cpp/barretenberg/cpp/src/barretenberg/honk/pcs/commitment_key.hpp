@@ -7,9 +7,11 @@
  * as carrying out any modification to the SRS (e.g compute pippenger point table) to simplify the codebase.
  */
 
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/numeric/bitop/pow.hpp"
@@ -50,9 +52,10 @@ struct Params {
          * @param path
          *
          */
-        CommitmentKey(const size_t num_points, std::string_view path)
+        CommitmentKey(const size_t num_points,
+                      std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> prover_crs)
             : pippenger_runtime_state(num_points)
-            , srs(num_points, std::string(path))
+            , srs(prover_crs)
         {}
 
         /**
@@ -64,13 +67,13 @@ struct Params {
         Commitment commit(std::span<const Fr> polynomial)
         {
             const size_t degree = polynomial.size();
-            ASSERT(degree <= srs.get_monomial_size());
+            ASSERT(degree <= srs->get_monomial_size());
             return barretenberg::scalar_multiplication::pippenger_unsafe<curve::BN254>(
-                const_cast<Fr*>(polynomial.data()), srs.get_monomial_points(), degree, pippenger_runtime_state);
+                const_cast<Fr*>(polynomial.data()), srs->get_monomial_points(), degree, pippenger_runtime_state);
         };
 
         barretenberg::scalar_multiplication::pippenger_runtime_state<curve::BN254> pippenger_runtime_state;
-        proof_system::FileReferenceString srs;
+        std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> srs;
     };
 
     class VerificationKey {
@@ -84,9 +87,9 @@ struct Params {
          * @param num_points
          * @param verifier_srs verifier G2 point
          */
-        VerificationKey(size_t num_points, std::string_view path)
+        VerificationKey(size_t num_points, std::shared_ptr<barretenberg::srs::factories::VerifierCrs> verifier_crs)
             : pippenger_runtime_state(num_points)
-            , verifier_srs(std::string(path))
+            , verifier_srs(verifier_crs)
         {}
 
         /**
@@ -102,13 +105,13 @@ struct Params {
             // The final pairing check of step 12.
             // TODO(Adrian): try to template parametrise the pairing + fq12 output :/
             barretenberg::fq12 result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
-                pairing_points, verifier_srs.get_precomputed_g2_lines(), 2);
+                pairing_points, verifier_srs->get_precomputed_g2_lines(), 2);
 
             return (result == barretenberg::fq12::one());
         }
 
         barretenberg::scalar_multiplication::pippenger_runtime_state<curve::BN254> pippenger_runtime_state;
-        proof_system::VerifierFileReferenceString verifier_srs;
+        std::shared_ptr<barretenberg::srs::factories::VerifierCrs> verifier_srs;
     };
 };
 
@@ -198,9 +201,10 @@ struct Params {
          * @param path
          *
          */
-        CommitmentKey(const size_t num_points, std::string_view path)
+        CommitmentKey(const size_t num_points,
+                      std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> prover_crs)
             : pippenger_runtime_state(num_points)
-            , srs(num_points, std::string(path))
+            , srs(prover_crs)
         {}
 
         /**
@@ -212,13 +216,13 @@ struct Params {
         Commitment commit(std::span<const Fr> polynomial)
         {
             const size_t degree = polynomial.size();
-            ASSERT(degree <= srs.get_monomial_size());
+            ASSERT(degree <= srs->get_monomial_size());
             return barretenberg::scalar_multiplication::pippenger_unsafe<curve::BN254>(
-                const_cast<Fr*>(polynomial.data()), srs.get_monomial_points(), degree, pippenger_runtime_state);
+                const_cast<Fr*>(polynomial.data()), srs->get_monomial_points(), degree, pippenger_runtime_state);
         };
 
         barretenberg::scalar_multiplication::pippenger_runtime_state<curve::BN254> pippenger_runtime_state;
-        proof_system::FileReferenceString srs;
+        std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> srs;
     };
 
     class VerificationKey {
@@ -232,13 +236,14 @@ struct Params {
          * @param num_points specifies the length of the SRS
          * @param path is the location to the SRS file
          */
-        VerificationKey(const size_t num_points, std::string_view path)
+        VerificationKey(const size_t num_points,
+                        std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> crs)
             : pippenger_runtime_state(num_points)
-            , srs(num_points, std::string(path))
+            , srs(crs)
         {}
 
         barretenberg::scalar_multiplication::pippenger_runtime_state<curve::BN254> pippenger_runtime_state;
-        proof_system::FileReferenceString srs;
+        std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> srs;
     };
 };
 

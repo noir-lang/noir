@@ -1,7 +1,7 @@
 #pragma once
 
 #include <utility>
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/proof_system/verifier.hpp"
 #include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
@@ -26,18 +26,18 @@ class StandardHonkComposerHelper {
     std::shared_ptr<VerificationKey> verification_key;
     // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
     // at all
-    std::shared_ptr<ReferenceStringFactory> crs_factory_;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
     bool computed_witness = false;
     // TODO(Luke): use make_shared
     StandardHonkComposerHelper()
-        : StandardHonkComposerHelper(std::shared_ptr<ReferenceStringFactory>(
-              new proof_system::FileReferenceStringFactory("../srs_db/ignition")))
+        : StandardHonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory>(
+              new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition")))
     {}
-    StandardHonkComposerHelper(std::shared_ptr<ReferenceStringFactory> crs_factory)
+    StandardHonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
-    StandardHonkComposerHelper(std::unique_ptr<ReferenceStringFactory>&& crs_factory)
+    StandardHonkComposerHelper(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
     StandardHonkComposerHelper(std::shared_ptr<ProvingKey> p_key, std::shared_ptr<VerificationKey> v_key)

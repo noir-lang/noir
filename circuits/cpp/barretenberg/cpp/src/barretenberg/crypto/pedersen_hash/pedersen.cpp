@@ -1,7 +1,6 @@
 #include "./pedersen.hpp"
-#include "barretenberg/common/throw_or_abort.hpp"
 #include <iostream>
-#ifndef NO_MULTITHREADING
+#ifndef NO_OMP_MULTITHREADING
 #include <omp.h>
 #endif
 
@@ -50,7 +49,7 @@ grumpkin::fq hash_multiple(const std::vector<grumpkin::fq>& inputs, const size_t
     ASSERT((inputs.size() < (1 << 16)) && "too many inputs for 16 bit index");
     std::vector<grumpkin::g1::element> out(inputs.size());
 
-#ifndef NO_MULTITHREADING
+#ifndef NO_OMP_MULTITHREADING
     // Ensure generator data is initialized before threading...
     init_generator_data();
 #pragma omp parallel for num_threads(inputs.size())

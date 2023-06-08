@@ -4,7 +4,7 @@
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
 #include "barretenberg/proof_system/composer/permutation_helper.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
-#include "barretenberg/srs/reference_string/reference_string.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
 
 namespace proof_system::test_composer_lib {
 
@@ -13,7 +13,7 @@ class PermutationHelperTests : public ::testing::Test {
     using Flavor = honk::flavor::Standard;
     using FF = typename Flavor::FF;
     Flavor::CircuitConstructor circuit_constructor;
-    ReferenceStringFactory crs_factory = ReferenceStringFactory();
+    barretenberg::srs::factories::CrsFactory crs_factory = barretenberg::srs::factories::CrsFactory();
     std::shared_ptr<Flavor::ProvingKey> proving_key;
 
     virtual void SetUp()

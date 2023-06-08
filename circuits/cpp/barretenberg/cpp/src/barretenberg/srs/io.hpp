@@ -7,7 +7,7 @@
 #include <string>
 #include <sys/stat.h>
 
-namespace srs {
+namespace barretenberg::srs {
 /**
  * @brief The manifest structure holds the header of a transcript file
  *
@@ -428,4 +428,4 @@ template <typename Curve> class IO {
     }
 };
 
-} // namespace srs
+} // namespace barretenberg::srs

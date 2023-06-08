@@ -7,6 +7,7 @@
 #include "barretenberg/honk/transcript/transcript.hpp"
 
 #include "barretenberg/common/assert.hpp"
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -110,7 +111,7 @@ template <typename Params> class MultilinearReductionScheme {
         // A_l = Aₗ(X) is the polynomial being folded
         // in the first iteration, we take the batched polynomial
         // in the next iteration, it is the previously folded one
-        Fr* A_l = A_0.get_coefficients();
+        auto A_l = A_0.data();
         for (size_t l = 0; l < num_variables - 1; ++l) {
             const Fr u_l = mle_opening_point[l];
 
@@ -118,10 +119,10 @@ template <typename Params> class MultilinearReductionScheme {
             const size_t n_l = 1 << (num_variables - l - 1);
 
             // A_l_fold = Aₗ₊₁(X) = (1-uₗ)⋅even(Aₗ)(X) + uₗ⋅odd(Aₗ)(X)
-            Fr* A_l_fold = fold_polynomials.emplace_back(Polynomial(n_l)).get_coefficients();
+            auto A_l_fold = fold_polynomials.emplace_back(Polynomial(n_l)).data();
 
             // fold the previous polynomial with odd and even parts
-            for (size_t i = 0; i < n_l; ++i) {
+            for (std::ptrdiff_t i = 0; i < (std::ptrdiff_t)n_l; ++i) {
                 // TODO(#219)(Adrian) parallelize
 
                 // fold(Aₗ)[i] = (1-uₗ)⋅even(Aₗ)[i] + uₗ⋅odd(Aₗ)[i]

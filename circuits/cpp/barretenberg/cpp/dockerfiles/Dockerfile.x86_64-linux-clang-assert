@@ -1,9 +1,9 @@
-FROM alpine:3.17 AS builder
+FROM alpine:3.18 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
         build-base \
-        clang15 \
+        clang16 \
         openmp-dev \
         cmake \
         ninja \
@@ -18,7 +18,7 @@ COPY . .
 RUN cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --build --preset default
 RUN cd build && ./bin/grumpkin_srs_gen 1048576 && cd ../
 
-FROM alpine:3.17
+FROM alpine:3.18
 RUN apk update && apk add curl openmp
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin/*_tests /usr/src/barretenberg/cpp/build/bin/

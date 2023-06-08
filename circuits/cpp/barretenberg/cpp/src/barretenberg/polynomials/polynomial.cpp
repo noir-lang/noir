@@ -1,15 +1,15 @@
 #include "polynomial.hpp"
 #include "polynomial_arithmetic.hpp"
 #include "barretenberg/common/assert.hpp"
-#include "barretenberg/common/mem.hpp"
-#include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/common/slab_allocator.hpp"
 #include <cstddef>
+#include <memory>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unordered_map>
 #include <utility>
-#ifndef __wasm__
-#include <sys/mman.h>
-#endif
+#include <list>
+#include <mutex>
 
 namespace barretenberg {
 
@@ -17,46 +17,32 @@ namespace barretenberg {
  * Constructors / Destructors
  **/
 template <typename Fr>
-Polynomial<Fr>::Polynomial(std::string const& filename)
-    : mapped_(true)
-{
-    struct stat st;
-    if (stat(filename.c_str(), &st) != 0) {
-        throw_or_abort("Filename not found: " + filename);
-    }
-    size_t len = (size_t)st.st_size;
-    size_ = len / sizeof(Fr);
-    int fd = open(filename.c_str(), O_RDONLY);
-#ifndef __wasm__
-    coefficients_ = (Fr*)mmap(0, len, PROT_READ, MAP_PRIVATE, fd, 0);
-#else
-    coefficients_ = allocate_aligned_memory(len);
-    ::read(fd, (void*)coefficients_, len);
-#endif
-    close(fd);
-}
-
-template <typename Fr>
 Polynomial<Fr>::Polynomial(const size_t size_)
     : coefficients_(nullptr)
     , size_(size_)
-    , mapped_(false)
 {
     if (capacity() > 0) {
         coefficients_ = allocate_aligned_memory(sizeof(Fr) * capacity());
     }
-    memset(static_cast<void*>(coefficients_), 0, sizeof(Fr) * capacity());
+    memset(static_cast<void*>(coefficients_.get()), 0, sizeof(Fr) * capacity());
 }
+
+template <typename Fr>
+Polynomial<Fr>::Polynomial(const Polynomial<Fr>& other)
+    : Polynomial<Fr>(other, other.size())
+{}
 
 template <typename Fr>
 Polynomial<Fr>::Polynomial(const Polynomial<Fr>& other, const size_t target_size)
     : size_(std::max(target_size, other.size()))
-    , mapped_(false)
 {
+    // info("Polynomial EXPENSIVE Copy ctor size ", size_);
     coefficients_ = allocate_aligned_memory(sizeof(Fr) * capacity());
 
     if (other.coefficients_ != nullptr) {
-        memcpy(static_cast<void*>(coefficients_), static_cast<void*>(other.coefficients_), sizeof(Fr) * other.size_);
+        memcpy(static_cast<void*>(coefficients_.get()),
+               static_cast<void*>(other.coefficients_.get()),
+               sizeof(Fr) * other.size_);
     }
     zero_memory_beyond(other.size_);
 }
@@ -65,30 +51,50 @@ template <typename Fr>
 Polynomial<Fr>::Polynomial(Polynomial<Fr>&& other) noexcept
     : coefficients_(std::exchange(other.coefficients_, nullptr))
     , size_(std::exchange(other.size_, 0))
-    , mapped_(std::exchange(other.mapped_, false))
-{}
+{
+    // info("Move ctor Polynomial took ownership of ", coefficients_, " size ", size_);
+}
 
 template <typename Fr>
-Polynomial<Fr>::Polynomial(Fr* buf, const size_t size_)
-    : coefficients_(buf)
-    , size_(size_)
-    , mapped_(false)
-{}
+Polynomial<Fr>::Polynomial(std::span<const Fr> coefficients)
+    : size_(coefficients.size())
+{
+    coefficients_ = allocate_aligned_memory(sizeof(Fr) * capacity());
+    // info("Polynomial span ctor new buf at ", coefficients_, " size ", size_);
+    memcpy(static_cast<void*>(coefficients_.get()),
+           static_cast<void const*>(coefficients.data()),
+           sizeof(Fr) * coefficients.size());
+}
+
+template <typename Fr>
+Polynomial<Fr>::Polynomial(std::span<const Fr> interpolation_points, std::span<const Fr> evaluations)
+    : Polynomial(interpolation_points.size())
+{
+    ASSERT(size_ > 0);
+
+    // info("Polynomial INTERPOLATION ctor.");
+
+    polynomial_arithmetic::compute_efficient_interpolation(
+        evaluations.data(), coefficients_.get(), interpolation_points.data(), size_);
+}
+
+template <typename Fr> Polynomial<Fr>::~Polynomial() {}
+
+// Assignments
 
 template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator=(const Polynomial<Fr>& other)
 {
-    if (is_empty()) {
-        size_ = other.size();
-        coefficients_ = allocate_aligned_memory(sizeof(Fr) * other.capacity());
-    }
+    // info("Polynomial EXPENSIVE copy assignment.");
+    size_ = other.size_;
 
-    ASSERT(in_place_operation_viable(other.size_));
-    zero_memory_beyond(other.size_);
+    coefficients_ = allocate_aligned_memory(sizeof(Fr) * capacity());
 
     if (other.coefficients_ != nullptr) {
-        memcpy(static_cast<void*>(coefficients_), static_cast<void*>(other.coefficients_), sizeof(Fr) * other.size_);
+        memcpy(static_cast<void*>(coefficients_.get()),
+               static_cast<void*>(other.coefficients_.get()),
+               sizeof(Fr) * other.size_);
     }
-
+    zero_memory_beyond(size_);
     return *this;
 }
 
@@ -97,31 +103,25 @@ template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator=(Polynomial&& ot
     if (&other == this) {
         return *this;
     }
-    free();
 
+    // info("Polynomial move assignment.");
     // simultaneously set members and clear other
     coefficients_ = std::exchange(other.coefficients_, nullptr);
     size_ = std::exchange(other.size_, 0);
-    mapped_ = std::exchange(other.mapped_, false);
 
     return *this;
-}
-
-template <typename Fr> Polynomial<Fr>::~Polynomial()
-{
-    free();
 }
 
 // #######
 
 template <typename Fr> Fr Polynomial<Fr>::evaluate(const Fr& z, const size_t target_size) const
 {
-    return polynomial_arithmetic::evaluate(coefficients_, z, target_size);
+    return polynomial_arithmetic::evaluate(coefficients_.get(), z, target_size);
 }
 
 template <typename Fr> Fr Polynomial<Fr>::evaluate(const Fr& z) const
 {
-    return polynomial_arithmetic::evaluate(coefficients_, z, size_);
+    return polynomial_arithmetic::evaluate(coefficients_.get(), z, size_);
 }
 
 /**
@@ -142,24 +142,8 @@ template <typename Fr> void Polynomial<Fr>::zero_memory_beyond(const size_t star
     size_t delta = end - start_position;
     if (delta > 0) {
         ASSERT(coefficients_);
-        memset(static_cast<void*>(&coefficients_[start_position]), 0, sizeof(Fr) * delta);
+        memset(static_cast<void*>(&coefficients_.get()[start_position]), 0, sizeof(Fr) * delta);
     }
-}
-
-template <typename Fr> void Polynomial<Fr>::free()
-{
-    if (coefficients_ != nullptr) {
-#ifndef __wasm__
-        if (mapped_) {
-            munmap(coefficients_, size_ * sizeof(Fr));
-        } else {
-            aligned_free(coefficients_);
-        }
-#else
-        aligned_free(coefficients_);
-#endif
-    }
-    coefficients_ = nullptr;
 }
 
 /**
@@ -171,7 +155,7 @@ template <typename Fr> void Polynomial<Fr>::fft(const EvaluationDomain<Fr>& doma
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::fft(coefficients_, domain);
+    polynomial_arithmetic::fft(coefficients_.get(), domain);
 }
 
 template <typename Fr> void Polynomial<Fr>::partial_fft(const EvaluationDomain<Fr>& domain, Fr constant, bool is_coset)
@@ -179,7 +163,7 @@ template <typename Fr> void Polynomial<Fr>::partial_fft(const EvaluationDomain<F
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::partial_fft(coefficients_, domain, constant, is_coset);
+    polynomial_arithmetic::partial_fft(coefficients_.get(), domain, constant, is_coset);
 }
 
 template <typename Fr> void Polynomial<Fr>::coset_fft(const EvaluationDomain<Fr>& domain)
@@ -187,7 +171,7 @@ template <typename Fr> void Polynomial<Fr>::coset_fft(const EvaluationDomain<Fr>
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::coset_fft(coefficients_, domain);
+    polynomial_arithmetic::coset_fft(coefficients_.get(), domain);
 }
 
 template <typename Fr>
@@ -200,7 +184,7 @@ void Polynomial<Fr>::coset_fft(const EvaluationDomain<Fr>& domain,
     ASSERT(in_place_operation_viable(extended_size));
     zero_memory_beyond(extended_size);
 
-    polynomial_arithmetic::coset_fft(coefficients_, domain, large_domain, domain_extension);
+    polynomial_arithmetic::coset_fft(coefficients_.get(), domain, large_domain, domain_extension);
 }
 
 template <typename Fr>
@@ -209,7 +193,7 @@ void Polynomial<Fr>::coset_fft_with_constant(const EvaluationDomain<Fr>& domain,
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::coset_fft_with_constant(coefficients_, domain, constant);
+    polynomial_arithmetic::coset_fft_with_constant(coefficients_.get(), domain, constant);
 }
 
 template <typename Fr>
@@ -218,7 +202,7 @@ void Polynomial<Fr>::coset_fft_with_generator_shift(const EvaluationDomain<Fr>& 
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::coset_fft_with_generator_shift(coefficients_, domain, constant);
+    polynomial_arithmetic::coset_fft_with_generator_shift(coefficients_.get(), domain, constant);
 }
 
 template <typename Fr> void Polynomial<Fr>::ifft(const EvaluationDomain<Fr>& domain)
@@ -226,7 +210,7 @@ template <typename Fr> void Polynomial<Fr>::ifft(const EvaluationDomain<Fr>& dom
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::ifft(coefficients_, domain);
+    polynomial_arithmetic::ifft(coefficients_.get(), domain);
 }
 
 template <typename Fr> void Polynomial<Fr>::ifft_with_constant(const EvaluationDomain<Fr>& domain, const Fr& constant)
@@ -234,7 +218,7 @@ template <typename Fr> void Polynomial<Fr>::ifft_with_constant(const EvaluationD
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::ifft_with_constant(coefficients_, domain, constant);
+    polynomial_arithmetic::ifft_with_constant(coefficients_.get(), domain, constant);
 }
 
 template <typename Fr> void Polynomial<Fr>::coset_ifft(const EvaluationDomain<Fr>& domain)
@@ -242,18 +226,18 @@ template <typename Fr> void Polynomial<Fr>::coset_ifft(const EvaluationDomain<Fr
     ASSERT(in_place_operation_viable(domain.size));
     zero_memory_beyond(domain.size);
 
-    polynomial_arithmetic::coset_ifft(coefficients_, domain);
+    polynomial_arithmetic::coset_ifft(coefficients_.get(), domain);
 }
 
 template <typename Fr> Fr Polynomial<Fr>::compute_kate_opening_coefficients(const Fr& z)
 {
-    return polynomial_arithmetic::compute_kate_opening_coefficients(coefficients_, coefficients_, z, size_);
+    return polynomial_arithmetic::compute_kate_opening_coefficients(coefficients_.get(), coefficients_.get(), z, size_);
 }
 
 template <typename Fr>
 Fr Polynomial<Fr>::compute_barycentric_evaluation(const Fr& z, const EvaluationDomain<Fr>& domain)
 {
-    return polynomial_arithmetic::compute_barycentric_evaluation(coefficients_, domain.size, z, domain);
+    return polynomial_arithmetic::compute_barycentric_evaluation(coefficients_.get(), domain.size, z, domain);
 }
 
 template <typename Fr>
@@ -261,17 +245,7 @@ Fr Polynomial<Fr>::evaluate_from_fft(const EvaluationDomain<Fr>& large_domain,
                                      const Fr& z,
                                      const EvaluationDomain<Fr>& small_domain)
 {
-    return polynomial_arithmetic::evaluate_from_fft(coefficients_, large_domain, z, small_domain);
-}
-
-template <typename Fr>
-Polynomial<Fr>::Polynomial(std::span<const Fr> interpolation_points, std::span<const Fr> evaluations)
-    : Polynomial(interpolation_points.size())
-{
-    ASSERT(size_ > 0);
-
-    polynomial_arithmetic::compute_efficient_interpolation(
-        evaluations.data(), coefficients_, interpolation_points.data(), size_);
+    return polynomial_arithmetic::evaluate_from_fft(coefficients_.get(), large_domain, z, small_domain);
 }
 
 template <typename Fr> void Polynomial<Fr>::add_scaled(std::span<const Fr> other, Fr scaling_factor)
@@ -283,7 +257,7 @@ template <typename Fr> void Polynomial<Fr>::add_scaled(std::span<const Fr> other
      *  we really only need to know the thread size, but we don't need all the FFT roots
      */
     for (size_t i = 0; i < other_size; ++i) {
-        coefficients_[i] += scaling_factor * other[i];
+        coefficients_.get()[i] += scaling_factor * other[i];
     }
 }
 
@@ -296,7 +270,7 @@ template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator+=(std::span<cons
      *  we really only need to know the thread size, but we don't need all the FFT roots
      */
     for (size_t i = 0; i < other_size; ++i) {
-        coefficients_[i] += other[i];
+        coefficients_.get()[i] += other[i];
     }
 
     return *this;
@@ -311,7 +285,7 @@ template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator-=(std::span<cons
      *  we really only need to know the thread size, but we don't need all the FFT roots
      */
     for (size_t i = 0; i < other_size; ++i) {
-        coefficients_[i] -= other[i];
+        coefficients_.get()[i] -= other[i];
     }
 
     return *this;
@@ -322,7 +296,7 @@ template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator*=(const Fr scali
     ASSERT(in_place_operation_viable());
 
     for (size_t i = 0; i < size_; ++i) {
-        coefficients_[i] *= scaling_facor;
+        coefficients_.get()[i] *= scaling_facor;
     }
     return *this;
 }
@@ -341,9 +315,10 @@ template <typename Fr> Fr Polynomial<Fr>::evaluate_mle(std::span<const Fr> evalu
     size_t n_l = 1 << (m - 1);
 
     // temporary buffer of half the size of the polynomial
-    Fr* tmp = allocate_aligned_memory(sizeof(Fr) * n_l);
+    pointer tmp_ptr = allocate_aligned_memory(sizeof(Fr) * n_l);
+    auto tmp = tmp_ptr.get();
 
-    Fr* prev = coefficients_;
+    Fr* prev = coefficients_.get();
     if (shift) {
         ASSERT(prev[0] == Fr::zero());
         prev++;
@@ -363,9 +338,12 @@ template <typename Fr> Fr Polynomial<Fr>::evaluate_mle(std::span<const Fr> evalu
         }
     }
     Fr result = tmp[0];
-    // free the temporary buffer
-    aligned_free(tmp);
     return result;
+}
+
+template <typename Fr> typename Polynomial<Fr>::pointer Polynomial<Fr>::allocate_aligned_memory(const size_t size) const
+{
+    return std::static_pointer_cast<Fr[]>(get_mem_slab(size));
 }
 
 template class Polynomial<barretenberg::fr>;

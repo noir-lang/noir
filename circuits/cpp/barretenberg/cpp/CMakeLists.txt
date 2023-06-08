@@ -13,6 +13,7 @@ project(
 option(DISABLE_ASM "Disable custom assembly" OFF)
 option(DISABLE_ADX "Disable ADX assembly variant" OFF)
 option(MULTITHREADING "Enable multi-threading" ON)
+option(OMP_MULTITHREADING "Enable OMP multi-threading" ON)
 option(TESTING "Build tests" ON)
 option(BENCHMARKS "Build benchmarks" ON)
 option(FUZZING "Build fuzzing harnesses" OFF)
@@ -22,8 +23,6 @@ option(SERIALIZE_CANARY "Build with serialize canary" OFF)
 option(ENABLE_ASAN "Address sanitizer for debugging tricky memory corruption" OFF)
 option(ENABLE_HEAVY_TESTS "Enable heavy tests when collecting coverage" OFF)
 option(INSTALL_BARRETENBERG "Enable installation of barretenberg. (Projects embedding barretenberg may want to turn this OFF.)" ON)
-
-message(STATUS "Building barretenberg for UltraPlonk Composer.")
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     message(STATUS "Compiling for ARM.")
@@ -74,7 +73,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "wasm32")
     message(STATUS "Compiling for WebAssembly.")
     set(WASM ON)
     set(DISABLE_ASM ON)
-    set(MULTITHREADING OFF)
+    set(OMP_MULTITHREADING OFF)
     set(BENCHMARKS OFF)
     set(DISABLE_TBB 1)
     add_compile_definitions(_WASI_EMULATED_PROCESS_CLOCKS=1)
@@ -99,7 +98,6 @@ else()
 endif()
 
 if(COVERAGE)
-
     # We've only set up LLVM coverage
     if(NOT(CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
         message(FATAL_ERROR "Creating coverage is only available for clang")

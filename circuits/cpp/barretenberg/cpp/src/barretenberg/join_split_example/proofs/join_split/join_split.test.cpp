@@ -145,9 +145,9 @@ class join_split_tests : public ::testing::Test {
     static constexpr size_t ACCOUNT_INDEX = 14;
     static void SetUpTestCase()
     {
-        auto null_crs_factory = std::make_shared<proof_system::ReferenceStringFactory>();
+        auto null_crs_factory = std::make_shared<barretenberg::srs::factories::CrsFactory>();
         init_proving_key(null_crs_factory, false);
-        auto crs_factory = std::make_unique<proof_system::FileReferenceStringFactory>("../srs_db/ignition");
+        auto crs_factory = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
         init_verification_key(std::move(crs_factory));
         info("vk hash: ", get_verification_key()->sha256_hash());
     }
@@ -2615,18 +2615,6 @@ TEST_F(join_split_tests, test_send_two_virtual_notes_full_proof)
     EXPECT_EQ(proof_data.defi_root, fr(0));
 
     EXPECT_TRUE(verify_proof(proof));
-}
-
-// *************************************************************************************************************
-// Miscellaneous
-// *************************************************************************************************************
-
-TEST_F(join_split_tests, serialized_proving_key_size)
-{
-    uint8_t* ptr;
-    auto len = join_split__get_new_proving_key_data(&ptr);
-
-    EXPECT_LE(len, 2315258552);
 }
 
 } // namespace join_split_example::proofs::join_split

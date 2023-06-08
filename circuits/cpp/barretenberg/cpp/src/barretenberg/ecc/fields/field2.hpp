@@ -126,6 +126,22 @@ template <class base_field, class Params> struct alignas(32) field2 {
     }
 };
 
+// template <typename B, typename BaseField, typename Params> void read(B& it, field2<BaseField, Params>& value)
+// {
+//     using serialize::read;
+//     field2<BaseField, Params> result;
+//     read(it, result.c0);
+//     read(it, result.c1);
+//     value = result.to_montgomery_form();
+// }
+// template <typename B, typename BaseField, typename Params> void write(B& buf, field2<BaseField, Params> const& value)
+// {
+//     using serialize::write;
+//     const auto input = value.from_montgomery_form();
+//     write(buf, input.c0);
+//     write(buf, input.c1);
+// }
+
 } // namespace barretenberg
 
 #include "field2_impl.hpp"

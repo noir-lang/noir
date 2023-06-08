@@ -1,8 +1,12 @@
 #pragma once
+#include "barretenberg/crypto/sha256/sha256.hpp"
 #include "proving_key.hpp"
 #include "barretenberg/polynomials/serialize.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include <ios>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 namespace proof_system::plonk {
 
@@ -61,7 +65,7 @@ template <typename B> inline void write(B& buf, proving_key const& key)
     write(buf, key.memory_write_records);
 }
 
-template <typename B> inline void read_mmap(B& is, std::string const& path, proving_key_data& key)
+template <typename B> inline void read_from_file(B& is, std::string const& path, proving_key_data& key)
 {
     using serialize::read;
 
@@ -75,7 +79,25 @@ template <typename B> inline void read_mmap(B& is, std::string const& path, prov
     for (size_t i = 0; i < size; ++i) {
         std::string name;
         read(is, name);
-        barretenberg::polynomial value(format(path, "/", file_num++, "_", name));
+        std::string filepath = format(path, "/", file_num++, "_", name);
+
+        struct stat st;
+        if (stat(filepath.c_str(), &st) != 0) {
+            throw_or_abort("Filename not found: " + filepath);
+        }
+        size_t file_size = (size_t)st.st_size;
+        size_t num_fields = file_size / 32;
+        barretenberg::polynomial value(num_fields);
+
+        // Open the file and read the data directly into the polynomial memory.
+        std::ifstream file(filepath, std::ios::binary);
+        if (file) {
+            file.read(reinterpret_cast<char*>(value.data().get()), (std::streamsize)file_size);
+            file.close();
+        } else {
+            throw_or_abort("Failed to open file: " + filepath);
+        }
+
         key.polynomial_store.put(name, std::move(value));
     }
     read(is, key.contains_recursive_proof);
@@ -83,7 +105,8 @@ template <typename B> inline void read_mmap(B& is, std::string const& path, prov
     read(is, key.memory_read_records);
     read(is, key.memory_write_records);
 }
-template <typename B> inline void write_mmap(B& os, std::string const& path, proving_key const& key)
+
+template <typename B> inline void write_to_file(B& os, std::string const& path, proving_key& key)
 {
     using serialize::write;
 
@@ -101,10 +124,10 @@ template <typename B> inline void write_mmap(B& os, std::string const& path, pro
         std::string poly_id = precomputed_poly_list[i];
         auto filename = format(path, "/", file_num++, "_", poly_id);
         write(os, poly_id);
-        const barretenberg::polynomial& value = ((proving_key&)key).polynomial_store.get(poly_id);
+        auto value = key.polynomial_store.get(poly_id);
         auto size = value.size();
         std::ofstream ofs(filename);
-        ofs.write((char*)&value[0], (std::streamsize)(size * sizeof(barretenberg::fr)));
+        ofs.write((char*)value.data().get(), (std::streamsize)(size * sizeof(barretenberg::fr)));
         if (!ofs.good()) {
             throw_or_abort(format("Failed to write: ", filename));
         }

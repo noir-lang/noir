@@ -34,5 +34,10 @@
     "dockerfile": "dockerfiles/Dockerfile.circuits-wasm-linux-clang-builder-runner",
     "rebuildPatterns": ["^cpp/"],
     "dependencies": []
+  },
+  "bb.js": {
+    "buildDir": "ts",
+    "rebuildPatterns": ["^ts/"],
+    "dependencies": ["barretenberg-wasm-linux-clang"]
   }
 }

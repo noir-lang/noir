@@ -785,11 +785,11 @@ void UltraCircuitConstructor::process_range_list(RangeList& list)
     // go over variables
     // iterate over each variable and create mirror variable with same value - with tau tag
     // need to make sure that, in original list, increments of at most 3
-    std::vector<uint64_t> sorted_list;
+    std::vector<uint32_t> sorted_list;
     sorted_list.reserve(list.variable_indices.size());
     for (const auto variable_index : list.variable_indices) {
         const auto& field_element = get_variable(variable_index);
-        const uint64_t shrinked_value = field_element.from_montgomery_form().data[0];
+        const uint32_t shrinked_value = (uint32_t)field_element.from_montgomery_form().data[0];
         sorted_list.emplace_back(shrinked_value);
     }
 
@@ -798,13 +798,16 @@ void UltraCircuitConstructor::process_range_list(RangeList& list)
 #else
     std::sort(std::execution::par_unseq, sorted_list.begin(), sorted_list.end());
 #endif
-    std::vector<uint32_t> indices;
-
     // list must be padded to a multipe of 4 and larger than 4 (gate_width)
     constexpr size_t gate_width = plonk::ultra_settings::program_width;
     size_t padding = (gate_width - (list.variable_indices.size() % gate_width)) % gate_width;
-    if (list.variable_indices.size() <= gate_width)
+
+    std::vector<uint32_t> indices;
+    indices.reserve(padding + sorted_list.size());
+
+    if (list.variable_indices.size() <= gate_width) {
         padding += gate_width;
+    }
     for (size_t i = 0; i < padding; ++i) {
         indices.emplace_back(zero_idx);
     }
@@ -818,8 +821,9 @@ void UltraCircuitConstructor::process_range_list(RangeList& list)
 
 void UltraCircuitConstructor::process_range_lists()
 {
-    for (auto& i : range_lists)
+    for (auto& i : range_lists) {
         process_range_list(i.second);
+    }
 }
 
 /*

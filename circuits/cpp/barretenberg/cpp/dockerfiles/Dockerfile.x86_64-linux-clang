@@ -1,9 +1,9 @@
-FROM alpine:3.17 AS builder
+FROM alpine:3.18 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
         build-base \
-        clang15 \
+        clang16 \
         openmp-dev \
         cmake \
         ninja \
@@ -17,6 +17,6 @@ COPY . .
 # Build the entire project, as we want to check everything builds under clang
 RUN cmake --preset default && cmake --build --preset default
 
-FROM alpine:3.17
+FROM alpine:3.18
 RUN apk update && apk add openmp
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db

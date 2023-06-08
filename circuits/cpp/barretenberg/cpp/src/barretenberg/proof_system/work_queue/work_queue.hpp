@@ -4,6 +4,9 @@
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 
 namespace proof_system::plonk {
+
+using namespace barretenberg;
+
 // TODO(Cody): Template by flavor?
 class work_queue {
 
@@ -18,14 +21,14 @@ class work_queue {
 
     struct work_item {
         WorkType work_type;
-        barretenberg::fr* mul_scalars;
+        mutable std::shared_ptr<fr[]> mul_scalars;
         std::string tag;
         barretenberg::fr constant;
         const size_t index;
     };
 
     struct queued_fft_inputs {
-        barretenberg::fr* data;
+        std::shared_ptr<fr[]> data;
         barretenberg::fr shift_factor;
     };
 
@@ -38,17 +41,17 @@ class work_queue {
 
     work_item_info get_queued_work_item_info() const;
 
-    barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const;
+    std::shared_ptr<fr[]> get_scalar_multiplication_data(const size_t work_item_number) const;
 
     size_t get_scalar_multiplication_size(const size_t work_item_number) const;
 
-    barretenberg::fr* get_ifft_data(const size_t work_item_number) const;
+    std::shared_ptr<fr[]> get_ifft_data(const size_t work_item_number) const;
 
-    void put_ifft_data(barretenberg::fr* result, const size_t work_item_number);
+    void put_ifft_data(std::shared_ptr<fr[]> result, const size_t work_item_number);
 
     queued_fft_inputs get_fft_data(const size_t work_item_number) const;
 
-    void put_fft_data(barretenberg::fr* result, const size_t work_item_number);
+    void put_fft_data(std::shared_ptr<fr[]> result, const size_t work_item_number);
 
     void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number);
 

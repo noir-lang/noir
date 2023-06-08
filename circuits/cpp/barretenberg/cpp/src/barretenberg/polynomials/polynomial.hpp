@@ -3,27 +3,36 @@
 #include <cstddef>
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/common/mem.hpp"
-#include "barretenberg/common/timer.hpp"
+#include "barretenberg/crypto/sha256/sha256.hpp"
 #include <fstream>
 #include <concepts>
 #include <span>
 #include "polynomial_arithmetic.hpp"
 
 namespace barretenberg {
+
 template <typename Fr> class Polynomial {
   public:
+    /**
+     * Implements requirements of `std::ranges::contiguous_range` and `std::ranges::sized_range`
+     */
+    using value_type = Fr;
+    using difference_type = std::ptrdiff_t;
+    using reference = value_type&;
+    using pointer = std::shared_ptr<value_type[]>;
+    using const_pointer = pointer;
+    using iterator = Fr*;
+    using const_iterator = Fr const*;
     using FF = Fr;
 
-    // Creates a read only polynomial using mmap.
-    Polynomial(std::string const& filename);
-
     Polynomial(const size_t initial_size);
-    Polynomial(const Polynomial& other, const size_t target_size = 0);
+    Polynomial(const Polynomial& other);
+    Polynomial(const Polynomial& other, const size_t target_size);
 
     Polynomial(Polynomial&& other) noexcept;
 
-    // Takes ownership of given buffer.
-    Polynomial(Fr* buf, const size_t initial_size);
+    // Create a polynomial from the given fields.
+    Polynomial(std::span<const Fr> coefficients);
 
     // Allow polynomials to be entirely reset/dormant
     Polynomial() = default;
@@ -41,13 +50,23 @@ template <typename Fr> class Polynomial {
     Polynomial& operator=(const Polynomial& other);
     ~Polynomial();
 
+    /**
+     * Return a shallow clone of the polynomial. i.e. underlying memory is shared.
+     */
+    Polynomial clone()
+    {
+        Polynomial p;
+        p.coefficients_ = coefficients_;
+        p.size_ = size_;
+        return p;
+    }
+
+    std::array<uint8_t, 32> hash() const { return sha256::sha256(byte_span()); }
+
     void clear()
     {
-        free();
-
-        coefficients_ = 0;
+        coefficients_.reset();
         size_ = 0;
-        mapped_ = false;
     }
 
     bool operator==(Polynomial const& rhs) const
@@ -62,32 +81,28 @@ template <typename Fr> class Polynomial {
         }
         // Each coefficient must agree
         for (size_t i = 0; i < size(); i++) {
-            if (coefficients_[i] != rhs.coefficients_[i]) {
+            if (coefficients_.get()[i] != rhs.coefficients_.get()[i]) {
                 return false;
             }
         }
         return true;
     }
 
-    // IMPROVEMENT: deprecate in favor of 'data()' and ensure const correctness
-    Fr* get_coefficients() const { return coefficients_; };
-    Fr* get_coefficients() { return coefficients_; };
-
     // Const and non const versions of coefficient accessors
-    Fr const& operator[](const size_t i) const { return coefficients_[i]; }
+    Fr const& operator[](const size_t i) const { return coefficients_.get()[i]; }
 
-    Fr& operator[](const size_t i) { return coefficients_[i]; }
+    Fr& operator[](const size_t i) { return coefficients_.get()[i]; }
 
     Fr const& at(const size_t i) const
     {
         ASSERT(i < capacity());
-        return coefficients_[i];
+        return coefficients_.get()[i];
     };
 
     Fr& at(const size_t i)
     {
         ASSERT(i < capacity());
-        return coefficients_[i];
+        return coefficients_.get()[i];
     };
 
     Fr evaluate(const Fr& z, const size_t target_size) const;
@@ -116,11 +131,6 @@ template <typename Fr> class Polynomial {
 
     bool is_empty() const { return (coefficients_ == nullptr) || (size_ == 0); }
 
-    // safety check for in place operations
-    bool in_place_operation_viable(size_t domain_size = 0) { return !mapped() && (size() >= domain_size); }
-
-    Fr* allocate_aligned_memory(const size_t size) const { return static_cast<Fr*>(aligned_alloc(sizeof(Fr), size)); }
-
     /**
      * @brief Returns an std::span of the left-shift of self.
      *
@@ -131,8 +141,8 @@ template <typename Fr> class Polynomial {
     {
         ASSERT(size_ > 0);
         ASSERT(coefficients_[0].is_zero());
-        ASSERT(coefficients_[size_].is_zero()); // relies on DEFAULT_CAPACITY_INCREASE >= 1
-        return std::span{ coefficients_ + 1, size_ };
+        ASSERT(coefficients_.get()[size_].is_zero()); // relies on DEFAULT_CAPACITY_INCREASE >= 1
+        return std::span{ coefficients_.get() + 1, size_ };
     }
 
     /**
@@ -189,49 +199,50 @@ template <typename Fr> class Polynomial {
     void factor_roots(std::span<const Fr> roots) { polynomial_arithmetic::factor_roots(std::span{ *this }, roots); };
     void factor_roots(const Fr& root) { polynomial_arithmetic::factor_roots(std::span{ *this }, root); };
 
-    /**
-     * Implements requirements of `std::ranges::contiguous_range` and `std::ranges::sized_range`
-     */
-    using value_type = Fr;
-    using difference_type = std::ptrdiff_t;
-    using reference = value_type&;
-    using pointer = value_type*;
-    using const_pointer = value_type const*;
-    using iterator = pointer;
-    using const_iterator = const_pointer;
-
-    iterator begin() { return coefficients_; }
-    iterator end() { return coefficients_ + size_; }
+    iterator begin() { return coefficients_.get(); }
+    iterator end() { return coefficients_.get() + size_; }
     pointer data() { return coefficients_; }
 
-    const_iterator begin() const { return coefficients_; }
-    const_iterator end() const { return coefficients_ + size_; }
+    std::span<uint8_t> byte_span() const
+    {
+        return std::span<uint8_t>((uint8_t*)coefficients_.get(), size_ * sizeof(fr));
+    }
+
+    const_iterator begin() const { return coefficients_.get(); }
+    const_iterator end() const { return coefficients_.get() + size_; }
     const_pointer data() const { return coefficients_; }
 
     std::size_t size() const { return size_; }
     std::size_t capacity() const { return size_ + DEFAULT_CAPACITY_INCREASE; }
-    bool mapped() const { return mapped_; }
 
   private:
-    void free();
+    // safety check for in place operations
+    bool in_place_operation_viable(size_t domain_size = 0) { return (size() >= domain_size); }
+
+    pointer allocate_aligned_memory(const size_t size) const;
+
     void zero_memory_beyond(const size_t start_position);
     // When a polynomial is instantiated from a size alone, the memory allocated corresponds to
     // input size + DEFAULT_CAPACITY_INCREASE. A DEFAULT_CAPACITY_INCREASE of >= 1 is required to ensure
     // that polynomials can be 'shifted' via a span of the 1st to size+1th coefficients.
     const static size_t DEFAULT_CAPACITY_INCREASE = 1;
 
-  public:
-    Fr* coefficients_ = nullptr;
+    pointer coefficients_;
     // The size_ effectively represents the 'usable' length of the coefficients array but may be less than the true
     // 'capacity' of the array. It is not explicitly tied to the degree and is not changed by any operations on the
     // polynomial.
     size_t size_ = 0;
-    bool mapped_ = false;
 };
 
 template <typename Fr> inline std::ostream& operator<<(std::ostream& os, Polynomial<Fr> const& p)
 {
-    return os << "[ " << p[0] << ", ... ]";
+    return os << "[ data\n"
+              << "  " << p[0] << ",\n"
+              << "  " << p[1] << ",\n"
+              << "  ... ,\n"
+              << "  " << p[p.size() - 2] << ",\n"
+              << "  " << p[p.size() - 1] << ",\n"
+              << "]";
 }
 
 // N.B. grumpkin polynomials don't support fast fourier transforms using roots of unity!

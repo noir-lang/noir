@@ -61,6 +61,11 @@ void ensure_non_zero(auto& polynomial)
     ASSERT_TRUE(has_non_zero_coefficient);
 }
 
+class UltraHonkComposerTests : public ::testing::Test {
+  protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+};
+
 /**
  * @brief A quick test to ensure that none of our polynomials are identically zero
  *
@@ -68,7 +73,7 @@ void ensure_non_zero(auto& polynomial)
  * constructor to achieve non-zero polynomials
  *
  */
-TEST(UltraHonkComposer, ANonZeroPolynomialIsAGoodPolynomial)
+TEST_F(UltraHonkComposerTests, ANonZeroPolynomialIsAGoodPolynomial)
 {
     auto composer = UltraHonkComposer();
 
@@ -90,7 +95,7 @@ TEST(UltraHonkComposer, ANonZeroPolynomialIsAGoodPolynomial)
     }
 }
 
-TEST(UltraHonkComposer, XorConstraint)
+TEST_F(UltraHonkComposerTests, XorConstraint)
 {
     auto composer = UltraHonkComposer();
 
@@ -117,7 +122,7 @@ TEST(UltraHonkComposer, XorConstraint)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, create_gates_from_plookup_accumulators)
+TEST_F(UltraHonkComposerTests, create_gates_from_plookup_accumulators)
 {
     auto composer = UltraHonkComposer();
 
@@ -208,7 +213,7 @@ TEST(UltraHonkComposer, create_gates_from_plookup_accumulators)
     EXPECT_EQ(result, true);
 }
 
-TEST(UltraHonkComposer, test_no_lookup_proof)
+TEST_F(UltraHonkComposerTests, test_no_lookup_proof)
 {
     auto composer = UltraHonkComposer();
 
@@ -229,7 +234,7 @@ TEST(UltraHonkComposer, test_no_lookup_proof)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, test_elliptic_gate)
+TEST_F(UltraHonkComposerTests, test_elliptic_gate)
 {
     typedef grumpkin::g1::affine_element affine_element;
     typedef grumpkin::g1::element element;
@@ -269,7 +274,7 @@ TEST(UltraHonkComposer, test_elliptic_gate)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, non_trivial_tag_permutation)
+TEST_F(UltraHonkComposerTests, non_trivial_tag_permutation)
 {
     auto composer = UltraHonkComposer();
     fr a = fr::random_element();
@@ -294,7 +299,7 @@ TEST(UltraHonkComposer, non_trivial_tag_permutation)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, non_trivial_tag_permutation_and_cycles)
+TEST_F(UltraHonkComposerTests, non_trivial_tag_permutation_and_cycles)
 {
     auto composer = UltraHonkComposer();
     fr a = fr::random_element();
@@ -329,7 +334,7 @@ TEST(UltraHonkComposer, non_trivial_tag_permutation_and_cycles)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, bad_tag_permutation)
+TEST_F(UltraHonkComposerTests, bad_tag_permutation)
 {
     auto composer = UltraHonkComposer();
     fr a = fr::random_element();
@@ -355,7 +360,7 @@ TEST(UltraHonkComposer, bad_tag_permutation)
 }
 
 // same as above but with turbocomposer to check reason of failue is really tag mismatch
-TEST(UltraHonkComposer, bad_tag_turbo_permutation)
+TEST_F(UltraHonkComposerTests, bad_tag_turbo_permutation)
 {
     auto composer = UltraHonkComposer();
     fr a = fr::random_element();
@@ -379,7 +384,7 @@ TEST(UltraHonkComposer, bad_tag_turbo_permutation)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, sort_widget)
+TEST_F(UltraHonkComposerTests, sort_widget)
 {
     auto composer = UltraHonkComposer();
     fr a = fr::one();
@@ -396,7 +401,7 @@ TEST(UltraHonkComposer, sort_widget)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, sort_with_edges_gate)
+TEST_F(UltraHonkComposerTests, sort_with_edges_gate)
 {
 
     fr a = fr::one();
@@ -484,7 +489,7 @@ TEST(UltraHonkComposer, sort_with_edges_gate)
     }
 }
 
-TEST(UltraHonkComposer, range_constraint)
+TEST_F(UltraHonkComposerTests, range_constraint)
 {
     {
         auto composer = UltraHonkComposer();
@@ -553,7 +558,7 @@ TEST(UltraHonkComposer, range_constraint)
     }
 }
 
-TEST(UltraHonkComposer, range_with_gates)
+TEST_F(UltraHonkComposerTests, range_with_gates)
 {
 
     auto composer = UltraHonkComposer();
@@ -570,7 +575,7 @@ TEST(UltraHonkComposer, range_with_gates)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, range_with_gates_where_range_is_not_a_power_of_two)
+TEST_F(UltraHonkComposerTests, range_with_gates_where_range_is_not_a_power_of_two)
 {
     auto composer = UltraHonkComposer();
     auto idx = add_variables(composer, { 1, 2, 3, 4, 5, 6, 7, 8 });
@@ -586,7 +591,7 @@ TEST(UltraHonkComposer, range_with_gates_where_range_is_not_a_power_of_two)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, sort_widget_complex)
+TEST_F(UltraHonkComposerTests, sort_widget_complex)
 {
     {
 
@@ -612,7 +617,7 @@ TEST(UltraHonkComposer, sort_widget_complex)
     }
 }
 
-TEST(UltraHonkComposer, sort_widget_neg)
+TEST_F(UltraHonkComposerTests, sort_widget_neg)
 {
     auto composer = UltraHonkComposer();
     fr a = fr::one();
@@ -629,7 +634,7 @@ TEST(UltraHonkComposer, sort_widget_neg)
     prove_and_verify(composer, /*expected_result=*/false);
 }
 
-TEST(UltraHonkComposer, composed_range_constraint)
+TEST_F(UltraHonkComposerTests, composed_range_constraint)
 {
     auto composer = UltraHonkComposer();
     auto c = fr::random_element();
@@ -642,7 +647,7 @@ TEST(UltraHonkComposer, composed_range_constraint)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, non_native_field_multiplication)
+TEST_F(UltraHonkComposerTests, non_native_field_multiplication)
 {
     auto composer = UltraHonkComposer();
 
@@ -697,7 +702,7 @@ TEST(UltraHonkComposer, non_native_field_multiplication)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, rom)
+TEST_F(UltraHonkComposerTests, rom)
 {
     auto composer = UltraHonkComposer();
 
@@ -737,7 +742,7 @@ TEST(UltraHonkComposer, rom)
     prove_and_verify(composer, /*expected_result=*/true);
 }
 
-TEST(UltraHonkComposer, ram)
+TEST_F(UltraHonkComposerTests, ram)
 {
     auto composer = UltraHonkComposer();
 
@@ -801,7 +806,7 @@ TEST(UltraHonkComposer, ram)
 }
 
 // TODO(#378)(luke): this is a recent update from Zac and fails; do we need a corresponding bug fix in ultra circuit
-// constructor? TEST(UltraHonkComposer, range_checks_on_duplicates)
+// c_Fonstructor? TEST(UltraHonkComposerTests, range_checks_on_duplicates)
 // {
 //     auto composer = UltraHonkComposer();
 
@@ -842,7 +847,7 @@ TEST(UltraHonkComposer, ram)
 // // range constrained, do not break the set equivalence checks because of indices mismatch.
 // // 2^14 is DEFAULT_PLOOKUP_RANGE_BITNUM i.e. the maximum size before a variable gets sliced
 // // before range constraints are applied to it.
-// TEST(UltraHonkComposer, range_constraint_small_variable)
+// T_FEST(UltraHonkComposerTests, range_constraint_small_variable)
 // {
 //     auto composer = UltraHonkComposer();
 //     uint16_t mask = (1 << 8) - 1;

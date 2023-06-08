@@ -14,7 +14,7 @@ using namespace proof_system::plonk::stdlib::merkle_tree;
 static std::shared_ptr<plonk::proving_key> proving_key;
 static std::shared_ptr<plonk::verification_key> verification_key;
 
-void init_proving_key(std::shared_ptr<proof_system::ReferenceStringFactory> const& crs_factory, bool mock)
+void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory, bool mock)
 {
     if (proving_key) {
         return;
@@ -36,19 +36,12 @@ void init_proving_key(std::shared_ptr<proof_system::ReferenceStringFactory> cons
     }
 }
 
-void init_proving_key(std::shared_ptr<proof_system::ProverReferenceString> const& crs,
-                      plonk::proving_key_data&& pk_data)
-{
-    release_key();
-    proving_key = std::make_shared<plonk::proving_key>(std::move(pk_data), crs);
-}
-
-void release_key()
+void release_proving_key()
 {
     proving_key.reset();
 }
 
-void init_verification_key(std::unique_ptr<proof_system::ReferenceStringFactory>&& crs_factory)
+void init_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory)
 {
     if (!proving_key) {
         std::abort();
@@ -58,12 +51,6 @@ void init_verification_key(std::unique_ptr<proof_system::ReferenceStringFactory>
 
     verification_key =
         proof_system::plonk::compute_verification_key_common(proving_key, crs_factory->get_verifier_crs());
-}
-
-void init_verification_key(std::shared_ptr<proof_system::VerifierMemReferenceString> const& crs,
-                           plonk::verification_key_data&& vk_data)
-{
-    verification_key = std::make_shared<plonk::verification_key>(std::move(vk_data), crs);
 }
 
 Prover new_join_split_prover(join_split_tx const& tx, bool mock)

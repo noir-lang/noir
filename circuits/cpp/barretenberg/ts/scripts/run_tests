@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+
+$(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
+IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/bb.js:cache-$COMMIT_HASH
+docker run --rm $IMAGE_URI

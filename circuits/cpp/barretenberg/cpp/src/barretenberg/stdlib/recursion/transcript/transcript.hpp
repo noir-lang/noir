@@ -49,6 +49,54 @@ template <typename Composer> class Transcript {
         // }
     }
 
+    /**
+     * @brief Construct a new Transcript object using a proof represented as a field_pt vector
+     *
+     * N.B. If proof is represented as a uint8_t vector, Transcript will convert into witnesses in-situ.
+     * Use this constructor method if the proof is *already present* as circuit witnesses!
+     * @param in_context
+     * @param input_manifest
+     * @param field_buffer
+     * @param num_public_inputs
+     */
+    Transcript(Composer* in_context,
+               const transcript::Manifest input_manifest,
+               const std::vector<field_pt>& field_buffer,
+               const size_t num_public_inputs)
+        : context(in_context)
+        , transcript_base(input_manifest, transcript::HashType::PlookupPedersenBlake3s, 16)
+        , current_challenge(in_context)
+    {
+        size_t count = 0;
+
+        const auto num_rounds = input_manifest.get_num_rounds();
+        for (size_t i = 0; i < num_rounds; ++i) {
+            for (auto manifest_element : input_manifest.get_round_manifest(i).elements) {
+                if (!manifest_element.derived_by_verifier) {
+                    if (manifest_element.num_bytes == 32 && manifest_element.name != "public_inputs") {
+                        add_field_element(manifest_element.name, field_buffer[count++]);
+                    } else if (manifest_element.num_bytes == 64 && manifest_element.name != "public_inputs") {
+                        const auto x_lo = field_buffer[count++];
+                        const auto x_hi = field_buffer[count++];
+                        const auto y_lo = field_buffer[count++];
+                        const auto y_hi = field_buffer[count++];
+                        fq_pt x(x_lo, x_hi);
+                        fq_pt y(y_lo, y_hi);
+                        group_pt element(x, y);
+                        add_group_element(manifest_element.name, element);
+                    } else {
+                        ASSERT(manifest_element.name == "public_inputs");
+                        std::vector<field_pt> public_inputs;
+                        for (size_t i = 0; i < num_public_inputs; ++i) {
+                            public_inputs.emplace_back(field_buffer[count++]);
+                        }
+                        add_field_element_vector(manifest_element.name, public_inputs);
+                    }
+                }
+            }
+        }
+    }
+
     transcript::Manifest get_manifest() const { return transcript_base.get_manifest(); }
 
     int check_field_element_cache(const std::string& element_name) const

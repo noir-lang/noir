@@ -16,7 +16,7 @@ class CommitmentScheme {
 
     virtual ~CommitmentScheme() {}
 
-    virtual void commit(fr* coefficients, std::string tag, fr item_constant, work_queue& queue) = 0;
+    virtual void commit(std::shared_ptr<fr[]> coefficients, std::string tag, fr item_constant, work_queue& queue) = 0;
 
     virtual void compute_opening_polynomial(const fr* src, fr* dest, const fr& z, const size_t n) = 0;
 

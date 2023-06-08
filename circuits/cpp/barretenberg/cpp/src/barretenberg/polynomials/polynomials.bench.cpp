@@ -137,27 +137,28 @@ void pippenger_bench(State& state) noexcept
 }
 BENCHMARK(pippenger_bench)->RangeMultiplier(2)->Range(START, MAX_GATES)->Unit(benchmark::kMillisecond);
 
-void unsafe_pippenger_bench(State& state) noexcept
-{
-    uint64_t count = 0;
-    const size_t num_points = static_cast<size_t>(state.range(0));
-    uint64_t i = 0;
-    for (auto _ : state) {
-        state.PauseTiming();
-        scalar_multiplication::pippenger_runtime_state<curve::BN254> run_state(num_points);
-        state.ResumeTiming();
+// Crashes (already on master) :(
+// void unsafe_pippenger_bench(State& state) noexcept
+// {
+//     // uint64_t count = 0;
+//     const size_t num_points = static_cast<size_t>(state.range(0));
+//     // uint64_t i = 0;
+//     for (auto _ : state) {
+//         state.PauseTiming();
+//         scalar_multiplication::pippenger_runtime_state<curve::BN254> run_state(num_points);
+//         state.ResumeTiming();
 
-        uint64_t before = rdtsc();
-        scalar_multiplication::pippenger_unsafe(&globals.scalars[0], &globals.monomials[0], num_points, run_state);
-        uint64_t after = rdtsc();
-        count += (after - before);
-        ++i;
-    }
-    uint64_t avg_cycles = count / i;
-    printf("unsafe pippenger. %zu points. clock cycles = %" PRIu64 "\n", (num_points), (avg_cycles));
-    printf("unsafe pippenger clock cycles per mul = %" PRIu64 "\n", (avg_cycles / (MAX_GATES)));
-}
-BENCHMARK(unsafe_pippenger_bench)->RangeMultiplier(2)->Range(1 << 20, 1 << 20);
+//         // uint64_t before = rdtsc();
+//         scalar_multiplication::pippenger_unsafe(&globals.scalars[0], &globals.monomials[0], num_points, run_state);
+//         // uint64_t after = rdtsc();
+//         // count += (after - before);
+//         // ++i;
+//     }
+//     // uint64_t avg_cycles = count / i;
+//     // printf("unsafe pippenger. %zu points. clock cycles = %" PRIu64 "\n", (num_points), (avg_cycles));
+//     // printf("unsafe pippenger clock cycles per mul = %" PRIu64 "\n", (avg_cycles / (MAX_GATES)));
+// }
+// BENCHMARK(unsafe_pippenger_bench)->RangeMultiplier(2)->Range(1 << 20, 1 << 20);
 
 void new_plonk_scalar_multiplications_bench(State& state) noexcept
 {
@@ -207,7 +208,7 @@ void new_plonk_scalar_multiplications_bench(State& state) noexcept
     printf("pippenger clock cycles = %" PRIu64 "\n", (avg_cycles / 9));
     printf("pippenger clock cycles per scalar mul = %" PRIu64 "\n", (avg_cycles / (9 * MAX_GATES)));
 }
-BENCHMARK(new_plonk_scalar_multiplications_bench);
+BENCHMARK(new_plonk_scalar_multiplications_bench)->Unit(benchmark::kMillisecond);
 
 void coset_fft_bench_parallel(State& state) noexcept
 {
@@ -216,7 +217,7 @@ void coset_fft_bench_parallel(State& state) noexcept
         barretenberg::polynomial_arithmetic::coset_fft(globals.data, evaluation_domains[idx]);
     }
 }
-BENCHMARK(coset_fft_bench_parallel)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4);
+BENCHMARK(coset_fft_bench_parallel)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4)->Unit(benchmark::kMicrosecond);
 
 void alternate_coset_fft_bench_parallel(State& state) noexcept
 {
@@ -226,7 +227,10 @@ void alternate_coset_fft_bench_parallel(State& state) noexcept
             globals.data, evaluation_domains[idx - 2], evaluation_domains[idx - 2], 4);
     }
 }
-BENCHMARK(alternate_coset_fft_bench_parallel)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4);
+BENCHMARK(alternate_coset_fft_bench_parallel)
+    ->RangeMultiplier(2)
+    ->Range(START * 4, MAX_GATES * 4)
+    ->Unit(benchmark::kMicrosecond);
 
 void fft_bench_parallel(State& state) noexcept
 {
@@ -235,7 +239,7 @@ void fft_bench_parallel(State& state) noexcept
         barretenberg::polynomial_arithmetic::fft(globals.data, evaluation_domains[idx]);
     }
 }
-BENCHMARK(fft_bench_parallel)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4);
+BENCHMARK(fft_bench_parallel)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4)->Unit(benchmark::kMicrosecond);
 
 void fft_bench_serial(State& state) noexcept
 {
@@ -245,7 +249,7 @@ void fft_bench_serial(State& state) noexcept
             { globals.data }, evaluation_domains[idx].thread_size, evaluation_domains[idx].get_round_roots());
     }
 }
-BENCHMARK(fft_bench_serial)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4);
+BENCHMARK(fft_bench_serial)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4)->Unit(benchmark::kMicrosecond);
 
 void pairing_bench(State& state) noexcept
 {

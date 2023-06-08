@@ -1,4 +1,5 @@
 #include "turbo_circuit_constructor.hpp"
+#include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 
 using namespace barretenberg;
@@ -473,7 +474,7 @@ std::vector<uint32_t> TurboCircuitConstructor::decompose_into_base4_accumulators
     size_t num_quad_gates = (num_bits >> 3);
     num_quad_gates = (num_quad_gates << 3 == num_bits) ? num_quad_gates : num_quad_gates + 1;
 
-    std::vector<uint32_t>* wires[4]{ &w_4, &w_o, &w_r, &w_l };
+    std::vector<uint32_t, ContainerSlabAllocator<uint32_t>>* wires[4]{ &w_4, &w_o, &w_r, &w_l };
 
     // num_quads = the number of accumulators used in the table, not including the output row.
     const size_t num_quads = (num_quad_gates << 2);

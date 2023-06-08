@@ -276,7 +276,7 @@ template <typename B, typename T, size_t N> inline void write(B& buf, std::array
 }
 
 // Generic read of vector of types from supported buffer types.
-template <typename B, typename T> inline void read(B& it, std::vector<T>& value)
+template <typename B, typename T, typename A> inline void read(B& it, std::vector<T, A>& value)
 {
     DEBUG_CANARY_READ(it, value);
     uint32_t size;
@@ -288,7 +288,7 @@ template <typename B, typename T> inline void read(B& it, std::vector<T>& value)
 }
 
 // Generic write of vector of types to supported buffer types.
-template <typename B, typename T> inline void write(B& buf, std::vector<T> const& value)
+template <typename B, typename T, typename A> inline void write(B& buf, std::vector<T, A> const& value)
 {
     write(buf, static_cast<uint32_t>(value.size()));
     for (size_t i = 0; i < value.size(); ++i) {
@@ -400,6 +400,16 @@ template <typename T> std::vector<uint8_t> to_buffer(T const& value)
     return buf;
 }
 
+template <typename T> uint8_t* to_heap_buffer(T const& value)
+{
+    using serialize::write;
+    std::vector<uint8_t> buf;
+    write(buf, value);
+    auto* ptr = (uint8_t*)aligned_alloc(64, buf.size());
+    std::copy(buf.begin(), buf.end(), ptr);
+    return ptr;
+}
+
 template <typename T> std::vector<T> many_from_buffer(std::vector<uint8_t> const& buffer)
 {
     const size_t num_elements = buffer.size() / sizeof(T);
@@ -424,3 +434,19 @@ template <bool include_size = false, typename T> std::vector<uint8_t> to_buffer(
     }
     return buf;
 }
+
+// Some types to describe fixed size buffers for c_bind arguments.
+using in_buf32 = uint8_t const*;
+using out_buf32 = uint8_t*;
+using in_buf64 = uint8_t const*;
+using out_buf64 = uint8_t*;
+using in_buf128 = uint8_t const*;
+using out_buf128 = uint8_t*;
+
+// Variable length string buffers. Prefixed with length.
+using in_str_buf = uint8_t const*;
+using out_str_buf = uint8_t**;
+
+// Use these to pass a raw memory pointer.
+using in_ptr = void* const*;
+using out_ptr = void**;

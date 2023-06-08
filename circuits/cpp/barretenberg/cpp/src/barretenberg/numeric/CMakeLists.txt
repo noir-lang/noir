@@ -1,1 +1,1 @@
-barretenberg_module(numeric env)
+barretenberg_module(numeric common)

@@ -59,6 +59,13 @@ auto compute_expected(const grumpkin::fq exponent, size_t generator_offset)
     return (accumulators[0] + accumulators[1]);
 }
 
+TEST(pedersen_lookup, zero_one)
+{
+    auto r =
+        crypto::pedersen_commitment::lookup::compress_native({ barretenberg::fr::zero(), barretenberg::fr::one() });
+    EXPECT_EQ(format(r), "0x0c5e1ddecd49de44ed5e5798d3f6fb7c71fe3d37f5bee8664cf88a445b5ba0af");
+}
+
 TEST(pedersen_lookup, endomorphism_test)
 {
     typedef grumpkin::fq fq;

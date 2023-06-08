@@ -107,7 +107,7 @@ typename Flavor::Polynomial compute_permutation_grand_product(std::shared_ptr<ty
     Polynomial z_perm(key->circuit_size);
     // Initialize 0th coefficient to 0 to ensure z_perm is left-shiftable via division by X in gemini
     z_perm[0] = 0;
-    copy_polynomial(numerator_accumulator[0].data(), &z_perm[1], key->circuit_size - 1, key->circuit_size - 1);
+    copy_polynomial(numerator_accumulator[0].data().get(), &z_perm[1], key->circuit_size - 1, key->circuit_size - 1);
 
     return z_perm;
 }
@@ -311,7 +311,7 @@ typename Flavor::Polynomial compute_lookup_grand_product(std::shared_ptr<typenam
     // Initialize 0th coefficient to 0 to ensure z_perm is left-shiftable via division by X in gemini
     z_lookup[0] = FF::zero();
     barretenberg::polynomial_arithmetic::copy_polynomial(
-        accumulators[0].data(), &z_lookup[1], key->circuit_size - 1, key->circuit_size - 1);
+        accumulators[0].data().get(), &z_lookup[1], key->circuit_size - 1, key->circuit_size - 1);
 
     return z_lookup;
 }

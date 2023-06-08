@@ -50,7 +50,7 @@ template <typename Params> class IPA {
                "The poly_degree should be positive and a power of two");
 
         auto a_vec = polynomial;
-        auto srs_elements = ck->srs.get_monomial_points();
+        auto srs_elements = ck->srs->get_monomial_points();
         std::vector<Commitment> G_vec_local(poly_degree);
         // The SRS stored in the commitment key is the result after applying the pippenger point table so the
         // values at odd indices contain the point {srs[i-1].x * beta, srs[i-1].y}, where beta is the endomorphism
@@ -203,7 +203,7 @@ template <typename Params> class IPA {
             }
             s_vec[i] = s_vec_scalar;
         }
-        auto srs_elements = vk->srs.get_monomial_points();
+        auto srs_elements = vk->srs->get_monomial_points();
         // Copy the G_vector to local memory.
         std::vector<Commitment> G_vec_local(poly_degree);
         // The SRS stored in the commitment key is the result after applying the pippenger point table so the

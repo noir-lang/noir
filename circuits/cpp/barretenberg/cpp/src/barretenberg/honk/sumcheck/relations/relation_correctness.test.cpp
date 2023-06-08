@@ -59,6 +59,11 @@ template <typename Flavor> void check_relation(auto relation, auto circuit_size,
     }
 }
 
+class RelationCorrectnessTests : public ::testing::Test {
+  protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+};
+
 /**
  * @brief Test the correctness of the Standard Honk relations
  *
@@ -69,7 +74,7 @@ template <typename Flavor> void check_relation(auto relation, auto circuit_size,
  * indices
  *
  */
-TEST(RelationCorrectness, StandardRelationCorrectness)
+TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
 {
     using Flavor = honk::flavor::Standard;
     using FF = typename Flavor::FF;
@@ -159,7 +164,7 @@ TEST(RelationCorrectness, StandardRelationCorrectness)
  */
 // TODO(luke): possibly make circuit construction one or many functions to clarify the individual components
 // TODO(luke): Add a gate that sets q_arith = 3 to check secondary arithmetic relation
-TEST(RelationCorrectness, UltraRelationCorrectness)
+TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 {
     using Flavor = honk::flavor::Ultra;
     using FF = typename Flavor::FF;

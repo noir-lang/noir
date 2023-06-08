@@ -20,6 +20,10 @@
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
 #include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
 #include "barretenberg/stdlib/primitives/memory/ram_table.hpp"
+#include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
+#include "barretenberg/stdlib/recursion/verification_key/verification_key.hpp"
+#include "barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp"
+
 namespace acir_format {
 
 using Composer = plonk::UltraPlonkComposer;
@@ -33,6 +37,8 @@ using Verifier = std::conditional_t<
     std::same_as<Composer, plonk::UltraPlonkComposer>,
     plonk::UltraWithKeccakVerifier,
     std::conditional_t<std::same_as<Composer, plonk::TurboPlonkComposer>, plonk::TurboVerifier, plonk::Verifier>>;
+
+using RecursiveProver = plonk::UltraProver;
 
 using witness_ct = proof_system::plonk::stdlib::witness_t<Composer>;
 using public_witness_ct = proof_system::plonk::stdlib::public_witness_t<Composer>;
@@ -61,5 +67,10 @@ using schnorr_signature_bits_ct = proof_system::plonk::stdlib::schnorr::signatur
 // Ultra-composer specific typesv
 using rom_table_ct = proof_system::plonk::stdlib::rom_table<plonk::UltraPlonkComposer>;
 using ram_table_ct = proof_system::plonk::stdlib::ram_table<plonk::UltraPlonkComposer>;
+
+using verification_key_ct = proof_system::plonk::stdlib::recursion::verification_key<bn254>;
+using aggregation_state_ct = proof_system::plonk::stdlib::recursion::aggregation_state<bn254>;
+using noir_recursive_settings = proof_system::plonk::stdlib::recursion::recursive_ultra_verifier_settings<bn254>;
+using Transcript_ct = proof_system::plonk::stdlib::recursion::Transcript<Composer>;
 
 } // namespace acir_format

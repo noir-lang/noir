@@ -4,7 +4,6 @@ set -eu
 # Clean.
 rm -rf ./build
 rm -rf ./build-wasm
-rm -rf ./src/wasi-sdk-*
 
 # Install formatting git hook.
 HOOKS_DIR=$(git rev-parse --git-path hooks)
@@ -63,12 +62,13 @@ echo "#################################"
 cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
 cmake --build --preset $PRESET ${@/#/--target }
 
-# Install the webassembly toolchain.
-WASI_VERSION=12
-cd ./src
-curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -
-cd ..
+# Install wasi-sdk.
+./scripts/install-wasi-sdk.sh
 
 # Build WASM.
 cmake --preset wasm
 cmake --build --preset wasm
+
+# Build WASM with new threading.
+cmake --preset wasm-threads
+cmake --build --preset wasm-threads

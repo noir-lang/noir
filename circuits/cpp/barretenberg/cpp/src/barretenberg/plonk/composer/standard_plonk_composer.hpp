@@ -2,7 +2,7 @@
 
 #include "composer_helper/standard_plonk_composer_helper.hpp"
 #include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/transcript/manifest.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
@@ -58,11 +58,12 @@ class StandardPlonkComposer {
         , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
 
     StandardPlonkComposer(std::string const& crs_path, const size_t size_hint = 0)
-        : StandardPlonkComposer(
-              std::unique_ptr<ReferenceStringFactory>(new proof_system::FileReferenceStringFactory(crs_path)),
-              size_hint){};
+        : StandardPlonkComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>(
+                                    new barretenberg::srs::factories::FileCrsFactory(crs_path)),
+                                size_hint){};
 
-    StandardPlonkComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
+    StandardPlonkComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
+                          const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
@@ -72,7 +73,8 @@ class StandardPlonkComposer {
         , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
 
     {}
-    StandardPlonkComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
+    StandardPlonkComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory,
+                          const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
@@ -96,8 +98,26 @@ class StandardPlonkComposer {
     {}
 
     StandardPlonkComposer(const StandardPlonkComposer& other) = delete;
-    StandardPlonkComposer(StandardPlonkComposer&& other) = default;
-    StandardPlonkComposer& operator=(const StandardPlonkComposer& other) = delete;
+    StandardPlonkComposer(StandardPlonkComposer&& other)
+        : circuit_constructor(std::move(other.circuit_constructor))
+        , num_gates(circuit_constructor.num_gates)
+        , variables(circuit_constructor.variables)
+        , zero_idx(circuit_constructor.zero_idx)
+        , composer_helper(std::move(other.composer_helper))
+        , contains_recursive_proof(composer_helper.contains_recursive_proof)
+        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
+
+    StandardPlonkComposer& operator=(StandardPlonkComposer&& other)
+    {
+        circuit_constructor = std::move(other.circuit_constructor);
+        composer_helper = std::move(other.composer_helper);
+        num_gates = circuit_constructor.num_gates;
+        variables = circuit_constructor.variables;
+        zero_idx = circuit_constructor.zero_idx;
+        contains_recursive_proof = composer_helper.contains_recursive_proof;
+        recursive_proof_public_input_indices = composer_helper.recursive_proof_public_input_indices;
+        return *this;
+    };
     // TODO(#230)(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members.
     // This is a temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of
     // composer methods, where appropriate. StandardPlonkComposer& operator=(StandardPlonkComposer&& other) = default;

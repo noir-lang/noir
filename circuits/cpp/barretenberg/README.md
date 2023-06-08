@@ -114,7 +114,8 @@ CMake can be passed various build options on its command line:
 - `-DCMAKE_BUILD_TYPE=Debug | Release | RelWithAssert`: Build types.
 - `-DDISABLE_ASM=ON | OFF`: Enable/disable x86 assembly.
 - `-DDISABLE_ADX=ON | OFF`: Enable/disable ADX assembly instructions (for older cpu support).
-- `-DMULTITHREADING=ON | OFF`: Enable/disable multithreading using OpenMP.
+- `-DMULTITHREADING=ON | OFF`: Enable/disable multithreading.
+- `-DOMP_MULTITHREADING=ON | OFF`: Enable/disable multithreading that uses OpenMP.
 - `-DTESTING=ON | OFF`: Enable/disable building of tests.
 - `-DBENCHMARK=ON | OFF`: Enable/disable building of benchmarks.
 - `-DFUZZING=ON | OFF`: Enable building various fuzzers.

@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-size_t generate_block_constraint(acir_format::BlockConstraint& constraint, std::vector<fr>& witness_values)
+size_t generate_block_constraint(acir_format::BlockConstraint& constraint, acir_format::WitnessVector& witness_values)
 {
     size_t witness_len = 1;
     witness_values.emplace_back(1);
@@ -100,7 +100,7 @@ size_t generate_block_constraint(acir_format::BlockConstraint& constraint, std::
 TEST(up_ram, TestBlockConstraint)
 {
     acir_format::BlockConstraint block;
-    std::vector<fr> witness_values;
+    acir_format::WitnessVector witness_values;
     size_t num_variables = generate_block_constraint(block, witness_values);
     acir_format::acir_format constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
@@ -117,6 +117,7 @@ TEST(up_ram, TestBlockConstraint)
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
         .block_constraints = { block },
+        .recursion_constraints = {},
         .constraints = {},
     };
 

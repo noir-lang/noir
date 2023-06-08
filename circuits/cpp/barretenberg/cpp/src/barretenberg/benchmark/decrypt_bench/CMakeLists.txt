@@ -7,5 +7,5 @@ target_link_libraries(
     decrypt_bench
     PRIVATE
     ecc
-    env
+    common
 )

@@ -11,7 +11,7 @@ KateCommitmentScheme<settings>::KateCommitmentScheme()
 {}
 
 template <typename settings>
-void KateCommitmentScheme<settings>::commit(fr* coefficients,
+void KateCommitmentScheme<settings>::commit(std::shared_ptr<fr[]> coefficients,
                                             std::string commitment_tag,
                                             fr item_constant,
                                             work_queue& queue)
@@ -126,7 +126,8 @@ void KateCommitmentScheme<settings>::generic_batch_open(const fr* src,
         }
 
         // commit to the i-th opened polynomial
-        KateCommitmentScheme::commit(&dest[dest_offset], tags[i], item_constants[i], queue);
+        polynomial offset_poly(std::span(&dest[dest_offset], (uint32_t)item_constants[i]));
+        KateCommitmentScheme::commit(offset_poly.data(), tags[i], item_constants[i], queue);
     }
 }
 
@@ -143,8 +144,8 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     \zeta.\omega). Step 3: Compute coefficient form of W_{\zeta}(X) and W_{\zeta \omega}(X). Step 4: Commit to
     W_{\zeta}(X) and W_{\zeta \omega}(X).
     */
-    std::vector<std::pair<fr*, fr>> opened_polynomials_at_zeta;
-    std::vector<std::pair<fr*, fr>> opened_polynomials_at_zeta_omega;
+    std::vector<std::pair<std::shared_ptr<fr[]>, fr>> opened_polynomials_at_zeta;
+    std::vector<std::pair<std::shared_ptr<fr[]>, fr>> opened_polynomials_at_zeta_omega;
 
     // Add the following tuples to the above data structures:
     //
@@ -156,15 +157,15 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     // Add challenge-poly tuples for all polynomials in the manifest
     for (size_t i = 0; i < input_key->polynomial_manifest.size(); ++i) {
-        const auto& info = input_key->polynomial_manifest[i];
-        const std::string poly_label(info.polynomial_label);
+        const auto& info_ = input_key->polynomial_manifest[i];
+        const std::string poly_label(info_.polynomial_label);
 
-        fr* poly = input_key->polynomial_store.get(poly_label).get_coefficients();
+        auto poly = input_key->polynomial_store.get(poly_label).data();
 
         const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
         opened_polynomials_at_zeta.push_back({ poly, nu_challenge });
 
-        if (info.requires_shifted_evaluation) {
+        if (info_.requires_shifted_evaluation) {
             const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
             opened_polynomials_at_zeta_omega.push_back({ poly, nu_challenge });
         }
@@ -184,18 +185,18 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     for (size_t i = 1; i < settings::program_width; ++i) {
         const size_t offset = i * input_key->small_domain.size;
         const fr scalar = zeta.pow(static_cast<uint64_t>(offset));
-        opened_polynomials_at_zeta.push_back({ &input_key->quotient_polynomial_parts[i][0], scalar });
+        opened_polynomials_at_zeta.push_back({ input_key->quotient_polynomial_parts[i].data(), scalar });
     }
 
     // Add up things to get coefficients of opening polynomials.
     ITERATE_OVER_DOMAIN_START(input_key->small_domain);
     opening_poly[i] = input_key->quotient_polynomial_parts[0][i];
     for (const auto& [poly, challenge] : opened_polynomials_at_zeta) {
-        opening_poly[i] += poly[i] * challenge;
+        opening_poly[i] += poly.get()[i] * challenge;
     }
     shifted_opening_poly[i] = 0;
     for (const auto& [poly, challenge] : opened_polynomials_at_zeta_omega) {
-        shifted_opening_poly[i] += poly[i] * challenge;
+        shifted_opening_poly[i] += poly.get()[i] * challenge;
     }
     ITERATE_OVER_DOMAIN_END;
 
@@ -224,11 +225,9 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     // Commit to the opening and shifted opening polynomials
     KateCommitmentScheme::commit(
-        input_key->polynomial_store.get("opening_poly").get_coefficients(), "PI_Z", input_key->circuit_size, queue);
-    KateCommitmentScheme::commit(input_key->polynomial_store.get("shifted_opening_poly").get_coefficients(),
-                                 "PI_Z_OMEGA",
-                                 input_key->circuit_size,
-                                 queue);
+        input_key->polynomial_store.get("opening_poly").data(), "PI_Z", input_key->circuit_size, queue);
+    KateCommitmentScheme::commit(
+        input_key->polynomial_store.get("shifted_opening_poly").data(), "PI_Z_OMEGA", input_key->circuit_size, queue);
 }
 
 template <typename settings>
@@ -364,24 +363,24 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(
         const auto& info = input_key->polynomial_manifest[i];
         const std::string poly_label(info.polynomial_label);
 
-        fr* poly = input_key->polynomial_store.get(poly_label).get_coefficients();
+        auto poly = input_key->polynomial_store.get(poly_label).data();
 
         fr poly_evaluation(0);
 
         if (in_lagrange_form) {
             poly_evaluation =
-                polynomial_arithmetic::compute_barycentric_evaluation(poly, n, zeta, input_key->small_domain);
+                polynomial_arithmetic::compute_barycentric_evaluation(poly.get(), n, zeta, input_key->small_domain);
         } else {
-            poly_evaluation = polynomial_arithmetic::evaluate(poly, zeta, n);
+            poly_evaluation = polynomial_arithmetic::evaluate(poly.get(), zeta, n);
         }
         transcript.add_element(poly_label, poly_evaluation.to_buffer());
 
         if (info.requires_shifted_evaluation) {
             if (in_lagrange_form) {
                 poly_evaluation =
-                    polynomial_arithmetic::compute_barycentric_evaluation(poly, n, zeta, input_key->small_domain);
+                    polynomial_arithmetic::compute_barycentric_evaluation(poly.get(), n, zeta, input_key->small_domain);
             } else {
-                poly_evaluation = polynomial_arithmetic::evaluate(poly, shifted_z, n);
+                poly_evaluation = polynomial_arithmetic::evaluate(poly.get(), shifted_z, n);
             }
             transcript.add_element(poly_label + "_omega", poly_evaluation.to_buffer());
         }

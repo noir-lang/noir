@@ -5,6 +5,50 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
+
+TEST(acir_format, test_a_single_constraint_no_pub_inputs)
+{
+
+    poly_triple constraint{
+        .a = 1,
+        .b = 2,
+        .c = 3,
+        .q_m = 0,
+        .q_l = 1,
+        .q_r = 1,
+        .q_o = -1,
+        .q_c = 0,
+    };
+
+    acir_format::acir_format constraint_system{
+        .varnum = 4,
+        .public_inputs = {},
+        .fixed_base_scalar_mul_constraints = {},
+        .logic_constraints = {},
+        .range_constraints = {},
+        .schnorr_constraints = {},
+        .ecdsa_constraints = {},
+        .sha256_constraints = {},
+        .blake2s_constraints = {},
+        .keccak_constraints = {},
+        .keccak_var_constraints = {},
+        .hash_to_field_constraints = {},
+        .pedersen_constraints = {},
+        .block_constraints = {},
+        .recursion_constraints = {},
+        .constraints = { constraint },
+    };
+
+    auto composer = acir_format::create_circuit_with_witness(constraint_system, { 0, 0, 1 });
+
+    auto prover = composer.create_ultra_with_keccak_prover();
+    auto proof = prover.construct_proof();
+
+    auto verifier = composer.create_ultra_with_keccak_verifier();
+
+    EXPECT_EQ(verifier.verify_proof(proof), false);
+}
+
 TEST(acir_format, msgpack_logic_constraint)
 {
     auto [actual, expected] = msgpack_roundtrip(acir_format::LogicConstraint{});
@@ -80,7 +124,6 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
     // EXPR [ (1, _4, _5) (-1, _6) 0 ]
     // EXPR [ (1, _4, _6) (-1, _4) 0 ]
     // EXPR [ (-1, _6) 1 ]
-    std::cout << "made struct" << std::endl;
 
     acir_format::acir_format constraint_system{
         .varnum = 7,
@@ -97,6 +140,7 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
         .block_constraints = {},
+        .recursion_constraints = {},
         .constraints = { expr_a, expr_b, expr_c, expr_d },
     };
 
@@ -110,8 +154,6 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
                                                                  inverse_of_five,
                                                                  1,
                                                              });
-
-    std::cout << "made composer" << std::endl;
 
     auto prover = composer.create_ultra_with_keccak_prover();
     auto proof = prover.construct_proof();
@@ -163,6 +205,7 @@ TEST(acir_format, test_schnorr_verify_pass)
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
         .block_constraints = {},
+        .recursion_constraints = {},
         .constraints = { poly_triple{
             .a = schnorr_constraint.result,
             .b = schnorr_constraint.result,
@@ -234,6 +277,7 @@ TEST(acir_format, test_schnorr_verify_small_range)
         .hash_to_field_constraints = {},
         .pedersen_constraints = {},
         .block_constraints = {},
+        .recursion_constraints = {},
         .constraints = { poly_triple{
             .a = schnorr_constraint.result,
             .b = schnorr_constraint.result,

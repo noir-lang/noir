@@ -1,4 +1,4 @@
-FROM alpine:3.17 AS builder
+FROM alpine:3.18 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
@@ -12,6 +12,6 @@ COPY . .
 # Build the entire project, as we want to check everything builds under gcc.
 RUN cmake --preset gcc -DCI=ON && cmake --build --preset gcc
 
-FROM alpine:3.17
+FROM alpine:3.18
 RUN apk update && apk add libstdc++ libgomp
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db

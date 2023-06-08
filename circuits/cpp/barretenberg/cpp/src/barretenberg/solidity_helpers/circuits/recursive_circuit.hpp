@@ -110,6 +110,7 @@ template <typename OuterComposer> class RecursiveCircuit {
         OuterComposer outer_composer = OuterComposer(srs_path);
 
         create_inner_circuit_no_tables(inner_composer, inputs);
+
         auto circuit_output = create_outer_circuit(inner_composer, outer_composer);
 
         g1::affine_element P[2];

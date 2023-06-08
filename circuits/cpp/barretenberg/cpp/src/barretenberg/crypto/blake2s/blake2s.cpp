@@ -223,10 +223,10 @@ int blake2s_final(blake2s_state* S, void* out, size_t outlen)
     return 0;
 }
 
-std::vector<uint8_t> blake2s(std::vector<uint8_t> const& input)
+std::array<uint8_t, BLAKE2S_OUTBYTES> blake2s(std::vector<uint8_t> const& input)
 {
     blake2s_state S[1];
-    std::vector<uint8_t> output(BLAKE2S_OUTBYTES, 0);
+    std::array<uint8_t, BLAKE2S_OUTBYTES> output;
     blake2s_init(S, BLAKE2S_OUTBYTES);
     blake2s_update(S, (const uint8_t*)input.data(), input.size());
     blake2s_final(S, output.data(), output.size());

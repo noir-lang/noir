@@ -182,6 +182,25 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
                                       const plonk::proof& proof,
                                       const aggregation_state<Curve> previous_output = aggregation_state<Curve>())
 {
+    using Composer = typename Curve::Composer;
+
+    key->program_width = program_settings::program_width;
+
+    Transcript<Composer> transcript = Transcript<Composer>(context, proof.proof_data, manifest);
+
+    return verify_proof_<Curve, program_settings>(context, key, transcript, previous_output);
+}
+
+/**
+ * Refer to src/barretenberg/plonk/proof_system/verifier/verifier.cpp verify_proof() for the native implementation,
+ * which includes detailed comments.
+ */
+template <typename Curve, typename program_settings>
+aggregation_state<Curve> verify_proof_(typename Curve::Composer* context,
+                                       std::shared_ptr<verification_key<Curve>> key,
+                                       Transcript<typename Curve::Composer>& transcript,
+                                       const aggregation_state<Curve> previous_output = aggregation_state<Curve>())
+{
     using fr_ct = typename Curve::fr_ct;
     using fq_ct = typename Curve::fq_ct;
     using g1_ct = typename Curve::g1_ct;
@@ -189,7 +208,6 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
 
     key->program_width = program_settings::program_width;
 
-    Transcript<Composer> transcript = Transcript<Composer>(context, proof.proof_data, manifest);
     std::map<std::string, g1_ct> kate_g1_elements;
     std::map<std::string, fr_ct> kate_fr_elements_at_zeta;
     std::map<std::string, fr_ct> kate_fr_elements_at_zeta_large;
@@ -231,6 +249,7 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
     fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
     fr_ct batch_opening_scalar;
+
     populate_kate_element_map<Curve, Transcript<Composer>, program_settings>(context,
                                                                              key.get(),
                                                                              transcript,
@@ -311,10 +330,6 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
         rhs_scalars.push_back(random_separator);
     }
 
-    // Check if recursive proof information is correctly set.
-    key->contains_recursive_proof.assert_equal(key->base_key->contains_recursive_proof,
-                                               "contains_recursive_proof is incorrectly set");
-
     /**
      * N.B. if this key contains a recursive proof, then ALL potential verification keys being verified by the outer
      *circuit must ALSO contain a recursive proof (this is not a concern if the key is being generated from circuit
@@ -322,7 +337,7 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
      *code path should be used with extreme caution if the verification key is not being generated from circuit
      *constants
      **/
-    if (key->base_key->contains_recursive_proof) {
+    if (key->contains_recursive_proof) {
         const auto public_inputs = transcript.get_field_element_vector("public_inputs");
         const auto recover_fq_from_public_inputs =
             [&public_inputs](const size_t idx0, const size_t idx1, const size_t idx2, const size_t idx3) {
@@ -339,22 +354,22 @@ aggregation_state<Curve> verify_proof(typename Curve::Composer* context,
 
         fr_ct recursion_separator_challenge = transcript.get_challenge_field_element("separator", 2);
 
-        const auto x0 = recover_fq_from_public_inputs(key->base_key->recursive_proof_public_input_indices[0],
-                                                      key->base_key->recursive_proof_public_input_indices[1],
-                                                      key->base_key->recursive_proof_public_input_indices[2],
-                                                      key->base_key->recursive_proof_public_input_indices[3]);
-        const auto y0 = recover_fq_from_public_inputs(key->base_key->recursive_proof_public_input_indices[4],
-                                                      key->base_key->recursive_proof_public_input_indices[5],
-                                                      key->base_key->recursive_proof_public_input_indices[6],
-                                                      key->base_key->recursive_proof_public_input_indices[7]);
-        const auto x1 = recover_fq_from_public_inputs(key->base_key->recursive_proof_public_input_indices[8],
-                                                      key->base_key->recursive_proof_public_input_indices[9],
-                                                      key->base_key->recursive_proof_public_input_indices[10],
-                                                      key->base_key->recursive_proof_public_input_indices[11]);
-        const auto y1 = recover_fq_from_public_inputs(key->base_key->recursive_proof_public_input_indices[12],
-                                                      key->base_key->recursive_proof_public_input_indices[13],
-                                                      key->base_key->recursive_proof_public_input_indices[14],
-                                                      key->base_key->recursive_proof_public_input_indices[15]);
+        const auto x0 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[0],
+                                                      key->recursive_proof_public_input_indices[1],
+                                                      key->recursive_proof_public_input_indices[2],
+                                                      key->recursive_proof_public_input_indices[3]);
+        const auto y0 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[4],
+                                                      key->recursive_proof_public_input_indices[5],
+                                                      key->recursive_proof_public_input_indices[6],
+                                                      key->recursive_proof_public_input_indices[7]);
+        const auto x1 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[8],
+                                                      key->recursive_proof_public_input_indices[9],
+                                                      key->recursive_proof_public_input_indices[10],
+                                                      key->recursive_proof_public_input_indices[11]);
+        const auto y1 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[12],
+                                                      key->recursive_proof_public_input_indices[13],
+                                                      key->recursive_proof_public_input_indices[14],
+                                                      key->recursive_proof_public_input_indices[15]);
 
         opening_elements.push_back(g1_ct(x0, y0));
         opening_scalars.push_back(recursion_separator_challenge);

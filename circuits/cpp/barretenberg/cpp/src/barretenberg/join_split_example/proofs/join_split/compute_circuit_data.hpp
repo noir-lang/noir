@@ -10,7 +10,7 @@ join_split_tx noop_tx();
 
 using circuit_data = proofs::circuit_data;
 
-circuit_data get_circuit_data(std::shared_ptr<proof_system::ReferenceStringFactory> const& srs, bool mock = false);
+circuit_data get_circuit_data(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& srs, bool mock = false);
 
 } // namespace join_split
 } // namespace proofs

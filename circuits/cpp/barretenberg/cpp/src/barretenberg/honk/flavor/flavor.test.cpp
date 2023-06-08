@@ -1,6 +1,6 @@
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/srs/reference_string/reference_string.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
 #include <cstddef>
 #include <gtest/gtest.h>
 
@@ -15,7 +15,7 @@ TEST(Flavor, StandardGetters)
     using ProvingKey = typename Flavor::ProvingKey;
 
     ProvingKey proving_key = []() {
-        auto crs_factory = ReferenceStringFactory();
+        auto crs_factory = barretenberg::srs::factories::CrsFactory();
         auto crs = crs_factory.get_prover_crs(4);
         return Flavor::ProvingKey(/*circuit_size=*/4, /*num_public_inputs=*/0, crs, ComposerType::STANDARD);
     }();
@@ -121,7 +121,7 @@ TEST(Flavor, AllEntitiesSpecialMemberFunctions)
     using Flavor = proof_system::honk::flavor::Standard;
     using FF = Flavor::FF;
     using PartiallyEvaluatedMultivariates = Flavor::PartiallyEvaluatedMultivariates;
-    using Polynomial = Polynomial<FF>;
+    using Polynomial = barretenberg::Polynomial<FF>;
 
     PartiallyEvaluatedMultivariates polynomials_A;
     auto random_poly = Polynomial(10);

@@ -180,5 +180,6 @@ template <typename ByteContainer> hash sha256(const ByteContainer& input)
 template hash sha256<std::vector<uint8_t>>(const std::vector<uint8_t>& input);
 template hash sha256<std::array<uint8_t, 32>>(const std::array<uint8_t, 32>& input);
 template hash sha256<std::string>(const std::string& input);
+template hash sha256<std::span<uint8_t>>(const std::span<uint8_t>& input);
 
 } // namespace sha256

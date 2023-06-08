@@ -1,10 +1,6 @@
 #pragma once
 #include "evaluation_domain.hpp"
 
-#ifndef NO_MULTITHREADING
-#include <omp.h>
-#endif
-
 namespace barretenberg {
 namespace polynomial_arithmetic {
 template <typename Fr> struct LagrangeEvaluations {

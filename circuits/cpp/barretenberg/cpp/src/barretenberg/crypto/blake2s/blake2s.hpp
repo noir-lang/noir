@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <vector>
+#include <array>
 
 namespace blake2 {
 
@@ -70,6 +71,6 @@ int blake2s_init_param(blake2s_state* S, const blake2s_param* P);
 int blake2s_update(blake2s_state* S, const void* in, size_t inlen);
 int blake2s_final(blake2s_state* S, void* out, size_t outlen);
 
-std::vector<uint8_t> blake2s(std::vector<uint8_t> const& input);
+std::array<uint8_t, BLAKE2S_OUTBYTES> blake2s(std::vector<uint8_t> const& input);
 
 } // namespace blake2

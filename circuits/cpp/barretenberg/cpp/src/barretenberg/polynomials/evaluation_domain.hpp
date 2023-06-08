@@ -63,7 +63,7 @@ template <typename Fr> class EvaluationDomain {
                                   //      ...
     std::vector<Fr*> inverse_round_roots;
 
-    Fr* roots;
+    std::shared_ptr<Fr[]> roots;
 };
 
 // tell the compiler we will take care of instantiating these in the .cpp file

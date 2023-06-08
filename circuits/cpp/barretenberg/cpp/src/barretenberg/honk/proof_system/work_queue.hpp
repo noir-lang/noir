@@ -1,6 +1,7 @@
 #pragma once
 
 #include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/srs/global_crs.hpp"
 #include <cstddef>
 #include <memory>
 
@@ -37,7 +38,8 @@ template <typename Params> class work_queue {
   public:
     explicit work_queue(size_t circuit_size, proof_system::honk::ProverTranscript<FF>& prover_transcript)
         : transcript(prover_transcript)
-        , commitment_key(circuit_size, "../srs_db/ignition"){}; // TODO(luke): make this properly parameterized
+        // TODO(luke): make this properly parameterized
+        , commitment_key(circuit_size, barretenberg::srs::get_crs_factory()->get_prover_crs(circuit_size)){};
 
     work_queue(const work_queue& other) = default;
     work_queue(work_queue&& other) noexcept = default;

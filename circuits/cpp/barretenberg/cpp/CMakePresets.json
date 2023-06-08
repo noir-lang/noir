@@ -47,6 +47,10 @@
       "inherits": "clang15",
       "environment": {
         "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "cacheVariables": {
+        "ENABLE_ASAN": "OFF",
+        "DISABLE_ASM": "ON"
       }
     },
     {
@@ -100,12 +104,12 @@
     {
       "name": "wasm",
       "displayName": "Build for WASM",
-      "description": "Build with a specific wasm-sdk to create wasm",
+      "description": "Build with wasi-sdk to create wasm",
       "binaryDir": "build-wasm",
       "generator": "Ninja",
       "toolchainFile": "cmake/toolchains/wasm32-wasi.cmake",
       "environment": {
-        "WASI_SDK_PREFIX": "${sourceDir}/src/wasi-sdk-12.0",
+        "WASI_SDK_PREFIX": "${sourceDir}/src/wasi-sdk-20.0",
         "CC": "$env{WASI_SDK_PREFIX}/bin/clang",
         "CXX": "$env{WASI_SDK_PREFIX}/bin/clang++",
         "AR": "$env{WASI_SDK_PREFIX}/bin/llvm-ar",
@@ -118,7 +122,31 @@
         "CMAKE_FIND_ROOT_PATH_MODE_INCLUDE": "ONLY",
         "CMAKE_FIND_ROOT_PATH_MODE_PACKAGE": "ONLY",
         "CMAKE_C_COMPILER_WORKS": "ON",
-        "CMAKE_CXX_COMPILER_WORKS": "ON"
+        "CMAKE_CXX_COMPILER_WORKS": "ON",
+        "MULTITHREADING": "OFF"
+      }
+    },
+    {
+      "name": "wasm-dbg",
+      "displayName": "Build for debug WASM",
+      "description": "Build with wasi-sdk to create debug wasm",
+      "inherits": "wasm",
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "wasm-threads",
+      "displayName": "Build for pthread enabled WASM",
+      "description": "Build for pthread enabled WASM",
+      "inherits": "wasm",
+      "binaryDir": "build-wasm-threads",
+      "environment": {
+        "WASI_SDK_PREFIX": "${sourceDir}/src/wasi-sdk-20.0+threads",
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "cacheVariables": {
+        "MULTITHREADING": "ON"
       }
     }
   ],
@@ -174,9 +202,21 @@
       "configurePreset": "wasm",
       "inheritConfigureEnvironment": true,
       "jobs": 0,
-      "targets": [
-        "barretenberg.wasm"
-      ]
+      "targets": ["barretenberg.wasm"]
+    },
+    {
+      "name": "wasm-dbg",
+      "configurePreset": "wasm-dbg",
+      "inheritConfigureEnvironment": true,
+      "jobs": 0,
+      "targets": ["barretenberg.wasm"]
+    },
+    {
+      "name": "wasm-threads",
+      "configurePreset": "wasm-threads",
+      "inheritConfigureEnvironment": true,
+      "jobs": 0,
+      "targets": ["barretenberg.wasm"]
     }
   ],
   "testPresets": [

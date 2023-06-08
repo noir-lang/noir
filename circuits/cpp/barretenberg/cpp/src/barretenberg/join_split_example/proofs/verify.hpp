@@ -27,7 +27,7 @@ template <typename Composer> struct verify_result {
 
 template <typename Composer>
 inline bool pairing_check(plonk::stdlib::recursion::aggregation_state<plonk::stdlib::bn254<Composer>> aggregation_state,
-                          std::shared_ptr<VerifierReferenceString> const& srs)
+                          std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& srs)
 {
     g1::affine_element P[2];
     P[0].x = barretenberg::fq(aggregation_state.P0.x.get_value().lo);

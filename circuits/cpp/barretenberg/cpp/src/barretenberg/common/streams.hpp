@@ -19,8 +19,8 @@ inline std::ostream& operator<<(std::ostream& os, std::vector<uint8_t> const& ar
     return os;
 }
 
-template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
-inline std::ostream& operator<<(std::ostream& os, std::vector<T> const& arr)
+template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true, typename A>
+inline std::ostream& operator<<(std::ostream& os, std::vector<T, A> const& arr)
 {
     os << "[";
     for (auto element : arr) {
@@ -30,8 +30,8 @@ inline std::ostream& operator<<(std::ostream& os, std::vector<T> const& arr)
     return os;
 }
 
-template <typename T, std::enable_if_t<!std::is_integral<T>::value, bool> = true>
-inline std::ostream& operator<<(std::ostream& os, std::vector<T> const& arr)
+template <typename T, std::enable_if_t<!std::is_integral<T>::value, bool> = true, typename A>
+inline std::ostream& operator<<(std::ostream& os, std::vector<T, A> const& arr)
 {
     os << "[\n";
     for (auto element : arr) {

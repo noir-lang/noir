@@ -7,7 +7,7 @@ template <typename settings> class KateCommitmentScheme : public CommitmentSchem
   public:
     KateCommitmentScheme();
 
-    void commit(fr* coefficients, std::string tag, fr item_constant, work_queue& queue) override;
+    void commit(std::shared_ptr<fr[]> coefficients, std::string tag, fr item_constant, work_queue& queue) override;
 
     void compute_opening_polynomial(const fr* src, fr* dest, const fr& z, const size_t n) override;
 

@@ -1,10 +1,8 @@
 #pragma once
 #include "../composers/composers_fwd.hpp"
 #include "../witness/witness.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
-namespace proof_system::plonk {
-namespace stdlib {
+namespace proof_system::plonk::stdlib {
 
 template <typename ComposerContext> class bool_t {
   public:
@@ -79,5 +77,4 @@ template <typename T> inline std::ostream& operator<<(std::ostream& os, bool_t<T
 
 EXTERN_STDLIB_TYPE(bool_t);
 
-} // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace proof_system::plonk::stdlib

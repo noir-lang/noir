@@ -2,6 +2,7 @@
 #include <memory>
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
 
 namespace proof_system {
 
@@ -19,7 +20,7 @@ namespace proof_system {
 template <typename Flavor>
 std::shared_ptr<typename Flavor::ProvingKey> initialize_proving_key(
     const typename Flavor::CircuitConstructor& circuit_constructor,
-    ReferenceStringFactory* crs_factory,
+    barretenberg::srs::factories::CrsFactory* crs_factory,
     const size_t minimum_circuit_size,
     const size_t num_randomized_gates,
     ComposerType composer_type)

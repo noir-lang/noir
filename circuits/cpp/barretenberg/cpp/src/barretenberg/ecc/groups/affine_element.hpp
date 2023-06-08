@@ -9,6 +9,11 @@ namespace barretenberg {
 namespace group_elements {
 template <typename Fq, typename Fr, typename Params> class alignas(64) affine_element {
   public:
+    typedef uint8_t const* in_buf;
+    typedef uint8_t const* vec_in_buf;
+    typedef uint8_t* out_buf;
+    typedef uint8_t** vec_out_buf;
+
     affine_element() noexcept {}
 
     constexpr affine_element(const Fq& a, const Fq& b) noexcept;

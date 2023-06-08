@@ -98,7 +98,7 @@ void generate_pippenger_point_table(typename Curve::AffineElement* points,
                                     typename Curve::AffineElement* table,
                                     size_t num_points);
 
-void organize_buckets(uint64_t* point_schedule, const uint64_t* round_counts, const size_t num_points);
+void organize_buckets(uint64_t* point_schedule, const size_t num_points);
 
 inline void count_bits(uint32_t* bucket_counts,
                        uint32_t* bit_offsets,
