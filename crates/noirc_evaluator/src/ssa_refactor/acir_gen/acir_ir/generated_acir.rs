@@ -129,7 +129,7 @@ impl GeneratedAcir {
     ///     - b = 2^{max_bits}
     /// The prover will supply the quotient and the remainder, where the remainder
     /// is the truncated value that we will return since it is enforced to be
-    /// in the range:  0 <= r < 2^{rhs}
+    /// in the range:  0 <= r < 2^{rhs_bit_size}
     pub(crate) fn truncate(
         &mut self,
         lhs: &Expression,
