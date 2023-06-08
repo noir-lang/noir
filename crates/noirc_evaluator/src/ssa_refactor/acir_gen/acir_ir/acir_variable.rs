@@ -766,7 +766,7 @@ impl AcirContext {
         output_len: usize,
     ) -> Vec<AcirVar> {
         let b_inputs =
-            vecmap(inputs, |i| BrilligInputs::Single(self.data[&i].to_expression().into_owned()));
+            vecmap(inputs, |i| BrilligInputs::Single(self.vars[&i].to_expression().into_owned()));
         let outputs = vecmap(0..output_len, |_| self.acir_ir.next_witness_index());
         let outputs_var =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
