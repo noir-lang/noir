@@ -563,19 +563,13 @@ impl Context {
         let mut vars = vars.into_iter();
 
         for result in result_ids {
-            Self::convert_var_type_to_values(
-                dfg,
-                &dfg.type_of_value(*result),
-                &mut values,
-                &mut vars,
-            );
+            Self::convert_var_type_to_values(&dfg.type_of_value(*result), &mut values, &mut vars);
         }
 
         values
     }
 
     fn convert_var_type_to_values(
-        dfg: &DataFlowGraph,
         result_type: &Type,
         values: &mut Vec<AcirValue>,
         vars: &mut impl Iterator<Item = AcirVar>,
@@ -584,7 +578,7 @@ impl Context {
             Type::Array(elements, size) => {
                 for _ in 0..*size {
                     for element_type in elements.iter() {
-                        Self::convert_var_type_to_values(dfg, element_type, values, vars);
+                        Self::convert_var_type_to_values(element_type, values, vars);
                     }
                 }
             }
