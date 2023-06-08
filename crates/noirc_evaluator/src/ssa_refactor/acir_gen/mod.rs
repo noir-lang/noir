@@ -502,7 +502,7 @@ impl Context {
                 let field = self.convert_value(arguments[0], dfg).into_var();
                 let radix = self.convert_value(arguments[1], dfg).into_var();
                 let limb_size = self.convert_value(arguments[2], dfg).into_var();
-                let result_type = dfg.type_of_value(result_ids[0]).into();
+                let result_type = Self::array_element_type(dfg, result_ids[0]);
 
                 self.acir_context
                     .radix_decompose(endian, field, radix, limb_size, result_type)
@@ -511,7 +511,7 @@ impl Context {
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var();
                 let bit_size = self.convert_value(arguments[1], dfg).into_var();
-                let result_type = dfg.type_of_value(result_ids[0]).into();
+                let result_type = Self::array_element_type(dfg, result_ids[0]);
 
                 self.acir_context
                     .bit_decompose(endian, field, bit_size, result_type)
@@ -527,6 +527,18 @@ impl Context {
                 Vec::new()
             }
             _ => todo!("expected a black box function"),
+        }
+    }
+
+    /// Given an array value, return the numerical type of its element.
+    /// Panics if the given value is not an array or has a non-numeric element type.
+    fn array_element_type(dfg: &DataFlowGraph, value: ValueId) -> AcirType {
+        match dfg.type_of_value(value) {
+            Type::Array(elements, _) => {
+                assert_eq!(elements.len(), 1);
+                (&elements[0]).into()
+            }
+            _ => unreachable!("Expected array type"),
         }
     }
 
