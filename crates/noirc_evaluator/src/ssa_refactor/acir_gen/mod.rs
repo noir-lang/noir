@@ -45,15 +45,22 @@ struct Context {
 
 #[derive(Debug, Clone)]
 pub(crate) enum AcirValue {
-    Var(AcirVar),
+    Var(AcirVar, AcirType),
     Array(im::Vector<AcirValue>),
 }
 
 impl AcirValue {
     fn into_var(self) -> AcirVar {
         match self {
-            AcirValue::Var(var) => var,
+            AcirValue::Var(var, _) => var,
             AcirValue::Array(_) => panic!("Called AcirValue::into_var on an array"),
+        }
+    }
+
+    fn flatten(self) -> Vec<(AcirVar, AcirType)> {
+        match self {
+            AcirValue::Var(var, typ) => vec![(var, typ)],
+            AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
         }
     }
 }
@@ -99,7 +106,10 @@ impl Context {
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> AcirValue {
         match param_type {
-            Type::Numeric(numeric_type) => AcirValue::Var(self.add_numeric_input_var(numeric_type)),
+            Type::Numeric(numeric_type) => {
+                let typ = AcirType::new(*numeric_type);
+                AcirValue::Var(self.add_numeric_input_var(numeric_type), typ)
+            }
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
 
@@ -179,6 +189,7 @@ impl Context {
                             arguments,
                             dfg,
                             allow_log_ops,
+                            result_ids,
                         );
 
                         // Issue #1438 causes this check to fail with intrinsics that return 0
@@ -272,7 +283,9 @@ impl Context {
         instruction: InstructionId,
         result: AcirVar,
     ) {
-        self.define_result(dfg, instruction, AcirValue::Var(result));
+        let result_ids = dfg.instruction_results(instruction);
+        let typ = dfg.type_of_value(result_ids[0]).into();
+        self.define_result(dfg, instruction, AcirValue::Var(result, typ));
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
@@ -319,8 +332,8 @@ impl Context {
         }
 
         let acir_value = match value {
-            Value::NumericConstant { constant, .. } => {
-                AcirValue::Var(self.acir_context.add_constant(*constant))
+            Value::NumericConstant { constant, typ } => {
+                AcirValue::Var(self.acir_context.add_constant(*constant), typ.into())
             }
             Value::Array { array, .. } => {
                 let elements = array.iter().map(|element| self.convert_value(*element, dfg));
@@ -342,14 +355,14 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> im::Vector<AcirValue> {
         match self.convert_value(value_id, dfg) {
-            AcirValue::Var(acir_var) => panic!("Expected an array value, found: {acir_var:?}"),
+            AcirValue::Var(acir_var, _) => panic!("Expected an array value, found: {acir_var:?}"),
             AcirValue::Array(array) => array,
         }
     }
 
     fn convert_numeric_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirVar {
         match self.convert_value(value_id, dfg) {
-            AcirValue::Var(acir_var) => acir_var,
+            AcirValue::Var(acir_var, _) => acir_var,
             AcirValue::Array(array) => panic!("Expected a numeric value, found: {array:?}"),
         }
     }
@@ -395,9 +408,9 @@ impl Context {
             BinaryOp::Lt => self.acir_context.less_than_var(lhs, rhs, bit_count),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type),
-            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, bit_count),
-            BinaryOp::And => self.acir_context.and_var(lhs, rhs, bit_count),
-            BinaryOp::Or => self.acir_context.or_var(lhs, rhs, bit_count),
+            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
+            BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
+            BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
             BinaryOp::Mod => self.acir_context.modulo_var(lhs, rhs, bit_count),
         }
     }
@@ -472,31 +485,35 @@ impl Context {
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
         allow_log_ops: bool,
+        result_ids: &[ValueId]
     ) -> Vec<AcirValue> {
         match intrinsic {
             Intrinsic::BlackBox(black_box) => {
-                let inputs = vecmap(arguments, |arg| {
-                    let bit_count = self.bit_count(*arg, dfg);
-                    (self.convert_value(*arg, dfg), bit_count)
-                });
+                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                self.acir_context
+                let vars = self.acir_context
                     .black_box_function(black_box, inputs)
-                    .expect("add Result types to all methods so errors bubble up")
+                    .expect("add Result types to all methods so errors bubble up");
+
+                self.convert_vars_to_values(vars, dfg, result_ids)
             }
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var();
                 let radix = self.convert_value(arguments[1], dfg).into_var();
                 let limb_size = self.convert_value(arguments[2], dfg).into_var();
+                let result_type = dfg.type_of_value(result_ids[0]).into();
+
                 self.acir_context
-                    .radix_decompose(endian, field, radix, limb_size)
+                    .radix_decompose(endian, field, radix, limb_size, result_type)
                     .expect("add Result types to all methods so errors bubble up")
             }
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var();
                 let bit_size = self.convert_value(arguments[1], dfg).into_var();
+                let result_type = dfg.type_of_value(result_ids[0]).into();
+
                 self.acir_context
-                    .bit_decompose(endian, field, bit_size)
+                    .bit_decompose(endian, field, bit_size, result_type)
                     .expect("add Result types to all methods so errors bubble up")
             }
             Intrinsic::Println => {
@@ -531,6 +548,10 @@ impl Context {
             Type::Numeric(NumericType::NativeField) => FieldElement::max_num_bits(),
             _ => 0,
         }
+    }
+
+    fn convert_vars_to_values(&self, vars: Vec<AcirVar>, dfg: &DataFlowGraph, result_ids: &[ValueId]) -> Vec<AcirValue> {
+        let mut values = vec![];
     }
 }
 

@@ -28,6 +28,10 @@ use std::{borrow::Cow, hash::Hash};
 pub(crate) struct AcirType(NumericType);
 
 impl AcirType {
+    pub(crate) fn new(typ: NumericType) -> Self {
+        Self(typ)
+    }
+
     /// Returns the bit size of the underlying type
     pub(crate) fn bit_size(&self) -> u32 {
         match self.0 {
@@ -45,8 +49,14 @@ impl AcirType {
 
 impl From<SsaType> for AcirType {
     fn from(value: SsaType) -> Self {
+        AcirType::from(&value)
+    }
+}
+
+impl<'a> From<&'a SsaType> for AcirType {
+    fn from(value: &SsaType) -> Self {
         match value {
-            SsaType::Numeric(numeric_type) => AcirType(numeric_type),
+            SsaType::Numeric(numeric_type) => AcirType(*numeric_type),
             _ => unreachable!("The type {value}  cannot be represented in ACIR"),
         }
     }
@@ -156,11 +166,11 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_count: u32,
+        typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let inputs = vec![(AcirValue::Var(lhs), bit_count), (AcirValue::Var(rhs), bit_count)];
-        let mut outputs = self.black_box_function(BlackBoxFunc::XOR, inputs)?;
-        Ok(outputs.swap_remove(0).into_var())
+        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs)?;
+        Ok(outputs[0])
     }
 
     /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
@@ -168,11 +178,11 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_count: u32,
+        typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let inputs = vec![(AcirValue::Var(lhs), bit_count), (AcirValue::Var(rhs), bit_count)];
-        let mut outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
-        Ok(outputs.swap_remove(0).into_var())
+        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
+        Ok(outputs[0])
     }
 
     /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
@@ -180,8 +190,9 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_size: u32,
+        typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
+        let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans
             // a + b - ab
@@ -196,9 +207,9 @@ impl AcirContext {
             let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
-            let inputs = vec![(AcirValue::Var(a), bit_size), (AcirValue::Var(b), bit_size)];
-            let mut output = self.black_box_function(BlackBoxFunc::AND, inputs)?;
-            self.sub_var(max, output.swap_remove(0).into_var())
+            let inputs = vec![AcirValue::Var(a, typ), AcirValue::Var(b, typ)];
+            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
+            self.sub_var(max, outputs[0])
         }
     }
 
@@ -537,8 +548,8 @@ impl AcirContext {
     pub(crate) fn black_box_function(
         &mut self,
         name: BlackBoxFunc,
-        mut inputs: Vec<(AcirValue, /*bit_count*/ u32)>,
-    ) -> Result<Vec<AcirValue>, AcirGenError> {
+        mut inputs: Vec<AcirValue>,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
         // Separate out any arguments that should be constants
         let constants = match name {
             BlackBoxFunc::Pedersen => {
@@ -546,7 +557,6 @@ impl AcirContext {
                 let domain_var = inputs
                     .pop()
                     .expect("ICE: Pedersen call requires domain separator")
-                    .0
                     .into_var();
 
                 let domain_constant = self.vars[domain_var]
@@ -570,7 +580,7 @@ impl AcirContext {
         // We do not apply range information on the output of the black box function.
         // See issue #1439
         Ok(vecmap(&outputs, |witness_index| {
-            AcirValue::Var(self.add_data(AcirVarData::Witness(*witness_index)))
+            self.add_data(AcirVarData::Witness(*witness_index))
         }))
     }
 
@@ -579,18 +589,21 @@ impl AcirContext {
     /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
     fn prepare_inputs_for_black_box_func_call(
         &mut self,
-        inputs: Vec<(AcirValue, /*bit_count*/ u32)>,
+        inputs: Vec<AcirValue>,
     ) -> Result<Vec<FunctionInput>, AcirGenError> {
         let mut witnesses = Vec::new();
-        for (input, num_bits) in inputs {
-            let var_data = &self.vars[input.into_var()];
+        for input in inputs {
+            for (input, typ) in input.flatten() {
+                let var_data = &self.vars[input];
 
-            // Intrinsics only accept Witnesses. This is not a limitation of the
-            // intrinsics, its just how we have defined things. Ideally, we allow
-            // constants too.
-            let expr = var_data.to_expression();
-            let witness = self.acir_ir.get_or_create_witness(&expr);
-            witnesses.push(FunctionInput { witness, num_bits });
+                // Intrinsics only accept Witnesses. This is not a limitation of the
+                // intrinsics, its just how we have defined things. Ideally, we allow
+                // constants too.
+                let expr = var_data.to_expression();
+                let witness = self.acir_ir.get_or_create_witness(&expr);
+                let num_bits = typ.bit_size();
+                witnesses.push(FunctionInput { witness, num_bits });
+            }
         }
         Ok(witnesses)
     }
@@ -607,6 +620,7 @@ impl AcirContext {
         input_var: AcirVar,
         radix_var: AcirVar,
         limb_count_var: AcirVar,
+        result_element_type: AcirType,
     ) -> Result<Vec<AcirValue>, AcirGenError> {
         let radix =
             self.vars[&radix_var].as_constant().expect("ICE: radix should be a constant").to_u128()
@@ -622,7 +636,10 @@ impl AcirContext {
         let limbs = self.acir_ir.radix_le_decompose(input_expr, radix, limb_count)?;
 
         let mut limb_vars =
-            vecmap(limbs, |witness| AcirValue::Var(self.add_data(AcirVarData::Witness(witness))));
+            vecmap(limbs, |witness| {
+                let witness = self.add_data(AcirVarData::Witness(witness));
+                AcirValue::Var(witness, result_element_type)
+            });
 
         if endian == Endian::Big {
             limb_vars.reverse();
@@ -637,9 +654,10 @@ impl AcirContext {
         endian: Endian,
         input_var: AcirVar,
         limb_count_var: AcirVar,
+        result_element_type: AcirType,
     ) -> Result<Vec<AcirValue>, AcirGenError> {
         let two_var = self.add_constant(FieldElement::from(2_u128));
-        self.radix_decompose(endian, input_var, two_var, limb_count_var)
+        self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
     }
 
     /// Prints the given `AcirVar`s as witnesses.
@@ -665,7 +683,7 @@ impl AcirContext {
 
     pub(crate) fn flatten_value(acir_vars: &mut Vec<AcirVar>, value: AcirValue) {
         match value {
-            AcirValue::Var(acir_var) => acir_vars.push(acir_var),
+            AcirValue::Var(acir_var, _) => acir_vars.push(acir_var),
             AcirValue::Array(array) => {
                 for value in array {
                     Self::flatten_value(acir_vars, value);
