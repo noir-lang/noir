@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
 
-use crate::{constants::PROOFS_DIR, find_package_root};
+use crate::find_package_root;
 
 mod fs;
 
@@ -14,6 +14,7 @@ mod codegen_verifier_cmd;
 mod compile_cmd;
 mod execute_cmd;
 mod gates_cmd;
+mod lsp_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod test_cmd;
@@ -55,13 +56,14 @@ enum NargoCommand {
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
     Gates(gates_cmd::GatesCommand),
+    Lsp(lsp_cmd::LspCommand),
 }
 
 pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(command, NargoCommand::New(_)) {
+    if !matches!(command, NargoCommand::New(_) | NargoCommand::Lsp(_)) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
@@ -77,13 +79,18 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
         NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
+        NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
     }?;
 
     Ok(())
 }
 
-// helper function which tests noir programs by trying to generate a proof and verify it
-pub fn prove_and_verify(proof_name: &str, program_dir: &Path, experimental_ssa: bool) -> bool {
+// helper function which tests noir programs by trying to generate a proof and verify it without reading/writing to the filesystem
+pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
+    use compile_cmd::compile_circuit;
+    use fs::common_reference_string::update_common_reference_string;
+    use nargo::ops::preprocess_program;
+
     let backend = crate::backends::ConcreteBackend::default();
 
     let compile_options = CompileOptions {
@@ -93,23 +100,67 @@ pub fn prove_and_verify(proof_name: &str, program_dir: &Path, experimental_ssa: 
         show_output: false,
         experimental_ssa,
     };
-    let proof_dir = program_dir.join(PROOFS_DIR);
 
-    match prove_cmd::prove_with_path(
+    let program =
+        compile_circuit(&backend, program_dir, &compile_options).expect("Compile should succeed");
+    let common_reference_string = update_common_reference_string(
         &backend,
-        Some(proof_name.to_owned()),
+        // Empty CRS is always used since we don't read/write a cached version in these tests
+        &[],
+        &program.circuit,
+    )
+    .expect("Should fetch CRS");
+    let preprocessed_program = preprocess_program(&backend, &common_reference_string, program)
+        .expect("Preprocess should succeed");
+
+    let nargo::artifacts::program::PreprocessedProgram {
+        abi,
+        bytecode,
+        proving_key,
+        verification_key,
+        ..
+    } = preprocessed_program;
+
+    // Parse the initial witness values from Prover.toml
+    let (inputs_map, _) = fs::inputs::read_inputs_from_file(
         program_dir,
-        &proof_dir,
-        None,
-        true,
-        &compile_options,
-    ) {
-        Ok(_) => true,
-        Err(error) => {
-            println!("{error}");
-            false
-        }
-    }
+        crate::constants::PROVER_INPUT_FILE,
+        noirc_abi::input_parser::Format::Toml,
+        &abi,
+    )
+    .expect("Should read inputs");
+
+    let solved_witness =
+        match execute_cmd::execute_program(&backend, bytecode.clone(), &abi, &inputs_map) {
+            Ok(witness) => witness,
+            // Failure to execute is an invalid proof
+            Err(_) => return false,
+        };
+
+    let public_abi = abi.public_abi();
+    let (public_inputs, return_value) =
+        public_abi.decode(&solved_witness).expect("Solved witness should decode");
+
+    let proof = nargo::ops::prove_execution(
+        &backend,
+        &common_reference_string,
+        &bytecode,
+        solved_witness,
+        &proving_key,
+    )
+    .expect("Circuit should prove");
+
+    let public_inputs =
+        public_abi.encode(&public_inputs, return_value).expect("Public inputs should encode");
+    nargo::ops::verify_proof(
+        &backend,
+        &common_reference_string,
+        &bytecode,
+        &proof,
+        public_inputs,
+        &verification_key,
+    )
+    .expect("Proof should verify")
 }
 
 // FIXME: I not sure that this is the right place for this tests.
@@ -129,7 +180,7 @@ mod tests {
         let mut driver = Driver::new(
             &acvm::Language::R1CS,
             #[allow(deprecated)]
-            Box::new(acvm::default_is_opcode_supported(acvm::Language::R1CS)),
+            Box::new(acvm::pwg::default_is_opcode_supported(acvm::Language::R1CS)),
         );
         driver.create_local_crate(&root_file, CrateType::Binary);
         crate::resolver::add_std_lib(&mut driver);

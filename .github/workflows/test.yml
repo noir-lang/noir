@@ -10,15 +10,17 @@ concurrency:
 jobs:
   test:
     name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu
+            runner: ubuntu-large
             target: x86_64-linux
-          - os: macos-latest
+          - os: mac
+            runner: macos-latest
             target: x86_64-darwin
 
     steps:

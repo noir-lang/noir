@@ -6,10 +6,9 @@
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use clap::Args;
-use fm::FileType;
-use iter_extended::try_vecmap;
+use fm::{FileId, FileManager, FileType};
 use noirc_abi::FunctionSignature;
-use noirc_errors::{reporter, ReportedError};
+use noirc_errors::{reporter, CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -71,13 +70,18 @@ impl Driver {
         Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
     }
 
+    // TODO(#1599): Move control of the FileManager into nargo
+    pub fn file_manager(&self) -> &FileManager {
+        &self.context.file_manager
+    }
+
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
     pub fn compile_file(
         root_file: PathBuf,
         language: &Language,
         is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
-    ) -> Result<CompiledProgram, ReportedError> {
+    ) -> Result<CompiledProgram, Vec<FileDiagnostic>> {
         let mut driver = Driver::new(language, is_opcode_supported);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.compile_main(&CompileOptions::default())
@@ -167,12 +171,14 @@ impl Driver {
 
     /// Run the lexing, parsing, name resolution, and type checking passes,
     /// returning Err(FrontendError) and printing any errors that were found.
-    pub fn check_crate(&mut self, options: &CompileOptions) -> Result<(), ReportedError> {
+    pub fn check_crate(&mut self) -> Result<(), Vec<FileDiagnostic>> {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        let error_count =
-            reporter::report_all(&self.context.file_manager, &errs, options.deny_warnings);
-        reporter::finish_report(error_count)
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(errs)
+        }
     }
 
     pub fn compute_function_signature(&self) -> Option<FunctionSignature> {
@@ -189,13 +195,16 @@ impl Driver {
     pub fn compile_main(
         &mut self,
         options: &CompileOptions,
-    ) -> Result<CompiledProgram, ReportedError> {
-        self.check_crate(options)?;
+    ) -> Result<CompiledProgram, Vec<FileDiagnostic>> {
+        self.check_crate()?;
         let main = match self.main_function() {
-            Ok(m) => m,
-            Err(e) => {
-                println!("cannot compile a program with no main function");
-                return Err(e);
+            Some(m) => m,
+            None => {
+                let err = FileDiagnostic {
+                    file_id: FileId::default(),
+                    diagnostic: CustomDiagnostic::from_message("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command")
+                };
+                return Err(err.into());
             }
         };
         let compiled_program = self.compile_no_check(options, main)?;
@@ -210,23 +219,33 @@ impl Driver {
     pub fn compile_contracts(
         &mut self,
         options: &CompileOptions,
-    ) -> Result<Vec<CompiledContract>, ReportedError> {
-        self.check_crate(options)?;
+    ) -> Result<Vec<CompiledContract>, Vec<FileDiagnostic>> {
+        self.check_crate()?;
         let contracts = self.get_all_contracts();
-        let compiled_contracts =
-            try_vecmap(contracts, |contract| self.compile_contract(contract, options))?;
-        if options.print_acir {
-            for compiled_contract in &compiled_contracts {
-                for contract_function in &compiled_contract.functions {
-                    println!(
-                        "Compiled ACIR for {}::{}:",
-                        compiled_contract.name, contract_function.name
-                    );
-                    println!("{}", contract_function.bytecode);
-                }
+        let mut compiled_contracts = vec![];
+        let mut errs = vec![];
+        for contract in contracts {
+            match self.compile_contract(contract, options) {
+                Ok(contract) => compiled_contracts.push(contract),
+                Err(err) => errs.push(err),
             }
         }
-        Ok(compiled_contracts)
+        if errs.is_empty() {
+            if options.print_acir {
+                for compiled_contract in &compiled_contracts {
+                    for contract_function in &compiled_contract.functions {
+                        println!(
+                            "Compiled ACIR for {}::{}:",
+                            compiled_contract.name, contract_function.name
+                        );
+                        println!("{}", contract_function.bytecode);
+                    }
+                }
+            }
+            Ok(compiled_contracts)
+        } else {
+            Err(errs.concat())
+        }
     }
 
     /// Compile all of the functions associated with a Noir contract.
@@ -234,10 +253,18 @@ impl Driver {
         &self,
         contract: Contract,
         options: &CompileOptions,
-    ) -> Result<CompiledContract, ReportedError> {
-        let functions = try_vecmap(&contract.functions, |function_id| {
+    ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
+        let mut functions = Vec::new();
+        let mut errs = Vec::new();
+        for function_id in &contract.functions {
             let name = self.function_name(*function_id).to_owned();
-            let function = self.compile_no_check(options, *function_id)?;
+            let function = match self.compile_no_check(options, *function_id) {
+                Ok(function) => function,
+                Err(err) => {
+                    errs.push(err);
+                    continue;
+                }
+            };
             let func_meta = self.context.def_interner.function_meta(function_id);
             let func_type = func_meta
                 .contract_function_type
@@ -245,33 +272,36 @@ impl Driver {
 
             let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
-            Ok(ContractFunction {
+            functions.push(ContractFunction {
                 name,
                 function_type,
                 abi: function.abi,
                 bytecode: function.circuit,
-            })
-        })?;
+            });
+        }
 
-        Ok(CompiledContract { name: contract.name, functions })
+        if errs.is_empty() {
+            Ok(CompiledContract { name: contract.name, functions })
+        } else {
+            Err(errs)
+        }
     }
 
     /// Returns the FuncId of the 'main' function.
     /// - Expects check_crate to be called beforehand
     /// - Panics if no main function is found
-    pub fn main_function(&self) -> Result<FuncId, ReportedError> {
+    pub fn main_function(&self) -> Option<FuncId> {
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries which will do nothing
         if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
-            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
-            return Err(ReportedError);
-        };
-
-        // All Binaries should have a main function
-        local_crate.main_function().ok_or(ReportedError)
+            None
+        } else {
+            // All Binaries should have a main function
+            local_crate.main_function()
+        }
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
@@ -280,7 +310,7 @@ impl Driver {
         &self,
         options: &CompileOptions,
         main_function: FuncId,
-    ) -> Result<CompiledProgram, ReportedError> {
+    ) -> Result<CompiledProgram, FileDiagnostic> {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
@@ -308,11 +338,7 @@ impl Driver {
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the call site without a stacktrace
-                let file = err.location.map(|loc| loc.file);
-                let files = &self.context.file_manager;
-                let error = reporter::report(files, &err.into(), file, options.deny_warnings);
-                reporter::finish_report(error as u32)?;
-                Err(ReportedError)
+                Err(err.into())
             }
         }
     }
@@ -346,6 +372,6 @@ impl Driver {
 impl Default for Driver {
     fn default() -> Self {
         #[allow(deprecated)]
-        Self::new(&Language::R1CS, Box::new(acvm::default_is_opcode_supported(Language::R1CS)))
+        Self::new(&Language::R1CS, Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)))
     }
 }
