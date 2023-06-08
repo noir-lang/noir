@@ -290,7 +290,6 @@ impl BrilligGen {
         brillig.convert_ssa_function(func);
 
         brillig.push_code(BrilligOpcode::Stop);
-        dbg!(brillig.obj.byte_code.clone());
         brillig.obj
     }
 
