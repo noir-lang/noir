@@ -82,23 +82,6 @@ void validate_this_private_call_hash(DummyComposer& composer,
         CircuitErrorCode::PRIVATE_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH);
 };
 
-void validate_this_private_call_stack(DummyComposer& composer, PrivateKernelInputsInner<NT> const& private_inputs)
-{
-    const auto& stack = private_inputs.private_call.call_stack_item.public_inputs.private_call_stack;
-    const auto& preimages = private_inputs.private_call.private_call_stack_preimages;
-    for (size_t i = 0; i < stack.size(); ++i) {
-        const auto& hash = stack[i];
-        const auto& preimage = preimages[i];
-
-        // Note: this assumes it's computationally infeasible to have `0` as a valid call_stack_item_hash.
-        // Assumes `hash == 0` means "this stack item is empty".
-        const auto calculated_hash = hash == 0 ? 0 : preimage.hash();
-        composer.do_assert(hash == calculated_hash,
-                           format("private_call_stack[", i, "] = ", hash, "; does not reconcile"),
-                           CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_ITEM_HASH_MISMATCH);
-    }
-};
-
 void validate_contract_tree_root(DummyComposer& composer, PrivateKernelInputsInner<NT> const& private_inputs)
 {
     auto const& purported_contract_tree_root =
@@ -156,10 +139,6 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyComposer&
 
     // TODO(jeanmon) Resuscitate after issue 499 is fixed as explained below.
     // validate_this_private_call_hash(composer, private_inputs, public_inputs);
-
-    // TODO(rahul) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/499
-    // Noir doesn't have hash index so it can't hash private call stack item correctly
-    // validate_this_private_call_stack(composer, private_inputs);
 
     // TODO(dbanks12): may need to comment out hash check in here according to TODO above
     // TODO(jeanmon) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/671
