@@ -1,0 +1,17 @@
+[package]
+name = "noir_lsp"
+description = "Language server for Noir"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json.workspace = true
+tower.workspace = true
+async-lsp = { version = "0.0.4", default-features = false, features = ["omni-trait"] }
+lsp-types = "0.94"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["macros"] }

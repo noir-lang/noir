@@ -14,6 +14,10 @@ This is the virtual machine that runs ACIR. Given a proving system to power it, 
 
 This is the abstraction that the compiler uses to manage source files.
 
+## lsp
+
+This is the platform agnostic implementation of Noir's Language Server. It implements the various features supported, but doesn't bind to any particular transport. Binding to a transport must be done when consuming the crate.
+
 ## nargo
 
 This is the default package manager used by Noir. One may draw similarities to Rusts' Cargo.

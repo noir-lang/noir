@@ -42,6 +42,8 @@ pub(crate) fn optimize_into_acir(program: Program, allow_log_ops: bool) -> Gener
         .print("After Flattening:")
         .mem2reg()
         .print("After Mem2Reg:")
+        .fold_constants()
+        .print("After Constant Folding:")
         .into_acir(func_signature, brillig, allow_log_ops)
 }
 
