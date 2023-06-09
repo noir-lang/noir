@@ -1,15 +1,22 @@
-use super::artifact::BrilligArtifact;
+use super::{
+    artifact::BrilligArtifact,
+    binary::{type_of_binary_operation, BrilligBinaryOp},
+    memory::BrilligMemory,
+};
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
     function::Function,
-    instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+    instruction::{Binary, Instruction, InstructionId, TerminatorInstruction},
     post_order::PostOrder,
-    types::{NumericType, Type},
+    types::Type,
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
+use acvm::{
+    acir::brillig_vm::{
+        BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
+    },
+    FieldElement,
 };
 use std::collections::HashMap;
 
@@ -21,6 +28,8 @@ pub(crate) struct BrilligGen {
     latest_register: usize,
     /// Map from SSA values to Register Indices.
     ssa_value_to_register: HashMap<ValueId, RegisterIndex>,
+    /// Tracks memory allocations
+    memory: BrilligMemory,
 }
 
 impl BrilligGen {
@@ -37,18 +46,30 @@ impl BrilligGen {
             return *register_index;
         }
 
-        let register = RegisterIndex::from(self.latest_register);
+        let register = self.create_register();
+
+        // Cache the `ValueId` so that if we call it again, it will
+        // return the register that has just been created.
+        //
+        // WARNING: This assumes that a register has not been
+        // modified. If a MOV instruction has overwritten the value
+        // at a register, then this cache will be invalid.
         self.ssa_value_to_register.insert(value, register);
 
-        self.latest_register += 1;
+        register
+    }
 
+    /// Creates a new register.
+    fn create_register(&mut self) -> RegisterIndex {
+        let register = RegisterIndex::from(self.latest_register);
+        self.latest_register += 1;
         register
     }
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
         self.obj.add_block_label(block_id);
-        let block = &dfg[dbg!(block_id)];
+        let block = &dfg[block_id];
         self.convert_block_params(block, dfg);
 
         for instruction_id in block.instructions() {
@@ -97,14 +118,6 @@ impl BrilligGen {
     /// the Register starting at register index 0. `N` indicates the number of
     /// return values expected.
     fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
-        // Check if the program returns the `Unit/None` type.
-        // This type signifies that the program returns nothing.
-        let is_return_unit_type =
-            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
-        if is_return_unit_type {
-            return;
-        }
-
         for (destination_index, value_id) in return_values.iter().enumerate() {
             let return_register = self.convert_ssa_value(*value_id, dfg);
             if destination_index > self.latest_register {
@@ -115,6 +128,7 @@ impl BrilligGen {
                 source: return_register,
             });
         }
+        self.push_code(BrilligOpcode::Stop);
     }
 
     /// Converts SSA Block parameters into Brillig Registers.
@@ -150,8 +164,72 @@ impl BrilligGen {
                 let condition = self.convert_ssa_value(*value, dfg);
                 self.push_code(BrilligOpcode::JumpIfNot { condition, location: 1 });
             }
-            _ => todo!("ICE: Instruction not supported"),
+            Instruction::Allocate => {
+                let pointer_register =
+                    self.get_or_create_register(dfg.instruction_results(instruction_id)[0]);
+                self.allocate_array(pointer_register, 1);
+            }
+            Instruction::Store { address, value } => {
+                let address_register = self.convert_ssa_value(*address, dfg);
+                let value_register = self.convert_ssa_value(*value, dfg);
+                self.push_code(BrilligOpcode::Store {
+                    destination_pointer: address_register,
+                    source: value_register,
+                });
+            }
+            Instruction::Load { address } => {
+                let target_register =
+                    self.get_or_create_register(dfg.instruction_results(instruction_id)[0]);
+                let address_register = self.convert_ssa_value(*address, dfg);
+                self.push_code(BrilligOpcode::Load {
+                    destination: target_register,
+                    source_pointer: address_register,
+                });
+            }
+            Instruction::Not(value) => {
+                let result_ids = dfg.instruction_results(instruction_id);
+                let result_register = self.get_or_create_register(result_ids[0]);
+
+                assert_eq!(
+                    dfg.type_of_value(*value),
+                    Type::bool(),
+                    "not operator can only be applied to boolean values"
+                );
+
+                let one = self.make_constant(FieldElement::one());
+                let condition = self.convert_ssa_value(*value, dfg);
+
+                // Compile !x as (1 - x)
+                let opcode = BrilligOpcode::BinaryIntOp {
+                    destination: result_register,
+                    op: BinaryIntOp::Sub,
+                    bit_size: 1,
+                    lhs: one,
+                    rhs: condition,
+                };
+                self.push_code(opcode);
+            }
+            _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+    }
+
+    fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
+        let array_pointer = self.memory.allocate(size as usize);
+        self.push_code(BrilligOpcode::Const {
+            destination: pointer_register,
+            value: BrilligValue::from(array_pointer),
+        });
+    }
+
+    /// Returns a register which holds the value of a constant
+    fn make_constant(&mut self, constant: FieldElement) -> RegisterIndex {
+        let register = self.create_register();
+
+        let const_opcode =
+            BrilligOpcode::Const { destination: register, value: BrilligValue::from(constant) };
+        self.push_code(const_opcode);
+
+        register
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
@@ -161,17 +239,16 @@ impl BrilligGen {
         dfg: &DataFlowGraph,
         result_register: RegisterIndex,
     ) {
-        let left_type = dfg[binary.lhs].get_type();
-        let right_type = dfg[binary.rhs].get_type();
-        if left_type != right_type {
-            todo!("ICE: Binary operands must have the same type")
-        }
+        let binary_type =
+            type_of_binary_operation(dfg[binary.lhs].get_type(), dfg[binary.rhs].get_type());
 
         let left = self.convert_ssa_value(binary.lhs, dfg);
         let right = self.convert_ssa_value(binary.rhs, dfg);
 
-        let brillig_binary_op =
-            BrilligBinaryOp::convert_ssa_binary_op_to_brillig_binary_op(binary.operator, left_type);
+        let brillig_binary_op = BrilligBinaryOp::convert_ssa_binary_op_to_brillig_binary_op(
+            binary.operator,
+            binary_type,
+        );
         match brillig_binary_op {
             BrilligBinaryOp::Field { op } => {
                 let opcode = BrilligOpcode::BinaryFieldOp {
@@ -227,8 +304,6 @@ impl BrilligGen {
 
         brillig.convert_ssa_function(func);
 
-        brillig.push_code(BrilligOpcode::Stop);
-
         brillig.obj
     }
 
@@ -244,77 +319,6 @@ impl BrilligGen {
 
         for block in reverse_post_order {
             self.convert_block(block, &func.dfg);
-        }
-    }
-}
-
-/// Type to encapsulate the binary operation types in Brillig
-pub(crate) enum BrilligBinaryOp {
-    Field { op: BinaryFieldOp },
-    Integer { op: BinaryIntOp, bit_size: u32 },
-}
-
-impl BrilligBinaryOp {
-    /// Convert an SSA binary operation into:
-    /// - Brillig Binary Integer Op, if it is a integer type
-    /// - Brillig Binary Field Op, if it is a field type
-    fn convert_ssa_binary_op_to_brillig_binary_op(ssa_op: BinaryOp, typ: Type) -> BrilligBinaryOp {
-        // First get the bit size and whether its a signed integer, if it is a numeric type
-        // if it is not,then we return None, indicating that
-        // it is a Field.
-        let bit_size_signedness = match typ {
-            Type::Numeric(numeric_type) => match numeric_type {
-                NumericType::Signed { bit_size } => Some((bit_size, true)),
-                NumericType::Unsigned { bit_size } => Some((bit_size, false)),
-                NumericType::NativeField => None,
-            },
-            _ => unreachable!("only numeric types are allowed in binary operations. References are handled separately"),
-        };
-
-        fn binary_op_to_field_op(op: BinaryOp) -> BinaryFieldOp {
-            match op {
-                BinaryOp::Add => BinaryFieldOp::Add,
-                BinaryOp::Sub => BinaryFieldOp::Sub,
-                BinaryOp::Mul => BinaryFieldOp::Mul,
-                BinaryOp::Div => BinaryFieldOp::Div,
-                BinaryOp::Eq => BinaryFieldOp::Equals,
-                _ => unreachable!(
-                "Field type cannot be used with {op}. This should have been caught by the frontend"
-            ),
-            }
-        }
-        fn binary_op_to_int_op(op: BinaryOp, is_signed: bool) -> BinaryIntOp {
-            match op {
-                BinaryOp::Add => BinaryIntOp::Add,
-                BinaryOp::Sub => BinaryIntOp::Sub,
-                BinaryOp::Mul => BinaryIntOp::Mul,
-                BinaryOp::Div => {
-                    if is_signed {
-                        BinaryIntOp::SignedDiv
-                    } else {
-                        BinaryIntOp::UnsignedDiv
-                    }
-                },
-                BinaryOp::Mod => todo!("This is not supported by Brillig. It should either be added into Brillig or legalized by the SSA IR"),
-                BinaryOp::Eq => BinaryIntOp::Equals,
-                BinaryOp::Lt => BinaryIntOp::LessThan,
-                BinaryOp::And => BinaryIntOp::And,
-                BinaryOp::Or => BinaryIntOp::Or,
-                BinaryOp::Xor => BinaryIntOp::Xor,
-                BinaryOp::Shl => BinaryIntOp::Shl,
-                BinaryOp::Shr => BinaryIntOp::Shr,
-            }
-        }
-        // If bit size is available then it is a binary integer operation
-        match bit_size_signedness {
-            Some((bit_size, is_signed)) => {
-                let binary_int_op = binary_op_to_int_op(ssa_op, is_signed);
-                BrilligBinaryOp::Integer { op: binary_int_op, bit_size }
-            }
-            None => {
-                let binary_field_op = binary_op_to_field_op(ssa_op);
-                BrilligBinaryOp::Field { op: binary_field_op }
-            }
         }
     }
 }
