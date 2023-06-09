@@ -263,16 +263,16 @@ jobs:
 
   ###################################
   # Aztec integration tests
-  circuits-wasm-linux-clang-builder-runner:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build barretenberg-circuits-wasm-linux-clang-builder-runner 64
+  #circuits-wasm-linux-clang-builder-runner:
+  #  docker:
+  #    - image: aztecprotocol/alpine-build-image
+  #  resource_class: small
+  #  steps:
+  #    - *checkout
+  #    - *setup_env
+  #    - run:
+  #        name: "Build"
+  #        command: cond_spot_run_build barretenberg-circuits-wasm-linux-clang-builder-runner 64
 
   circuits-x86_64-linux-clang-builder-runner:
     docker:
@@ -285,17 +285,17 @@ jobs:
           name: "Build"
           command: cond_spot_run_build barretenberg-circuits-x86_64-linux-clang-builder-runner 64
 
-  circuits-wasm-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - *setup_aztec_commit
-      - run:
-          name: "Build"
-          command: cond_spot_run_test_script ./scripts/run_aztec_circuits_tests barretenberg-circuits-wasm-linux-clang-builder-runner "$AZTEC_COMMIT" 1 wasm scripts/a3-tests -*.skip*:*.circuit*
+  #circuits-wasm-tests:
+  #  docker:
+  #    - image: aztecprotocol/alpine-build-image
+  #  resource_class: small
+  #  steps:
+  #    - *checkout
+  #    - *setup_env
+  #    - *setup_aztec_commit
+  #    - run:
+  #        name: "Build"
+  #        command: cond_spot_run_test_script ./scripts/run_aztec_circuits_tests barretenberg-circuits-wasm-linux-clang-builder-runner "$AZTEC_COMMIT" 1 wasm scripts/a3-tests -*.skip*:*.circuit*
 
   circuits-x86_64-tests:
     docker:
@@ -371,12 +371,12 @@ workflows:
           requires:
             - bb-js
           <<: *defaults
-      - circuits-wasm-linux-clang-builder-runner: *notmaster
+      #- circuits-wasm-linux-clang-builder-runner: *notmaster
       - circuits-x86_64-linux-clang-builder-runner: *notmaster
-      - circuits-wasm-tests:
-          requires:
-            - circuits-wasm-linux-clang-builder-runner
-          <<: *notmaster
+      #- circuits-wasm-tests:
+      #    requires:
+      #      - circuits-wasm-linux-clang-builder-runner
+      #    <<: *notmaster
       - circuits-x86_64-tests:
           requires:
             - circuits-x86_64-linux-clang-builder-runner
