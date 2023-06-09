@@ -14,7 +14,7 @@ async function callWasm(inputBuf: Buffer, serializeMethod: string): Promise<stri
 
   // Get a msgpack string version of our object. As a quick and dirty test,
   // we compare a snapshot of its string form to its previous form.
-  const outputBufPtr = await wasm.asyncCall(serializeMethod, inputBufPtr);
+  const outputBufPtr = wasm.call(serializeMethod, inputBufPtr);
 
   // Read the size pointer
   const outputStr = wasm.getMemoryAsString(outputBufPtr);

@@ -1,3 +1,4 @@
+import { IWasmModule } from '@aztec/foundation/wasm';
 import { CircuitsWasm } from '../wasm/index.js';
 import { decode, encode } from '@msgpack/msgpack';
 
@@ -34,7 +35,7 @@ function recursiveUint8ArrayToBuffer(data: any): any {
  * @param ptr32 - The address in WebAssembly memory.
  * @returns The read unsigned 32-bit integer.
  */
-function readPtr32(wasm: CircuitsWasm, ptr32: number) {
+function readPtr32(wasm: IWasmModule, ptr32: number) {
   // Written in little-endian as WASM native
   const dataView = new DataView(wasm.getMemorySlice(ptr32, ptr32 + 4).buffer);
   return dataView.getUint32(0, /*little endian*/ true);
@@ -65,13 +66,13 @@ export function getCbindSchema(wasm: CircuitsWasm, cbind: string): any {
  * @param input - An array of input arguments to wrap with msgpack.
  * @returns The msgpack-decoded result.
  */
-export async function callCbind(wasm: CircuitsWasm, cbind: string, input: any[]): Promise<any> {
+export function callCbind(wasm: IWasmModule, cbind: string, input: any[]): any {
   const outputSizePtr = wasm.call('bbmalloc', 4);
   const outputMsgpackPtr = wasm.call('bbmalloc', 4);
   const inputBuffer = encode(input);
   const inputPtr = wasm.call('bbmalloc', inputBuffer.length);
   wasm.writeMemory(inputPtr, inputBuffer);
-  await wasm.asyncCall(cbind, inputPtr, inputBuffer.length, outputMsgpackPtr, outputSizePtr);
+  wasm.call(cbind, inputPtr, inputBuffer.length, outputMsgpackPtr, outputSizePtr);
   const encodedResult = wasm.getMemorySlice(
     readPtr32(wasm, outputMsgpackPtr),
     readPtr32(wasm, outputMsgpackPtr) + readPtr32(wasm, outputSizePtr),

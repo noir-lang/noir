@@ -1,5 +1,4 @@
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { AppendOnlyTreeSnapshot, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { AppendOnlyTreeSnapshot, CircuitsWasm, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
 import { ContractData, L2Block, L2BlockSource, MerkleTreeId, PublicDataWrite, UnverifiedData } from '@aztec/types';
 import { jest } from '@jest/globals';
@@ -92,7 +91,7 @@ describe('server_world_state_synchroniser', () => {
     updateLeaf: jest.fn().mockImplementation(() => Promise.resolve()),
     getSiblingPath: jest.fn().mockImplementation(() => {
       return async () => {
-        const wasm = await BarretenbergWasm.get();
+        const wasm = await CircuitsWasm.get();
         const pedersen: Pedersen = new Pedersen(wasm);
         SiblingPath.ZERO(32, INITIAL_LEAF, pedersen);
       }; //Promise.resolve();

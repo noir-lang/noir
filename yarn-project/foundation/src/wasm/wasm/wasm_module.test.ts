@@ -18,7 +18,7 @@ describe('simple wasm', () => {
     wasm = new WasmModule(await fetchCode(), () => ({
       /*no imports*/
     }));
-    await wasm.init();
+    await wasm.init(1, 1, /* No init method */ null);
   });
 
   it('should call gcd with correct result', () => {

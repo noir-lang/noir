@@ -32,8 +32,7 @@ std::shared_ptr<NT::VK> fake_vk()
                            .commitments = commitments,
                            .contains_recursive_proof = false,
                            .recursive_proof_public_input_indices = {} };
-    auto env_crs = std::make_unique<proof_system::EnvReferenceStringFactory>();
-    return std::make_shared<NT::VK>(std::move(vk_data), env_crs->get_verifier_crs());
+    return std::make_shared<NT::VK>(std::move(vk_data), barretenberg::srs::get_crs_factory()->get_verifier_crs());
 }
 
 /**
@@ -48,7 +47,7 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
 {
     PreviousKernelData<NT> const init_previous_kernel{};
 
-    auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
+    auto crs_factory = barretenberg::srs::get_crs_factory();
     Composer mock_kernel_composer = Composer(crs_factory);
     auto mock_kernel_public_inputs = mock_kernel_circuit(mock_kernel_composer, init_previous_kernel.public_inputs);
 
@@ -57,8 +56,7 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
         real_vk_proof ? mock_kernel_prover.construct_proof() : NT::Proof{ .proof_data = std::vector<uint8_t>(64, 0) };
 
     std::shared_ptr<NT::VK> const mock_kernel_vk =
-        real_vk_proof ? mock_kernel_composer.compute_verification_key("../barretenberg/cpp/srs_db/ignition")
-                      : fake_vk();
+        real_vk_proof ? mock_kernel_composer.compute_verification_key() : fake_vk();
 
     PreviousKernelData<NT> previous_kernel = {
         .public_inputs = mock_kernel_public_inputs,

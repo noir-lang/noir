@@ -1,6 +1,5 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair, KeyPair } from '@aztec/key-store';
@@ -9,6 +8,7 @@ import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
 import { AccountState } from './account_state.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 
 describe('Account State', () => {
   let grumpkin: Grumpkin;
@@ -55,7 +55,7 @@ describe('Account State', () => {
   };
 
   beforeAll(async () => {
-    const wasm = await BarretenbergWasm.get();
+    const wasm = await CircuitsWasm.get();
     grumpkin = new Grumpkin(wasm);
     owner = ConstantKeyPair.random(grumpkin);
   });

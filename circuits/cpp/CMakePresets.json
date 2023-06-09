@@ -69,6 +69,37 @@
       }
     },
     {
+      "name": "clang16",
+      "displayName": "Build with Clang-16",
+      "description": "Build with globally installed Clang-16",
+      "inherits": "default",
+      "environment": {
+        "CC": "clang-16",
+        "CXX": "clang++-16"
+      },
+      "cacheVariables": {
+        "CMAKE_BBERG_PRESET": "clang16"
+      }
+    },
+    {
+      "name": "clang16-assert",
+      "displayName": "Build with Clang-16 and assertions enabled",
+      "description": "Build with globally installed Clang-16 and assertions",
+      "inherits": "clang16",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithAssert"
+      }
+    },
+    {
+      "name": "clang16-dbg",
+      "displayName": "Debugging build with Clang-16",
+      "description": "Build with globally installed Clang-16 in debug mode",
+      "inherits": "clang16",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
       "name": "gcc",
       "displayName": "Build with GCC",
       "description": "Build with globally installed GCC",
@@ -131,7 +162,7 @@
       "binaryDir": "build-wasm",
       "toolchainFile": "cmake/toolchains/wasm32-wasi.cmake",
       "environment": {
-        "WASI_SDK_PREFIX": "${sourceDir}/barretenberg/cpp/src/wasi-sdk-12.0",
+        "WASI_SDK_PREFIX": "${sourceDir}/barretenberg/cpp/src/wasi-sdk-20.0",
         "CC": "$env{WASI_SDK_PREFIX}/bin/clang",
         "CXX": "$env{WASI_SDK_PREFIX}/bin/clang++",
         "AR": "$env{WASI_SDK_PREFIX}/bin/llvm-ar",
@@ -146,6 +177,7 @@
         "CMAKE_FIND_ROOT_PATH_MODE_PACKAGE": "ONLY",
         "CMAKE_C_COMPILER_WORKS": "ON",
         "CMAKE_CXX_COMPILER_WORKS": "ON",
+        "CMAKE_EXE_LINKER_FLAGS": "-O3",
         "CMAKE_BBERG_PRESET": "wasm",
         "CMAKE_BUILD_TYPE": "Release"
       }
@@ -156,7 +188,8 @@
       "description": "Build in debug mode with a specific wasm-sdk to create wasm",
       "inherits": "wasm",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXE_LINKER_FLAGS": ""
       }
     }
   ],
@@ -181,6 +214,16 @@
       "name": "clang15-dbg",
       "inherits": "default",
       "configurePreset": "clang15-dbg"
+    },
+    {
+      "name": "clang16",
+      "inherits": "default",
+      "configurePreset": "clang16"
+    },
+    {
+      "name": "clang16-dbg",
+      "inherits": "default",
+      "configurePreset": "clang16-dbg"
     },
     {
       "name": "gcc",
@@ -238,6 +281,16 @@
       "name": "clang15-dbg",
       "inherits": "default",
       "configurePreset": "clang15-dbg"
+    },
+    {
+      "name": "clang16",
+      "inherits": "default",
+      "configurePreset": "clang16"
+    },
+    {
+      "name": "clang16-dbg",
+      "inherits": "default",
+      "configurePreset": "clang16-dbg"
     },
     {
       "name": "gcc",

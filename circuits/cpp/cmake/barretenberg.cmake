@@ -12,10 +12,10 @@ include(ExternalProject)
 # Reference barretenberg artifacts (like library archives) via this dir:
 if (WASM)
     set(BBERG_BUILD_DIR ${BBERG_DIR}/build-wasm)
-    set(BBERG_TARGETS --target barretenberg --target env --target primitives.wasm)
+    set(BBERG_TARGETS --target barretenberg --target env --target wasi --target barretenberg.wasm)
 else()
     set(BBERG_BUILD_DIR ${BBERG_DIR}/build)
-    set(BBERG_TARGETS --target barretenberg --target env)
+    set(BBERG_TARGETS --target barretenberg --target env --target wasi)
 endif()
 
 if(NOT CMAKE_BBERG_PRESET)
@@ -34,15 +34,15 @@ ExternalProject_Add(Barretenberg
     BUILD_ALWAYS TRUE
     UPDATE_COMMAND ""
     INSTALL_COMMAND ""
-    CONFIGURE_COMMAND 
-        ${CMAKE_COMMAND} 
+    CONFIGURE_COMMAND
+        ${CMAKE_COMMAND}
         --preset ${CMAKE_BBERG_PRESET}
         -DCMAKE_CXX_FLAGS=${CMAKE_BBERG_CXX_FLAGS}
         -DSERIALIZE_CANARY=${SERIALIZE_CANARY}
         -DMULTITHREADING=${MULTITHREADING}
         -DENABLE_ASAN=${ENABLE_ASAN}
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    BUILD_COMMAND 
+    BUILD_COMMAND
         ${CMAKE_COMMAND}
         --build
         --preset ${CMAKE_BBERG_PRESET}
@@ -66,3 +66,8 @@ add_dependencies(barretenberg Barretenberg)
 add_library(env STATIC IMPORTED)
 set_target_properties(env PROPERTIES IMPORTED_LOCATION ${BBERG_BUILD_DIR}/lib/libenv.a)
 add_dependencies(env Barretenberg)
+
+# wasi is needed to initialize global statics and ensure we're following the reactor wasi pattern.
+add_library(wasi STATIC IMPORTED)
+set_target_properties(wasi PROPERTIES IMPORTED_LOCATION ${BBERG_BUILD_DIR}/lib/libwasi.a)
+add_dependencies(wasi Barretenberg)

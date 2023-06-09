@@ -1,11 +1,11 @@
-import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
-import { WasmWrapper } from '@aztec/foundation/wasm';
+import { IWasmModule } from '@aztec/foundation/wasm';
 import { default as levelup } from 'levelup';
 import { Hasher, Pedersen, SiblingPath } from '../index.js';
 import { appendLeaves } from './utils/append_leaves.js';
 import { createMemDown } from './utils/create_mem_down.js';
 import { AppendOnlyTree } from '../interfaces/append_only_tree.js';
 import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
 
 const expectSameTrees = async (
   tree1: AppendOnlyTree | UpdateOnlyTree,
@@ -35,7 +35,7 @@ export const treeTestSuite = (
 ) => {
   describe(testName, () => {
     const values: Buffer[] = [];
-    let wasm: WasmWrapper;
+    let wasm: IWasmModule;
     let pedersen: Pedersen;
 
     beforeAll(() => {
@@ -47,7 +47,7 @@ export const treeTestSuite = (
     });
 
     beforeEach(async () => {
-      wasm = await PrimitivesWasm.get();
+      wasm = await CircuitsWasm.get();
       pedersen = new Pedersen(wasm);
     });
 

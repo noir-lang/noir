@@ -1,5 +1,5 @@
 import { PublicContractsDB, PublicExecutor, PublicStateDB } from '@aztec/acir-simulator';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { ContractDataSource, MerkleTreeId } from '@aztec/types';
 import { MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
@@ -42,7 +42,7 @@ class WorldStatePublicDB implements PublicStateDB {
    * @returns The current value in the storage slot.
    */
   public async storageRead(contract: AztecAddress, slot: Fr): Promise<Fr> {
-    const index = computePublicDataTreeLeafIndex(contract, slot, await BarretenbergWasm.get());
+    const index = computePublicDataTreeLeafIndex(contract, slot, await CircuitsWasm.get());
     const cached = this.writeCache.get(index);
     if (cached !== undefined) return cached;
     const value = await this.db.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, index);
@@ -56,7 +56,7 @@ class WorldStatePublicDB implements PublicStateDB {
    * @param newValue - The new value to store.
    */
   public async storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void> {
-    const index = computePublicDataTreeLeafIndex(contract, slot, await BarretenbergWasm.get());
+    const index = computePublicDataTreeLeafIndex(contract, slot, await CircuitsWasm.get());
     this.writeCache.set(index, newValue);
   }
 }

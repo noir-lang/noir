@@ -13,9 +13,6 @@
       "path": "../aztec-node"
     },
     {
-      "path": "../barretenberg.js"
-    },
-    {
       "path": "../circuits.js"
     },
     {

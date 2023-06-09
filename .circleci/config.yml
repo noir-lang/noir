@@ -209,17 +209,6 @@ jobs:
           name: "Build and test"
           command: build aztec.js
 
-  barretenberg-js:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build barretenberg.js
-
   types:
     machine:
       image: ubuntu-2004:202010-01
@@ -584,7 +573,6 @@ workflows:
       - acir-simulator: *yarn_project
       - archiver: *yarn_project
       - aztec-rpc: *yarn_project
-      - barretenberg-js: *yarn_project
       - merkle-tree: *yarn_project
       - p2p: *yarn_project
       - p2p-bootstrap: *yarn_project
@@ -605,7 +593,6 @@ workflows:
             - acir-simulator
             - archiver
             - aztec-rpc
-            - barretenberg-js
             - merkle-tree
             - p2p
             - p2p-bootstrap

@@ -5,9 +5,9 @@
   "exports": {
     ".": "./dest/index.js",
     "./abis": "./dest/abis/index.js",
+    "./barretenberg": "./dest/barretenberg/index.js",
     "./factories": "./dest/tests/factories.js",
-    "./utils": "./dest/utils/index.js",
-    "./wasm": "./dest/wasm/index.js"
+    "./utils": "./dest/utils/index.js"
   },
   "typedoc": {
     "entryPoint": "./src/index.ts",
@@ -37,9 +37,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/barretenberg.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/merkle-tree": "workspace:^",
     "@msgpack/msgpack": "^3.0.0-beta2",
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.times": "^4.3.7",

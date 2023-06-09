@@ -2,7 +2,7 @@
 // GENERATED FILE DO NOT EDIT, RUN yarn remake-bindings
 import { Buffer } from 'buffer';
 import { callCbind } from './cbind.js';
-import { CircuitsWasm } from '../wasm/index.js';
+import { IWasmModule } from '@aztec/foundation/wasm';
 import {
   Address,
   Fr,
@@ -33,7 +33,6 @@ import {
   PublicKernelInputs,
   CircuitError,
   isCircuitError,
-  ProverBasePtr,
 } from './types.js';
 import { Tuple, mapTuple } from '@aztec/foundation/serialize';
 import mapValues from 'lodash.mapvalues';
@@ -1281,7 +1280,7 @@ export function fromCircuitError(o: CircuitError): MsgpackCircuitError {
 }
 
 export async function abisComputeContractAddress(
-  wasm: CircuitsWasm,
+  wasm: IWasmModule,
   arg0: Address,
   arg1: Fr,
   arg2: Fr,
@@ -1296,18 +1295,12 @@ export async function abisComputeContractAddress(
     ]),
   );
 }
-export async function privateKernelDummyPreviousKernel(wasm: CircuitsWasm): Promise<PreviousKernelData> {
-  return toPreviousKernelData(await callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));
+export function privateKernelDummyPreviousKernel(wasm: IWasmModule): PreviousKernelData {
+  return toPreviousKernelData(callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));
 }
-export async function publicKernelSim(
-  wasm: CircuitsWasm,
-  arg0: PublicKernelInputs,
-): Promise<CircuitError | KernelCircuitPublicInputs> {
+export function publicKernelSim(wasm: IWasmModule, arg0: PublicKernelInputs): CircuitError | KernelCircuitPublicInputs {
   return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
     isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
-    await callCbind(wasm, 'public_kernel__sim', [fromPublicKernelInputs(arg0)]),
+    callCbind(wasm, 'public_kernel__sim', [fromPublicKernelInputs(arg0)]),
   );
-}
-export async function proverProcessQueue2(wasm: CircuitsWasm, arg0: ProverBasePtr): Promise<number> {
-  return await callCbind(wasm, 'prover_process_queue2', [arg0]);
 }

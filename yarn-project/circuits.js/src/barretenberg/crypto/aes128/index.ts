@@ -1,10 +1,11 @@
-import { WasmWrapper } from '@aztec/foundation/wasm';
+import { Buffer } from 'buffer';
+import { IWasmModule } from '@aztec/foundation/wasm';
 
 /**
  * AES-128-CBC encryption/decryption.
  */
 export class Aes128 {
-  constructor(private wasm: WasmWrapper) {}
+  constructor(private wasm: IWasmModule) {}
 
   /**
    * Encrypt a buffer using AES-128-CBC.

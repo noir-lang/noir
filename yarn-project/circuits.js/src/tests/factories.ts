@@ -378,7 +378,7 @@ export function makeVerificationKey(): VerificationKey {
   return new VerificationKey(
     ComposerType.STANDARD,
     101, // arbitrary
-    102, // arbitrary,
+    102, // arbitrary
     {
       A: new G1AffineElement(fr(0x200), fr(0x300)),
     },

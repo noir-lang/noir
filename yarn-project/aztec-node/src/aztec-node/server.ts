@@ -31,7 +31,6 @@ import {
   L1_TO_L2_MESSAGES_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
 import { AztecNode } from './aztec-node.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
@@ -253,7 +252,7 @@ export class AztecNodeService implements AztecNode {
    * Note: Aztec's version of `eth_getStorageAt`.
    */
   public async getStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
-    const leafIndex = computePublicDataTreeLeafIndex(contract, new Fr(slot), await PrimitivesWasm.get());
+    const leafIndex = computePublicDataTreeLeafIndex(contract, new Fr(slot), await CircuitsWasm.get());
     return this.merkleTreeDB.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, leafIndex, false);
   }
 

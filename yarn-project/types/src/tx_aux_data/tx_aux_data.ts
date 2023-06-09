@@ -4,7 +4,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 import { NotePreimage } from './note_preimage.js';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 
 /**

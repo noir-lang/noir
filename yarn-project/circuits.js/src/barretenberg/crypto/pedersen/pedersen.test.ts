@@ -1,12 +1,13 @@
-import { BarretenbergWasm } from '../../wasm/barretenberg_wasm.js';
+import { Buffer } from 'buffer';
 import { pedersenGetHashTree } from './pedersen.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
 
 describe('pedersen', () => {
-  let barretenbergWasm!: BarretenbergWasm;
+  let barretenbergWasm!: CircuitsWasm;
   const values: Buffer[] = [];
 
   beforeAll(async () => {
-    barretenbergWasm = await BarretenbergWasm.get();
+    barretenbergWasm = await CircuitsWasm.get();
 
     // TODO was originally 2 ** 12
     for (let i = 0; i < 2 ** 2; ++i) {

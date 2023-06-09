@@ -1,3 +1,7 @@
+// TODO find a new home for this as we move to external bb.js
+// See https://github.com/AztecProtocol/aztec-packages/issues/782
+import { Buffer } from 'buffer';
+
 /**
  * For serializing an array of fixed length buffers.
  * TODO move to foundation pkg.

@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv } from 'browserify-cipher';
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { numToUInt8 } from '@aztec/foundation/serialize';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';

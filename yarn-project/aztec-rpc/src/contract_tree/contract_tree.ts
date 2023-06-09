@@ -36,9 +36,9 @@ import { computeFunctionTreeData } from './function_tree_data.js';
  * @param wasm - An instance of CircuitsWasm class used for hashing.
  * @returns A Promise resolving to a Buffer containing the hash of the verification key.
  */
-async function hashVKStr(vk: string, wasm: CircuitsWasm) {
+function hashVKStr(vk: string, wasm: CircuitsWasm) {
   // TODO - check consistent encoding
-  return await hashVK(wasm, Buffer.from(vk, 'hex'));
+  return hashVK(wasm, Buffer.from(vk, 'hex'));
 }
 
 /**
@@ -89,7 +89,7 @@ function isConstrained({
  * @param wasm - CircuitsWasm instance used for hashing and computations.
  * @returns An array of Fr instances representing the generated function leaves.
  */
-async function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: CircuitsWasm) {
+function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: CircuitsWasm) {
   const targetFunctions = functions.filter(isConstrained);
   const result: Fr[] = [];
   for (let i = 0; i < targetFunctions.length; i++) {
@@ -97,7 +97,7 @@ async function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: Ci
     const selector = generateFunctionSelector(f.name, f.parameters);
     const isPrivate = f.functionType === FunctionType.SECRET;
     // All non-unconstrained functions have vks
-    const vkHash = await hashVKStr(f.verificationKey!, wasm);
+    const vkHash = hashVKStr(f.verificationKey!, wasm);
     // TODO
     // FIXME: https://github.com/AztecProtocol/aztec3-packages/issues/262
     // const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));
@@ -109,7 +109,7 @@ async function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: Ci
       Fr.fromBuffer(vkHash),
       Fr.fromBuffer(acirHash),
     );
-    const fnLeaf = await computeFunctionLeaf(wasm, fnLeafPreimage);
+    const fnLeaf = computeFunctionLeaf(wasm, fnLeafPreimage);
     result.push(fnLeaf);
   }
   return result;
@@ -191,13 +191,13 @@ export class ContractTree {
       ...f,
       selector: generateFunctionSelector(f.name, f.parameters),
     }));
-    const leaves = await generateFunctionLeaves(functions, wasm);
-    const root = await computeFunctionTreeRoot(wasm, leaves);
+    const leaves = generateFunctionLeaves(functions, wasm);
+    const root = computeFunctionTreeRoot(wasm, leaves);
     const constructorSelector = generateFunctionSelector(constructorAbi.name, constructorAbi.parameters);
     const functionData = new FunctionData(constructorSelector, true, true);
-    const vkHash = await hashVKStr(constructorAbi.verificationKey, wasm);
+    const vkHash = hashVKStr(constructorAbi.verificationKey, wasm);
     const argsHash = await computeVarArgsHash(wasm, args);
-    const constructorHash = await hashConstructor(wasm, functionData, argsHash, vkHash);
+    const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);
     const address = await computeContractAddress(wasm, from, contractAddressSalt, root, constructorHash);
     const contractDao: ContractDao = {
       ...abi,
@@ -278,12 +278,12 @@ export class ContractTree {
    *
    * @returns A promise that resolves to the Fr (finite field element) representation of the function tree root.
    */
-  public async getFunctionTreeRoot() {
+  public getFunctionTreeRoot() {
     if (!this.functionTreeRoot) {
-      const leaves = await this.getFunctionLeaves();
-      this.functionTreeRoot = await computeFunctionTreeRoot(this.wasm, leaves);
+      const leaves = this.getFunctionLeaves();
+      this.functionTreeRoot = computeFunctionTreeRoot(this.wasm, leaves);
     }
-    return this.functionTreeRoot;
+    return Promise.resolve(this.functionTreeRoot);
   }
 
   /**
@@ -295,22 +295,26 @@ export class ContractTree {
    * @param functionSelector - The Buffer containing the function selector (signature).
    * @returns A MembershipWitness instance representing the position and authentication path of the function in the function tree.
    */
-  public async getFunctionMembershipWitness(functionSelector: Buffer) {
+  public getFunctionMembershipWitness(
+    functionSelector: Buffer,
+  ): Promise<MembershipWitness<typeof FUNCTION_TREE_HEIGHT>> {
     const targetFunctions = this.contract.functions.filter(isConstrained);
     const functionIndex = targetFunctions.findIndex(f => f.selector.equals(functionSelector));
     if (functionIndex < 0) {
-      return MembershipWitness.empty(FUNCTION_TREE_HEIGHT, 0n);
+      return Promise.resolve(MembershipWitness.empty(FUNCTION_TREE_HEIGHT, 0n));
     }
 
     if (!this.functionTree) {
-      const leaves = await this.getFunctionLeaves();
-      this.functionTree = await computeFunctionTree(this.wasm, leaves);
+      const leaves = this.getFunctionLeaves();
+      this.functionTree = computeFunctionTree(this.wasm, leaves);
     }
     const functionTreeData = computeFunctionTreeData(this.functionTree, functionIndex);
-    return new MembershipWitness<typeof FUNCTION_TREE_HEIGHT>(
-      FUNCTION_TREE_HEIGHT,
-      BigInt(functionIndex),
-      assertLength(functionTreeData.siblingPath, FUNCTION_TREE_HEIGHT),
+    return Promise.resolve(
+      new MembershipWitness<typeof FUNCTION_TREE_HEIGHT>(
+        FUNCTION_TREE_HEIGHT,
+        BigInt(functionIndex),
+        assertLength(functionTreeData.siblingPath, FUNCTION_TREE_HEIGHT),
+      ),
     );
   }
 
@@ -321,9 +325,9 @@ export class ContractTree {
    *
    * @returns An array of Fr representing the function leaves.
    */
-  private async getFunctionLeaves() {
+  private getFunctionLeaves() {
     if (!this.functionLeaves) {
-      this.functionLeaves = await generateFunctionLeaves(this.contract.functions, this.wasm);
+      this.functionLeaves = generateFunctionLeaves(this.contract.functions, this.wasm);
     }
     return this.functionLeaves;
   }

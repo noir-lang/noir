@@ -8,8 +8,7 @@ describe('rollup/rollup_wasm_wrapper', () => {
   let rollupWasm: RollupWasmWrapper;
 
   beforeAll(async () => {
-    wasm = new CircuitsWasm();
-    await wasm.init();
+    wasm = await CircuitsWasm.get();
     rollupWasm = new RollupWasmWrapper(wasm);
   });
 
@@ -44,19 +43,19 @@ describe('rollup/rollup_wasm_wrapper', () => {
     return input;
   };
 
-  it.skip('calls base_rollup__sim', async () => {
+  it.skip('calls base_rollup__sim', () => {
     const input = makeBaseRollupInputsForCircuit();
 
-    const output = await rollupWasm.simulateBaseRollup(input);
+    const output = rollupWasm.simulateBaseRollup(input);
     expect(output.startContractTreeSnapshot).toEqual(input.startContractTreeSnapshot);
     expect(output.startNullifierTreeSnapshot).toEqual(input.startNullifierTreeSnapshot);
     expect(output.startPrivateDataTreeSnapshot).toEqual(input.startPrivateDataTreeSnapshot);
   });
 
-  it('calls merge_rollup__sim', async () => {
+  it('calls merge_rollup__sim', () => {
     const input = makeMergeRollupInputsForCircuit();
 
-    const output = await rollupWasm.simulateMergeRollup(input);
+    const output = rollupWasm.simulateMergeRollup(input);
     expect(output.rollupType).toEqual(1);
     expect(output.startContractTreeSnapshot).toEqual(
       input.previousRollupData[0].publicInputs.startContractTreeSnapshot,
@@ -75,10 +74,10 @@ describe('rollup/rollup_wasm_wrapper', () => {
     );
   });
 
-  it('calling merge_rollup__sim with different constants should fail', async () => {
+  it('calling merge_rollup__sim with different constants should fail', () => {
     const input = makeMergeRollupInputs();
     try {
-      await rollupWasm.simulateMergeRollup(input);
+      rollupWasm.simulateMergeRollup(input);
     } catch (e) {
       expect(e).toBeInstanceOf(CircuitError);
       const err = e as CircuitError;
@@ -87,16 +86,16 @@ describe('rollup/rollup_wasm_wrapper', () => {
     }
   });
 
-  it.skip('calls root_rollup__sim', async () => {
+  it.skip('calls root_rollup__sim', () => {
     const input = makeRootRollupInputs();
     for (const rd of input.previousRollupData) {
       rd.vk = VerificationKey.makeFake();
       rd.publicInputs.endAggregationObject = AggregationObject.makeFake();
-      rd.publicInputs = await rollupWasm.simulateBaseRollup(makeBaseRollupInputsForCircuit());
+      rd.publicInputs = rollupWasm.simulateBaseRollup(makeBaseRollupInputsForCircuit());
     }
     fixPreviousRollupInputs(input);
 
-    const output = await rollupWasm.simulateRootRollup(input);
+    const output = rollupWasm.simulateRootRollup(input);
     expect(output.startNullifierTreeSnapshot).toEqual(
       input.previousRollupData[0].publicInputs.startNullifierTreeSnapshot,
     );

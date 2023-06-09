@@ -33,7 +33,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
    * @returns The public inputs as outputs of the simulation.
    */
   baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
-    return this.rollupWasmWrapper.simulateBaseRollup(input);
+    return Promise.resolve(this.rollupWasmWrapper.simulateBaseRollup(input));
   }
   /**
    * Simulates the merge rollup circuit from its inputs.
@@ -41,7 +41,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
    * @returns The public inputs as outputs of the simulation.
    */
   mergeRollupCircuit(input: MergeRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
-    return this.rollupWasmWrapper.simulateMergeRollup(input);
+    return Promise.resolve(this.rollupWasmWrapper.simulateMergeRollup(input));
   }
   /**
    * Simulates the root rollup circuit from its inputs.
@@ -49,6 +49,6 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
    * @returns The public inputs as outputs of the simulation.
    */
   rootRollupCircuit(input: RootRollupInputs): Promise<RootRollupPublicInputs> {
-    return this.rollupWasmWrapper.simulateRootRollup(input);
+    return Promise.resolve(this.rollupWasmWrapper.simulateRootRollup(input));
   }
 }

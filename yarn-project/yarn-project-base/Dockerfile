@@ -9,7 +9,7 @@ COPY --from=1 /usr/src/l1-contracts/out /usr/src/l1-contracts/out
 # COPY --from=1 /usr/src/circuits/build/bin /usr/src/circuits/build-wasm/bin
 
 COPY --from=0 /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm
-COPY --from=0 /usr/src/circuits/cpp/barretenberg/cpp/build-wasm/bin/primitives.wasm /usr/src/circuits/cpp/barretenberg/cpp/build-wasm/bin/primitives.wasm
+COPY --from=0 /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/circuits/cpp/barretenberg/cpp/build-wasm/bin/primitives.wasm
 COPY --from=0 /usr/src/circuits/cpp/barretenberg/cpp/srs_db/download_ignition.sh /usr/src/circuits/cpp/barretenberg/cpp/srs_db/download_ignition.sh
 WORKDIR /usr/src/circuits/cpp/barretenberg/cpp/srs_db
 RUN ./download_ignition.sh 1
@@ -33,7 +33,6 @@ COPY merkle-tree/package.local.json merkle-tree/package.local.json
 COPY noir-contracts/package.json noir-contracts/package.json
 COPY noir-compiler/package.json noir-compiler/package.json
 COPY l1-artifacts/package.json l1-artifacts/package.json
-COPY barretenberg.js/package.json barretenberg.js/package.json
 COPY circuits.js/package.json circuits.js/package.json
 COPY p2p/package.json p2p/package.json
 COPY p2p-bootstrap/package.json p2p-bootstrap/package.json
@@ -89,7 +88,6 @@ COPY key-store/tsconfig.json key-store/tsconfig.json
 COPY merkle-tree/tsconfig.json merkle-tree/tsconfig.json
 COPY noir-contracts/tsconfig.json noir-contracts/tsconfig.json
 COPY l1-artifacts/tsconfig.json l1-artifacts/tsconfig.json
-COPY barretenberg.js/tsconfig.json barretenberg.js/tsconfig.json
 COPY circuits.js/tsconfig.json circuits.js/tsconfig.json
 COPY p2p/tsconfig.json p2p/tsconfig.json
 COPY p2p-bootstrap/tsconfig.json p2p-bootstrap/tsconfig.json

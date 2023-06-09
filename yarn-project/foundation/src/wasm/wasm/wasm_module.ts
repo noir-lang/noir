@@ -5,6 +5,36 @@ import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
 import { MemoryFifo } from '../../fifo/index.js';
 
 /**
+ * The base shape of a WASM module providing low level memory and synchronous call access.
+ * Note that the Aztec codebase used to support asyncify but has fully moved away,
+ * using web workers if needed.
+ */
+export interface IWasmModule {
+  /**
+   * Low level call function, returns result as number.
+   * @param name - The function name.
+   * @param args - The function args.
+   * @returns The value as an integer (could be pointer).
+   */
+  call(name: string, ...args: any): number;
+
+  /**
+   * Get a slice of memory between two addresses.
+   * @param start - The start address.
+   * @param end - The end address.
+   * @returns A Uint8Array view of memory.
+   */
+  getMemorySlice(start: number, end: number): Uint8Array;
+
+  /**
+   * Write data into the heap.
+   * @param offset - The address to write data at.
+   * @param arr - The data to write.
+   */
+  writeMemory(offset: number, arr: Uint8Array): void;
+}
+
+/**
  * WasmModule:
  *  Helper over a webassembly module.
  *  Assumes a few quirks.
@@ -12,7 +42,7 @@ import { MemoryFifo } from '../../fifo/index.js';
  *  2) of which the webassembly
  *  we instantiate only uses random_get (update this if more WASI sdk methods are needed).
  */
-export class WasmModule {
+export class WasmModule implements IWasmModule {
   private memory!: WebAssembly.Memory;
   private heap!: Uint8Array;
   private instance?: WebAssembly.Instance;
@@ -45,9 +75,10 @@ export class WasmModule {
    * Initialize this wasm module.
    * @param wasmImportEnv - Linked to a module called "env". Functions implementations referenced from e.g. C++.
    * @param initial - 30 pages by default. 30*2**16 \> 1mb stack size plus other overheads.
+   * @param initMethod - Defaults to calling '_initialize'.
    * @param maximum - 8192 maximum by default. 512mb.
    */
-  public async init(initial = 30, maximum = 8192) {
+  public async init(initial = 30, maximum = 8192, initMethod: string | null = '_initialize') {
     this.debug(
       `initial mem: ${initial} pages, ${(initial * 2 ** 16) / (1024 * 1024)}mb. max mem: ${maximum} pages, ${
         (maximum * 2 ** 16) / (1024 * 1024)
@@ -84,6 +115,11 @@ export class WasmModule {
     } else {
       const { instance } = await WebAssembly.instantiate(this.module, importObj);
       this.instance = instance;
+    }
+
+    // Init all global/static data.
+    if (initMethod) {
+      this.call(initMethod);
     }
   }
 
@@ -133,9 +169,7 @@ export class WasmModule {
       // signed representation to unsigned representation.
       return this.exports()[name](...args) >>> 0;
     } catch (err: any) {
-      const message = `WASM function ${name} aborted, error: ${err}`;
-      this.debug(message);
-      this.debug(err.stack);
+      const message = `WASM function ${name} aborted, error: ${err}\n${err.stack}`;
       throw new Error(message);
     }
   }
@@ -172,7 +206,7 @@ export class WasmModule {
    * @param end - The end address.
    * @returns A Uint8Array view of memory.
    */
-  public getMemorySlice(start: number, end: number) {
+  public getMemorySlice(start: number, end: number): Uint8Array {
     return this.getMemory().slice(start, end);
   }
 

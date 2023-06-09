@@ -30,7 +30,6 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/barretenberg.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",

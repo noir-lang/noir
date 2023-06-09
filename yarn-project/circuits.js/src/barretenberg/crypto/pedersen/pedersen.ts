@@ -1,6 +1,6 @@
-import { WasmWrapper } from '@aztec/foundation/wasm';
 import { Buffer } from 'buffer';
-import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../wasm/serialize.js';
+import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../serialize.js';
+import { IWasmModule } from '@aztec/foundation/wasm';
 
 /**
  * Compresses two 32-byte hashes.
@@ -9,7 +9,7 @@ import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVec
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenCompress(wasm: WasmWrapper, lhs: Uint8Array, rhs: Uint8Array): Buffer {
+export function pedersenCompress(wasm: IWasmModule, lhs: Uint8Array, rhs: Uint8Array): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   if (lhs.length !== 32 || rhs.length !== 32) {
@@ -28,7 +28,7 @@ export function pedersenCompress(wasm: WasmWrapper, lhs: Uint8Array, rhs: Uint8A
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenHashInputs(wasm: WasmWrapper, inputs: Buffer[]): Buffer {
+export function pedersenHashInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const inputVectors = serializeBufferArrayToVector(inputs);
@@ -43,7 +43,7 @@ export function pedersenHashInputs(wasm: WasmWrapper, inputs: Buffer[]): Buffer 
  * @param inputs - The array of buffers to compress.
  * @returns The resulting 32-byte hash.
  */
-export function pedersenCompressInputs(wasm: WasmWrapper, inputs: Buffer[]): Buffer {
+export function pedersenCompressInputs(wasm: IWasmModule, inputs: Buffer[]): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const inputVectors = serializeBufferArrayToVector(inputs);
@@ -59,7 +59,7 @@ export function pedersenCompressInputs(wasm: WasmWrapper, inputs: Buffer[]): Buf
  * @param hashIndex - Hash index of the generator to use (See GeneratorIndex enum).
  * @returns The resulting 32-byte hash.
  */
-export function pedersenCompressWithHashIndex(wasm: WasmWrapper, inputs: Buffer[], hashIndex: number): Buffer {
+export function pedersenCompressWithHashIndex(wasm: IWasmModule, inputs: Buffer[], hashIndex: number): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const inputVectors = serializeBufferArrayToVector(inputs);
@@ -74,7 +74,7 @@ export function pedersenCompressWithHashIndex(wasm: WasmWrapper, inputs: Buffer[
  * @param data - The data buffer.
  * @returns The hash buffer.
  */
-export function pedersenGetHash(wasm: WasmWrapper, data: Buffer): Buffer {
+export function pedersenGetHash(wasm: IWasmModule, data: Buffer): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const mem = wasm.call('bbmalloc', data.length);
@@ -96,7 +96,7 @@ export function pedersenGetHash(wasm: WasmWrapper, data: Buffer): Buffer {
  * @param values - The 32 byte pedersen leaves.
  * @returns A tree represented by an array.
  */
-export function pedersenGetHashTree(wasm: WasmWrapper, values: Buffer[]) {
+export function pedersenGetHashTree(wasm: IWasmModule, values: Buffer[]) {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const data = serializeBufferArrayToVector(values);

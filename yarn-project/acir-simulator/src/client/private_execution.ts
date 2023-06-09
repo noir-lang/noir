@@ -12,7 +12,6 @@ import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
 import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
@@ -32,6 +31,7 @@ import { fieldsToFormattedStr } from './debug.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { Tuple, assertLength } from '@aztec/foundation/serialize';
 import { NotePreimage, TxAuxData, UnverifiedData } from '@aztec/types';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 
 /**
  * The contents of a new note.

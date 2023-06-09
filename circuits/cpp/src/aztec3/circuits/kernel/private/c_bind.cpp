@@ -135,7 +135,7 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
     // TODO(dbanks12) might be able to get rid of proving key buffer
     // TODO(dbanks12) do we want to accept it or just get it from our factory?
     (void)pk_buf;  // unused
-    auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
+    auto crs_factory = barretenberg::srs::get_crs_factory();
 
     SignedTxRequest<NT> signed_tx_request;
     read(signed_tx_request_buf, signed_tx_request);

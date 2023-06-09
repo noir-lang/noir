@@ -1,5 +1,5 @@
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { decryptBuffer, deriveAESSecret, encryptBuffer } from './encrypt_buffer.js';
 import { Point } from '@aztec/foundation/fields';
@@ -8,7 +8,7 @@ describe('encrypt buffer', () => {
   let grumpkin: Grumpkin;
 
   beforeAll(async () => {
-    grumpkin = new Grumpkin(await BarretenbergWasm.get());
+    grumpkin = new Grumpkin(await CircuitsWasm.get());
   });
 
   it('derive shared secret', () => {

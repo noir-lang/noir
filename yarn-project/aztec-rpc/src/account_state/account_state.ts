@@ -1,7 +1,7 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { EcdsaSignature, KERNEL_NEW_COMMITMENTS_LENGTH, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -376,7 +376,7 @@ export class AccountState {
         txAuxData.contractAddress,
         txAuxData.notePreimage.items,
         this.privKey,
-        await BarretenbergWasm.get(),
+        await CircuitsWasm.get(),
       ),
     );
   }

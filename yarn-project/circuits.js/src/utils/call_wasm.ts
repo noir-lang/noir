@@ -1,20 +1,20 @@
+import { IWasmModule } from '@aztec/foundation/wasm';
 import { CircuitError } from '../index.js';
-import { AsyncWasmWrapper } from '@aztec/foundation/wasm';
 import { uint8ArrayToNum } from './serialize.js';
 
 const CIRCUIT_FAILURE_ERROR_CODE_LENGTH_IN_BYTES = 2;
 const CIRCUIT_FAILURE_ERROR_MESSAGE_SIZE_LENGTH_IN_BYTES = 4;
 
 /**
- * Asynchronously call a wasm method.
- * @param wasm - The wasm wrapper.
+ * Call a wasm method.
+ * @param wasm - The wasm module.
  * @param method - The name of the exported wasm method to call.
  * @param input - The input to the wasm method (a buffer or an object serializable to a buffer).
  * @param outputType - The type of the output of the wasm method.
  *
  */
-export async function callAsyncWasm<T>(
-  wasm: AsyncWasmWrapper,
+export function callWasm<T>(
+  wasm: IWasmModule,
   method: string,
   input:
     | Buffer
@@ -30,7 +30,7 @@ export async function callAsyncWasm<T>(
      */
     fromBuffer: (b: Buffer) => T;
   },
-): Promise<T> {
+): T {
   const inputBuf: Buffer = input instanceof Buffer ? input : input.toBuffer();
 
   // Allocate memory for the input buffer and the pointer to the pointer to the output buffer
@@ -39,7 +39,7 @@ export async function callAsyncWasm<T>(
   const outputBufSizePtr = wasm.call('bbmalloc', 4);
   const outputBufPtrPtr = wasm.call('bbmalloc', 4);
   // Run and read outputs
-  const circuitFailureBufPtr = await wasm.asyncCall(method, inputBufPtr, outputBufSizePtr, outputBufPtrPtr);
+  const circuitFailureBufPtr = wasm.call(method, inputBufPtr, outputBufSizePtr, outputBufPtrPtr);
 
   // Handle wasm output and ensure memory is correctly freed even when an error occurred.
   try {
@@ -64,7 +64,7 @@ export async function callAsyncWasm<T>(
  * @returns The deserialized output.
  */
 export function handleCircuitOutput<T>(
-  wasm: AsyncWasmWrapper,
+  wasm: IWasmModule,
   outputBufSizePtr: number,
   outputBufPtrPtr: number,
   circuitFailureBufPtr: number,

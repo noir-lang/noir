@@ -1,7 +1,7 @@
-import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
 import {
   CONTRACT_TREE_HEIGHT,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
+  CircuitsWasm,
   Fr,
   L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MESSAGES_TREE_HEIGHT,
@@ -10,7 +10,6 @@ import {
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { WasmWrapper } from '@aztec/foundation/wasm';
 import {
   AppendOnlyTree,
   IndexedTree,
@@ -37,6 +36,7 @@ import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operation
 import { L2Block, MerkleTreeId } from '@aztec/types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { IWasmModule } from '@aztec/foundation/wasm';
 
 /**
  * A convenience class for managing multiple merkle trees.
@@ -51,8 +51,8 @@ export class MerkleTrees implements MerkleTreeDb {
    * Initialises the collection of Merkle Trees.
    * @param optionalWasm - WASM instance to use for hashing (if not provided PrimitivesWasm will be used).
    */
-  public async init(optionalWasm?: WasmWrapper) {
-    const wasm = optionalWasm ?? (await PrimitivesWasm.get());
+  public async init(optionalWasm?: IWasmModule) {
+    const wasm = optionalWasm ?? (await CircuitsWasm.get());
     const hasher = new Pedersen(wasm);
     const contractTree: AppendOnlyTree = await newTree(
       StandardTree,
@@ -136,7 +136,7 @@ export class MerkleTrees implements MerkleTreeDb {
    * @param wasm - WASM instance to use for hashing (if not provided PrimitivesWasm will be used).
    * @returns - A fully initialised MerkleTrees instance.
    */
-  public static async new(db: levelup.LevelUp, wasm?: WasmWrapper) {
+  public static async new(db: levelup.LevelUp, wasm?: IWasmModule) {
     const merkleTrees = new MerkleTrees(db);
     await merkleTrees.init(wasm);
     return merkleTrees;

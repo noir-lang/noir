@@ -27,7 +27,7 @@
     "testTimeout": 15000
   },
   "dependencies": {
-    "@aztec/barretenberg.js": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",

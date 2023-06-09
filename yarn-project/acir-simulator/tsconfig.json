@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../barretenberg.js"
-    },
-    {
       "path": "../circuits.js"
     },
     {

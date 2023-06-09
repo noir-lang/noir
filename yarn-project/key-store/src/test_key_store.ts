@@ -1,9 +1,9 @@
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { AztecAddress } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation/fields';
 import { TxExecutionRequest } from '@aztec/types';
 import { ConstantKeyPair, KeyPair } from './key_pair.js';
 import { KeyStore } from './key_store.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 
 /**
  * TestKeyStore is an implementation of the KeyStore interface, used for managing key pairs in a testing environment.

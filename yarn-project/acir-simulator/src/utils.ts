@@ -1,9 +1,8 @@
-import { Grumpkin, pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-
 import { MAPPING_SLOT_PEDERSEN_CONSTANT } from './client/simulator.js';
 import { Fr } from '@aztec/foundation/fields';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { CircuitsWasm } from '@aztec/circuits.js';
 
 /**
  * A point in the format that noir uses.
@@ -22,7 +21,7 @@ export type NoirPoint = {
  * @param bbWasm - Wasm module for computing.
  * @returns The slot in the contract storage where the value is stored.
  */
-export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr, bbWasm: BarretenbergWasm) {
+export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr, bbWasm: CircuitsWasm) {
   const isFr = (owner: NoirPoint | Fr): owner is Fr => typeof (owner as Fr).value === 'bigint';
   const ownerField = isFr(owner) ? owner : new Fr(owner.x);
 

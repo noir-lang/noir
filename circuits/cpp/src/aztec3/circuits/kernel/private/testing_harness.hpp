@@ -42,13 +42,15 @@ using aztec3::circuits::compute_empty_sibling_path;
 
 // Some helper constants for trees
 constexpr size_t MAX_FUNCTION_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1);
-const NT::fr EMPTY_FUNCTION_LEAF = FunctionLeafPreimage<NT>{}.hash();  // hash of empty/0 preimage
-const NT::fr EMPTY_CONTRACT_LEAF = NewContractData<NT>{}.hash();       // hash of empty/0 preimage
+// NOTE: *DO NOT* call hashes in static initializers and assign them to constants. This will fail. Instead, use
+// lazy initialization or functions. Lambdas were introduced here.
+const auto EMPTY_FUNCTION_LEAF = [] { return FunctionLeafPreimage<NT>{}.hash(); };  // hash of empty/0 preimage
+const auto EMPTY_CONTRACT_LEAF = [] { return NewContractData<NT>{}.hash(); };       // hash of empty/0 preimage
 
 inline const auto& get_empty_function_siblings()
 {
     static auto EMPTY_FUNCTION_SIBLINGS = []() {
-        const auto result = compute_empty_sibling_path<NT, aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF);
+        const auto result = compute_empty_sibling_path<NT, aztec3::FUNCTION_TREE_HEIGHT>(EMPTY_FUNCTION_LEAF());
         return result;
     }();
     return EMPTY_FUNCTION_SIBLINGS;
@@ -57,7 +59,7 @@ inline const auto& get_empty_function_siblings()
 inline const auto& get_empty_contract_siblings()
 {
     static auto EMPTY_CONTRACT_SIBLINGS = []() {
-        const auto result = compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF);
+        const auto result = compute_empty_sibling_path<NT, aztec3::CONTRACT_TREE_HEIGHT>(EMPTY_CONTRACT_LEAF());
         return result;
     }();
     return EMPTY_CONTRACT_SIBLINGS;

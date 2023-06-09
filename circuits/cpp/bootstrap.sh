@@ -3,7 +3,7 @@
 # Takes CLEAN as an environment variable. If passed, cleans build artifacts
 set -eu
 
-export WASI_VERSION=12
+export WASI_VERSION=20
 
 cd "$(dirname "$0")"
 
@@ -74,9 +74,7 @@ cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
 cmake --build --preset $PRESET ${@/#/--target }
 
 # Install the webassembly toolchain.
-if ! [ -d "./barretenberg/cpp/src/wasi-sdk-$WASI_VERSION.0" ] ; then
-  (cd ./barretenberg/cpp/src && curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -)
-fi
+(cd ./barretenberg/cpp && ./scripts/install-wasi-sdk.sh)
 
 # Build WASM.
 cmake --preset wasm

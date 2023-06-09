@@ -1,5 +1,4 @@
 import { Fr } from '@aztec/foundation/fields';
-import { SiblingPath } from '@aztec/merkle-tree';
 import { assertMemberLength, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -73,8 +72,8 @@ export class MembershipWitness<N extends number> {
       siblingPath.map(x => Fr.fromBuffer(x)) as Tuple<Fr, N>,
     );
   }
-
-  static fromSiblingPath<N extends number>(leafIndex: bigint, siblingPath: SiblingPath<N>): MembershipWitness<N> {
-    return new MembershipWitness<N>(siblingPath.pathSize, leafIndex, siblingPath.toFieldArray() as Tuple<Fr, N>);
-  }
+  // import { SiblingPath } from '@aztec/merkle-tree';
+  //   static fromSiblingPath<N extends number>(leafIndex: bigint, siblingPath: SiblingPath<N>): MembershipWitness<N> {
+  //     return new MembershipWitness<N>(siblingPath.pathSize, leafIndex, siblingPath.toFieldArray() as Tuple<Fr, N>);
+  //   }
 }

@@ -1,5 +1,5 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/circuits.js';
 import { ConstantKeyPair } from '@aztec/key-store';
 import { L2Block, MerkleTreeId, UnverifiedData } from '@aztec/types';

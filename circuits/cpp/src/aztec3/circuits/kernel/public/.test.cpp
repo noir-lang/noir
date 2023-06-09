@@ -61,6 +61,7 @@ using PublicCallStackItem = CallStackItem<NT, aztec3::circuits::abis::PublicType
 template <size_t SIZE>
 std::array<NT::fr, SIZE> array_of_values(NT::uint32& count, NT::uint32 num_values_required = SIZE)
 {
+    ASSERT(num_values_required <= SIZE);
     std::array<NT::fr, SIZE> values;
     for (size_t i = 0; i < num_values_required; i++) {
         values[i] = ++count;

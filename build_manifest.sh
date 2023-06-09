@@ -15,6 +15,5 @@
 PROJECTS=(
   circuits:circuits/cpp:./dockerfiles/Dockerfile.wasm-linux-clang:circuits-wasm-linux-clang
   yarn-project-base:yarn-project
-  # barretenberg.js:yarn-project
   end-to-end:yarn-project
 )

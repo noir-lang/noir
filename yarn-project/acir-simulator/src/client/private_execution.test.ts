@@ -1,5 +1,4 @@
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import {
   ARGS_LENGTH,
   CallContext,
@@ -41,13 +40,13 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 describe('Private Execution test suite', () => {
-  let bbWasm: BarretenbergWasm;
+  let bbWasm: CircuitsWasm;
   let oracle: ReturnType<typeof mock<DBOracle>>;
   let acirSimulator: AcirSimulator;
   let logger: DebugLogger;
 
   beforeAll(async () => {
-    bbWasm = await BarretenbergWasm.get();
+    bbWasm = await CircuitsWasm.get();
     logger = createDebugLogger('aztec:test:private_execution');
   });
 

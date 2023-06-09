@@ -23,10 +23,15 @@ using aztec3::circuits::kernel::private_kernel::testing_harness::validate_deploy
 
 namespace aztec3::circuits::kernel::private_kernel {
 
+class private_kernel_tests : public ::testing::Test {
+  protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../barretenberg/cpp/srs_db/ignition"); }
+};
+
 /**
  * @brief Some private circuit proof (`deposit`, in this case)
  */
-TEST(private_kernel_tests, circuit_deposit)
+TEST_F(private_kernel_tests, circuit_deposit)
 {
     NT::fr const& amount = 5;
     NT::fr const& asset_id = 1;
@@ -69,7 +74,7 @@ TEST(private_kernel_tests, circuit_deposit)
 /**
  * @brief Some private circuit proof (`constructor`, in this case)
  */
-TEST(private_kernel_tests, circuit_basic_contract_deployment)
+TEST_F(private_kernel_tests, circuit_basic_contract_deployment)
 {
     NT::fr const& arg0 = 5;
     NT::fr const& arg1 = 1;
@@ -106,7 +111,7 @@ TEST(private_kernel_tests, circuit_basic_contract_deployment)
 /**
  * @brief Some private circuit simulation checked against its results via cbinds
  */
-TEST(private_kernel_tests, circuit_create_proof_cbinds)
+TEST_F(private_kernel_tests, circuit_create_proof_cbinds)
 {
     NT::fr const& arg0 = 5;
     NT::fr const& arg1 = 1;

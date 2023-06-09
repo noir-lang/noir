@@ -1,5 +1,3 @@
-import { pedersenCompressWithHashIndex } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   CircuitsWasm,
   KernelCircuitPublicInputs,
@@ -12,6 +10,7 @@ import {
   privateKernelSimInner,
   privateKernelSimInit,
 } from '@aztec/circuits.js';
+import { pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
@@ -59,7 +58,7 @@ export class KernelProofCreator {
    * @returns An array of Fr (finite field) elements representing the siloed commitments.
    */
   public async getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
-    const bbWasm = await BarretenbergWasm.get();
+    const bbWasm = await CircuitsWasm.get();
     const contractAddress = publicInputs.callContext.storageContractAddress.toBuffer();
     // TODO
     // Should match `add_contract_address_to_commitment` in hash.hpp.
@@ -82,7 +81,7 @@ export class KernelProofCreator {
   ): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation init...');
-    const publicInputs = await privateKernelSimInit(wasm, signedTxRequest, privateCallData);
+    const publicInputs = privateKernelSimInit(wasm, signedTxRequest, privateCallData);
     this.log('Skipping private kernel proving...');
     // TODO
     const proof = makeEmptyProof();
@@ -107,7 +106,7 @@ export class KernelProofCreator {
   ): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation inner...');
-    const publicInputs = await privateKernelSimInner(wasm, previousKernelData, privateCallData);
+    const publicInputs = privateKernelSimInner(wasm, previousKernelData, privateCallData);
     this.log('Skipping private kernel proving...');
     // TODO
     const proof = makeEmptyProof();

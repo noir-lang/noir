@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@aztec/archiver": "workspace:^",
-    "@aztec/barretenberg.js": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",

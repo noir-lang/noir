@@ -10,7 +10,7 @@
       "path": "../archiver"
     },
     {
-      "path": "../barretenberg.js"
+      "path": "../circuits.js"
     },
     {
       "path": "../foundation"

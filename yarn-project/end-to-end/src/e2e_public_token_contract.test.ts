@@ -1,13 +1,13 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
-import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 
 import times from 'lodash.times';
 import { pointToPublicKey, setup } from './utils.js';
+import { pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService;
@@ -34,7 +34,7 @@ describe('e2e_public_token_contract', () => {
   const calculateStorageSlot = async (accountIdx: number): Promise<Fr> => {
     const ownerPublicKey = await aztecRpcServer.getAccountPublicKey(accounts[accountIdx]);
     const xCoordinate = Fr.fromBuffer(ownerPublicKey.buffer.subarray(0, 32));
-    const bbWasm = await BarretenbergWasm.get();
+    const bbWasm = await CircuitsWasm.get();
     const balancesStorageSlot = new Fr(1n); // this value is manually set in the Noir contract
     const mappingStorageSlot = new Fr(4n);
 

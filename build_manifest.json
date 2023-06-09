@@ -88,7 +88,6 @@
       "^yarn-project/acir-simulator/"
     ],
     "dependencies": [
-      "barretenberg.js",
       "circuits.js",
       "foundation",
       "merkle-tree",
@@ -136,7 +135,6 @@
     "dependencies": [
       "acir-simulator",
       "aztec-node",
-      "barretenberg.js",
       "circuits.js",
       "foundation",
       "key-store",
@@ -158,18 +156,6 @@
       "noir-contracts"
     ]
   },
-  "barretenberg.js": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/barretenberg.js",
-    "dockerfile": "barretenberg.js/Dockerfile",
-    "rebuildPatterns": [
-      "^yarn-project/barretenberg.js/"
-    ],
-    "dependencies": [
-      "foundation",
-      "yarn-project-base"
-    ]
-  },
   "circuits.js": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/circuits.js",
@@ -178,9 +164,7 @@
       "^yarn-project/circuits.js/"
     ],
     "dependencies": [
-      "barretenberg.js",
       "foundation",
-      "merkle-tree",
       "yarn-project-base"
     ]
   },
@@ -233,7 +217,6 @@
       "^yarn-project/key-store/"
     ],
     "dependencies": [
-      "barretenberg.js",
       "circuits.js",
       "foundation",
       "types"
@@ -247,7 +230,7 @@
       "^yarn-project/merkle-tree/"
     ],
     "dependencies": [
-      "barretenberg.js",
+      "circuits.js",
       "foundation"
     ]
   },
@@ -328,7 +311,7 @@
     ],
     "dependencies": [
       "archiver",
-      "barretenberg.js",
+      "circuits.js",
       "foundation",
       "l1-artifacts",
       "merkle-tree",
@@ -378,7 +361,6 @@
       "^yarn-project/world-state/"
     ],
     "dependencies": [
-      "barretenberg.js",
       "circuits.js",
       "foundation",
       "merkle-tree",

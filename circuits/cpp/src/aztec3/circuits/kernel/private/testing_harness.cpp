@@ -85,7 +85,7 @@ std::shared_ptr<NT::VK> gen_func_vk(bool is_constructor, private_function const&
     }
 
     // Now we can derive the vk:
-    return dummy_composer.compute_verification_key("../barretenberg/cpp/srs_db/ignition");
+    return dummy_composer.compute_verification_key();
 }
 
 std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_deploy_data(
@@ -160,7 +160,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         //    .vk_hash = private_circuit_vk_hash,
         //    .acir_hash = acir_hash,
         //};
-        std::vector<NT::fr> const function_leaves(MAX_FUNCTION_LEAVES, EMPTY_FUNCTION_LEAF);
+        std::vector<NT::fr> const function_leaves(MAX_FUNCTION_LEAVES, EMPTY_FUNCTION_LEAF());
         // const NT::fr& function_tree_root = plonk::stdlib::merkle_tree::compute_tree_root_native(function_leaves);
 
         // TODO(david) use actual function tree root computed from leaves

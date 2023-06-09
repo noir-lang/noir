@@ -1,5 +1,5 @@
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation/fields';
 import { TxAuxData } from './tx_aux_data.js';
 import { randomBytes } from '@aztec/foundation/crypto';
@@ -8,7 +8,7 @@ describe('tx_aux_data', () => {
   let grumpkin: Grumpkin;
 
   beforeAll(async () => {
-    grumpkin = new Grumpkin(await BarretenbergWasm.get());
+    grumpkin = new Grumpkin(await CircuitsWasm.get());
   });
 
   it('convert to and from buffer', () => {

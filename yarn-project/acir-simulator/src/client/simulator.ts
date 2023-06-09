@@ -1,5 +1,4 @@
-import { pedersenCompressInputs, pedersenCompressWithHashIndex } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { CallContext, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -10,6 +9,7 @@ import { ClientTxExecutionContext } from './client_execution_context.js';
 import { DBOracle } from './db_oracle.js';
 import { ExecutionResult, PrivateFunctionExecution } from './private_execution.js';
 import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
+import { pedersenCompressInputs, pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 
 export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);
@@ -111,7 +111,7 @@ export class AcirSimulator {
    * @param bbWasm - The WASM instance.
    * @returns The note hash.
    */
-  public computeNoteHash(notePreimage: Fr[], bbWasm: BarretenbergWasm) {
+  public computeNoteHash(notePreimage: Fr[], bbWasm: CircuitsWasm) {
     return pedersenCompressInputs(bbWasm, [NOTE_PEDERSEN_CONSTANT.toBuffer(), ...notePreimage.map(x => x.toBuffer())]);
   }
 
@@ -123,7 +123,7 @@ export class AcirSimulator {
    * @param bbWasm - The WASM instance.
    * @returns The nullifier.
    */
-  public computeNullifier(notePreimage: Fr[], privateKey: Buffer, bbWasm: BarretenbergWasm) {
+  public computeNullifier(notePreimage: Fr[], privateKey: Buffer, bbWasm: CircuitsWasm) {
     const noteHash = this.computeNoteHash(notePreimage, bbWasm);
     return pedersenCompressInputs(bbWasm, [NULLIFIER_PEDERSEN_CONSTANT.toBuffer(), noteHash, privateKey]);
   }
@@ -141,7 +141,7 @@ export class AcirSimulator {
     contractAddress: AztecAddress,
     notePreimage: Fr[],
     privateKey: Buffer,
-    bbWasm: BarretenbergWasm,
+    bbWasm: CircuitsWasm,
   ) {
     const nullifier = this.computeNullifier(notePreimage, privateKey, bbWasm);
     return pedersenCompressWithHashIndex(

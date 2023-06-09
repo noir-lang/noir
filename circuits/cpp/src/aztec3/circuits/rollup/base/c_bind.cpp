@@ -9,6 +9,7 @@
 #include "aztec3/utils/types/native_types.hpp"
 
 #include <barretenberg/barretenberg.hpp>
+
 namespace {
 using Composer = plonk::UltraPlonkComposer;
 using NT = aztec3::utils::types::NativeTypes;

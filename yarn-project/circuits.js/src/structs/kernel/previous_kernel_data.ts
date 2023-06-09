@@ -90,9 +90,9 @@ export class DummyPreviousKernelData {
    * @param wasm - The circuits wasm instance.
    * @returns The dummy previous kernel data.
    */
-  public static async getDummyPreviousKernelData(wasm: CircuitsWasm): Promise<PreviousKernelData> {
+  public static getDummyPreviousKernelData(wasm: CircuitsWasm): PreviousKernelData {
     if (!DummyPreviousKernelData.instance) {
-      const data = await privateKernelDummyPreviousKernel(wasm);
+      const data = privateKernelDummyPreviousKernel(wasm);
       DummyPreviousKernelData.instance = new DummyPreviousKernelData(data);
     }
 

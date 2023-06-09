@@ -1,5 +1,5 @@
-import { WasmWrapper } from '@aztec/foundation/wasm';
-import { BarretenbergWasm } from '../../index.js';
+import { IWasmModule } from '@aztec/foundation/wasm';
+import { CircuitsWasm } from '../../../index.js';
 
 /**
  * Grumpkin elliptic curve operations.
@@ -10,10 +10,10 @@ export class Grumpkin {
    * @returns New Grumpkin instance.
    */
   public static async new() {
-    return new this(await BarretenbergWasm.get());
+    return new this(await CircuitsWasm.get());
   }
 
-  constructor(private wasm: WasmWrapper) {}
+  constructor(private wasm: IWasmModule) {}
 
   // prettier-ignore
   static generator = Buffer.from([

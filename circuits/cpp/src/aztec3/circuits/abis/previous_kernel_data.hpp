@@ -62,12 +62,11 @@ template <typename NCT> struct PreviousKernelData {
 
 template <typename B> inline void read(B& buf, verification_key& key)
 {
-    auto env_crs = std::make_unique<proof_system::EnvReferenceStringFactory>();
     using serialize::read;
     // Note this matches write() below
     verification_key_data data;
     read(buf, data);
-    key = verification_key{ std::move(data), env_crs->get_verifier_crs() };
+    key = verification_key{ std::move(data), barretenberg::srs::get_crs_factory()->get_verifier_crs() };
 }
 
 template <typename NCT> void read(uint8_t const*& it, PreviousKernelData<NCT>& kernel_data)

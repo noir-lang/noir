@@ -4,7 +4,6 @@ import { treeTestSuite } from '../test/test_suite.js';
 import { SparseTree } from './sparse_tree.js';
 import { standardBasedTreeTestSuite } from '../test/standard_based_test_suite.js';
 import { createMemDown } from '../test/utils/create_mem_down.js';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { Pedersen } from '../pedersen.js';
 import { randomBytes } from 'crypto';
 import { INITIAL_LEAF, SiblingPath } from '../index.js';
@@ -12,6 +11,8 @@ import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
 import { newTree } from '../new_tree.js';
 import { loadTree } from '../load_tree.js';
 import { createLogger } from '@aztec/foundation/log';
+import { IWasmModule } from '@aztec/foundation/wasm';
+import { CircuitsWasm } from '@aztec/circuits.js';
 
 const log = createLogger('aztec:sparse_tree_test');
 
@@ -34,11 +35,11 @@ treeTestSuite('SparseTree', createDb, createFromName);
 standardBasedTreeTestSuite('SparseTree', createDb);
 
 describe('SparseTreeSpecific', () => {
-  let wasm: BarretenbergWasm;
+  let wasm: IWasmModule;
   let pedersen: Pedersen;
 
   beforeEach(async () => {
-    wasm = await BarretenbergWasm.get();
+    wasm = await CircuitsWasm.get();
     pedersen = new Pedersen(wasm);
   });
 

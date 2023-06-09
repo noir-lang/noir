@@ -1,15 +1,14 @@
-import { BarretenbergWasm } from '../../wasm/index.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { Aes128 } from './index.js';
 
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 
 describe('aes128', () => {
-  let barretenberg!: BarretenbergWasm;
+  let barretenberg!: CircuitsWasm;
   let aes128!: Aes128;
 
   beforeAll(async () => {
-    barretenberg = new BarretenbergWasm();
-    await barretenberg.init();
+    barretenberg = await CircuitsWasm.get();
     aes128 = new Aes128(barretenberg);
   });
 

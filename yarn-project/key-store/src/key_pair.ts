@@ -1,5 +1,5 @@
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { EcdsaSignature } from '@aztec/circuits.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
 

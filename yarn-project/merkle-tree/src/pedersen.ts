@@ -1,18 +1,17 @@
+import { IWasmModule } from '@aztec/foundation/wasm';
 import {
   pedersenCompress,
-  pedersenHashInputs,
   pedersenGetHash,
   pedersenGetHashTree,
-} from '@aztec/barretenberg.js/crypto';
-
-import { WasmWrapper } from '@aztec/foundation/wasm';
+  pedersenHashInputs,
+} from '@aztec/circuits.js/barretenberg';
 import { Hasher } from './hasher.js';
 
 /**
  * A helper class encapsulating Pedersen hash functionality.
  */
 export class Pedersen implements Hasher {
-  constructor(private wasm: WasmWrapper) {}
+  constructor(private wasm: IWasmModule) {}
 
   /**
    * Compresses two 32-byte hashes.

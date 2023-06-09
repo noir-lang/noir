@@ -15,3 +15,4 @@ barretenberg/cpp/src/aztec/rollup/proofs/root_*/fixtures/join_split
 barretenberg/cpp/src/aztec/rollup/proofs/root_*/fixtures/**/proving_key
 barretenberg/cpp/srs_db/*
 !barretenberg/cpp/srs_db/download_ignition.sh
+!barretenberg/cpp/scripts/install-wasi-sdk.sh

@@ -7,13 +7,7 @@
   },
   "references": [
     {
-      "path": "../barretenberg.js"
-    },
-    {
       "path": "../foundation"
-    },
-    {
-      "path": "../merkle-tree"
     }
   ],
   "include": ["src"]

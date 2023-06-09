@@ -1,5 +1,5 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { Grumpkin } from '@aztec/barretenberg.js/crypto';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { L2BlockContext, TxHash } from '@aztec/types';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';

@@ -85,7 +85,11 @@ struct NativeTypes {
         return crypto::pedersen_commitment::commit_native(input_pairs);
     }
 
-    static byte_array blake2s(const byte_array& input) { return blake2::blake2s(input); }
+    static byte_array blake2s(const byte_array& input)
+    {
+        auto res = blake2::blake2s(input);
+        return byte_array(res.begin(), res.end());
+    }
 
     static byte_array blake3s(const byte_array& input) { return blake3::blake3s(input); }
 };
