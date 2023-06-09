@@ -212,13 +212,9 @@ impl Context {
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
-                let var = self.convert_numeric_value(*value, dfg);
-
                 let result_acir_var = self
-                    .acir_context
-                    .truncate_var(var, *bit_size, *max_bit_size)
+                    .convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)
                     .expect("add Result types to all methods so errors bubble up");
-
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::ArrayGet { array, index } => {
@@ -477,6 +473,31 @@ impl Context {
                 .expect("invalid range constraint was applied {numeric_type}"),
             _ => unimplemented!("The cast operation is only valid for integers."),
         }
+    }
+
+    /// Returns an `AcirVar`that is constrained to be result of the truncation.
+    fn convert_ssa_truncate(
+        &mut self,
+        value_id: ValueId,
+        bit_size: u32,
+        max_bit_size: u32,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirVar, AcirGenError> {
+        let mut var = self.convert_numeric_value(value_id, dfg);
+        let truncation_target = match &dfg[value_id] {
+            Value::Instruction { instruction, .. } => &dfg[*instruction],
+            _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op"),
+        };
+        if matches!(truncation_target, Instruction::Binary(Binary { operator: BinaryOp::Sub, .. }))
+        {
+            // Subtractions must first have the integer modulus added before truncation can be
+            // applied. This is done in order to prevent underflow.
+            let integer_modulus =
+                self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
+            var = self.acir_context.add_var(var, integer_modulus)?;
+        }
+
+        self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
 
     /// Returns a vector of `AcirVar`s constrained to be result of the function call.
