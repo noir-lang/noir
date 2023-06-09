@@ -160,10 +160,10 @@ impl BrilligGen {
                 let result_register = self.get_or_create_register(result_ids[0]);
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            Instruction::Allocate { size } => {
+            Instruction::Allocate => {
                 let pointer_register =
                     self.get_or_create_register(dfg.instruction_results(instruction_id)[0]);
-                self.allocate_array(pointer_register, *size);
+                self.allocate_array(pointer_register, 1);
             }
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_value(*address, dfg);
