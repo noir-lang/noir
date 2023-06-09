@@ -1,6 +1,8 @@
 use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use crate::ssa_refactor::acir_gen::AcirValue;
+use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::types::Type as SsaType;
+use crate::ssa_refactor::ir::value::ValueId;
 use crate::ssa_refactor::ir::{instruction::Endian, map::TwoWayMap, types::NumericType};
 use acvm::acir::{
     brillig_vm::Opcode as BrilligOpcode,
@@ -39,15 +41,12 @@ impl AcirType {
 
     /// Returns the bit size of the underlying type
     pub(crate) fn bit_size(&self) -> u32 {
-
         match self {
-            AcirType::NumericType(numeric_type) => {
-                match numeric_type {
-                    NumericType::Signed { bit_size } => *bit_size,
-                    NumericType::Unsigned { bit_size } => *bit_size,
-                    NumericType::NativeField => FieldElement::max_num_bits(),
-                }
-            }
+            AcirType::NumericType(numeric_type) => match numeric_type {
+                NumericType::Signed { bit_size } => *bit_size,
+                NumericType::Unsigned { bit_size } => *bit_size,
+                NumericType::NativeField => FieldElement::max_num_bits(),
+            },
             AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
         }
     }
@@ -724,15 +723,52 @@ impl AcirContext {
     pub(crate) fn brillig(
         &mut self,
         code: Vec<BrilligOpcode>,
-        inputs: Vec<AcirVar>,
-        output_len: usize,
-    ) -> Vec<AcirVar> {
-        let b_inputs =
-            vecmap(inputs, |i| BrilligInputs::Single(self.vars[&i].to_expression().into_owned()));
-        let outputs = vecmap(0..output_len, |_| self.acir_ir.next_witness_index());
-        let outputs_var =
-            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
-        let b_outputs = vecmap(outputs, BrilligOutputs::Simple);
+        inputs: Vec<AcirValue>,
+        outputs: Vec<AcirType>,
+    ) -> Vec<AcirValue> {
+        let b_inputs = vecmap(inputs, |i| match i {
+            AcirValue::Var(var, _) => {
+                BrilligInputs::Single(self.vars[&var].to_expression().into_owned())
+            }
+            AcirValue::Array(vars) => {
+                let var_expressions = vars
+                    .iter()
+                    .map(|v| match v {
+                        AcirValue::Var(var, _) => self.vars[var].to_expression().into_owned(),
+                        _ => unreachable!("brillig does not supprot complex array inputs yet"),
+                    })
+                    .collect();
+                BrilligInputs::Array(var_expressions)
+            }
+        });
+
+        let mut b_outputs = Vec::new();
+        let outputs_var = vecmap(outputs, |output| {
+            dbg!(output.clone());
+            match output {
+                AcirType::NumericType(_) => {
+                    let witness_index = self.acir_ir.next_witness_index();
+                    b_outputs.push(BrilligOutputs::Simple(witness_index));
+                    let var = self.add_data(AcirVarData::Witness(witness_index));
+                    AcirValue::Var(var, output.clone())
+                }
+                AcirType::Array(element_types, size) => {
+                    let mut witnesses = Vec::new();
+                    let mut array_values = im::Vector::new();
+                    for _ in 0..size {
+                        let witness_index = self.acir_ir.next_witness_index();
+                        witnesses.push(witness_index);
+                        let var = self.add_data(AcirVarData::Witness(witness_index));
+                        // TODO: check types maybe should be done in acir gen rather than in here
+                        // currently do not support arrays of complex types being outputted from brillig
+                        array_values.push_back(AcirValue::Var(var, element_types[0].clone()));
+                    }
+                    b_outputs.push(BrilligOutputs::Array(witnesses));
+                    AcirValue::Array(array_values)
+                }
+            }
+        });
+
         self.acir_ir.brillig(code, b_inputs, b_outputs);
 
         outputs_var

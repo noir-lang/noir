@@ -119,7 +119,7 @@ pub(crate) fn compile_circuit<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
-        driver.compile_main(compile_options).map_err(|errs| {
+    driver.compile_main(compile_options).map_err(|errs| {
         let file_manager = driver.file_manager();
         let error_count = reporter::report_all(file_manager, &errs, compile_options.deny_warnings);
         if error_count != 0 {

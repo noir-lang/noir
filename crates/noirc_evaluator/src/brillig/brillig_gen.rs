@@ -71,14 +71,14 @@ impl BrilligGen {
         self.obj.add_block_label(block_id);
         let block = &dfg[block_id];
         self.convert_block_params(block, dfg);
-        dbg!(block.instructions());
+
         for instruction_id in block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
 
         // Jump to the next block
         let jump = block.terminator().expect("block is expected to be constructed");
-        dbg!(jump.clone());
+
         match jump {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
@@ -122,22 +122,6 @@ impl BrilligGen {
         dbg!(return_values.clone());
         dbg!(self.memory.pointer());
         for (destination_index, value_id) in return_values.iter().enumerate() {
-            let value = &dfg[*value_id];
-            match value {
-                Value::Param { typ, .. } => {
-                    dbg!(typ.clone());
-                    
-                    // match typ {
-                    //     Type::Array(element_types, _) => {
-                    //         dbg!(element_types.clone());
-                    //         ()
-                    //     }
-                    //     _ => (),
-                    // }
-                    ()
-                }
-                _ => (),
-            }
             let return_register = self.convert_ssa_value(*value_id, dfg);
             if destination_index > self.latest_register {
                 self.latest_register = destination_index;
@@ -158,18 +142,14 @@ impl BrilligGen {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
             };
-            dbg!(param_type.clone());
-            dbg!(param_id.clone());
+
             match param_type {
                 Type::Numeric(_) => {
                     self.get_or_create_register(*param_id);
                 }
                 Type::Array(_, size) => {
                     let pointer_register = self.get_or_create_register(*param_id);
-                    dbg!(*size);
-                    dbg!(self.memory.pointer());
                     self.allocate_array(pointer_register, *size as u32);
-                    dbg!(self.memory.pointer());
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -299,7 +279,6 @@ impl BrilligGen {
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterIndex {
         let value = &dfg[value_id];
-        dbg!(value.clone());
         let register = match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
@@ -327,7 +306,7 @@ impl BrilligGen {
         let mut brillig = BrilligGen::default();
 
         brillig.convert_ssa_function(func);
-        dbg!(brillig.obj.byte_code.clone());
+
         brillig.obj
     }
 
