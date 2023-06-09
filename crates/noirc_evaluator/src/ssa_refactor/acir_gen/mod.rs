@@ -185,7 +185,6 @@ impl Context {
                                 }
 
                                 for (result, output) in result_ids.iter().zip(outputs) {
-                                    dbg!(result.clone());
                                     let result_acir_type = dfg.type_of_value(*result).into();
                                     self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type));
                                 }
