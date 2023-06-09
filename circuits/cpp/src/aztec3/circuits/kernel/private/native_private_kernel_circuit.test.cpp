@@ -5,9 +5,7 @@
 #include "aztec3/circuits/apps/test_apps/escrow/deposit.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
-#include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/serialize/test_helper.hpp"
-#include <barretenberg/common/test.hpp>
+#include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
 

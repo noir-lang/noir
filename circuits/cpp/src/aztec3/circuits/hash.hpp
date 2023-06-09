@@ -6,7 +6,6 @@
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
-#include "barretenberg/common/throw_or_abort.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 #include <array>

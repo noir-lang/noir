@@ -183,7 +183,6 @@ __metadata:
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
-    browserify-cipher: ^1.0.1
     jest: ^29.5.0
     jest-mock-extended: ^3.0.3
     sha3: ^2.1.4
@@ -642,6 +641,7 @@ __metadata:
     "@types/lodash.clonedeep": ^4.5.7
     "@types/lodash.times": ^4.3.7
     "@types/node": ^18.7.23
+    browserify-cipher: ^1.0.1
     jest: ^29.5.0
     jest-mock-extended: ^3.0.3
     lodash.clonedeep: ^4.5.0

@@ -3,7 +3,6 @@
 
 #include "aztec3/utils/circuit_errors.hpp"
 
-#include "barretenberg/proof_system/types/composer_type.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 /**

@@ -10,9 +10,7 @@
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
 
-#include <barretenberg/common/map.hpp>
-#include <barretenberg/stdlib/merkle_tree/membership.hpp>
-
+#include <barretenberg/barretenberg.hpp>
 
 namespace {
 

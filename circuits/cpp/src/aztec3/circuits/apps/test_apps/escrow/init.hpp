@@ -34,14 +34,9 @@ using aztec3::utils::types::to_ct;
 using apps::state_vars::MappingStateVar;
 using apps::state_vars::UTXOSetStateVar;
 
-// Get rid of ugle `Composer` template arg from our state var types:
-template <typename T> struct SpecialisedTypes {
-    using mapping = MappingStateVar<C, T>;
-    using utxo_set = UTXOSetStateVar<C, T>;
-};
-
-template <typename V> using Mapping = typename SpecialisedTypes<V>::mapping;
-template <typename Note> using UTXOSet = typename SpecialisedTypes<Note>::utxo_set;
+// Get rid of ugly `Composer` template arg from our state var types:
+template <typename V> using Mapping = MappingStateVar<C, V>;
+template <typename Note> using UTXOSet = UTXOSetStateVar<C, Note>;
 
 using DefaultNote = apps::notes::DefaultPrivateNote<C, CT::fr>;
 

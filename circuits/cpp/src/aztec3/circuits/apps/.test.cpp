@@ -55,17 +55,10 @@ using aztec3::circuits::apps::notes::DefaultPrivateNote;
 using aztec3::circuits::apps::notes::DefaultSingletonPrivateNote;
 
 // State variables
-// Get rid of ugle `Composer` template arg from our state var types:
-template <typename T> struct SpecialisedTypes {
-    using mapping = MappingStateVar<C, T>;
-    using utxo = UTXOStateVar<C, T>;
-    using utxo_set = UTXOSetStateVar<C, T>;
-};
-
-template <typename V> using Mapping = typename SpecialisedTypes<V>::mapping;
-
-template <typename Note> using UTXO = typename SpecialisedTypes<Note>::utxo;
-template <typename Note> using UTXOSet = typename SpecialisedTypes<Note>::utxo_set;
+// Get rid of ugly `Composer` template arg from our state var types:
+template <typename V> using Mapping = MappingStateVar<C, V>;
+template <typename Note> using UTXO = UTXOStateVar<C, Note>;
+template <typename Note> using UTXOSet = UTXOSetStateVar<C, Note>;
 
 using Field = FieldStateVar<C>;
 }  // namespace

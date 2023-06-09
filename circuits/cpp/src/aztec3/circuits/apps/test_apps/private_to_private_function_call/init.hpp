@@ -32,12 +32,8 @@ using aztec3::utils::types::to_ct;
 // StateVars
 using apps::state_vars::UTXOStateVar;
 
-// Get rid of ugle `Composer` template arg from our state var types:
-template <typename T> struct SpecialisedTypes {
-    using utxo = UTXOStateVar<C, T>;
-};
-
-template <typename Note> using UTXO = typename SpecialisedTypes<Note>::utxo;
+// Get rid of ugly `Composer` template arg from our state var types:
+template <typename Note> using UTXO = UTXOStateVar<C, Note>;
 
 using Note = apps::notes::DefaultSingletonPrivateNote<C, CT::fr>;
 

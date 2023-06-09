@@ -58,10 +58,6 @@ WASM_EXPORT size_t private_kernel__init_verification_key(uint8_t const* pk_buf, 
 
 CBIND(private_kernel__dummy_previous_kernel, []() { return dummy_previous_kernel(); });
 
-
-// TODO(jeanmon) We will need two versions of this one to expose to ts.
-// First let us try to get it compiled with one function (the inner one).
-
 // TODO(dbanks12): comment about how public_inputs is a confusing name
 // returns size of public inputs
 WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* signed_tx_request_buf,
