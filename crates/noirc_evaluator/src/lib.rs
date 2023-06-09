@@ -15,7 +15,7 @@ pub mod brillig;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::optimizers::simplify::CircuitSimplifier,
+    compiler::Simplifier,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
@@ -85,7 +85,7 @@ pub fn create_circuit(
         opcodes,
         ..
     } = evaluator;
-    let simplifier = CircuitSimplifier::new(current_witness_index);
+    let simplifier = Simplifier::new(current_witness_index);
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index,

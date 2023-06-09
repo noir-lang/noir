@@ -24,7 +24,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "=0.14.1"
+acvm = "=0.14.2"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -53,3 +53,7 @@ tower = "0.4"
 url = "2.2.0"
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
+
+[patch.crates-io]
+acvm = { git = "https://github.com/noir-lang/acvm", rev = "310fa2d1f6c9027ce65002de1236ddd46a10de3a" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "6a3c12a263d0a67f0ffa3e246186e8df286ee6a6" }
