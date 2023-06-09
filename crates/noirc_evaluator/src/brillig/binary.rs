@@ -44,25 +44,25 @@ impl BrilligBinaryOp {
         }
         fn binary_op_to_int_op(op: BinaryOp, is_signed: bool) -> BinaryIntOp {
             match op {
-              BinaryOp::Add => BinaryIntOp::Add,
-              BinaryOp::Sub => BinaryIntOp::Sub,
-              BinaryOp::Mul => BinaryIntOp::Mul,
-              BinaryOp::Div => {
-                  if is_signed {
-                      BinaryIntOp::SignedDiv
-                  } else {
-                      BinaryIntOp::UnsignedDiv
-                  }
-              },
-              BinaryOp::Mod => todo!("This is not supported by Brillig. It should either be added into Brillig or legalized by the SSA IR"),
-              BinaryOp::Eq => BinaryIntOp::Equals,
-              BinaryOp::Lt => BinaryIntOp::LessThan,
-              BinaryOp::And => BinaryIntOp::And,
-              BinaryOp::Or => BinaryIntOp::Or,
-              BinaryOp::Xor => BinaryIntOp::Xor,
-              BinaryOp::Shl => BinaryIntOp::Shl,
-              BinaryOp::Shr => BinaryIntOp::Shr,
-          }
+                BinaryOp::Add => BinaryIntOp::Add,
+                BinaryOp::Sub => BinaryIntOp::Sub,
+                BinaryOp::Mul => BinaryIntOp::Mul,
+                BinaryOp::Div => {
+                    if is_signed {
+                        BinaryIntOp::SignedDiv
+                    } else {
+                        BinaryIntOp::UnsignedDiv
+                    }
+                }
+                BinaryOp::Mod => unreachable!("Modulo operations are handled separately"),
+                BinaryOp::Eq => BinaryIntOp::Equals,
+                BinaryOp::Lt => BinaryIntOp::LessThan,
+                BinaryOp::And => BinaryIntOp::And,
+                BinaryOp::Or => BinaryIntOp::Or,
+                BinaryOp::Xor => BinaryIntOp::Xor,
+                BinaryOp::Shl => BinaryIntOp::Shl,
+                BinaryOp::Shr => BinaryIntOp::Shr,
+            }
         }
         // If bit size is available then it is a binary integer operation
         match bit_size_signedness {
