@@ -86,7 +86,36 @@ setup_aztec_commit: &setup_aztec_commit
     name: "Setup environment for Aztec Integration Testing"
     command: |
       # Load the aztec commit into env for use in integration tests
-      echo "export AZTEC_COMMIT=$(cat cpp/.aztec-packages-commit 2>/dev/null || echo master)" >> "$BASH_ENV"
+      # Aztec commit will be chosen according to the following priorities:
+      # 1. if present, grab commit from cpp/.aztec-packages-commit file
+      # 2. if this is a branch with an identically named branch in aztec-pacakages, run against that branch
+      # 3. default to aztec-packages 'master'
+
+      # default to master
+      AZTEC_COMMIT=master
+      echo "Checking if a branch/commit is specified in .aztec-packages-commit"
+      echo "or if this is a branch with a sibling branch in aztec-packages."
+      echo "Otherwise defaulting to test against circuits in aztec-packages 'master'."
+
+      COMMIT_FROM_FILE=$(cat cpp/.aztec-packages-commit 2>/dev/null || true)
+      if [ -n "$COMMIT_FROM_FILE" ] && [[ "$COMMIT_FROM_FILE" = *[![:space:]]* ]]; then
+        # if a commit is present in .aztec-packages-commit, use that
+        # check that there is text in the commit file that is not just whitespace
+        echo "Using aztec-packages commit ($COMMIT_FROM_FILE) from .aztec-packages-commit file"
+        AZTEC_COMMIT=$COMMIT_FROM_FILE
+      elif [ -n "$CIRCLE_BRANCH" ] && [ "$CIRCLE_BRANCH" != master ]; then
+        echo "Checking if a sibling branch ($CIRCLE_BRANCH) exists in aztec-packages"
+        if git ls-remote --heads git@github.com:AztecProtocol/aztec-packages.git 2>/dev/null | grep "refs/heads/$CIRCLE_BRANCH" &>/dev/null; then
+          echo "Sibling branch ($CIRCLE_BRANCH) exists in aztec-packages! Circuits tests will run against that branch."
+          AZTEC_COMMIT=$CIRCLE_BRANCH
+        else
+          echo "No sibling branch exists in aztec-packages. Defaulting to 'master'."
+        fi
+      else
+        echo "Defaulting to 'master'."
+      fi
+
+      echo "export AZTEC_COMMIT=$AZTEC_COMMIT" >> "$BASH_ENV"
       source "$BASH_ENV"
 
 # This step is used to save logs from various barretenberg test to the workspace so that they can be used later to parse benchmark values out of them
