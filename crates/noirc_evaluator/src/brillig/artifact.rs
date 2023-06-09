@@ -17,10 +17,16 @@ pub(crate) struct BrilligArtifact {
     pub(crate) byte_code: Vec<BrilligOpcode>,
     /// The set of jumps that need to have their locations
     /// resolved.
-    unresolved_jumps: Vec<(JumpLabel, BasicBlockId)>,
+    unresolved_jumps: Vec<(JumpLabel, UnresolvedJumpLocation)>,
     /// A map of the basic blocks to their positions
     /// in the bytecode.
     blocks: HashMap<BasicBlockId, BlockLabel>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum UnresolvedJumpLocation {
+    Block(BasicBlockId),
+    Relative(i32),
 }
 
 impl BrilligArtifact {
@@ -46,7 +52,7 @@ impl BrilligArtifact {
     }
 
     /// Adds a unresolved jump to be fixed at the end of bytecode processing.
-    pub(crate) fn add_unresolved_jump(&mut self, destination: BasicBlockId) {
+    pub(crate) fn add_unresolved_jump(&mut self, destination: UnresolvedJumpLocation) {
         self.unresolved_jumps.push((self.code_len(), destination));
     }
 
@@ -65,10 +71,15 @@ impl BrilligArtifact {
     ///
     /// Note: This should only be called once all blocks are processed.
     fn resolve_jumps(&mut self) {
-        for (jump_label, block) in &self.unresolved_jumps {
+        for (jump_label, unresolved_location) in &self.unresolved_jumps {
             let jump_instruction = self.byte_code[*jump_label].clone();
 
-            let actual_block_location = self.blocks[block];
+            let actual_block_location = match unresolved_location {
+                UnresolvedJumpLocation::Block(b) => self.blocks[b],
+                UnresolvedJumpLocation::Relative(location) => {
+                    (location + *jump_label as i32) as usize
+                }
+            };
 
             match jump_instruction {
                 BrilligOpcode::Jump { location } => {
@@ -84,14 +95,10 @@ impl BrilligArtifact {
                         BrilligOpcode::JumpIfNot { condition, location: actual_block_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
-                    assert_eq!(location, 0,"location is not zero, which means that the jump label does not need resolving");
-                    let location = if location == 0 {
-                        actual_block_location
-                    } else {
-                        // We update the relative location to its final absolute value
-                        location + jump_label
-                    };
-                    self.byte_code[*jump_label] = BrilligOpcode::JumpIf { condition, location };
+                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+
+                    self.byte_code[*jump_label] =
+                        BrilligOpcode::JumpIf { condition, location: actual_block_location };
                 }
                 _ => unreachable!(
                     "all jump labels should point to a jump instruction in the bytecode"

@@ -1,5 +1,5 @@
 use super::{
-    artifact::BrilligArtifact,
+    artifact::{BrilligArtifact, UnresolvedJumpLocation},
     binary::{type_of_binary_operation, BrilligBinaryOp},
     memory::BrilligMemory,
 };
@@ -101,13 +101,13 @@ impl BrilligGen {
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
     fn jump(&mut self, target: BasicBlockId) {
-        self.obj.add_unresolved_jump(target);
+        self.obj.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
         self.push_code(BrilligOpcode::Jump { location: 0 });
     }
 
     /// Adds a unresolved `JumpIf` instruction to the bytecode.
     fn jump_if(&mut self, condition: RegisterIndex, target: BasicBlockId) {
-        self.obj.add_unresolved_jump(target);
+        self.obj.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
         self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
     }
 
@@ -163,7 +163,8 @@ impl BrilligGen {
             Instruction::Constrain(value) => {
                 let condition = self.convert_ssa_value(*value, dfg);
                 // jump to the relative location after the trap
-                self.push_code(BrilligOpcode::JumpIf { condition, location: 2 });
+                self.obj.add_unresolved_jump(UnresolvedJumpLocation::Relative(2));
+                self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
                 self.push_code(BrilligOpcode::Trap);
             }
             Instruction::Allocate => {
