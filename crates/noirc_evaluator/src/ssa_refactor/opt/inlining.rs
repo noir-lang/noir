@@ -330,7 +330,7 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(function) => match ssa.functions[&function].runtime() {
                         RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
-                        RuntimeType::Brillig | RuntimeType::Oracle(..) => {
+                        RuntimeType::Brillig | RuntimeType::Oracle(_) => {
                             self.context.failed_to_inline_a_call = true;
                             self.push_instruction(*id);
                         }
