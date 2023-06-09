@@ -75,11 +75,6 @@ impl Ssa {
 impl Context {
     /// Converts SSA into ACIR
     fn convert_ssa(mut self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
-        assert_eq!(
-            ssa.functions.len(),
-            1,
-            "expected only a single function to be present with all other functions being inlined."
-        );
         let main_func = ssa.main();
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
@@ -176,10 +171,18 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
+                                let inputs:Vec<AcirVar> = arguments
+                                    .iter()
+                                    .flat_map(|arg| self.convert_value(*arg, dfg).flatten())
+                                    .map(|(var, _typ)| var)
+                                    .collect();
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
-                                self.acir_context.brillig(code);
-                                // TODO: Set result values
+                                let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
+                                for (result, output) in result_ids.iter().zip(outputs) {
+                                    let result_acir_type = dfg.type_of_value(*result).into();
+                                    self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type));
+                                }
                             }
                         }
                     }

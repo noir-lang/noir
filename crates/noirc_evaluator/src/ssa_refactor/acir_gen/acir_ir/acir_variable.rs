@@ -1,9 +1,11 @@
+use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use crate::ssa_refactor::acir_gen::AcirValue;
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, map::TwoWayMap, types::NumericType};
-use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
-
-use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
+use acvm::acir::{
+    brillig_vm::Opcode as BrilligOpcode,
+    circuit::brillig::{BrilligInputs, BrilligOutputs},
+};
 use acvm::{
     acir::{
         circuit::opcodes::FunctionInput,
@@ -706,8 +708,21 @@ impl AcirContext {
         self.vars.insert(id, data)
     }
 
-    pub(crate) fn brillig(&mut self, _code: Vec<BrilligOpcode>) {
-        todo!();
+    pub(crate) fn brillig(
+        &mut self,
+        code: Vec<BrilligOpcode>,
+        inputs: Vec<AcirVar>,
+        output_len: usize,
+    ) -> Vec<AcirVar> {
+        let b_inputs =
+            vecmap(inputs, |i| BrilligInputs::Single(self.vars[&i].to_expression().into_owned()));
+        let outputs = vecmap(0..output_len, |_| self.acir_ir.next_witness_index());
+        let outputs_var =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+        let b_outputs = vecmap(outputs, BrilligOutputs::Simple);
+        self.acir_ir.brillig(code, b_inputs, b_outputs);
+
+        outputs_var
     }
 }
 
