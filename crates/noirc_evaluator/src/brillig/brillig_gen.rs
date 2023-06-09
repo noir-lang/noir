@@ -241,6 +241,9 @@ impl BrilligGen {
         let left = self.convert_ssa_value(binary.lhs, dfg);
         let right = self.convert_ssa_value(binary.rhs, dfg);
 
+        // Process modulo operator separately as there is no
+        // Brillig modulo operator and the result is multiple
+        // brillig opcodes.
         if let BinaryOp::Mod = binary.operator {
             match binary_type {
                 Type::Numeric(NumericType::Unsigned { bit_size }) => {
@@ -282,11 +285,11 @@ impl BrilligGen {
         }
     }
 
-    /// Issues a modulo operation on integers.
-    /// This is done by first dividing the left operand by the right operand,
-    /// then multiplying the result by the right operand, and finally subtracting
-    /// the result from the left operand.
-    /// result = left - ( (left / right) * right)
+    /// Computes left % right by emitting the necessary Brillig opcodes.
+    ///
+    /// This is done by using the following formula:
+    ///
+    /// a % b = a - (b * (a / b))
     fn convert_integer_mod(
         &mut self,
         result_register: RegisterIndex,
