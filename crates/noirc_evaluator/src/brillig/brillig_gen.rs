@@ -7,9 +7,9 @@ use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
     function::Function,
-    instruction::{Binary, Instruction, InstructionId, TerminatorInstruction},
+    instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
     post_order::PostOrder,
-    types::Type,
+    types::{NumericType, Type},
     value::{Value, ValueId},
 };
 use acvm::{
@@ -241,6 +241,23 @@ impl BrilligGen {
         let left = self.convert_ssa_value(binary.lhs, dfg);
         let right = self.convert_ssa_value(binary.rhs, dfg);
 
+        // Process modulo operator separately as there is no
+        // Brillig modulo operator and the result is multiple
+        // brillig opcodes.
+        if let BinaryOp::Mod = binary.operator {
+            match binary_type {
+                Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                    self.convert_integer_mod(result_register, left, right, bit_size, false);
+                    return;
+                }
+                Type::Numeric(NumericType::Signed { bit_size }) => {
+                    self.convert_integer_mod(result_register, left, right, bit_size, true);
+                    return;
+                }
+                _ => unimplemented!("ICE: Modulo operation not supported for type {binary_type:?}"),
+            }
+        }
+
         let brillig_binary_op = BrilligBinaryOp::convert_ssa_binary_op_to_brillig_binary_op(
             binary.operator,
             binary_type,
@@ -266,6 +283,53 @@ impl BrilligGen {
                 self.push_code(opcode);
             }
         }
+    }
+
+    /// Computes left % right by emitting the necessary Brillig opcodes.
+    ///
+    /// This is done by using the following formula:
+    ///
+    /// a % b = a - (b * (a / b))
+    fn convert_integer_mod(
+        &mut self,
+        result_register: RegisterIndex,
+        left: RegisterIndex,
+        right: RegisterIndex,
+        bit_size: u32,
+        signed: bool,
+    ) {
+        let scratch_register_i = self.create_register();
+        let scratch_register_j = self.create_register();
+
+        // i = left / right
+        self.push_code(BrilligOpcode::BinaryIntOp {
+            op: match signed {
+                true => BinaryIntOp::SignedDiv,
+                false => BinaryIntOp::UnsignedDiv,
+            },
+            destination: scratch_register_i,
+            bit_size,
+            lhs: left,
+            rhs: right,
+        });
+
+        // j = i * right
+        self.push_code(BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Mul,
+            destination: scratch_register_j,
+            bit_size,
+            lhs: scratch_register_i,
+            rhs: right,
+        });
+
+        // result_register = left - j
+        self.push_code(BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Sub,
+            destination: result_register,
+            bit_size,
+            lhs: left,
+            rhs: scratch_register_j,
+        });
     }
 
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
