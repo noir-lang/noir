@@ -20,8 +20,8 @@ jobs:
             runner: ubuntu-large
             target: x86_64-linux
           - os: mac
-             runner: macos-latest
-             target: x86_64-darwin
+            runner: macos-latest
+            target: x86_64-darwin
 
     steps:
       - name: Checkout
