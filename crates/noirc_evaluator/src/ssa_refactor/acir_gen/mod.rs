@@ -75,11 +75,6 @@ impl Ssa {
 impl Context {
     /// Converts SSA into ACIR
     fn convert_ssa(mut self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
-        assert_eq!(
-            ssa.functions.len(),
-            1,
-            "expected only a single function to be present with all other functions being inlined."
-        );
         let main_func = ssa.main();
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
