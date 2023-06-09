@@ -119,8 +119,6 @@ impl BrilligGen {
     /// the Register starting at register index 0. `N` indicates the number of
     /// return values expected.
     fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
-        dbg!(return_values.clone());
-        dbg!(self.memory.pointer());
         for (destination_index, value_id) in return_values.iter().enumerate() {
             let return_register = self.convert_ssa_value(*value_id, dfg);
             if destination_index > self.latest_register {

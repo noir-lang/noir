@@ -12,8 +12,4 @@ impl BrilligMemory {
         self.free_mem_pointer += size;
         start
     }
-
-    pub(crate) fn pointer(&self) -> usize {
-        self.free_mem_pointer
-    }
 }

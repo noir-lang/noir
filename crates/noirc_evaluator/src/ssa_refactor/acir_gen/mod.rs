@@ -306,11 +306,10 @@ impl Context {
         if is_return_unit_type {
             return;
         }
-        dbg!(dfg.type_of_value(return_values[0]));
+
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
-        dbg!(return_acir_vars.clone());
         for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }
