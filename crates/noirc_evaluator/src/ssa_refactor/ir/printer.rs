@@ -151,7 +151,7 @@ pub(crate) fn display_instruction(
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
         }
         Instruction::ForeignCall { func, arguments } => {
-            writeln!(f, "call {}({})", func, value_list(function, arguments))
+            writeln!(f, "foreign call {}({})", func, value_list(function, arguments))
         }
         Instruction::Allocate => writeln!(f, "allocate"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
