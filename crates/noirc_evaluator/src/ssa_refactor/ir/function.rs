@@ -12,7 +12,7 @@ pub(crate) enum RuntimeType {
     Acir,
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
     Brillig,
-    // Oracle function, to be compiled to an external/foreign call
+    // Oracle function, to be compiled to a Brillig external/foreign call
     Oracle(String),
 }
 /// A function holds a list of instructions.
