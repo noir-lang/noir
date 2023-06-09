@@ -162,7 +162,9 @@ impl BrilligGen {
             }
             Instruction::Constrain(value) => {
                 let condition = self.convert_ssa_value(*value, dfg);
-                self.push_code(BrilligOpcode::JumpIfNot { condition, location: 1 });
+                // jump to the relative location after the trap
+                self.push_code(BrilligOpcode::JumpIf { condition, location: 2 });
+                self.push_code(BrilligOpcode::Trap);
             }
             Instruction::Allocate => {
                 let pointer_register =

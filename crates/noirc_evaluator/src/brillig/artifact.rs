@@ -10,10 +10,6 @@ pub(crate) type JumpLabel = usize;
 /// particular basic block starts.
 pub(crate) type BlockLabel = usize;
 
-/// Number of bytecodes in the prefix
-/// The prefix code is added at the start of every brillig function
-const PREFIX_LEN: usize = 3;
-
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// Currently it is just the brillig bytecode of the function.
@@ -37,13 +33,6 @@ impl BrilligArtifact {
 
     /// Link with a brillig artifact
     fn link_with(&mut self, obj: &BrilligArtifact) {
-        //add the prefix bytecode
-        if self.byte_code.is_empty() {
-            self.byte_code.push(BrilligOpcode::Jump { location: PREFIX_LEN });
-            self.byte_code.push(BrilligOpcode::Trap);
-            self.byte_code.push(BrilligOpcode::Stop);
-            assert_eq!(self.code_len(), PREFIX_LEN);
-        }
         let offset = self.code_len();
         for (jump_label, block_id) in &obj.unresolved_jumps {
             self.unresolved_jumps.push((jump_label + offset, *block_id));
@@ -96,9 +85,13 @@ impl BrilligArtifact {
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
                     assert_eq!(location, 0,"location is not zero, which means that the jump label does not need resolving");
-
-                    self.byte_code[*jump_label] =
-                        BrilligOpcode::JumpIf { condition, location: actual_block_location };
+                    let location = if location == 0 {
+                        actual_block_location
+                    } else {
+                        // We update the relative location to its final absolute value
+                        location + jump_label
+                    };
+                    self.byte_code[*jump_label] = BrilligOpcode::JumpIf { condition, location };
                 }
                 _ => unreachable!(
                     "all jump labels should point to a jump instruction in the bytecode"
