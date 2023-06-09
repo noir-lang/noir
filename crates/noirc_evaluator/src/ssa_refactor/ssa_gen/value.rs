@@ -26,7 +26,7 @@ pub(super) enum Tree<T> {
 /// used internally by functions in the ssa ir and should thus be isolated
 /// to a given function. If used outisde their function of origin, the IDs
 /// would be invalid.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub(super) enum Value {
     Normal(IrValueId),
 
@@ -41,10 +41,7 @@ impl Value {
     pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, typ) => {
-                let offset = ctx.builder.field_constant(0u128);
-                ctx.builder.insert_load(address, offset, typ)
-            }
+            Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
         }
     }
 
