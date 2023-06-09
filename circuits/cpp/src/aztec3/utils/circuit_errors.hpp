@@ -104,14 +104,9 @@ template <typename T> struct CircuitResult {
     // for serialization: delegate to msgpack std::variant support
     void msgpack_pack(auto& packer) const { packer.pack(result); }
     void msgpack_unpack(auto obj) { result = obj; }
+    // for schema serialization: delegate to msgpack std::variant support
+    void msgpack_schema(auto& packer) const { packer.pack_schema(result); }
 };
-
-// help our msgpack schema compiler with this struct
-// Alias CircuitResult as std::variant<CircuitError, T>
-template <typename T> inline void msgpack_schema_pack(auto& packer, CircuitResult<T> const& result)
-{
-    msgpack_schema_pack(packer, result.result);
-}
 
 inline void read(uint8_t const*& it, CircuitError& obj)
 {

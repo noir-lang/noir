@@ -36,11 +36,11 @@ export {
 /**
  * A pointer to a Prover object in WebAssembly memory.
  */
-export type ProverBasePtr = number & {
+export type RawPointerProverBase = number & {
   /**
    * A unique brand for distinguishing ProverBasePtr type objects.
    */
-  __proverBasePtrBrand: any;
+  __RawPointerProverBaseBrand: any;
 };
 
 /**

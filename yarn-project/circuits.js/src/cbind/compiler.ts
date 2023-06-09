@@ -260,7 +260,7 @@ export class CbindCompiler {
         };
       } else if (type[0] === 'alias') {
         // alias case
-        const [_alias, [typeName, msgpackName]] = type;
+        const [_alias, [rawTypeName, msgpackName]] = type;
         let msgpackTypeName: string;
         if (msgpackName.startsWith('bin')) {
           msgpackTypeName = 'Buffer';
@@ -269,6 +269,7 @@ export class CbindCompiler {
         } else {
           throw new Error('Unsupported alias type ' + msgpackName);
         }
+        const typeName = capitalize(camelCase(rawTypeName));
         this.typeInfos[typeName] = {
           typeName,
           isImport: true,

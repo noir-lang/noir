@@ -127,11 +127,3 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateCallDa
 }
 
 }  // namespace aztec3::circuits::abis::private_kernel
-
-// specialize the name in msgpack schema generation
-// consumed by the typescript schema compiler, helps disambiguate templates
-template <typename NCT> inline std::string msgpack_schema_name(
-    aztec3::circuits::abis::CallStackItem<NCT, aztec3::circuits::abis::PrivateTypes> const&)  // NOLINT
-{
-    return "PrivateCallStackItem";
-}
