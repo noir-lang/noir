@@ -176,11 +176,18 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
-                                let inputs = vecmap(arguments, |&a| {self.convert_ssa_value(a, dfg)});
+                                let inputs:Vec<AcirVar> = arguments
+                                    .iter()
+                                    .flat_map(|arg| self.convert_value(*arg, dfg).flatten())
+                                    .map(|(var, _typ)| var)
+                                    .collect();
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
                                 let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
-                                (result_ids.to_vec(), outputs)
+                                for (result, output) in result_ids.iter().zip(outputs) {
+                                    let result_acir_type = dfg.type_of_value(*result).into();
+                                    self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type));
+                                }
                             }
                         }
                     }

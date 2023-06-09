@@ -96,7 +96,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
             );
             Type::Numeric(lhs_type)
         }
-        _ => {
+        (lhs_type, rhs_type) => {
             unreachable!(
                 "ICE: Binary operation between types {:?} and {:?} is not allowed",
                 lhs_type, rhs_type
