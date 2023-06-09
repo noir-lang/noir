@@ -303,6 +303,7 @@ TEST_F(StandardHonkComposerTests, VerificationKeyCreation)
         composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
         composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
     }
+    composer.create_prover();
     auto verification_key = composer.compute_verification_key();
     // There is nothing we can really check apart from the fact that constraint selectors and permutation selectors were
     // committed to, we simply check that the verification key now contains the appropriate number of constraint and

@@ -21,8 +21,8 @@ class StandardPlonkComposerHelper {
     static constexpr size_t program_width = CircuitConstructor::program_width;
     std::shared_ptr<plonk::proving_key> circuit_proving_key;
     std::shared_ptr<plonk::verification_key> circuit_verification_key;
-    // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
-    // at all
+
+    // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
     std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;

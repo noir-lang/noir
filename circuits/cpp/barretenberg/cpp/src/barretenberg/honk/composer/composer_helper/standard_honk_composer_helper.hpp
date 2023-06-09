@@ -19,25 +19,30 @@ class StandardHonkComposerHelper {
     using CircuitConstructor = Flavor::CircuitConstructor;
     using ProvingKey = Flavor::ProvingKey;
     using VerificationKey = Flavor::VerificationKey;
+    using PCSCommitmentKey = PCSParams::CommitmentKey;
 
     static constexpr size_t NUM_RESERVED_GATES = 2; // equal to the number of multilinear evaluations leaked
     static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<VerificationKey> verification_key;
-    // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
-    // at all
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
+
+    // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
+    std::shared_ptr<srs::factories::CrsFactory> crs_factory_;
+
+    // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
+    std::shared_ptr<PCSCommitmentKey> commitment_key;
+
     bool computed_witness = false;
     // TODO(Luke): use make_shared
     StandardHonkComposerHelper()
-        : StandardHonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory>(
-              new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition")))
+        : StandardHonkComposerHelper(
+              std::shared_ptr<srs::factories::CrsFactory>(new srs::factories::FileCrsFactory("../srs_db/ignition")))
     {}
-    StandardHonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
+    StandardHonkComposerHelper(std::shared_ptr<srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
-    StandardHonkComposerHelper(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory)
+    StandardHonkComposerHelper(std::unique_ptr<srs::factories::CrsFactory>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
     StandardHonkComposerHelper(std::shared_ptr<ProvingKey> p_key, std::shared_ptr<VerificationKey> v_key)
@@ -61,12 +66,13 @@ class StandardHonkComposerHelper {
     std::shared_ptr<ProvingKey> compute_proving_key_base(const CircuitConstructor& circuit_constructor,
                                                          const size_t minimum_circuit_size = 0,
                                                          const size_t num_randomized_gates = NUM_RESERVED_GATES);
-    // This needs to be static as it may be used only to compute the selector commitments.
-
-    static std::shared_ptr<VerificationKey> compute_verification_key_base(
-        std::shared_ptr<ProvingKey> const& proving_key);
 
     void compute_witness(const CircuitConstructor& circuit_constructor, const size_t minimum_circuit_size = 0);
+
+    void compute_commitment_key(size_t circuit_size, std::shared_ptr<srs::factories::CrsFactory> crs_factory)
+    {
+        commitment_key = std::make_shared<PCSParams::CommitmentKey>(circuit_size, crs_factory_);
+    };
 };
 
 } // namespace proof_system::honk

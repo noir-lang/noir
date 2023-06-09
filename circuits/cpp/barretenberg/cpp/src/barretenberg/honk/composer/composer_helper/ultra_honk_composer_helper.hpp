@@ -28,9 +28,12 @@ class UltraHonkComposerHelper {
     static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<VerificationKey> verification_key;
-    // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
-    // at all
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
+
+    // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
+    std::shared_ptr<srs::factories::CrsFactory> crs_factory_;
+
+    // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
+    std::shared_ptr<PCSCommitmentKey> commitment_key;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
@@ -42,7 +45,7 @@ class UltraHonkComposerHelper {
     // vanishing_polynomial cannot be trivially fetched here, I am directly setting this to 4 - 1 = 3.
     static constexpr size_t s_randomness = 3;
 
-    explicit UltraHonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
+    explicit UltraHonkComposerHelper(std::shared_ptr<srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
@@ -68,6 +71,11 @@ class UltraHonkComposerHelper {
     UltraVerifier create_verifier(const CircuitConstructor& circuit_constructor);
 
     void add_table_column_selector_poly_to_proving_key(polynomial& small, const std::string& tag);
+
+    void compute_commitment_key(size_t circuit_size, std::shared_ptr<srs::factories::CrsFactory> crs_factory)
+    {
+        commitment_key = std::make_shared<PCSParams::CommitmentKey>(circuit_size, crs_factory_);
+    };
 };
 
 } // namespace proof_system::honk

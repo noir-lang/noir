@@ -3,8 +3,8 @@
 /**
  * @brief Provides interfaces for different 'CommitmentKey' classes.
  *
- * TODO(#218)(Adrian / Mara): This class should take ownership of the SRS, and handle reading the file from disk as well
- * as carrying out any modification to the SRS (e.g compute pippenger point table) to simplify the codebase.
+ * TODO(#218)(Mara): This class should handle any modification to the SRS (e.g compute pippenger point table) to
+ * simplify the codebase.
  */
 
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
@@ -52,10 +52,17 @@ struct Params {
          * @param path
          *
          */
-        CommitmentKey(const size_t num_points,
-                      std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> prover_crs)
+        CommitmentKey(const size_t num_points, std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
             : pippenger_runtime_state(num_points)
-            , srs(prover_crs)
+            , srs(crs_factory->get_prover_crs(num_points))
+        {}
+
+        // Note: This constructor is used only by Plonk; For Honk the CommitmentKey is solely responsible for extracting
+        // the srs.
+        CommitmentKey(const size_t num_points,
+                      std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> prover_srs)
+            : pippenger_runtime_state(num_points)
+            , srs(prover_srs)
         {}
 
         /**
@@ -87,9 +94,9 @@ struct Params {
          * @param num_points
          * @param verifier_srs verifier G2 point
          */
-        VerificationKey(size_t num_points, std::shared_ptr<barretenberg::srs::factories::VerifierCrs> verifier_crs)
-            : pippenger_runtime_state(num_points)
-            , verifier_srs(verifier_crs)
+        VerificationKey([[maybe_unused]] size_t num_points,
+                        std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
+            : verifier_srs(crs_factory->get_verifier_crs())
         {}
 
         /**
@@ -110,7 +117,6 @@ struct Params {
             return (result == barretenberg::fq12::one());
         }
 
-        barretenberg::scalar_multiplication::pippenger_runtime_state<curve::BN254> pippenger_runtime_state;
         std::shared_ptr<barretenberg::srs::factories::VerifierCrs> verifier_srs;
     };
 };
@@ -201,10 +207,9 @@ struct Params {
          * @param path
          *
          */
-        CommitmentKey(const size_t num_points,
-                      std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> prover_crs)
+        CommitmentKey(const size_t num_points, std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
             : pippenger_runtime_state(num_points)
-            , srs(prover_crs)
+            , srs(crs_factory->get_prover_crs(num_points))
         {}
 
         /**
@@ -236,10 +241,9 @@ struct Params {
          * @param num_points specifies the length of the SRS
          * @param path is the location to the SRS file
          */
-        VerificationKey(const size_t num_points,
-                        std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> crs)
+        VerificationKey(size_t num_points, std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
             : pippenger_runtime_state(num_points)
-            , srs(crs)
+            , srs(crs_factory->get_prover_crs(num_points))
         {}
 
         barretenberg::scalar_multiplication::pippenger_runtime_state<curve::BN254> pippenger_runtime_state;

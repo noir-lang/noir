@@ -32,14 +32,13 @@ template <typename Params> class work_queue {
   private:
     // TODO(luke): Consider handling all transcript interactions in the prover rather than embedding them in the queue.
     proof_system::honk::ProverTranscript<FF>& transcript;
-    CommitmentKey commitment_key;
+    std::shared_ptr<CommitmentKey> commitment_key;
     std::vector<work_item> work_item_queue;
 
   public:
-    explicit work_queue(size_t circuit_size, proof_system::honk::ProverTranscript<FF>& prover_transcript)
+    explicit work_queue(auto commitment_key, proof_system::honk::ProverTranscript<FF>& prover_transcript)
         : transcript(prover_transcript)
-        // TODO(luke): make this properly parameterized
-        , commitment_key(circuit_size, barretenberg::srs::get_crs_factory()->get_prover_crs(circuit_size)){};
+        , commitment_key(commitment_key){};
 
     work_queue(const work_queue& other) = default;
     work_queue(work_queue&& other) noexcept = default;
@@ -113,7 +112,7 @@ template <typename Params> class work_queue {
             case WorkType::SCALAR_MULTIPLICATION: {
 
                 // Run pippenger multi-scalar multiplication.
-                auto commitment = commitment_key.commit(item.mul_scalars);
+                auto commitment = commitment_key->commit(item.mul_scalars);
 
                 transcript.send_to_verifier(item.label, commitment);
 

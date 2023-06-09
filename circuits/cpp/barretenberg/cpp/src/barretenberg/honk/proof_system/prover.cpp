@@ -16,11 +16,12 @@ namespace proof_system::honk {
  * @tparam settings Settings class.
  * */
 template <StandardFlavor Flavor>
-StandardProver_<Flavor>::StandardProver_(const std::shared_ptr<ProvingKey> input_key)
+StandardProver_<Flavor>::StandardProver_(const std::shared_ptr<ProvingKey> input_key,
+                                         const std::shared_ptr<PCSCommitmentKey> commitment_key)
     : key(input_key)
-    , queue(input_key->circuit_size, transcript)
+    , queue(commitment_key, transcript)
+    , pcs_commitment_key(commitment_key)
 {
-
     prover_polynomials.q_c = key->q_c;
     prover_polynomials.q_l = key->q_l;
     prover_polynomials.q_r = key->q_r;
