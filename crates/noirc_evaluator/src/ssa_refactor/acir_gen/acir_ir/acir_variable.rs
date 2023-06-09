@@ -1,8 +1,6 @@
 use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use crate::ssa_refactor::acir_gen::AcirValue;
-use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::types::Type as SsaType;
-use crate::ssa_refactor::ir::value::ValueId;
 use crate::ssa_refactor::ir::{instruction::Endian, map::TwoWayMap, types::NumericType};
 use acvm::acir::{
     brillig_vm::Opcode as BrilligOpcode,
