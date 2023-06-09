@@ -7,6 +7,7 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
 
+use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::function::{Function, RuntimeType};
 use crate::ssa_refactor::ir::instruction::BinaryOp;
@@ -230,11 +231,12 @@ impl<'a> FunctionContext<'a> {
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 
-        let lhs_type = self.builder.current_function.dfg.type_of_value(lhs);
-        let rhs_type = self.builder.current_function.dfg.type_of_value(rhs);
-        if let Some(max_bit_size) =
-            operator_result_max_bit_size_to_truncate(operator, lhs_type, rhs_type)
-        {
+        if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
+            operator,
+            lhs,
+            rhs,
+            &self.builder.current_function.dfg,
+        ) {
             let result_type = self.builder.current_function.dfg.type_of_value(result);
             let bit_size = match result_type {
                 Type::Numeric(NumericType::Signed { bit_size })
@@ -490,9 +492,13 @@ fn operator_requires_swapped_operands(op: noirc_frontend::BinaryOpKind) -> bool 
 /// number of bits that result may occupy is returned.
 fn operator_result_max_bit_size_to_truncate(
     op: noirc_frontend::BinaryOpKind,
-    lhs_type: Type,
-    rhs_type: Type,
+    lhs: ValueId,
+    rhs: ValueId,
+    dfg: &DataFlowGraph,
 ) -> Option<u32> {
+    let lhs_type = dfg.type_of_value(lhs);
+    let rhs_type = dfg.type_of_value(rhs);
+
     let get_bit_size = |typ| match typ {
         Type::Numeric(NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size }) => {
             Some(bit_size)
@@ -507,7 +513,12 @@ fn operator_result_max_bit_size_to_truncate(
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Multiply => Some(lhs_bit_size + rhs_bit_size),
-        ShiftLeft => Some(lhs_bit_size + 2_u32.pow(rhs_bit_size)),
+        ShiftLeft => {
+            let rhs_constant =
+                dfg.get_numeric_constant(rhs).expect("Left shift rhs must be a constant").to_u128()
+                    as u32;
+            Some(lhs_bit_size + rhs_constant)
+        }
         _ => None,
     }
 }
