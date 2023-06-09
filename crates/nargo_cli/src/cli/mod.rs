@@ -14,6 +14,7 @@ mod codegen_verifier_cmd;
 mod compile_cmd;
 mod execute_cmd;
 mod gates_cmd;
+mod lsp_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod test_cmd;
@@ -55,13 +56,14 @@ enum NargoCommand {
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
     Gates(gates_cmd::GatesCommand),
+    Lsp(lsp_cmd::LspCommand),
 }
 
 pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(command, NargoCommand::New(_)) {
+    if !matches!(command, NargoCommand::New(_) | NargoCommand::Lsp(_)) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
@@ -77,6 +79,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
         NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
+        NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
     }?;
 
     Ok(())
