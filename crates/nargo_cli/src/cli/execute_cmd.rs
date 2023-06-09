@@ -64,7 +64,7 @@ fn execute_with_path<B: Backend>(
         read_inputs_from_file(program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
     let solved_witness = execute_program(backend, circuit, &abi, &inputs_map)?;
-
+    dbg!(solved_witness.clone());
     let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 

@@ -84,9 +84,9 @@ impl Context {
         for instruction_id in entry_block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg, &ssa, &brillig, allow_log_ops);
         }
-
+        dbg!("converted instructions");
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
-
+        dbg!("converted return");
         self.acir_context.finish()
     }
 
@@ -176,13 +176,51 @@ impl Context {
                                     .flat_map(|arg| self.convert_value(*arg, dfg).flatten())
                                     .map(|(var, _typ)| var)
                                     .collect();
-                                // Generate the brillig code of the function
-                                let code = BrilligArtifact::default().link(&brillig[*id]);
-                                let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
-                                for (result, output) in result_ids.iter().zip(outputs) {
-                                    let result_acir_type = dfg.type_of_value(*result).into();
-                                    self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type));
+
+                                // let mut outputs_len = 0;
+                                // TODO: remove and handle brillig inputs better
+                                for result in result_ids {
+                                    let result_acir_type: AcirType = dfg.type_of_value(*result).into();
+                                    let code = BrilligArtifact::default().link(&brillig[*id]);
+
+                                    let acir_value = match result_acir_type {
+                                        AcirType::NumericType(_) => {
+                                            let output = self.acir_context.brillig(code, inputs.clone(), 1);
+                                            AcirValue::Var(output[0], result_acir_type.clone())
+                                        }
+                                        AcirType::Array(element_types, size) => {
+                                            let outputs = self.acir_context.brillig(code, inputs.clone(), size);
+                                            let mut array_values = im::Vector::new();
+                                            for (var, typ) in outputs.iter().zip(element_types) {
+                                                array_values.push_back(AcirValue::Var(*var, typ));
+                                            }
+                                            AcirValue::Array(array_values)
+                                        }
+                                    };
+                                    self.ssa_values.insert(*result, acir_value);
                                 }
+
+                                // let mut output_counter = 0;
+                                // for result in result_ids.iter() {
+                                //     let result_acir_type: AcirType = dfg.type_of_value(*result).into();
+                                //     match result_acir_type {
+                                //         AcirType::NumericType(_) => outputs_len += 1,
+                                //         AcirType::Array(_, size) => outputs_len += size,
+                                //     }
+                                // }
+
+                                // Generate the brillig code of the function
+                                // let code = BrilligArtifact::default().link(&brillig[*id]);
+                                // let outputs = self.acir_context.brillig(code, inputs, outputs_len);
+                                // dbg!(outputs.clone());
+                                // for (result, output) in result_ids.iter().zip(outputs) {
+                                //     let typ = dfg.type_of_value(*result);
+                                //     dbg!(typ.clone());
+                                //     dbg!(output.clone());
+                                //     let result_acir_type: AcirType = dfg.type_of_value(*result).into();
+                                //     self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type.clone()));
+                                //     dbg!(result_acir_type.clone());
+                                // }
                             }
                         }
                     }
@@ -305,11 +343,11 @@ impl Context {
         if is_return_unit_type {
             return;
         }
-
+        dbg!(dfg.type_of_value(return_values[0]));
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
-
+        dbg!(return_acir_vars.clone());
         for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }

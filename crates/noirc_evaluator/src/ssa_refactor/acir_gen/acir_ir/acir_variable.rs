@@ -17,7 +17,7 @@ use acvm::{
 use iter_extended::vecmap;
 use std::{borrow::Cow, hash::Hash};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.
 ///
 /// One can think of Expression/Witness/Const
@@ -27,25 +27,34 @@ use std::{borrow::Cow, hash::Hash};
 /// We could store this information when we do a range constraint
 /// but this information is readily available by the caller so
 /// we allow the user to pass it in.
-pub(crate) struct AcirType(NumericType);
+pub(crate) enum AcirType {
+    NumericType(NumericType),
+    Array(Vec<AcirType>, usize),
+}
 
 impl AcirType {
     pub(crate) fn new(typ: NumericType) -> Self {
-        Self(typ)
+        Self::NumericType(typ)
     }
 
     /// Returns the bit size of the underlying type
     pub(crate) fn bit_size(&self) -> u32 {
-        match self.0 {
-            NumericType::Signed { bit_size } => bit_size,
-            NumericType::Unsigned { bit_size } => bit_size,
-            NumericType::NativeField => FieldElement::max_num_bits(),
+
+        match self {
+            AcirType::NumericType(numeric_type) => {
+                match numeric_type {
+                    NumericType::Signed { bit_size } => *bit_size,
+                    NumericType::Unsigned { bit_size } => *bit_size,
+                    NumericType::NativeField => FieldElement::max_num_bits(),
+                }
+            }
+            AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
         }
     }
 
     /// Returns a boolean type
     fn boolean() -> Self {
-        AcirType(NumericType::Unsigned { bit_size: 1 })
+        AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
     }
 }
 
@@ -58,7 +67,11 @@ impl From<SsaType> for AcirType {
 impl<'a> From<&'a SsaType> for AcirType {
     fn from(value: &SsaType) -> Self {
         match value {
-            SsaType::Numeric(numeric_type) => AcirType(*numeric_type),
+            SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
+            SsaType::Array(elements, size) => {
+                let elements = elements.iter().map(|e| e.into()).collect();
+                AcirType::Array(elements, *size)
+            }
             _ => unreachable!("The type {value}  cannot be represented in ACIR"),
         }
     }
@@ -170,7 +183,7 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
         let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs)?;
         Ok(outputs[0])
     }
@@ -182,7 +195,7 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
         let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
         Ok(outputs[0])
     }
@@ -209,7 +222,7 @@ impl AcirContext {
             let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
-            let inputs = vec![AcirValue::Var(a, typ), AcirValue::Var(b, typ)];
+            let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
             let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
             self.sub_var(max, outputs[0])
         }
@@ -635,7 +648,7 @@ impl AcirContext {
 
         let mut limb_vars = vecmap(limbs, |witness| {
             let witness = self.add_data(AcirVarData::Witness(witness));
-            AcirValue::Var(witness, result_element_type)
+            AcirValue::Var(witness, result_element_type.clone())
         });
 
         if endian == Endian::Big {
