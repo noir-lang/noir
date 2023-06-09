@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
@@ -514,10 +515,33 @@ fn operator_result_max_bit_size_to_truncate(
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Multiply => Some(lhs_bit_size + rhs_bit_size),
         ShiftLeft => {
-            let rhs_constant =
-                dfg.get_numeric_constant(rhs).expect("Left shift rhs must be a constant").to_u128()
-                    as u32;
-            Some(lhs_bit_size + rhs_constant)
+            if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
+                // Happy case is that we know precisely by how many bits the the integer will
+                // increase: lhs_bit_size + rhs
+                return Some(lhs_bit_size + (rhs_constant.to_u128() as u32));
+            }
+            // Unhappy case is that we don't yet know the rhs value, (even though it will
+            // eventually have to resolve to a constant). The best we can is assume the value of
+            // rhs to be the maximum value of it's numeric type. If that turns out to be larger
+            // than the native field's bit size, we full back to using that.
+
+            // The formula for calculating the max bit size of a left shift is:
+            // lhs_bit_size + 2^{rhs_bit_size} - 1
+            // Inferring the max bit size of left shift from its operands can result in huge
+            // number, that might not only be larger than the native field's max bit size, but
+            // furthermore might not be representable as a u32. Hence we use overflow checks and
+            // fallback to the native field's max bits.
+            let field_max_bits = FieldElement::max_num_bits();
+            let (rhs_bit_size_pow_2, overflows) = 2_u32.overflowing_pow(rhs_bit_size);
+            if overflows {
+                return Some(field_max_bits);
+            }
+            let (max_bits_plus_1, overflows) = rhs_bit_size_pow_2.overflowing_add(lhs_bit_size);
+            if overflows {
+                return Some(field_max_bits);
+            }
+            let max_bit_size = std::cmp::min(max_bits_plus_1 - 1, field_max_bits);
+            Some(max_bit_size)
         }
         _ => None,
     }
