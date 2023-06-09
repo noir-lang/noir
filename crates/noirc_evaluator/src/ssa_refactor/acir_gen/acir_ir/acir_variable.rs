@@ -57,7 +57,6 @@ impl From<SsaType> for AcirType {
 
 impl<'a> From<&'a SsaType> for AcirType {
     fn from(value: &SsaType) -> Self {
-        dbg!(value.clone());
         match value {
             SsaType::Numeric(numeric_type) => AcirType(*numeric_type),
             _ => unreachable!("The type {value}  cannot be represented in ACIR"),
