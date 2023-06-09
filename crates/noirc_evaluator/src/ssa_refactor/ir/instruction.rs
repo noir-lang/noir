@@ -92,9 +92,8 @@ pub(crate) enum Instruction {
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
 
-    /// Performs an "oracle" - an external function call with a list of its arguments.
-    /// These are generally unconstrained functions that provide some value lookup.
-    /// They may result in constraints outside of the context known to Noir.
+    /// Executes an "oracle" call
+    /// These are unconstrained functions that may access external state.
     ForeignCall { func: String, arguments: Vec<ValueId> },
 
     /// Allocates a region of memory. Note that this is not concerned with
