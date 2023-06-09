@@ -201,6 +201,15 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate { .. } => (),
+            Instruction::ArrayGet { array, index } => {
+                f(*array);
+                f(*index);
+            }
+            Instruction::ArraySet { array, index, value } => {
+                f(*array);
+                f(*index);
+                f(*value);
+            }
         }
     }
 
