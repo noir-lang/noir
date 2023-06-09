@@ -164,7 +164,7 @@ describe('e2e_cross_chain_messaging', () => {
         content.toBuffer(),
       ]),
     );
-    expect(await outbox.read.contains([entryKey.toString()])).toBeFalsy();
+    expect(await outbox.read.contains([entryKey.toString(true)])).toBeFalsy();
 
     logger('Send L2 tx to withdraw funds');
     const withdrawTx = l2Contract.methods.withdraw(withdrawAmount, ownerPub, ethAccount).send({ from: ownerAddress });
@@ -183,7 +183,7 @@ describe('e2e_cross_chain_messaging', () => {
       ethAccount.toString(),
     ]);
 
-    expect(withdrawEntryKey).toBe(entryKey.toString());
+    expect(withdrawEntryKey).toBe(entryKey.toString(true));
 
     expect(await outbox.read.contains([withdrawEntryKey])).toBeTruthy();
 
