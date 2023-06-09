@@ -23,6 +23,20 @@ pub(crate) struct BrilligArtifact {
     blocks: HashMap<BasicBlockId, BlockLabel>,
 }
 
+/// When constructing the bytecode, there may be instructions
+/// which require one to jump to a specific `Block`
+/// or a position relative to the current instruction.
+///
+/// The position of a `Block` cannot always be known
+/// at this point in time, so Jumps are unresolved
+/// until all blocks have been processed in the `Block`
+/// variant of this enum.
+///
+/// Sometimes the relative position of an Jump
+/// may be known, from the Jump label, but since
+/// the absolute position of a Jump label is not known until
+/// after we have linked the bytecode to other functions.
+/// We add relative jumps into the `Relative` variant of this enum.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum UnresolvedJumpLocation {
     Block(BasicBlockId),
