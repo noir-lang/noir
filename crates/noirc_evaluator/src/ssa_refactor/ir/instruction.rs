@@ -92,6 +92,10 @@ pub(crate) enum Instruction {
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
 
+    /// Executes an "oracle" call
+    /// These are unconstrained functions that may access external state.
+    ForeignCall { func: String, arguments: Vec<ValueId> },
+
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
     /// This is used for representing mutable variables and references.
@@ -128,9 +132,10 @@ impl Instruction {
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
-                InstructionResultType::Unknown
-            }
+            Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::Call { .. }
+            | Instruction::ForeignCall { .. } => InstructionResultType::Unknown,
         }
     }
 
@@ -158,6 +163,10 @@ impl Instruction {
                 max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
+            Instruction::ForeignCall { func, arguments } => Instruction::ForeignCall {
+                func: func.to_owned(),
+                arguments: vecmap(arguments.iter().copied(), f),
+            },
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -245,6 +254,7 @@ impl Instruction {
             }
             Instruction::Truncate { .. } => None,
             Instruction::Call { .. } => None,
+            Instruction::ForeignCall { .. } => None,
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,

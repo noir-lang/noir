@@ -6,12 +6,14 @@ use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir,
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
     Brillig,
+    // Oracle function, to be compiled to a Brillig external/foreign call
+    Oracle(String),
 }
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
@@ -59,7 +61,7 @@ impl Function {
 
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
-        self.runtime
+        self.runtime.clone()
     }
 
     /// Set runtime type of the function.

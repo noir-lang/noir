@@ -217,7 +217,7 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Constrain(boolean), None);
     }
 
-    /// Insert a call instruction a the end of the current block and return
+    /// Insert a call instruction at the end of the current block and return
     /// the results of the call.
     pub(crate) fn insert_call(
         &mut self,
@@ -226,6 +226,18 @@ impl FunctionBuilder {
         result_types: Vec<Type>,
     ) -> &[ValueId] {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Insert a foreign call instruction at the end of the current block and return
+    /// the results of the call.
+    pub(crate) fn insert_foreign_call(
+        &mut self,
+        func: String,
+        arguments: Vec<ValueId>,
+        result_types: Vec<Type>,
+    ) -> &[ValueId] {
+        self.insert_instruction(Instruction::ForeignCall { func, arguments }, Some(result_types))
+            .results()
     }
 
     /// Insert an instruction to extract an element from an array
@@ -288,6 +300,12 @@ impl FunctionBuilder {
     /// into the current function if it was not already, and returns that ID.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         self.current_function.dfg.import_function(function)
+    }
+
+    /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
+    /// into the current function if it was not already, and returns that ID.
+    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+        self.current_function.dfg.import_foreign_function(function)
     }
 
     /// Retrieve a value reference to the given intrinsic operation.

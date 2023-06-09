@@ -207,6 +207,9 @@ impl<'function> PerFunctionContext<'function> {
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::ForeignFunction(function) => {
+                self.context.builder.import_foreign_function(function)
+            }
             Value::Array { array, element_type } => {
                 let elements = array.iter().map(|value| self.translate_value(*value)).collect();
                 self.context.builder.array_constant(elements, element_type.clone())
@@ -327,7 +330,7 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(function) => match ssa.functions[&function].runtime() {
                         RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
-                        RuntimeType::Brillig => {
+                        RuntimeType::Brillig | RuntimeType::Oracle(_) => {
                             self.context.failed_to_inline_a_call = true;
                             self.push_instruction(*id);
                         }

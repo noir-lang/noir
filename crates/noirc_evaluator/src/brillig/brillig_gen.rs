@@ -14,10 +14,12 @@ use crate::ssa_refactor::ir::{
 };
 use acvm::{
     acir::brillig_vm::{
-        BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
+        BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
+        Value as BrilligValue,
     },
     FieldElement,
 };
+use iter_extended::vecmap;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -205,6 +207,21 @@ impl BrilligGen {
                 };
                 self.push_code(opcode);
             }
+            Instruction::ForeignCall { func, arguments } => {
+                let result_ids = dfg.instruction_results(instruction_id);
+
+                let input_registers =
+                    vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
+                let output_registers =
+                    vecmap(result_ids, |value_id| self.convert_ssa_value(*value_id, dfg));
+
+                let opcode = BrilligOpcode::ForeignCall {
+                    function: func.to_owned(),
+                    destination: RegisterValueOrArray::RegisterIndex(output_registers[0]),
+                    input: RegisterValueOrArray::RegisterIndex(input_registers[0]),
+                };
+                self.push_code(opcode);
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
     }
@@ -364,6 +381,7 @@ impl BrilligGen {
 
         brillig.convert_ssa_function(func);
 
+        brillig.push_code(BrilligOpcode::Stop);
         brillig.obj
     }
 

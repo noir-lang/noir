@@ -179,11 +179,19 @@ impl Context {
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
                                 let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
+
+                                if Self::is_return_type_unit(result_ids, dfg) {
+                                    return;
+                                }
+
                                 for (result, output) in result_ids.iter().zip(outputs) {
                                     let result_acir_type = dfg.type_of_value(*result).into();
                                     self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type));
                                 }
                             }
+                            RuntimeType::Oracle(_) => unimplemented!(
+                                "expected an intrinsic/brillig call, but found {func:?}. All Oracle methods should be wrapped in an unconstrained fn"
+                            ),
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
@@ -236,6 +244,7 @@ impl Context {
             Instruction::Load { .. } => {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
+            _ => unreachable!("instruction cannot be converted to ACIR"),
         }
     }
 
@@ -298,11 +307,7 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        // Check if the program returns the `Unit/None` type.
-        // This type signifies that the program returns nothing.
-        let is_return_unit_type =
-            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
-        if is_return_unit_type {
+        if Self::is_return_type_unit(return_values, dfg) {
             return;
         }
 
@@ -344,6 +349,9 @@ impl Context {
             }
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
+            Value::ForeignFunction(_) => unimplemented!(
+                "Oracle calls directly in constrained functions are not yet available."
+            ),
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value:?}")
             }
@@ -605,6 +613,12 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
+    }
+
+    /// Check if the program returns the `Unit/None` type.
+    /// This type signifies that the program returns nothing.
+    fn is_return_type_unit(return_values: &[ValueId], dfg: &DataFlowGraph) -> bool {
+        return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit
     }
 }
 
