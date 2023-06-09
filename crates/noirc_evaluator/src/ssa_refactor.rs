@@ -29,7 +29,6 @@ pub mod ssa_gen;
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
 pub(crate) fn optimize_into_acir(program: Program, allow_log_ops: bool) -> GeneratedAcir {
-    let func_signature = program.main_function_signature.clone();
     let ssa = ssa_gen::generate_ssa(program).print("Initial SSA:");
     let brillig = ssa.to_brillig();
     ssa.inline_functions()
@@ -44,7 +43,7 @@ pub(crate) fn optimize_into_acir(program: Program, allow_log_ops: bool) -> Gener
         .print("After Mem2Reg:")
         .fold_constants()
         .print("After Constant Folding:")
-        .into_acir(func_signature, brillig, allow_log_ops)
+        .into_acir(brillig, allow_log_ops)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
