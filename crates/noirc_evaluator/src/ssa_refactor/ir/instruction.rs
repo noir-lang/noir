@@ -94,17 +94,21 @@ pub(crate) enum Instruction {
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
-    ///
-    /// `size` is the size of the region to be allocated by the number of FieldElements it
-    /// contains. Note that non-numeric types like Functions and References are counted as 1 field
-    /// each.
-    Allocate { size: u32 },
+    /// This is used for representing mutable variables and references.
+    Allocate,
 
     /// Loads a value from memory.
     Load { address: ValueId },
 
     /// Writes a value to memory.
     Store { address: ValueId, value: ValueId },
+
+    /// Retrieve a value from an array at the given index
+    ArrayGet { array: ValueId, index: ValueId },
+
+    /// Creates a new array with the new value at the given index. All other elements are identical
+    /// to those in the given array. This will not modify the original array.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId },
 }
 
 impl Instruction {
@@ -117,13 +121,16 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) => InstructionResultType::Known(*typ),
+            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
             Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
+            Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
+            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
+                InstructionResultType::Unknown
+            }
         }
     }
 
@@ -143,7 +150,7 @@ impl Instruction {
                 rhs: f(binary.rhs),
                 operator: binary.operator,
             }),
-            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
             Instruction::Not(value) => Instruction::Not(f(*value)),
             Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
                 value: f(*value),
@@ -155,10 +162,16 @@ impl Instruction {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
             },
-            Instruction::Allocate { size } => Instruction::Allocate { size: *size },
+            Instruction::Allocate => Instruction::Allocate,
             Instruction::Load { address } => Instruction::Load { address: f(*address) },
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
+            }
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
+            }
+            Instruction::ArraySet { array, index, value } => {
+                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
         }
     }
@@ -170,9 +183,10 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => {
-                match (*typ == dfg.type_of_value(*value)).then_some(*value) {
-                    Some(value) => SimplifiedTo(value),
-                    _ => None,
+                if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                    SimplifiedTo(value)
+                } else {
+                    None
                 }
             }
             Instruction::Not(value) => {
@@ -186,9 +200,10 @@ impl Instruction {
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
-                        match &dfg[*instruction] {
-                            Instruction::Not(value) => SimplifiedTo(*value),
-                            _ => None,
+                        if let Instruction::Not(value) = &dfg[*instruction] {
+                            SimplifiedTo(*value)
+                        } else {
+                            None
                         }
                     }
                     _ => None,
@@ -201,6 +216,32 @@ impl Instruction {
                     }
                 }
                 None
+            }
+            Instruction::ArrayGet { array, index } => {
+                let array = dfg.get_array_constant(*array);
+                let index = dfg.get_numeric_constant(*index);
+
+                if let (Some((array, _)), Some(index)) = (array, index) {
+                    let index =
+                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                    assert!(index < array.len());
+                    SimplifiedTo(array[index])
+                } else {
+                    None
+                }
+            }
+            Instruction::ArraySet { array, index, value } => {
+                let array = dfg.get_array_constant(*array);
+                let index = dfg.get_numeric_constant(*index);
+
+                if let (Some((array, element_type)), Some(index)) = (array, index) {
+                    let index =
+                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                    assert!(index < array.len());
+                    SimplifiedTo(dfg.make_array(array.update(index, *value), element_type))
+                } else {
+                    None
+                }
             }
             Instruction::Truncate { .. } => None,
             Instruction::Call { .. } => None,

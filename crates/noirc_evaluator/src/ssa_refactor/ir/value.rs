@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
@@ -6,14 +8,14 @@ use super::{
     function::FunctionId,
     instruction::{InstructionId, Intrinsic},
     map::Id,
-    types::Type,
+    types::{CompositeType, Type},
 };
 
 pub(crate) type ValueId = Id<Value>;
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
@@ -35,6 +37,9 @@ pub(crate) enum Value {
     /// This Value originates from a numeric constant
     NumericConstant { constant: FieldElement, typ: Type },
 
+    /// Represents a constant array value
+    Array { array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
+
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
     /// If the argument or return types are needed, users should retrieve
@@ -51,9 +56,10 @@ impl Value {
     /// Retrieves the type of this Value
     pub(crate) fn get_type(&self) -> Type {
         match self {
-            Value::Instruction { typ, .. } => *typ,
-            Value::Param { typ, .. } => *typ,
-            Value::NumericConstant { typ, .. } => *typ,
+            Value::Instruction { typ, .. } => typ.clone(),
+            Value::Param { typ, .. } => typ.clone(),
+            Value::NumericConstant { typ, .. } => typ.clone(),
+            Value::Array { element_type, array } => Type::Array(element_type.clone(), array.len()),
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
         }
