@@ -131,6 +131,21 @@ void UltraHonkComposerHelper::compute_witness(CircuitConstructor& circuit_constr
     proving_key->sorted_3 = s_3;
     proving_key->sorted_4 = s_4;
 
+    // Copy memory read/write record data into proving key. Prover needs to know which gates contain a read/write
+    // 'record' witness on the 4th wire. This wire value can only be fully computed once the first 3 wire polynomials
+    // have been committed to. The 4th wire on these gates will be a random linear combination of the first 3 wires,
+    // using the plookup challenge `eta`
+    proving_key->memory_read_records = std::vector<uint32_t>();
+    proving_key->memory_write_records = std::vector<uint32_t>();
+    proving_key->memory_read_records.reserve(circuit_constructor.memory_read_records.size());
+    proving_key->memory_write_records.reserve(circuit_constructor.memory_write_records.size());
+    std::copy(circuit_constructor.memory_read_records.begin(),
+              circuit_constructor.memory_read_records.end(),
+              std::back_inserter(proving_key->memory_read_records));
+    std::copy(circuit_constructor.memory_write_records.begin(),
+              circuit_constructor.memory_write_records.end(),
+              std::back_inserter(proving_key->memory_write_records));
+
     computed_witness = true;
 }
 
@@ -275,17 +290,6 @@ std::shared_ptr<UltraHonkComposerHelper::Flavor::ProvingKey> UltraHonkComposerHe
     proving_key->table_2 = poly_q_table_column_2;
     proving_key->table_3 = poly_q_table_column_3;
     proving_key->table_4 = poly_q_table_column_4;
-
-    // Copy memory read/write record data into proving key. Prover needs to know which gates contain a read/write
-    // 'record' witness on the 4th wire. This wire value can only be fully computed once the first 3 wire polynomials
-    // have been committed to. The 4th wire on these gates will be a random linear combination of the first 3 wires,
-    // using the plookup challenge `eta`
-    std::copy(circuit_constructor.memory_read_records.begin(),
-              circuit_constructor.memory_read_records.end(),
-              std::back_inserter(proving_key->memory_read_records));
-    std::copy(circuit_constructor.memory_write_records.begin(),
-              circuit_constructor.memory_write_records.end(),
-              std::back_inserter(proving_key->memory_write_records));
 
     proving_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());

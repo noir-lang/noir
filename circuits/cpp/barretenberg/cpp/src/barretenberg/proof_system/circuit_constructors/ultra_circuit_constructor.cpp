@@ -2389,6 +2389,8 @@ void UltraCircuitConstructor::process_RAM_array(const size_t ram_id, const size_
     std::sort(std::execution::par_unseq, ram_array.records.begin(), ram_array.records.end());
 #endif
 
+    std::vector<RamRecord> sorted_ram_records;
+
     // Iterate over all but final RAM record.
     for (size_t i = 0; i < ram_array.records.size(); ++i) {
         const RamRecord& record = ram_array.records[i];
@@ -2408,6 +2410,9 @@ void UltraCircuitConstructor::process_RAM_array(const size_t ram_id, const size_
             .record_witness = 0,
             .gate_index = 0,
         };
+
+        // create a list of sorted ram records
+        sorted_ram_records.emplace_back(sorted_record);
 
         // We don't apply the RAM consistency check gate to the final record,
         // as this gate expects a RAM record to be present at the next gate
@@ -2454,10 +2459,10 @@ void UltraCircuitConstructor::process_RAM_array(const size_t ram_id, const size_
     // Step 2: Create gates that validate correctness of RAM timestamps
 
     std::vector<uint32_t> timestamp_deltas;
-    for (size_t i = 0; i < ram_array.records.size() - 1; ++i) {
+    for (size_t i = 0; i < sorted_ram_records.size() - 1; ++i) {
         // create_RAM_timestamp_gate(sorted_records[i], sorted_records[i + 1])
-        const auto& current = ram_array.records[i];
-        const auto& next = ram_array.records[i + 1];
+        const auto& current = sorted_ram_records[i];
+        const auto& next = sorted_ram_records[i + 1];
 
         const bool share_index = current.index == next.index;
 
@@ -2483,7 +2488,7 @@ void UltraCircuitConstructor::process_RAM_array(const size_t ram_id, const size_
 
     // add the index/timestamp values of the last sorted record in an empty add gate.
     // (the previous gate will access the wires on this gate and requires them to be those of the last record)
-    const auto& last = ram_array.records[ram_array.records.size() - 1];
+    const auto& last = sorted_ram_records[ram_array.records.size() - 1];
     create_big_add_gate({
         last.index_witness,
         last.timestamp_witness,
