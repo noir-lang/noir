@@ -132,6 +132,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     for (size_t i = 0; i < args_vec.size(); ++i) {
         args[i] = args_vec[i];
     }
+    const NT::fr args_hash = compute_var_args_hash<NT>(args_vec);
 
     //***************************************************************************
     // Initialize contract related information like private call VK (and its hash),
@@ -174,8 +175,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         };
 
         // Get constructor hash for use when deriving contract address
-        auto constructor_hash =
-            compute_constructor_hash<NT>(function_data, compute_var_args_hash<NT>(args_vec), private_circuit_vk_hash);
+        auto constructor_hash = compute_constructor_hash<NT>(function_data, args_hash, private_circuit_vk_hash);
 
         // Derive contract address so that it can be used inside the constructor itself
         contract_address = compute_contract_address<NT>(
@@ -198,40 +198,66 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
                                                                   get_empty_contract_siblings());
     }
 
-    //***************************************************************************
-    // Create a private circuit/call using composer, oracles, execution context
-    // Generate its proof and public inputs for submission with a TX request
-    //***************************************************************************
-    Composer private_circuit_composer = Composer("../barretenberg/cpp/srs_db/ignition");
-
-    DB dummy_db;
-    NativeOracle oracle =
-        is_constructor ? NativeOracle(dummy_db,
-                                      contract_address,
-                                      function_data,
-                                      call_context,
-                                      contract_deployment_data,
-                                      msg_sender_private_key)
-                       : NativeOracle(dummy_db, contract_address, function_data, call_context, msg_sender_private_key);
-
-    OracleWrapper oracle_wrapper = OracleWrapper(private_circuit_composer, oracle);
-
-    FunctionExecutionContext ctx(private_circuit_composer, oracle_wrapper);
-
-    OptionalPrivateCircuitPublicInputs<NT> const opt_private_circuit_public_inputs = func(ctx, args_vec);
-    PrivateCircuitPublicInputs<NT> private_circuit_public_inputs =
-        opt_private_circuit_public_inputs.remove_optionality();
-    // TODO(suyash): this should likely be handled as part of the DB/Oracle/Context infrastructure
-    private_circuit_public_inputs.historic_contract_tree_root = contract_tree_root;
-
-    private_circuit_public_inputs.encrypted_logs_hash = encrypted_logs_hash;
-    private_circuit_public_inputs.encrypted_log_preimages_length = encrypted_log_preimages_length;
-
-    // Omit the proof for native tests
+    /**
+     * If `is_circuit` is true, we are running a real circuit test and therefore we need to generate a real proof using
+     * a private function composer. For the native tests, we are using a random data as public inputs of the private
+     * function. As the native private kernel circuit doesn't validate any proofs and we don't currently test
+     * multi-iterative kernel circuit, this should be fine.
+     */
+    PrivateCircuitPublicInputs<NT> private_circuit_public_inputs;
     NT::Proof private_circuit_proof;
     if (is_circuit) {
+        //***************************************************************************
+        // Create a private circuit/call using composer, oracles, execution context
+        // Generate its proof and public inputs for submission with a TX request
+        //***************************************************************************
+        Composer private_circuit_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+
+        DB dummy_db;
+        NativeOracle oracle =
+            is_constructor
+                ? NativeOracle(dummy_db,
+                               contract_address,
+                               function_data,
+                               call_context,
+                               contract_deployment_data,
+                               msg_sender_private_key)
+                : NativeOracle(dummy_db, contract_address, function_data, call_context, msg_sender_private_key);
+
+        OracleWrapper oracle_wrapper = OracleWrapper(private_circuit_composer, oracle);
+
+        FunctionExecutionContext ctx(private_circuit_composer, oracle_wrapper);
+
+        OptionalPrivateCircuitPublicInputs<NT> const opt_private_circuit_public_inputs = func(ctx, args_vec);
+        private_circuit_public_inputs = opt_private_circuit_public_inputs.remove_optionality();
+        // TODO(suyash): this should likely be handled as part of the DB/Oracle/Context infrastructure
+        private_circuit_public_inputs.historic_contract_tree_root = contract_tree_root;
+
+        private_circuit_public_inputs.encrypted_logs_hash = encrypted_logs_hash;
+        private_circuit_public_inputs.encrypted_log_preimages_length = encrypted_log_preimages_length;
+
+        // Create a real proof
         auto private_circuit_prover = private_circuit_composer.create_prover();
         private_circuit_proof = private_circuit_prover.construct_proof();
+    } else {
+        private_circuit_public_inputs = PrivateCircuitPublicInputs<NT>{
+            .call_context = call_context,
+            .args_hash = args_hash,
+            .return_values = {},
+            .new_commitments = { NT::fr::random_element() },  // One random commitment
+            .new_nullifiers = { NT::fr::random_element() },   // One random nullifier
+            .private_call_stack = {},
+            .new_l2_to_l1_msgs = {},
+            .encrypted_logs_hash = encrypted_logs_hash,
+            .unencrypted_logs_hash = {},
+            .encrypted_log_preimages_length = encrypted_log_preimages_length,
+            .unencrypted_log_preimages_length = 0,
+            .historic_private_data_tree_root = 0,
+            .historic_nullifier_tree_root = 0,
+            .historic_contract_tree_root = contract_tree_root,
+            .historic_l1_to_l2_messages_tree_root = 0,
+            .contract_deployment_data = contract_deployment_data,
+        };
     }
 
     const CallStackItem<NT, PrivateTypes> call_stack_item{
@@ -247,7 +273,11 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     return std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>>(
     PrivateCallData<NT>{
         .call_stack_item = call_stack_item,
-        .private_call_stack_preimages = ctx.get_private_call_stack_items(),
+        // TODO(dbanks12): these tests do not test multiple kernel iterations
+        // and do not test non-empty callstacks. They should! To have such tests
+        // we will need to populate these callstackitem preimages
+        // and ensure they match the hashed callstackitems themselves.
+        //.private_call_stack_preimages = ,
 
         .proof = private_circuit_proof,
         .vk = private_circuit_vk,
