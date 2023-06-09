@@ -4,10 +4,9 @@ import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair, KeyPair } from '@aztec/key-store';
-import { L2Block, L2BlockContext, UnverifiedData } from '@aztec/types';
+import { L2Block, L2BlockContext, TxAuxData, UnverifiedData } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
-import { TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
 import { Database, MemoryDB } from '../database/index.js';
 import { AccountState } from './account_state.js';
 

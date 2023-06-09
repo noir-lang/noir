@@ -1,6 +1,6 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { NotePreimage } from '../aztec_rpc_server/tx_aux_data/index.js';
 import { Point } from '@aztec/foundation/fields';
+import { NotePreimage } from '@aztec/types';
 
 /**
  * Represents the data access object for auxiliary transaction data.

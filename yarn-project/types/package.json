@@ -33,6 +33,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
+    "browserify-cipher": "^1.0.1",
     "lodash.clonedeep": "^4.5.0",
     "lodash.times": "^4.3.2",
     "tslib": "^2.5.0"

@@ -7,3 +7,4 @@ mod public_call;
 mod notes;
 mod storage;
 mod call_private_function;
+mod logs;

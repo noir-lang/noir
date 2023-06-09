@@ -23,11 +23,6 @@
   ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
-    "globals": {
-      "ts-jest": {
-        "useESM": true
-      }
-    },
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
@@ -43,7 +38,6 @@
     "@aztec/key-store": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
-    "browserify-cipher": "^1.0.1",
     "sha3": "^2.1.4",
     "tslib": "^2.4.0"
   },

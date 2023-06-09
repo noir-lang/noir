@@ -7,6 +7,9 @@ contract ZkToken {
     use dep::aztec3::state_vars::map::Map;
     use dep::aztec3::state_vars::set::Set;
 
+    // oracles
+    use dep::aztec3::oracle::logs::emit_encrypted_log;
+
     //*********************************/
     global balances = Map { storage_slot: 1 };
     // Should eventually be replaced by:
@@ -27,8 +30,11 @@ contract ZkToken {
         let owner_balance = balances.at(owner.x);
         let note = Note::new(initial_supply, owner);
 
-        owner_balance.insert(context, note)
-            .finish(inputs)
+        // Insert note and emit encrypted note preimage via oracle call
+        context = owner_balance.insert(context, note);
+        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0;
+
+        context.finish(inputs)
     }
 
     fn mint(
@@ -45,8 +51,11 @@ contract ZkToken {
         let owner_balance = balances.at(owner.x);
         let note = Note::new(amount, owner);
 
-        owner_balance.insert(context, note)
-            .finish(inputs)
+        // Insert note and emit encrypted note preimage via oracle call
+        context = owner_balance.insert(context, note);
+        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0;
+
+        context.finish(inputs)
     }
 
     fn transfer(
@@ -85,6 +94,9 @@ contract ZkToken {
 
         context = recipient_balance.insert(context, recipient_note);
         context = sender_balance.insert(context, change_note);
+
+        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, recipient_balance.storage_slot, recipient_note.owner, recipient_note) == 0;
+        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0;
 
         context.finish(inputs)
     }

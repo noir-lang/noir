@@ -11,7 +11,8 @@ import { computeCallStackItemHash, computeVarArgsHash } from '@aztec/circuits.js
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
+import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
 import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
@@ -19,6 +20,7 @@ import {
   ACVMField,
   ZERO_ACVM_FIELD,
   acvm,
+  convertACVMFieldToBuffer,
   fromACVMField,
   toACVMField,
   toACVMWitness,
@@ -29,6 +31,7 @@ import { sizeOfType } from '../index.js';
 import { fieldsToFormattedStr } from './debug.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { Tuple, assertLength } from '@aztec/foundation/serialize';
+import { NotePreimage, TxAuxData, UnverifiedData } from '@aztec/types';
 
 /**
  * The contents of a new note.
@@ -92,6 +95,11 @@ export interface ExecutionResult {
   nestedExecutions: this[];
   /** Enqueued public function execution requests to be picked up by the sequencer. */
   enqueuedPublicFunctionCalls: PublicCallRequest[];
+  /**
+   * Encrypted logs emitted during execution of this function call.
+   * Note: These are preimages to `encryptedLogsHash`.
+   */
+  encryptedLogs: UnverifiedData;
 }
 
 const notAvailable = () => {
@@ -128,6 +136,7 @@ export class PrivateFunctionExecution {
     const newNullifiers: NewNullifierData[] = [];
     const nestedExecutionContexts: ExecutionResult[] = [];
     const enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
+    const encryptedLogs = new UnverifiedData([]);
 
     const { partialWitness } = await acvm(acir, initialWitness, {
       getSecretKey: async ([address]: ACVMField[]) => [
@@ -197,6 +206,29 @@ export class PrivateFunctionExecution {
       storageRead: notAvailable,
       storageWrite: notAvailable,
       callPublicFunction: notAvailable,
+      emitEncryptedLog: async ([
+        acvmContractAddress,
+        acvmStorageSlot,
+        ownerX,
+        ownerY,
+        ...acvmPreimage
+      ]: ACVMField[]) => {
+        const contractAddress = AztecAddress.fromBuffer(convertACVMFieldToBuffer(acvmContractAddress));
+        const storageSlot = fromACVMField(acvmStorageSlot);
+        const preimage = acvmPreimage.map(f => fromACVMField(f));
+
+        const notePreimage = new NotePreimage(preimage);
+        const txAuxData = new TxAuxData(notePreimage, contractAddress, storageSlot);
+        const ownerPublicKey = new Point(
+          Buffer.concat([convertACVMFieldToBuffer(ownerX), convertACVMFieldToBuffer(ownerY)]),
+        );
+
+        const encryptedNotePreimage = txAuxData.toEncryptedBuffer(ownerPublicKey, await Grumpkin.new());
+
+        encryptedLogs.dataChunks.push(encryptedNotePreimage);
+
+        return Promise.resolve([ZERO_ACVM_FIELD]);
+      },
     });
 
     const publicInputs = extractPublicInputs(partialWitness, acir);
@@ -227,6 +259,7 @@ export class PrivateFunctionExecution {
       vk: Buffer.from(this.abi.verificationKey!, 'hex'),
       nestedExecutions: nestedExecutionContexts,
       enqueuedPublicFunctionCalls,
+      encryptedLogs,
     };
   }
 

@@ -68,6 +68,7 @@ export class UnconstrainedFunctionExecution {
       callPublicFunction: notAvailable,
       storageRead: notAvailable,
       storageWrite: notAvailable,
+      emitEncryptedLog: notAvailable,
     });
 
     const returnValues: ACVMField[] = selectReturnFlattened(acir, partialWitness);

@@ -49,6 +49,7 @@ export class PublicExecutor {
       notifyNullifiedNote: notAvailable,
       callPrivateFunction: notAvailable,
       enqueuePublicFunctionCall: notAvailable,
+      emitEncryptedLog: notAvailable,
       viewNotesPage: notAvailable,
       debugLog: notAvailable,
       // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616

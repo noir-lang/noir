@@ -8,6 +8,7 @@ export * from './l2_block_downloader/index.js';
 export * from './l2_block_source.js';
 export * from './merkle_tree_id.js';
 export * from './public_data_write.js';
+export * from './tx_aux_data/index.js';
 export * from './tx.js';
 export * from './tx_hash.js';
 export * from './tx_execution_request.js';
