@@ -742,7 +742,6 @@ impl AcirContext {
 
         let mut b_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| {
-            dbg!(output.clone());
             match output {
                 AcirType::NumericType(_) => {
                     let witness_index = self.acir_ir.next_witness_index();
