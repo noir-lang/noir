@@ -7,7 +7,10 @@
 pub(crate) mod artifact;
 pub(crate) mod memory;
 
-use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex};
+use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
+use crate::ssa_refactor::ir::basic_block::BasicBlockId;
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex};
+
 #[derive(Default)]
 pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
@@ -44,11 +47,6 @@ impl BrilligContext {
         self.obj.add_unresolved_jump(destination)
     }
 
-    #[deprecated(note = " abstraction leak")]
-    pub(crate) fn latest_register(&mut self) -> &mut usize {
-        &mut self.latest_register
-    }
-
     /// Creates a new register.
     pub(crate) fn create_register(&mut self) -> RegisterIndex {
         let register = RegisterIndex::from(self.latest_register);
@@ -57,11 +55,33 @@ impl BrilligContext {
     }
 }
 
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp};
-
-use crate::ssa_refactor::ir::basic_block::BasicBlockId;
-
-use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
+impl BrilligContext {
+    /// Processes a return instruction.
+    ///
+    /// For Brillig, the return is implicit, since there is no explicit return instruction.
+    /// The caller will take `N` values from the Register starting at register index 0.
+    /// `N` indicates the number of return values expected.
+    ///
+    /// Brillig does not have an explicit return instruction, so this
+    /// method will move all register values to the first `N` values in
+    /// the VM.
+    pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
+        for (destination_index, return_register) in return_registers.iter().enumerate() {
+            // If the destination register index is more than the latest register,
+            // we update the latest register to be the destination register because the
+            // brillig vm will expand the number of registers internally, when it encounters
+            // a register that has not been initialized.
+            if destination_index > self.latest_register {
+                self.latest_register = destination_index;
+            }
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: destination_index.into(),
+                source: *return_register,
+            });
+        }
+        self.push_opcode(BrilligOpcode::Stop);
+    }
+}
 
 /// Type to encapsulate the binary operation types in Brillig
 pub(crate) enum BrilligBinaryOp {

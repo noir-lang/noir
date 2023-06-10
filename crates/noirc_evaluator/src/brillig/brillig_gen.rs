@@ -103,29 +103,12 @@ impl BrilligGen {
         self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
     }
 
-    /// Converts the SSA return instruction into the necessary BRillig return
+    /// Converts the SSA return instruction into the necessary Brillig return
     /// opcode.
-    ///
-    /// For Brillig, the return is implicit; The caller will take `N` values from
-    /// the Register starting at register index 0. `N` indicates the number of
-    /// return values expected.
     fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
-        for (destination_index, value_id) in return_values.iter().enumerate() {
-            let return_register = self.convert_ssa_value(*value_id, dfg);
-            // If the destination register index is more than the latest register,
-            // we update the latest register to be the destination register because the
-            // brillig vm will expand the number of registers internally, when it encounters
-            // a register that has not been initialized.
-            let latest_register = self.context.latest_register();
-            if destination_index > *latest_register {
-                *latest_register = destination_index;
-            }
-            self.push_code(BrilligOpcode::Mov {
-                destination: destination_index.into(),
-                source: return_register,
-            });
-        }
-        self.push_code(BrilligOpcode::Stop);
+        let return_registers: Vec<_> =
+            return_values.iter().map(|value_id| self.convert_ssa_value(*value_id, dfg)).collect();
+        self.context.return_instruction(&return_registers);
     }
 
     /// Converts SSA Block parameters into Brillig Registers.
