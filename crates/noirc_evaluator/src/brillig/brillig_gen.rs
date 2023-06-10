@@ -11,12 +11,9 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::{
-    acir::brillig_vm::{
-        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
-        Value as BrilligValue,
-    },
-    FieldElement,
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
+    Value as BrilligValue,
 };
 use iter_extended::vecmap;
 use std::collections::HashMap;
@@ -179,19 +176,9 @@ impl BrilligGen {
                     Type::bool(),
                     "not operator can only be applied to boolean values"
                 );
-
-                let one = self.context.make_constant(BrilligValue::from(FieldElement::one()));
                 let condition = self.convert_ssa_value(*value, dfg);
 
-                // Compile !x as (1 - x)
-                let opcode = BrilligOpcode::BinaryIntOp {
-                    destination: result_register,
-                    op: BinaryIntOp::Sub,
-                    bit_size: 1,
-                    lhs: one,
-                    rhs: condition,
-                };
-                self.push_code(opcode);
+                self.context.not_instruction(condition, result_register);
             }
             Instruction::ForeignCall { func, arguments } => {
                 let result_ids = dfg.instruction_results(instruction_id);

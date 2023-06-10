@@ -8,8 +8,9 @@ pub(crate) mod artifact;
 pub(crate) mod memory;
 
 use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
+use acvm::{
+    acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value},
+    FieldElement,
 };
 
 #[derive(Default)]
@@ -117,9 +118,24 @@ impl BrilligContext {
             }
         }
     }
+
     /// Stores the value of `constant` in the `result` register
     pub(crate) fn const_instruction(&mut self, result: RegisterIndex, constant: Value) {
         self.push_opcode(BrilligOpcode::Const { destination: result, value: constant });
+    }
+
+    pub(crate) fn not_instruction(&mut self, condition: RegisterIndex, result: RegisterIndex) {
+        let one = self.make_constant(Value::from(FieldElement::one()));
+
+        // Compile !x as (1 - x)
+        let opcode = BrilligOpcode::BinaryIntOp {
+            destination: result,
+            op: BinaryIntOp::Sub,
+            bit_size: 1,
+            lhs: one,
+            rhs: condition,
+        };
+        self.push_opcode(opcode);
     }
 
     /// Returns a register which holds the value of a constant
