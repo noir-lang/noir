@@ -229,6 +229,14 @@ impl BrilligGen {
                 };
                 self.push_code(opcode);
             }
+            Instruction::Truncate { value, .. } => {
+                // Effectively a no-op because brillig already has implicit truncation on integer
+                // operations. We need only copy the value to it's destination.
+                let result_ids = dfg.instruction_results(instruction_id);
+                let destination = self.get_or_create_register(result_ids[0]);
+                let source = self.convert_ssa_value(*value, dfg);
+                self.push_code(BrilligOpcode::Mov { destination, source });
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
     }
