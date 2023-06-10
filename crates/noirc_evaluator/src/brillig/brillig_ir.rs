@@ -8,7 +8,6 @@ pub(crate) mod artifact;
 pub(crate) mod memory;
 
 use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
-use crate::ssa_refactor::ir::basic_block::BasicBlockId;
 use acvm::acir::brillig_vm::{
     BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
 };
@@ -37,16 +36,16 @@ impl BrilligContext {
         self.memory.allocate(size)
     }
 
-    #[deprecated(note = " abstraction leak")]
-    // TODO: Remove as this needs knowledge of BasicBlockId which is an abstraction leak
-    pub(crate) fn add_block_label(&mut self, block: BasicBlockId) {
-        self.obj.add_block_label(block);
+    pub(crate) fn add_label_to_next_opcode(&mut self, label: String) {
+        self.obj.add_label_at_position(label, self.obj.index_of_next_opcode());
     }
 
-    #[deprecated(note = " abstraction leak")]
-    // TODO: Remove as this needs knowledge of BasicBlockId which is an abstraction leak
-    pub(crate) fn add_unresolved_jump(&mut self, destination: UnresolvedJumpLocation) {
-        self.obj.add_unresolved_jump(destination);
+    pub(crate) fn add_unresolved_jump(
+        &mut self,
+        jmp_instruction: BrilligOpcode,
+        destination: UnresolvedJumpLocation,
+    ) {
+        self.obj.add_unresolved_jump(jmp_instruction, destination);
     }
 
     /// Creates a new register.
@@ -58,6 +57,14 @@ impl BrilligContext {
 }
 
 impl BrilligContext {
+    pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
+        // jump to the relative location after the trap
+        self.add_unresolved_jump(
+            BrilligOpcode::JumpIf { condition, location: 0 },
+            UnresolvedJumpLocation::Relative(2),
+        );
+        self.push_opcode(BrilligOpcode::Trap);
+    }
     /// Processes a return instruction.
     ///
     /// For Brillig, the return is implicit, since there is no explicit return instruction.
@@ -112,10 +119,7 @@ impl BrilligContext {
     }
     /// Stores the value of `constant` in the `result` register
     pub(crate) fn const_instruction(&mut self, result: RegisterIndex, constant: Value) {
-        self.push_opcode(BrilligOpcode::Const {
-            destination: result,
-            value: Value::from(constant),
-        });
+        self.push_opcode(BrilligOpcode::Const { destination: result, value: constant });
     }
 
     /// Returns a register which holds the value of a constant

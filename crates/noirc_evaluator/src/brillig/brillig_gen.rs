@@ -60,7 +60,7 @@ impl BrilligGen {
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
-        self.context.add_block_label(block_id);
+        self.context.add_label_to_next_opcode(block_id.to_string());
         let block = &dfg[block_id];
         self.convert_block_params(block, dfg);
 
@@ -93,14 +93,18 @@ impl BrilligGen {
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
     fn jump(&mut self, target: BasicBlockId) {
-        self.context.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
-        self.push_code(BrilligOpcode::Jump { location: 0 });
+        self.context.add_unresolved_jump(
+            BrilligOpcode::Jump { location: 0 },
+            UnresolvedJumpLocation::Label(target.to_string()),
+        );
     }
 
     /// Adds a unresolved `JumpIf` instruction to the bytecode.
     fn jump_if(&mut self, condition: RegisterIndex, target: BasicBlockId) {
-        self.context.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
-        self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
+        self.context.add_unresolved_jump(
+            BrilligOpcode::JumpIf { condition, location: 0 },
+            UnresolvedJumpLocation::Label(target.to_string()),
+        );
     }
 
     /// Converts the SSA return instruction into the necessary Brillig return
@@ -142,10 +146,7 @@ impl BrilligGen {
             }
             Instruction::Constrain(value) => {
                 let condition = self.convert_ssa_value(*value, dfg);
-                // jump to the relative location after the trap
-                self.context.add_unresolved_jump(UnresolvedJumpLocation::Relative(2));
-                self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
-                self.push_code(BrilligOpcode::Trap);
+                self.context.constrain_instruction(condition);
             }
             Instruction::Allocate => {
                 let pointer_register =
