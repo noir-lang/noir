@@ -251,23 +251,6 @@ impl BrilligGen {
         let left = self.convert_ssa_value(binary.lhs, dfg);
         let right = self.convert_ssa_value(binary.rhs, dfg);
 
-        // Process modulo operator separately as there is no
-        // Brillig modulo operator and the result is multiple
-        // brillig opcodes.
-        if let BinaryOp::Mod = binary.operator {
-            match binary_type {
-                Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                    self.context.convert_integer_mod(result_register, left, right, bit_size, false);
-                    return;
-                }
-                Type::Numeric(NumericType::Signed { bit_size }) => {
-                    self.context.convert_integer_mod(result_register, left, right, bit_size, true);
-                    return;
-                }
-                _ => unimplemented!("ICE: Modulo operation not supported for type {binary_type:?}"),
-            }
-        }
-
         let brillig_binary_op =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, binary_type);
         match brillig_binary_op {
@@ -289,6 +272,15 @@ impl BrilligGen {
                     rhs: right,
                 };
                 self.push_code(opcode);
+            }
+            BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
+                self.context.modulo_instruction(
+                    result_register,
+                    left,
+                    right,
+                    bit_size,
+                    is_signed_integer,
+                );
             }
         }
     }
@@ -392,8 +384,8 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
           _ => unreachable!("only numeric types are allowed in binary operations. References are handled separately"),
       };
 
-    fn binary_op_to_field_op(op: BinaryOp) -> BinaryFieldOp {
-        match op {
+    fn binary_op_to_field_op(op: BinaryOp) -> BrilligBinaryOp {
+        let operation = match op {
             BinaryOp::Add => BinaryFieldOp::Add,
             BinaryOp::Sub => BinaryFieldOp::Sub,
             BinaryOp::Mul => BinaryFieldOp::Mul,
@@ -402,10 +394,13 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             _ => unreachable!(
                 "Field type cannot be used with {op}. This should have been caught by the frontend"
             ),
-        }
+        };
+
+        BrilligBinaryOp::Field { op: operation }
     }
-    fn binary_op_to_int_op(op: BinaryOp, is_signed: bool) -> BinaryIntOp {
-        match op {
+
+    fn binary_op_to_int_op(op: BinaryOp, bit_size: u32, is_signed: bool) -> BrilligBinaryOp {
+        let operation = match op {
             BinaryOp::Add => BinaryIntOp::Add,
             BinaryOp::Sub => BinaryIntOp::Sub,
             BinaryOp::Mul => BinaryIntOp::Mul,
@@ -416,7 +411,9 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
                     BinaryIntOp::UnsignedDiv
                 }
             }
-            BinaryOp::Mod => unreachable!("Modulo operations are handled separately"),
+            BinaryOp::Mod => {
+                return BrilligBinaryOp::Modulo { is_signed_integer: is_signed, bit_size }
+            }
             BinaryOp::Eq => BinaryIntOp::Equals,
             BinaryOp::Lt => BinaryIntOp::LessThan,
             BinaryOp::And => BinaryIntOp::And,
@@ -424,17 +421,14 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             BinaryOp::Xor => BinaryIntOp::Xor,
             BinaryOp::Shl => BinaryIntOp::Shl,
             BinaryOp::Shr => BinaryIntOp::Shr,
-        }
+        };
+
+        BrilligBinaryOp::Integer { op: operation, bit_size }
     }
+
     // If bit size is available then it is a binary integer operation
     match bit_size_signedness {
-        Some((bit_size, is_signed)) => {
-            let binary_int_op = binary_op_to_int_op(ssa_op, is_signed);
-            BrilligBinaryOp::Integer { op: binary_int_op, bit_size }
-        }
-        None => {
-            let binary_field_op = binary_op_to_field_op(ssa_op);
-            BrilligBinaryOp::Field { op: binary_field_op }
-        }
+        Some((bit_size, is_signed)) => binary_op_to_int_op(ssa_op, bit_size, is_signed),
+        None => binary_op_to_field_op(ssa_op),
     }
 }

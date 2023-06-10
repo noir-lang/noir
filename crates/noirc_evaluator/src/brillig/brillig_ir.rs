@@ -87,7 +87,11 @@ impl BrilligContext {
     /// This is done by using the following formula:
     ///
     /// a % b = a - (b * (a / b))
-    pub(crate) fn convert_integer_mod(
+    ///
+    /// Brillig does not have an explicit modulo operation,
+    /// so we must emit multiple opcodes and process it differently
+    /// to other binary instructions.
+    pub(crate) fn modulo_instruction(
         &mut self,
         result_register: RegisterIndex,
         left: RegisterIndex,
@@ -134,4 +138,7 @@ impl BrilligContext {
 pub(crate) enum BrilligBinaryOp {
     Field { op: BinaryFieldOp },
     Integer { op: BinaryIntOp, bit_size: u32 },
+    // Modulo operation requires more than one opcode
+    // Brillig.
+    Modulo { is_signed_integer: bool, bit_size: u32 },
 }
