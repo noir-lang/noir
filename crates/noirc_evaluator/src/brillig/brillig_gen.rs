@@ -1,6 +1,6 @@
 use super::brillig_ir::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
-    memory::BrilligMemory, BrilligBinaryOp,
+    BrilligBinaryOp, BrilligContext,
 };
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -24,19 +24,17 @@ use std::collections::HashMap;
 #[derive(Default)]
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
-    obj: BrilligArtifact,
-    /// A usize indicating the latest un-used register.
-    latest_register: usize,
+    /// Context for creating brillig opcodes
+    context: BrilligContext,
     /// Map from SSA values to Register Indices.
     ssa_value_to_register: HashMap<ValueId, RegisterIndex>,
-    /// Tracks memory allocations
-    memory: BrilligMemory,
 }
 
 impl BrilligGen {
+    #[deprecated(note = " this module will not longer push to the bytecode")]
     /// Adds a brillig instruction to the brillig byte code
     fn push_code(&mut self, code: BrilligOpcode) {
-        self.obj.byte_code.push(code);
+        self.context.push_opcode(code);
     }
 
     /// Gets a `RegisterIndex` for a `ValueId`, if one already exists
@@ -47,7 +45,7 @@ impl BrilligGen {
             return *register_index;
         }
 
-        let register = self.create_register();
+        let register = self.context.create_register();
 
         // Cache the `ValueId` so that if we call it again, it will
         // return the register that has just been created.
@@ -60,16 +58,9 @@ impl BrilligGen {
         register
     }
 
-    /// Creates a new register.
-    fn create_register(&mut self) -> RegisterIndex {
-        let register = RegisterIndex::from(self.latest_register);
-        self.latest_register += 1;
-        register
-    }
-
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
-        self.obj.add_block_label(block_id);
+        self.context.add_block_label(block_id);
         let block = &dfg[block_id];
         self.convert_block_params(block, dfg);
 
@@ -102,13 +93,13 @@ impl BrilligGen {
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
     fn jump(&mut self, target: BasicBlockId) {
-        self.obj.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
+        self.context.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
         self.push_code(BrilligOpcode::Jump { location: 0 });
     }
 
     /// Adds a unresolved `JumpIf` instruction to the bytecode.
     fn jump_if(&mut self, condition: RegisterIndex, target: BasicBlockId) {
-        self.obj.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
+        self.context.add_unresolved_jump(UnresolvedJumpLocation::Block(target));
         self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
     }
 
@@ -121,8 +112,13 @@ impl BrilligGen {
     fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
         for (destination_index, value_id) in return_values.iter().enumerate() {
             let return_register = self.convert_ssa_value(*value_id, dfg);
-            if destination_index > self.latest_register {
-                self.latest_register = destination_index;
+            // If the destination register index is more than the latest register,
+            // we update the latest register to be the destination register because the
+            // brillig vm will expand the number of registers internally, when it encounters
+            // a register that has not been initialized.
+            let latest_register = self.context.latest_register();
+            if destination_index > *latest_register {
+                *latest_register = destination_index;
             }
             self.push_code(BrilligOpcode::Mov {
                 destination: destination_index.into(),
@@ -164,7 +160,7 @@ impl BrilligGen {
             Instruction::Constrain(value) => {
                 let condition = self.convert_ssa_value(*value, dfg);
                 // jump to the relative location after the trap
-                self.obj.add_unresolved_jump(UnresolvedJumpLocation::Relative(2));
+                self.context.add_unresolved_jump(UnresolvedJumpLocation::Relative(2));
                 self.push_code(BrilligOpcode::JumpIf { condition, location: 0 });
                 self.push_code(BrilligOpcode::Trap);
             }
@@ -241,7 +237,7 @@ impl BrilligGen {
     }
 
     fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
-        let array_pointer = self.memory.allocate(size as usize);
+        let array_pointer = self.context.allocate_memory(size as usize);
         self.push_code(BrilligOpcode::Const {
             destination: pointer_register,
             value: BrilligValue::from(array_pointer),
@@ -250,7 +246,7 @@ impl BrilligGen {
 
     /// Returns a register which holds the value of a constant
     fn make_constant(&mut self, constant: FieldElement) -> RegisterIndex {
-        let register = self.create_register();
+        let register = self.context.create_register();
 
         let const_opcode =
             BrilligOpcode::Const { destination: register, value: BrilligValue::from(constant) };
@@ -327,8 +323,8 @@ impl BrilligGen {
         bit_size: u32,
         signed: bool,
     ) {
-        let scratch_register_i = self.create_register();
-        let scratch_register_j = self.create_register();
+        let scratch_register_i = self.context.create_register();
+        let scratch_register_j = self.context.create_register();
 
         // i = left / right
         self.push_code(BrilligOpcode::BinaryIntOp {
@@ -394,7 +390,7 @@ impl BrilligGen {
         brillig.convert_ssa_function(func);
 
         brillig.push_code(BrilligOpcode::Stop);
-        brillig.obj
+        brillig.context.artifact()
     }
 
     /// Converting an SSA function into Brillig bytecode.

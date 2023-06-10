@@ -72,6 +72,7 @@ impl BrilligArtifact {
 
     /// Adds a label in the bytecode to specify where this block's
     /// opcodes will start.
+    /// TODO: This is an abstraction leak, instead should just add a label
     pub(crate) fn add_block_label(&mut self, block: BasicBlockId) {
         self.blocks.insert(block, self.code_len());
     }
