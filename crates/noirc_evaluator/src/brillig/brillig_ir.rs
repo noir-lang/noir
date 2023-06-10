@@ -81,6 +81,53 @@ impl BrilligContext {
         }
         self.push_opcode(BrilligOpcode::Stop);
     }
+
+    /// Computes left % right by emitting the necessary Brillig opcodes.
+    ///
+    /// This is done by using the following formula:
+    ///
+    /// a % b = a - (b * (a / b))
+    pub(crate) fn convert_integer_mod(
+        &mut self,
+        result_register: RegisterIndex,
+        left: RegisterIndex,
+        right: RegisterIndex,
+        bit_size: u32,
+        signed: bool,
+    ) {
+        let scratch_register_i = self.create_register();
+        let scratch_register_j = self.create_register();
+
+        // i = left / right
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            op: match signed {
+                true => BinaryIntOp::SignedDiv,
+                false => BinaryIntOp::UnsignedDiv,
+            },
+            destination: scratch_register_i,
+            bit_size,
+            lhs: left,
+            rhs: right,
+        });
+
+        // j = i * right
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Mul,
+            destination: scratch_register_j,
+            bit_size,
+            lhs: scratch_register_i,
+            rhs: right,
+        });
+
+        // result_register = left - j
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Sub,
+            destination: result_register,
+            bit_size,
+            lhs: left,
+            rhs: scratch_register_j,
+        });
+    }
 }
 
 /// Type to encapsulate the binary operation types in Brillig
