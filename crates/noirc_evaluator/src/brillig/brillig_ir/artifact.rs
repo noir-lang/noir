@@ -47,15 +47,19 @@ pub(crate) enum UnresolvedJumpLocation {
 }
 
 impl BrilligArtifact {
-    /// Link some compiled brillig bytecode with its referenced artifacts.
+    /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
     pub(crate) fn link(&mut self, obj: &BrilligArtifact) -> Vec<BrilligOpcode> {
-        self.link_with(obj);
+        self.append_artifact(obj);
         self.resolve_jumps();
         self.byte_code.clone()
     }
 
-    /// Link with a brillig artifact
-    fn link_with(&mut self, obj: &BrilligArtifact) {
+    /// Link with an external brillig artifact.
+    ///
+    /// This method will offset the positions in the Brillig artifact to
+    /// account for the fact that it is being appended to the end of this
+    /// Brillig artifact (self).
+    fn append_artifact(&mut self, obj: &BrilligArtifact) {
         let offset = self.index_of_next_opcode();
         for (jump_label, jump_location) in &obj.unresolved_jumps {
             self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));
