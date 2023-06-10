@@ -45,17 +45,34 @@ impl BrilligGen {
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
-        self.context.add_label_to_next_opcode(block_id.to_string());
+        // Add a label for this block
+        self.context.add_label_to_next_opcode(block_id);
+
+        // Convert the block parameters
         let block = &dfg[block_id];
         self.convert_block_params(block, dfg);
 
+        // Convert all of the instructions int the block
         for instruction_id in block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
 
-        // Jump to the next block
-        let jump = block.terminator().expect("block is expected to be constructed");
-        match jump {
+        // Process the block's terminator instruction
+        let terminator_instruction =
+            block.terminator().expect("block is expected to be constructed");
+        self.convert_ssa_terminator(terminator_instruction, dfg);
+    }
+
+    /// Converts an SSA terminator instruction into the necessary opcodes.
+    ///
+    /// TODO: document why the TerminatorInstruction::Return includes a stop instruction
+    /// TODO along with the `Self::compile`
+    fn convert_ssa_terminator(
+        &mut self,
+        terminator_instruction: &TerminatorInstruction,
+        dfg: &DataFlowGraph,
+    ) {
+        match terminator_instruction {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
                 self.context.jump_if_instruction(condition, then_destination);
@@ -71,17 +88,13 @@ impl BrilligGen {
                 self.context.jump_instruction(destination);
             }
             TerminatorInstruction::Return { return_values } => {
-                self.convert_ssa_return(return_values, dfg);
+                let return_registers: Vec<_> = return_values
+                    .iter()
+                    .map(|value_id| self.convert_ssa_value(*value_id, dfg))
+                    .collect();
+                self.context.return_instruction(&return_registers);
             }
         }
-    }
-
-    /// Converts the SSA return instruction into the necessary Brillig return
-    /// opcode.
-    fn convert_ssa_return(&mut self, return_values: &[ValueId], dfg: &DataFlowGraph) {
-        let return_registers: Vec<_> =
-            return_values.iter().map(|value_id| self.convert_ssa_value(*value_id, dfg)).collect();
-        self.context.return_instruction(&return_registers);
     }
 
     /// Converts SSA Block parameters into Brillig Registers.

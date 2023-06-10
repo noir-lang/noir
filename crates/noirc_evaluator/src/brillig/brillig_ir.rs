@@ -44,8 +44,8 @@ impl BrilligContext {
         });
     }
 
-    pub(crate) fn add_label_to_next_opcode(&mut self, label: String) {
-        self.obj.add_label_at_position(label, self.obj.index_of_next_opcode());
+    pub(crate) fn add_label_to_next_opcode<T: ToString>(&mut self, label: T) {
+        self.obj.add_label_at_position(label.to_string(), self.obj.index_of_next_opcode());
     }
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
