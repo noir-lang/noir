@@ -82,6 +82,33 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Stop);
     }
 
+    /// Processes a binary instruction according `operation`.
+    ///
+    /// This method will compute lhs <operation> rhs
+    /// and store the result in the `result` register.
+    pub(crate) fn binary_instruction(
+        &mut self,
+        lhs: RegisterIndex,
+        rhs: RegisterIndex,
+        result: RegisterIndex,
+        operation: BrilligBinaryOp,
+    ) {
+        match operation {
+            BrilligBinaryOp::Field { op } => {
+                let opcode = BrilligOpcode::BinaryFieldOp { op, destination: result, lhs, rhs };
+                self.push_opcode(opcode);
+            }
+            BrilligBinaryOp::Integer { op, bit_size } => {
+                let opcode =
+                    BrilligOpcode::BinaryIntOp { op, destination: result, bit_size, lhs, rhs };
+                self.push_opcode(opcode);
+            }
+            BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
+                self.modulo_instruction(result, lhs, rhs, bit_size, is_signed_integer);
+            }
+        }
+    }
+
     /// Computes left % right by emitting the necessary Brillig opcodes.
     ///
     /// This is done by using the following formula:

@@ -253,36 +253,8 @@ impl BrilligGen {
 
         let brillig_binary_op =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, binary_type);
-        match brillig_binary_op {
-            BrilligBinaryOp::Field { op } => {
-                let opcode = BrilligOpcode::BinaryFieldOp {
-                    op,
-                    destination: result_register,
-                    lhs: left,
-                    rhs: right,
-                };
-                self.push_code(opcode);
-            }
-            BrilligBinaryOp::Integer { op, bit_size } => {
-                let opcode = BrilligOpcode::BinaryIntOp {
-                    op,
-                    destination: result_register,
-                    bit_size,
-                    lhs: left,
-                    rhs: right,
-                };
-                self.push_code(opcode);
-            }
-            BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
-                self.context.modulo_instruction(
-                    result_register,
-                    left,
-                    right,
-                    bit_size,
-                    is_signed_integer,
-                );
-            }
-        }
+
+        self.context.binary_instruction(left, right, result_register, brillig_binary_op);
     }
 
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
