@@ -372,6 +372,7 @@ impl BrilligGen {
 
         brillig.convert_ssa_function(func);
 
+        // TODO: shouldn't this be added when we process a return instruction
         brillig.push_code(BrilligOpcode::Stop);
         brillig.context.artifact()
     }
