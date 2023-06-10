@@ -77,7 +77,7 @@ impl BrilligGen {
                 for (src, dest) in arguments.iter().zip(target.parameters()) {
                     let destination = self.convert_ssa_value(*dest, dfg);
                     let source = self.convert_ssa_value(*src, dfg);
-                    self.push_code(BrilligOpcode::Mov { destination, source });
+                    self.context.mov_instruction(destination, source);
                 }
                 self.jump(*destination);
             }
@@ -147,7 +147,7 @@ impl BrilligGen {
             Instruction::Allocate => {
                 let pointer_register =
                     self.get_or_create_register(dfg.instruction_results(instruction_id)[0]);
-                self.allocate_array(pointer_register, 1);
+                self.context.allocate_array(pointer_register, 1);
             }
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_value(*address, dfg);
@@ -194,14 +194,6 @@ impl BrilligGen {
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
-    }
-
-    fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
-        let array_pointer = self.context.allocate_memory(size as usize);
-        self.push_code(BrilligOpcode::Const {
-            destination: pointer_register,
-            value: BrilligValue::from(array_pointer),
-        });
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
@@ -254,7 +246,8 @@ impl BrilligGen {
         brillig.convert_ssa_function(func);
 
         // TODO: shouldn't this be added when we process a return instruction
-        brillig.push_code(BrilligOpcode::Stop);
+        brillig.context.stop_instruction();
+
         brillig.context.artifact()
     }
 

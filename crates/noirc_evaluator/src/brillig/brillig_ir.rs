@@ -36,8 +36,12 @@ impl BrilligContext {
         self.obj
     }
 
-    pub(crate) fn allocate_memory(&mut self, size: usize) -> usize {
-        self.memory.allocate(size)
+    pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
+        let array_pointer = self.memory.allocate(size as usize);
+        self.push_opcode(BrilligOpcode::Const {
+            destination: pointer_register,
+            value: Value::from(array_pointer),
+        });
     }
 
     pub(crate) fn add_label_to_next_opcode(&mut self, label: String) {
@@ -87,12 +91,13 @@ impl BrilligContext {
             if destination_index > self.latest_register {
                 self.latest_register = destination_index;
             }
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: destination_index.into(),
-                source: *return_register,
-            });
+            self.mov_instruction(destination_index.into(), *return_register);
         }
         self.push_opcode(BrilligOpcode::Stop);
+    }
+
+    pub(crate) fn mov_instruction(&mut self, destination: RegisterIndex, source: RegisterIndex) {
+        self.push_opcode(BrilligOpcode::Mov { destination, source });
     }
 
     /// Processes a binary instruction according `operation`.
@@ -178,10 +183,11 @@ impl BrilligContext {
     ) {
         // Effectively a no-op because brillig already has implicit truncation on integer
         // operations. We need only copy the value to it's destination.
-        self.push_opcode(BrilligOpcode::Mov {
-            destination: destination_of_truncated_value,
-            source: value_to_truncate,
-        });
+        self.mov_instruction(destination_of_truncated_value, value_to_truncate)
+    }
+
+    pub(crate) fn stop_instruction(&mut self) {
+        self.push_opcode(BrilligOpcode::Stop)
     }
 
     /// Returns a register which holds the value of a constant
