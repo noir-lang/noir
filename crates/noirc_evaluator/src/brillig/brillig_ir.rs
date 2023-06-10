@@ -183,11 +183,11 @@ impl BrilligContext {
     ) {
         // Effectively a no-op because brillig already has implicit truncation on integer
         // operations. We need only copy the value to it's destination.
-        self.mov_instruction(destination_of_truncated_value, value_to_truncate)
+        self.mov_instruction(destination_of_truncated_value, value_to_truncate);
     }
 
     pub(crate) fn stop_instruction(&mut self) {
-        self.push_opcode(BrilligOpcode::Stop)
+        self.push_opcode(BrilligOpcode::Stop);
     }
 
     /// Returns a register which holds the value of a constant
