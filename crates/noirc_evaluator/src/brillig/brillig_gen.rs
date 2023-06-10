@@ -1,7 +1,4 @@
-use super::brillig_ir::{
-    artifact::{BrilligArtifact, UnresolvedJumpLocation},
-    BrilligBinaryOp, BrilligContext,
-};
+use super::brillig_ir::{artifact::BrilligArtifact, BrilligBinaryOp, BrilligContext};
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -11,9 +8,7 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
-};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, Value as BrilligValue};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -63,8 +58,8 @@ impl BrilligGen {
         match jump {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
-                self.jump_if(condition, *then_destination);
-                self.jump(*else_destination);
+                self.context.jump_if_instruction(condition, then_destination);
+                self.context.jump_instruction(else_destination);
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let target = &dfg[*destination];
@@ -73,28 +68,12 @@ impl BrilligGen {
                     let source = self.convert_ssa_value(*src, dfg);
                     self.context.mov_instruction(destination, source);
                 }
-                self.jump(*destination);
+                self.context.jump_instruction(destination);
             }
             TerminatorInstruction::Return { return_values } => {
                 self.convert_ssa_return(return_values, dfg);
             }
         }
-    }
-
-    /// Adds a unresolved `Jump` instruction to the bytecode.
-    fn jump(&mut self, target: BasicBlockId) {
-        self.context.add_unresolved_jump(
-            BrilligOpcode::Jump { location: 0 },
-            UnresolvedJumpLocation::Label(target.to_string()),
-        );
-    }
-
-    /// Adds a unresolved `JumpIf` instruction to the bytecode.
-    fn jump_if(&mut self, condition: RegisterIndex, target: BasicBlockId) {
-        self.context.add_unresolved_jump(
-            BrilligOpcode::JumpIf { condition, location: 0 },
-            UnresolvedJumpLocation::Label(target.to_string()),
-        );
     }
 
     /// Converts the SSA return instruction into the necessary Brillig return
