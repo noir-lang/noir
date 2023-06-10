@@ -152,19 +152,13 @@ impl BrilligGen {
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_value(*address, dfg);
                 let value_register = self.convert_ssa_value(*value, dfg);
-                self.push_code(BrilligOpcode::Store {
-                    destination_pointer: address_register,
-                    source: value_register,
-                });
+                self.context.store_instruction(address_register, value_register)
             }
             Instruction::Load { address } => {
                 let target_register =
                     self.get_or_create_register(dfg.instruction_results(instruction_id)[0]);
                 let address_register = self.convert_ssa_value(*address, dfg);
-                self.push_code(BrilligOpcode::Load {
-                    destination: target_register,
-                    source_pointer: address_register,
-                });
+                self.context.load_instruction(target_register, address_register)
             }
             Instruction::Not(value) => {
                 assert_eq!(

@@ -155,6 +155,22 @@ impl BrilligContext {
         self.push_opcode(opcode);
     }
 
+    pub(crate) fn load_instruction(
+        &mut self,
+        destination: RegisterIndex,
+        source_pointer: RegisterIndex,
+    ) {
+        self.push_opcode(BrilligOpcode::Load { destination, source_pointer });
+    }
+
+    pub(crate) fn store_instruction(
+        &mut self,
+        destination_pointer: RegisterIndex,
+        source: RegisterIndex,
+    ) {
+        self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
+    }
+
     /// Returns a register which holds the value of a constant
     pub(crate) fn make_constant(&mut self, constant: Value) -> RegisterIndex {
         let register = self.create_register();
