@@ -8,7 +8,7 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, Value as BrilligValue};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -214,7 +214,7 @@ impl BrilligGen {
             Value::NumericConstant { constant, .. } => {
                 let register_index = self.get_or_create_register(value_id);
 
-                self.context.const_instruction(register_index, BrilligValue::from(*constant));
+                self.context.const_instruction(register_index, (*constant).into());
                 register_index
             }
             _ => {
