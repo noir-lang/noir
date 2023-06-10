@@ -23,7 +23,7 @@ pub(crate) struct BrilligContext {
 impl BrilligContext {
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
-        self.obj.byte_code.push(opcode)
+        self.obj.byte_code.push(opcode);
     }
 
     /// Returns the artifact
@@ -38,13 +38,13 @@ impl BrilligContext {
     #[deprecated(note = " abstraction leak")]
     // TODO: Remove as this needs knowledge of BasicBlockId which is an abstraction leak
     pub(crate) fn add_block_label(&mut self, block: BasicBlockId) {
-        self.obj.add_block_label(block)
+        self.obj.add_block_label(block);
     }
 
     #[deprecated(note = " abstraction leak")]
     // TODO: Remove as this needs knowledge of BasicBlockId which is an abstraction leak
     pub(crate) fn add_unresolved_jump(&mut self, destination: UnresolvedJumpLocation) {
-        self.obj.add_unresolved_jump(destination)
+        self.obj.add_unresolved_jump(destination);
     }
 
     /// Creates a new register.
