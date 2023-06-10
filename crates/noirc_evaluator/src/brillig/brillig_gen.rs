@@ -27,12 +27,6 @@ pub(crate) struct BrilligGen {
 }
 
 impl BrilligGen {
-    #[deprecated(note = " this module will not longer push to the bytecode")]
-    /// Adds a brillig instruction to the brillig byte code
-    fn push_code(&mut self, code: BrilligOpcode) {
-        self.context.push_opcode(code);
-    }
-
     /// Gets a `RegisterIndex` for a `ValueId`, if one already exists
     /// or creates a new `RegisterIndex` using the latest available
     /// free register.
