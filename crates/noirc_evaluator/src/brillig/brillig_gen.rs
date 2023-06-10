@@ -12,8 +12,7 @@ use crate::ssa_refactor::ir::{
     value::{Value, ValueId},
 };
 use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
-    Value as BrilligValue,
+    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value as BrilligValue,
 };
 use iter_extended::vecmap;
 use std::collections::HashMap;
@@ -168,15 +167,14 @@ impl BrilligGen {
                 });
             }
             Instruction::Not(value) => {
-                let result_ids = dfg.instruction_results(instruction_id);
-                let result_register = self.get_or_create_register(result_ids[0]);
-
                 assert_eq!(
                     dfg.type_of_value(*value),
                     Type::bool(),
                     "not operator can only be applied to boolean values"
                 );
                 let condition = self.convert_ssa_value(*value, dfg);
+                let result_ids = dfg.instruction_results(instruction_id);
+                let result_register = self.get_or_create_register(result_ids[0]);
 
                 self.context.not_instruction(condition, result_register);
             }
@@ -188,12 +186,11 @@ impl BrilligGen {
                 let output_registers =
                     vecmap(result_ids, |value_id| self.convert_ssa_value(*value_id, dfg));
 
-                let opcode = BrilligOpcode::ForeignCall {
-                    function: func.to_owned(),
-                    destination: RegisterValueOrArray::RegisterIndex(output_registers[0]),
-                    input: RegisterValueOrArray::RegisterIndex(input_registers[0]),
-                };
-                self.push_code(opcode);
+                self.context.foreign_call_instruction(
+                    func.to_owned(),
+                    &input_registers,
+                    &output_registers,
+                );
             }
             Instruction::Truncate { value, .. } => {
                 // Effectively a no-op because brillig already has implicit truncation on integer

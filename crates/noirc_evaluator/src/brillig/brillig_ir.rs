@@ -9,7 +9,10 @@ pub(crate) mod memory;
 
 use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
 use acvm::{
-    acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value},
+    acir::brillig_vm::{
+        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
+        Value,
+    },
     FieldElement,
 };
 
@@ -134,6 +137,20 @@ impl BrilligContext {
             bit_size: 1,
             lhs: one,
             rhs: condition,
+        };
+        self.push_opcode(opcode);
+    }
+
+    pub(crate) fn foreign_call_instruction(
+        &mut self,
+        func_name: String,
+        inputs: &[RegisterIndex],
+        outputs: &[RegisterIndex],
+    ) {
+        let opcode = BrilligOpcode::ForeignCall {
+            function: func_name,
+            destination: RegisterValueOrArray::RegisterIndex(outputs[0]),
+            input: RegisterValueOrArray::RegisterIndex(inputs[0]),
         };
         self.push_opcode(opcode);
     }
