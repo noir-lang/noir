@@ -9,7 +9,9 @@ pub(crate) mod memory;
 
 use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex};
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
+};
 
 #[derive(Default)]
 pub(crate) struct BrilligContext {
@@ -107,6 +109,20 @@ impl BrilligContext {
                 self.modulo_instruction(result, lhs, rhs, bit_size, is_signed_integer);
             }
         }
+    }
+    /// Stores the value of `constant` in the `result` register
+    pub(crate) fn const_instruction(&mut self, result: RegisterIndex, constant: Value) {
+        self.push_opcode(BrilligOpcode::Const {
+            destination: result,
+            value: Value::from(constant),
+        });
+    }
+
+    /// Returns a register which holds the value of a constant
+    pub(crate) fn make_constant(&mut self, constant: Value) -> RegisterIndex {
+        let register = self.create_register();
+        self.const_instruction(register, constant);
+        register
     }
 
     /// Computes left % right by emitting the necessary Brillig opcodes.

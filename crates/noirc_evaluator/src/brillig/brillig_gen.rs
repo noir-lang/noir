@@ -179,7 +179,7 @@ impl BrilligGen {
                     "not operator can only be applied to boolean values"
                 );
 
-                let one = self.make_constant(FieldElement::one());
+                let one = self.context.make_constant(BrilligValue::from(FieldElement::one()));
                 let condition = self.convert_ssa_value(*value, dfg);
 
                 // Compile !x as (1 - x)
@@ -227,17 +227,6 @@ impl BrilligGen {
         });
     }
 
-    /// Returns a register which holds the value of a constant
-    fn make_constant(&mut self, constant: FieldElement) -> RegisterIndex {
-        let register = self.context.create_register();
-
-        let const_opcode =
-            BrilligOpcode::Const { destination: register, value: BrilligValue::from(constant) };
-        self.push_code(const_opcode);
-
-        register
-    }
-
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
     fn convert_ssa_binary(
         &mut self,
@@ -269,10 +258,8 @@ impl BrilligGen {
             }
             Value::NumericConstant { constant, .. } => {
                 let register_index = self.get_or_create_register(value_id);
-                self.push_code(BrilligOpcode::Const {
-                    destination: register_index,
-                    value: BrilligValue::from(*constant),
-                });
+
+                self.context.const_instruction(register_index, BrilligValue::from(*constant));
                 register_index
             }
             _ => {
