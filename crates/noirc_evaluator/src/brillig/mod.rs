@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-#[allow(deprecated)]
+
 pub(crate) mod brillig_gen;
-#[allow(deprecated)]
 pub(crate) mod brillig_ir;
 
 use crate::ssa_refactor::{
