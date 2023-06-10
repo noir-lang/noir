@@ -171,6 +171,19 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
+    pub(crate) fn truncate_instruction(
+        &mut self,
+        destination_of_truncated_value: RegisterIndex,
+        value_to_truncate: RegisterIndex,
+    ) {
+        // Effectively a no-op because brillig already has implicit truncation on integer
+        // operations. We need only copy the value to it's destination.
+        self.push_opcode(BrilligOpcode::Mov {
+            destination: destination_of_truncated_value,
+            source: value_to_truncate,
+        });
+    }
+
     /// Returns a register which holds the value of a constant
     pub(crate) fn make_constant(&mut self, constant: Value) -> RegisterIndex {
         let register = self.create_register();

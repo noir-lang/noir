@@ -152,13 +152,13 @@ impl BrilligGen {
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_value(*address, dfg);
                 let value_register = self.convert_ssa_value(*value, dfg);
-                self.context.store_instruction(address_register, value_register)
+                self.context.store_instruction(address_register, value_register);
             }
             Instruction::Load { address } => {
                 let target_register =
                     self.get_or_create_register(dfg.instruction_results(instruction_id)[0]);
                 let address_register = self.convert_ssa_value(*address, dfg);
-                self.context.load_instruction(target_register, address_register)
+                self.context.load_instruction(target_register, address_register);
             }
             Instruction::Not(value) => {
                 assert_eq!(
@@ -187,12 +187,10 @@ impl BrilligGen {
                 );
             }
             Instruction::Truncate { value, .. } => {
-                // Effectively a no-op because brillig already has implicit truncation on integer
-                // operations. We need only copy the value to it's destination.
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination = self.get_or_create_register(result_ids[0]);
                 let source = self.convert_ssa_value(*value, dfg);
-                self.push_code(BrilligOpcode::Mov { destination, source });
+                self.context.truncate_instruction(destination, source);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
