@@ -1,7 +1,6 @@
-use super::{
-    artifact::{BrilligArtifact, UnresolvedJumpLocation},
+use super::brillig_ir::{
     binary::{type_of_binary_operation, BrilligBinaryOp},
-    memory::BrilligMemory,
+    memory::BrilligMemory, artifact::{BrilligArtifact, UnresolvedJumpLocation},
 };
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},

@@ -80,7 +80,7 @@ impl BrilligBinaryOp {
 
 /// Returns the type of the operation considering the types of the operands
 /// TODO: SSA issues binary operations between fields and integers.
-/// This probably should be explicitely casted in SSA to avoid having to coerce at this level.
+/// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
 pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
     match (lhs_type, rhs_type) {
         // If either side is a Field constant then, we coerce into the type
