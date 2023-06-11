@@ -122,36 +122,36 @@ impl BrilligArtifact {
 
     /// Resolves all of the unresolved jumps in the program.
     ///
-    /// Note: This should only be called once all blocks are processed.
+    /// Note: This should only be called once all blocks are processed and
+    /// linkage with other bytecode has happened.
     fn resolve_jumps(&mut self) {
-        for (jump_label, unresolved_location) in &self.unresolved_jumps {
-            let jump_instruction = self.byte_code[*jump_label].clone();
-
-            let actual_block_location = match unresolved_location {
-                UnresolvedJumpLocation::Label(b) => self.labels[b],
-                UnresolvedJumpLocation::Relative(location) => {
-                    (location + *jump_label as i32) as usize
+        for (location_of_jump, unresolved_location) in &self.unresolved_jumps {
+            let resolved_location = match unresolved_location {
+                UnresolvedJumpLocation::Label(label) => self.labels[label],
+                UnresolvedJumpLocation::Relative(offset) => {
+                    (offset + *location_of_jump as i32) as usize
                 }
             };
 
+            let jump_instruction = self.byte_code[*location_of_jump].clone();
             match jump_instruction {
                 BrilligOpcode::Jump { location } => {
                     assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
 
-                    self.byte_code[*jump_label] =
-                        BrilligOpcode::Jump { location: actual_block_location };
+                    self.byte_code[*location_of_jump] =
+                        BrilligOpcode::Jump { location: resolved_location };
                 }
                 BrilligOpcode::JumpIfNot { condition, location } => {
                     assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
 
-                    self.byte_code[*jump_label] =
-                        BrilligOpcode::JumpIfNot { condition, location: actual_block_location };
+                    self.byte_code[*location_of_jump] =
+                        BrilligOpcode::JumpIfNot { condition, location: resolved_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
                     assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
 
-                    self.byte_code[*jump_label] =
-                        BrilligOpcode::JumpIf { condition, location: actual_block_location };
+                    self.byte_code[*location_of_jump] =
+                        BrilligOpcode::JumpIf { condition, location: resolved_location };
                 }
                 _ => unreachable!(
                     "all jump labels should point to a jump instruction in the bytecode"
