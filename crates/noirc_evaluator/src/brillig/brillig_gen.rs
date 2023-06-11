@@ -109,8 +109,14 @@ impl BrilligGen {
                 Type::Numeric(_) => {
                     self.get_or_create_register(*param_id);
                 }
+                Type::Array(_, size) => {
+                    let array_ptr = self.get_or_create_register(*param_id);
+                    // TODO: check if size if the number of elements or the number of field elements
+                    // TODO needed. If the latter, the maths will be off for composite types
+                    self.context.allocate_array(array_ptr, *size as u32);
+                }
                 _ => {
-                    todo!("ICE: Param type not supported")
+                    todo!("ICE: Param type not supported {param_type:?}")
                 }
             }
         }
@@ -178,6 +184,15 @@ impl BrilligGen {
                 let source = self.convert_ssa_value(*value, dfg);
                 self.context.truncate_instruction(destination, source);
             }
+            Instruction::ArrayGet { array, index } => {
+                let array_ptr = self.convert_ssa_value(*array, dfg);
+                let index = self.convert_ssa_value(*index, dfg);
+
+                let result_ids = dfg.instruction_results(instruction_id);
+                let destination = self.get_or_create_register(result_ids[0]);
+
+                self.context.array_get(array_ptr, index, destination)
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
     }
@@ -187,18 +202,73 @@ impl BrilligGen {
         &mut self,
         binary: &Binary,
         dfg: &DataFlowGraph,
+        // TODO: For array addition, perhaps this will need
+        // TODO to be multiple registers
         result_register: RegisterIndex,
     ) {
-        let binary_type =
-            type_of_binary_operation(dfg[binary.lhs].get_type(), dfg[binary.rhs].get_type());
+        let lhs_type = dfg[binary.lhs].get_type();
+        let rhs_type = dfg[binary.rhs].get_type();
 
         let left = self.convert_ssa_value(binary.lhs, dfg);
         let right = self.convert_ssa_value(binary.rhs, dfg);
+
+        let binary_type = type_of_binary_operation(lhs_type, rhs_type);
+        // For operations involving arrays, we handle as a special case
+        if let Type::Array(element_type, num_elements) = binary_type {
+            return self.convert_ssa_binary_array(
+                &element_type,
+                left,
+                right,
+                num_elements,
+                binary.operator,
+                dfg,
+                result_register,
+            );
+        }
 
         let brillig_binary_op =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, binary_type);
 
         self.context.binary_instruction(left, right, result_register, brillig_binary_op);
+    }
+
+    /// Handles binary operations that involve arrays as the operands.
+    fn convert_ssa_binary_array(
+        &mut self,
+        element_type: &[Type],
+        lhs_array_ptr: RegisterIndex,
+        rhs_array_ptr: RegisterIndex,
+        num_elements: usize,
+        operator: BinaryOp,
+        dfg: &DataFlowGraph,
+        // TODO: For array addition, perhaps this will need
+        // TODO to be multiple registers
+        result_register: RegisterIndex,
+    ) {
+        // For now, we only support arrays of single element types
+        assert_eq!(
+            element_type.len(),
+            1,
+            "array has a composite type as its element, which we do not support yet"
+        );
+        let atomic_type = element_type[0].clone();
+
+        match operator {
+            BinaryOp::Eq => {
+                // TODO:
+                // Add a for loop which does roughly
+                // for i in 0.. num_elements:
+                //     is_equal = lhs_array_ptr[i] == rhs_array_ptr[i]
+                //     if is_equal:
+                //          continue
+                //     else:
+                //          return false
+                // return true
+
+                self.context.const_instruction(result_register, 1u128.into());
+            }
+            _ => unimplemented!("binary operation {operator} is not implemented for arrays"),
+        }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
@@ -257,11 +327,11 @@ impl BrilligGen {
 /// TODO: SSA issues binary operations between fields and integers.
 /// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
 pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
-    match (lhs_type, rhs_type) {
+    match (&lhs_type, &rhs_type) {
         // If either side is a Field constant then, we coerce into the type
         // of the other operand
         (Type::Numeric(NumericType::NativeField), typ)
-        | (typ, Type::Numeric(NumericType::NativeField)) => typ,
+        | (typ, Type::Numeric(NumericType::NativeField)) => typ.clone(),
         // If both sides are numeric type, then we expect their types to be
         // the same.
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -269,7 +339,15 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same"
             );
-            Type::Numeric(lhs_type)
+            Type::Numeric(lhs_type.clone())
+        }
+        // If both sides are arrays, then we also expect their types to be the same.
+        (Type::Array(_, _), Type::Array(_, _)) => {
+            assert_eq!(
+                lhs_type, rhs_type,
+                "lhs and rhs types in a binary operation are always the same"
+            );
+            lhs_type
         }
         (lhs_type, rhs_type) => {
             unreachable!(
