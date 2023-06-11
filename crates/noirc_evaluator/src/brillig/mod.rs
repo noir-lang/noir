@@ -1,14 +1,13 @@
-use std::collections::HashMap;
-
 pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
+use self::{brillig_gen::BrilligGen, brillig_ir::artifact::BrilligArtifact};
 use crate::ssa_refactor::{
     ir::function::{Function, FunctionId, RuntimeType},
     ssa_gen::Ssa,
 };
+use std::collections::HashMap;
 
-use self::{brillig_gen::BrilligGen, brillig_ir::artifact::BrilligArtifact};
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
 #[derive(Default)]

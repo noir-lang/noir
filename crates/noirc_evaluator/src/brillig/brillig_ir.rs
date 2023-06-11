@@ -7,7 +7,10 @@
 pub(crate) mod artifact;
 pub(crate) mod memory;
 
-use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
+use self::{
+    artifact::{BrilligArtifact, UnresolvedJumpLocation},
+    memory::BrilligMemory,
+};
 use acvm::{
     acir::brillig_vm::{
         BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
@@ -16,13 +19,15 @@ use acvm::{
     FieldElement,
 };
 
+/// Brillig context object that is used while constructing the
+/// Brillig bytecode.
 #[derive(Default)]
 pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
     /// A usize indicating the latest un-used register.
     latest_register: usize,
     /// Tracks memory allocations
-    memory: memory::BrilligMemory,
+    memory: BrilligMemory,
 }
 
 impl BrilligContext {
@@ -36,6 +41,8 @@ impl BrilligContext {
         self.obj
     }
 
+    /// Allocates an array of size `size` and stores the pointer to the array
+    /// in `pointer_register`
     pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
         let array_pointer = self.memory.allocate(size as usize);
         self.push_opcode(BrilligOpcode::Const {
@@ -44,6 +51,7 @@ impl BrilligContext {
         });
     }
 
+    /// Adds a label to the next opcode
     pub(crate) fn add_label_to_next_opcode<T: ToString>(&mut self, label: T) {
         self.obj.add_label_at_position(label.to_string(), self.obj.index_of_next_opcode());
     }
@@ -68,6 +76,7 @@ impl BrilligContext {
         );
     }
 
+    /// Adds a unresolved `Jump` instruction to the bytecode.
     fn add_unresolved_jump(
         &mut self,
         jmp_instruction: BrilligOpcode,
@@ -85,14 +94,17 @@ impl BrilligContext {
 }
 
 impl BrilligContext {
+    /// Emits brillig bytecode to jump to a trap condition if `condition`
+    /// is false.
     pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
-        // jump to the relative location after the trap
+        // Jump to the relative location after the trap
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
             UnresolvedJumpLocation::Relative(2),
         );
         self.push_opcode(BrilligOpcode::Trap);
     }
+
     /// Processes a return instruction.
     ///
     /// For Brillig, the return is implicit, since there is no explicit return instruction.
@@ -116,6 +128,9 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Stop);
     }
 
+    /// Emits a `mov` instruction.
+    ///
+    /// Copies the value at `source` into `destination`
     pub(crate) fn mov_instruction(&mut self, destination: RegisterIndex, source: RegisterIndex) {
         self.push_opcode(BrilligOpcode::Mov { destination, source });
     }
@@ -152,6 +167,10 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Const { destination: result, value: constant });
     }
 
+    /// Processes a not instruction.
+    ///
+    /// Not is computed using a subtraction operation as there is no native not instruction
+    /// in Brillig.
     pub(crate) fn not_instruction(&mut self, condition: RegisterIndex, result: RegisterIndex) {
         let one = self.make_constant(Value::from(FieldElement::one()));
 
@@ -166,6 +185,10 @@ impl BrilligContext {
         self.push_opcode(opcode);
     }
 
+    /// Processes a foreign call instruction.
+    ///
+    /// Note: the function being called is external and will
+    /// not be linked during brillig generation.
     pub(crate) fn foreign_call_instruction(
         &mut self,
         func_name: String,
@@ -180,6 +203,7 @@ impl BrilligContext {
         self.push_opcode(opcode);
     }
 
+    /// Emits a load instruction
     pub(crate) fn load_instruction(
         &mut self,
         destination: RegisterIndex,
@@ -188,6 +212,7 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Load { destination, source_pointer });
     }
 
+    /// Emits a store instruction
     pub(crate) fn store_instruction(
         &mut self,
         destination_pointer: RegisterIndex,
@@ -196,6 +221,14 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
+    /// Emits a truncate instruction.
+    ///
+    /// Note: Truncation is used as an optimization in the SSA IR
+    /// for the ACIR generation pass; ACIR gen does not overflow
+    /// on every integer operation since it would be in-efficient.
+    /// Instead truncation instructions are emitted as to when a
+    /// truncation should be done.
+    /// For Brillig, all integer operations will overflow as its cheap.
     pub(crate) fn truncate_instruction(
         &mut self,
         destination_of_truncated_value: RegisterIndex,
@@ -206,6 +239,7 @@ impl BrilligContext {
         self.mov_instruction(destination_of_truncated_value, value_to_truncate);
     }
 
+    /// Emits a stop instruction
     pub(crate) fn stop_instruction(&mut self) {
         self.push_opcode(BrilligOpcode::Stop);
     }
