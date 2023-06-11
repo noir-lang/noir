@@ -44,11 +44,46 @@ impl BrilligContext {
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
     pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
-        let array_pointer = self.memory.allocate(size as usize);
+        let allocation = self.memory.allocate(size as usize);
+
+        // Create a new register to store the pointer to the memory address
+        // of the last element in the array
+        let end_memory_address = self.create_register();
+        self.const_instruction(end_memory_address, allocation.end_address.into());
+
+        // Emit a store instruction for the last element in the array.
+        // The VM will expand the memory and zero fill all of the elements
+        // from `start_address` to `end_address`
+        //
+        // Since it is a store instruction, we need to indicate a value to
+        // store at `end_address` in memory. We will store zero here.
+        let zero = self.create_register();
+        self.const_instruction(zero, Value::from(0u128));
+        self.store_instruction(end_memory_address, zero);
+
         self.push_opcode(BrilligOpcode::Const {
             destination: pointer_register,
-            value: Value::from(array_pointer),
+            value: Value::from(allocation.start_address),
         });
+    }
+
+    /// Gets the value in the array at index `index` and stores it in `result`
+    pub(crate) fn array_get(
+        &mut self,
+        array_ptr: RegisterIndex,
+        index: RegisterIndex,
+        result: RegisterIndex,
+    ) {
+        // Computes array_ptr + index, ie array[index]
+        let index_of_element_in_memory = self.create_register();
+        self.binary_instruction(
+            array_ptr,
+            index,
+            index_of_element_in_memory,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
+        );
+
+        self.load_instruction(result, index_of_element_in_memory)
     }
 
     /// Adds a label to the next opcode
