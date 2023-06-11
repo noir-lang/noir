@@ -123,6 +123,18 @@ impl BrilligContext {
     /// Creates a new register.
     pub(crate) fn create_register(&mut self) -> RegisterIndex {
         let register = RegisterIndex::from(self.latest_register);
+
+        // Note: We could insert a const instruction to initialize the register
+        // because the VM will not expand the register space automatically.
+        //
+        // In most cases, the register created is used in another instruction
+        // which will cause the VM to expand the register space, but this is not
+        // a guarantee.
+        //
+        // TODO: check if the above can be true if we just return a constant for example
+        // TODO from a program
+        // self.const_instruction(register, 0u128.into());
+
         self.latest_register += 1;
         register
     }
