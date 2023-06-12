@@ -157,24 +157,22 @@ impl DataFlowGraph {
     /// values since other instructions referring to the same ValueId need
     /// not be modified to refer to a new ValueId.
     pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        // Replaced `ValueId`s are tracked purely for debugging purposes.
-        // We first call `resolve_replaced_value_id(new_value)` in case `new_value` is also a
-        // `ValueId` that has previously had its corresponding `Value` substituted.
-        self.replaced_value_ids.insert(value_to_replace, self.resolve_replaced_value_id(new_value));
-
-        let new_value = self.values[new_value].clone();
-        self.values[value_to_replace] = new_value;
+        if value_to_replace != new_value {
+            self.replaced_value_ids.insert(value_to_replace, self.resolve(new_value));
+            let new_value = self.values[new_value].clone();
+            self.values[value_to_replace] = new_value;
+        }
     }
 
     /// If `original_value_id`'s underlying `Value` has been substituted for that of another
     /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
     /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
     /// is returned.
-    ///
-    /// The function exists purely for debugging purposes. Only the SSA printer is concerned with
-    /// this information.
-    pub(crate) fn resolve_replaced_value_id(&self, original_value_id: ValueId) -> ValueId {
-        *self.replaced_value_ids.get(&original_value_id).unwrap_or(&original_value_id)
+    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ValueId {
+        match self.replaced_value_ids.get(&original_value_id) {
+            Some(id) => self.resolve(*id),
+            None => original_value_id,
+        }
     }
 
     /// Creates a new constant value, or returns the Id to an existing one if
