@@ -729,47 +729,54 @@ impl AcirContext {
                 BrilligInputs::Single(self.vars[&var].to_expression().into_owned())
             }
             AcirValue::Array(vars) => {
-                let var_expressions = vars
-                    .iter()
-                    .map(|v| match v {
-                        AcirValue::Var(var, _) => self.vars[var].to_expression().into_owned(),
-                        // TODO(#1641): Support arrays of complex types (structures) as Brillig input
-                        _ => unreachable!("brillig does not supprot complex array inputs yet"),
-                    })
-                    .collect();
+                let mut var_expressions: Vec<Expression> = Vec::new();
+                for var in vars {
+                    self.brillig_array_input(&mut var_expressions, var);
+                }
                 BrilligInputs::Array(var_expressions)
             }
         });
 
         let mut b_outputs = Vec::new();
-        let outputs_var = vecmap(outputs, |output| {
-            match output {
-                AcirType::NumericType(_) => {
-                    let witness_index = self.acir_ir.next_witness_index();
-                    b_outputs.push(BrilligOutputs::Simple(witness_index));
-                    let var = self.add_data(AcirVarData::Witness(witness_index));
-                    AcirValue::Var(var, output.clone())
-                }
-                AcirType::Array(element_types, size) => {
-                    let mut witnesses = Vec::new();
-                    let mut array_values = im::Vector::new();
-                    for _ in 0..size {
-                        for element_type in &element_types {
-                            let witness_index = self.acir_ir.next_witness_index();
-                            witnesses.push(witness_index);
-                            let var = self.add_data(AcirVarData::Witness(witness_index));
-                            array_values.push_back(AcirValue::Var(var, element_type.clone()));
-                        }
+        let outputs_var = vecmap(outputs, |output| match output {
+            AcirType::NumericType(_) => {
+                let witness_index = self.acir_ir.next_witness_index();
+                b_outputs.push(BrilligOutputs::Simple(witness_index));
+                let var = self.add_data(AcirVarData::Witness(witness_index));
+                AcirValue::Var(var, output.clone())
+            }
+            AcirType::Array(element_types, size) => {
+                let mut witnesses = Vec::new();
+                let mut array_values = im::Vector::new();
+                for _ in 0..size {
+                    for element_type in &element_types {
+                        let witness_index = self.acir_ir.next_witness_index();
+                        witnesses.push(witness_index);
+                        let var = self.add_data(AcirVarData::Witness(witness_index));
+                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
                     }
-                    b_outputs.push(BrilligOutputs::Array(witnesses));
-                    AcirValue::Array(array_values)
                 }
+                b_outputs.push(BrilligOutputs::Array(witnesses));
+                AcirValue::Array(array_values)
             }
         });
 
         self.acir_ir.brillig(code, b_inputs, b_outputs);
 
         outputs_var
+    }
+
+    fn brillig_array_input(&self, var_expressions: &mut Vec<Expression>, input: AcirValue) {
+        match input {
+            AcirValue::Var(var, _) => {
+                var_expressions.push(self.vars[var].to_expression().into_owned())
+            }
+            AcirValue::Array(vars) => {
+                for var in vars {
+                    self.brillig_array_input(var_expressions, var);
+                }
+            }
+        }
     }
 }
 
