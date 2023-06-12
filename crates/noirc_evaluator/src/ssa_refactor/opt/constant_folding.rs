@@ -4,8 +4,11 @@ use iter_extended::vecmap;
 
 use crate::ssa_refactor::{
     ir::{
-        basic_block::BasicBlockId, dfg::InsertInstructionResult, function::Function,
-        instruction::InstructionId, value::ValueId,
+        basic_block::BasicBlockId,
+        dfg::InsertInstructionResult,
+        function::Function,
+        instruction::InstructionId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -57,15 +60,47 @@ impl Context {
             self.push_instruction(function, block, instruction);
         }
 
-        let terminator =
-            function.dfg[block].unwrap_terminator().map_values(|value| self.get_value(value));
+        let terminator = function.dfg[block]
+            .unwrap_terminator()
+            .clone()
+            .map_values(|value| self.resolve_value(function, value));
 
         function.dfg.set_block_terminator(block, terminator);
         self.block_queue.extend(function.dfg[block].successors());
     }
 
-    fn get_value(&self, value: ValueId) -> ValueId {
-        self.values.get(&value).copied().unwrap_or(value)
+    /// Fetches the folded version of the given `ValueId`. If the value refers to an instruction
+    /// result, the folded value will have already been inserted into the cache. If it is an array
+    /// and it isn't already in the cache, it will be recursively resolved and added to the cache.
+    /// This is necessary because processing instruction results alone is not sufficient for
+    /// catching all arrays that have been affected by the pass.
+    fn resolve_value(&mut self, function: &mut Function, value: ValueId) -> ValueId {
+        if let Some(folded_value) = self.values.get(&value) {
+            return *folded_value;
+        }
+        let old_value = function.dfg[value].clone();
+        match old_value {
+            Value::Array { array, element_type } => {
+                let new_array =
+                    array.into_iter().map(|elem| self.resolve_value(function, elem)).collect();
+
+                let new_value_id = function.dfg.make_array(new_array, element_type);
+                self.values.insert(value, new_value_id);
+                new_value_id
+            }
+            Value::Instruction { .. } => {
+                unreachable!(
+                    "Each instruction is folded and pushed before its result is referenced"
+                )
+            }
+            Value::Function(_)
+            | Value::Intrinsic(_)
+            | Value::NumericConstant { .. }
+            | Value::Param { .. } => {
+                // These values are unaffected by instruction folding
+                value
+            }
+        }
     }
 
     fn push_instruction(
@@ -74,7 +109,8 @@ impl Context {
         block: BasicBlockId,
         id: InstructionId,
     ) {
-        let instruction = function.dfg[id].map_values(|id| self.get_value(id));
+        let instruction =
+            function.dfg[id].clone().map_values(|id| self.resolve_value(function, id));
         let results = function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
