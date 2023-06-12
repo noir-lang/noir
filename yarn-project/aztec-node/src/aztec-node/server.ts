@@ -210,6 +210,15 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
+   * Find the index of the given commitment.
+   * @param leafValue - The value to search for.
+   * @returns The index of the given leaf in the private data tree or undefined if not found.
+   */
+  public findCommitmentIndex(leafValue: Buffer): Promise<bigint | undefined> {
+    return this.merkleTreeDB.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, leafValue, false);
+  }
+
+  /**
    * Returns the sibling path for the given index in the data tree.
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.

@@ -1,5 +1,5 @@
 use dep::std;
-use crate::abi::Inputs;
+use crate::abi::PrivateContextInputs;
 use crate::context::PrivateFunctionContext;
 use crate::notes::value_note::Note;
 use crate::types::point::Point;
@@ -39,7 +39,7 @@ impl Set {
     }
 
     // The `2` in the name is the number of notes returned
-    fn get_2(self, inputs: Inputs, mut context: PrivateFunctionContext) -> (PrivateFunctionContext, (Note, Note)) {
+    fn get_2(self, inputs: PrivateContextInputs, mut context: PrivateFunctionContext) -> (PrivateFunctionContext, (Note, Note)) {
         let storage_slot = self.storage_slot;
 
         // let note_getter_data: [NoteGetterData; 2] = ORACLE::get_2_notes(contract_address, storage_slot);
@@ -70,17 +70,17 @@ impl Set {
         //     ) == 1;
 
         //     // Set the public input of the 'old private data tree root' to be the computed root (if it hasn't already been set); otherwise constrain equality with the previously-set value.
-        //     if context.old_private_data_tree_root == 0 {
-        //         context.old_private_data_tree_root = root;
+        //     if context.private_data_tree_root == 0 {
+        //         context.private_data_tree_root = root;
         //     } else {
-        //         constrain context.old_private_data_tree_root == root;
+        //         constrain context.private_data_tree_root == root;
         //     }
         // };
         // process_data(note_getter_data.0, storage_slot, contract_address);
         // process_data(note_getter_data.1, storage_slot, contract_address);
 
-        constrain note_getter_data.0.root == inputs.old_private_data_tree_root;
-        constrain note_getter_data.1.root == inputs.old_private_data_tree_root;
+        constrain note_getter_data.0.root == inputs.roots.private_data_tree_root;
+        constrain note_getter_data.1.root == inputs.roots.private_data_tree_root;
 
         let notes = (note_getter_data.0.note, note_getter_data.1.note);
 
@@ -88,7 +88,7 @@ impl Set {
     }
 
 
-    fn remove(self, inputs: Inputs, mut context: PrivateFunctionContext, note: Note) -> PrivateFunctionContext {
+    fn remove(self, inputs: PrivateContextInputs, mut context: PrivateFunctionContext, note: Note) -> PrivateFunctionContext {
         let contract_address = inputs.call_context.storage_contract_address;
         let storage_slot = self.storage_slot;
 

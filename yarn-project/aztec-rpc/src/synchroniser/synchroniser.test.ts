@@ -56,7 +56,7 @@ describe('Synchroniser', () => {
 
     await synchroniser.initialSync();
 
-    expect(await database.getTreeRoots()).toEqual(roots);
+    expect(database.getTreeRoots()).toEqual(roots);
   });
 
   it('sets tree roots from latest block', async () => {
@@ -68,7 +68,7 @@ describe('Synchroniser', () => {
 
     await synchroniser.work();
 
-    const roots = await database.getTreeRoots();
+    const roots = database.getTreeRoots();
     expect(roots[MerkleTreeId.CONTRACT_TREE]).toEqual(block.endContractTreeSnapshot.root);
   });
 
@@ -78,7 +78,7 @@ describe('Synchroniser', () => {
     aztecNode.getTreeRoots.mockResolvedValue(roots);
 
     await synchroniser.initialSync();
-    const roots0 = await database.getTreeRoots();
+    const roots0 = database.getTreeRoots();
     expect(roots0[MerkleTreeId.CONTRACT_TREE]).toEqual(roots[MerkleTreeId.CONTRACT_TREE]);
 
     // We then process block with height 1, this should not change tree roots
@@ -89,7 +89,7 @@ describe('Synchroniser', () => {
     aztecNode.getEncryptedLogs.mockResolvedValue([block1.newEncryptedLogs!]);
 
     await synchroniser.work();
-    const roots1 = await database.getTreeRoots();
+    const roots1 = database.getTreeRoots();
     expect(roots1[MerkleTreeId.CONTRACT_TREE]).toEqual(roots[MerkleTreeId.CONTRACT_TREE]);
     expect(roots1[MerkleTreeId.CONTRACT_TREE]).not.toEqual(block1.endContractTreeSnapshot.root);
 
@@ -100,7 +100,7 @@ describe('Synchroniser', () => {
     ]);
 
     await synchroniser.work();
-    const roots5 = await database.getTreeRoots();
+    const roots5 = database.getTreeRoots();
     expect(roots5[MerkleTreeId.CONTRACT_TREE]).not.toEqual(roots[MerkleTreeId.CONTRACT_TREE]);
     expect(roots5[MerkleTreeId.CONTRACT_TREE]).toEqual(block5.endContractTreeSnapshot.root);
   });

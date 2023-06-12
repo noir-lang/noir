@@ -21,6 +21,6 @@ export interface Database extends ContractDatabase {
   addTxAuxDataBatch(txAuxDataDaos: TxAuxDataDao[]): Promise<void>;
   removeNullifiedTxAuxData(nullifiers: Fr[], account: Point): Promise<TxAuxDataDao[]>;
 
-  getTreeRoots(): Promise<Record<MerkleTreeId, Fr>>;
+  getTreeRoots(): Record<MerkleTreeId, Fr>;
   setTreeRoots(roots: Record<MerkleTreeId, Fr>): Promise<void>;
 }

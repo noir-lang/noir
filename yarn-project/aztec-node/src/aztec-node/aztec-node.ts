@@ -88,6 +88,13 @@ export interface AztecNode {
   getContractPath(leafIndex: bigint): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>>;
 
   /**
+   * Find the index of the given commitment.
+   * @param leafValue - The value to search for.
+   * @returns The index of the given leaf of undefined if not found.
+   */
+  findCommitmentIndex(leafValue: Buffer): Promise<bigint | undefined>;
+
+  /**
    * Returns the sibling path for the given index in the data tree.
    * @param leafIndex - The index of the leaf for which the sibling path is required.
    * @returns The sibling path for the leaf index.

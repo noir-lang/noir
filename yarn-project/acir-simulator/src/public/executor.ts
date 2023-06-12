@@ -1,10 +1,10 @@
-import { AztecAddress, CallContext, EthAddress, Fr, FunctionData } from '@aztec/circuits.js';
+import { AztecAddress, CallContext, EthAddress, Fr, FunctionData, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { TxExecutionRequest } from '@aztec/types';
 import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-lang/noir_util_wasm';
 import { acvm, frToAztecAddress, frToSelector, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
-import { PublicContractsDB, PublicStateDB } from './db.js';
+import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution, PublicExecutionResult } from './execution.js';
 import { ContractStorageActionsCollector } from './state_actions.js';
 
@@ -15,12 +15,17 @@ const NOIR_MAX_RETURN_VALUES = 4;
  * Handles execution of public functions.
  */
 export class PublicExecutor {
+  private treeRoots: PrivateHistoricTreeRoots;
   constructor(
     private readonly stateDb: PublicStateDB,
     private readonly contractsDb: PublicContractsDB,
+    private readonly commitmentsDb: CommitmentsDB,
 
     private log = createDebugLogger('aztec:simulator:public-executor'),
-  ) {}
+  ) {
+    // Store the tree roots on instantiation.
+    this.treeRoots = this.commitmentsDb.getTreeRoots();
+  }
 
   /**
    * Executes a public execution request.
@@ -35,7 +40,7 @@ export class PublicExecutor {
     const acir = await this.contractsDb.getBytecode(execution.contractAddress, selector);
     if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toShortString()}:${selectorHex}`);
 
-    const initialWitness = getInitialWitness(execution.args, execution.callContext);
+    const initialWitness = getInitialWitness(execution.args, execution.callContext, this.treeRoots);
     const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);
     const nestedExecutions: PublicExecutionResult[] = [];
 
@@ -52,8 +57,7 @@ export class PublicExecutor {
       emitEncryptedLog: notAvailable,
       viewNotesPage: notAvailable,
       debugLog: notAvailable,
-      // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616
-      getL1ToL2Message: notAvailable,
+      getL1ToL2Message: notAvailable, // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616
       storageRead: async ([slot]) => {
         const storageSlot = fromACVMField(slot);
         const value = await storageActions.read(storageSlot);
@@ -144,7 +148,12 @@ export class PublicExecutor {
  * @param witnessStartIndex - The index where to start inserting the parameters.
  * @returns The initial witness.
  */
-function getInitialWitness(args: Fr[], callContext: CallContext, witnessStartIndex = 1) {
+function getInitialWitness(
+  args: Fr[],
+  callContext: CallContext,
+  commitmentTreeRoots: PrivateHistoricTreeRoots,
+  witnessStartIndex = 1,
+) {
   return toACVMWitness(witnessStartIndex, [
     callContext.isContractDeployment,
     callContext.isDelegateCall,
@@ -152,6 +161,12 @@ function getInitialWitness(args: Fr[], callContext: CallContext, witnessStartInd
     callContext.msgSender,
     callContext.portalContractAddress,
     callContext.storageContractAddress,
+
+    commitmentTreeRoots.contractTreeRoot,
+    commitmentTreeRoots.l1ToL2MessagesTreeRoot,
+    commitmentTreeRoots.nullifierTreeRoot,
+    commitmentTreeRoots.privateDataTreeRoot,
+
     ...args,
   ]);
 }

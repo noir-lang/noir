@@ -29,7 +29,15 @@ import { computeCallStackItemHash, computeVarArgsHash } from '@aztec/circuits.js
 import { isArrayEmpty, padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Tuple, mapTuple } from '@aztec/foundation/serialize';
-import { ContractDataSource, MerkleTreeId, PrivateTx, PublicTx, SignedTxExecutionRequest, Tx } from '@aztec/types';
+import {
+  ContractDataSource,
+  L1ToL2MessageSource,
+  MerkleTreeId,
+  PrivateTx,
+  PublicTx,
+  SignedTxExecutionRequest,
+  Tx,
+} from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 import { getVerificationKeys } from '../index.js';
 import { EmptyPublicProver } from '../prover/empty.js';
@@ -44,7 +52,11 @@ import { getCombinedHistoricTreeRoots } from './utils.js';
  * Creates new instances of PublicProcessor given the provided merkle tree db and contract data source.
  */
 export class PublicProcessorFactory {
-  constructor(private merkleTree: MerkleTreeOperations, private contractDataSource: ContractDataSource) {}
+  constructor(
+    private merkleTree: MerkleTreeOperations,
+    private contractDataSource: ContractDataSource,
+    private l1Tol2MessagesDataSource: L1ToL2MessageSource,
+  ) {}
 
   /**
    * Creates a new instance of a PublicProcessor.
@@ -53,7 +65,7 @@ export class PublicProcessorFactory {
   public create() {
     return new PublicProcessor(
       this.merkleTree,
-      getPublicExecutor(this.merkleTree, this.contractDataSource),
+      getPublicExecutor(this.merkleTree, this.contractDataSource, this.l1Tol2MessagesDataSource),
       new WasmPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
       this.contractDataSource,

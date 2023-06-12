@@ -43,7 +43,7 @@ export class SequencerClient {
       new EmptyRollupProver(),
     );
 
-    const publicProcessorFactory = new PublicProcessorFactory(merkleTreeDb, contractDataSource);
+    const publicProcessorFactory = new PublicProcessorFactory(merkleTreeDb, contractDataSource, l1ToL2MessageSource);
 
     const sequencer = new Sequencer(
       publisher,

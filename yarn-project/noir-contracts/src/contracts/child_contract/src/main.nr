@@ -1,20 +1,20 @@
 contract Child {
     use dep::aztec3::abi;
-    use dep::aztec3::abi::Inputs;
-    use dep::aztec3::abi::CallContext;
+    use dep::aztec3::abi::PrivateContextInputs;
+    use dep::aztec3::abi::PublicContextInputs;
     use dep::aztec3::context::PrivateFunctionContext;
     use dep::aztec3::state_vars::storage_field::StorageField;
 
     global current_value = StorageField{ storage_slot: 1 };
 
     fn constructor(
-        inputs: pub Inputs,
+        inputs: pub PrivateContextInputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         PrivateFunctionContext::new().finish(inputs)
     }
 
     fn value(
-        inputs: pub Inputs,
+        inputs: pub PrivateContextInputs,
         input: pub Field,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
@@ -28,12 +28,12 @@ contract Child {
     // Nested public functions always get called with MAX_ARGS, since we don't have the ABI available
     // during execution time to know how many args are expected, hence the _padding argument. We should
     // be able to remove it when we migrate to brillig.
-    open fn pubValue(_call_context: CallContext, base_value: Field, _padding: [Field; dep::aztec3::abi::MAX_ARGS - 1]) -> pub Field {
+    open fn pubValue(_inputs: PublicContextInputs, base_value: Field, _padding: [Field; dep::aztec3::abi::MAX_ARGS - 1]) -> pub Field {
         base_value + 42
     }
 
     // Same as above, we need the padding argument for open functions.
-    open fn pubStoreValue(_call_context: CallContext, new_value: Field, _padding: [Field; dep::aztec3::abi::MAX_ARGS - 1]) -> pub Field {
+    open fn pubStoreValue(_inputs: PublicContextInputs, new_value: Field, _padding: [Field; dep::aztec3::abi::MAX_ARGS - 1]) -> pub Field {
         // Compiler complains if we don't assign the result to anything
         let old_value = current_value.read();
         let _void1 = current_value.write(old_value + new_value);

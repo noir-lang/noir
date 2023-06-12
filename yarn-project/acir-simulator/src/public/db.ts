@@ -1,6 +1,7 @@
-import { EthAddress } from '@aztec/circuits.js';
+import { EthAddress, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
+import { CommitmentDataOracleInputs, MessageLoadOracleInputs } from '../index.js';
 
 /**
  * Database interface for providing access to public state.
@@ -41,4 +42,11 @@ export interface PublicContractsDB {
    * @returns The portal contract address or undefined if not found.
    */
   getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined>;
+}
+
+/** Database interface for providing access to commitment tree and l1 to l2 messages tree (append only data trees). */
+export interface CommitmentsDB {
+  getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs>;
+  getCommitmentOracle(address: AztecAddress, msgKey: Fr): Promise<CommitmentDataOracleInputs>;
+  getTreeRoots(): PrivateHistoricTreeRoots;
 }

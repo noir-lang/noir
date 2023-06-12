@@ -25,6 +25,7 @@ import {
 } from '@aztec/merkle-tree';
 import { default as levelup } from 'levelup';
 import {
+  CurrentCommitmentTreeRoots,
   INITIAL_NULLIFIER_TREE_SIZE,
   IndexedTreeId,
   MerkleTreeDb,
@@ -189,6 +190,27 @@ export class MerkleTrees implements MerkleTreeDb {
    */
   public async getTreeInfo(treeId: MerkleTreeId, includeUncommitted: boolean): Promise<TreeInfo> {
     return await this.synchronise(() => this._getTreeInfo(treeId, includeUncommitted));
+  }
+
+  /**
+   * Get the current roots of the commitment trees.
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
+   * @returns The current roots of the trees.
+   */
+  public getCommitmentTreeRoots(includeUncommitted: boolean): CurrentCommitmentTreeRoots {
+    const roots = [
+      MerkleTreeId.PRIVATE_DATA_TREE,
+      MerkleTreeId.CONTRACT_TREE,
+      MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
+      MerkleTreeId.NULLIFIER_TREE,
+    ].map(tree => this.trees[tree].getRoot(includeUncommitted));
+
+    return {
+      privateDataTreeRoot: roots[0],
+      contractDataTreeRoot: roots[1],
+      l1Tol2MessagesTreeRoot: roots[2],
+      nullifierTreeRoot: roots[3],
+    };
   }
 
   /**

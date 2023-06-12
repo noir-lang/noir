@@ -9,7 +9,6 @@ use crate::utils::arr_copy_slice;
 // oracles
 use crate::oracle::enqueue_public_function_call::enqueue_public_function_call_internal;
 
-
 struct PublicCallStackItem {
     contract_address: Field,
     function_data: FunctionData,
@@ -49,11 +48,13 @@ impl PublicCallStackItem {
                 new_commitments: [0; crate::abi::MAX_NEW_COMMITMENTS],
                 new_nullifiers: [0; crate::abi::MAX_NEW_NULLIFIERS],
                 new_l2_to_l1_msgs:[0; crate::abi::MAX_L2_TO_L1_MSGS],
+                commitment_trees_roots: crate::abi::empty_commitment_trees_roots(),
                 historic_public_data_tree_root: 0,
                 prover_address: 0,
             },
             is_execution_request: true,
         };
+
         constrain contract_address == item.contract_address;
         constrain function_selector == item.function_data.function_selector;
         

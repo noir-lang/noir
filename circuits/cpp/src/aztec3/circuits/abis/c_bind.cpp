@@ -322,6 +322,11 @@ WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preima
 }
 
 /**
+ * @brief Generates a siloed commitment tree leaf from the contract and the commitment.
+ */
+CBIND(abis__silo_commitment, aztec3::circuits::silo_commitment<NT>);
+
+/**
  * @brief Generates a signed tx request hash from it's pre-image
  * This is a WASM-export that can be called from Typescript.
  *

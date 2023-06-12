@@ -10,7 +10,7 @@ import {
   privateKernelSimInner,
   privateKernelSimInit,
 } from '@aztec/circuits.js';
-import { pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
+import { siloCommitment } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
@@ -39,8 +39,6 @@ export interface ProofCreator {
   createProofInner(previousKernelData: PreviousKernelData, privateCallData: PrivateCallData): Promise<ProofOutput>;
 }
 
-const OUTER_COMMITMENT = 3;
-
 /**
  * The KernelProofCreator class is responsible for generating siloed commitments and zero-knowledge proofs
  * for private kernel circuit. It leverages Barretenberg and Circuits Wasm libraries
@@ -58,14 +56,10 @@ export class KernelProofCreator {
    * @returns An array of Fr (finite field) elements representing the siloed commitments.
    */
   public async getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
-    const bbWasm = await CircuitsWasm.get();
-    const contractAddress = publicInputs.callContext.storageContractAddress.toBuffer();
-    // TODO
-    // Should match `add_contract_address_to_commitment` in hash.hpp.
-    // Should use a function exported from circuits.js.
-    return publicInputs.newCommitments.map(commitment =>
-      Fr.fromBuffer(pedersenCompressWithHashIndex(bbWasm, [contractAddress, commitment.toBuffer()], OUTER_COMMITMENT)),
-    );
+    const wasm = await CircuitsWasm.get();
+    const contractAddress = publicInputs.callContext.storageContractAddress;
+
+    return publicInputs.newCommitments.map(commitment => siloCommitment(wasm, contractAddress, commitment));
   }
 
   /**

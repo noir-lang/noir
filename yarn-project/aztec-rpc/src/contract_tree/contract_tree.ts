@@ -198,7 +198,7 @@ export class ContractTree {
     const vkHash = hashVKStr(constructorAbi.verificationKey, wasm);
     const argsHash = await computeVarArgsHash(wasm, args);
     const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);
-    const address = await computeContractAddress(wasm, from, contractAddressSalt, root, constructorHash);
+    const address = computeContractAddress(wasm, from, contractAddressSalt, root, constructorHash);
     const contractDao: ContractDao = {
       ...abi,
       address,

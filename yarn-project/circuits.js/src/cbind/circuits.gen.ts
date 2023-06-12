@@ -1279,21 +1279,18 @@ export function fromCircuitError(o: CircuitError): MsgpackCircuitError {
   };
 }
 
-export async function abisComputeContractAddress(
-  wasm: IWasmModule,
-  arg0: Address,
-  arg1: Fr,
-  arg2: Fr,
-  arg3: Fr,
-): Promise<Address> {
+export function abisComputeContractAddress(wasm: IWasmModule, arg0: Address, arg1: Fr, arg2: Fr, arg3: Fr): Address {
   return Address.fromBuffer(
-    await callCbind(wasm, 'abis__compute_contract_address', [
+    callCbind(wasm, 'abis__compute_contract_address', [
       arg0.toBuffer(),
       arg1.toBuffer(),
       arg2.toBuffer(),
       arg3.toBuffer(),
     ]),
   );
+}
+export function abisSiloCommitment(wasm: IWasmModule, arg0: Address, arg1: Fr): Fr {
+  return Fr.fromBuffer(callCbind(wasm, 'abis__silo_commitment', [arg0.toBuffer(), arg1.toBuffer()]));
 }
 export function privateKernelDummyPreviousKernel(wasm: IWasmModule): PreviousKernelData {
   return toPreviousKernelData(callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));

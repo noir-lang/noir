@@ -1,3 +1,5 @@
+#include "aztec3/circuits/hash.hpp"
+
 #include <barretenberg/barretenberg.hpp>
 
 #include <algorithm>
@@ -22,6 +24,7 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* func_data_buf,
                                         uint8_t* output);
 
 CBIND_DECL(abis__compute_contract_address);
+CBIND_DECL(abis__silo_commitment);
 
 WASM_EXPORT void abis__compute_message_secret_hash(uint8_t const* secret, uint8_t* output);
 WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preimage_buf, uint8_t* output);

@@ -53,6 +53,20 @@ type WithIncludeUncommitted<F> = F extends (...args: [...infer Rest]) => infer R
   : F;
 
 /**
+ * The current roots of the commitment trees
+ */
+export type CurrentCommitmentTreeRoots = {
+  /** Private data tree root. */
+  privateDataTreeRoot: Buffer;
+  /** Contract data tree root. */
+  contractDataTreeRoot: Buffer;
+  /** L1 to L2 Messages data tree root. */
+  l1Tol2MessagesTreeRoot: Buffer;
+  /** Nullifier data tree root. */
+  nullifierTreeRoot: Buffer;
+};
+
+/**
  * Defines the names of the setters on Merkle Trees.
  */
 type MerkleTreeSetters = 'appendLeaves' | 'updateLeaf' | 'commit' | 'rollback' | 'handleL2Block' | 'batchInsert';
@@ -82,6 +96,11 @@ export interface MerkleTreeOperations {
    * @param treeId - The tree to be queried.
    */
   getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo>;
+
+  /**
+   * Gets the current roots of the commitment trees.
+   */
+  getCommitmentTreeRoots(): CurrentCommitmentTreeRoots;
 
   /**
    * Gets sibling path for a leaf.

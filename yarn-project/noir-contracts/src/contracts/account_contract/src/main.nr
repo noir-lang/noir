@@ -4,7 +4,7 @@ contract Account {
 
     use dep::std;
     use dep::aztec3::abi;
-    use dep::aztec3::abi::Inputs;
+    use dep::aztec3::abi::PrivateContextInputs;
     use dep::aztec3::abi::CallContext;
     use dep::aztec3::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec3::public_call_stack_item::PublicCallStackItem;
@@ -17,7 +17,7 @@ contract Account {
     global pub_key_y: [u8;32] = [0x35,0x47,0xF1,0x1C,0xA8,0x69,0x66,0x46,0xF2,0xF3,0xAC,0xB0,0x8E,0x31,0x01,0x6A,0xFA,0xC2,0x3E,0x63,0x0C,0x5D,0x11,0xF5,0x9F,0x61,0xFE,0xF5,0x7B,0x0D,0x2A,0xA5];
 
     fn entrypoint(
-        inputs: pub Inputs,
+        inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload,
         // TODO(#706): Compress signature as 3 fields
         signature: pub [u8;64]
@@ -82,7 +82,7 @@ contract Account {
     }
 
     fn constructor(
-        inputs: pub Inputs,
+        inputs: pub PrivateContextInputs,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         PrivateFunctionContext::new().finish(inputs)
     }

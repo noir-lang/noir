@@ -139,6 +139,16 @@ export function appFactory(node: AztecNode, prefix: string) {
     ctx.status = 200;
   });
 
+  router.get('/commitment-index', async (ctx: Koa.Context) => {
+    const leaf = ctx.query.leaf!;
+    const index = await node.findCommitmentIndex(Buffer.from(leaf as string, 'hex'));
+    ctx.set('content-type', 'application/json');
+    ctx.body = {
+      index,
+    };
+    ctx.status = 200;
+  });
+
   router.get('/data-path', async (ctx: Koa.Context) => {
     const leaf = ctx.query.leaf!;
     const index = BigInt(leaf as string);

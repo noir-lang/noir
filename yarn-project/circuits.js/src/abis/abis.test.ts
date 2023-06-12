@@ -75,12 +75,12 @@ describe('abis wasm bindings', () => {
     expect(res).toMatchSnapshot();
   });
 
-  it('computes a contract address', async () => {
+  it('computes a contract address', () => {
     const deployerAddr = makeAztecAddress(1);
     const contractAddrSalt = new Fr(2n);
     const treeRoot = new Fr(3n);
     const constructorHash = makeBytes();
-    const res = await computeContractAddress(wasm, deployerAddr, contractAddrSalt, treeRoot, constructorHash);
+    const res = computeContractAddress(wasm, deployerAddr, contractAddrSalt, treeRoot, constructorHash);
     expect(res).toMatchSnapshot();
   });
 

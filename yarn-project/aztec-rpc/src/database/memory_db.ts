@@ -148,12 +148,12 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
    * and their corresponding Fr values as roots. Throws an error if the tree roots are not set in the
    * memory database.
    *
-   * @returns A Promise that resolves to an object containing the Merkle tree roots for each merkle tree id.
+   * @returns An object containing the Merkle tree roots for each merkle tree id.
    */
-  public getTreeRoots(): Promise<Record<MerkleTreeId, Fr>> {
+  public getTreeRoots(): Record<MerkleTreeId, Fr> {
     const roots = this.treeRoots;
     if (!roots) throw new Error(`Tree roots not set in memory database`);
-    return Promise.resolve(roots);
+    return roots;
   }
 
   /**

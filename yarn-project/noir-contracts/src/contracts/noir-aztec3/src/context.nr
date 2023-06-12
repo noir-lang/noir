@@ -10,7 +10,7 @@ use crate::messaging::l1_to_l2_message_getter_data::make_l1_to_l2_message_getter
 
 // When finished, one can call .finish() to convert back to the abi
 struct PrivateFunctionContext {
-    // inputs: abi::Inputs,
+    // inputs: abi::PrivateContextInputs,
     args : BoundedVec<Field, abi::MAX_ARGS>,
     return_values : BoundedVec<Field, abi::MAX_RETURN_VALUES>,
 
@@ -29,7 +29,7 @@ struct PrivateFunctionContext {
 }
 
 impl PrivateFunctionContext {
-    // fn new(inputs: abi::Inputs) -> PrivateFunctionContext {
+    // fn new(inputs: abi::PrivateContextInputs) -> PrivateFunctionContext {
     fn new() -> PrivateFunctionContext {
         PrivateFunctionContext {
             // inputs: inputs,
@@ -52,7 +52,7 @@ impl PrivateFunctionContext {
     }
 
     // When noir uses user-defined serialization of fields, we can return public inputs instead
-    fn finish(self, inputs: abi::Inputs) -> [Field; abi::PUBLIC_INPUTS_LENGTH] {
+    fn finish(self, inputs: abi::PrivateContextInputs) -> [Field; abi::PUBLIC_INPUTS_LENGTH] {
         // TODO hash_index
         let args_hash = dep::std::hash::pedersen(self.args.storage)[0];
 
@@ -70,10 +70,7 @@ impl PrivateFunctionContext {
             // unencrypted_logs_hash: self.unencrypted_logs_hash.storage,
             // encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             // unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            historic_private_data_tree_root: inputs.old_private_data_tree_root,
-            historic_private_nullifier_tree_root: inputs.old_nullifier_tree_root,
-            historic_contract_tree_root: inputs.old_contract_tree_root,
-            historic_l1_to_l2_messages_tree_root: inputs.old_l1_to_l2_messages_tree_root,
+            commitment_trees_roots: inputs.roots,
             contract_deployment_data: inputs.contract_deployment_data,
         };
         priv_circuit_pub_inputs.serialize()
@@ -94,14 +91,14 @@ impl PrivateFunctionContext {
         self
     }
 
-    // Inputs must be temporarily passed in to prevent too many unknowns
+    // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
-    fn consume_l1_to_l2_message(mut self: Self, inputs: abi::Inputs, msg_key: Field, content: Field, secret: Field) -> PrivateFunctionContext {
+    fn consume_l1_to_l2_message(mut self: Self, inputs: abi::PrivateContextInputs, msg_key: Field, content: Field, secret: Field) -> PrivateFunctionContext {
         let returned_message = get_l1_to_l2_message_call(msg_key);
         let l1_to_l2_message_data = make_l1_to_l2_message_getter_data(returned_message, 0, secret);
 
         // Check tree roots against the inputs 
-        constrain l1_to_l2_message_data.root == inputs.old_l1_to_l2_messages_tree_root;
+        constrain l1_to_l2_message_data.root == inputs.roots.l1_to_l2_messages_tree_root;
 
         // Validate this is the target contract
         constrain l1_to_l2_message_data.message.recipient == inputs.call_context.storage_contract_address;

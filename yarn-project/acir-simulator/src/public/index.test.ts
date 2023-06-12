@@ -1,4 +1,5 @@
-import { CallContext, CircuitsWasm, FunctionData } from '@aztec/circuits.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { CallContext, FunctionData, CircuitsWasm, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -8,12 +9,11 @@ import { MockProxy, mock } from 'jest-mock-extended';
 import { default as memdown, type MemDown } from 'memdown';
 import { encodeArguments } from '../abi_coder/encoder.js';
 import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
-import { PublicContractsDB, PublicStateDB } from './db.js';
+import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution } from './execution.js';
 import { PublicExecutor } from './executor.js';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { keccak } from '@aztec/foundation/crypto';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -21,6 +21,7 @@ describe('ACIR public execution simulator', () => {
   let bbWasm: CircuitsWasm;
   let publicState: MockProxy<PublicStateDB>;
   let publicContracts: MockProxy<PublicContractsDB>;
+  let commitmentsDb: MockProxy<CommitmentsDB>;
   let executor: PublicExecutor;
 
   beforeAll(async () => {
@@ -30,8 +31,10 @@ describe('ACIR public execution simulator', () => {
   beforeEach(() => {
     publicState = mock<PublicStateDB>();
     publicContracts = mock<PublicContractsDB>();
+    commitmentsDb = mock<CommitmentsDB>();
 
-    executor = new PublicExecutor(publicState, publicContracts);
+    commitmentsDb.getTreeRoots.mockReturnValue(PrivateHistoricTreeRoots.empty());
+    executor = new PublicExecutor(publicState, publicContracts, commitmentsDb);
   });
 
   describe('PublicToken contract', () => {

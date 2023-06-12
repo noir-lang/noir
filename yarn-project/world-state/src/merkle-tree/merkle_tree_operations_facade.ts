@@ -1,4 +1,4 @@
-import { LeafData, MerkleTreeDb, TreeInfo, MerkleTreeOperations } from '../index.js';
+import { LeafData, MerkleTreeDb, TreeInfo, MerkleTreeOperations, CurrentCommitmentTreeRoots } from '../index.js';
 import { L2Block, MerkleTreeId } from '@aztec/types';
 import { LowLeafWitnessData, SiblingPath } from '@aztec/merkle-tree';
 
@@ -16,6 +16,14 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    */
   getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo> {
     return this.trees.getTreeInfo(treeId, this.includeUncommitted);
+  }
+
+  /**
+   * Get the current roots of the commitment trees.
+   * @returns The current roots of the trees.
+   */
+  getCommitmentTreeRoots(): CurrentCommitmentTreeRoots {
+    return this.trees.getCommitmentTreeRoots(this.includeUncommitted);
   }
 
   /**

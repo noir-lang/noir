@@ -54,7 +54,10 @@ export class Synchroniser {
   }
 
   protected async initialSync() {
-    const [blockNumber, treeRoots] = await Promise.all([this.node.getBlockHeight(), this.node.getTreeRoots()]);
+    const [blockNumber, treeRoots] = await Promise.all([
+      this.node.getBlockHeight(),
+      Promise.resolve(this.node.getTreeRoots()),
+    ]);
     this.initialSyncBlockHeight = blockNumber;
     await this.db.setTreeRoots(treeRoots);
   }
