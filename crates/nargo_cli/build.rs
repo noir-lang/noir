@@ -15,6 +15,9 @@ fn check_rustc_version() {
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
+    // Rebuild if the tests have changed
+    println!("cargo:rerun-if-changed=tests");
+
     check_rustc_version();
 
     // Only use build_data if the environment variable isn't set
@@ -89,7 +92,7 @@ fn generate_tests(test_file: &mut File, experimental_ssa: bool) {
             r#"
 {exclude_macro}
 #[test]
-fn prove_and_verify_{test_name}() {{
+fn prove_and_verify_{test_sub_dir}_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let verified = std::panic::catch_unwind(|| {{

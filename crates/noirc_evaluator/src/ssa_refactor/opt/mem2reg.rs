@@ -9,7 +9,8 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction, InstructionId},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        types::Type,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -66,7 +67,7 @@ struct PerBlockContext {
     last_stores: BTreeMap<Address, ValueId>,
     store_ids: Vec<InstructionId>,
     failed_substitutes: BTreeSet<Address>,
-    alloc_ids_in_calls: BTreeSet<InstructionId>,
+    alloc_ids_used_externally: BTreeSet<InstructionId>,
 }
 
 impl PerBlockContext {
@@ -76,7 +77,7 @@ impl PerBlockContext {
             last_stores: BTreeMap::new(),
             store_ids: Vec::new(),
             failed_substitutes: BTreeSet::new(),
-            alloc_ids_in_calls: BTreeSet::new(),
+            alloc_ids_used_externally: BTreeSet::new(),
         }
     }
 
@@ -111,12 +112,21 @@ impl PerBlockContext {
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
                         if let Some(address) = self.try_const_address(*arg, dfg) {
-                            self.alloc_ids_in_calls.insert(address.alloc_id());
+                            self.alloc_ids_used_externally.insert(address.alloc_id());
                         }
                     }
                 }
                 _ => {
                     // Nothing to do
+                }
+            }
+        }
+
+        // Identify any arrays that are returned from this function
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
+            for value in return_values {
+                if let Some(address) = self.try_const_address(*value, dfg) {
+                    self.alloc_ids_used_externally.insert(address.alloc_id());
                 }
             }
         }
@@ -149,7 +159,7 @@ impl PerBlockContext {
 
             if let Some(address) = self.try_const_address(address, dfg) {
                 if !self.failed_substitutes.contains(&address)
-                    && !self.alloc_ids_in_calls.contains(&address.alloc_id())
+                    && !self.alloc_ids_used_externally.contains(&address.alloc_id())
                 {
                     stores_to_remove.push(*instruction_id);
                 }
@@ -165,6 +175,9 @@ impl PerBlockContext {
 
     // Attempts to normalize the given value into a const address
     fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
+        if dfg.type_of_value(value_id) != Type::Reference {
+            return None;
+        }
         let value = &dfg[value_id];
         let instruction_id = match value {
             Value::Instruction { instruction, .. } => *instruction,
@@ -172,7 +185,10 @@ impl PerBlockContext {
         };
         let instruction = &dfg[instruction_id];
         match instruction {
-            Instruction::Allocate { .. } => Some(Address::Zeroth(instruction_id)),
+            // Arrays can be returned by allocations and function calls
+            Instruction::Allocate { .. } | Instruction::Call { .. } => {
+                Some(Address::Zeroth(instruction_id))
+            }
             Instruction::Binary(binary) => {
                 if binary.operator != BinaryOp::Add {
                     return None;
@@ -210,14 +226,17 @@ impl PerBlockContext {
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use acvm::FieldElement;
+    use im::vector;
 
     use crate::ssa_refactor::{
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
             function::RuntimeType,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+            instruction::{Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
         },
@@ -228,25 +247,30 @@ mod tests {
     fn test_simple() {
         // fn func() {
         //   b0():
-        //     v0 = alloc 2
-        //     v1 = add v0, Field 1
-        //     store v1, Field 1
-        //     v2 = add v0, Field 1
-        //     v3 = load v1
-        //     return v3
+        //     v0 = allocate
+        //     store [Field 1, Field 2] in v0
+        //     v1 = load v0
+        //     v2 = array_get v1, index 1
+        //     return v2
         // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate(2);
-        let const_one = builder.field_constant(FieldElement::one());
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
-        builder.insert_store(v1, const_one);
-        // v2 is created internally by builder.insert_load
-        let v3 = builder.insert_load(v0, const_one, Type::field());
-        builder.terminate_with_return(vec![v3]);
+        let v0 = builder.insert_allocate();
+        let one = builder.field_constant(FieldElement::one());
+        let two = builder.field_constant(FieldElement::one());
 
-        let ssa = builder.finish().mem2reg();
+        let element_type = Rc::new(vec![Type::field()]);
+        let array = builder.array_constant(vector![one, two], element_type.clone());
+
+        builder.insert_store(v0, array);
+        let v1 = builder.insert_load(v0, Type::Array(element_type, 2));
+        let v2 = builder.insert_array_get(v1, one, Type::field());
+        builder.terminate_with_return(vec![v2]);
+
+        let ssa = builder.finish().mem2reg().fold_constants();
+
+        println!("{ssa}");
 
         let func = ssa.main();
         let block_id = func.entry_block();
@@ -258,33 +282,29 @@ mod tests {
             TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[const_one]);
+        assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
     }
 
     #[test]
     fn test_simple_with_call() {
         // fn func {
         //   b0():
-        //     v0 = alloc 2
-        //     v1 = add v0, Field 1
-        //     store v1, Field 1
-        //     v2 = add v0, Field 1
-        //     v3 = load v1
-        //     v4 = call f0, v0
-        //     return v3
+        //     v0 = allocate
+        //     store v0, Field 1
+        //     v1 = load v0
+        //     v2 = call f0(v0)
+        //     return v1
         // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate(2);
-        let const_one = builder.field_constant(FieldElement::one());
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, const_one);
-        builder.insert_store(v1, const_one);
-        // v2 is created internally by builder.insert_load
-        let v3 = builder.insert_load(v0, const_one, Type::field());
+        let v0 = builder.insert_allocate();
+        let one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, one);
+        let v1 = builder.insert_load(v0, Type::field());
         let f0 = builder.import_intrinsic_id(Intrinsic::Println);
         builder.insert_call(f0, vec![v0], vec![Type::Unit]);
-        builder.terminate_with_return(vec![v3]);
+        builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish().mem2reg();
 
@@ -298,7 +318,38 @@ mod tests {
             TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[const_one]);
+        assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
+    }
+
+    #[test]
+    fn test_simple_with_return() {
+        // fn func {
+        //   b0():
+        //     v0 = allocate
+        //     store v0, Field 1
+        //     return v0
+        // }
+
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let v0 = builder.insert_allocate();
+        let const_one = builder.field_constant(FieldElement::one());
+        builder.insert_store(v0, const_one);
+        builder.terminate_with_return(vec![v0]);
+
+        let ssa = builder.finish().mem2reg();
+
+        let func = ssa.main();
+        let block_id = func.entry_block();
+
+        // Store affects outcome of returned array, and can't be removed
+        assert_eq!(count_stores(block_id, &func.dfg), 1);
+
+        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
+            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            _ => unreachable!(),
+        };
+        assert_eq!(func.dfg[*ret_val_id], func.dfg[v0]);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -322,36 +373,35 @@ mod tests {
     fn multiple_blocks() {
         // fn main {
         //   b0():
-        //     v0 = alloc 1
-        //     store v0, Field 5
+        //     v0 = allocate
+        //     store Field 5 in v0
         //     v1 = load v0
         //     jmp b1(v1):
         //   b1(v2: Field):
         //     v3 = load v0
-        //     store v0, Field 6
+        //     store Field 6 in v0
         //     v4 = load v0
         //     return v2, v3, v4
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate(1);
+        let v0 = builder.insert_allocate();
 
         let five = builder.field_constant(5u128);
         builder.insert_store(v0, five);
 
-        let zero = builder.field_constant(0u128);
-        let v1 = builder.insert_load(v0, zero, Type::field());
+        let v1 = builder.insert_load(v0, Type::field());
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![v1]);
 
         builder.switch_to_block(b1);
         let v2 = builder.add_block_parameter(b1, Type::field());
-        let v3 = builder.insert_load(v0, zero, Type::field());
+        let v3 = builder.insert_load(v0, Type::field());
 
         let six = builder.field_constant(6u128);
         builder.insert_store(v0, six);
-        let v4 = builder.insert_load(v0, zero, Type::field());
+        let v4 = builder.insert_load(v0, Type::field());
 
         builder.terminate_with_return(vec![v2, v3, v4]);
 
@@ -361,7 +411,7 @@ mod tests {
         // Expected result:
         // fn main {
         //   b0():
-        //     v0 = alloc 1
+        //     v0 = allocate
         //     store v0, Field 5
         //     jmp b1(Field 5):  // Optimized to constant 5
         //   b1(v2: Field):

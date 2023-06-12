@@ -203,10 +203,14 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, *typ)
+                self.context.builder.numeric_constant(*constant, typ.clone())
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::Array { array, element_type } => {
+                let elements = array.iter().map(|value| self.translate_value(*value)).collect();
+                self.context.builder.array_constant(elements, element_type.clone())
+            }
         };
 
         self.values.insert(id, new_value);
@@ -253,10 +257,7 @@ impl<'function> PerFunctionContext<'function> {
         match self.context.builder[id] {
             Value::Function(id) => Some(id),
             Value::Intrinsic(_) => None,
-            _ => {
-                self.context.failed_to_inline_a_call = true;
-                None
-            }
+            _ => None,
         }
     }
 
@@ -326,9 +327,15 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(function) => match ssa.functions[&function].runtime() {
                         RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
-                        RuntimeType::Brillig => self.push_instruction(*id),
+                        RuntimeType::Brillig => {
+                            self.context.failed_to_inline_a_call = true;
+                            self.push_instruction(*id);
+                        }
                     },
-                    None => self.push_instruction(*id),
+                    None => {
+                        self.context.failed_to_inline_a_call = true;
+                        self.push_instruction(*id);
+                    }
                 },
                 _ => self.push_instruction(*id),
             }
