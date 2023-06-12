@@ -220,8 +220,8 @@ TEST_F(UltraRelationConsistency, UltraArithmeticRelation)
 
     static const FF neg_half = FF(-2).invert();
 
-    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
-    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+    constexpr std::size_t NUM_SUBRELATIONS = std::tuple_size_v<decltype(relation)::RelationUnivariates>;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_SUBRELATIONS>();
 
     // Contribution 1
     auto contribution_1 = (q_arith - 3) * (q_m * w_2 * w_1) * neg_half;
@@ -280,8 +280,8 @@ TEST_F(UltraRelationConsistency, UltraPermutationRelation)
     const auto& lagrange_first = extended_edges.lagrange_first;
     const auto& lagrange_last = extended_edges.lagrange_last;
 
-    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
-    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+    constexpr std::size_t NUM_SUBRELATIONS = std::tuple_size_v<decltype(relation)::RelationUnivariates>;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_SUBRELATIONS>();
 
     // Compute the expected result using a simple to read version of the relation expression
 
@@ -369,8 +369,8 @@ TEST_F(UltraRelationConsistency, LookupRelation)
     auto table_accum = table_1 + table_2 * eta + table_3 * eta_sqr + table_4 * eta_cube;
     auto table_accum_shift = table_1_shift + table_2_shift * eta + table_3_shift * eta_sqr + table_4_shift * eta_cube;
 
-    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
-    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+    constexpr std::size_t NUM_SUBRELATIONS = std::tuple_size_v<decltype(relation)::RelationUnivariates>;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_SUBRELATIONS>();
 
     // Compute the expected result using a simple to read version of the relation expression
 
@@ -425,8 +425,8 @@ TEST_F(UltraRelationConsistency, GenPermSortRelation)
     auto delta_3 = w_4 - w_3;
     auto delta_4 = w_1_shift - w_4;
 
-    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
-    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+    constexpr std::size_t NUM_SUBRELATIONS = std::tuple_size_v<decltype(relation)::RelationUnivariates>;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_SUBRELATIONS>();
 
     // Compute the expected result using a simple to read version of the relation expression
     auto contribution_1 = delta_1 * (delta_1 - 1) * (delta_1 - 2) * (delta_1 - 3);
@@ -476,8 +476,8 @@ TEST_F(UltraRelationConsistency, EllipticRelation)
     const auto& q_beta_sqr = extended_edges.q_4;
     const auto& q_elliptic = extended_edges.q_elliptic;
 
-    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
-    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+    constexpr std::size_t NUM_SUBRELATIONS = std::tuple_size_v<decltype(relation)::RelationUnivariates>;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_SUBRELATIONS>();
 
     // Compute x/y coordinate identities
 
@@ -539,8 +539,8 @@ TEST_F(UltraRelationConsistency, AuxiliaryRelation)
     const auto& q_arith = extended_edges.q_arith;
     const auto& q_aux = extended_edges.q_aux;
 
-    constexpr std::size_t NUM_CONSTRAINTS = decltype(relation)::NUM_CONSTRAINTS;
-    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_CONSTRAINTS>();
+    constexpr std::size_t NUM_SUBRELATIONS = std::tuple_size_v<decltype(relation)::RelationUnivariates>;
+    auto expected_full_length_univariates = std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_SUBRELATIONS>();
 
     constexpr FF LIMB_SIZE(uint256_t(1) << 68);
     constexpr FF SUBLIMB_SHIFT(uint256_t(1) << 14);

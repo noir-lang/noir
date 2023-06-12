@@ -4,22 +4,20 @@
 
 #include "../polynomials/univariate.hpp"
 #include "relation_parameters.hpp"
+#include "relation_types.hpp"
 
 namespace proof_system::honk::sumcheck {
 
-template <typename FF> class GenPermSortRelation {
+template <typename FF> class GenPermSortRelationBase {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6; // degree(q_sort * D(D - 1)(D - 2)(D - 3)) = 5
 
-    static constexpr size_t NUM_CONSTRAINTS = 4;
-    static constexpr std::array<size_t, NUM_CONSTRAINTS> CONSTRAINT_LENGTH = { 6, 6, 6, 6 };
-
-    using RelationUnivariates = std::tuple<Univariate<FF, CONSTRAINT_LENGTH[0]>,
-                                           Univariate<FF, CONSTRAINT_LENGTH[1]>,
-                                           Univariate<FF, CONSTRAINT_LENGTH[2]>,
-                                           Univariate<FF, CONSTRAINT_LENGTH[3]>>;
-    using RelationValues = std::array<FF, NUM_CONSTRAINTS>;
+    static constexpr size_t LEN_1 = 6; // range constrain sub-relation 1
+    static constexpr size_t LEN_2 = 6; // range constrain sub-relation 2
+    static constexpr size_t LEN_3 = 6; // range constrain sub-relation 3
+    static constexpr size_t LEN_4 = 6; // range constrain sub-relation 4
+    using LENGTHS = LengthsWrapper<LEN_1, LEN_2, LEN_3, LEN_4>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -36,20 +34,22 @@ template <typename FF> class GenPermSortRelation {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    void add_edge_contribution(RelationUnivariates& evals,
-                               const auto& extended_edges,
-                               const RelationParameters<FF>&,
-                               const FF& scaling_factor) const
+    template <typename TypeMuncher>
+    void static add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulators,
+                                           const auto& extended_edges,
+                                           const RelationParameters<FF>&,
+                                           const FF& scaling_factor)
     {
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
 
-        auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_l);
-        auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_r);
-        auto w_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_o);
-        auto w_4 = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_4);
-        auto w_1_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges.w_l_shift);
-        auto q_sort = UnivariateView<FF, RELATION_LENGTH>(extended_edges.q_sort);
+        using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+        auto w_1 = View(extended_edges.w_l);
+        auto w_2 = View(extended_edges.w_r);
+        auto w_3 = View(extended_edges.w_o);
+        auto w_4 = View(extended_edges.w_4);
+        auto w_1_shift = View(extended_edges.w_l_shift);
+        auto q_sort = View(extended_edges.q_sort);
 
         static const FF minus_one = FF(-1);
         static const FF minus_two = FF(-2);
@@ -68,7 +68,7 @@ template <typename FF> class GenPermSortRelation {
         tmp_1 *= (delta_1 + minus_three);
         tmp_1 *= q_sort;
         tmp_1 *= scaling_factor;
-        std::get<0>(evals) += tmp_1;
+        std::get<0>(accumulators) += tmp_1;
 
         // Contribution (2)
         auto tmp_2 = delta_2;
@@ -77,7 +77,7 @@ template <typename FF> class GenPermSortRelation {
         tmp_2 *= (delta_2 + minus_three);
         tmp_2 *= q_sort;
         tmp_2 *= scaling_factor;
-        std::get<1>(evals) += tmp_2;
+        std::get<1>(accumulators) += tmp_2;
 
         // Contribution (3)
         auto tmp_3 = delta_3;
@@ -86,7 +86,7 @@ template <typename FF> class GenPermSortRelation {
         tmp_3 *= (delta_3 + minus_three);
         tmp_3 *= q_sort;
         tmp_3 *= scaling_factor;
-        std::get<2>(evals) += tmp_3;
+        std::get<2>(accumulators) += tmp_3;
 
         // Contribution (4)
         auto tmp_4 = delta_4;
@@ -95,64 +95,10 @@ template <typename FF> class GenPermSortRelation {
         tmp_4 *= (delta_4 + minus_three);
         tmp_4 *= q_sort;
         tmp_4 *= scaling_factor;
-        std::get<3>(evals) += tmp_4;
-    };
-
-    /**
-     * @brief Add the result of each identity in this relation evaluated at the multivariate evaluations produced by the
-     * Sumcheck Prover.
-     *
-     * @param full_honk_relation_value
-     * @param purported_evaluations
-     */
-    void add_full_relation_value_contribution(RelationValues& full_honk_relation_value,
-                                              const auto& purported_evaluations,
-                                              const RelationParameters<FF>&) const
-    {
-        auto w_1 = purported_evaluations.w_l;
-        auto w_2 = purported_evaluations.w_r;
-        auto w_3 = purported_evaluations.w_o;
-        auto w_4 = purported_evaluations.w_4;
-        auto w_1_shift = purported_evaluations.w_l_shift;
-        auto q_sort = purported_evaluations.q_sort;
-
-        static const FF minus_one = FF(-1);
-        static const FF minus_two = FF(-2);
-        static const FF minus_three = FF(-3);
-
-        // Compute wire differences
-        auto delta_1 = w_2 - w_1;
-        auto delta_2 = w_3 - w_2;
-        auto delta_3 = w_4 - w_3;
-        auto delta_4 = w_1_shift - w_4;
-
-        auto tmp_1 = delta_1;
-        tmp_1 *= (delta_1 + minus_one);
-        tmp_1 *= (delta_1 + minus_two);
-        tmp_1 *= (delta_1 + minus_three);
-        tmp_1 *= q_sort;
-        std::get<0>(full_honk_relation_value) += tmp_1;
-
-        auto tmp_2 = delta_2;
-        tmp_2 *= (delta_2 + minus_one);
-        tmp_2 *= (delta_2 + minus_two);
-        tmp_2 *= (delta_2 + minus_three);
-        tmp_2 *= q_sort;
-        std::get<1>(full_honk_relation_value) += tmp_2;
-
-        auto tmp_3 = delta_3;
-        tmp_3 *= (delta_3 + minus_one);
-        tmp_3 *= (delta_3 + minus_two);
-        tmp_3 *= (delta_3 + minus_three);
-        tmp_3 *= q_sort;
-        std::get<2>(full_honk_relation_value) += tmp_3;
-
-        auto tmp_4 = delta_4;
-        tmp_4 *= (delta_4 + minus_one);
-        tmp_4 *= (delta_4 + minus_two);
-        tmp_4 *= (delta_4 + minus_three);
-        tmp_4 *= q_sort;
-        std::get<3>(full_honk_relation_value) += tmp_4;
+        std::get<3>(accumulators) += tmp_4;
     };
 };
+
+template <typename FF> using GenPermSortRelation = RelationWrapper<FF, GenPermSortRelationBase>;
+
 } // namespace proof_system::honk::sumcheck

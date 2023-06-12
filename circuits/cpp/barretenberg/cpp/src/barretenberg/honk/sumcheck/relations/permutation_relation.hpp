@@ -1,20 +1,19 @@
 #pragma once
 #include "relation_parameters.hpp"
 #include "../polynomials/univariate.hpp"
+#include "relation_types.hpp"
 // TODO(luke): change name of this file to permutation_grand_product_relation(s).hpp and move 'init' relation into it.
 
 namespace proof_system::honk::sumcheck {
 
-template <typename FF> class PermutationRelation {
+template <typename FF> class PermutationRelationBase {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 5;
 
-    static constexpr size_t NUM_CONSTRAINTS = 2;
-    static constexpr std::array<size_t, NUM_CONSTRAINTS> CONSTRAINT_LENGTH = { 5, 3 };
-
-    using RelationUnivariates = std::tuple<Univariate<FF, CONSTRAINT_LENGTH[0]>, Univariate<FF, CONSTRAINT_LENGTH[1]>>;
-    using RelationValues = std::array<FF, NUM_CONSTRAINTS>;
+    static constexpr size_t LEN_1 = 5; // grand product construction sub-relation
+    static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
+    using LENGTHS = LengthsWrapper<LEN_1, LEN_2>;
 
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
@@ -34,33 +33,34 @@ template <typename FF> class PermutationRelation {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    inline void add_edge_contribution(RelationUnivariates& evals,
-                                      const auto& extended_edges,
-                                      const RelationParameters<FF>& relation_parameters,
-                                      const FF& scaling_factor) const
+    template <typename TypeMuncher>
+    inline static void add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulator,
+                                                  const auto& input,
+                                                  const RelationParameters<FF>& relation_parameters,
+                                                  const FF& scaling_factor)
     {
         const auto& beta = relation_parameters.beta;
         const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
         {
-            static constexpr size_t LENGTH = CONSTRAINT_LENGTH[0];
-            auto w_1 = UnivariateView<FF, LENGTH>(extended_edges.w_l);
-            auto w_2 = UnivariateView<FF, LENGTH>(extended_edges.w_r);
-            auto w_3 = UnivariateView<FF, LENGTH>(extended_edges.w_o);
-            auto sigma_1 = UnivariateView<FF, LENGTH>(extended_edges.sigma_1);
-            auto sigma_2 = UnivariateView<FF, LENGTH>(extended_edges.sigma_2);
-            auto sigma_3 = UnivariateView<FF, LENGTH>(extended_edges.sigma_3);
-            auto id_1 = UnivariateView<FF, LENGTH>(extended_edges.id_1);
-            auto id_2 = UnivariateView<FF, LENGTH>(extended_edges.id_2);
-            auto id_3 = UnivariateView<FF, LENGTH>(extended_edges.id_3);
-            auto z_perm = UnivariateView<FF, LENGTH>(extended_edges.z_perm);
-            auto z_perm_shift = UnivariateView<FF, LENGTH>(extended_edges.z_perm_shift);
-            auto lagrange_first = UnivariateView<FF, LENGTH>(extended_edges.lagrange_first);
-            auto lagrange_last = UnivariateView<FF, LENGTH>(extended_edges.lagrange_last);
+            using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+            auto w_1 = View(input.w_l);
+            auto w_2 = View(input.w_r);
+            auto w_3 = View(input.w_o);
+            auto sigma_1 = View(input.sigma_1);
+            auto sigma_2 = View(input.sigma_2);
+            auto sigma_3 = View(input.sigma_3);
+            auto id_1 = View(input.id_1);
+            auto id_2 = View(input.id_2);
+            auto id_3 = View(input.id_3);
+            auto z_perm = View(input.z_perm);
+            auto z_perm_shift = View(input.z_perm_shift);
+            auto lagrange_first = View(input.lagrange_first);
+            auto lagrange_last = View(input.lagrange_last);
 
             // Contribution (1)
-            std::get<0>(evals) +=
+            std::get<0>(accumulator) +=
                 (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
                   (w_3 + id_3 * beta + gamma)) -
                  ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
@@ -68,68 +68,26 @@ template <typename FF> class PermutationRelation {
                 scaling_factor;
         }
         {
-            static constexpr size_t LENGTH = CONSTRAINT_LENGTH[1];
-            auto z_perm_shift = UnivariateView<FF, LENGTH>(extended_edges.z_perm_shift);
-            auto lagrange_last = UnivariateView<FF, LENGTH>(extended_edges.lagrange_last);
+            using View = typename std::tuple_element<1, typename TypeMuncher::AccumulatorViews>::type;
+            auto z_perm_shift = View(input.z_perm_shift);
+            auto lagrange_last = View(input.lagrange_last);
 
             // Contribution (2)
-            std::get<1>(evals) += (lagrange_last * z_perm_shift) * scaling_factor;
+            std::get<1>(accumulator) += (lagrange_last * z_perm_shift) * scaling_factor;
         }
-    };
-
-    /**
-     * @brief Add the result of each identity in this relation evaluated at the multivariate evaluations produced by the
-     * Sumcheck Prover.
-     *
-     * @param full_honk_relation_value
-     * @param purported_evaluations
-     */
-    void add_full_relation_value_contribution(RelationValues& full_honk_relation_value,
-                                              auto& purported_evaluations,
-                                              const RelationParameters<FF>& relation_parameters) const
-    {
-        const auto& beta = relation_parameters.beta;
-        const auto& gamma = relation_parameters.gamma;
-        const auto& public_input_delta = relation_parameters.public_input_delta;
-
-        auto w_1 = purported_evaluations.w_l;
-        auto w_2 = purported_evaluations.w_r;
-        auto w_3 = purported_evaluations.w_o;
-        auto sigma_1 = purported_evaluations.sigma_1;
-        auto sigma_2 = purported_evaluations.sigma_2;
-        auto sigma_3 = purported_evaluations.sigma_3;
-        auto id_1 = purported_evaluations.id_1;
-        auto id_2 = purported_evaluations.id_2;
-        auto id_3 = purported_evaluations.id_3;
-        auto z_perm = purported_evaluations.z_perm;
-        auto z_perm_shift = purported_evaluations.z_perm_shift;
-        auto lagrange_first = purported_evaluations.lagrange_first;
-        auto lagrange_last = purported_evaluations.lagrange_last;
-
-        // Contribution (1)
-        std::get<0>(full_honk_relation_value) +=
-            ((z_perm + lagrange_first) * (w_1 + beta * id_1 + gamma) * (w_2 + beta * id_2 + gamma) *
-                 (w_3 + beta * id_3 + gamma) -
-             (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + beta * sigma_1 + gamma) *
-                 (w_2 + beta * sigma_2 + gamma) * (w_3 + beta * sigma_3 + gamma));
-
-        // Contribution (2)
-        std::get<1>(full_honk_relation_value) += lagrange_last * z_perm_shift;
     };
 };
 
 // TODO(luke): With Cody's Flavor work it should be easier to create a simple templated relation
 // for handling arbitrary width. For now I'm duplicating the width 3 logic for width 4.
-template <typename FF> class UltraPermutationRelation {
+template <typename FF> class UltraPermutationRelationBase {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6;
 
-    static constexpr size_t NUM_CONSTRAINTS = 2;
-    static constexpr std::array<size_t, NUM_CONSTRAINTS> CONSTRAINT_LENGTH = { 6, 3 };
-
-    using RelationUnivariates = std::tuple<Univariate<FF, CONSTRAINT_LENGTH[0]>, Univariate<FF, CONSTRAINT_LENGTH[1]>>;
-    using RelationValues = std::array<FF, NUM_CONSTRAINTS>;
+    static constexpr size_t LEN_1 = 6; // grand product construction sub-relation
+    static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
+    using LENGTHS = LengthsWrapper<LEN_1, LEN_2>;
 
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
@@ -142,10 +100,11 @@ template <typename FF> class UltraPermutationRelation {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    inline void add_edge_contribution(RelationUnivariates& evals,
-                                      const auto& extended_edges,
-                                      const RelationParameters<FF>& relation_parameters,
-                                      const FF& scaling_factor) const
+    template <typename TypeMuncher>
+    inline static void add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulators,
+                                                  const auto& extended_edges,
+                                                  const RelationParameters<FF>& relation_parameters,
+                                                  const FF& scaling_factor)
     {
         const auto& beta = relation_parameters.beta;
         const auto& gamma = relation_parameters.gamma;
@@ -153,25 +112,25 @@ template <typename FF> class UltraPermutationRelation {
 
         // Contribution (1)
         {
-            static constexpr size_t LENGTH = CONSTRAINT_LENGTH[0];
-            auto w_1 = UnivariateView<FF, LENGTH>(extended_edges.w_l);
-            auto w_2 = UnivariateView<FF, LENGTH>(extended_edges.w_r);
-            auto w_3 = UnivariateView<FF, LENGTH>(extended_edges.w_o);
-            auto w_4 = UnivariateView<FF, LENGTH>(extended_edges.w_4);
-            auto sigma_1 = UnivariateView<FF, LENGTH>(extended_edges.sigma_1);
-            auto sigma_2 = UnivariateView<FF, LENGTH>(extended_edges.sigma_2);
-            auto sigma_3 = UnivariateView<FF, LENGTH>(extended_edges.sigma_3);
-            auto sigma_4 = UnivariateView<FF, LENGTH>(extended_edges.sigma_4);
-            auto id_1 = UnivariateView<FF, LENGTH>(extended_edges.id_1);
-            auto id_2 = UnivariateView<FF, LENGTH>(extended_edges.id_2);
-            auto id_3 = UnivariateView<FF, LENGTH>(extended_edges.id_3);
-            auto id_4 = UnivariateView<FF, LENGTH>(extended_edges.id_4);
-            auto z_perm = UnivariateView<FF, LENGTH>(extended_edges.z_perm);
-            auto z_perm_shift = UnivariateView<FF, LENGTH>(extended_edges.z_perm_shift);
-            auto lagrange_first = UnivariateView<FF, LENGTH>(extended_edges.lagrange_first);
-            auto lagrange_last = UnivariateView<FF, LENGTH>(extended_edges.lagrange_last);
+            using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+            auto w_1 = View(extended_edges.w_l);
+            auto w_2 = View(extended_edges.w_r);
+            auto w_3 = View(extended_edges.w_o);
+            auto w_4 = View(extended_edges.w_4);
+            auto sigma_1 = View(extended_edges.sigma_1);
+            auto sigma_2 = View(extended_edges.sigma_2);
+            auto sigma_3 = View(extended_edges.sigma_3);
+            auto sigma_4 = View(extended_edges.sigma_4);
+            auto id_1 = View(extended_edges.id_1);
+            auto id_2 = View(extended_edges.id_2);
+            auto id_3 = View(extended_edges.id_3);
+            auto id_4 = View(extended_edges.id_4);
+            auto z_perm = View(extended_edges.z_perm);
+            auto z_perm_shift = View(extended_edges.z_perm_shift);
+            auto lagrange_first = View(extended_edges.lagrange_first);
+            auto lagrange_last = View(extended_edges.lagrange_last);
 
-            std::get<0>(evals) +=
+            std::get<0>(accumulators) +=
                 (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
                   (w_3 + id_3 * beta + gamma) * (w_4 + id_4 * beta + gamma)) -
                  ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
@@ -180,55 +139,16 @@ template <typename FF> class UltraPermutationRelation {
         }
         // Contribution (2)
         {
-            static constexpr size_t LENGTH = CONSTRAINT_LENGTH[1];
-            auto z_perm_shift = UnivariateView<FF, LENGTH>(extended_edges.z_perm_shift);
-            auto lagrange_last = UnivariateView<FF, LENGTH>(extended_edges.lagrange_last);
+            using View = typename std::tuple_element<1, typename TypeMuncher::AccumulatorViews>::type;
+            auto z_perm_shift = View(extended_edges.z_perm_shift);
+            auto lagrange_last = View(extended_edges.lagrange_last);
 
-            std::get<1>(evals) += (lagrange_last * z_perm_shift) * scaling_factor;
+            std::get<1>(accumulators) += (lagrange_last * z_perm_shift) * scaling_factor;
         }
     };
-
-    /**
-     * @brief Add the result of each identity in this relation evaluated at the multivariate evaluations produced by the
-     * Sumcheck Prover.
-     *
-     * @param full_honk_relation_value
-     * @param purported_evaluations
-     */
-    void add_full_relation_value_contribution(RelationValues& full_honk_relation_value,
-                                              auto& purported_evaluations,
-                                              const RelationParameters<FF>& relation_parameters) const
-    {
-        const auto& beta = relation_parameters.beta;
-        const auto& gamma = relation_parameters.gamma;
-        const auto& public_input_delta = relation_parameters.public_input_delta;
-
-        auto w_1 = purported_evaluations.w_l;
-        auto w_2 = purported_evaluations.w_r;
-        auto w_3 = purported_evaluations.w_o;
-        auto w_4 = purported_evaluations.w_4;
-        auto sigma_1 = purported_evaluations.sigma_1;
-        auto sigma_2 = purported_evaluations.sigma_2;
-        auto sigma_3 = purported_evaluations.sigma_3;
-        auto sigma_4 = purported_evaluations.sigma_4;
-        auto id_1 = purported_evaluations.id_1;
-        auto id_2 = purported_evaluations.id_2;
-        auto id_3 = purported_evaluations.id_3;
-        auto id_4 = purported_evaluations.id_4;
-        auto z_perm = purported_evaluations.z_perm;
-        auto z_perm_shift = purported_evaluations.z_perm_shift;
-        auto lagrange_first = purported_evaluations.lagrange_first;
-        auto lagrange_last = purported_evaluations.lagrange_last;
-
-        // Contribution (1)
-        std::get<0>(full_honk_relation_value) +=
-            ((z_perm + lagrange_first) * (w_1 + beta * id_1 + gamma) * (w_2 + beta * id_2 + gamma) *
-                 (w_3 + beta * id_3 + gamma) * (w_4 + beta * id_4 + gamma) -
-             (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + beta * sigma_1 + gamma) *
-                 (w_2 + beta * sigma_2 + gamma) * (w_3 + beta * sigma_3 + gamma) * (w_4 + beta * sigma_4 + gamma));
-
-        // Contribution (2)
-        std::get<1>(full_honk_relation_value) += lagrange_last * z_perm_shift;
-    };
 };
+
+template <typename FF> using PermutationRelation = RelationWrapper<FF, PermutationRelationBase>;
+
+template <typename FF> using UltraPermutationRelation = RelationWrapper<FF, UltraPermutationRelationBase>;
 } // namespace proof_system::honk::sumcheck

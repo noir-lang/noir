@@ -66,9 +66,6 @@ class Standard {
     using RelationUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
     using RelationValues = decltype(create_relation_values_container<FF, Relations>());
 
-    // define utilities to extend univarates from RELATION_LENGTH to MAX_RELATION_LENGTH for each Relation
-    // using BarycentricUtils = decltype(create_barycentric_utils<FF, Relations, MAX_RELATION_LENGTH>());
-
   private:
     /**
      * @brief A base class labelling precomputed entities and (ordered) subsets of interest.
