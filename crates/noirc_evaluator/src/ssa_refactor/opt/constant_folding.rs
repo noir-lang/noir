@@ -118,6 +118,7 @@ mod test {
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,
+            value::Value,
         },
         ssa_builder::FunctionBuilder,
     };
@@ -176,5 +177,49 @@ mod test {
             }
             _ => unreachable!("b0 should have a return terminator"),
         }
+    }
+
+    #[test]
+    fn arrays_elements_are_updated() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = add v0, Field 1
+        //     return [v1]
+        // }
+        //
+        // After constructing this IR, we run constant folding with no expected benefit, but to
+        // ensure that all new values ids are correctly propagated.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::field());
+        let one = builder.field_constant(1u128);
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let arr =
+            builder.current_function.dfg.make_array(vec![v1].into(), vec![Type::field()].into());
+        builder.terminate_with_return(vec![arr]);
+
+        let ssa = builder.finish().fold_constants();
+        let main = ssa.main();
+        let entry_block_id = main.entry_block();
+        let entry_block = &main.dfg[entry_block_id];
+        assert_eq!(entry_block.instructions().len(), 1);
+        let new_add_instr = entry_block.instructions().first().unwrap();
+        let new_add_instr_result = main.dfg.instruction_results(*new_add_instr)[0];
+        assert_ne!(new_add_instr_result, v1);
+
+        let return_value_id = match entry_block.unwrap_terminator() {
+            TerminatorInstruction::Return { return_values } => return_values[0],
+            _ => unreachable!(),
+        };
+        let return_element = match &main.dfg[return_value_id] {
+            Value::Array { array, .. } => array[0],
+            _ => unreachable!(),
+        };
+        // The return element is expected to refer to the new add instruction result rather than
+        // the old.
+        assert_eq!(new_add_instr_result, return_element);
+        assert_ne!(v1, return_element);
     }
 }
