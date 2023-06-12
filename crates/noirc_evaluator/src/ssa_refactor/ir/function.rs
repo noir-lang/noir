@@ -6,6 +6,13 @@ use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum RuntimeType {
+    // A noir function, to be compiled in ACIR and executed by ACVM
+    Acir,
+    // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
+    Brillig,
+}
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
 ///
@@ -22,6 +29,8 @@ pub(crate) struct Function {
 
     id: FunctionId,
 
+    runtime: RuntimeType,
+
     /// The DataFlowGraph holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
     pub(crate) dfg: DataFlowGraph,
@@ -30,11 +39,11 @@ pub(crate) struct Function {
 impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
-    /// Note that any parameters to the function must be manually added later.
+    /// Note that any parameters or attributes of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg }
+        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir }
     }
 
     /// The name of the function.
@@ -46,6 +55,16 @@ impl Function {
     /// The id of the function.
     pub(crate) fn id(&self) -> FunctionId {
         self.id
+    }
+
+    /// Runtime type of the function.
+    pub(crate) fn runtime(&self) -> RuntimeType {
+        self.runtime
+    }
+
+    /// Set runtime type of the function.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        self.runtime = runtime;
     }
 
     /// Retrieves the entry block of a function.

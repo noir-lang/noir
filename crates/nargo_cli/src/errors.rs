@@ -55,6 +55,9 @@ pub(crate) enum CliError<B: Backend> {
     #[error(transparent)]
     FilesystemError(#[from] FilesystemError),
 
+    #[error(transparent)]
+    LspError(#[from] async_lsp::Error),
+
     /// Error from Nargo
     #[error(transparent)]
     NargoError(#[from] NargoError),
