@@ -3,30 +3,16 @@
 pragma solidity >=0.8.18;
 
 // Interfaces
-import {IUnverifiedDataEmitter} from "./interfaces/IUnverifiedDataEmitter.sol";
+import {IContractDeploymentEmitter} from "./interfaces/IContractDeploymentEmitter.sol";
 
 /**
- * @title UnverifiedDataEmitter
+ * @title ContractDeploymentEmitter
  * @author Aztec Labs
  * @notice Used to log data on chain which are not required to advance the state but are needed for other purposes
  */
-contract UnverifiedDataEmitter is IUnverifiedDataEmitter {
+contract ContractDeploymentEmitter is IContractDeploymentEmitter {
   /**
-   * @notice Logs data on chain
-   * @dev Emits an `UnverifiedData` event
-   * @param _l2BlockNum - The l2 block number that the unverified data is related to
-   * @param _l2BlockHash - The hash of the L2 block that this is related to
-   * @param _data - Raw data to share
-   */
-  function emitUnverifiedData(uint256 _l2BlockNum, bytes32 _l2BlockHash, bytes calldata _data)
-    external
-    override(IUnverifiedDataEmitter)
-  {
-    emit UnverifiedData(_l2BlockNum, msg.sender, _l2BlockHash, _data);
-  }
-
-  /**
-   * @notice Links L1 and L2 contract addresses
+   * @notice Publishes public function bytecode to L1.
    * @dev Emits a `ContractDeployment` event
    * @dev Unverified and can be emitted by anyone
    * @param _l2BlockNum - The L2 block number that the contract deployment is related to
@@ -41,7 +27,7 @@ contract UnverifiedDataEmitter is IUnverifiedDataEmitter {
     address _portalAddress,
     bytes32 _l2BlockHash,
     bytes calldata _acir
-  ) external override(IUnverifiedDataEmitter) {
+  ) external override(IContractDeploymentEmitter) {
     emit ContractDeployment(_l2BlockNum, _aztecAddress, _portalAddress, _l2BlockHash, _acir);
   }
 }

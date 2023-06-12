@@ -60,7 +60,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
 
   config.publisherPrivateKey = Buffer.from(privKey!);
   config.rollupContract = deployL1ContractsValues.rollupAddress;
-  config.unverifiedDataEmitterContract = deployL1ContractsValues.unverifiedDataEmitterAddress;
+  config.contractDeploymentEmitterContract = deployL1ContractsValues.contractDeploymentEmitterAddress;
   config.inboxContract = deployL1ContractsValues.inboxAddress;
 
   const aztecNode = await AztecNodeService.createAndSync(config);

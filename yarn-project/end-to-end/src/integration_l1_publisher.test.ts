@@ -65,7 +65,7 @@ describe('L1Publisher integration', () => {
   let rollupAddress: Address;
   let inboxAddress: Address;
   let outboxAddress: Address;
-  let unverifiedDataEmitterAddress: Address;
+  let contractDeploymentEmitterAddress: Address;
   let decoderHelperAddress: Address;
 
   let rollup: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, Chain>>;
@@ -89,7 +89,7 @@ describe('L1Publisher integration', () => {
       rollupAddress: rollupAddress_,
       inboxAddress: inboxAddress_,
       outboxAddress: outboxAddress_,
-      unverifiedDataEmitterAddress: unverifiedDataEmitterAddress_,
+      contractDeploymentEmitterAddress: contractDeploymentEmitterAddress_,
       decoderHelperAddress: decoderHelperAddress_,
       publicClient: publicClient_,
       walletClient,
@@ -99,7 +99,7 @@ describe('L1Publisher integration', () => {
     rollupAddress = getAddress(rollupAddress_.toString());
     inboxAddress = getAddress(inboxAddress_.toString());
     outboxAddress = getAddress(outboxAddress_.toString());
-    unverifiedDataEmitterAddress = getAddress(unverifiedDataEmitterAddress_.toString());
+    contractDeploymentEmitterAddress = getAddress(contractDeploymentEmitterAddress_.toString());
     decoderHelperAddress = getAddress(decoderHelperAddress_!.toString());
 
     // Set up contract instances
@@ -140,7 +140,7 @@ describe('L1Publisher integration', () => {
       requiredConfirmations: 1,
       rollupContract: EthAddress.fromString(rollupAddress),
       inboxContract: EthAddress.fromString(inboxAddress),
-      unverifiedDataEmitterContract: EthAddress.fromString(unverifiedDataEmitterAddress),
+      contractDeploymentEmitterContract: EthAddress.fromString(contractDeploymentEmitterAddress),
       publisherPrivateKey: hexStringToBuffer(sequencerPK),
       retryIntervalMs: 100,
     });

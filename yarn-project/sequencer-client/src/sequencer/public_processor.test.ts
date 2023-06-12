@@ -29,7 +29,7 @@ import {
   EncodedContractFunction,
   Tx,
   TxExecutionRequest,
-  UnverifiedData,
+  NoirLogs,
 } from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 import { jest } from '@jest/globals';
@@ -87,7 +87,7 @@ describe('public_processor', () => {
       const hash = await tx.getTxHash();
       const [processed, failed] = await processor.process([tx]);
 
-      expect(processed).toEqual([{ isEmpty: false, hash, ...pick(tx, 'data', 'proof', 'unverifiedData') }]);
+      expect(processed).toEqual([{ isEmpty: false, hash, ...pick(tx, 'data', 'proof', 'encryptedLogs') }]);
       expect(failed).toEqual([]);
     });
 
@@ -109,7 +109,7 @@ describe('public_processor', () => {
       publicExecutor.execute.mockResolvedValue(publicExecutionResult);
 
       const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
-      db.getSiblingPath.mockResolvedValue(new SiblingPath(PUBLIC_DATA_TREE_HEIGHT, path));
+      db.getSiblingPath.mockResolvedValue(new SiblingPath<number>(PUBLIC_DATA_TREE_HEIGHT, path));
 
       const output = makeKernelPublicInputs();
       publicKernel.publicKernelCircuitNoInput.mockResolvedValue(output);
@@ -135,7 +135,7 @@ describe('public_processor', () => {
 
     beforeEach(() => {
       const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
-      db.getSiblingPath.mockResolvedValue(new SiblingPath(PUBLIC_DATA_TREE_HEIGHT, path));
+      db.getSiblingPath.mockResolvedValue(new SiblingPath<number>(PUBLIC_DATA_TREE_HEIGHT, path));
       publicKernel = new WasmPublicKernelCircuitSimulator();
       processor = new PublicProcessor(db, publicExecutor, publicKernel, publicProver, contractDataSource);
     });
@@ -247,7 +247,7 @@ describe('public_processor', () => {
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, KERNEL_PRIVATE_CALL_STACK_LENGTH);
 
-      const tx = Tx.createPrivate(kernelOutput, proof, UnverifiedData.random(2), [], callRequests);
+      const tx = Tx.createPrivate(kernelOutput, proof, NoirLogs.random(2), [], callRequests);
 
       publicExecutor.execute.mockImplementation(execution => {
         for (const request of callRequests) {

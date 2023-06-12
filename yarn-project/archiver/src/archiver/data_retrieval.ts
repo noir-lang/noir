@@ -3,16 +3,14 @@ import {
   getContractDeploymentLogs,
   getL2BlockProcessedLogs,
   getPendingL1ToL2MessageLogs,
-  getUnverifiedDataLogs,
   getL1ToL2MessageCancelledLogs,
   processBlockLogs,
   processContractDeploymentLogs,
   processPendingL1ToL2MessageAddedLogs,
-  processUnverifiedDataLogs,
   processCancelledL1ToL2MessagesLogs,
 } from './eth_log_handlers.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { ContractPublicData, L1ToL2Message, L2Block, UnverifiedData } from '@aztec/types';
+import { ContractPublicData, L1ToL2Message, L2Block } from '@aztec/types';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -66,53 +64,9 @@ export async function retrieveBlocks(
 }
 
 /**
- * Fetches new unverified data.
- * @param publicClient - The viem public client to use for transaction retrieval.
- * @param unverifiedDataEmitterAddress - The address of the unverified data emitter contract.
- * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param currentBlockNumber - Latest available block number in the ETH node.
- * @param searchStartBlock - The block number to use for starting the search.
- * @param expectedNextRollupNumber - The next rollup id that we expect to find.
- * @param blockHashMapping - A mapping from block number to relevant block hash.
- * @returns An array of UnverifiedData and the next eth block to search from.
- */
-export async function retrieveUnverifiedData(
-  publicClient: PublicClient,
-  unverifiedDataEmitterAddress: EthAddress,
-  blockUntilSynced: boolean,
-  currentBlockNumber: bigint,
-  searchStartBlock: bigint,
-  expectedNextRollupNumber: bigint,
-  blockHashMapping: { [key: number]: Buffer | undefined },
-): Promise<DataRetrieval<UnverifiedData>> {
-  const newUnverifiedDataChunks: UnverifiedData[] = [];
-  do {
-    if (searchStartBlock > currentBlockNumber) {
-      break;
-    }
-
-    const unverifiedDataLogs = await getUnverifiedDataLogs(
-      publicClient,
-      unverifiedDataEmitterAddress,
-      searchStartBlock,
-    );
-
-    if (unverifiedDataLogs.length === 0) {
-      break;
-    }
-
-    const newChunks = processUnverifiedDataLogs(expectedNextRollupNumber, blockHashMapping, unverifiedDataLogs);
-    newUnverifiedDataChunks.push(...newChunks);
-    searchStartBlock = unverifiedDataLogs[unverifiedDataLogs.length - 1].blockNumber + 1n;
-    expectedNextRollupNumber += BigInt(newChunks.length);
-  } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: newUnverifiedDataChunks };
-}
-
-/**
  * Fetches new contract data.
  * @param publicClient - The viem public client to use for transaction retrieval.
- * @param unverifiedDataEmitterAddress - The address of the unverified data emitter contract.
+ * @param contractDeploymentEmitterAddress - The address of the encrypted logs emitter contract.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
@@ -121,7 +75,7 @@ export async function retrieveUnverifiedData(
  */
 export async function retrieveNewContractData(
   publicClient: PublicClient,
-  unverifiedDataEmitterAddress: EthAddress,
+  contractDeploymentEmitterAddress: EthAddress,
   blockUntilSynced: boolean,
   currentBlockNumber: bigint,
   searchStartBlock: bigint,
@@ -134,7 +88,7 @@ export async function retrieveNewContractData(
     }
     const contractDataLogs = await getContractDeploymentLogs(
       publicClient,
-      unverifiedDataEmitterAddress,
+      contractDeploymentEmitterAddress,
       searchStartBlock,
     );
     if (contractDataLogs.length === 0) {

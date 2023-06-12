@@ -1,11 +1,11 @@
 import { KernelCircuitPublicInputs, Proof, CombinedHistoricTreeRoots, makeEmptyProof } from '@aztec/circuits.js';
-import { Tx, TxHash, PrivateTx, UnverifiedData } from '@aztec/types';
+import { Tx, TxHash, PrivateTx, NoirLogs } from '@aztec/types';
 
 /**
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
  */
-export type ProcessedTx = Pick<Tx, 'txRequest' | 'unverifiedData'> &
+export type ProcessedTx = Pick<Tx, 'txRequest' | 'encryptedLogs'> &
   Required<Pick<Tx, 'data' | 'proof'>> & {
     /**
      * Hash of the transaction.
@@ -50,7 +50,7 @@ export async function makeProcessedTx(
     hash: await tx.getTxHash(),
     data: kernelOutput ?? tx.data!,
     proof: proof ?? tx.proof!,
-    unverifiedData: tx.unverifiedData,
+    encryptedLogs: tx.encryptedLogs,
     txRequest: tx.txRequest,
     isEmpty: false,
   };
@@ -66,7 +66,7 @@ export async function makeEmptyProcessedTx(historicTreeRoots: CombinedHistoricTr
   const emptyProof = makeEmptyProof();
 
   // TODO: What should be the hash of an empty tx?
-  const emptyTx = Tx.createPrivate(emptyKernelOutput, emptyProof, new UnverifiedData([]), [], []);
+  const emptyTx = Tx.createPrivate(emptyKernelOutput, emptyProof, new NoirLogs([]), [], []);
   const hash = await emptyTx.getTxHash();
 
   return { hash, data: emptyKernelOutput, proof: emptyProof, isEmpty: true };

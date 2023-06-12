@@ -13,7 +13,6 @@ import {
   Tx,
   isPrivateTx,
   L2BlockSource,
-  UnverifiedData,
 } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import times from 'lodash.times';
@@ -160,7 +159,7 @@ export class Sequencer {
       const block = await this.buildBlock(processedTxs, l1ToL2Messages, emptyTx);
       this.log(`Assembled block ${block.number}`);
 
-      await this.publishUnverifiedData(validTxs, block);
+      await this.publishContractPublicData(validTxs, block);
 
       await this.publishL2Block(block);
     } catch (err) {
@@ -171,15 +170,13 @@ export class Sequencer {
   }
 
   /**
-   * Creates the unverified data from the txs and l2Block and publishes it on chain.
+   * Creates the encrypted logs from the txs and l2Block and publishes it on chain.
    * @param validTxs - The set of real transactions being published as part of the block.
    * @param block - The L2Block to be published.
    */
-  protected async publishUnverifiedData(validTxs: Tx[], block: L2Block) {
-    // Publishes new unverified data & contract data for private txs to the network and awaits the tx to be mined
-    this.state = SequencerState.PUBLISHING_UNVERIFIED_DATA;
-    // Note: Public txs don't generate UnverifiedData and for this reason we can ignore them here.
-    const unverifiedData = UnverifiedData.join(validTxs.filter(isPrivateTx).map(tx => tx.unverifiedData));
+  protected async publishContractPublicData(validTxs: Tx[], block: L2Block) {
+    // Publishes new encrypted logs & contract data for private txs to the network and awaits the tx to be mined
+    this.state = SequencerState.PUBLISHING_CONTRACT_DATA;
     const newContractData = validTxs
       .filter(isPrivateTx)
       .map(tx => {
@@ -197,13 +194,7 @@ export class Sequencer {
     const blockHash = block.getCalldataHash();
     this.log(`Publishing data with block hash ${blockHash.toString('hex')}`);
 
-    // TODO: Stop publishing unverified data once Archiver is updated to store logs found in block data.
-    const publishedUnverifiedData = await this.publisher.processUnverifiedData(block.number, blockHash, unverifiedData);
-    if (publishedUnverifiedData) {
-      this.log(`Successfully published unverifiedData for block ${block.number}`);
-    } else {
-      this.log(`Failed to publish unverifiedData for block ${block.number}`);
-    }
+    // TODO: Stop publishing encrypted logs once Archiver is updated to store logs found in block data.
 
     const publishedContractData = await this.publisher.processNewContractData(block.number, blockHash, newContractData);
     if (publishedContractData) {
@@ -348,13 +339,13 @@ export enum SequencerState {
    */
   WAITING_FOR_TXS,
   /**
-   * Creating a new L2 block. Includes processing public function calls and running rollup circuits. Will move to PUBLISHING_UNVERIFIED_DATA.
+   * Creating a new L2 block. Includes processing public function calls and running rollup circuits. Will move to PUBLISHING_CONTRACT_DATA.
    */
   CREATING_BLOCK,
   /**
-   * Sending the tx to L1 with unverified data and awaiting it to be mined. Will move back to PUBLISHING_BLOCK once finished.
+   * Sending the tx to L1 with encrypted logs and awaiting it to be mined. Will move back to PUBLISHING_BLOCK once finished.
    */
-  PUBLISHING_UNVERIFIED_DATA,
+  PUBLISHING_CONTRACT_DATA,
   /**
    * Sending the tx to L1 with the L2 block data and awaiting it to be mined. Will move to IDLE.
    */

@@ -1,8 +1,9 @@
+import omit from 'lodash.omit';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/circuits.js';
 import { ConstantKeyPair } from '@aztec/key-store';
-import { L2Block, MerkleTreeId, UnverifiedData } from '@aztec/types';
+import { L2Block, MerkleTreeId } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
 import { Synchroniser } from './synchroniser.js';
@@ -31,7 +32,7 @@ describe('Synchroniser', () => {
     };
 
     aztecNode = mock<AztecNode>();
-    aztecNode.getUnverifiedData.mockResolvedValue([]);
+    aztecNode.getEncryptedLogs.mockResolvedValue([]);
 
     database = new MemoryDB();
 
@@ -60,9 +61,10 @@ describe('Synchroniser', () => {
 
   it('sets tree roots from latest block', async () => {
     const block = L2Block.random(1, 4);
-
-    aztecNode.getBlocks.mockResolvedValue([block]);
-    aztecNode.getUnverifiedData.mockResolvedValue([UnverifiedData.random(4)]);
+    aztecNode.getBlocks.mockResolvedValue([
+      L2Block.fromFields(omit(block, 'newEncryptedLogs', 'newEncryptedLogsLength')),
+    ]);
+    aztecNode.getEncryptedLogs.mockResolvedValue([block.newEncryptedLogs!]);
 
     await synchroniser.work();
 
@@ -81,8 +83,10 @@ describe('Synchroniser', () => {
 
     // We then process block with height 1, this should not change tree roots
     const block1 = L2Block.random(1, 4);
-    aztecNode.getBlocks.mockResolvedValueOnce([block1]);
-    aztecNode.getUnverifiedData.mockResolvedValue([UnverifiedData.random(4)]);
+    aztecNode.getBlocks.mockResolvedValueOnce([
+      L2Block.fromFields(omit(block1, 'newEncryptedLogs', 'newEncryptedLogsLength')),
+    ]);
+    aztecNode.getEncryptedLogs.mockResolvedValue([block1.newEncryptedLogs!]);
 
     await synchroniser.work();
     const roots1 = await database.getTreeRoots();
@@ -91,7 +95,9 @@ describe('Synchroniser', () => {
 
     // But they should change when we process block with height 5
     const block5 = L2Block.random(5, 4);
-    aztecNode.getBlocks.mockResolvedValueOnce([block5]);
+    aztecNode.getBlocks.mockResolvedValueOnce([
+      L2Block.fromFields(omit(block5, 'newEncryptedLogs', 'newEncryptedLogsLength')),
+    ]);
 
     await synchroniser.work();
     const roots5 = await database.getTreeRoots();

@@ -1,3 +1,4 @@
+import omit from 'lodash.omit';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -10,28 +11,28 @@ import {
   EncodedContractFunction,
   L2Block,
   L2BlockSource,
-  UnverifiedData,
-  UnverifiedDataSource,
+  NoirLogs,
+  NoirLogsSource,
 } from '@aztec/types';
 import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
-import { ArchiverConfig } from './config.js';
 import { createEthereumChain } from '@aztec/ethereum';
+import { Fr } from '@aztec/foundation/fields';
+
+import { ArchiverConfig } from './config.js';
 import {
   retrieveBlocks,
   retrieveNewContractData,
-  retrieveUnverifiedData,
   retrieveNewPendingL1ToL2Messages,
   retrieveNewCancelledL1ToL2Messages,
 } from './data_retrieval.js';
 import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
-import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.
  * Responsible for handling robust L1 polling so that other components do not need to
  * concern themselves with it.
  */
-export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDataSource, L1ToL2MessageSource {
+export class Archiver implements L2BlockSource, NoirLogsSource, ContractDataSource, L1ToL2MessageSource {
   /**
    * A promise in which we will be continually fetching new L2 blocks.
    */
@@ -52,17 +53,17 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
    * @param inboxAddress - Ethereum address of the inbox contract.
-   * @param unverifiedDataEmitterAddress - Ethereum address of the unverifiedDataEmitter contract.
-   * @param searchStartBlock - The eth block from which to start searching for new blocks.
+   * @param contractDeploymentEmitterAddress - Ethereum address of the contractDeploymentEmitter contract.
+   * @param searchStartBlock - The L1 block from which to start searching for new blocks.
    * @param pollingIntervalMs - The interval for polling for rollup logs (in milliseconds).
-   * @param store - An archiver data store for storage & retrieval of blocks, unverified data & contract data.
+   * @param store - An archiver data store for storage & retrieval of blocks, encrypted logs & contract data.
    * @param log - A logger.
    */
   constructor(
     private readonly publicClient: PublicClient<HttpTransport, Chain>,
     private readonly rollupAddress: EthAddress,
     private readonly inboxAddress: EthAddress,
-    private readonly unverifiedDataEmitterAddress: EthAddress,
+    private readonly contractDeploymentEmitterAddress: EthAddress,
     searchStartBlock: number,
     private readonly store: ArchiverDataStore,
     private readonly pollingIntervalMs = 10_000,
@@ -88,7 +89,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
       publicClient,
       config.rollupContract,
       config.inboxContract,
-      config.unverifiedDataEmitterContract,
+      config.contractDeploymentEmitterContract,
       config.searchStartBlock,
       archiverStore,
       config.archiverPollingInterval,
@@ -116,8 +117,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   }
 
   /**
-   * Fetches `L2BlockProcessed` and `UnverifiedData` logs from `nextL2BlockFromBlock` and
-   * `nextUnverifiedDataFromBlock` and processes them.
+   * Fetches `L2BlockProcessed` and `ContractDeployment` logs from `nextL2BlockFromBlock` and processes them.
    * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
    */
   private async sync(blockUntilSynced: boolean) {
@@ -158,11 +158,10 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
 
     // ********** Events that are processed per block **********
 
-    // The sequencer publishes unverified data first
     // Read all data from chain and then write to our stores at the end
-    const nextExpectedRollupId = BigInt(this.store.getBlocksLength() + INITIAL_L2_BLOCK_NUM);
+    const nextExpectedL2BlockNum = BigInt(this.store.getBlocksLength() + INITIAL_L2_BLOCK_NUM);
     this.log(
-      `Retrieving chain state from eth block: ${this.nextL2BlockFromBlock}, next expected rollup id: ${nextExpectedRollupId}`,
+      `Retrieving chain state from L1 block: ${this.nextL2BlockFromBlock}, next expected rollup id: ${nextExpectedL2BlockNum}`,
     );
     const retrievedBlocks = await retrieveBlocks(
       this.publicClient,
@@ -170,7 +169,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
       blockUntilSynced,
       currentBlockNumber,
       this.nextL2BlockFromBlock,
-      nextExpectedRollupId,
+      nextExpectedL2BlockNum,
     );
 
     // create the block number -> block hash mapping to ensure we retrieve the appropriate events
@@ -178,18 +177,9 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     retrievedBlocks.retrievedData.forEach((block: L2Block) => {
       blockHashMapping[block.number] = block.getCalldataHash();
     });
-    const retrievedUnverifiedData = await retrieveUnverifiedData(
-      this.publicClient,
-      this.unverifiedDataEmitterAddress,
-      blockUntilSynced,
-      currentBlockNumber,
-      this.nextL2BlockFromBlock,
-      nextExpectedRollupId,
-      blockHashMapping,
-    );
     const retrievedContracts = await retrieveNewContractData(
       this.publicClient,
-      this.unverifiedDataEmitterAddress,
+      this.contractDeploymentEmitterAddress,
       blockUntilSynced,
       currentBlockNumber,
       this.nextL2BlockFromBlock,
@@ -201,16 +191,17 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
 
     this.log(`Retrieved ${retrievedBlocks.retrievedData.length} block(s) from chain`);
 
-    // store unverified chunks for which we have retrieved rollups
-    await this.store.addUnverifiedData(
-      retrievedUnverifiedData.retrievedData.slice(0, retrievedBlocks.retrievedData.length),
-    );
+    // store encrypted logs from L2 Blocks that we have retrieved
+    const encryptedLogs = retrievedBlocks.retrievedData.map(block => {
+      return block.newEncryptedLogs!;
+    });
+    await this.store.addEncryptedLogs(encryptedLogs);
 
     // store contracts for which we have retrieved rollups
-    const lastKnownRollupId = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
+    const lastKnownL2BlockNum = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
     retrievedContracts.retrievedData.forEach(async ([contracts, l2BlockNum], index) => {
       this.log(`Retrieved contract public data for rollup id: ${index}`);
-      if (l2BlockNum <= lastKnownRollupId) {
+      if (l2BlockNum <= lastKnownL2BlockNum) {
         await this.store.addL2ContractPublicData(contracts, l2BlockNum);
       }
     });
@@ -221,10 +212,15 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
     this.log(`Confirming l1 to l2 messages in store`);
     await this.store.confirmL1ToL2Messages(messageKeysToRemove);
 
-    // store retrieved rollup blocks
-    await this.store.addL2Blocks(retrievedBlocks.retrievedData);
+    // store retrieved rollup blocks after removing new encrypted logs information.
+    // remove encrypted logs to serve "lightweight" block information. Logs can be fetched separately if needed.
+    await this.store.addL2Blocks(
+      retrievedBlocks.retrievedData.map(block =>
+        L2Block.fromFields(omit(block, ['newEncryptedLogs', 'newEncryptedLogsLength'])),
+      ),
+    );
 
-    // set the eth block for the next search
+    // set the L1 block for the next search
     this.nextL2BlockFromBlock = retrievedBlocks.nextEthBlockNumber;
   }
 
@@ -305,13 +301,13 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
   }
 
   /**
-   * Gets the `take` amount of unverified data starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first `unverifiedData` to be returned.
-   * @param take - The number of `unverifiedData` to return.
-   * @returns The requested `unverifiedData`.
+   * Gets the `take` amount of encrypted logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first encrypted logs to be returned.
+   * @param take - The number of encrypted logs to return.
+   * @returns The requested encrypted logs.
    */
-  public getUnverifiedData(from: number, take: number): Promise<UnverifiedData[]> {
-    return this.store.getUnverifiedData(from, take);
+  public getEncryptedLogs(from: number, take: number): Promise<NoirLogs[]> {
+    return this.store.getEncryptedLogs(from, take);
   }
 
   /**
@@ -320,14 +316,6 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource, ContractDa
    */
   public getBlockHeight(): Promise<number> {
     return this.store.getBlockHeight();
-  }
-
-  /**
-   * Gets the L2 block number associated with the latest unverified data.
-   * @returns The L2 block number associated with the latest unverified data.
-   */
-  public getLatestUnverifiedDataBlockNum(): Promise<number> {
-    return this.store.getLatestUnverifiedDataBlockNum();
   }
 
   /**

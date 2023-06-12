@@ -3,8 +3,8 @@ import { DebugLogger } from '@aztec/foundation/log';
 import {
   RollupAbi,
   RollupBytecode,
-  UnverifiedDataEmitterAbi,
-  UnverifiedDataEmitterBytecode,
+  ContractDeploymentEmitterAbi,
+  ContractDeploymentEmitterBytecode,
   RegistryAbi,
   RegistryBytecode,
   InboxAbi,
@@ -61,7 +61,7 @@ export type DeployL1Contracts = {
   /**
    * Data Emitter Address.
    */
-  unverifiedDataEmitterAddress: EthAddress;
+  contractDeploymentEmitterAddress: EthAddress;
   /**
    * Decoder Helper Address.
    */
@@ -69,7 +69,7 @@ export type DeployL1Contracts = {
 };
 
 /**
- * Deploys the aztec L1 contracts; Rollup, Unverified Data Emitter & (optionally) Decoder Helper.
+ * Deploys the aztec L1 contracts; Rollup, Contract Deployment Emitter & (optionally) Decoder Helper.
  * @param rpcUrl - URL of the ETH RPC to use for deployment.
  * @param account - Private Key or HD Account that will deploy the contracts.
  * @param chain - The chain instance to deploy to.
@@ -126,13 +126,13 @@ export const deployL1Contracts = async (
     { account },
   );
 
-  const unverifiedDataEmitterAddress = await deployL1Contract(
+  const contractDeploymentEmitterAddress = await deployL1Contract(
     walletClient,
     publicClient,
-    UnverifiedDataEmitterAbi,
-    UnverifiedDataEmitterBytecode,
+    ContractDeploymentEmitterAbi,
+    ContractDeploymentEmitterBytecode,
   );
-  logger(`Deployed unverified data emitter at ${unverifiedDataEmitterAddress}`);
+  logger(`Deployed encrypted logs emitter at ${contractDeploymentEmitterAddress}`);
 
   let decoderHelperAddress: EthAddress | undefined;
   if (deployDecoderHelper) {
@@ -147,7 +147,7 @@ export const deployL1Contracts = async (
     registryAddress,
     inboxAddress,
     outboxAddress,
-    unverifiedDataEmitterAddress,
+    contractDeploymentEmitterAddress,
     decoderHelperAddress,
   };
 };

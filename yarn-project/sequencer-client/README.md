@@ -1,6 +1,6 @@
 # Sequencer Client
 
-The sequencer is a module responsible for creating and publishing new rollup blocks. This involves fetching txs from the P2P pool, ordering them, executing any public functions, running them through the rollup circuits, assembling the L2 block, and posting it to the L1 rollup contract along with any unverified data.
+The sequencer is a module responsible for creating and publishing new rollup blocks. This involves fetching txs from the P2P pool, ordering them, executing any public functions, running them through the rollup circuits, assembling the L2 block, and posting it to the L1 rollup contract along with any contract deployment public data.
 
 The client itself is implemented as a continuous loop. After being started, it polls the P2P pool for new txs, assembles a new block if any is found, and goes back to sleep. On every new block assembled, it modifies the world state database to reflect the txs processed, but these changes are only committed once the world state synchroniser sees the new block on L1.
 
@@ -12,7 +12,7 @@ _What components are used to build a sequencer client._
 
 - The **prover** generates proofs for every circuit used. For the time being, no proofs are being actually generated, so the only implementation is an empty one.
 
-- The **publisher** deals with sending L1 transactions to the rollup and unverified data emitter contracts. It is responsible for assembling the Ethereum tx, choosing reasonable gas settings, and monitoring the tx until it gets mined. Note that the current implementation does not handle unstable network conditions (gas price spikes, reorgs, etc).
+- The **publisher** deals with sending L1 transactions to the rollup and contract deployment emitter contracts. It is responsible for assembling the Ethereum tx, choosing reasonable gas settings, and monitoring the tx until it gets mined. Note that the current implementation does not handle unstable network conditions (gas price spikes, reorgs, etc).
 
 - The **public processor** executes any public function calls in the transactions. Unlike private function calls, which are resolved in the client, public functions require access to the latest data trees, so they are executed by the sequencer, much like in any non-private L2.
 

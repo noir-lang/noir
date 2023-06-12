@@ -1,6 +1,6 @@
 import { AppendOnlyTreeSnapshot, CircuitsWasm, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
-import { ContractData, L2Block, L2BlockSource, MerkleTreeId, PublicDataWrite, UnverifiedData } from '@aztec/types';
+import { ContractData, L2Block, L2BlockSource, MerkleTreeId, PublicDataWrite, NoirLogs } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { MerkleTreeDb } from '../index.js';
 import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.js';
@@ -38,7 +38,7 @@ const getMockL1ToL2MessagesData = () => {
 };
 
 const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) => {
-  const newEncryptedLogs = UnverifiedData.random(2);
+  const newEncryptedLogs = NoirLogs.random(2);
   const block = L2Block.fromFields({
     number: blockNumber,
     startPrivateDataTreeSnapshot: getMockTreeSnapshot(),

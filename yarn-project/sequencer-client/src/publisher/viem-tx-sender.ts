@@ -1,6 +1,6 @@
 import { TxSenderConfig } from './config.js';
 import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';
-import { ContractPublicData, UnverifiedData } from '@aztec/types';
+import { ContractPublicData } from '@aztec/types';
 
 import {
   GetContractReturnType,
@@ -14,7 +14,7 @@ import {
   getContract,
   http,
 } from 'viem';
-import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-artifacts';
+import { RollupAbi, ContractDeploymentEmitterAbi } from '@aztec/l1-artifacts';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -29,8 +29,8 @@ export class ViemTxSender implements L1PublisherTxSender {
     PublicClient<HttpTransport, chains.Chain>,
     WalletClient<HttpTransport, chains.Chain, PrivateKeyAccount>
   >;
-  private unverifiedDataEmitterContract: GetContractReturnType<
-    typeof UnverifiedDataEmitterAbi,
+  private contractDeploymentEmitterContract: GetContractReturnType<
+    typeof ContractDeploymentEmitterAbi,
     PublicClient<HttpTransport, chains.Chain>,
     WalletClient<HttpTransport, chains.Chain, PrivateKeyAccount>
   >;
@@ -45,7 +45,7 @@ export class ViemTxSender implements L1PublisherTxSender {
       apiKey,
       publisherPrivateKey,
       rollupContract: rollupContractAddress,
-      unverifiedDataEmitterContract: unverifiedDataEmitterContractAddress,
+      contractDeploymentEmitterContract: contractDeploymentEmitterContractAddress,
     } = config;
     const chain = createEthereumChain(rpcUrl, apiKey);
     this.account = privateKeyToAccount(`0x${publisherPrivateKey.toString('hex')}`);
@@ -66,9 +66,9 @@ export class ViemTxSender implements L1PublisherTxSender {
       publicClient: this.publicClient,
       walletClient,
     });
-    this.unverifiedDataEmitterContract = getContract({
-      address: getAddress(unverifiedDataEmitterContractAddress.toString()),
-      abi: UnverifiedDataEmitterAbi,
+    this.contractDeploymentEmitterContract = getContract({
+      address: getAddress(contractDeploymentEmitterContractAddress.toString()),
+      abi: ContractDeploymentEmitterAbi,
       publicClient: this.publicClient,
       walletClient,
     });
@@ -116,36 +116,8 @@ export class ViemTxSender implements L1PublisherTxSender {
   }
 
   /**
-   * Sends a tx to the unverified data emitter contract with unverified data. Returns once the tx has been mined.
-   * @param l2BlockNum - Number of the L2 block that owns this unverified data.
-   * @param l2BlockHash - The hash of the block corresponding to this data.
-   * @param unverifiedData - Data to publish.
-   * @returns The hash of the mined tx.
-   */
-  async sendEmitUnverifiedDataTx(
-    l2BlockNum: number,
-    l2BlockHash: Buffer,
-    unverifiedData: UnverifiedData,
-  ): Promise<string | undefined> {
-    const args = [
-      BigInt(l2BlockNum),
-      `0x${l2BlockHash.toString('hex')}`,
-      `0x${unverifiedData.toBuffer().toString('hex')}`,
-    ] as const;
-
-    const gas = await this.unverifiedDataEmitterContract.estimateGas.emitUnverifiedData(args, {
-      account: this.account,
-    });
-    const hash = await this.unverifiedDataEmitterContract.write.emitUnverifiedData(args, {
-      account: this.account,
-      gas,
-    });
-    return hash;
-  }
-
-  /**
-   * Sends a tx to the unverified data emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
-   * @param l2BlockNum - Number of the L2 block that owns this unverified data.
+   * Sends a tx to the contract deployment emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
+   * @param l2BlockNum - Number of the L2 block that owns this encrypted logs.
    * @param l2BlockHash - The hash of the block corresponding to this data.
    * @param newContractData - Data to publish.
    * @returns The hash of the mined tx.
@@ -165,10 +137,10 @@ export class ViemTxSender implements L1PublisherTxSender {
         `0x${contractPublicData.bytecode.toString('hex')}`,
       ] as const;
 
-      const gas = await this.unverifiedDataEmitterContract.estimateGas.emitContractDeployment(args, {
+      const gas = await this.contractDeploymentEmitterContract.estimateGas.emitContractDeployment(args, {
         account: this.account,
       });
-      const hash = await this.unverifiedDataEmitterContract.write.emitContractDeployment(args, {
+      const hash = await this.contractDeploymentEmitterContract.write.emitContractDeployment(args, {
         gas,
         account: this.account,
       });

@@ -96,14 +96,14 @@ export function appFactory(node: AztecNode, prefix: string) {
     ctx.status = 200;
   });
 
-  router.get('/get-unverified', async (ctx: Koa.Context) => {
+  router.get('/get-encrypted-logs', async (ctx: Koa.Context) => {
     const from = +ctx.query.from!;
     const take = +ctx.query.take!;
-    const blocks = await node.getUnverifiedData(from, take);
-    const strs = blocks.map(x => x.toBuffer().toString('hex'));
+    const logs = await node.getEncryptedLogs(from, take);
+    const strs = logs.map(x => x.toBuffer().toString('hex'));
     ctx.set('content-type', 'application/json');
     ctx.body = {
-      unverified: strs,
+      encryptedLogs: strs,
     };
     ctx.status = 200;
   });

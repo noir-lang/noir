@@ -14,7 +14,7 @@ import { SiblingPath } from '@aztec/merkle-tree';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
 import { Tx, TxHash } from '@aztec/types';
-import { UnverifiedData, UnverifiedDataSource } from '@aztec/types';
+import { NoirLogs, NoirLogsSource } from '@aztec/types';
 import {
   MerkleTrees,
   ServerWorldStateSynchroniser,
@@ -42,7 +42,7 @@ export class AztecNodeService implements AztecNode {
   constructor(
     protected p2pClient: P2P,
     protected blockSource: L2BlockSource,
-    protected unverifiedDataSource: UnverifiedDataSource,
+    protected encryptedLogsSource: NoirLogsSource,
     protected contractDataSource: ContractDataSource,
     protected l1ToL2MessageSource: L1ToL2MessageSource,
     protected merkleTreeDB: MerkleTrees,
@@ -141,13 +141,13 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Gets the `take` amount of unverified data starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first `unverifiedData` to be returned.
-   * @param take - The number of `unverifiedData` to return.
-   * @returns The requested `unverifiedData`.
+   * Gets the `take` amount of encrypted logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first encryptedLogsSource to be returned.
+   * @param take - The number of encryptedLogsSource to return.
+   * @returns The requested encryptedLogsSource.
    */
-  public getUnverifiedData(from: number, take: number): Promise<UnverifiedData[]> {
-    return this.unverifiedDataSource.getUnverifiedData(from, take);
+  public getEncryptedLogs(from: number, take: number): Promise<NoirLogs[]> {
+    return this.encryptedLogsSource.getEncryptedLogs(from, take);
   }
 
   /**

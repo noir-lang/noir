@@ -10,7 +10,6 @@ import { randomBytes } from '@aztec/foundation/crypto';
 /**
  * A class which wraps the data required to compute a nullifier. Along with that this class contains the necessary
  * functionality to encrypt and decrypt the data.
- * Note: This data is passed around through UnverifiedData.
  */
 export class TxAuxData {
   constructor(

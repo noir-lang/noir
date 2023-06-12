@@ -15,7 +15,7 @@ export interface L1Addresses {
   inboxContract: EthAddress;
 
   /**
-   * UnverifiedDataEmitter contract address.
+   * ContractDeploymentEmitter contract address.
    */
-  unverifiedDataEmitterContract: EthAddress;
+  contractDeploymentEmitterContract: EthAddress;
 }

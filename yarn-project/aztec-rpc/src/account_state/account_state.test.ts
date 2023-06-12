@@ -3,7 +3,7 @@ import { CircuitsWasm } from '@aztec/circuits.js';
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair, KeyPair } from '@aztec/key-store';
-import { L2Block, L2BlockContext, TxAuxData, UnverifiedData } from '@aztec/types';
+import { L2Block, L2BlockContext, TxAuxData, NoirLogs } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
@@ -18,7 +18,7 @@ describe('Account State', () => {
   let accountState: AccountState;
   let owner: KeyPair;
 
-  const createUnverifiedDataAndOwnedTxAuxData = (ownedDataIndices: number[] = []) => {
+  const createEncryptedLogsAndOwnedTxAuxData = (ownedDataIndices: number[] = []) => {
     ownedDataIndices.forEach(index => {
       if (index >= KERNEL_NEW_COMMITMENTS_LENGTH) {
         throw new Error(`Data index should be less than ${KERNEL_NEW_COMMITMENTS_LENGTH}.`);
@@ -36,22 +36,22 @@ describe('Account State', () => {
         ownedTxAuxData.push(txAuxData);
       }
     }
-    const unverifiedData = new UnverifiedData(dataChunks);
-    return { unverifiedData, ownedTxAuxData };
+    const encryptedLogs = new NoirLogs(dataChunks);
+    return { encryptedLogs, ownedTxAuxData };
   };
 
   const mockData = (firstBlockNum: number, ownedData: number[][]) => {
     const blockContexts: L2BlockContext[] = [];
-    const unverifiedDatas: UnverifiedData[] = [];
+    const encryptedLogsArr: NoirLogs[] = [];
     const ownedTxAuxDatas: TxAuxData[] = [];
     for (let i = 0; i < ownedData.length; ++i) {
       const randomBlockContext = new L2BlockContext(L2Block.random(firstBlockNum + i));
       blockContexts.push(randomBlockContext);
-      const { unverifiedData, ownedTxAuxData } = createUnverifiedDataAndOwnedTxAuxData(ownedData[i]);
-      unverifiedDatas.push(unverifiedData);
+      const { encryptedLogs, ownedTxAuxData } = createEncryptedLogsAndOwnedTxAuxData(ownedData[i]);
+      encryptedLogsArr.push(encryptedLogs);
       ownedTxAuxDatas.push(...ownedTxAuxData);
     }
-    return { blockContexts, unverifiedDatas, ownedTxAuxDatas };
+    return { blockContexts, encryptedLogsArr, ownedTxAuxDatas };
   };
 
   beforeAll(async () => {
@@ -75,8 +75,8 @@ describe('Account State', () => {
 
   it('should store a tx that belong to us', async () => {
     const firstBlockNum = 1;
-    const { blockContexts, unverifiedDatas, ownedTxAuxDatas } = mockData(firstBlockNum, [[2]]);
-    await accountState.process(blockContexts, unverifiedDatas);
+    const { blockContexts, encryptedLogsArr, ownedTxAuxDatas } = mockData(firstBlockNum, [[2]]);
+    await accountState.process(blockContexts, encryptedLogsArr);
 
     const txs = await accountState.getTxs();
     expect(txs).toEqual([
@@ -96,8 +96,8 @@ describe('Account State', () => {
 
   it('should store multiple txs that belong to us', async () => {
     const firstBlockNum = 1;
-    const { blockContexts, unverifiedDatas, ownedTxAuxDatas } = mockData(firstBlockNum, [[], [1], [], [], [0, 2], []]);
-    await accountState.process(blockContexts, unverifiedDatas);
+    const { blockContexts, encryptedLogsArr, ownedTxAuxDatas } = mockData(firstBlockNum, [[], [1], [], [], [0, 2], []]);
+    await accountState.process(blockContexts, encryptedLogsArr);
 
     const txs = await accountState.getTxs();
     expect(txs).toEqual([
@@ -129,8 +129,8 @@ describe('Account State', () => {
 
   it('should not store txs that do not belong to us', async () => {
     const firstBlockNum = 1;
-    const { blockContexts, unverifiedDatas } = mockData(firstBlockNum, [[], []]);
-    await accountState.process(blockContexts, unverifiedDatas);
+    const { blockContexts, encryptedLogsArr } = mockData(firstBlockNum, [[], []]);
+    await accountState.process(blockContexts, encryptedLogsArr);
 
     const txs = await accountState.getTxs();
     expect(txs).toEqual([]);
