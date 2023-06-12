@@ -153,25 +153,33 @@ impl<'interner> TypeChecker<'interner> {
                 let start_span = self.interner.expr_span(&for_expr.start_range);
                 let end_span = self.interner.expr_span(&for_expr.end_range);
 
-                let mut unify_loop_range = |actual_type, span| {
-                    let expected_type = if self.is_unconstrained() {
-                        Type::FieldElement(CompTime::new(self.interner))
-                    } else {
-                        Type::comp_time(Some(span))
-                    };
+                // Check that start range and end range have the same types
+                let range_span = start_span.merge(end_span);
+                self.unify(&start_range_type, &end_range_type, range_span, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: start_range_type.to_string(),
+                        expr_typ: end_range_type.to_string(),
+                        expr_span: range_span,
+                    }
+                });
 
-                    self.unify(actual_type, &expected_type, span, || {
-                        TypeCheckError::TypeCannotBeUsed {
-                            typ: start_range_type.clone(),
-                            place: "for loop",
-                            span,
-                        }
-                        .add_context("The range of a loop must be known at compile-time")
-                    });
+                let expected_comptime = if self.is_unconstrained() {
+                    CompTime::new(self.interner)
+                } else {
+                    CompTime::Yes(Some(range_span))
                 };
+                let fresh_id = self.interner.next_type_variable_id();
+                let type_variable = Shared::new(TypeBinding::Unbound(fresh_id));
+                let expected_type = Type::PolymorphicInteger(expected_comptime, type_variable);
 
-                unify_loop_range(&start_range_type, start_span);
-                unify_loop_range(&end_range_type, end_span);
+                self.unify(&start_range_type, &expected_type, range_span, || {
+                    TypeCheckError::TypeCannotBeUsed {
+                        typ: start_range_type.clone(),
+                        place: "for loop",
+                        span: range_span,
+                    }
+                    .add_context("The range of a loop must be known at compile-time")
+                });
 
                 self.interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
@@ -427,9 +435,10 @@ impl<'interner> TypeChecker<'interner> {
         // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
         // preserve the evaluation order of the source code.
         let mut args = constructor.fields;
-        args.sort_by_key(|arg| arg.0.clone());
+        sort_by_key_ref(&mut args, |(name, _)| name);
 
-        let fields = typ.borrow().get_fields(&generics);
+        let mut fields = typ.borrow().get_fields(&generics);
+        sort_by_key_ref(&mut fields, |(name, _)| name);
 
         for ((param_name, param_type), (arg_ident, arg)) in fields.into_iter().zip(args) {
             // This can be false if the user provided an incorrect field count. That error should
@@ -837,4 +846,13 @@ fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Typ
         }
     }
     Ok(rhs_type.clone())
+}
+
+/// Taken from: https://stackoverflow.com/a/47127500
+fn sort_by_key_ref<T, F, K>(xs: &mut [T], key: F)
+where
+    F: Fn(&T) -> &K,
+    K: ?Sized + Ord,
+{
+    xs.sort_by(|x, y| key(x).cmp(key(y)));
 }

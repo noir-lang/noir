@@ -144,13 +144,13 @@ pub struct FuncMeta {
 }
 
 impl FuncMeta {
-    /// Builtin and LowLevel functions usually have the return type
+    /// Builtin, LowLevel and Oracle functions usually have the return type
     /// declared, however their function bodies will be empty
     /// So this method tells the type checker to ignore the return
     /// of the empty function, which is unit
     pub fn can_ignore_return_type(&self) -> bool {
         match self.kind {
-            FunctionKind::LowLevel | FunctionKind::Builtin => true,
+            FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
             FunctionKind::Normal => false,
         }
     }

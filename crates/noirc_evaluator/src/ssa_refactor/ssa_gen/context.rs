@@ -1,16 +1,19 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
 
-use crate::ssa_refactor::ir::function::Function;
+use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
+use crate::ssa_refactor::ir::function::{Function, RuntimeType};
 use crate::ssa_refactor::ir::instruction::BinaryOp;
 use crate::ssa_refactor::ir::map::AtomicCounter;
-use crate::ssa_refactor::ir::types::Type;
+use crate::ssa_refactor::ir::types::{NumericType, Type};
 use crate::ssa_refactor::ir::value::ValueId;
 use crate::ssa_refactor::ssa_builder::FunctionBuilder;
 
@@ -81,6 +84,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn new(
         function_name: String,
         parameters: &Parameters,
+        runtime: RuntimeType,
         shared_context: &'a SharedContext,
     ) -> Self {
         let function_id = shared_context
@@ -88,7 +92,7 @@ impl<'a> FunctionContext<'a> {
             .expect("No function in queue for the FunctionContext to compile")
             .1;
 
-        let builder = FunctionBuilder::new(function_name, function_id);
+        let builder = FunctionBuilder::new(function_name, function_id, runtime);
         let mut this = Self { definitions: HashMap::new(), builder, shared_context };
         this.add_parameters_to_scope(parameters);
         this
@@ -99,10 +103,14 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(&mut self, id: IrFunctionId, name: String, parameters: &Parameters) {
+    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
-        self.builder.new_function(name, id);
-        self.add_parameters_to_scope(parameters);
+        if func.unconstrained {
+            self.builder.new_brillig_function(func.name.clone(), id);
+        } else {
+            self.builder.new_function(func.name.clone(), id);
+        }
+        self.add_parameters_to_scope(&func.parameters);
     }
 
     /// Add each parameter to the current scope, and return the list of parameter types.
@@ -141,7 +149,7 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let alloc = self.builder.insert_allocate(1);
+        let alloc = self.builder.insert_allocate();
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
@@ -181,7 +189,10 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn convert_non_tuple_type(typ: &ast::Type) -> Type {
         match typ {
             ast::Type::Field => Type::field(),
-            ast::Type::Array(_, _) => Type::Reference,
+            ast::Type::Array(len, element) => {
+                let element_types = Self::convert_type(element).flatten();
+                Type::Array(Rc::new(element_types), *len as usize)
+            }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed(*bits),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned(*bits),
             ast::Type::Bool => Type::unsigned(1),
@@ -220,6 +231,23 @@ impl<'a> FunctionContext<'a> {
         }
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
+
+        if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
+            operator,
+            lhs,
+            rhs,
+            &self.builder.current_function.dfg,
+        ) {
+            let result_type = self.builder.current_function.dfg.type_of_value(result);
+            let bit_size = match result_type {
+                Type::Numeric(NumericType::Signed { bit_size })
+                | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                _ => {
+                    unreachable!("ICE: Truncation attempted on non-integer");
+                }
+            };
+            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+        }
 
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
@@ -284,8 +312,147 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Mutate lhs to equal rhs
-    pub(crate) fn assign(&mut self, lhs: Values, rhs: Values) {
+    /// Extract the given field of the tuple by reference. Panics if the given Values is not
+    /// a Tree::Branch or does not have enough fields.
+    pub(super) fn get_field_ref(tuple: &Values, field_index: usize) -> &Values {
+        match tuple {
+            Tree::Branch(trees) => &trees[field_index],
+            Tree::Leaf(value) => {
+                unreachable!("Tried to extract tuple index {field_index} from non-tuple {value:?}")
+            }
+        }
+    }
+
+    /// Replace the given field of the tuple with a new one. Panics if the given Values is not
+    /// a Tree::Branch or does not have enough fields.
+    pub(super) fn replace_field(tuple: Values, field_index: usize, new_value: Values) -> Values {
+        match tuple {
+            Tree::Branch(mut trees) => {
+                trees[field_index] = new_value;
+                Tree::Branch(trees)
+            }
+            Tree::Leaf(value) => {
+                unreachable!("Tried to extract tuple index {field_index} from non-tuple {value:?}")
+            }
+        }
+    }
+
+    /// Retrieves the given function, adding it to the function queue
+    /// if it is not yet compiled.
+    pub(super) fn get_or_queue_function(&mut self, id: FuncId) -> Values {
+        let function = self.shared_context.get_or_queue_function(id);
+        self.builder.import_function(function).into()
+    }
+
+    /// Extracts the current value out of an LValue.
+    ///
+    /// Goal: Handle the case of assigning to nested expressions such as `foo.bar[i1].baz[i2] = e`
+    ///       while also noting that assigning to arrays will create a new array rather than mutate
+    ///       the original.
+    ///
+    /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
+    ///         value contained:
+    ///
+    /// v0 = foo.bar                 ; allocate instruction for bar
+    /// v1 = load v0                 ; loading the bar array
+    /// v2 = add i1, baz_index       ; field offset for index i1, field baz
+    /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
+    ///
+    /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
+    ///                  construct the larger value as needed until we can `store` to the nearest
+    ///                  allocation.
+    ///
+    /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
+    /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
+    /// store v5 in v0                   ; and store the result in the only mutable reference
+    ///
+    /// The returned `LValueRef` tracks the current value at each step of the lvalue.
+    /// This is later used by `assign_new_value` to construct a new updated value that
+    /// can be assigned to an allocation within the LValueRef::Ident.
+    ///
+    /// This is operationally equivalent to extract_current_value_recursive, but splitting these
+    /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
+    /// version, as it is only needed for recursion.
+    pub(super) fn extract_current_value(&mut self, lvalue: &ast::LValue) -> LValue {
+        match lvalue {
+            ast::LValue::Ident(ident) => LValue::Ident(self.ident_lvalue(ident)),
+            ast::LValue::Index { array, index, .. } => self.index_lvalue(array, index).2,
+            ast::LValue::MemberAccess { object, field_index } => {
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let object_lvalue = Box::new(object_lvalue);
+                LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
+            }
+        }
+    }
+
+    /// Compile the given identifier as a reference - ie. avoid calling .eval()
+    fn ident_lvalue(&self, ident: &ast::Ident) -> Values {
+        match &ident.definition {
+            ast::Definition::Local(id) => self.lookup(*id),
+            other => panic!("Unexpected definition found for mutable value: {other}"),
+        }
+    }
+
+    /// Compile the given `array[index]` expression as a reference.
+    /// This will return a triple of (array, index, lvalue_ref) where the lvalue_ref records the
+    /// structure of the lvalue expression for use by `assign_new_value`.
+    fn index_lvalue(
+        &mut self,
+        array: &ast::LValue,
+        index: &ast::Expression,
+    ) -> (ValueId, ValueId, LValue) {
+        let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
+        let old_array = old_array.into_leaf().eval(self);
+        let array_lvalue = Box::new(array_lvalue);
+        let index = self.codegen_non_tuple_expression(index);
+        (old_array, index, LValue::Index { old_array, index, array_lvalue })
+    }
+
+    fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
+        match lvalue {
+            ast::LValue::Ident(ident) => {
+                let variable = self.ident_lvalue(ident);
+                (variable.clone(), LValue::Ident(variable))
+            }
+            ast::LValue::Index { array, index, element_type, location: _ } => {
+                let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
+                let element = self.codegen_array_index(old_array, index, element_type);
+                (element, index_lvalue)
+            }
+            ast::LValue::MemberAccess { object, field_index: index } => {
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let object_lvalue = Box::new(object_lvalue);
+                let element = Self::get_field_ref(&old_object, *index).clone();
+                (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
+            }
+        }
+    }
+
+    /// Assigns a new value to the given LValue.
+    /// The LValue can be created via a previous call to extract_current_value.
+    /// This method recurs on the given LValue to create a new value to assign an allocation
+    /// instruction within an LValue::Ident - see the comment on `extract_current_value` for more
+    /// details.
+    /// When first-class references are supported the nearest reference may be in any LValue
+    /// variant rather than just LValue::Ident.
+    pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
+        match lvalue {
+            LValue::Ident(references) => self.assign(references, new_value),
+            LValue::Index { old_array, index, array_lvalue } => {
+                let rvalue = new_value.into_leaf().eval(self); // TODO
+                let new_array = self.builder.insert_array_set(old_array, index, rvalue);
+                self.assign_new_value(*array_lvalue, new_array.into());
+            }
+            LValue::MemberAccess { old_object, index, object_lvalue } => {
+                let new_object = Self::replace_field(old_object, index, new_value);
+                self.assign_new_value(*object_lvalue, new_object);
+            }
+        }
+    }
+
+    /// Given an lhs containing only references, create a store instruction to store each value of
+    /// rhs into its corresponding value in lhs.
+    fn assign(&mut self, lhs: Values, rhs: Values) {
         match (lhs, rhs) {
             (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
                 assert_eq!(lhs_branches.len(), rhs_branches.len());
@@ -305,13 +472,6 @@ impl<'a> FunctionContext<'a> {
             }
         }
     }
-
-    /// Retrieves the given function, adding it to the function queue
-    /// if it is not yet compiled.
-    pub(super) fn get_or_queue_function(&mut self, id: FuncId) -> Values {
-        let function = self.shared_context.get_or_queue_function(id);
-        self.builder.import_function(function).into()
-    }
 }
 
 /// True if the given operator cannot be encoded directly and needs
@@ -327,6 +487,64 @@ fn operator_requires_not(op: noirc_frontend::BinaryOpKind) -> bool {
 fn operator_requires_swapped_operands(op: noirc_frontend::BinaryOpKind) -> bool {
     use noirc_frontend::BinaryOpKind::*;
     matches!(op, Greater | LessEqual)
+}
+
+/// If the operation requires its result to be truncated because it is an integer, the maximum
+/// number of bits that result may occupy is returned.
+fn operator_result_max_bit_size_to_truncate(
+    op: noirc_frontend::BinaryOpKind,
+    lhs: ValueId,
+    rhs: ValueId,
+    dfg: &DataFlowGraph,
+) -> Option<u32> {
+    let lhs_type = dfg.type_of_value(lhs);
+    let rhs_type = dfg.type_of_value(rhs);
+
+    let get_bit_size = |typ| match typ {
+        Type::Numeric(NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size }) => {
+            Some(bit_size)
+        }
+        _ => None,
+    };
+
+    let lhs_bit_size = get_bit_size(lhs_type)?;
+    let rhs_bit_size = get_bit_size(rhs_type)?;
+    use noirc_frontend::BinaryOpKind::*;
+    match op {
+        Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
+        Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
+        Multiply => Some(lhs_bit_size + rhs_bit_size),
+        ShiftLeft => {
+            if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
+                // Happy case is that we know precisely by how many bits the the integer will
+                // increase: lhs_bit_size + rhs
+                return Some(lhs_bit_size + (rhs_constant.to_u128() as u32));
+            }
+            // Unhappy case is that we don't yet know the rhs value, (even though it will
+            // eventually have to resolve to a constant). The best we can is assume the value of
+            // rhs to be the maximum value of it's numeric type. If that turns out to be larger
+            // than the native field's bit size, we full back to using that.
+
+            // The formula for calculating the max bit size of a left shift is:
+            // lhs_bit_size + 2^{rhs_bit_size} - 1
+            // Inferring the max bit size of left shift from its operands can result in huge
+            // number, that might not only be larger than the native field's max bit size, but
+            // furthermore might not be representable as a u32. Hence we use overflow checks and
+            // fallback to the native field's max bits.
+            let field_max_bits = FieldElement::max_num_bits();
+            let (rhs_bit_size_pow_2, overflows) = 2_u32.overflowing_pow(rhs_bit_size);
+            if overflows {
+                return Some(field_max_bits);
+            }
+            let (max_bits_plus_1, overflows) = rhs_bit_size_pow_2.overflowing_add(lhs_bit_size);
+            if overflows {
+                return Some(field_max_bits);
+            }
+            let max_bit_size = std::cmp::min(max_bits_plus_1 - 1, field_max_bits);
+            Some(max_bit_size)
+        }
+        _ => None,
+    }
 }
 
 /// Converts the given operator to the appropriate BinaryOp.
@@ -393,4 +611,11 @@ impl SharedContext {
 
         next_id
     }
+}
+
+/// Used to remember the results of each step of extracting a value from an ast::LValue
+pub(super) enum LValue {
+    Ident(Values),
+    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
+    MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
 }

@@ -76,15 +76,11 @@ impl Opcode {
                     | BlackBoxFunc::Keccak256
                     | BlackBoxFunc::Blake2s
                     | BlackBoxFunc::Pedersen
-                    | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
+                    | BlackBoxFunc::FixedBaseScalarMul
+                    | BlackBoxFunc::RecursiveAggregation => BigUint::zero(),
                     // Verify returns zero or one
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
-                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
-                        ObjectType::native_field().max_size()
-                    }
-                    BlackBoxFunc::AES => {
-                        todo!("ICE: AES is unimplemented")
-                    }
+                    BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
                     }
@@ -102,19 +98,20 @@ impl Opcode {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
-                    BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
                     BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Keccak256 => {
                         (32, ObjectType::unsigned_integer(8))
                     }
-                    BlackBoxFunc::ComputeMerkleRoot | BlackBoxFunc::HashToField128Security => {
-                        (1, ObjectType::native_field())
-                    }
+                    BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
                     // See issue #775 on changing this to return a boolean
                     BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => {
                         (1, ObjectType::native_field())
                     }
                     BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
+                    BlackBoxFunc::RecursiveAggregation => {
+                        let a = super::mem::Memory::deref(ctx, args[4]).unwrap();
+                        (ctx.mem[a].len, ctx.mem[a].element_type)
+                    }
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unreachable!("ICE: these opcodes do not have Noir builtin functions")
                     }

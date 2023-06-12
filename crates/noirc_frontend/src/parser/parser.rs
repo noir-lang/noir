@@ -35,9 +35,8 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
-    NoirStruct, NoirTyAlias, Path, PathKind, Pattern, Recoverable, UnaryOp,
-    UnresolvedTypeExpression,
+    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct, NoirTyAlias, Path,
+    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -409,12 +408,7 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    let rename = ignore_then_commit(keyword(Keyword::As), ident()).or_not();
-
-    keyword(Keyword::Use)
-        .ignore_then(path())
-        .then(rename)
-        .map(|(path, alias)| TopLevelStatement::Import(ImportStatement { path, alias }))
+    keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
 }
 
 fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
@@ -447,6 +441,39 @@ fn path() -> impl NoirParser<Path> {
         path_kind(Keyword::Dep, PathKind::Dep),
         idents().map(make_path(PathKind::Plain)),
     ))
+}
+
+fn empty_path() -> impl NoirParser<Path> {
+    let make_path = |kind| move |_| Path { segments: Vec::new(), kind };
+    let path_kind = |key, kind| keyword(key).map(make_path(kind));
+
+    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
+}
+
+fn rename() -> impl NoirParser<Option<Ident>> {
+    ignore_then_commit(keyword(Keyword::As), ident()).or_not()
+}
+
+fn use_tree() -> impl NoirParser<UseTree> {
+    recursive(|use_tree| {
+        let simple = path().then(rename()).map(|(mut prefix, alias)| {
+            let ident = prefix.pop();
+            UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
+        });
+
+        let list = {
+            let prefix = path().or(empty_path()).then_ignore(just(Token::DoubleColon));
+            let tree = use_tree
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
+                .map(UseTreeKind::List);
+
+            prefix.then(tree).map(|(prefix, kind)| UseTree { prefix, kind })
+        };
+
+        choice((list, simple))
+    })
 }
 
 fn ident() -> impl NoirParser<Ident> {
@@ -1525,12 +1552,30 @@ mod test {
     fn parse_use() {
         parse_all(
             use_statement(),
-            vec!["use std::hash", "use std", "use foo::bar as hello", "use bar as bar"],
+            vec![
+                "use std::hash",
+                "use std",
+                "use foo::bar as hello",
+                "use bar as bar",
+                "use foo::{}",
+                "use foo::{bar,}",
+                "use foo::{bar, hello}",
+                "use foo::{bar as bar2, hello}",
+                "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+                "use dep::{std::println, bar::baz}",
+            ],
         );
 
         parse_all_failing(
             use_statement(),
-            vec!["use std as ;", "use foobar as as;", "use hello:: as foo;"],
+            vec![
+                "use std as ;",
+                "use foobar as as;",
+                "use hello:: as foo;",
+                "use foo bar::baz",
+                "use foo bar::{baz}",
+                "use foo::{,}",
+            ],
         );
     }
 

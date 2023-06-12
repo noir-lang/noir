@@ -124,7 +124,7 @@ impl IrGenerator {
         &mut self,
         struct_name: &str,
         ident_def: Option<Definition>,
-        fields: &BTreeMap<String, noirc_abi::AbiType>,
+        fields: &[(String, noirc_abi::AbiType)],
         witnesses: &BTreeMap<String, Vec<Witness>>,
     ) -> Value {
         let values = vecmap(fields, |(name, field_typ)| {
@@ -188,6 +188,9 @@ impl IrGenerator {
                     });
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
                     Ok(Value::Node(function_node_id))
+                }
+                Definition::Oracle(_, _) => {
+                    unimplemented!("oracles not supported by deprecated SSA")
                 }
             }
         }

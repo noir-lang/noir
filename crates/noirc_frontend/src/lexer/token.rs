@@ -324,6 +324,7 @@ impl IntType {
 pub enum Attribute {
     Foreign(String),
     Builtin(String),
+    Oracle(String),
     Test,
 }
 
@@ -332,6 +333,7 @@ impl fmt::Display for Attribute {
         match *self {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
+            Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             Attribute::Test => write!(f, "#[test]"),
         }
     }
@@ -363,6 +365,7 @@ impl Attribute {
         let tok = match attribute_type {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
+            "oracle" => Token::Attribute(Attribute::Oracle(attribute_name.to_string())),
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
@@ -398,6 +401,7 @@ impl AsRef<str> for Attribute {
         match self {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
+            Attribute::Oracle(string) => string,
             Attribute::Test => "",
         }
     }

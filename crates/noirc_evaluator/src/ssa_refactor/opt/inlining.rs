@@ -10,7 +10,7 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -92,7 +92,7 @@ impl InlineContext {
     /// that could not be inlined calling it.
     fn new(ssa: &Ssa) -> InlineContext {
         let main_name = ssa.main().name().to_owned();
-        let builder = FunctionBuilder::new(main_name, ssa.next_id.next());
+        let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Acir);
         Self { builder, recursion_level: 0, failed_to_inline_a_call: false }
     }
 
@@ -203,11 +203,14 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                let value = self.source_function.dfg[*constant].value();
-                self.context.builder.numeric_constant(value, *typ)
+                self.context.builder.numeric_constant(*constant, typ.clone())
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::Array { array, element_type } => {
+                let elements = array.iter().map(|value| self.translate_value(*value)).collect();
+                self.context.builder.array_constant(elements, element_type.clone())
+            }
         };
 
         self.values.insert(id, new_value);
@@ -254,10 +257,7 @@ impl<'function> PerFunctionContext<'function> {
         match self.context.builder[id] {
             Value::Function(id) => Some(id),
             Value::Intrinsic(_) => None,
-            _ => {
-                self.context.failed_to_inline_a_call = true;
-                None
-            }
+            _ => None,
         }
     }
 
@@ -325,8 +325,17 @@ impl<'function> PerFunctionContext<'function> {
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(function) => self.inline_function(ssa, *id, function, arguments),
-                    None => self.push_instruction(*id),
+                    Some(function) => match ssa.functions[&function].runtime() {
+                        RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
+                        RuntimeType::Brillig => {
+                            self.context.failed_to_inline_a_call = true;
+                            self.push_instruction(*id);
+                        }
+                    },
+                    None => {
+                        self.context.failed_to_inline_a_call = true;
+                        self.push_instruction(*id);
+                    }
                 },
                 _ => self.push_instruction(*id),
             }
@@ -395,25 +404,37 @@ impl<'function> PerFunctionContext<'function> {
         block_id: BasicBlockId,
         block_queue: &mut Vec<BasicBlockId>,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
-        match self.source_function.dfg[block_id].terminator() {
-            Some(TerminatorInstruction::Jmp { destination, arguments }) => {
+        match self.source_function.dfg[block_id].unwrap_terminator() {
+            TerminatorInstruction::Jmp { destination, arguments } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
                 self.context.builder.terminate_with_jmp(destination, arguments);
                 None
             }
-            Some(TerminatorInstruction::JmpIf {
-                condition,
-                then_destination,
-                else_destination,
-            }) => {
+            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.translate_value(*condition);
-                let then_block = self.translate_block(*then_destination, block_queue);
-                let else_block = self.translate_block(*else_destination, block_queue);
-                self.context.builder.terminate_with_jmpif(condition, then_block, else_block);
+
+                // See if the value of the condition is known, and if so only inline the reachable
+                // branch. This lets us inline some recursive functions without recurring forever.
+                let dfg = &mut self.context.builder.current_function.dfg;
+                match dfg.get_numeric_constant(condition) {
+                    Some(constant) => {
+                        let next_block =
+                            if constant.is_zero() { *else_destination } else { *then_destination };
+                        let next_block = self.translate_block(next_block, block_queue);
+                        self.context.builder.terminate_with_jmp(next_block, vec![]);
+                    }
+                    None => {
+                        let then_block = self.translate_block(*then_destination, block_queue);
+                        let else_block = self.translate_block(*else_destination, block_queue);
+                        self.context
+                            .builder
+                            .terminate_with_jmpif(condition, then_block, else_block);
+                    }
+                }
                 None
             }
-            Some(TerminatorInstruction::Return { return_values }) => {
+            TerminatorInstruction::Return { return_values } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
                 if self.inlining_main {
                     self.context.builder.terminate_with_return(return_values.clone());
@@ -421,7 +442,6 @@ impl<'function> PerFunctionContext<'function> {
                 let block_id = self.translate_block(block_id, block_queue);
                 Some((block_id, return_values))
             }
-            None => unreachable!("Block has no terminator instruction"),
         }
     }
 }
@@ -429,7 +449,12 @@ impl<'function> PerFunctionContext<'function> {
 #[cfg(test)]
 mod test {
     use crate::ssa_refactor::{
-        ir::{instruction::BinaryOp, map::Id, types::Type},
+        ir::{
+            function::RuntimeType,
+            instruction::{BinaryOp, TerminatorInstruction},
+            map::Id,
+            types::Type,
+        },
         ssa_builder::FunctionBuilder,
     };
 
@@ -445,7 +470,7 @@ mod test {
         //     return 72
         // }
         let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id, RuntimeType::Acir);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
@@ -494,7 +519,7 @@ mod test {
         let id2_id = Id::test_new(3);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
         let main_v0 = builder.add_parameter(Type::field());
 
         let main_f1 = builder.import_function(square_id);
@@ -528,5 +553,85 @@ mod test {
 
         let inlined = ssa.inline_functions();
         assert_eq!(inlined.functions.len(), 1);
+    }
+
+    #[test]
+    fn recursive_functions() {
+        // fn main f0 {
+        //   b0():
+        //     v0 = call factorial(Field 5)
+        //     return v0
+        // }
+        // fn factorial f1 {
+        //   b0(v0: Field):
+        //     v1 = lt v0, Field 1
+        //     jmpif v1, then: b1, else: b2
+        //   b1():
+        //     return Field 1
+        //   b2():
+        //     v2 = sub v0, Field 1
+        //     v3 = call factorial(v2)
+        //     v4 = mul v0, v3
+        //     return v4
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let factorial_id = Id::test_new(1);
+        let factorial = builder.import_function(factorial_id);
+
+        let five = builder.field_constant(5u128);
+        let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
+        builder.terminate_with_return(results);
+
+        builder.new_function("factorial".into(), factorial_id);
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+
+        let one = builder.field_constant(1u128);
+
+        let v0 = builder.add_parameter(Type::field());
+        let v1 = builder.insert_binary(v0, BinaryOp::Lt, one);
+        builder.terminate_with_jmpif(v1, b1, b2);
+
+        builder.switch_to_block(b1);
+        builder.terminate_with_return(vec![one]);
+
+        builder.switch_to_block(b2);
+        let factorial_id = builder.import_function(factorial_id);
+        let v2 = builder.insert_binary(v0, BinaryOp::Sub, one);
+        let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()])[0];
+        let v4 = builder.insert_binary(v0, BinaryOp::Mul, v3);
+        builder.terminate_with_return(vec![v4]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.functions.len(), 2);
+
+        // Expected SSA:
+        //
+        // fn main f2 {
+        //   b0():
+        //     jmp b1()
+        //   b1():
+        //     return Field 120
+        // }
+        let inlined = ssa.inline_functions();
+        assert_eq!(inlined.functions.len(), 1);
+
+        let main = inlined.main();
+        let b1 = &main.dfg[b1];
+
+        match b1.terminator() {
+            Some(TerminatorInstruction::Return { return_values }) => {
+                assert_eq!(return_values.len(), 1);
+                let value = main
+                    .dfg
+                    .get_numeric_constant(return_values[0])
+                    .expect("Expected a constant for the return value")
+                    .to_u128();
+                assert_eq!(value, 120);
+            }
+            other => unreachable!("Unexpected terminator {other:?}"),
+        }
     }
 }

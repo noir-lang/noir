@@ -94,31 +94,43 @@ pub(crate) enum Instruction {
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
-    ///
-    /// `size` is the size of the region to be allocated by the number of FieldElements it
-    /// contains. Note that non-numeric types like Functions and References are counted as 1 field
-    /// each.
-    Allocate { size: u32 },
+    /// This is used for representing mutable variables and references.
+    Allocate,
 
     /// Loads a value from memory.
     Load { address: ValueId },
 
     /// Writes a value to memory.
     Store { address: ValueId, value: ValueId },
+
+    /// Retrieve a value from an array at the given index
+    ArrayGet { array: ValueId, index: ValueId },
+
+    /// Creates a new array with the new value at the given index. All other elements are identical
+    /// to those in the given array. This will not modify the original array.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId },
 }
 
 impl Instruction {
+    /// Returns a binary instruction with the given operator, lhs, and rhs
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+        Instruction::Binary(Binary { lhs, operator, rhs })
+    }
+
     /// Returns the type that this instruction will return.
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) => InstructionResultType::Known(*typ),
+            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
             Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
+            Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::Call { .. } => InstructionResultType::Unknown,
+            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
+                InstructionResultType::Unknown
+            }
         }
     }
 
@@ -138,7 +150,7 @@ impl Instruction {
                 rhs: f(binary.rhs),
                 operator: binary.operator,
             }),
-            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
             Instruction::Not(value) => Instruction::Not(f(*value)),
             Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
                 value: f(*value),
@@ -150,34 +162,48 @@ impl Instruction {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
             },
-            Instruction::Allocate { size } => Instruction::Allocate { size: *size },
+            Instruction::Allocate => Instruction::Allocate,
             Instruction::Load { address } => Instruction::Load { address: f(*address) },
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
+            }
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
+            }
+            Instruction::ArraySet { array, index, value } => {
+                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
         }
     }
 
     /// Try to simplify this instruction. If the instruction can be simplified to a known value,
     /// that value is returned. Otherwise None is returned.
-    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> Option<ValueId> {
+    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
+        use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
-            Instruction::Cast(value, typ) => (*typ == dfg.type_of_value(*value)).then_some(*value),
+            Instruction::Cast(value, typ) => {
+                if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                    SimplifiedTo(value)
+                } else {
+                    None
+                }
+            }
             Instruction::Not(value) => {
                 match &dfg[*value] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
-                        let value = dfg[*constant].value().is_zero() as u128;
-                        Some(dfg.make_constant(value.into(), Type::bool()))
+                        let value = constant.is_zero() as u128;
+                        SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
-                        match &dfg[*instruction] {
-                            Instruction::Not(value) => Some(*value),
-                            _ => None,
+                        if let Instruction::Not(value) = &dfg[*instruction] {
+                            SimplifiedTo(*value)
+                        } else {
+                            None
                         }
                     }
                     _ => None,
@@ -186,13 +212,46 @@ impl Instruction {
             Instruction::Constrain(value) => {
                 if let Some(constant) = dfg.get_numeric_constant(*value) {
                     if constant.is_one() {
-                        // "simplify" to a unit literal that will just be thrown away anyway
-                        return Some(dfg.make_constant(0u128.into(), Type::Unit));
+                        return Remove;
                     }
                 }
                 None
             }
-            Instruction::Truncate { .. } => None,
+            Instruction::ArrayGet { array, index } => {
+                let array = dfg.get_array_constant(*array);
+                let index = dfg.get_numeric_constant(*index);
+
+                if let (Some((array, _)), Some(index)) = (array, index) {
+                    let index =
+                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                    assert!(index < array.len());
+                    SimplifiedTo(array[index])
+                } else {
+                    None
+                }
+            }
+            Instruction::ArraySet { array, index, value } => {
+                let array = dfg.get_array_constant(*array);
+                let index = dfg.get_numeric_constant(*index);
+
+                if let (Some((array, element_type)), Some(index)) = (array, index) {
+                    let index =
+                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                    assert!(index < array.len());
+                    SimplifiedTo(dfg.make_array(array.update(index, *value), element_type))
+                } else {
+                    None
+                }
+            }
+            Instruction::Truncate { value, bit_size, .. } => {
+                if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
+                    let integer_modulus = 2_u128.pow(*bit_size);
+                    let truncated = numeric_constant.to_u128() % integer_modulus;
+                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                } else {
+                    None
+                }
+            }
             Instruction::Call { .. } => None,
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
@@ -248,6 +307,44 @@ pub(crate) enum TerminatorInstruction {
     Return { return_values: Vec<ValueId> },
 }
 
+impl TerminatorInstruction {
+    /// Map each ValueId in this terminator to a new value.
+    pub(crate) fn map_values(
+        &self,
+        mut f: impl FnMut(ValueId) -> ValueId,
+    ) -> TerminatorInstruction {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, then_destination, else_destination } => JmpIf {
+                condition: f(*condition),
+                then_destination: *then_destination,
+                else_destination: *else_destination,
+            },
+            Jmp { destination, arguments } => {
+                Jmp { destination: *destination, arguments: vecmap(arguments, |value| f(*value)) }
+            }
+            Return { return_values } => {
+                Return { return_values: vecmap(return_values, |value| f(*value)) }
+            }
+        }
+    }
+
+    /// Mutate each BlockId to a new BlockId specified by the given mapping function.
+    pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { then_destination, else_destination, .. } => {
+                *then_destination = f(*then_destination);
+                *else_destination = f(*else_destination);
+            }
+            Jmp { destination, .. } => {
+                *destination = f(*destination);
+            }
+            Return { .. } => (),
+        }
+    }
+}
+
 /// A binary instruction in the IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct Binary {
@@ -269,13 +366,16 @@ impl Binary {
     }
 
     /// Try to simplify this binary instruction, returning the new value if possible.
-    fn simplify(&self, dfg: &mut DataFlowGraph) -> Option<ValueId> {
+    fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
         let lhs = dfg.get_numeric_constant(self.lhs);
         let rhs = dfg.get_numeric_constant(self.rhs);
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-            return self.eval_constants(dfg, lhs, rhs, operand_type);
+            return match self.eval_constants(dfg, lhs, rhs, operand_type) {
+                Some(value) => SimplifyResult::SimplifiedTo(value),
+                None => SimplifyResult::None,
+            };
         }
 
         let lhs_is_zero = lhs.map_or(false, |lhs| lhs.is_zero());
@@ -287,71 +387,84 @@ impl Binary {
         match self.operator {
             BinaryOp::Add => {
                 if lhs_is_zero {
-                    return Some(self.rhs);
+                    return SimplifyResult::SimplifiedTo(self.rhs);
                 }
                 if rhs_is_zero {
-                    return Some(self.lhs);
+                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
             BinaryOp::Sub => {
                 if rhs_is_zero {
-                    return Some(self.lhs);
+                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
             BinaryOp::Mul => {
                 if lhs_is_one {
-                    return Some(self.rhs);
+                    return SimplifyResult::SimplifiedTo(self.rhs);
                 }
                 if rhs_is_one {
-                    return Some(self.lhs);
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+                if lhs_is_zero || rhs_is_zero {
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::Div => {
                 if rhs_is_one {
-                    return Some(self.lhs);
+                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
             BinaryOp::Mod => {
                 if rhs_is_one {
-                    return Some(self.lhs);
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
-                    return Some(dfg.make_constant(FieldElement::one(), Type::bool()));
+                    let one = dfg.make_constant(FieldElement::one(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(one);
                 }
             }
             BinaryOp::Lt => {
                 if self.lhs == self.rhs {
-                    return Some(dfg.make_constant(FieldElement::zero(), Type::bool()));
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::And => {
                 if lhs_is_zero || rhs_is_zero {
-                    return Some(dfg.make_constant(FieldElement::zero(), operand_type));
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    return SimplifyResult::SimplifiedTo(zero);
                 }
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
-                    return Some(self.rhs);
+                    return SimplifyResult::SimplifiedTo(self.rhs);
                 }
                 if rhs_is_zero {
-                    return Some(self.lhs);
+                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
-            BinaryOp::Xor => (),
+            BinaryOp::Xor => {
+                if self.lhs == self.rhs {
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
             BinaryOp::Shl => {
                 if rhs_is_zero {
-                    return Some(self.lhs);
+                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
             BinaryOp::Shr => {
                 if rhs_is_zero {
-                    return Some(self.lhs);
+                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
         }
-        None
+        SimplifyResult::None
     }
 
     /// Evaluate the two constants with the operation specified by self.operator.
@@ -476,4 +589,17 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::Shr => write!(f, "shr"),
         }
     }
+}
+
+/// Contains the result to Instruction::simplify, specifying how the instruction
+/// should be simplified.
+pub(crate) enum SimplifyResult {
+    /// Replace this function's result with the given value
+    SimplifiedTo(ValueId),
+
+    /// Remove the instruction, it is unnecessary
+    Remove,
+
+    /// Instruction could not be simplified
+    None,
 }

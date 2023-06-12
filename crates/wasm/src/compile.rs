@@ -68,8 +68,7 @@ pub fn compile(args: JsValue) -> JsValue {
         debug!("Initializing compiler with default values.");
         WASMCompileOptions::default()
     } else {
-        JsValueSerdeExt::into_serde(&args)
-            .unwrap_or_else(|_| panic!("Could not deserialize compile arguments"))
+        JsValueSerdeExt::into_serde(&args).expect("Could not deserialize compile arguments")
     };
 
     debug!("Compiler configuration {:?}", &options);
@@ -79,7 +78,7 @@ pub fn compile(args: JsValue) -> JsValue {
     let mut driver = noirc_driver::Driver::new(
         &language,
         #[allow(deprecated)]
-        Box::new(acvm::default_is_opcode_supported(language.clone())),
+        Box::new(acvm::pwg::default_is_opcode_supported(language.clone())),
     );
 
     let path = PathBuf::from(&options.entry_point);
@@ -92,20 +91,18 @@ pub fn compile(args: JsValue) -> JsValue {
     // We are always adding std lib implicitly. It comes bundled with binary.
     add_noir_lib(&mut driver, "std");
 
-    driver.check_crate(&options.compile_options).unwrap_or_else(|_| panic!("Crate check failed"));
+    driver.check_crate().expect("Crate check failed");
 
     if options.contracts {
         let compiled_contracts = driver
             .compile_contracts(&options.compile_options)
-            .unwrap_or_else(|_| panic!("Contract compilation failed"));
+            .expect("Contract compilation failed");
 
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_contracts).unwrap()
     } else {
-        let main =
-            driver.main_function().unwrap_or_else(|_| panic!("Could not find main function!"));
-        let compiled_program = driver
-            .compile_no_check(&options.compile_options, main)
-            .unwrap_or_else(|_| panic!("Compilation failed"));
+        let main = driver.main_function().expect("Could not find main function!");
+        let compiled_program =
+            driver.compile_no_check(&options.compile_options, main).expect("Compilation failed");
 
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
     }

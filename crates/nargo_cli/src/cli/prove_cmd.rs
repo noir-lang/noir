@@ -11,6 +11,10 @@ use super::NargoConfig;
 use super::{
     compile_cmd::compile_circuit,
     fs::{
+        common_reference_string::{
+            read_cached_common_reference_string, update_common_reference_string,
+            write_cached_common_reference_string,
+        },
         inputs::{read_inputs_from_file, write_inputs_to_file},
         program::read_program_from_file,
         proof::save_proof_to_dir,
@@ -31,8 +35,16 @@ pub(crate) struct ProveCommand {
     /// The name of the circuit build files (ACIR, proving and verification keys)
     circuit_name: Option<String>,
 
+    /// The name of the toml file which contains the inputs for the prover
+    #[clap(long, short, default_value = PROVER_INPUT_FILE)]
+    prover_name: String,
+
+    /// The name of the toml file which contains the inputs for the verifier
+    #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
+    verifier_name: String,
+
     /// Verify proof after proving
-    #[arg(short, long)]
+    #[arg(long)]
     verify: bool,
 
     #[clap(flatten)]
@@ -53,6 +65,8 @@ pub(crate) fn run<B: Backend>(
     prove_with_path(
         backend,
         args.proof_name,
+        args.prover_name,
+        args.verifier_name,
         config.program_dir,
         proof_dir,
         circuit_build_path,
@@ -63,30 +77,50 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     backend: &B,
     proof_name: Option<String>,
+    prover_name: String,
+    verifier_name: String,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
     check_proof: bool,
     compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError<B>> {
-    let preprocessed_program = match circuit_build_path {
-        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
+    let common_reference_string = read_cached_common_reference_string();
+
+    let (common_reference_string, preprocessed_program) = match circuit_build_path {
+        Some(circuit_build_path) => {
+            let program = read_program_from_file(circuit_build_path)?;
+            let common_reference_string = update_common_reference_string(
+                backend,
+                &common_reference_string,
+                &program.bytecode,
+            )
+            .map_err(CliError::CommonReferenceStringError)?;
+            (common_reference_string, program)
+        }
         None => {
-            let compiled_program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-            preprocess_program(backend, compiled_program)
-                .map_err(CliError::ProofSystemCompilerError)?
+            let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+            let common_reference_string =
+                update_common_reference_string(backend, &common_reference_string, &program.circuit)
+                    .map_err(CliError::CommonReferenceStringError)?;
+            let program = preprocess_program(backend, &common_reference_string, program)
+                .map_err(CliError::ProofSystemCompilerError)?;
+            (common_reference_string, program)
         }
     };
+
+    write_cached_common_reference_string(&common_reference_string);
 
     let PreprocessedProgram { abi, bytecode, proving_key, verification_key, .. } =
         preprocessed_program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
-        read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml, &abi)?;
+        read_inputs_from_file(&program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
     let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map)?;
 
@@ -98,18 +132,25 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         &public_inputs,
         &return_value,
         &program_dir,
-        VERIFIER_INPUT_FILE,
+        verifier_name.as_str(),
         Format::Toml,
     )?;
 
-    let proof = prove_execution(backend, &bytecode, solved_witness, &proving_key)
-        .map_err(CliError::ProofSystemCompilerError)?;
+    let proof =
+        prove_execution(backend, &common_reference_string, &bytecode, solved_witness, &proving_key)
+            .map_err(CliError::ProofSystemCompilerError)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof =
-            verify_proof(backend, &bytecode, &proof, public_inputs, &verification_key)
-                .map_err(CliError::ProofSystemCompilerError)?;
+        let valid_proof = verify_proof(
+            backend,
+            &common_reference_string,
+            &bytecode,
+            &proof,
+            public_inputs,
+            &verification_key,
+        )
+        .map_err(CliError::ProofSystemCompilerError)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));
