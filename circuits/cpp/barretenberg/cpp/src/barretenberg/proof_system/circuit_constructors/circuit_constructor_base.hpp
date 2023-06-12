@@ -41,6 +41,10 @@ template <typename Arithmetization> class CircuitConstructorBase {
     // DOCTODO(#231): replace with the relevant wiki link.
     std::map<uint32_t, uint32_t> tau;
 
+    // Publicin put indices which contain recursive proof information
+    std::vector<uint32_t> recursive_proof_public_input_indices;
+    bool contains_recursive_proof = false;
+
     bool _failed = false;
     std::string _err;
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
@@ -245,6 +249,44 @@ template <typename Arithmetization> class CircuitConstructorBase {
         }
     }
     bool is_valid_variable(uint32_t variable_index) { return variable_index < variables.size(); };
+
+    /**
+     * @brief Add information about which witnesses contain the recursive proof computation information
+     *
+     * @param circuit_constructor Object with the circuit
+     * @param proof_output_witness_indices Witness indices that need to become public and stored as recurisve proof
+     * specific
+     */
+    void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+
+        if (contains_recursive_proof) {
+            failure("added recursive proof when one already exists");
+        }
+        contains_recursive_proof = true;
+
+        for (const auto& idx : proof_output_witness_indices) {
+            set_public_input(idx);
+            recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
+        }
+    }
+
+    /**
+     * @brief Update recursive_proof_public_input_indices with existing public inputs that represent a recursive proof
+     *
+     * @param proof_output_witness_indices
+     */
+    void set_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+        if (contains_recursive_proof) {
+            failure("added recursive proof when one already exists");
+        }
+        contains_recursive_proof = true;
+        for (size_t i = 0; i < proof_output_witness_indices.size(); ++i) {
+            recursive_proof_public_input_indices.push_back(
+                get_public_input_index(real_variable_index[proof_output_witness_indices[i]]));
+        }
+    }
 
     bool failed() const { return _failed; };
     const std::string& err() const { return _err; };

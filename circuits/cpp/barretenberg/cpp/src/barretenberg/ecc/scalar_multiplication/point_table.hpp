@@ -17,6 +17,7 @@ inline size_t point_table_size(size_t num_points)
 
 inline size_t point_table_buf_size(size_t num_points)
 {
+    // TODO(Cody): This could be trouble if we change curves.
     return sizeof(g1::affine_element) * point_table_size(num_points);
 }
 

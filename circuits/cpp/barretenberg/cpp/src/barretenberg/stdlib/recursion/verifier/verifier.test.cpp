@@ -276,6 +276,62 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         return { output, verification_key };
     }
 
+    /**
+     * @brief Check the correctness of the recursive proof public inputs
+     *
+     * @details Circuit constructors have no notion of SRS and any proof-related stuff except for the existence of
+     * recursive proof-specific public inputs, so we can't check the recursive proof fully in check_circuit. So we use
+     * this additional function to check that the recursive proof points work.
+     *
+     * @return boolean result
+     */
+    static bool check_recursive_proof_public_inputs(OuterComposer& composer,
+                                                    const barretenberg::pairing::miller_lines* lines)
+    {
+        if (composer.contains_recursive_proof && composer.recursive_proof_public_input_indices.size() == 16) {
+            const auto& inputs = composer.circuit_constructor.public_inputs;
+            const auto recover_fq_from_public_inputs =
+                [&inputs, &composer](const size_t idx0, const size_t idx1, const size_t idx2, const size_t idx3) {
+                    const uint256_t l0 = composer.circuit_constructor.get_variable(inputs[idx0]);
+                    const uint256_t l1 = composer.circuit_constructor.get_variable(inputs[idx1]);
+                    const uint256_t l2 = composer.circuit_constructor.get_variable(inputs[idx2]);
+                    const uint256_t l3 = composer.circuit_constructor.get_variable(inputs[idx3]);
+
+                    const uint256_t limb = l0 + (l1 << NUM_LIMB_BITS_IN_FIELD_SIMULATION) +
+                                           (l2 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2)) +
+                                           (l3 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 3));
+                    return barretenberg::fq(limb);
+                };
+
+            const auto x0 = recover_fq_from_public_inputs(composer.recursive_proof_public_input_indices[0],
+                                                          composer.recursive_proof_public_input_indices[1],
+                                                          composer.recursive_proof_public_input_indices[2],
+                                                          composer.recursive_proof_public_input_indices[3]);
+            const auto y0 = recover_fq_from_public_inputs(composer.recursive_proof_public_input_indices[4],
+                                                          composer.recursive_proof_public_input_indices[5],
+                                                          composer.recursive_proof_public_input_indices[6],
+                                                          composer.recursive_proof_public_input_indices[7]);
+            const auto x1 = recover_fq_from_public_inputs(composer.recursive_proof_public_input_indices[8],
+                                                          composer.recursive_proof_public_input_indices[9],
+                                                          composer.recursive_proof_public_input_indices[10],
+                                                          composer.recursive_proof_public_input_indices[11]);
+            const auto y1 = recover_fq_from_public_inputs(composer.recursive_proof_public_input_indices[12],
+                                                          composer.recursive_proof_public_input_indices[13],
+                                                          composer.recursive_proof_public_input_indices[14],
+                                                          composer.recursive_proof_public_input_indices[15]);
+            g1::affine_element P_affine[2]{
+                { x0, y0 },
+                { x1, y1 },
+            };
+
+            barretenberg::fq12 result =
+                barretenberg::pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
+
+            return (result == barretenberg::fq12::one());
+        }
+        return true;
+    }
+
   public:
     static void test_recursive_proof_composition()
     {
@@ -307,23 +363,14 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         EXPECT_EQ(outer_composer.failed(), false);
 
-        info("creating prover for outer circuit");
-        info("composer gates = ", outer_composer.get_num_gates());
-        auto prover = outer_composer.create_prover();
-        info("created prover for outer circuit");
-
-        info("creating verifier for outer proof");
-        auto verifier = outer_composer.create_verifier();
-
-        info("creating outer proof for outer circuit");
-        plonk::proof proof = prover.construct_proof();
-        info("created outer proof");
-
-        info("verifying the outer proof");
-        bool result = verifier.verify_proof(proof);
-        info("Outer proof verification result: ", result);
+        bool result = outer_composer.check_circuit();
 
         EXPECT_EQ(result, true);
+
+        EXPECT_EQ(check_recursive_proof_public_inputs(
+                      outer_composer,
+                      outer_composer.composer_helper.crs_factory_->get_verifier_crs()->get_precomputed_g2_lines()),
+                  true);
     }
 
     static void test_recursive_proof_composition_ultra_no_tables()
@@ -352,23 +399,16 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         EXPECT_EQ(outer_composer.failed(), false);
 
-        info("creating prover for outer circuit");
         info("composer gates = ", outer_composer.get_num_gates());
-        auto prover = outer_composer.create_prover();
-        info("created prover for outer circuit");
 
-        info("creating verifier for outer proof");
-        auto verifier = outer_composer.create_verifier();
-
-        info("creating outer proof for outer circuit");
-        plonk::proof proof = prover.construct_proof();
-        info("created outer proof");
-
-        info("verifying the outer proof");
-        bool result = verifier.verify_proof(proof);
-        info("Outer proof verification result: ", result);
+        bool result = outer_composer.check_circuit();
 
         EXPECT_EQ(result, true);
+
+        EXPECT_EQ(check_recursive_proof_public_inputs(
+                      outer_composer,
+                      outer_composer.composer_helper.crs_factory_->get_verifier_crs()->get_precomputed_g2_lines()),
+                  true);
     }
 
     static void test_double_verification()
@@ -377,7 +417,6 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             return; // We only care about running this test for turbo and ultra outer circuits, since in practice the
                     // only circuits which verify >1 proof are ultra or turbo circuits. Standard uses so many gates
                     // (16m) that it's a waste of time testing it.
-
         InnerComposer inner_composer_a = InnerComposer("../srs_db/ignition");
         InnerComposer inner_composer_b = InnerComposer("../srs_db/ignition");
 
@@ -430,19 +469,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         printf("composer gates = %zu\n", outer_composer.get_num_gates());
 
-        std::cout << "creating prover" << std::endl;
-        auto prover = outer_composer.create_prover();
-        std::cout << "created prover" << std::endl;
-
-        std::cout << "creating verifier" << std::endl;
-        auto verifier = outer_composer.create_verifier();
-
-        std::cout << "validated. creating proof" << std::endl;
-        plonk::proof proof = prover.construct_proof();
-        std::cout << "created proof" << std::endl;
-
-        bool result = verifier.verify_proof(proof);
+        bool result = outer_composer.check_circuit();
         EXPECT_EQ(result, true);
+
+        EXPECT_EQ(check_recursive_proof_public_inputs(
+                      outer_composer,
+                      outer_composer.composer_helper.crs_factory_->get_verifier_crs()->get_precomputed_g2_lines()),
+                  true);
     }
 
     // verifies a proof of a circuit that verifies one of two proofs. Test 'a' uses a proof over the first of the two
@@ -481,14 +514,14 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
         printf("composer gates = %zu\n", outer_composer.get_num_gates());
-        auto prover = outer_composer.create_prover();
 
-        auto verifier = outer_composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = outer_composer.check_circuit();
         EXPECT_EQ(result, true);
+
+        EXPECT_EQ(check_recursive_proof_public_inputs(
+                      outer_composer,
+                      outer_composer.composer_helper.crs_factory_->get_verifier_crs()->get_precomputed_g2_lines()),
+                  true);
     }
 
     // verifies a proof of a circuit that verifies one of two proofs. Test 'b' uses a proof over the second of the two
@@ -528,14 +561,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         printf("composer gates = %zu\n", outer_composer.get_num_gates());
 
-        auto prover = outer_composer.create_prover();
-
-        auto verifier = outer_composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = outer_composer.check_circuit();
         EXPECT_EQ(result, true);
+
+        EXPECT_EQ(check_recursive_proof_public_inputs(
+                      outer_composer,
+                      outer_composer.composer_helper.crs_factory_->get_verifier_crs()->get_precomputed_g2_lines()),
+                  true);
     }
 
     static void test_recursive_proof_composition_with_variable_verification_key_failure_case()
@@ -573,14 +605,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         printf("composer gates = %zu\n", outer_composer.get_num_gates());
 
-        auto prover = outer_composer.create_prover();
-
-        auto verifier = outer_composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = outer_composer.check_circuit();
         EXPECT_EQ(result, false);
+
+        EXPECT_EQ(check_recursive_proof_public_inputs(
+                      outer_composer,
+                      outer_composer.composer_helper.crs_factory_->get_verifier_crs()->get_precomputed_g2_lines()),
+                  true);
     }
 
     static void test_recursive_proof_composition_with_constant_verification_key()
@@ -618,14 +649,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         printf("composer gates = %zu\n", outer_composer.get_num_gates());
 
-        auto prover = outer_composer.create_prover();
-
-        auto verifier = outer_composer.create_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
+        bool result = outer_composer.check_circuit();
         EXPECT_EQ(result, true);
+
+        EXPECT_EQ(check_recursive_proof_public_inputs(
+                      outer_composer,
+                      outer_composer.composer_helper.crs_factory_->get_verifier_crs()->get_precomputed_g2_lines()),
+                  true);
     }
 
     static void test_inner_circuit()

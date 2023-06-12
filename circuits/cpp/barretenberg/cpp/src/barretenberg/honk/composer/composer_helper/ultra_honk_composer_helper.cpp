@@ -134,17 +134,23 @@ void UltraHonkComposerHelper::compute_witness(CircuitConstructor& circuit_constr
     // Copy memory read/write record data into proving key. Prover needs to know which gates contain a read/write
     // 'record' witness on the 4th wire. This wire value can only be fully computed once the first 3 wire polynomials
     // have been committed to. The 4th wire on these gates will be a random linear combination of the first 3 wires,
-    // using the plookup challenge `eta`
+    // using the plookup challenge `eta`. Because we shift the gates by the number of public inputs, we need to update
+    // the records with the public_inputs offset
+    const uint32_t public_inputs_count = static_cast<uint32_t>(circuit_constructor.public_inputs.size());
+    auto add_public_inputs_offset = [public_inputs_count](uint32_t gate_index) {
+        return gate_index + public_inputs_count;
+    };
     proving_key->memory_read_records = std::vector<uint32_t>();
     proving_key->memory_write_records = std::vector<uint32_t>();
-    proving_key->memory_read_records.reserve(circuit_constructor.memory_read_records.size());
-    proving_key->memory_write_records.reserve(circuit_constructor.memory_write_records.size());
-    std::copy(circuit_constructor.memory_read_records.begin(),
-              circuit_constructor.memory_read_records.end(),
-              std::back_inserter(proving_key->memory_read_records));
-    std::copy(circuit_constructor.memory_write_records.begin(),
-              circuit_constructor.memory_write_records.end(),
-              std::back_inserter(proving_key->memory_write_records));
+
+    std::transform(circuit_constructor.memory_read_records.begin(),
+                   circuit_constructor.memory_read_records.end(),
+                   std::back_inserter(proving_key->memory_read_records),
+                   add_public_inputs_offset);
+    std::transform(circuit_constructor.memory_write_records.begin(),
+                   circuit_constructor.memory_write_records.end(),
+                   std::back_inserter(proving_key->memory_write_records),
+                   add_public_inputs_offset);
 
     computed_witness = true;
 }

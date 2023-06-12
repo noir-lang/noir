@@ -54,8 +54,8 @@ class StandardPlonkComposer {
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices){};
 
     StandardPlonkComposer(std::string const& crs_path, const size_t size_hint = 0)
         : StandardPlonkComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>(
@@ -69,8 +69,8 @@ class StandardPlonkComposer {
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
         , composer_helper(crs_factory)
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices)
 
     {}
     StandardPlonkComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory,
@@ -80,8 +80,8 @@ class StandardPlonkComposer {
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
         , composer_helper(std::move(crs_factory))
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices)
 
     {}
 
@@ -93,8 +93,8 @@ class StandardPlonkComposer {
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
         , composer_helper(p_key, v_key)
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices)
     {}
 
     StandardPlonkComposer(const StandardPlonkComposer& other) = delete;
@@ -104,8 +104,8 @@ class StandardPlonkComposer {
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
         , composer_helper(std::move(other.composer_helper))
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices){};
 
     StandardPlonkComposer& operator=(StandardPlonkComposer&& other)
     {
@@ -114,8 +114,8 @@ class StandardPlonkComposer {
         num_gates = circuit_constructor.num_gates;
         variables = circuit_constructor.variables;
         zero_idx = circuit_constructor.zero_idx;
-        contains_recursive_proof = composer_helper.contains_recursive_proof;
-        recursive_proof_public_input_indices = composer_helper.recursive_proof_public_input_indices;
+        contains_recursive_proof = circuit_constructor.contains_recursive_proof;
+        recursive_proof_public_input_indices = circuit_constructor.recursive_proof_public_input_indices;
         return *this;
     };
     // TODO(#230)(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members.
@@ -244,7 +244,7 @@ class StandardPlonkComposer {
 
     void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
     {
-        composer_helper.add_recursive_proof(circuit_constructor, proof_output_witness_indices);
+        circuit_constructor.add_recursive_proof(proof_output_witness_indices);
     }
     bool failed() const { return circuit_constructor.failed(); };
     const std::string& err() const { return circuit_constructor.err(); };

@@ -50,8 +50,9 @@ std::shared_ptr<plonk::proving_key> TurboPlonkComposerHelper::compute_proving_ke
     // Compute sigma polynomials (TODO(kesha): we should update that late)
     compute_standard_plonk_sigma_permutations<Flavor>(circuit_constructor, circuit_proving_key.get());
     circuit_proving_key->recursive_proof_public_input_indices =
-        std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
-    circuit_proving_key->contains_recursive_proof = contains_recursive_proof;
+        std::vector<uint32_t>(circuit_constructor.recursive_proof_public_input_indices.begin(),
+                              circuit_constructor.recursive_proof_public_input_indices.end());
+    circuit_proving_key->contains_recursive_proof = circuit_constructor.contains_recursive_proof;
     return circuit_proving_key;
 }
 
@@ -74,8 +75,9 @@ std::shared_ptr<plonk::verification_key> TurboPlonkComposerHelper::compute_verif
         plonk::compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
     circuit_verification_key->composer_type = circuit_proving_key->composer_type;
     circuit_verification_key->recursive_proof_public_input_indices =
-        std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
-    circuit_verification_key->contains_recursive_proof = contains_recursive_proof;
+        std::vector<uint32_t>(circuit_constructor.recursive_proof_public_input_indices.begin(),
+                              circuit_constructor.recursive_proof_public_input_indices.end());
+    circuit_verification_key->contains_recursive_proof = circuit_constructor.contains_recursive_proof;
 
     return circuit_verification_key;
 }

@@ -52,8 +52,8 @@ class UltraHonkComposer {
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices)
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices)
     {
         // TODO(#217/#423): Related to issue of ensuring no identically 0 polynomials
         add_gates_to_ensure_all_polys_are_non_zero();

@@ -23,9 +23,6 @@ class TurboPlonkComposerHelper {
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
     std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
 
-    std::vector<uint32_t> recursive_proof_public_input_indices;
-    bool contains_recursive_proof = false;
-
     bool computed_witness = false;
     TurboPlonkComposerHelper()
         : TurboPlonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory>(
@@ -60,20 +57,6 @@ class TurboPlonkComposerHelper {
             { "q_fixed_base", false }, { "q_range", false }, { "q_logic", false },
         };
         return result;
-    }
-    void add_recursive_proof(CircuitConstructor& circuit_constructor,
-                             const std::vector<uint32_t>& proof_output_witness_indices)
-    {
-
-        if (contains_recursive_proof) {
-            circuit_constructor.failure("added recursive proof when one already exists");
-        }
-        contains_recursive_proof = true;
-
-        for (const auto& idx : proof_output_witness_indices) {
-            circuit_constructor.set_public_input(idx);
-            recursive_proof_public_input_indices.push_back((uint32_t)(circuit_constructor.public_inputs.size() - 1));
-        }
     }
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {

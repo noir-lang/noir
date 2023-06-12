@@ -103,7 +103,7 @@ void create_circuit(Composer& composer, acir_format const& constraint_system)
         if (i == constraint_system.recursion_constraints.size() - 1) {
             std::vector<uint32_t> proof_output_witness_indices(constraint.output_aggregation_object.begin(),
                                                                constraint.output_aggregation_object.end());
-            composer.set_recursive_proof(proof_output_witness_indices);
+            composer.circuit_constructor.set_recursive_proof(proof_output_witness_indices);
         }
     }
 }
@@ -230,7 +230,7 @@ void create_circuit_with_witness(Composer& composer, acir_format const& constrai
         if (i == constraint_system.recursion_constraints.size() - 1) {
             std::vector<uint32_t> proof_output_witness_indices(constraint.output_aggregation_object.begin(),
                                                                constraint.output_aggregation_object.end());
-            composer.set_recursive_proof(proof_output_witness_indices);
+            composer.circuit_constructor.set_recursive_proof(proof_output_witness_indices);
         }
     }
 }

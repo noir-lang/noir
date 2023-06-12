@@ -54,8 +54,8 @@ class UltraPlonkComposer {
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
         , composer_helper(crs_factory)
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices){};
 
     UltraPlonkComposer(std::shared_ptr<proving_key> const& p_key,
                        std::shared_ptr<verification_key> const& v_key,
@@ -65,8 +65,8 @@ class UltraPlonkComposer {
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
         , composer_helper(p_key, v_key)
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices){};
 
     UltraPlonkComposer(UltraPlonkComposer&& other)
         : circuit_constructor(std::move(other.circuit_constructor))
@@ -74,8 +74,8 @@ class UltraPlonkComposer {
         , variables(circuit_constructor.variables)
         , zero_idx(circuit_constructor.zero_idx)
         , composer_helper(std::move(other.composer_helper))
-        , contains_recursive_proof(composer_helper.contains_recursive_proof)
-        , recursive_proof_public_input_indices(composer_helper.recursive_proof_public_input_indices){};
+        , contains_recursive_proof(circuit_constructor.contains_recursive_proof)
+        , recursive_proof_public_input_indices(circuit_constructor.recursive_proof_public_input_indices){};
     UltraPlonkComposer& operator=(UltraPlonkComposer&& other)
     {
         circuit_constructor = std::move(other.circuit_constructor);
@@ -83,8 +83,8 @@ class UltraPlonkComposer {
         num_gates = circuit_constructor.num_gates;
         variables = circuit_constructor.variables;
         zero_idx = circuit_constructor.zero_idx;
-        contains_recursive_proof = composer_helper.contains_recursive_proof;
-        recursive_proof_public_input_indices = composer_helper.recursive_proof_public_input_indices;
+        contains_recursive_proof = circuit_constructor.contains_recursive_proof;
+        recursive_proof_public_input_indices = circuit_constructor.recursive_proof_public_input_indices;
         return *this;
     };
     ~UltraPlonkComposer() = default;
@@ -227,12 +227,12 @@ class UltraPlonkComposer {
     }
     void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
     {
-        composer_helper.add_recursive_proof(circuit_constructor, proof_output_witness_indices);
+        circuit_constructor.add_recursive_proof(proof_output_witness_indices);
     }
 
     void set_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
     {
-        composer_helper.set_recursive_proof(circuit_constructor, proof_output_witness_indices);
+        circuit_constructor.set_recursive_proof(proof_output_witness_indices);
     }
 
     void create_new_range_constraint(const uint32_t variable_index,
