@@ -39,6 +39,10 @@ struct Context {
     /// already exists for this Value, we return the `AcirVar`.
     ssa_values: HashMap<Id<Value>, AcirValue>,
 
+    /// The `AcirVar` that describes the condition belonging to the most recently invoked
+    /// `SideEffectsEnabled` instruction.
+    current_side_effects_enabled_var: Option<AcirVar>,
+
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
 }
@@ -216,6 +220,10 @@ impl Context {
                     .convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)
                     .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                let acir_var = self.convert_numeric_value(*condition, dfg);
+                self.current_side_effects_enabled_var = Some(acir_var);
             }
             Instruction::ArrayGet { array, index } => {
                 self.handle_array_operation(instruction_id, *array, *index, None, dfg);
@@ -405,7 +413,12 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self.acir_context.less_than_var(lhs, rhs, bit_count),
+            BinaryOp::Lt => self.acir_context.less_than_var(
+                lhs,
+                rhs,
+                bit_count,
+                self.current_side_effects_enabled_var,
+            ),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type),
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
