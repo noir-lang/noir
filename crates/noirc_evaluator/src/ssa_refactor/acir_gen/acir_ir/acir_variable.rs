@@ -769,7 +769,7 @@ impl AcirContext {
     fn brillig_array_input(&self, var_expressions: &mut Vec<Expression>, input: AcirValue) {
         match input {
             AcirValue::Var(var, _) => {
-                var_expressions.push(self.vars[var].to_expression().into_owned())
+                var_expressions.push(self.vars[var].to_expression().into_owned());
             }
             AcirValue::Array(vars) => {
                 for var in vars {
