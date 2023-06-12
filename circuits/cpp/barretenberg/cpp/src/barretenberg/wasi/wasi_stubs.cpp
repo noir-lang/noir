@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <barretenberg/common/log.hpp>
+#include <string.h>
 
 extern "C" {
 
@@ -23,10 +24,24 @@ int32_t __imported_wasi_snapshot_preview1_poll_oneoff(int32_t, int32_t, int32_t,
 //     abort();
 // }
 
-int32_t __imported_wasi_snapshot_preview1_fd_write(int32_t, int32_t, int32_t, int32_t)
+struct iovs_struct {
+    char* data;
+    size_t len;
+};
+
+int32_t __imported_wasi_snapshot_preview1_fd_write(int32_t fd, iovs_struct* iovs_ptr, size_t iovs_len, size_t* ret_ptr)
 {
-    info("fd_write not implemented.");
-    abort();
+    if (fd != 1 && fd != 2) {
+        info("fd_write to unsupported file descriptor: ", fd);
+        abort();
+    }
+    std::string str;
+    for (size_t i = 0; i < iovs_len; ++i) {
+        auto iovs = iovs_ptr[i];
+        str += std::string(iovs.data, iovs.len);
+    }
+    logstr(str.c_str());
+    *ret_ptr = str.length();
     return 0;
 }
 
@@ -65,10 +80,16 @@ int32_t __imported_wasi_snapshot_preview1_environ_sizes_get(int32_t, int32_t)
 //     return 0;
 // }
 
-int32_t __imported_wasi_snapshot_preview1_fd_fdstat_get(int32_t, int32_t)
+int32_t __imported_wasi_snapshot_preview1_fd_fdstat_get(int32_t fd, void* buf)
 {
-    info("fd_fdstat_get not implemented.");
-    abort();
+    // info("fd_fdstat_get not implemented.");
+    // abort();
+    if (fd != 1 && fd != 2) {
+        info("fd_fdstat_get with unsupported file descriptor: ", fd);
+        abort();
+    }
+    memset(buf, 0, 20);
+    *(uint8_t*)buf = (uint8_t)fd;
     return 0;
 }
 

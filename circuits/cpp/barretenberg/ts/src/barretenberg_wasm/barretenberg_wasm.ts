@@ -121,7 +121,7 @@ export class BarretenbergWasm {
           view.setBigUint64(out, ts, true);
         },
         proc_exit: () => {
-          this.logger('HUNG: proc_exit was called. This is caused by unstable experimental wasi pthreads. Try again.');
+          this.logger('PANIC: proc_exit was called. This is maybe caused by "joining" with unstable wasi pthreads.');
           this.logger(new Error().stack!);
           killSelf();
         },

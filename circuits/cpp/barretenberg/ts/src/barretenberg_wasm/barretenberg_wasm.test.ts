@@ -25,6 +25,11 @@ describe('barretenberg wasm', () => {
   it('test abort', () => {
     expect(() => wasm.call('test_abort')).toThrow();
   });
+
+  it('test c/c++ stdout/stderr', () => {
+    // We're checking we don't crash, but you can manually confirm you see log lines handled by logstr.
+    wasm.call('test_stdout_stderr');
+  });
 });
 
 describe('barretenberg wasm worker', () => {
