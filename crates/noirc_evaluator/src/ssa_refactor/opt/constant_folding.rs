@@ -75,7 +75,7 @@ impl Context {
         id: InstructionId,
     ) {
         let instruction = function.dfg[id].map_values(|id| self.get_value(id));
-        let results = function.dfg.instruction_results(id).to_vec();
+        let results = vecmap(function.dfg.instruction_results(id), |id| function.dfg.resolve(*id));
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()

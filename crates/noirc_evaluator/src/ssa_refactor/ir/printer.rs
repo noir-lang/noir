@@ -61,6 +61,7 @@ pub(crate) fn display_block(
 /// constant or a function we print those directly.
 fn value(function: &Function, id: ValueId) -> String {
     use super::value::Value;
+    let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")
@@ -71,9 +72,7 @@ fn value(function: &Function, id: ValueId) -> String {
             let elements = vecmap(array, |element| value(function, *element));
             format!("[{}]", elements.join(", "))
         }
-        Value::Param { .. } | Value::Instruction { .. } => {
-            function.dfg.resolve_replaced_value_id(id).to_string()
-        }
+        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
     }
 }
 
