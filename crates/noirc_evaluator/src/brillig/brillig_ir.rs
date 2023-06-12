@@ -195,7 +195,7 @@ impl BrilligContext {
         inputs: &[RegisterValueOrArray],
         outputs: &[RegisterValueOrArray],
     ) {
-        // TODO: Enable multiple inputs and outputs to a foreign call
+        // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
             destination: outputs[0],

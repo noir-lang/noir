@@ -256,7 +256,7 @@ impl BrilligGen {
     }
 
     fn convert_ssa_value_to_register_value_or_array(
-        &self,
+        &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> RegisterValueOrArray {
