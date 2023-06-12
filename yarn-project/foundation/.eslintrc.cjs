@@ -1,5 +1,3 @@
-const fs = require('fs');
-
 const contexts = [
   'TSMethodDefinition[accessibility=public]',
   'MethodDefinition[accessibility=public]',
@@ -28,14 +26,7 @@ const contexts = [
   'EnumExpression',
 ];
 
-function getFirstExisting(files) {
-  for (const file of files) {
-    if (fs.existsSync(file)) {
-      return file;
-    }
-  }
-  throw new Error('Found no existing file of: ' + files.join(', ') + ' at ' + process.cwd());
-}
+const JSDOC_RULES_LEVEL = 'error';
 
 module.exports = {
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
@@ -87,9 +78,9 @@ module.exports = {
         ],
       },
     ],
-    'tsdoc/syntax': 'error',
+    'tsdoc/syntax': JSDOC_RULES_LEVEL,
     'jsdoc/require-jsdoc': [
-      'error',
+      JSDOC_RULES_LEVEL,
       {
         contexts,
         checkConstructors: false,
@@ -97,16 +88,16 @@ module.exports = {
         checkSetters: true,
       },
     ],
-    'jsdoc/require-description': ['error', { contexts }],
-    'jsdoc/require-hyphen-before-param-description': ['error'],
-    'jsdoc/require-param': ['error', { contexts, checkDestructured: false }],
-    'jsdoc/require-param-description': ['error', { contexts }],
-    'jsdoc/require-param-name': ['error', { contexts }],
-    'jsdoc/require-property': ['error', { contexts }],
-    'jsdoc/require-property-description': ['error', { contexts }],
-    'jsdoc/require-property-name': ['error', { contexts }],
-    'jsdoc/require-returns': ['error', { contexts }],
-    'jsdoc/require-returns-description': ['error', { contexts }],
+    'jsdoc/require-description': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-hyphen-before-param-description': [JSDOC_RULES_LEVEL],
+    'jsdoc/require-param': [JSDOC_RULES_LEVEL, { contexts, checkDestructured: false }],
+    'jsdoc/require-param-description': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-param-name': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-property': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-property-description': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-property-name': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-returns': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-returns-description': [JSDOC_RULES_LEVEL, { contexts }],
   },
   ignorePatterns: ['node_modules', 'dest*', 'dist', '*.js', '.eslintrc.cjs'],
 };

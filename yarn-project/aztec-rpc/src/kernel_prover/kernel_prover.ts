@@ -1,23 +1,21 @@
 import { ExecutionResult, NewNoteData } from '@aztec/acir-simulator';
 import {
+  AztecAddress,
   CONTRACT_TREE_HEIGHT,
-  EcdsaSignature,
+  Fr,
+  KernelCircuitPublicInputs,
   MembershipWitness,
   PRIVATE_CALL_STACK_LENGTH,
   PreviousKernelData,
   PrivateCallData,
   PrivateCallStackItem,
-  KernelCircuitPublicInputs,
   SignedTxRequest,
-  TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
   makeEmptyProof,
-  AztecAddress,
-  Fr,
 } from '@aztec/circuits.js';
 import { assertLength } from '@aztec/foundation/serialize';
-import { ProofOutput, ProofCreator, KernelProofCreator } from './proof_creator.js';
+import { KernelProofCreator, ProofCreator, ProofOutput } from './proof_creator.js';
 import { ProvingDataOracle } from './proving_data_oracle.js';
 
 /**
@@ -66,17 +64,11 @@ export class KernelProver {
    * and generates a proof using the provided ProofCreator instance. It also maintains an index of new notes
    * created during the execution and returns them as a part of the KernelProverOutput.
    *
-   * @param txRequest - The transaction request object.
-   * @param txSignature - The ECDSA signature of the transaction.
+   * @param signedTxRequest - The authenticated transaction request object.
    * @param executionResult - The execution result object containing nested executions and preimages.
    * @returns A Promise that resolves to a KernelProverOutput object containing proof, public inputs, and output notes.
    */
-  async prove(
-    txRequest: TxRequest,
-    txSignature: EcdsaSignature,
-    executionResult: ExecutionResult,
-  ): Promise<KernelProverOutput> {
-    const signedTxRequest = new SignedTxRequest(txRequest, txSignature);
+  async prove(signedTxRequest: SignedTxRequest, executionResult: ExecutionResult): Promise<KernelProverOutput> {
     const executionStack = [executionResult];
     const newNotes: { [commitmentStr: string]: OutputNoteData } = {};
     let firstIteration = true;

@@ -35,40 +35,6 @@ export class DeployMethod extends ContractFunctionInteraction {
   }
 
   /**
-   * Asynchronously create a transaction request for contract deployment using the provided options.
-   * The function uses the deployment options to set up the portalContract, contractAddressSalt, and sender's address (from).
-   * If no portalContract is provided, an EthAddress instance with zeroed-out bytes is used.
-   * This transaction request can then be signed and sent to deploy the contract.
-   *
-   * @param options - An object containing optional parameters for the deployment request.
-   * @returns A Promise that resolves to the created TxRequest instance.
-   */
-  public async request(options: DeployOptions = {}) {
-    const { portalContract, contractAddressSalt, from } = options;
-    this.txRequest = await this.arc.createDeploymentTxRequest(
-      this.abi,
-      this.args,
-      portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
-      contractAddressSalt,
-      from,
-    );
-    return this.txRequest;
-  }
-
-  /**
-   * Signs the deployment transaction request using the provided options.
-   * This function is used to generate a signature for the deployment transaction
-   * before sending it to the network. The signature is derived from the caller's private key
-   * and is used to authorize the deployment of the contract.
-   *
-   * @param options - Optional configuration object containing portalContract, contractAddressSalt, and from properties.
-   * @returns A signed transaction object ready to be sent to the network.
-   */
-  public sign(options: DeployOptions = {}) {
-    return super.sign(options);
-  }
-
-  /**
    * Create a contract deployment transaction, given the deployment options.
    * This function internally calls `request()` and `sign()` methods to prepare
    * the transaction for deployment. The resulting signed transaction can be
@@ -77,8 +43,18 @@ export class DeployMethod extends ContractFunctionInteraction {
    * @param options - An object containing optional deployment settings, including portalContract, contractAddressSalt, and from.
    * @returns A Promise resolving to an object containing the signed transaction data and other relevant information.
    */
-  public create(options: DeployOptions = {}) {
-    return super.create(options);
+  public async create(options: DeployOptions = {}) {
+    const { portalContract, contractAddressSalt, from } = options;
+    const txRequest = await this.arc.createDeploymentTxRequest(
+      this.abi,
+      this.args,
+      portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
+      contractAddressSalt,
+      from,
+    );
+
+    this.tx = await this.arc.createTx(txRequest);
+    return this.tx;
   }
 
   /**

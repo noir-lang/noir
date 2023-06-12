@@ -1,14 +1,13 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { AztecAddress, CircuitsWasm, KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation/fields';
-import { ConstantKeyPair, KeyPair } from '@aztec/key-store';
-import { L2Block, L2BlockContext, TxAuxData, NoirLogs } from '@aztec/types';
+import { ConstantKeyPair, KeyPair, getAddressFromPublicKey } from '@aztec/key-store';
+import { L2Block, L2BlockContext, NoirLogs, TxAuxData } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
 import { AccountState } from './account_state.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 
 describe('Account State', () => {
   let grumpkin: Grumpkin;
@@ -17,6 +16,7 @@ describe('Account State', () => {
   let addTxAuxDataBatchSpy: any;
   let accountState: AccountState;
   let owner: KeyPair;
+  let ownerAddress: AztecAddress;
 
   const createEncryptedLogsAndOwnedTxAuxData = (ownedDataIndices: number[] = []) => {
     ownedDataIndices.forEach(index => {
@@ -65,8 +65,9 @@ describe('Account State', () => {
     addTxAuxDataBatchSpy = jest.spyOn(database, 'addTxAuxDataBatch');
 
     const ownerPrivateKey = await owner.getPrivateKey();
+    ownerAddress = getAddressFromPublicKey(owner.getPublicKey());
     aztecNode = mock<AztecNode>();
-    accountState = new AccountState(ownerPrivateKey, database, aztecNode, grumpkin);
+    accountState = new AccountState(ownerPrivateKey, ownerAddress, database, aztecNode, grumpkin);
   });
 
   afterEach(() => {
@@ -82,7 +83,7 @@ describe('Account State', () => {
     expect(txs).toEqual([
       expect.objectContaining({
         blockNumber: 1,
-        from: owner.getPublicKey().toAddress(),
+        from: ownerAddress,
       }),
     ]);
     expect(addTxAuxDataBatchSpy).toHaveBeenCalledTimes(1);
@@ -103,11 +104,11 @@ describe('Account State', () => {
     expect(txs).toEqual([
       expect.objectContaining({
         blockNumber: 2,
-        from: owner.getPublicKey().toAddress(),
+        from: ownerAddress,
       }),
       expect.objectContaining({
         blockNumber: 5,
-        from: owner.getPublicKey().toAddress(),
+        from: ownerAddress,
       }),
     ]);
     expect(addTxAuxDataBatchSpy).toHaveBeenCalledTimes(1);
@@ -139,6 +140,6 @@ describe('Account State', () => {
 
   it('should throw an error if invalid privKey is passed on input', () => {
     const ownerPrivateKey = Buffer.alloc(0);
-    expect(() => new AccountState(ownerPrivateKey, database, aztecNode, grumpkin)).toThrowError();
+    expect(() => new AccountState(ownerPrivateKey, ownerAddress, database, aztecNode, grumpkin)).toThrowError();
   });
 });

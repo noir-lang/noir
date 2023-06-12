@@ -182,9 +182,13 @@ __metadata:
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
+    "@types/lodash.partition": ^4.6.7
+    "@types/lodash.times": ^4.3.7
     "@types/node": ^18.7.23
     jest: ^29.5.0
     jest-mock-extended: ^3.0.3
+    lodash.partition: ^4.6.0
+    lodash.times: ^4.3.2
     sha3: ^2.1.4
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
@@ -378,6 +382,7 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@noble/curves": ^1.0.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
@@ -3132,6 +3137,15 @@ __metadata:
   dependencies:
     "@types/lodash": "*"
   checksum: e30600de518e648f4e9590d9238506ceab561726ec2fe56b4ff29b17aa1e47cbf9188be259b7d606dfb2040998c778533ccc0c58f065cca44ab5a6dbc8b6e518
+  languageName: node
+  linkType: hard
+
+"@types/lodash.partition@npm:^4.6.7":
+  version: 4.6.7
+  resolution: "@types/lodash.partition@npm:4.6.7"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: 9a97f7b58bed499074854642b7baa6642978665be0b01b46b4031419d6f2c1e115da354a6e655dabca8d624d0242065820638b12da1a085fbf2a06539e65c276
   languageName: node
   linkType: hard
 
@@ -7187,6 +7201,13 @@ __metadata:
   version: 4.5.0
   resolution: "lodash.omit@npm:4.5.0"
   checksum: 434645e49fe84ab315719bd5a9a3a585a0f624aa4160bc09157dd041a414bcc287c15840365c1379476a3f3eda41fbe838976c3f7bdecbbf4c5478e86c471a30
+  languageName: node
+  linkType: hard
+
+"lodash.partition@npm:^4.6.0":
+  version: 4.6.0
+  resolution: "lodash.partition@npm:4.6.0"
+  checksum: 57c01e3b790c4c4352bffd8be281bd98ed09f6076985d764163478b5a27db3183454cc8c9c25231210d3c69ae2bea37b78911a794bc82c296865eba8b6bd314f
   languageName: node
   linkType: hard
 

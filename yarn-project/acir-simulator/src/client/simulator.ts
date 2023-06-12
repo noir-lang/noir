@@ -1,15 +1,14 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { CallContext, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import { pedersenCompressInputs, pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
+import { CallContext, CircuitsWasm, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
 import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { TxExecutionRequest } from '@aztec/types';
+import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { DBOracle } from './db_oracle.js';
 import { ExecutionResult, PrivateFunctionExecution } from './private_execution.js';
 import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
-import { pedersenCompressInputs, pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 
 export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);
@@ -53,7 +52,7 @@ export class AcirSimulator {
     );
 
     const execution = new PrivateFunctionExecution(
-      new ClientTxExecutionContext(this.db, request, historicRoots),
+      new ClientTxExecutionContext(this.db, request.txContext, historicRoots),
       entryPointABI,
       contractAddress,
       request.functionData,
@@ -74,7 +73,7 @@ export class AcirSimulator {
    * @returns The return values of the function.
    */
   public runUnconstrained(
-    request: TxExecutionRequest,
+    request: ExecutionRequest,
     entryPointABI: FunctionAbi,
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
@@ -93,7 +92,7 @@ export class AcirSimulator {
     );
 
     const execution = new UnconstrainedFunctionExecution(
-      new ClientTxExecutionContext(this.db, request, historicRoots),
+      new ClientTxExecutionContext(this.db, TxContext.empty(), historicRoots),
       entryPointABI,
       contractAddress,
       request.functionData,

@@ -145,7 +145,7 @@ describe('e2e_p2p_network', () => {
   // creates and instance of the aztec rpc server and submit a given number of transactions to it.
   const createAztecRpcServerAndSubmitTransactions = async (node: AztecNode, numTxs: number) => {
     const aztecRpcServer = await createAztecRPCServer(node);
-    await aztecRpcServer.addAccount();
+    await aztecRpcServer.addExternallyOwnedAccount();
 
     const accounts = await aztecRpcServer.getAccounts();
 

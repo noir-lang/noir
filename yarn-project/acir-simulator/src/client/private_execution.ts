@@ -2,6 +2,7 @@ import {
   ARGS_LENGTH,
   CallContext,
   CircuitsWasm,
+  ContractDeploymentData,
   FunctionData,
   PUBLIC_CALL_STACK_LENGTH,
   PrivateCallStackItem,
@@ -271,6 +272,7 @@ export class PrivateFunctionExecution {
    */
   private writeInputs() {
     const argsSize = this.abi.parameters.reduce((acc, param) => acc + sizeOfType(param.type), 0);
+    const contractDeploymentData = this.context.txContext.contractDeploymentData ?? ContractDeploymentData.empty();
 
     // NOTE: PSA to anyone updating this code: within the structs, the members must be in alphabetical order, this
     // is a current quirk in noir struct encoding, feel free to remove this note when this changes
@@ -282,10 +284,10 @@ export class PrivateFunctionExecution {
       this.callContext.portalContractAddress,
       this.callContext.storageContractAddress,
 
-      this.context.request.txContext.contractDeploymentData.constructorVkHash,
-      this.context.request.txContext.contractDeploymentData.contractAddressSalt,
-      this.context.request.txContext.contractDeploymentData.functionTreeRoot,
-      this.context.request.txContext.contractDeploymentData.portalContractAddress,
+      contractDeploymentData.constructorVkHash,
+      contractDeploymentData.contractAddressSalt,
+      contractDeploymentData.functionTreeRoot,
+      contractDeploymentData.portalContractAddress,
 
       this.context.historicRoots.contractTreeRoot,
       this.context.historicRoots.l1ToL2MessagesTreeRoot,

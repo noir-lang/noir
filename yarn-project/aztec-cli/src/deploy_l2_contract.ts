@@ -16,7 +16,7 @@ export async function createAztecRpc(numberOfAccounts = 1, aztecNode: AztecNode)
   const arc = await createAztecRPCServer(aztecNode);
 
   for (let i = 0; i < numberOfAccounts; ++i) {
-    await arc.addAccount();
+    await arc.addExternallyOwnedAccount();
   }
 
   return arc;

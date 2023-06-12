@@ -33,6 +33,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
+    "@noble/curves": "^1.0.0",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

@@ -14,6 +14,7 @@ export class SimulatorOracle implements DBOracle {
     private contractDataOracle: ContractDataOracle,
     private db: Database,
     private keyPair: KeyPair,
+    private address: AztecAddress,
     private node: AztecNode,
   ) {}
 
@@ -22,13 +23,13 @@ export class SimulatorOracle implements DBOracle {
    * The function only allows access to the secret keys of the transaction creator,
    * and throws an error if the address does not match the public key address of the key pair.
    *
-   * @param _ - The contract address. Ignored here. But we might want to return different keys for different contracts.
-   * @param address - The address of an account.
+   * @param _contractAddress - The contract address. Ignored here. But we might want to return different keys for different contracts.
+   * @param txOriginAddress - The address of an account.
    * @returns A Promise that resolves to the secret key as a Buffer.
    * @throws An Error if the input address does not match the public key address of the key pair.
    */
-  getSecretKey(_: AztecAddress, address: AztecAddress): Promise<Buffer> {
-    if (!address.equals(this.keyPair.getPublicKey().toAddress())) {
+  getSecretKey(_contractAddress: AztecAddress, txOriginAddress: AztecAddress): Promise<Buffer> {
+    if (!txOriginAddress.equals(this.address)) {
       throw new Error('Only allow access to the secret keys of the tx creator.');
     }
     return this.keyPair.getPrivateKey();

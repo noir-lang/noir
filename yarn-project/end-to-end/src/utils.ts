@@ -66,7 +66,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
   const aztecNode = await AztecNodeService.createAndSync(config);
   const aztecRpcServer = await createAztecRPCServer(aztecNode);
   for (let i = 0; i < numberOfAccounts; ++i) {
-    await aztecRpcServer.addAccount();
+    await aztecRpcServer.addExternallyOwnedAccount();
   }
 
   const accounts = await aztecRpcServer.getAccounts();

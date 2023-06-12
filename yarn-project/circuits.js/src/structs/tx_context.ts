@@ -126,6 +126,6 @@ export class TxContext {
   }
 
   static empty() {
-    return new TxContext(false, false, true, ContractDeploymentData.empty());
+    return new TxContext(false, false, false, ContractDeploymentData.empty());
   }
 }

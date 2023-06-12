@@ -13,6 +13,7 @@ import {
 import { computeVarArgsHash } from '@aztec/circuits.js/abis';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import cloneDeep from 'lodash.clonedeep';
+import { ExecutionRequest } from './execution_request.js';
 
 /**
  * Request to execute a transaction. Similar to TxRequest, but has the full args.
@@ -77,6 +78,17 @@ export class TxExecutionRequest {
     return new TxExecutionRequest(...TxExecutionRequest.getFields(fields));
   }
 
+  static fromExecutionRequest(fields: AccountExecutionRequest): TxExecutionRequest {
+    return TxExecutionRequest.from({
+      ...fields,
+      chainId: Fr.ZERO,
+      nonce: Fr.ZERO,
+      from: fields.account,
+      to: fields.account,
+      txContext: TxContext.empty(),
+    });
+  }
+
   /**
    * Serialize as a buffer.
    * @returns The buffer.
@@ -111,6 +123,12 @@ export class TxExecutionRequest {
     );
   }
 }
+
+/** An execution request for an account contract entrypoint */
+type AccountExecutionRequest = Pick<FieldsOf<ExecutionRequest>, 'args' | 'functionData'> & {
+  /** The account contract to execute this entrypoint request */
+  account: AztecAddress;
+};
 
 /**
  * Wraps a TxExecutionRequest with an ECDSA signature.

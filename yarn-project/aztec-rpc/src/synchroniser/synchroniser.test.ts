@@ -1,10 +1,10 @@
-import omit from 'lodash.omit';
 import { AztecNode } from '@aztec/aztec-node';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/circuits.js';
-import { ConstantKeyPair } from '@aztec/key-store';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { ConstantKeyPair, getAddressFromPublicKey } from '@aztec/key-store';
 import { L2Block, MerkleTreeId } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
+import omit from 'lodash.omit';
 import { Database, MemoryDB } from '../database/index.js';
 import { Synchroniser } from './synchroniser.js';
 
@@ -41,11 +41,11 @@ describe('Synchroniser', () => {
 
   it('should create account state', async () => {
     const account = ConstantKeyPair.random(grumpkin);
-    const address = account.getPublicKey().toAddress();
+    const address = getAddressFromPublicKey(account.getPublicKey());
 
     expect(synchroniser.getAccount(address)).toBeUndefined();
 
-    await synchroniser.addAccount(await account.getPrivateKey());
+    await synchroniser.addAccount(await account.getPrivateKey(), address);
 
     expect(synchroniser.getAccount(address)!.getPublicKey()).toEqual(account.getPublicKey());
   });

@@ -2,6 +2,7 @@ import { EcdsaSignature } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
+import { secp256k1 } from '@noble/curves/secp256k1';
 
 /**
  * Represents a cryptographic public-private key pair.
@@ -10,7 +11,7 @@ import { Point } from '@aztec/foundation/fields';
 export interface KeyPair {
   getPublicKey(): Point;
   getPrivateKey(): Promise<Buffer>;
-  signMessage(message: Buffer): Promise<EcdsaSignature>;
+  ecdsaSign(message: Buffer): Promise<EcdsaSignature>;
 }
 
 /**
@@ -28,6 +29,17 @@ export class ConstantKeyPair implements KeyPair {
    */
   public static random(grumpkin: Grumpkin) {
     const privateKey = randomBytes(32);
+    const publicKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, privateKey));
+    return new ConstantKeyPair(publicKey, privateKey);
+  }
+
+  /**
+   * Creates a new instance from a private key.
+   * @param privateKey - The private key.
+   * @returns A new instance.
+   */
+  public static async fromPrivateKey(privateKey: Buffer) {
+    const grumpkin = await Grumpkin.new();
     const publicKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, privateKey));
     return new ConstantKeyPair(publicKey, privateKey);
   }
@@ -62,12 +74,12 @@ export class ConstantKeyPair implements KeyPair {
    * @param message - The Buffer containing the data to be signed.
    * @returns A Promise that resolves to an EcdsaSignature instance representing the signature.
    */
-  public signMessage(message: Buffer) {
+  public async ecdsaSign(message: Buffer) {
     if (!message.length) {
       throw new Error('Cannot sign over empty message.');
     }
-
-    // TODO - Create real signature.
-    return Promise.resolve(EcdsaSignature.random());
+    const signature = secp256k1.sign(message, await this.getPrivateKey());
+    if (signature.recovery === undefined) throw new Error(`Missing recovery from signature`);
+    return EcdsaSignature.fromBigInts(signature.r, signature.s, signature.recovery);
   }
 }

@@ -1,20 +1,17 @@
 import { encodeArguments } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
-import {
-  AztecAddress,
-  ContractDeploymentData,
-  EcdsaSignature,
-  EthAddress,
-  FunctionData,
-  TxContext,
-} from '@aztec/circuits.js';
+import { AztecAddress, ContractDeploymentData, EthAddress, FunctionData, TxContext } from '@aztec/circuits.js';
 import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { KeyStore } from '@aztec/key-store';
-import { SignedTxExecutionRequest, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
+import { KeyStore, PublicKey, getAddressFromPublicKey } from '@aztec/key-store';
+import { Tx, TxExecutionRequest, TxHash } from '@aztec/types';
+import { EcdsaAccountContract } from '../account_impl/ecdsa_account_contract.js';
+import { EcdsaExternallyOwnedAccount } from '../account_impl/ecdsa_eoa.js';
+import { AccountImplementation } from '../account_impl/index.js';
+import { AccountState } from '../account_state/account_state.js';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
-import { toContractDao } from '../contract_database/index.js';
+import { ContractDao, toContractDao } from '../contract_database/index.js';
 import { ContractTree } from '../contract_tree/index.js';
 import { Database, TxDao } from '../database/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
@@ -45,7 +42,7 @@ export class AztecRPCServer implements AztecRPCClient {
   public async start() {
     const accounts = await this.keyStore.getAccounts();
     for (const account of accounts) {
-      await this.initAccountState(account);
+      await this.initAccountState(account, getAddressFromPublicKey(account));
     }
     await this.synchroniser.start();
     this.log(`Started. ${accounts.length} initial accounts.`);
@@ -67,11 +64,27 @@ export class AztecRPCServer implements AztecRPCClient {
    * Adds a new account to the AztecRPCServer instance.
    *
    * @returns The AztecAddress of the newly added account.
+   * @deprecated EOAs to be removed.
    */
-  public async addAccount() {
-    const accountAddress = await this.keyStore.addAccount();
-    await this.initAccountState(accountAddress);
-    return accountAddress;
+  public async addExternallyOwnedAccount() {
+    const accountPubKey = await this.keyStore.createAccount();
+    const address = getAddressFromPublicKey(accountPubKey);
+    await this.initAccountState(accountPubKey, address);
+    return address;
+  }
+
+  /**
+   * Adds a new account backed by an account contract.
+   *
+   * TODO: We should not be passing in the private key in plain, instead, we should ask the keystore for a public key, create the smart account with it, and register it here.
+   * @param privKey - Private key of the corresponding user master public key.
+   * @param address - Address of the account contract.
+   * @returns The address of the account contract.
+   */
+  public async addSmartAccount(privKey: Buffer, address: AztecAddress) {
+    const pubKey = await this.keyStore.addAccount(privKey);
+    await this.initAccountState(pubKey, address);
+    return address;
   }
 
   /**
@@ -223,13 +236,9 @@ export class AztecRPCServer implements AztecRPCClient {
       false,
     );
 
-    const txContext = new TxContext(
-      false,
-      false,
-      false,
-      new ContractDeploymentData(Fr.ZERO, Fr.ZERO, Fr.ZERO, new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES))),
-    );
+    const txContext = TxContext.empty();
 
+    // TODO: Return just an ExecutionRequest!
     return new TxExecutionRequest(
       fromAddress,
       to,
@@ -242,51 +251,64 @@ export class AztecRPCServer implements AztecRPCClient {
   }
 
   /**
-   * Sign a TxRequest with the creator's private key.
-   * This function retrieves the private key of the account specified in the TxRequest 'from' field
-   * and signs it, generating an EcdsaSignature which can be used to create a valid kernel proof.
-   *
-   * @param txRequest - The TxRequest instance containing necessary information for signing.
-   * @returns An EcdsaSignature instance representing the signed transaction.
-   */
-  public signTxRequest(txRequest: TxExecutionRequest) {
-    this.ensureAccount(txRequest.from);
-    return this.keyStore.signTxRequest(txRequest);
-  }
-
-  /**
    * Creates a new transaction object from a given signed transaction request.
    * If the transaction is private, it simulates and proves the transaction request using accountState.
    * If it is public, it creates a public transaction without the need for simulation.
    * The resulting transaction object can then be sent to the network for execution using sendTx method.
    *
-   * @param txRequest - The signed transaction request containing all necessary details for executing the transaction.
-   * @param signature - The ECDSA signature of the transaction request.
+   * @param executionRequest - The signed transaction execution request containing all necessary details for executing the transaction.
    * @returns A transaction object that can be sent to the network.
    */
-  public async createTx(txRequest: TxExecutionRequest, signature: EcdsaSignature) {
+  public async createTx(executionRequest: TxExecutionRequest) {
     let toContract: AztecAddress | undefined;
     let newContract: AztecAddress | undefined;
-    const accountState = this.ensureAccount(txRequest.from);
 
+    const { from } = executionRequest;
+    const accountState = this.ensureAccount(from);
+    const accountContract = await this.db.getContract(from);
+    const entrypoint: AccountImplementation = this.getAccountImplementation(accountState, accountContract);
+
+    const authedTxRequest = await entrypoint.createAuthenticatedTxRequest(
+      [executionRequest],
+      executionRequest.txContext,
+    );
+
+    const txRequest = authedTxRequest.txRequest;
     const contractAddress = txRequest.to;
+
     let tx: Tx;
+
     if (!txRequest.functionData.isPrivate) {
       // Note: there is no simulation being performed client-side for public functions execution.
-      tx = Tx.createPublic(new SignedTxExecutionRequest(txRequest, signature));
+      tx = Tx.createPublic(authedTxRequest);
     } else if (txRequest.functionData.isConstructor) {
       newContract = contractAddress;
-
-      tx = await accountState.simulateAndProve(txRequest, signature, contractAddress);
+      tx = await accountState.simulateAndProve(authedTxRequest, contractAddress);
     } else {
       toContract = contractAddress;
-      tx = await accountState.simulateAndProve(txRequest, signature);
+      tx = await accountState.simulateAndProve(authedTxRequest);
     }
 
     const dao = new TxDao(await tx.getTxHash(), undefined, undefined, txRequest.from, toContract, newContract, '');
     await this.db.addTx(dao);
 
     return tx;
+  }
+
+  // TODO: Store the kind of account in account state
+  private getAccountImplementation(accountState: AccountState, contract: ContractDao | undefined) {
+    const address = accountState.getAddress();
+    const pubKey = accountState.getPublicKey();
+
+    if (!contract) {
+      this.log(`Using ECDSA EOA implementation for ${address}`);
+      return new EcdsaExternallyOwnedAccount(address, pubKey, this.keyStore);
+    } else if (contract.name === 'Account') {
+      this.log(`Using ECDSA account contract implementation for ${address}`);
+      return new EcdsaAccountContract(address, pubKey, this.keyStore);
+    } else {
+      throw new Error(`Unknown account implementation for ${address}`);
+    }
   }
 
   /**
@@ -378,11 +400,12 @@ export class AztecRPCServer implements AztecRPCClient {
    * It retrieves the private key from the key store and adds the account to the synchroniser.
    * This function is called for all existing accounts during the server start, or when a new account is added afterwards.
    *
+   * @param pubKey - User's master public key.
    * @param address - The address of the account to initialize.
    */
-  private async initAccountState(address: AztecAddress) {
-    const accountPrivateKey = await this.keyStore.getAccountPrivateKey(address);
-    await this.synchroniser.addAccount(accountPrivateKey);
+  private async initAccountState(pubKey: PublicKey, address: AztecAddress) {
+    const accountPrivateKey = await this.keyStore.getAccountPrivateKey(pubKey);
+    await this.synchroniser.addAccount(accountPrivateKey, address);
     this.log(`Account added: ${address.toString()}`);
   }
 
