@@ -8,7 +8,7 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -166,10 +166,33 @@ impl BrilligGen {
             Instruction::ForeignCall { func, arguments } => {
                 let result_ids = dfg.instruction_results(instruction_id);
 
-                let input_registers =
-                    vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
-                let output_registers =
-                    vecmap(result_ids, |value_id| self.convert_ssa_value(*value_id, dfg));
+                let input_registers = vecmap(arguments, |value_id| {
+                    let register_index = self.convert_ssa_value(*value_id, dfg);
+                    let typ = dfg[*value_id].get_type();
+                    match typ {
+                        Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
+                        Type::Array(_, size) => {
+                            RegisterValueOrArray::HeapArray(register_index, size)
+                        }
+                        _ => {
+                            unreachable!("type not supported for conversion into brillig register")
+                        }
+                    }
+                });
+                let output_registers = vecmap(result_ids, |value_id| {
+                    let register_index = self.convert_ssa_value(*value_id, dfg);
+                    let typ = dfg[*value_id].get_type();
+                    match typ {
+                        Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
+                        Type::Array(_, size) => {
+                            RegisterValueOrArray::HeapArray(register_index, size)
+                        }
+                        Type::Unit => RegisterValueOrArray::RegisterIndex(register_index),
+                        _ => {
+                            unreachable!("type not supported for conversion into brillig register")
+                        }
+                    }
+                });
 
                 self.context.foreign_call_instruction(
                     func.to_owned(),

@@ -174,14 +174,17 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
-
-                                if Self::is_return_type_unit(result_ids, dfg) {
-                                    return;
-                                }
-
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
+
+                                let mut outputs: Vec<AcirType> = Vec::new();
+                                if Self::is_return_type_unit(result_ids, dfg) {
+                                    self.acir_context.brillig(code, inputs, vec![]);
+                                    return;
+                                } else {
+                                    outputs = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
+                                }
+
                                 let output_values = self.acir_context.brillig(code, inputs, outputs);
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
