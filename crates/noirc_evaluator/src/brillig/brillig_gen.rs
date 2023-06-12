@@ -178,8 +178,55 @@ impl BrilligGen {
                 let source = self.convert_ssa_value(*value, dfg);
                 self.context.truncate_instruction(destination, source);
             }
+            Instruction::Cast(value, target_type) => {
+                let result_ids = dfg.instruction_results(instruction_id);
+                let destination = self.get_or_create_register(result_ids[0]);
+                let source = self.convert_ssa_value(*value, dfg);
+                self.convert_cast(destination, source, target_type, &dfg.type_of_value(*value));
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+    }
+
+    fn convert_cast(
+        &mut self,
+        destination: RegisterIndex,
+        source: RegisterIndex,
+        target_type: &Type,
+        source_type: &Type,
+    ) {
+        fn numeric_to_bit_size(typ: &NumericType) -> Option<u32> {
+            match typ {
+                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                    Some(*bit_size)
+                }
+                NumericType::NativeField => None,
+            }
+        }
+
+        match (source_type, target_type) {
+            (Type::Numeric(source_numeric_type), Type::Numeric(target_numeric_type)) => {
+                let source_bit_size = numeric_to_bit_size(source_numeric_type);
+                let target_bit_size = numeric_to_bit_size(target_numeric_type);
+                match (source_bit_size, target_bit_size) {
+                    (Some(source_bit_size), Some(target_bit_size)) => {
+                        if source_bit_size > target_bit_size {
+                            self.context.cast_instruction(destination, source, target_bit_size);
+                        } else {
+                            self.context.mov_instruction(destination, source);
+                        }
+                    }
+                    (None, Some(target_bit_size)) => {
+                        self.context.cast_instruction(destination, source, target_bit_size);
+                    }
+                    _ => {
+                        // Casting to field is always a no_op
+                        self.context.mov_instruction(destination, source);
+                    }
+                }
+            }
+            _ => unimplemented!("The cast operation is only valid for integers."),
+        }
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
@@ -230,7 +277,6 @@ impl BrilligGen {
         let mut brillig = BrilligGen::default();
 
         brillig.convert_ssa_function(func);
-
 
         brillig.context.artifact()
     }

@@ -301,6 +301,21 @@ impl BrilligContext {
             rhs: scratch_register_j,
         });
     }
+
+    pub(crate) fn cast_instruction(
+        &mut self,
+        destination: RegisterIndex,
+        source: RegisterIndex,
+        target_bit_size: u32,
+    ) {
+        assert!(
+            target_bit_size < 127,
+            "tried to cast to a bit size greater than 126 {target_bit_size}"
+        );
+
+        let modulus = self.make_constant(Value::from(1_u128 << target_bit_size));
+        self.modulo_instruction(destination, source, modulus, target_bit_size + 1, false);
+    }
 }
 
 /// Type to encapsulate the binary operation types in Brillig

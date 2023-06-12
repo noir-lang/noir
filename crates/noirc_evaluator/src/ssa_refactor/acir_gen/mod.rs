@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{Brillig, brillig_ir::artifact::BrilligArtifact};
+use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
