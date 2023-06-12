@@ -56,9 +56,9 @@ impl Context {
         for instruction in instructions {
             self.push_instruction(function, block, instruction);
         }
-
-        let terminator =
-            function.dfg[block].unwrap_terminator().map_values(|value| self.get_value(value));
+        let terminator = function.dfg[block]
+            .unwrap_terminator()
+            .map_values(|value| self.get_value(function.dfg.resolve(value)));
 
         function.dfg.set_block_terminator(block, terminator);
         self.block_queue.extend(function.dfg[block].successors());
