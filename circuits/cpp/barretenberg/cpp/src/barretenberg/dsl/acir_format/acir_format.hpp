@@ -13,6 +13,7 @@
 #include "pedersen.hpp"
 #include "hash_to_field.hpp"
 #include "barretenberg/dsl/types.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
 
 namespace acir_format {
 

@@ -1,7 +1,6 @@
 #include "./verifier.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 
 using namespace barretenberg;
@@ -168,5 +167,6 @@ template <typename Flavor> bool StandardVerifier_<Flavor>::verify_proof(const pl
 }
 
 template class StandardVerifier_<honk::flavor::Standard>;
+template class StandardVerifier_<honk::flavor::StandardGrumpkin>;
 
 } // namespace proof_system::honk

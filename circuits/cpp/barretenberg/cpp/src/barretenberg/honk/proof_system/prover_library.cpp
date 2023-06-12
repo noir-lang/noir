@@ -1,6 +1,8 @@
 #include "prover_library.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/flavor/standard_grumpkin.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
 #include <span>
 #include <string>
 
@@ -397,6 +399,11 @@ void add_plookup_memory_records_to_wire_4(std::shared_ptr<typename Flavor::Provi
 template honk::flavor::Standard::Polynomial compute_permutation_grand_product<honk::flavor::Standard>(
     std::shared_ptr<honk::flavor::Standard::ProvingKey>&, honk::flavor::Standard::FF, honk::flavor::Standard::FF);
 
+template honk::flavor::StandardGrumpkin::Polynomial compute_permutation_grand_product<honk::flavor::StandardGrumpkin>(
+    std::shared_ptr<honk::flavor::StandardGrumpkin::ProvingKey>&,
+    honk::flavor::StandardGrumpkin::FF,
+    honk::flavor::StandardGrumpkin::FF);
+
 template honk::flavor::Ultra::Polynomial compute_permutation_grand_product<honk::flavor::Ultra>(
     std::shared_ptr<honk::flavor::Ultra::ProvingKey>&, honk::flavor::Ultra::FF, honk::flavor::Ultra::FF);
 
@@ -411,5 +418,24 @@ template typename honk::flavor::Ultra::Polynomial compute_sorted_list_accumulato
 
 template void add_plookup_memory_records_to_wire_4<honk::flavor::Ultra>(
     std::shared_ptr<typename honk::flavor::Ultra::ProvingKey>& key, typename honk::flavor::Ultra::FF eta);
+
+template honk::flavor::UltraGrumpkin::Polynomial compute_permutation_grand_product<honk::flavor::UltraGrumpkin>(
+    std::shared_ptr<honk::flavor::UltraGrumpkin::ProvingKey>&,
+    honk::flavor::UltraGrumpkin::FF,
+    honk::flavor::UltraGrumpkin::FF);
+
+template typename honk::flavor::UltraGrumpkin::Polynomial compute_lookup_grand_product<honk::flavor::UltraGrumpkin>(
+    std::shared_ptr<typename honk::flavor::UltraGrumpkin::ProvingKey>& key,
+    typename honk::flavor::UltraGrumpkin::FF eta,
+    typename honk::flavor::UltraGrumpkin::FF beta,
+    typename honk::flavor::UltraGrumpkin::FF gamma);
+
+template typename honk::flavor::UltraGrumpkin::Polynomial compute_sorted_list_accumulator<honk::flavor::UltraGrumpkin>(
+    std::shared_ptr<typename honk::flavor::UltraGrumpkin::ProvingKey>& key,
+    typename honk::flavor::UltraGrumpkin::FF eta);
+
+template void add_plookup_memory_records_to_wire_4<honk::flavor::UltraGrumpkin>(
+    std::shared_ptr<typename honk::flavor::UltraGrumpkin::ProvingKey>& key,
+    typename honk::flavor::UltraGrumpkin::FF eta);
 
 } // namespace proof_system::honk::prover_library

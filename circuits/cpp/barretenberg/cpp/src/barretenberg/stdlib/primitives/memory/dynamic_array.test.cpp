@@ -5,6 +5,7 @@
 #include "barretenberg/numeric/random/engine.hpp"
 
 #include "../bool/bool.hpp"
+#include "../composers/composers.hpp"
 
 namespace test_stdlib_dynamic_array {
 using namespace barretenberg;

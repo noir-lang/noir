@@ -4,7 +4,6 @@
 #include "../../primitives/byte_array/byte_array.hpp"
 #include "../../primitives/uint/uint.hpp"
 #include "../../primitives/composers/composers_fwd.hpp"
-
 namespace proof_system::plonk {
 namespace stdlib {
 namespace ecdsa {

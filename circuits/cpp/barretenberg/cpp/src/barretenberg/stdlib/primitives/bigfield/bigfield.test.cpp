@@ -9,10 +9,7 @@
 #include "../byte_array/byte_array.hpp"
 #include "../field/field.hpp"
 #include "./bigfield.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/honk/composer/ultra_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
-
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"

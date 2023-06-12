@@ -12,8 +12,6 @@
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 
-#include "../composers/composers_fwd.hpp"
-
 namespace proof_system::plonk {
 namespace stdlib {
 

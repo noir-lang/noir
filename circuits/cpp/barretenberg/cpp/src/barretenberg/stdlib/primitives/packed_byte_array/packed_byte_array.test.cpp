@@ -3,10 +3,7 @@
 #include "packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 

@@ -10,7 +10,8 @@ namespace proof_system::honk {
  * @brief Compute witness polynomials
  *
  */
-void UltraHonkComposerHelper::compute_witness(CircuitConstructor& circuit_constructor)
+template <UltraFlavor Flavor>
+void UltraHonkComposerHelper_<Flavor>::compute_witness(CircuitConstructor& circuit_constructor)
 {
     if (computed_witness) {
         return;
@@ -155,7 +156,8 @@ void UltraHonkComposerHelper::compute_witness(CircuitConstructor& circuit_constr
     computed_witness = true;
 }
 
-UltraProver UltraHonkComposerHelper::create_prover(CircuitConstructor& circuit_constructor)
+template <UltraFlavor Flavor>
+UltraProver_<Flavor> UltraHonkComposerHelper_<Flavor>::create_prover(CircuitConstructor& circuit_constructor)
 {
     finalize_circuit(circuit_constructor);
 
@@ -164,7 +166,7 @@ UltraProver UltraHonkComposerHelper::create_prover(CircuitConstructor& circuit_c
 
     compute_commitment_key(proving_key->circuit_size, crs_factory_);
 
-    UltraProver output_state(proving_key, commitment_key);
+    UltraProver_<Flavor> output_state(proving_key, commitment_key);
 
     return output_state;
 }
@@ -175,11 +177,12 @@ UltraProver UltraHonkComposerHelper::create_prover(CircuitConstructor& circuit_c
  *
  * @return The verifier.
  * */
-UltraVerifier UltraHonkComposerHelper::create_verifier(const CircuitConstructor& circuit_constructor)
+template <UltraFlavor Flavor>
+UltraVerifier_<Flavor> UltraHonkComposerHelper_<Flavor>::create_verifier(const CircuitConstructor& circuit_constructor)
 {
     auto verification_key = compute_verification_key(circuit_constructor);
 
-    UltraVerifier output_state(verification_key);
+    UltraVerifier_<Flavor> output_state(verification_key);
 
     auto pcs_verification_key = std::make_unique<PCSVerificationKey>(verification_key->circuit_size, crs_factory_);
 
@@ -188,7 +191,8 @@ UltraVerifier UltraHonkComposerHelper::create_verifier(const CircuitConstructor&
     return output_state;
 }
 
-std::shared_ptr<UltraHonkComposerHelper::Flavor::ProvingKey> UltraHonkComposerHelper::compute_proving_key(
+template <UltraFlavor Flavor>
+std::shared_ptr<typename Flavor::ProvingKey> UltraHonkComposerHelper_<Flavor>::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (proving_key) {
@@ -310,7 +314,8 @@ std::shared_ptr<UltraHonkComposerHelper::Flavor::ProvingKey> UltraHonkComposerHe
  *
  * @return Pointer to created circuit verification key.
  * */
-std::shared_ptr<UltraHonkComposerHelper::VerificationKey> UltraHonkComposerHelper::compute_verification_key(
+template <UltraFlavor Flavor>
+std::shared_ptr<typename Flavor::VerificationKey> UltraHonkComposerHelper_<Flavor>::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (verification_key) {
@@ -321,7 +326,7 @@ std::shared_ptr<UltraHonkComposerHelper::VerificationKey> UltraHonkComposerHelpe
         compute_proving_key(circuit_constructor);
     }
 
-    verification_key = std::make_shared<UltraHonkComposerHelper::VerificationKey>(
+    verification_key = std::make_shared<typename Flavor::VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, proving_key->composer_type);
 
     // Compute and store commitments to all precomputed polynomials
@@ -360,5 +365,7 @@ std::shared_ptr<UltraHonkComposerHelper::VerificationKey> UltraHonkComposerHelpe
 
     return verification_key;
 }
+template class UltraHonkComposerHelper_<honk::flavor::Ultra>;
+template class UltraHonkComposerHelper_<honk::flavor::UltraGrumpkin>;
 
 } // namespace proof_system::honk

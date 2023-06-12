@@ -1,10 +1,6 @@
 #pragma once
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
-
-namespace proof_system::plonk {
-class TurboPlonkComposer;
-class UltraPlonkComposer;
-} // namespace proof_system::plonk
+#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

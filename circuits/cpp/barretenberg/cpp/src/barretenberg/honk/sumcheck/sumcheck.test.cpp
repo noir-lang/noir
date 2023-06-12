@@ -161,8 +161,8 @@ TEST_F(SumcheckTests, PolynomialNormalization)
      * sumcheck.multivariates.folded_polynoimals[i][0] is the evaluatioin of the i'th multivariate at the vector of
      challenges u_i. What does this mean?
 
-     Here we show that if the multivariate is F(X0, X1, X2) defined as above, then what we get is F(u0, u1, u2) and not,
-     say F(u2, u1, u0). This is in accordance with Adrian's thesis (cf page 9).
+     Here we show that if the multivariate is F(X0, X1, X2) defined as above, then what we get is F(u0, u1, u2) and
+     not, say F(u2, u1, u0). This is in accordance with Adrian's thesis (cf page 9).
       */
 
     // Get the values of the Lagrange basis polys L_i defined

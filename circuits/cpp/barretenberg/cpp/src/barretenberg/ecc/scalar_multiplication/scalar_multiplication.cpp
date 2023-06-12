@@ -957,6 +957,10 @@ typename Curve::Element pippenger_without_endomorphism_basis_points(typename Cur
 
 // Explicit instantiation
 // BN254
+template void generate_pippenger_point_table<curve::BN254>(curve::BN254::AffineElement* points,
+                                                           curve::BN254::AffineElement* table,
+                                                           size_t num_points);
+
 template uint32_t construct_addition_chains<curve::BN254>(affine_product_runtime_state<curve::BN254>& state,
                                                           bool empty_bucket_counts = true);
 
@@ -1004,6 +1008,10 @@ template curve::BN254::Element pippenger_without_endomorphism_basis_points<curve
     pippenger_runtime_state<curve::BN254>& state);
 
 // Grumpkin
+template void generate_pippenger_point_table<curve::Grumpkin>(curve::Grumpkin::AffineElement* points,
+                                                              curve::Grumpkin::AffineElement* table,
+                                                              size_t num_points);
+
 template uint32_t construct_addition_chains<curve::Grumpkin>(affine_product_runtime_state<curve::Grumpkin>& state,
                                                              bool empty_bucket_counts = true);
 

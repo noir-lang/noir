@@ -2,6 +2,7 @@
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
+#include "barretenberg/honk/flavor/standard_grumpkin.hpp"
 
 namespace proof_system::honk {
 template <typename Flavor> class StandardVerifier_ {
@@ -27,6 +28,7 @@ template <typename Flavor> class StandardVerifier_ {
 };
 
 extern template class StandardVerifier_<honk::flavor::Standard>;
+extern template class StandardVerifier_<honk::flavor::StandardGrumpkin>;
 
 using StandardVerifier = StandardVerifier_<honk::flavor::Standard>;
 

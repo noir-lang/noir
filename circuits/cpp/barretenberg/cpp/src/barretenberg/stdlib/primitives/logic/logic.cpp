@@ -1,5 +1,4 @@
 #include "logic.hpp"
-
 #include "../composers/composers.hpp"
 #include "../plookup/plookup.hpp"
 #include "barretenberg/common/assert.hpp"

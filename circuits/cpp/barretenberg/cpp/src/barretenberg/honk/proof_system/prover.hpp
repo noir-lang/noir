@@ -9,13 +9,12 @@
 #include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/proof_system/work_queue.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/flavor/standard_grumpkin.hpp"
 
 namespace proof_system::honk {
 
 // We won't compile this class with honk::flavor::Ultra, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
-template <typename T> concept StandardFlavor = IsAnyOf<T, honk::flavor::Standard>;
-
 template <StandardFlavor Flavor> class StandardProver_ {
 
     using FF = typename Flavor::FF;
@@ -85,6 +84,7 @@ template <StandardFlavor Flavor> class StandardProver_ {
 };
 
 extern template class StandardProver_<honk::flavor::Standard>;
+extern template class StandardProver_<honk::flavor::StandardGrumpkin>;
 
 using StandardProver = StandardProver_<honk::flavor::Standard>;
 // using GrumpkinStandardProver = StandardProver_<honk::flavor::StandardGrumpkin>; // e.g.

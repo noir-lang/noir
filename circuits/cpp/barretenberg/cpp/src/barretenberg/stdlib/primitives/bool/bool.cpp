@@ -1,6 +1,5 @@
 #include "bool.hpp"
 #include "../composers/composers.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
 using namespace barretenberg;
 using namespace proof_system;

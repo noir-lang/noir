@@ -3,6 +3,7 @@
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
 #include "barretenberg/common/streams.hpp"
 #include <gtest/gtest.h>
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::plonk;

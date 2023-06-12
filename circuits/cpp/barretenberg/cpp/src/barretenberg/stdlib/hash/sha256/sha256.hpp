@@ -3,15 +3,9 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
-
+#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
 #include "sha256_plookup.hpp"
-
-namespace proof_system::plonk {
-class UltraPlonkComposer;
-class StandardPlonkComposer;
-class TurboPlonkComposer;
-class UltraHonkComposer;
-} // namespace proof_system::plonk
+// namespace proof_system::plonk
 
 namespace proof_system::plonk {
 namespace stdlib {

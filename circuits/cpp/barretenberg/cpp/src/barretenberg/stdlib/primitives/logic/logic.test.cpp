@@ -2,6 +2,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
 #include "logic.hpp"
+#include "../composers/composers.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/numeric/random/engine.hpp"
 

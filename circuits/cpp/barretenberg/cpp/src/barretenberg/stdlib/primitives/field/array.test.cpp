@@ -3,10 +3,7 @@
 #include "array.hpp"
 #include <gtest/gtest.h>
 #include <utility>
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
 namespace test_stdlib_array {

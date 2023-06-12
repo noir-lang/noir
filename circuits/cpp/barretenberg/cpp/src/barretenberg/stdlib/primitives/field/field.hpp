@@ -2,8 +2,6 @@
 #include <functional>
 #include "../composers/composers_fwd.hpp"
 #include "../witness/witness.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
 #include "barretenberg/common/assert.hpp"
 
 namespace proof_system::plonk {

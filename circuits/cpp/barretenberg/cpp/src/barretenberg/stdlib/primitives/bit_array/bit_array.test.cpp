@@ -1,7 +1,7 @@
 #include "bit_array.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"

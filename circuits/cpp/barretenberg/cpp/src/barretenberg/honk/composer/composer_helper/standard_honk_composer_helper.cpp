@@ -23,7 +23,8 @@ namespace proof_system::honk {
  * @param num_reserved_gates The number of reserved gates.
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
-std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelper::compute_proving_key_base(
+template <StandardFlavor Flavor>
+std::shared_ptr<typename Flavor::ProvingKey> StandardHonkComposerHelper_<Flavor>::compute_proving_key_base(
     const CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_randomized_gates)
 {
     // Initialize proving_key
@@ -45,8 +46,9 @@ std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelp
  *
  * @tparam Program settings needed to establish if w_4 is being used.
  * */
-void StandardHonkComposerHelper::compute_witness(const CircuitConstructor& circuit_constructor,
-                                                 const size_t minimum_circuit_size)
+template <StandardFlavor Flavor>
+void StandardHonkComposerHelper_<Flavor>::compute_witness(const CircuitConstructor& circuit_constructor,
+                                                          const size_t minimum_circuit_size)
 {
     if (computed_witness) {
         return;
@@ -67,14 +69,16 @@ void StandardHonkComposerHelper::compute_witness(const CircuitConstructor& circu
  *
  * @return Proving key with saved computed polynomials.
  * */
-std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelper::compute_proving_key(
+
+template <StandardFlavor Flavor>
+std::shared_ptr<typename Flavor::ProvingKey> StandardHonkComposerHelper_<Flavor>::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (proving_key) {
         return proving_key;
     }
     // Compute q_l, q_r, q_o, etc polynomials
-    StandardHonkComposerHelper::compute_proving_key_base(
+    StandardHonkComposerHelper_::compute_proving_key_base(
         circuit_constructor, /*minimum_circuit_size=*/0, NUM_RESERVED_GATES);
 
     // Compute sigma polynomials (we should update that late)
@@ -91,14 +95,15 @@ std::shared_ptr<StandardHonkComposerHelper::ProvingKey> StandardHonkComposerHelp
  *
  * @return Pointer to created circuit verification key.
  * */
-std::shared_ptr<StandardHonkComposerHelper::VerificationKey> StandardHonkComposerHelper::compute_verification_key(
+template <StandardFlavor Flavor>
+std::shared_ptr<typename Flavor::VerificationKey> StandardHonkComposerHelper_<Flavor>::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (verification_key) {
         return verification_key;
     }
 
-    verification_key = std::make_shared<VerificationKey>(
+    verification_key = std::make_shared<typename Flavor::VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, proving_key->composer_type);
 
     // Compute and store commitments to all precomputed polynomials
@@ -121,28 +126,35 @@ std::shared_ptr<StandardHonkComposerHelper::VerificationKey> StandardHonkCompose
     return verification_key;
 }
 
-StandardVerifier StandardHonkComposerHelper::create_verifier(const CircuitConstructor& circuit_constructor)
+template <StandardFlavor Flavor>
+StandardVerifier_<Flavor> StandardHonkComposerHelper_<Flavor>::create_verifier(
+    const CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
-    StandardVerifier output_state(verification_key);
+    StandardVerifier_<Flavor> output_state(verification_key);
 
     auto pcs_verification_key =
-        std::make_unique<PCSParams::VerificationKey>(verification_key->circuit_size, crs_factory_);
+        std::make_unique<typename PCSParams::VerificationKey>(verification_key->circuit_size, crs_factory_);
 
     output_state.pcs_verification_key = std::move(pcs_verification_key);
 
     return output_state;
 }
 
-StandardProver StandardHonkComposerHelper::create_prover(const CircuitConstructor& circuit_constructor)
+template <StandardFlavor Flavor>
+StandardProver_<Flavor> StandardHonkComposerHelper_<Flavor>::create_prover(
+    const CircuitConstructor& circuit_constructor)
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 
     compute_commitment_key(proving_key->circuit_size, crs_factory_);
 
-    StandardProver output_state(proving_key, commitment_key);
+    StandardProver_<Flavor> output_state(proving_key, commitment_key);
 
     return output_state;
 }
+template class StandardHonkComposerHelper_<honk::flavor::Standard>;
+template class StandardHonkComposerHelper_<honk::flavor::StandardGrumpkin>;
+
 } // namespace proof_system::honk

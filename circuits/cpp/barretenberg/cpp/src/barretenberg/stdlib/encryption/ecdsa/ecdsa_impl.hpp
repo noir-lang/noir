@@ -2,6 +2,8 @@
 
 #include "../../hash/sha256/sha256.hpp"
 #include "../../primitives/bit_array/bit_array.hpp"
+#include "../../primitives/composers/composers.hpp"
+
 namespace proof_system::plonk {
 namespace stdlib {
 namespace ecdsa {

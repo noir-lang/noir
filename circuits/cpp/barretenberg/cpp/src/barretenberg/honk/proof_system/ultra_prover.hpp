@@ -5,6 +5,7 @@
 #include "barretenberg/honk/pcs/shplonk/shplonk_single.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 
@@ -12,7 +13,6 @@ namespace proof_system::honk {
 
 // We won't compile this class with honk::flavor::Standard, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
-template <typename T> concept UltraFlavor = IsAnyOf<T, honk::flavor::Ultra>;
 template <UltraFlavor Flavor> class UltraProver_ {
 
     using FF = typename Flavor::FF;
@@ -79,6 +79,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
 };
 
 extern template class UltraProver_<honk::flavor::Ultra>;
+extern template class UltraProver_<honk::flavor::UltraGrumpkin>;
 
 using UltraProver = UltraProver_<honk::flavor::Ultra>;
 

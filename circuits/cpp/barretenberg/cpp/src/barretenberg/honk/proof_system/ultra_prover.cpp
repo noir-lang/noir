@@ -338,5 +338,6 @@ template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::construct_proo
 }
 
 template class UltraProver_<honk::flavor::Ultra>;
+template class UltraProver_<honk::flavor::UltraGrumpkin>;
 
 } // namespace proof_system::honk

@@ -7,7 +7,7 @@
 #include "barretenberg/honk/flavor/ultra.hpp"
 namespace proof_system::honk {
 
-class UltraHonkComposer {
+template <class Flavor> class UltraHonkComposer_ {
 
   public:
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
@@ -16,20 +16,18 @@ class UltraHonkComposer {
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    using Flavor = honk::flavor::Ultra;
     using CircuitConstructor = UltraCircuitConstructor;
     using ProvingKey = typename Flavor::ProvingKey;
     using VerificationKey = typename Flavor::VerificationKey;
 
+    // TODO(#426): This don't belong here
     static constexpr ComposerType type = ComposerType::PLOOKUP;
     static_assert(type == CircuitConstructor::type);
     static constexpr merkle::HashType merkle_hash_type = CircuitConstructor::merkle_hash_type;
     static constexpr pedersen::CommitmentType commitment_type = CircuitConstructor::commitment_type;
     static constexpr size_t DEFAULT_PLOOKUP_RANGE_BITNUM = UltraCircuitConstructor::DEFAULT_PLOOKUP_RANGE_BITNUM;
 
-    UltraHonkComposerHelper composer_helper;
-
-    // References to circuit_constructor's members for convenience
+    UltraHonkComposerHelper_<Flavor> composer_helper;
     size_t& num_gates;
     std::vector<barretenberg::fr>& variables;
     // While we always have it set to zero, feels wrong to have a potentially broken dependency
@@ -37,16 +35,16 @@ class UltraHonkComposer {
     bool& contains_recursive_proof;
     std::vector<uint32_t>& recursive_proof_public_input_indices;
 
-    UltraHonkComposer()
-        : UltraHonkComposer(barretenberg::srs::get_crs_factory(), 0){};
+    UltraHonkComposer_()
+        : UltraHonkComposer_(barretenberg::srs::get_crs_factory(), 0){};
 
-    UltraHonkComposer(std::string const& crs_path, const size_t size_hint)
-        : UltraHonkComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>(
-                                new barretenberg::srs::factories::FileCrsFactory(crs_path)),
-                            size_hint){};
+    UltraHonkComposer_(std::string const& crs_path, const size_t size_hint)
+        : UltraHonkComposer_(std::unique_ptr<barretenberg::srs::factories::CrsFactory>(
+                                 new barretenberg::srs::factories::FileCrsFactory(crs_path)),
+                             size_hint){};
 
-    UltraHonkComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
-                      const size_t size_hint)
+    UltraHonkComposer_(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
+                       const size_t size_hint)
         : circuit_constructor(size_hint)
         , composer_helper(crs_factory)
         , num_gates(circuit_constructor.num_gates)
@@ -59,17 +57,12 @@ class UltraHonkComposer {
         add_gates_to_ensure_all_polys_are_non_zero();
     };
 
-    UltraHonkComposer(std::shared_ptr<ProvingKey> const& p_key,
-                      std::shared_ptr<VerificationKey> const& v_key,
-                      size_t size_hint = 0);
-    UltraHonkComposer(UltraHonkComposer&& other) = default;
-    UltraHonkComposer& operator=(UltraHonkComposer&& other)
-    {
-        circuit_constructor = std::move(other.circuit_constructor);
-        composer_helper = std::move(other.composer_helper);
-        return *this;
-    };
-    ~UltraHonkComposer() = default;
+    UltraHonkComposer_(std::shared_ptr<ProvingKey> const& p_key,
+                       std::shared_ptr<VerificationKey> const& v_key,
+                       size_t size_hint = 0);
+    UltraHonkComposer_(UltraHonkComposer_&& other) = default;
+    UltraHonkComposer_& operator=(UltraHonkComposer_&& other) = delete;
+    ~UltraHonkComposer_() = default;
 
     size_t get_num_gates() const { return circuit_constructor.get_num_gates(); }
     uint32_t get_zero_idx() { return circuit_constructor.zero_idx; }
@@ -87,8 +80,8 @@ class UltraHonkComposer {
 
     void finalize_circuit() { circuit_constructor.finalize_circuit(); };
 
-    UltraProver create_prover() { return composer_helper.create_prover(circuit_constructor); };
-    UltraVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); };
+    UltraProver_<Flavor> create_prover() { return composer_helper.create_prover(circuit_constructor); };
+    UltraVerifier_<Flavor> create_verifier() { return composer_helper.create_verifier(circuit_constructor); };
 
     void add_gates_to_ensure_all_polys_are_non_zero()
     {
@@ -300,4 +293,9 @@ class UltraHonkComposer {
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
 };
+template class UltraHonkComposer_<honk::flavor::Ultra>;
+template class UltraHonkComposer_<honk::flavor::UltraGrumpkin>;
+using UltraHonkComposer = UltraHonkComposer_<honk::flavor::Ultra>;
+using UltraGrumpkinHonkComposer = UltraHonkComposer_<honk::flavor::UltraGrumpkin>;
+
 } // namespace proof_system::honk

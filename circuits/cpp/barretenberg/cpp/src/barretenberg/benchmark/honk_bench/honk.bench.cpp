@@ -1,10 +1,9 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/honk/proof_system/prover.hpp"
-#include "barretenberg/honk/proof_system/verifier.hpp"
 #include <benchmark/benchmark.h>
 #include <cstddef>
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
 
 using namespace benchmark;
 

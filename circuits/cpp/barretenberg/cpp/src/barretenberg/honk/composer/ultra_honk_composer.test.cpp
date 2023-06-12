@@ -113,9 +113,9 @@ TEST_F(UltraHonkComposerTests, XorConstraint)
     const auto lookup_accumulators = plookup::get_lookup_accumulators(
         plookup::MultiTableId::UINT32_XOR, left_witness_value, right_witness_value, true);
     auto xor_result = lookup_accumulators[plookup::ColumnIdx::C3]
-                                         [0]; // The zeroth index in the 3rd column is the fully accumulated xor result
-    EXPECT_EQ(xor_result, xor_result_expected);
+                                         [0]; // The zeroth index in the 3rd column is the fully accumulated xor
 
+    EXPECT_EQ(xor_result, xor_result_expected);
     composer.create_gates_from_plookup_accumulators(
         plookup::MultiTableId::UINT32_XOR, lookup_accumulators, left_witness_index, right_witness_index);
 
@@ -560,7 +560,6 @@ TEST_F(UltraHonkComposerTests, range_constraint)
 
 TEST_F(UltraHonkComposerTests, range_with_gates)
 {
-
     auto composer = UltraHonkComposer();
     auto idx = add_variables(composer, { 1, 2, 3, 4, 5, 6, 7, 8 });
     for (size_t i = 0; i < idx.size(); i++) {
@@ -801,6 +800,33 @@ TEST_F(UltraHonkComposerTests, ram)
             0,
         },
         false);
+
+    prove_and_verify(composer, /*expected_result=*/true);
+}
+
+TEST(UltraGrumpkinHonkComposer, XorConstraint)
+{
+    auto composer = UltraGrumpkinHonkComposer();
+
+    uint32_t left_value = engine.get_random_uint32();
+    uint32_t right_value = engine.get_random_uint32();
+
+    fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
+    fr right_witness_value = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
+
+    uint32_t left_witness_index = composer.add_variable(left_witness_value);
+    uint32_t right_witness_index = composer.add_variable(right_witness_value);
+
+    uint32_t xor_result_expected = left_value ^ right_value;
+
+    const auto lookup_accumulators = plookup::get_lookup_accumulators(
+        plookup::MultiTableId::UINT32_XOR, left_witness_value, right_witness_value, true);
+    auto xor_result = lookup_accumulators[plookup::ColumnIdx::C3]
+                                         [0]; // The zeroth index in the 3rd column is the fully accumulated xor
+
+    EXPECT_EQ(xor_result, xor_result_expected);
+    composer.create_gates_from_plookup_accumulators(
+        plookup::MultiTableId::UINT32_XOR, lookup_accumulators, left_witness_index, right_witness_index);
 
     prove_and_verify(composer, /*expected_result=*/true);
 }

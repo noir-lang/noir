@@ -1,11 +1,11 @@
 #pragma once
 #include <functional>
 #include "../composers/composers_fwd.hpp"
+#include "../composers/composers.hpp"
 #include "../witness/witness.hpp"
 #include "../bool/bool.hpp"
 #include "barretenberg/common/assert.hpp"
 #include "../field/field.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
 // The purpose of this class is to enable positive integer operations without a risk of overflow.
 // Despite the name, it is *not* a "safe" version of the uint class - as operations are positive integer

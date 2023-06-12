@@ -1,10 +1,9 @@
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/honk/proof_system/ultra_prover.hpp"
-#include "barretenberg/honk/proof_system/ultra_verifier.hpp"
 #include <benchmark/benchmark.h>
 #include <cstddef>
-#include "barretenberg/honk/composer/ultra_honk_composer.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/hash/keccak/keccak.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"

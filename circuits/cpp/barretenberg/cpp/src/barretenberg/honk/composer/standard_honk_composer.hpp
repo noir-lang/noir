@@ -13,13 +13,12 @@ namespace proof_system::honk {
  * @details However, it has a lot of its logic separated into subclasses and simply proxies the calls.
  *
  */
-class StandardHonkComposer {
+template <class Flavor> class StandardHonkComposer_ {
   public:
     // TODO(#426): This doesn't belong here
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::LOOKUP_PEDERSEN;
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
 
-    using Flavor = flavor::Standard;
     using CircuitConstructor = StandardCircuitConstructor;
     using ProvingKey = typename Flavor::ProvingKey;
     using VerificationKey = typename Flavor::VerificationKey;
@@ -32,7 +31,7 @@ class StandardHonkComposer {
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    StandardHonkComposerHelper composer_helper;
+    StandardHonkComposerHelper_<Flavor> composer_helper;
 
     // Leaving it in for now just in case
     bool contains_recursive_proof = false;
@@ -40,24 +39,24 @@ class StandardHonkComposer {
 
     /**Standard methods*/
 
-    StandardHonkComposer(const size_t size_hint = 0)
+    StandardHonkComposer_(const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables){};
 
-    StandardHonkComposer(std::string const& crs_path, const size_t size_hint = 0)
-        : StandardHonkComposer(barretenberg::srs::get_crs_factory(), size_hint){};
+    StandardHonkComposer_(std::string const& crs_path, const size_t size_hint = 0)
+        : StandardHonkComposer_(barretenberg::srs::get_crs_factory(), size_hint){};
 
-    StandardHonkComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
-                         const size_t size_hint = 0)
+    StandardHonkComposer_(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
+                          const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(crs_factory)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
 
     {}
-    StandardHonkComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory,
-                         const size_t size_hint = 0)
+    StandardHonkComposer_(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory,
+                          const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(std::move(crs_factory))
         , num_gates(circuit_constructor.num_gates)
@@ -65,22 +64,22 @@ class StandardHonkComposer {
 
     {}
 
-    StandardHonkComposer(std::shared_ptr<ProvingKey> const& p_key,
-                         std::shared_ptr<VerificationKey> const& v_key,
-                         size_t size_hint = 0)
+    StandardHonkComposer_(std::shared_ptr<ProvingKey> const& p_key,
+                          std::shared_ptr<VerificationKey> const& v_key,
+                          size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(p_key, v_key)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
     {}
 
-    StandardHonkComposer(const StandardHonkComposer& other) = delete;
-    StandardHonkComposer(StandardHonkComposer&& other) = default;
-    StandardHonkComposer& operator=(const StandardHonkComposer& other) = delete;
+    StandardHonkComposer_(const StandardHonkComposer_& other) = delete;
+    StandardHonkComposer_(StandardHonkComposer_&& other) = default;
+    StandardHonkComposer_& operator=(const StandardHonkComposer_& other) = delete;
     // TODO(#230)(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members.
     // This is a temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of
-    // composer methods, where appropriate. StandardHonkComposer& operator=(StandardHonkComposer&& other) = default;
-    ~StandardHonkComposer() = default;
+    // composer methods, where appropriate. StandardHonkComposer_& operator=(StandardHonkComposer_&& other) = default;
+    ~StandardHonkComposer_() = default;
 
     size_t get_num_gates() const { return circuit_constructor.get_num_gates(); }
 
@@ -183,8 +182,8 @@ class StandardHonkComposer {
 
     void compute_witness() { composer_helper.compute_witness(circuit_constructor); };
 
-    StandardVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
-    StandardProver create_prover() { return composer_helper.create_prover(circuit_constructor); };
+    StandardVerifier_<Flavor> create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
+    StandardProver_<Flavor> create_prover() { return composer_helper.create_prover(circuit_constructor); };
 
     size_t& num_gates;
     std::vector<barretenberg::fr>& variables;
@@ -192,4 +191,8 @@ class StandardHonkComposer {
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
 };
+template class StandardHonkComposer_<flavor::Standard>;
+template class StandardHonkComposer_<flavor::StandardGrumpkin>;
+using StandardHonkComposer = StandardHonkComposer_<flavor::Standard>;
+using StandardGrumpkinHonkComposer = StandardHonkComposer_<flavor::StandardGrumpkin>;
 } // namespace proof_system::honk

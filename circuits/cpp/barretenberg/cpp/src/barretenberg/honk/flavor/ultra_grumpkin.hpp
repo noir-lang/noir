@@ -7,7 +7,7 @@
 #include <vector>
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
-#include "barretenberg/honk/pcs/kzg/kzg.hpp"
+#include "barretenberg/honk/pcs/ipa/ipa.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
@@ -15,7 +15,6 @@
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
@@ -26,7 +25,9 @@
 
 namespace proof_system::honk::flavor {
 
-class Ultra {
+class UltraGrumpkin {
+    // TODO(Mara): At the moment this class is a duplicate of the Standard flavor with a different PCS for testing
+    // purposes. This will be changed to Grumpkin once generating Honk proofs over Grumpkin has been enabled.
   public:
     using CircuitConstructor = UltraCircuitConstructor;
     using FF = barretenberg::fr;
@@ -36,11 +37,8 @@ class Ultra {
     using GroupElement = G1::element;
     using Commitment = G1::affine_element;
     using CommitmentHandle = G1::affine_element;
-    // UltraHonk will be run with KZG by default but temporarily we set the commitment to IPA to
-    // be able to do e2e tests with this pcs as well
-    // TODO: instantiate this with both IPA and KZG when the templating work is finished
-    using PCSParams = pcs::kzg::Params;
-    using PCS = pcs::kzg::KZG<PCSParams>;
+    using PCSParams = pcs::ipa::Params;
+    using PCS = pcs::ipa::IPA<PCSParams>;
 
     static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often

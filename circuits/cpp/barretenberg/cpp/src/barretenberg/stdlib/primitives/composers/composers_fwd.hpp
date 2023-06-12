@@ -1,3 +1,11 @@
+/**
+ * @brief Defines particular composer and circuit constructor types expected to be used for proof or circuit
+construction (outside the proof_system and honk folder) and contains macros for explicit instantiation.
+ *
+ * @details This file is designed to be included in header files to instruct the compiler that these classes exist and
+ * their instantiation will eventually take place. Given it has no dependencies, it causes no additional compilation or
+ *  propagation. This should be the ONLY file related to these types included in files out side the proof system.
+ */
 #pragma once
 
 namespace proof_system::plonk {
@@ -5,13 +13,19 @@ class StandardPlonkComposer;
 class TurboPlonkComposer;
 class UltraPlonkComposer;
 
-class StandardPlonkComposer;
 } // namespace proof_system::plonk
 
 namespace proof_system::honk {
-class StandardHonkComposer;
-class UltraHonkComposer;
+namespace flavor {
+class Standard;
+class Ultra;
+} // namespace flavor
+template <class Flavor> class StandardHonkComposer_;
+using StandardHonkComposer = StandardHonkComposer_<flavor::Standard>;
+template <class Flavor> class UltraHonkComposer_;
+using UltraHonkComposer = UltraHonkComposer_<flavor::Ultra>;
 } // namespace proof_system::honk
+
 namespace proof_system {
 class StandardCircuitConstructor;
 class TurboCircuitConstructor;

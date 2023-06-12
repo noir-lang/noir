@@ -3,7 +3,6 @@
 #include "../field/field.hpp"
 #include "../bool/bool.hpp"
 #include "../byte_array/byte_array.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

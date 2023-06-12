@@ -195,6 +195,7 @@ TEST_F(StandardHonkComposerTests, LagrangeCorrectness)
  */
 TEST_F(StandardHonkComposerTests, AssertEquals)
 {
+
     /**
      * @brief A function that creates a simple circuit with repeated gates, leading to large permutation cycles
      *
@@ -289,6 +290,7 @@ TEST_F(StandardHonkComposerTests, AssertEquals)
 
 TEST_F(StandardHonkComposerTests, VerificationKeyCreation)
 {
+
     // Create a composer and a dummy circuit with a few gates
     StandardHonkComposer composer = StandardHonkComposer();
     fr a = fr::one();
@@ -389,5 +391,17 @@ TEST_F(StandardHonkComposerTests, SumcheckEvaluations)
     };
     run_test(/*expected_result=*/true);
     run_test(/*expected_result=*/false);
+}
+TEST(StandardGrumpkinHonkComposer, BaseCase)
+{
+    auto composer = StandardGrumpkinHonkComposer();
+    fr a = 1;
+    composer.circuit_constructor.add_variable(a);
+
+    auto prover = composer.create_prover();
+    plonk::proof proof = prover.construct_proof();
+    auto verifier = composer.create_verifier();
+    bool verified = verifier.verify_proof(proof);
+    ASSERT_TRUE(verified);
 }
 } // namespace test_standard_honk_composer

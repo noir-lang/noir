@@ -5,8 +5,7 @@
 #include "../biggroup/biggroup.hpp"
 #include "../bool/bool.hpp"
 #include "../field/field.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/honk/composer/ultra_honk_composer.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"

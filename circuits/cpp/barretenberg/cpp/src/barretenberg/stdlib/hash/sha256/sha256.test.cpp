@@ -1,9 +1,7 @@
 #include "sha256.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 
 #include "barretenberg/numeric/random/engine.hpp"

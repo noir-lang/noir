@@ -3,8 +3,7 @@
 #include <array>
 #include <vector>
 
-#include "../../primitives/composers/composers_fwd.hpp"
-
+#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/witness/witness.hpp"
 

@@ -1,5 +1,5 @@
 #include "aes128.hpp"
-
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 #include "barretenberg/crypto/aes128/aes128.hpp"
 
 #include <gtest/gtest.h>

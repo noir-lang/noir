@@ -5,6 +5,7 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 TEST(acir_format, test_a_single_constraint_no_pub_inputs)
 {

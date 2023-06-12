@@ -1,5 +1,6 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 
 namespace acir_format {
 

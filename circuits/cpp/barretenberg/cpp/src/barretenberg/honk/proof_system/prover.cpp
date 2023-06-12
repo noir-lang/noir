@@ -3,7 +3,6 @@
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
-#include "barretenberg/honk/flavor/standard.hpp"
 
 namespace proof_system::honk {
 
@@ -284,5 +283,6 @@ template <StandardFlavor Flavor> plonk::proof& StandardProver_<Flavor>::construc
 }
 
 template class StandardProver_<flavor::Standard>;
+template class StandardProver_<flavor::StandardGrumpkin>;
 
 } // namespace proof_system::honk
