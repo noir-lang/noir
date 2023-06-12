@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::brillig::{Brillig, brillig_ir::artifact::BrilligArtifact};
+
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
     errors::AcirGenError,
@@ -19,7 +21,6 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
@@ -178,6 +179,10 @@ impl Context {
                                     result_acir_type
                                 });
 
+                                if Self::is_return_type_unit(result_ids, dfg) {
+                                    return;
+                                }
+
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
                                 let outputs = self.acir_context.brillig(code, inputs, outputs);
@@ -185,6 +190,9 @@ impl Context {
                                     self.ssa_values.insert(*result.0, result.1);
                                 }
                             }
+                            RuntimeType::Oracle(_) => unimplemented!(
+                                "expected an intrinsic/brillig call, but found {func:?}. All Oracle methods should be wrapped in an unconstrained fn"
+                            ),
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
@@ -213,13 +221,9 @@ impl Context {
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
-                let var = self.convert_numeric_value(*value, dfg);
-
                 let result_acir_var = self
-                    .acir_context
-                    .truncate_var(var, *bit_size, *max_bit_size)
+                    .convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)
                     .expect("add Result types to all methods so errors bubble up");
-
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::ArrayGet { array, index } => {
@@ -237,6 +241,7 @@ impl Context {
             Instruction::Load { .. } => {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
+            _ => unreachable!("instruction cannot be converted to ACIR"),
         }
     }
 
@@ -299,11 +304,7 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        // Check if the program returns the `Unit/None` type.
-        // This type signifies that the program returns nothing.
-        let is_return_unit_type =
-            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
-        if is_return_unit_type {
+        if Self::is_return_type_unit(return_values, dfg) {
             return;
         }
 
@@ -344,6 +345,9 @@ impl Context {
             }
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
+            Value::ForeignFunction(_) => unimplemented!(
+                "Oracle calls directly in constrained functions are not yet available."
+            ),
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value:?}")
             }
@@ -479,6 +483,31 @@ impl Context {
         }
     }
 
+    /// Returns an `AcirVar`that is constrained to be result of the truncation.
+    fn convert_ssa_truncate(
+        &mut self,
+        value_id: ValueId,
+        bit_size: u32,
+        max_bit_size: u32,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirVar, AcirGenError> {
+        let mut var = self.convert_numeric_value(value_id, dfg);
+        let truncation_target = match &dfg[value_id] {
+            Value::Instruction { instruction, .. } => &dfg[*instruction],
+            _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op"),
+        };
+        if matches!(truncation_target, Instruction::Binary(Binary { operator: BinaryOp::Sub, .. }))
+        {
+            // Subtractions must first have the integer modulus added before truncation can be
+            // applied. This is done in order to prevent underflow.
+            let integer_modulus =
+                self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
+            var = self.acir_context.add_var(var, integer_modulus)?;
+        }
+
+        self.acir_context.truncate_var(var, bit_size, max_bit_size)
+    }
+
     /// Returns a vector of `AcirVar`s constrained to be result of the function call.
     ///
     /// The function being called is required to be intrinsic.
@@ -605,6 +634,12 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
+    }
+
+    /// Check if the program returns the `Unit/None` type.
+    /// This type signifies that the program returns nothing.
+    fn is_return_type_unit(return_values: &[ValueId], dfg: &DataFlowGraph) -> bool {
+        return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit
     }
 }
 

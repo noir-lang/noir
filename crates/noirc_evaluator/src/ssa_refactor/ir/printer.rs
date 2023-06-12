@@ -71,7 +71,9 @@ fn value(function: &Function, id: ValueId) -> String {
             let elements = vecmap(array, |element| value(function, *element));
             format!("[{}]", elements.join(", "))
         }
-        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
+        Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
+            id.to_string()
+        }
     }
 }
 
@@ -147,6 +149,9 @@ pub(crate) fn display_instruction(
         }
         Instruction::Call { func, arguments } => {
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
+        }
+        Instruction::ForeignCall { func, arguments } => {
+            writeln!(f, "foreign call {}({})", func, value_list(function, arguments))
         }
         Instruction::Allocate => writeln!(f, "allocate"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
