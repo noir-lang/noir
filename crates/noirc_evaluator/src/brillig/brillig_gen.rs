@@ -280,7 +280,7 @@ impl BrilligGen {
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterIndex {
         let value = &dfg[value_id];
 
-        let register = match value {
+        match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
@@ -297,8 +297,7 @@ impl BrilligGen {
             _ => {
                 todo!("ICE: Should have been in cache {value:?}")
             }
-        };
-        register
+        }
     }
 
     /// Compiles an SSA function into a Brillig artifact which

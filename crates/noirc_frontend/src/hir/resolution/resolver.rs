@@ -18,7 +18,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -1135,10 +1135,6 @@ impl<'a> Resolver<'a> {
 
     pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> Type {
         self.interner.get_type_alias(type_alias_id)
-    }
-
-    fn get_field_names_of_type(&self, typ: &Shared<StructType>) -> BTreeSet<Ident> {
-        typ.borrow().field_names()
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
