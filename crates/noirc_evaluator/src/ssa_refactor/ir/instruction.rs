@@ -280,7 +280,15 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Truncate { .. } => None,
+            Instruction::Truncate { value, bit_size, .. } => {
+                if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
+                    let integer_modulus = 2_u128.pow(*bit_size);
+                    let truncated = numeric_constant.to_u128() % integer_modulus;
+                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                } else {
+                    None
+                }
+            }
             Instruction::Call { .. } => None,
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,

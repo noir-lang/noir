@@ -92,7 +92,7 @@ fn generate_tests(test_file: &mut File, experimental_ssa: bool) {
             r#"
 {exclude_macro}
 #[test]
-fn prove_and_verify_{test_name}() {{
+fn prove_and_verify_{test_sub_dir}_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let verified = std::panic::catch_unwind(|| {{
