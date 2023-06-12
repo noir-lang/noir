@@ -209,8 +209,7 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Insert a unit constant into the current function if not already
-    /// present, and return its value
+    /// Returns the unit value, represented as an empty tree of values
     pub(super) fn unit_value() -> Values {
         Values::empty()
     }
