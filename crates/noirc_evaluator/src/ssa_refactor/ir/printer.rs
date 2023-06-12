@@ -61,13 +61,18 @@ pub(crate) fn display_block(
 /// constant or a function we print those directly.
 fn value(function: &Function, id: ValueId) -> String {
     use super::value::Value;
+    let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        _ => id.to_string(),
+        Value::Array { array, .. } => {
+            let elements = vecmap(array, |element| value(function, *element));
+            format!("[{}]", elements.join(", "))
+        }
+        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
     }
 }
 
@@ -144,10 +149,22 @@ pub(crate) fn display_instruction(
         Instruction::Call { func, arguments } => {
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
         }
-        Instruction::Allocate { size } => writeln!(f, "alloc {size} fields"),
+        Instruction::Allocate => writeln!(f, "allocate"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
+        }
+        Instruction::ArrayGet { array, index } => {
+            writeln!(f, "array_get {}, index {}", show(*array), show(*index))
+        }
+        Instruction::ArraySet { array, index, value } => {
+            writeln!(
+                f,
+                "array_set {}, index {}, value {}",
+                show(*array),
+                show(*index),
+                show(*value)
+            )
         }
     }
 }

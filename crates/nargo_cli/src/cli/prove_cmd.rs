@@ -44,7 +44,7 @@ pub(crate) struct ProveCommand {
     verifier_name: String,
 
     /// Verify proof after proving
-    #[arg(short, long)]
+    #[arg(long)]
     verify: bool,
 
     #[clap(flatten)]
