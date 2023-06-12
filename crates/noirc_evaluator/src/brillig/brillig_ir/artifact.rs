@@ -116,7 +116,7 @@ impl BrilligArtifact {
     ///
     /// This is useful for labelling regions of code
     /// before you have generated the opcodes for the region.
-    pub(crate) fn index_of_next_opcode(&self) -> usize {
+    pub(crate) fn index_of_next_opcode(&self) -> OpcodeLocation {
         self.byte_code.len()
     }
 
