@@ -35,8 +35,9 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct, NoirTyAlias, Path,
-    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct,
+    NoirTyAlias, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree,
+    UseTreeKind,
 };
 
 use chumsky::prelude::*;

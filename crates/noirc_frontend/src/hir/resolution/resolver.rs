@@ -18,7 +18,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
