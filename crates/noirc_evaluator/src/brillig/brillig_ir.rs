@@ -125,7 +125,7 @@ impl BrilligContext {
             }
             self.mov_instruction(destination_index.into(), *return_register);
         }
-        self.push_opcode(BrilligOpcode::Stop);
+        self.stop_instruction();
     }
 
     /// Emits a `mov` instruction.
