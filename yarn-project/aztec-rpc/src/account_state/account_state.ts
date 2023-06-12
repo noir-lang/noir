@@ -20,6 +20,7 @@ import {
   TxExecutionRequest,
 } from '@aztec/types';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
+import { KernelOracle } from '../kernel_oracle/index.js';
 import { Database, TxAuxDataDao, TxDao } from '../database/index.js';
 import { generateFunctionSelector } from '../index.js';
 import { KernelProver } from '../kernel_prover/index.js';
@@ -64,7 +65,7 @@ export class AccountState {
     private db: Database,
     private node: AztecNode,
     private grumpkin: Grumpkin,
-    private TXS_PER_BLOCK = 1,
+    private TXS_PER_BLOCK = 4,
     private log = createDebugLogger('aztec:aztec_rpc_account_state'),
   ) {
     if (privKey.length !== 32) {
@@ -239,9 +240,10 @@ export class AccountState {
     // TODO - Pause syncing while simulating.
 
     const contractDataOracle = new ContractDataOracle(this.db, this.node);
+    const kernelOracle = new KernelOracle(contractDataOracle, this.node);
     const executionResult = await this.simulate(txExecutionRequest.txRequest, contractDataOracle);
 
-    const kernelProver = new KernelProver(contractDataOracle);
+    const kernelProver = new KernelProver(kernelOracle);
     this.log('Executing Prover...');
     const { proof, publicInputs } = await kernelProver.prove(
       await txExecutionRequest.toSignedTxRequest(),
@@ -304,6 +306,8 @@ export class AccountState {
       return;
     }
 
+    // TODO(Maddiaa): this calculation is brittle.
+    // https://github.com/AztecProtocol/aztec-packages/issues/788
     let dataStartIndex =
       (l2BlockContexts[0].block.number - INITIAL_L2_BLOCK_NUM) * this.TXS_PER_BLOCK * KERNEL_NEW_COMMITMENTS_LENGTH;
     const blocksAndTxAuxData: ProcessedData[] = [];

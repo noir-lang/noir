@@ -13,11 +13,7 @@ export interface NoteLoadOracleInputs {
    */
   preimage: Fr[];
   /**
-   * The path in the merkle tree to the note.
-   */
-  siblingPath: Fr[];
-  /**
-   * The index of the note in the merkle tree.
+   * The note's leaf index in the private data tree.
    */
   index: bigint;
 }

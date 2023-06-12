@@ -20,7 +20,7 @@ unconstrained fn debug_log<T>(msg: T) {
 /// and an array of N field which will be formatted
 /// into the string in the simulator.
 /// Example:
-/// `debug_log_format("get_2(slot:{0}) =>\n\t0:{1}\n\t1:{2}", [storage_slot, notes.0.value, notes.1.value]);`
+/// debug_log_format("get_2(slot:{0}) =>\n\t0:{1}\n\t1:{2}", [storage_slot, note0_hash, note1_hash]);
 unconstrained fn debug_log_format<T, N>(msg: T, args: [Field; N]) {
     constrain debug_log_format_oracle(msg, args, args.len()) == 0;
 }

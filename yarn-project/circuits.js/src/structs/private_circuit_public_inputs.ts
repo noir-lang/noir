@@ -8,6 +8,7 @@ import {
   NEW_NULLIFIERS_LENGTH,
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
+  READ_REQUESTS_LENGTH,
   RETURN_VALUES_LENGTH,
 } from './constants.js';
 import { ContractDeploymentData } from './tx_context.js';
@@ -30,6 +31,10 @@ export class PrivateCircuitPublicInputs {
      * Return values of the corresponding function call.
      */
     public returnValues: Fr[],
+    /**
+     * Read requests created by the corresponding function call.
+     */
+    public readRequests: Fr[],
     /**
      * New commitments created by the corresponding function call.
      */
@@ -92,6 +97,7 @@ export class PrivateCircuitPublicInputs {
     public contractDeploymentData: ContractDeploymentData,
   ) {
     assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
+    assertMemberLength(this, 'readRequests', READ_REQUESTS_LENGTH);
     assertMemberLength(this, 'newCommitments', NEW_COMMITMENTS_LENGTH);
     assertMemberLength(this, 'newNullifiers', NEW_NULLIFIERS_LENGTH);
     assertMemberLength(this, 'privateCallStack', PRIVATE_CALL_STACK_LENGTH);
@@ -122,6 +128,7 @@ export class PrivateCircuitPublicInputs {
       CallContext.empty(),
       Fr.ZERO,
       frArray(RETURN_VALUES_LENGTH),
+      frArray(READ_REQUESTS_LENGTH),
       frArray(NEW_COMMITMENTS_LENGTH),
       frArray(NEW_NULLIFIERS_LENGTH),
       frArray(PRIVATE_CALL_STACK_LENGTH),
@@ -149,6 +156,7 @@ export class PrivateCircuitPublicInputs {
       fields.callContext,
       fields.argsHash,
       fields.returnValues,
+      fields.readRequests,
       fields.newCommitments,
       fields.newNullifiers,
       fields.privateCallStack,

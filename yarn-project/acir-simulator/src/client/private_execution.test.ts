@@ -185,9 +185,8 @@ describe('Private Execution test suite', () => {
         return {
           count: preimages.length,
           notes: await Promise.all(
-            preimages.map(async (preimage, index) => ({
+            preimages.map((preimage, index) => ({
               preimage,
-              siblingPath: (await tree.getSiblingPath(BigInt(index), false)).toFieldArray(),
               index: BigInt(index),
             })),
           ),
@@ -260,9 +259,8 @@ describe('Private Execution test suite', () => {
         return {
           count: preimages.length,
           notes: await Promise.all(
-            preimages.map(async (preimage, index) => ({
+            preimages.map((preimage, index) => ({
               preimage,
-              siblingPath: (await tree.getSiblingPath(BigInt(index), false)).toFieldArray(),
               index: BigInt(index),
             })),
           ),

@@ -120,10 +120,34 @@ std::array<typename CT<Composer>::fr, SIZE> to_ct(Composer& composer, std::array
     return map(arr, ref_to_ct);
 };
 
+
 template <typename Composer, std::size_t SIZE> std::array<std::optional<typename CT<Composer>::fr>, SIZE> to_ct(
     Composer& composer, std::array<std::optional<typename NT::fr>, SIZE> const& arr)
 {
     auto ref_to_ct = [&](std::optional<typename NT::fr> const& e) { return to_ct(composer, e); };
+
+    return map(arr, ref_to_ct);
+};
+
+/**
+ * @brief Convert from an array of any native types (NT_TYPE) to array of circuit types (CT_TYPE)
+ */
+template <typename Composer, typename CT_TYPE, typename NT_TYPE, std::size_t SIZE>
+std::array<CT_TYPE, SIZE> to_ct(Composer& composer, std::array<NT_TYPE, SIZE> const& arr)
+{
+    auto ref_to_ct = [&](NT_TYPE const& e) { return e.to_circuit_type(composer); };
+
+    return map(arr, ref_to_ct);
+};
+
+/**
+ * @brief Convert from an array of any native types (NT_TYPE) to array of circuit types (CT_TYPE).
+ * Allow array entries to be optional.
+ */
+template <typename Composer, typename CT_TYPE, typename NT_TYPE, std::size_t SIZE>
+std::array<std::optional<CT_TYPE>, SIZE> to_ct(Composer& composer, std::array<std::optional<NT_TYPE>, SIZE> const& arr)
+{
+    auto ref_to_ct = [&](std::optional<NT_TYPE> const& e) { return e.to_circuit_type(composer); };
 
     return map(arr, ref_to_ct);
 };

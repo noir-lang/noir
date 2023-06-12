@@ -2,7 +2,13 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { FieldsOf, assertMemberLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { PrivateCallStackItem } from '../call_stack_item.js';
-import { CONTRACT_TREE_HEIGHT, FUNCTION_TREE_HEIGHT, PRIVATE_CALL_STACK_LENGTH } from '../constants.js';
+import {
+  CONTRACT_TREE_HEIGHT,
+  FUNCTION_TREE_HEIGHT,
+  PRIVATE_DATA_TREE_HEIGHT,
+  PRIVATE_CALL_STACK_LENGTH,
+  READ_REQUESTS_LENGTH,
+} from '../constants.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { SignedTxRequest } from '../tx_request.js';
 import { VerificationKey } from '../verification_key.js';
@@ -42,6 +48,10 @@ export class PrivateCallData {
      */
     public contractLeafMembershipWitness: MembershipWitness<typeof CONTRACT_TREE_HEIGHT>,
     /**
+     * The membership witnesses for read requests created by the function being invoked.
+     */
+    public readRequestMembershipWitnesses: MembershipWitness<typeof PRIVATE_DATA_TREE_HEIGHT>[],
+    /**
      * The address of the portal contract corresponding to the contract on which the function is being invoked.
      */
     public portalContractAddress: EthAddress,
@@ -51,6 +61,7 @@ export class PrivateCallData {
     public acirHash: Fr,
   ) {
     assertMemberLength(this, 'privateCallStackPreimages', PRIVATE_CALL_STACK_LENGTH);
+    assertMemberLength(this, 'readRequestMembershipWitnesses', READ_REQUESTS_LENGTH);
   }
 
   /**
@@ -67,6 +78,7 @@ export class PrivateCallData {
       fields.vk,
       fields.functionLeafMembershipWitness,
       fields.contractLeafMembershipWitness,
+      fields.readRequestMembershipWitnesses,
       fields.portalContractAddress,
       fields.acirHash,
     ] as const;

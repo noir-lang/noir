@@ -27,6 +27,7 @@ import {
   NewContractData,
   OptionallyRevealedData,
   FunctionData,
+  READ_REQUESTS_LENGTH,
   AggregationObject,
   G1AffineElement,
   Fq,
@@ -581,6 +582,9 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
     vk: makeVerificationKey(),
     functionLeafMembershipWitness: makeMembershipWitness(FUNCTION_TREE_HEIGHT, seed + 0x30),
     contractLeafMembershipWitness: makeMembershipWitness(CONTRACT_TREE_HEIGHT, seed + 0x20),
+    readRequestMembershipWitnesses: range(READ_REQUESTS_LENGTH, seed + 0x70).map(x =>
+      makeMembershipWitness(PRIVATE_DATA_TREE_HEIGHT, x),
+    ),
     portalContractAddress: makeEthAddress(seed + 0x40),
     acirHash: fr(seed + 0x60),
   });
@@ -615,7 +619,8 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
       true,
     ),
     argsHash: fr(seed + 0x100),
-    returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x300),
+    returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
+    readRequests: makeTuple(READ_REQUESTS_LENGTH, fr, seed + 0x300),
     newCommitments: makeTuple(NEW_COMMITMENTS_LENGTH, fr, seed + 0x400),
     newNullifiers: makeTuple(NEW_NULLIFIERS_LENGTH, fr, seed + 0x500),
     privateCallStack: makeTuple(PRIVATE_CALL_STACK_LENGTH, fr, seed + 0x600),

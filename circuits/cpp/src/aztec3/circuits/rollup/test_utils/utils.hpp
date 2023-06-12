@@ -3,6 +3,7 @@
 #include "nullifier_tree_testing_harness.hpp"
 
 #include "aztec3/circuits/abis/public_data_update_request.hpp"
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 
 #include <barretenberg/barretenberg.hpp>
@@ -12,6 +13,9 @@ namespace aztec3::circuits::rollup::test_utils::utils {
 namespace {
 
 using NT = aztec3::utils::types::NativeTypes;
+
+// Helpers
+using aztec3::circuits::get_sibling_path;
 
 // Types
 using ConstantRollupData = aztec3::circuits::abis::ConstantRollupData<NT>;
@@ -48,22 +52,6 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
                                                  SparseTree& public_data_tree,
                                                  MerkleTree& l1_to_l2_msg_tree);
 
-template <size_t N>
-std::array<fr, N> get_sibling_path(MerkleTree& tree, size_t leafIndex, size_t const& subtree_depth_to_skip)
-{
-    std::array<fr, N> siblingPath;
-    auto path = tree.get_hash_path(leafIndex);
-    // slice out the skip
-    leafIndex = leafIndex >> (subtree_depth_to_skip);
-    for (size_t i = 0; i < N; i++) {
-        if (leafIndex & (1 << i)) {
-            siblingPath[i] = path[subtree_depth_to_skip + i].first;
-        } else {
-            siblingPath[i] = path[subtree_depth_to_skip + i].second;
-        }
-    }
-    return siblingPath;
-}
 
 template <size_t N> std::array<fr, N> get_sibling_path(SparseTree& tree, uint256_t leafIndex)
 {

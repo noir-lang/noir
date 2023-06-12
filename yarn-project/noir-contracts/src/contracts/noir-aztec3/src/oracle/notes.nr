@@ -36,11 +36,11 @@ unconstrained fn notify_nullified_note(
 #[oracle(getNotes2)]
 fn get_notes_2_oracle(
     _storage_slot: Field,
-) -> [Field; 33] {}
+) -> [Field; 13] {}
 
 unconstrained fn get_notes_2_internal(
     storage_slot: Field,
-) -> [Field; 33] {
+) -> [Field; 13] {
     get_notes_2_oracle(storage_slot)
 }
 

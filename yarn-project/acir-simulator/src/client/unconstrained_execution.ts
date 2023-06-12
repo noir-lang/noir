@@ -47,7 +47,10 @@ export class UnconstrainedFunctionExecution {
       getSecretKey: async ([address]: ACVMField[]) => [
         toACVMField(await this.context.db.getSecretKey(this.contractAddress, frToAztecAddress(fromACVMField(address)))),
       ],
-      getNotes2: ([storageSlot]: ACVMField[]) => this.context.getNotes(this.contractAddress, storageSlot, 2),
+      getNotes2: async ([storageSlot]: ACVMField[]) => {
+        const { preimages } = await this.context.getNotes(this.contractAddress, storageSlot, 2);
+        return preimages;
+      },
       getRandomField: () => Promise.resolve([toACVMField(Fr.random())]),
       viewNotesPage: ([acvmSlot, acvmLimit, acvmOffset]) =>
         this.context.viewNotes(

@@ -8,7 +8,7 @@ import {
   PrivateCircuitPublicInputs,
   PublicCallRequest,
 } from '@aztec/circuits.js';
-import { MessageLoadOracleInputs, NoteLoadOracleInputs } from '../client/db_oracle.js';
+import { MessageLoadOracleInputs } from '../client/db_oracle.js';
 import { Fr } from '@aztec/foundation/fields';
 
 // Utilities to write TS classes to ACVM Field arrays
@@ -68,6 +68,7 @@ export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): AC
     toACVMField(publicInputs.argsHash),
 
     ...publicInputs.returnValues.map(toACVMField),
+    ...publicInputs.readRequests.map(toACVMField),
     ...publicInputs.newCommitments.map(toACVMField),
     ...publicInputs.newNullifiers.map(toACVMField),
     ...publicInputs.privateCallStack.map(toACVMField),
@@ -116,24 +117,6 @@ export async function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest)
     ...toACVMFunctionData(item.functionData),
     ...toACVMCallContext(item.callContext),
     toACVMField(await item.getArgsHash()),
-  ];
-}
-
-/**
- * Converts the result of loading notes to ACVM fields.
- * @param noteLoadOracleInputs - The result of loading notes to convert.
- * @param privateDataTreeRoot - The private data tree root.
- * @returns The ACVM fields.
- */
-export function toAcvmNoteLoadOracleInputs(
-  noteLoadOracleInputs: NoteLoadOracleInputs,
-  privateDataTreeRoot: Fr,
-): ACVMField[] {
-  return [
-    ...noteLoadOracleInputs.preimage.map(f => toACVMField(f)),
-    toACVMField(noteLoadOracleInputs.index),
-    ...noteLoadOracleInputs.siblingPath.map(f => toACVMField(f)),
-    toACVMField(privateDataTreeRoot),
   ];
 }
 

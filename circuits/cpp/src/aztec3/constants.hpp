@@ -7,6 +7,8 @@ namespace aztec3 {
 constexpr size_t ARGS_LENGTH = 8;
 constexpr size_t RETURN_VALUES_LENGTH = 4;
 
+constexpr size_t READ_REQUESTS_LENGTH = 4;
+
 constexpr size_t NEW_COMMITMENTS_LENGTH = 4;
 constexpr size_t NEW_NULLIFIERS_LENGTH = 4;
 

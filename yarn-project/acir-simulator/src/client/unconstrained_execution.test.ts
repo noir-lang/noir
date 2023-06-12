@@ -1,12 +1,6 @@
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { CircuitsWasm } from '@aztec/circuits.js';
-import {
-  ContractDeploymentData,
-  FunctionData,
-  PRIVATE_DATA_TREE_HEIGHT,
-  PrivateHistoricTreeRoots,
-  TxContext,
-} from '@aztec/circuits.js';
+import { ContractDeploymentData, FunctionData, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
 
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -68,7 +62,6 @@ describe('Unconstrained Execution test suite', () => {
           count: preimages.length,
           notes: notes.map((preimage, index) => ({
             preimage,
-            siblingPath: Array(PRIVATE_DATA_TREE_HEIGHT).fill(Fr.ZERO),
             index: BigInt(index),
           })),
         });

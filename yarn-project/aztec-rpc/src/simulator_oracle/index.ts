@@ -54,11 +54,10 @@ export class SimulatorOracle implements DBOracle {
     return {
       count: noteDaos.length,
       notes: await Promise.all(
-        noteDaos.slice(offset, offset + limit).map(async noteDao => {
-          const path = await this.node.getDataTreePath(noteDao.index);
+        noteDaos.slice(offset, offset + limit).map(noteDao => {
           return {
             preimage: noteDao.notePreimage.items,
-            siblingPath: path.toFieldArray(),
+            // RPC Client can use this index to get full MembershipWitness
             index: noteDao.index,
           };
         }),

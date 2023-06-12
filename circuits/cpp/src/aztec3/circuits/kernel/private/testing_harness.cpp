@@ -10,8 +10,6 @@
 #include "aztec3/circuits/abis/combined_historic_tree_roots.hpp"
 #include "aztec3/circuits/abis/contract_deployment_data.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
-#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
-#include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/private_historic_tree_roots.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
@@ -19,9 +17,9 @@
 #include "aztec3/circuits/abis/tx_context.hpp"
 #include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/abis/types.hpp"
-#include "aztec3/circuits/apps/function_execution_context.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
+#include "aztec3/constants.hpp"
 
 #include <barretenberg/barretenberg.hpp>
 
@@ -41,6 +39,69 @@ using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
+
+using aztec3::utils::array_length;
+using aztec3::utils::zero_array;
+
+/**
+ * @brief Get the random read requests and their membership requests
+ *
+ * @details read requests are siloed by contract address before being
+ * inserted into mock private data tree
+ *
+ * @param contract_address address to use when siloing read requests
+ * @param num_read_requests if negative, use random num. Must be < READ_REQUESTS_LENGTH
+ * @return std::tuple<read_requests, read_request_memberships_witnesses, historic_private_data_tree_root>
+ */
+std::tuple<std::array<NT::fr, READ_REQUESTS_LENGTH>,
+           std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>,
+           NT::fr>
+get_random_reads(NT::fr const& contract_address, int const num_read_requests)
+{
+    auto read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
+    auto leaves = zero_array<fr, READ_REQUESTS_LENGTH>();
+    // randomize the number of read requests with a configurable minimum
+    const auto final_num_rr = num_read_requests >= 0
+                                  ? std::min(static_cast<size_t>(num_read_requests), READ_REQUESTS_LENGTH)
+                                  : numeric::random::get_engine().get_random_uint8() % (READ_REQUESTS_LENGTH + 1);
+    // randomize private app circuit's read requests
+    for (size_t rr = 0; rr < final_num_rr; rr++) {
+        // randomize commitment and its leaf index
+        read_requests[rr] = NT::fr::random_element();
+        leaves[rr] = silo_commitment<NT>(contract_address, read_requests[rr]);
+    }
+
+    // this set and the following loop lets us generate totally random leaf indices
+    // for read requests while avoiding collisions
+    std::unordered_set<NT::uint32> rr_leaf_indices_set;
+    while (rr_leaf_indices_set.size() < final_num_rr) {
+        rr_leaf_indices_set.insert(numeric::random::get_engine().get_random_uint32() % PRIVATE_DATA_TREE_NUM_LEAVES);
+    }
+    // set -> vector without collisions
+    std::vector<NT::uint32> rr_leaf_indices(rr_leaf_indices_set.begin(), rr_leaf_indices_set.end());
+
+    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
+
+    // add the commitments to the private data tree for each read request
+    // add them at their corresponding index in the tree
+    // (in practice the the tree is left-to-right append-only, but here
+    // we treat it as sparse just to get these commitments in their correct spot)
+    for (size_t i = 0; i < array_length(leaves); i++) {
+        private_data_tree.update_element(rr_leaf_indices[i], leaves[i]);
+    }
+
+    // compute the merkle sibling paths for each request
+    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+        read_request_membership_witnesses{};
+    for (size_t i = 0; i < array_length(read_requests); i++) {
+        read_request_membership_witnesses[i] = { .leaf_index = NT::fr(rr_leaf_indices[i]),
+                                                 .sibling_path = get_sibling_path<PRIVATE_DATA_TREE_HEIGHT>(
+                                                     private_data_tree, rr_leaf_indices[i], 0) };
+    }
+
+
+    return { read_requests, read_request_membership_witnesses, private_data_tree.root() };
+}
 
 /**
  * @brief Generate a verification key for a private circuit.

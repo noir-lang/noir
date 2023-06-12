@@ -4,6 +4,8 @@
 export const ARGS_LENGTH = 8;
 export const RETURN_VALUES_LENGTH = 4;
 
+export const READ_REQUESTS_LENGTH = 4;
+
 export const NEW_COMMITMENTS_LENGTH = 4;
 export const NEW_NULLIFIERS_LENGTH = 4;
 export const NEW_L2_TO_L1_MSGS_LENGTH = 2;

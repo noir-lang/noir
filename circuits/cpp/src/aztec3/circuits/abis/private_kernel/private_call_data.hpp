@@ -36,6 +36,9 @@ template <typename NCT> struct PrivateCallData {
     MembershipWitness<NCT, FUNCTION_TREE_HEIGHT> function_leaf_membership_witness{};
     MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness{};
 
+    std::array<MembershipWitness<NCT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+        read_request_membership_witnesses{};
+
     fr portal_contract_address = 0;  // an ETH address
     fr acir_hash = 0;
 
@@ -46,6 +49,7 @@ template <typename NCT> struct PrivateCallData {
                private_call_stack_preimages == other.private_call_stack_preimages && vk == other.vk &&
                function_leaf_membership_witness == other.function_leaf_membership_witness &&
                contract_leaf_membership_witness == other.contract_leaf_membership_witness &&
+               read_request_membership_witnesses == other.read_request_membership_witnesses &&
                portal_contract_address == other.portal_contract_address && acir_hash == other.acir_hash;
     };
 
@@ -72,6 +76,9 @@ template <typename NCT> struct PrivateCallData {
             to_circuit_type(function_leaf_membership_witness),
             to_circuit_type(contract_leaf_membership_witness),
 
+            aztec3::utils::types::to_ct<Composer, MembershipWitness<CT, PRIVATE_DATA_TREE_HEIGHT>>(
+                composer, read_request_membership_witnesses),
+
             to_ct(portal_contract_address),
             to_ct(acir_hash),
         };
@@ -90,6 +97,7 @@ template <typename NCT> void read(uint8_t const*& it, PrivateCallData<NCT>& obj)
     read(it, obj.vk);
     read(it, obj.function_leaf_membership_witness);
     read(it, obj.contract_leaf_membership_witness);
+    read(it, obj.read_request_membership_witnesses);
     read(it, obj.portal_contract_address);
     read(it, obj.acir_hash);
 };
@@ -104,6 +112,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PrivateCallData<NC
     write(buf, *obj.vk);
     write(buf, obj.function_leaf_membership_witness);
     write(buf, obj.contract_leaf_membership_witness);
+    write(buf, obj.read_request_membership_witnesses);
     write(buf, obj.portal_contract_address);
     write(buf, obj.acir_hash);
 };
@@ -122,6 +131,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateCallDa
               << obj.function_leaf_membership_witness << "\n"
               << "contract_leaf_membership_witness:\n"
               << obj.contract_leaf_membership_witness << "\n"
+              << "read_request_membership_witnesses:\n"
+              << obj.read_request_membership_witnesses << "\n"
               << "portal_contract_address: " << obj.portal_contract_address << "\n"
               << "acir_hash: " << obj.acir_hash << "\n";
 }

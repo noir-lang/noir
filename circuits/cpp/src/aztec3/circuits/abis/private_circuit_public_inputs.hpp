@@ -28,6 +28,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     fr args_hash = 0;
     std::array<fr, RETURN_VALUES_LENGTH> return_values = zero_array<fr, RETURN_VALUES_LENGTH>();
 
+    std::array<fr, READ_REQUESTS_LENGTH> read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
+
     std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments = zero_array<fr, NEW_COMMITMENTS_LENGTH>();
     std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers = zero_array<fr, NEW_NULLIFIERS_LENGTH>();
 
@@ -55,10 +57,10 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     boolean operator==(PrivateCircuitPublicInputs<NCT> const& other) const
     {
         return call_context == other.call_context && args_hash == other.args_hash &&
-               return_values == other.return_values && new_commitments == other.new_commitments &&
-               new_nullifiers == other.new_nullifiers && private_call_stack == other.private_call_stack &&
-               public_call_stack == other.public_call_stack && new_l2_to_l1_msgs == other.new_l2_to_l1_msgs &&
-               encrypted_logs_hash == other.encrypted_logs_hash &&
+               return_values == other.return_values && read_requests == other.read_requests &&
+               new_commitments == other.new_commitments && new_nullifiers == other.new_nullifiers &&
+               private_call_stack == other.private_call_stack && public_call_stack == other.public_call_stack &&
+               new_l2_to_l1_msgs == other.new_l2_to_l1_msgs && encrypted_logs_hash == other.encrypted_logs_hash &&
                unencrypted_logs_hash == other.unencrypted_logs_hash &&
                encrypted_log_preimages_length == other.encrypted_log_preimages_length &&
                unencrypted_log_preimages_length == other.unencrypted_log_preimages_length &&
@@ -83,6 +85,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
             to_ct(args_hash),
             to_ct(return_values),
+
+            to_ct(read_requests),
 
             to_ct(new_commitments),
             to_ct(new_nullifiers),
@@ -120,6 +124,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
             to_nt(args_hash),
             to_nt(return_values),
 
+            to_nt(read_requests),
+
             to_nt(new_commitments),
             to_nt(new_nullifiers),
 
@@ -154,6 +160,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
         inputs.push_back(args_hash);
         spread_arr_into_vec(return_values, inputs);
+
+        spread_arr_into_vec(read_requests, inputs);
 
         spread_arr_into_vec(new_commitments, inputs);
         spread_arr_into_vec(new_nullifiers, inputs);
@@ -193,6 +201,7 @@ template <typename NCT> void read(uint8_t const*& it, PrivateCircuitPublicInputs
     read(it, pis.call_context);
     read(it, pis.args_hash);
     read(it, pis.return_values);
+    read(it, pis.read_requests);
     read(it, pis.new_commitments);
     read(it, pis.new_nullifiers);
     read(it, pis.private_call_stack);
@@ -219,6 +228,7 @@ void write(std::vector<uint8_t>& buf, PrivateCircuitPublicInputs<NCT> const& pri
     write(buf, pis.call_context);
     write(buf, pis.args_hash);
     write(buf, pis.return_values);
+    write(buf, pis.read_requests);
     write(buf, pis.new_commitments);
     write(buf, pis.new_nullifiers);
     write(buf, pis.private_call_stack);
@@ -244,6 +254,7 @@ std::ostream& operator<<(std::ostream& os, PrivateCircuitPublicInputs<NCT> const
     return os << "call_context: " << pis.call_context << "\n"
               << "args_hash: " << pis.args_hash << "\n"
               << "return_values: " << pis.return_values << "\n"
+              << "read_requests: " << pis.read_requests << "\n"
               << "new_commitments: " << pis.new_commitments << "\n"
               << "new_nullifiers: " << pis.new_nullifiers << "\n"
               << "private_call_stack: " << pis.private_call_stack << "\n"
@@ -274,6 +285,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     opt_fr args_hash;
     std::array<opt_fr, RETURN_VALUES_LENGTH> return_values;
 
+    std::array<opt_fr, READ_REQUESTS_LENGTH> read_requests;
+
     std::array<opt_fr, NEW_COMMITMENTS_LENGTH> new_commitments;
     std::array<opt_fr, NEW_NULLIFIERS_LENGTH> new_nullifiers;
 
@@ -301,6 +314,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
                                             opt_fr const& args_hash,
                                             std::array<opt_fr, RETURN_VALUES_LENGTH> const& return_values,
 
+                                            std::array<opt_fr, READ_REQUESTS_LENGTH> const& read_requests,
+
                                             std::array<opt_fr, NEW_COMMITMENTS_LENGTH> const& new_commitments,
                                             std::array<opt_fr, NEW_NULLIFIERS_LENGTH> const& new_nullifiers,
 
@@ -323,6 +338,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         : call_context(call_context)
         , args_hash(args_hash)
         , return_values(return_values)
+        , read_requests(read_requests)
         , new_commitments(new_commitments)
         , new_nullifiers(new_nullifiers)
         , private_call_stack(private_call_stack)
@@ -348,6 +364,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         new_inputs.args_hash = std::nullopt;
         new_inputs.return_values.fill(std::nullopt);
+
+        new_inputs.read_requests.fill(std::nullopt);
 
         new_inputs.new_commitments.fill(std::nullopt);
         new_inputs.new_nullifiers.fill(std::nullopt);
@@ -401,6 +419,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         make_unused_element_zero(composer, args_hash);
         make_unused_array_elements_zero(composer, return_values);
 
+        make_unused_array_elements_zero(composer, read_requests);
+
         make_unused_array_elements_zero(composer, new_commitments);
         make_unused_array_elements_zero(composer, new_nullifiers);
 
@@ -436,6 +456,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         (*args_hash).set_public();
         set_array_public(return_values);
+
+        set_array_public(read_requests);
 
         set_array_public(new_commitments);
         set_array_public(new_nullifiers);
@@ -475,6 +497,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             to_ct(args_hash),
             to_ct(return_values),
 
+            to_ct(read_requests),
+
             to_ct(new_commitments),
             to_ct(new_nullifiers),
 
@@ -513,6 +537,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             to_nt(args_hash),
             to_nt(return_values),
+
+            to_nt(read_requests),
 
             to_nt(new_commitments),
             to_nt(new_nullifiers),
@@ -554,6 +580,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         inputs.push_back(*args_hash);
         spread_arr_opt_into_vec(return_values, inputs);
 
+        spread_arr_opt_into_vec(read_requests, inputs);
+
         spread_arr_opt_into_vec(new_commitments, inputs);
         spread_arr_opt_into_vec(new_nullifiers, inputs);
 
@@ -587,6 +615,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             .args_hash = args_hash.value(),
             .return_values = map(return_values, get_value),
+
+            .read_requests = map(read_requests, get_value),
 
             .new_commitments = map(new_commitments, get_value),
             .new_nullifiers = map(new_nullifiers, get_value),
@@ -687,6 +717,7 @@ void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_c
     read(it, pis.call_context);
     read(it, pis.args_hash);
     read(it, pis.return_values);
+    read(it, pis.read_requests);
     read(it, pis.new_commitments);
     read(it, pis.new_nullifiers);
     read(it, pis.private_call_stack);
@@ -713,6 +744,7 @@ void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> co
     write(buf, pis.call_context);
     write(buf, pis.args_hash);
     write(buf, pis.return_values);
+    write(buf, pis.read_requests);
     write(buf, pis.new_commitments);
     write(buf, pis.new_nullifiers);
     write(buf, pis.private_call_stack);
@@ -737,6 +769,7 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
     return os << "call_context: " << pis.call_context << "\n"
               << "args_hash: " << pis.args_hash << "\n"
               << "return_values: " << pis.return_values << "\n"
+              << "read_requests: " << pis.read_requests << "\n"
               << "new_commitments: " << pis.new_commitments << "\n"
               << "new_nullifiers: " << pis.new_nullifiers << "\n"
               << "private_call_stack: " << pis.private_call_stack << "\n"

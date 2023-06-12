@@ -1,11 +1,12 @@
 global MAX_ARGS: comptime Field = 8;
 global MAX_RETURN_VALUES: comptime Field = 4;
+global MAX_READ_REQUESTS: comptime Field = 4;
 global MAX_NEW_COMMITMENTS: comptime Field = 4;
 global MAX_NEW_NULLIFIERS: comptime Field = 4;
 global MAX_PRIVATE_CALL_STACK : comptime Field = 4;
 global MAX_PUBLIC_CALL_STACK: comptime Field = 4;
 global MAX_L2_TO_L1_MSGS : comptime Field = 2;
-global PUBLIC_INPUTS_LENGTH : comptime Field = 47;
+global PUBLIC_INPUTS_LENGTH : comptime Field = 41;
 // global LOGS_HASH_SIZE: comptime Field = 2; // Stored in  2 fields in order to fit in all of the 256 bits of sha256 hash.
 global CONTRACT_STORAGE_UPDATE_REQUESTS_LENGTH : comptime Field = 4;
 global CONTRACT_STORAGE_READS_LENGTH : comptime Field = 4;
@@ -118,9 +119,11 @@ impl FunctionData {
     }
 }
 
+// PUBLIC_INPUTS
 // CALL_CONTEXT_SIZE - 6
 // + ARGS_HASH - 1
 // + MAX_RETURN_VALUES - 4
+// + MAX_READ_REQUESTS - 4
 // + MAX_NEW_COMMITMENTS - 4
 // + MAX_NEW_NULLIFIERS - 4
 // + MAX_PRIVATE_CALL_STACK - 4
@@ -131,12 +134,13 @@ impl FunctionData {
 // + historic_contract_tree_root - 1
 // + historic_l1_to_l2_messages_tree_root - 1
 // + contract_deployment_data - 4
-// = 6 + 1 + 4 + 4 + 4 + 4 + 4 + 2 + 1 + 1 + 1 + 1 + 4
-// = 37
+// = 6 + 1 + 4 + 4 + 4 + 4 + 4  + 4 + 2 + 1 + 1 + 1 + 1 + 4
+// = 41
 struct PrivateCircuitPublicInputs {
     call_context: CallContext,
     args_hash: Field,
     return_values: [Field; crate::abi::MAX_RETURN_VALUES],
+    read_requests: [Field; crate::abi::MAX_READ_REQUESTS],
     new_commitments: [Field; crate::abi::MAX_NEW_COMMITMENTS],
     new_nullifiers: [Field; crate::abi::MAX_NEW_NULLIFIERS],
     private_call_stack: [Field; crate::abi::MAX_PRIVATE_CALL_STACK],
@@ -161,9 +165,10 @@ impl PrivateCircuitPublicInputs {
 
     fn serialize(self) -> [Field; PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
-        fields = fields.push_array(self.call_context.serialize());   
+        fields = fields.push_array(self.call_context.serialize());
         fields = fields.push(self.args_hash);
         fields = fields.push_array(self.return_values);
+        fields = fields.push_array(self.read_requests);
         fields = fields.push_array(self.new_commitments);
         fields = fields.push_array(self.new_nullifiers);
         fields = fields.push_array(self.private_call_stack);

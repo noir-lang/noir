@@ -1,8 +1,11 @@
+#include "common.hpp"
+
 #include "init.hpp"
 
 #include "aztec3/circuits/abis/contract_deployment_data.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
 #include "aztec3/circuits/hash.hpp"
@@ -16,8 +19,10 @@ using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
+using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NewContractData;
 
+using aztec3::utils::array_length;
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;
@@ -44,6 +49,53 @@ void common_validate_call_stack(DummyComposer& composer, PrivateCallData<NT> con
     }
 }
 
+
+/**
+ * @brief Validate all read requests against the historic private data root.
+ * Use their membership witnesses to do so. If the historic root is not yet
+ * initialized, initialize it using the first read request here (if present).
+ *
+ * @details More info here:
+ * - https://discourse.aztec.network/t/to-read-or-not-to-read/178
+ * - https://discourse.aztec.network/t/spending-notes-which-havent-yet-been-inserted/180
+ *
+ * @param composer
+ * @param read_requests the commitments being read by this private call
+ * @param read_request_membership_witnesses used to compute the private data root
+ * for a given request which is essentially a membership check.
+ * @param historic_private_data_tree_root This is a reference to the historic root which all
+ * read requests are checked against here.
+ */
+void common_validate_read_requests(DummyComposer& composer,
+                                   NT::fr const& storage_contract_address,
+                                   std::array<fr, READ_REQUESTS_LENGTH> const& read_requests,
+                                   std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
+                                              READ_REQUESTS_LENGTH> const& read_request_membership_witnesses,
+                                   NT::fr const& historic_private_data_tree_root)
+{
+    const size_t num_read_requests = array_length(read_requests);
+    // membership witnesses must resolve to the same private data root
+    // for every request in all kernel iterations
+    for (size_t rr_idx = 0; rr_idx < num_read_requests; rr_idx++) {
+        const auto& read_request = read_requests[rr_idx];
+        // the read request comes un-siloed from the app circuit so we must silo it here
+        // so that it matches the private data tree leaf that we are membership checking
+        const auto leaf = silo_commitment<NT>(storage_contract_address, read_request);
+        const auto& witness = read_request_membership_witnesses[rr_idx];
+        const auto& root_for_read_request = root_from_sibling_path<NT>(leaf, witness.leaf_index, witness.sibling_path);
+
+        composer.do_assert(root_for_read_request == historic_private_data_tree_root,
+                           format("private data root mismatch at read_request[",
+                                  rr_idx,
+                                  "] - ",
+                                  "Expected root: ",
+                                  historic_private_data_tree_root,
+                                  ", Read request gave root: ",
+                                  root_for_read_request),
+                           CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+    }
+}
+
 void common_update_end_values(DummyComposer& composer,
                               PrivateCallData<NT> const& private_call,
                               KernelCircuitPublicInputs<NT>& public_inputs)
@@ -66,6 +118,9 @@ void common_update_end_values(DummyComposer& composer,
     }
 
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
+
+    // TODO(dbanks12): (spending pending commitments) don't want to silo and output new commitments
+    // that have been matched to a new nullifier
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
     {  // commitments & nullifiers

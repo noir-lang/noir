@@ -9,6 +9,7 @@
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/public_data_read.hpp"
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
@@ -220,7 +221,7 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted_in_non_empty_snapshot_tr
     };
 
     // Set the new_contracts_subtree_sibling_path
-    auto sibling_path = test_utils::utils::get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(
+    auto sibling_path = get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(
         start_contract_tree_snapshot, 12, CONTRACT_SUBTREE_DEPTH);
     inputs.new_contracts_subtree_sibling_path = sibling_path;
 
