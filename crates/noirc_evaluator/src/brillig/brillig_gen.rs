@@ -167,31 +167,10 @@ impl BrilligGen {
                 let result_ids = dfg.instruction_results(instruction_id);
 
                 let input_registers = vecmap(arguments, |value_id| {
-                    let register_index = self.convert_ssa_value(*value_id, dfg);
-                    let typ = dfg[*value_id].get_type();
-                    match typ {
-                        Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
-                        Type::Array(_, size) => {
-                            RegisterValueOrArray::HeapArray(register_index, size)
-                        }
-                        _ => {
-                            unreachable!("type not supported for conversion into brillig register")
-                        }
-                    }
+                    self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
                 });
                 let output_registers = vecmap(result_ids, |value_id| {
-                    let register_index = self.convert_ssa_value(*value_id, dfg);
-                    let typ = dfg[*value_id].get_type();
-                    match typ {
-                        Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
-                        Type::Array(_, size) => {
-                            RegisterValueOrArray::HeapArray(register_index, size)
-                        }
-                        Type::Unit => RegisterValueOrArray::RegisterIndex(register_index),
-                        _ => {
-                            unreachable!("type not supported for conversion into brillig register")
-                        }
-                    }
+                    self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
                 });
 
                 self.context.foreign_call_instruction(
@@ -273,6 +252,23 @@ impl BrilligGen {
 
         for block in reverse_post_order {
             self.convert_block(block, &func.dfg);
+        }
+    }
+
+    fn convert_ssa_value_to_register_value_or_array(
+        &self,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterValueOrArray {
+        let register_index = self.convert_ssa_value(value_id, dfg);
+        let typ = dfg[value_id].get_type();
+        match typ {
+            Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
+            Type::Array(_, size) => RegisterValueOrArray::HeapArray(register_index, size),
+            Type::Unit => RegisterValueOrArray::RegisterIndex(register_index),
+            _ => {
+                unreachable!("type not supported for conversion into brillig register")
+            }
         }
     }
 }
