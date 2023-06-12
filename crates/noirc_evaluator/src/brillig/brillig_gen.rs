@@ -231,8 +231,6 @@ impl BrilligGen {
 
         brillig.convert_ssa_function(func);
 
-        // TODO: shouldn't this be added when we process a return instruction
-        brillig.context.stop_instruction();
 
         brillig.context.artifact()
     }
