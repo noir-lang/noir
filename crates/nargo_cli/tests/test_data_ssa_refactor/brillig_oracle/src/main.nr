@@ -1,8 +1,10 @@
 // Tests oracle usage in brillig/unconstrained functions
 fn main(x: Field)  {
     // call through a brillig wrapper
-    // oracle_print_wrapper(x);
     oracle_print_array_wrapper([x, x]);
+
+    // TODO(#1615) Nargo currently only supports resolving one foreign call
+    // oracle_print_wrapper(x);
 }
 
 #[oracle(oracle_print_impl)]
