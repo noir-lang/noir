@@ -292,7 +292,7 @@ mod tests {
         //     v0 = allocate
         //     store v0, Field 1
         //     v1 = load v0
-        //     v2 = call f0(v0)
+        //     call f0(v0)
         //     return v1
         // }
 
@@ -303,7 +303,7 @@ mod tests {
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
         let f0 = builder.import_intrinsic_id(Intrinsic::Println);
-        builder.insert_call(f0, vec![v0], vec![Type::Unit]);
+        builder.insert_call(f0, vec![v0], vec![]);
         builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish().mem2reg();
