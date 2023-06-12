@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::brillig::{Brillig, brillig_ir::artifact::BrilligArtifact};
+
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
     errors::AcirGenError,
@@ -19,7 +21,6 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
