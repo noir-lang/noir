@@ -170,6 +170,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(fields) => {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
+            ast::Type::Unit => Tree::empty(),
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
     }
@@ -197,7 +198,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned(*bits),
             ast::Type::Bool => Type::unsigned(1),
             ast::Type::String(_) => Type::Reference,
-            ast::Type::Unit => Type::Unit,
+            ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
 
@@ -210,8 +211,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Insert a unit constant into the current function if not already
     /// present, and return its value
-    pub(super) fn unit_value(&mut self) -> Values {
-        self.builder.numeric_constant(0u128, Type::Unit).into()
+    pub(super) fn unit_value() -> Values {
+        Values::empty()
     }
 
     /// Insert a binary instruction at the end of the current block.

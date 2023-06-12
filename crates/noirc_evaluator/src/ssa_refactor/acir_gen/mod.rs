@@ -294,14 +294,6 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        // Check if the program returns the `Unit/None` type.
-        // This type signifies that the program returns nothing.
-        let is_return_unit_type =
-            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
-        if is_return_unit_type {
-            return;
-        }
-
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
@@ -444,9 +436,6 @@ impl Context {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            // Unit type currently can mean a 0 constant, so we return the
-            // other type.
-            (typ, Type::Unit) | (Type::Unit, typ) => typ,
             // If either side is a Field constant then, we coerce into the type
             // of the other operand
             (Type::Numeric(NumericType::NativeField), typ)
