@@ -117,14 +117,11 @@ impl ArrayHeap {
         self.staged.insert(index, (value, op));
     }
 
-    /// This helper function transforms an expression into a (univariate) affine expression, by generating a witness if the input expression is not linear nor constant
+    /// This helper function transforms an expression into a single witness representing the expression
     fn normalize_expression(expr: &Expression, evaluator: &mut Evaluator) -> Expression {
-        if expr.is_linear() && expr.linear_combinations.len() <= 1 {
-            expr.clone()
-        } else {
-            let w = evaluator.create_intermediate_variable(expr.clone());
-            Expression::from(w)
-        }
+        expr.to_witness()
+            .unwrap_or_else(|| evaluator.create_intermediate_variable(expr.clone()))
+            .into()
     }
 
     /// Decide which opcode to use, depending on the backend support
