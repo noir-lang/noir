@@ -96,13 +96,17 @@ impl BrilligContext {
 impl BrilligContext {
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false.
-    pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
-        // Jump to the relative location after the trap
+    pub(crate) fn constrain_instruction(
+        &mut self,
+        condition: RegisterIndex,
+        continue_label: String,
+    ) {
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            UnresolvedJumpLocation::Relative(2),
+            UnresolvedJumpLocation::Label(continue_label.clone()),
         );
         self.push_opcode(BrilligOpcode::Trap);
+        self.add_label_to_next_opcode(continue_label);
     }
 
     /// Processes a return instruction.
