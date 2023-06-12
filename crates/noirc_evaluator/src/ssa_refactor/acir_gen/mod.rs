@@ -182,7 +182,7 @@ impl Context {
                                     self.acir_context.brillig(code, inputs, vec![]);
                                     return;
                                 } else {
-                                    outputs = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
+                                    outputs.extend(vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into()));
                                 }
 
                                 let output_values = self.acir_context.brillig(code, inputs, outputs);
