@@ -235,7 +235,6 @@ impl BrilligGen {
 
         brillig.convert_ssa_function(func);
 
-
         brillig.context.artifact()
     }
 

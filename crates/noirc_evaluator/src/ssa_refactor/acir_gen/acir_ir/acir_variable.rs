@@ -733,6 +733,7 @@ impl AcirContext {
                     .iter()
                     .map(|v| match v {
                         AcirValue::Var(var, _) => self.vars[var].to_expression().into_owned(),
+                        // TODO: Support arrays of complex types (structures) as Brillig input
                         _ => unreachable!("brillig does not supprot complex array inputs yet"),
                     })
                     .collect();
@@ -756,8 +757,7 @@ impl AcirContext {
                         let witness_index = self.acir_ir.next_witness_index();
                         witnesses.push(witness_index);
                         let var = self.add_data(AcirVarData::Witness(witness_index));
-                        // TODO: check types maybe should be done in acir gen rather than in here
-                        // currently do not support arrays of complex types being outputted from brillig
+                        // TODO: Support arrays of complex types (structures) as Brillig output
                         array_values.push_back(AcirValue::Var(var, element_types[0].clone()));
                     }
                     b_outputs.push(BrilligOutputs::Array(witnesses));

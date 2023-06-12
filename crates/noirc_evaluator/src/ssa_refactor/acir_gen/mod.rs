@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{Brillig, brillig_ir::artifact::BrilligArtifact};
+use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
@@ -174,10 +174,7 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                let outputs = vecmap(result_ids, |result_id| {
-                                    let result_acir_type: AcirType = dfg.type_of_value(*result_id).into();
-                                    result_acir_type
-                                });
+                                let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
                                 if Self::is_return_type_unit(result_ids, dfg) {
                                     return;
@@ -185,8 +182,11 @@ impl Context {
 
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
-                                let outputs = self.acir_context.brillig(code, inputs, outputs);
-                                for result in result_ids.iter().zip(outputs) {
+                                let output_values = self.acir_context.brillig(code, inputs, outputs);
+                                // Compiler sanity check
+                                assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
+
+                                for result in result_ids.iter().zip(output_values) {
                                     self.ssa_values.insert(*result.0, result.1);
                                 }
                             }
