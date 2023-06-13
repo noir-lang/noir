@@ -172,22 +172,25 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
-                                let inputs:Vec<AcirVar> = arguments
-                                    .iter()
-                                    .flat_map(|arg| self.convert_value(*arg, dfg).flatten())
-                                    .map(|(var, _typ)| var)
-                                    .collect();
+                                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
-                                let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
 
+                                let mut outputs: Vec<AcirType> = Vec::new();
                                 if Self::is_return_type_unit(result_ids, dfg) {
+                                    self.acir_context.brillig(code, inputs, vec![]);
                                     return;
+                                } else {
+                                    outputs.extend(vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into()));
                                 }
 
-                                for (result, output) in result_ids.iter().zip(outputs) {
-                                    let result_acir_type = dfg.type_of_value(*result).into();
-                                    self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type));
+                                let output_values = self.acir_context.brillig(code, inputs, outputs);
+                                // Compiler sanity check
+                                assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
+
+                                for result in result_ids.iter().zip(output_values) {
+                                    self.ssa_values.insert(*result.0, result.1);
                                 }
                             }
                         }
@@ -310,7 +313,6 @@ impl Context {
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
-
         for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }
