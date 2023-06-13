@@ -1,7 +1,7 @@
 use super::{parse_str_to_field, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
-use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
+use iter_extended::{btree_map, try_btree_map, try_vecmap};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -58,12 +58,8 @@ enum TomlTypes {
     Integer(u64),
     // Simple boolean flag
     Bool(bool),
-    // Array of regular integers
-    ArrayNum(Vec<u64>),
-    // Array of hexadecimal integers
-    ArrayString(Vec<String>),
-    // Array of booleans
-    ArrayBool(Vec<bool>),
+    // Array of TomlTypes
+    Array(Vec<TomlTypes>),
     // Struct of TomlTypes
     Table(BTreeMap<String, TomlTypes>),
 }
@@ -79,13 +75,15 @@ impl From<InputValue> for TomlTypes {
                 let array = v
                     .iter()
                     .map(|i| match i {
-                        InputValue::Field(field) => format!("0x{}", field.to_hex()),
+                        InputValue::Field(field) => {
+                            TomlTypes::String(format!("0x{}", field.to_hex()))
+                        }
                         _ => unreachable!(
                             "Only arrays of simple field elements are allowable currently"
                         ),
                     })
                     .collect();
-                TomlTypes::ArrayString(array)
+                TomlTypes::Array(array)
             }
             InputValue::String(s) => TomlTypes::String(s),
             InputValue::Struct(map) => {
@@ -120,26 +118,19 @@ impl InputValue {
                 InputValue::Field(new_value)
             }
             TomlTypes::Bool(boolean) => InputValue::Field(boolean.into()),
-            TomlTypes::ArrayNum(arr_num) => {
-                let array_elements = vecmap(arr_num, |elem_num| {
-                    InputValue::Field(FieldElement::from(i128::from(elem_num)))
-                });
-
-                InputValue::Vec(array_elements)
-            }
-            TomlTypes::ArrayString(arr_str) => {
-                let array_elements = try_vecmap(arr_str, |elem_str| {
-                    parse_str_to_field(&elem_str).map(InputValue::Field)
-                })?;
-
-                InputValue::Vec(array_elements)
-            }
-            TomlTypes::ArrayBool(arr_bool) => {
-                let array_elements =
-                    vecmap(arr_bool, |boolean| InputValue::Field(FieldElement::from(boolean)));
-
-                InputValue::Vec(array_elements)
-            }
+            TomlTypes::Array(array) => match param_type {
+                AbiType::Array { typ, .. }
+                    if matches!(
+                        typ.as_ref(),
+                        AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
+                    ) =>
+                {
+                    let array_elements =
+                        try_vecmap(array, |value| InputValue::try_from_toml(value, typ, arg_name))?;
+                    InputValue::Vec(array_elements)
+                }
+                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+            },
             TomlTypes::Table(table) => match param_type {
                 AbiType::Struct { fields } => {
                     let native_table = try_btree_map(fields, |(field_name, abi_type)| {
