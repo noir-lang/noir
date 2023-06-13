@@ -75,12 +75,10 @@ impl From<InputValue> for JsonTypes {
                 JsonTypes::String(f_str)
             }
             InputValue::Vec(vector) => {
-                let array = vecmap(vector, |i| match i {
-                    InputValue::Field(field) => JsonTypes::String(format!("0x{}", field.to_hex())),
-                    _ => {
-                        unreachable!("Only arrays of simple field elements are allowable currently")
-                    }
-                });
+                // TODO: enforce that all `JsonTypes` in the vector are the same variant.
+                // This is technically valid in rust but doesn't correspond to a valid Noir ABI.
+                // Requires knowledge of the ABI (see #1655)
+                let array = vecmap(vector, |element| JsonTypes::from(element));
                 JsonTypes::Array(array)
             }
             InputValue::String(s) => JsonTypes::String(s),
@@ -114,12 +112,7 @@ impl InputValue {
 
             (JsonTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
 
-            (JsonTypes::Array(array), AbiType::Array { typ, .. })
-                if matches!(
-                    typ.as_ref(),
-                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
-                ) =>
-            {
+            (JsonTypes::Array(array), AbiType::Array { typ, .. }) => {
                 let array_elements =
                     try_vecmap(array, |value| InputValue::try_from_json(value, typ, arg_name))?;
                 InputValue::Vec(array_elements)

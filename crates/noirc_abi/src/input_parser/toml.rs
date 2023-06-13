@@ -72,12 +72,10 @@ impl From<InputValue> for TomlTypes {
                 TomlTypes::String(f_str)
             }
             InputValue::Vec(vector) => {
-                let array = vecmap(vector, |i| match i {
-                    InputValue::Field(field) => TomlTypes::String(format!("0x{}", field.to_hex())),
-                    _ => {
-                        unreachable!("Only arrays of simple field elements are allowable currently")
-                    }
-                });
+                // TODO: enforce that all `TomlTypes` in the vector are the same variant.
+                // This is technically valid in rust but doesn't correspond to a valid Noir ABI.
+                // Requires knowledge of the ABI (see #1655)
+                let array = vecmap(vector, |element| TomlTypes::from(element));
                 TomlTypes::Array(array)
             }
             InputValue::String(s) => TomlTypes::String(s),
@@ -111,12 +109,7 @@ impl InputValue {
 
             (TomlTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
 
-            (TomlTypes::Array(array), AbiType::Array { typ, .. })
-                if matches!(
-                    typ.as_ref(),
-                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
-                ) =>
-            {
+            (TomlTypes::Array(array), AbiType::Array { typ, .. }) => {
                 let array_elements =
                     try_vecmap(array, |value| InputValue::try_from_toml(value, typ, arg_name))?;
                 InputValue::Vec(array_elements)
