@@ -11,14 +11,14 @@ fn main(x: Field)  {
 unconstrained fn oracle_print(_x : Field) -> Field {}
 
 unconstrained fn oracle_print_wrapper(x: Field) {
-    let _unused = oracle_print(x);
+    oracle_print(x);
 }
 
 #[oracle(oracle_print_array_impl)]
 unconstrained fn oracle_print_array(_arr : [Field; 2]) -> Field {}
 
 unconstrained fn oracle_print_array_wrapper(arr: [Field; 2]) {
-    let _unused = oracle_print_array(arr);
+    oracle_print_array(arr);
 }
 
 
