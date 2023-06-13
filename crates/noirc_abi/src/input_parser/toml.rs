@@ -76,7 +76,15 @@ impl From<InputValue> for TomlTypes {
                 TomlTypes::String(f_str)
             }
             InputValue::Vec(v) => {
-                let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
+                let array = v
+                    .iter()
+                    .map(|i| match i {
+                        InputValue::Field(field) => format!("0x{}", field.to_hex()),
+                        _ => unreachable!(
+                            "Only arrays of simple field elements are allowable currently"
+                        ),
+                    })
+                    .collect();
                 TomlTypes::ArrayString(array)
             }
             InputValue::String(s) => TomlTypes::String(s),
@@ -113,22 +121,25 @@ impl InputValue {
             }
             TomlTypes::Bool(boolean) => InputValue::Field(boolean.into()),
             TomlTypes::ArrayNum(arr_num) => {
-                let array_elements =
-                    vecmap(arr_num, |elem_num| FieldElement::from(i128::from(elem_num)));
+                let array_elements = vecmap(arr_num, |elem_num| {
+                    InputValue::Field(FieldElement::from(i128::from(elem_num)))
+                });
 
                 InputValue::Vec(array_elements)
             }
             TomlTypes::ArrayString(arr_str) => {
-                let array_elements = try_vecmap(arr_str, |elem_str| parse_str_to_field(&elem_str))?;
+                let array_elements = try_vecmap(arr_str, |elem_str| {
+                    parse_str_to_field(&elem_str).map(InputValue::Field)
+                })?;
 
                 InputValue::Vec(array_elements)
             }
             TomlTypes::ArrayBool(arr_bool) => {
-                let array_elements = vecmap(arr_bool, FieldElement::from);
+                let array_elements =
+                    vecmap(arr_bool, |boolean| InputValue::Field(FieldElement::from(boolean)));
 
                 InputValue::Vec(array_elements)
             }
-
             TomlTypes::Table(table) => match param_type {
                 AbiType::Struct { fields } => {
                     let native_table = try_btree_map(fields, |(field_name, abi_type)| {

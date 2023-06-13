@@ -304,7 +304,14 @@ impl Abi {
         let mut encoded_value = Vec::new();
         match value {
             InputValue::Field(elem) => encoded_value.push(elem),
-            InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
+            InputValue::Vec(vec_elements) => match abi_type {
+                AbiType::Array { typ, .. } => {
+                    for elem in vec_elements {
+                        encoded_value.extend(Self::encode_value(elem, typ)?);
+                    }
+                }
+                _ => unreachable!("value should have already been checked to match abi type"),
+            },
             InputValue::String(string) => {
                 let str_as_fields =
                     string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
@@ -383,11 +390,14 @@ impl Abi {
 
                 InputValue::Field(field_element)
             }
-            AbiType::Array { length, .. } => {
-                let field_elements: Vec<FieldElement> =
-                    field_iterator.take(*length as usize).collect();
+            AbiType::Array { length, typ } => {
+                let length = *length as usize;
+                let mut array_elements = Vec::with_capacity(length);
+                for _ in 0..length {
+                    array_elements.push(Self::decode_value(field_iterator, typ)?);
+                }
 
-                InputValue::Vec(field_elements)
+                InputValue::Vec(array_elements)
             }
             AbiType::String { length } => {
                 let field_elements: Vec<FieldElement> =
@@ -458,7 +468,13 @@ mod test {
 
         // Note we omit return value from inputs
         let inputs: InputMap = BTreeMap::from([
-            ("thing1".to_string(), InputValue::Vec(vec![FieldElement::one(), FieldElement::one()])),
+            (
+                "thing1".to_string(),
+                InputValue::Vec(vec![
+                    InputValue::Field(FieldElement::one()),
+                    InputValue::Field(FieldElement::one()),
+                ]),
+            ),
             ("thing2".to_string(), InputValue::Field(FieldElement::zero())),
         ]);
 

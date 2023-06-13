@@ -14,8 +14,8 @@ use crate::{Abi, AbiType};
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum InputValue {
     Field(FieldElement),
-    Vec(Vec<FieldElement>),
     String(String),
+    Vec(Vec<InputValue>),
     Struct(BTreeMap<String, InputValue>),
 }
 
@@ -32,14 +32,12 @@ impl InputValue {
                 field_element.is_one() || field_element.is_zero()
             }
 
-            (InputValue::Vec(field_elements), AbiType::Array { length, typ, .. }) => {
-                if field_elements.len() != *length as usize {
+            (InputValue::Vec(array_elements), AbiType::Array { length, typ, .. }) => {
+                if array_elements.len() != *length as usize {
                     return false;
                 }
                 // Check that all of the array's elements' values match the ABI as well.
-                field_elements
-                    .iter()
-                    .all(|field_element| Self::Field(*field_element).matches_abi(typ))
+                array_elements.iter().all(|input_value| input_value.matches_abi(typ))
             }
 
             (InputValue::String(string), AbiType::String { length }) => {
@@ -163,7 +161,13 @@ mod serialization_tests {
                 "bar".into(),
                 InputValue::Struct(BTreeMap::from([
                     ("field1".into(), InputValue::Field(255u128.into())),
-                    ("field2".into(), InputValue::Vec(vec![true.into(), false.into()])),
+                    (
+                        "field2".into(),
+                        InputValue::Vec(vec![
+                            InputValue::Field(true.into()),
+                            InputValue::Field(false.into()),
+                        ]),
+                    ),
                 ])),
             ),
             (MAIN_RETURN_NAME.into(), InputValue::String("hello".to_owned())),
