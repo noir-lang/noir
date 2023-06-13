@@ -1,7 +1,7 @@
 use super::{parse_str_to_field, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
-use iter_extended::{btree_map, try_btree_map, try_vecmap};
+use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -74,18 +74,13 @@ impl From<InputValue> for JsonTypes {
                 let f_str = format!("0x{}", f.to_hex());
                 JsonTypes::String(f_str)
             }
-            InputValue::Vec(v) => {
-                let array = v
-                    .iter()
-                    .map(|i| match i {
-                        InputValue::Field(field) => {
-                            JsonTypes::String(format!("0x{}", field.to_hex()))
-                        }
-                        _ => unreachable!(
-                            "Only arrays of simple field elements are allowable currently"
-                        ),
-                    })
-                    .collect();
+            InputValue::Vec(vector) => {
+                let array = vecmap(vector, |i| match i {
+                    InputValue::Field(field) => JsonTypes::String(format!("0x{}", field.to_hex())),
+                    _ => {
+                        unreachable!("Only arrays of simple field elements are allowable currently")
+                    }
+                });
                 JsonTypes::Array(array)
             }
             InputValue::String(s) => JsonTypes::String(s),
