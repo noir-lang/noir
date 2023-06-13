@@ -8,7 +8,10 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex};
+use acvm::{
+    acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex},
+    FieldElement,
+};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -197,37 +200,38 @@ impl BrilligGen {
         target_type: &Type,
         source_type: &Type,
     ) {
-        fn numeric_to_bit_size(typ: &NumericType) -> Option<u32> {
+        fn numeric_to_bit_size(typ: &NumericType) -> u32 {
             match typ {
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    Some(*bit_size)
-                }
-                NumericType::NativeField => None,
+                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => *bit_size,
+                NumericType::NativeField => FieldElement::max_num_bits(),
             }
         }
 
-        match (source_type, target_type) {
+        // Casting is only valid for numeric types
+        // This should be checked by the frontend, so we panic if this is the case
+        let (source_numeric_type, target_numeric_type) = match (source_type, target_type) {
             (Type::Numeric(source_numeric_type), Type::Numeric(target_numeric_type)) => {
-                let source_bit_size = numeric_to_bit_size(source_numeric_type);
-                let target_bit_size = numeric_to_bit_size(target_numeric_type);
-                match (source_bit_size, target_bit_size) {
-                    (Some(source_bit_size), Some(target_bit_size)) => {
-                        if source_bit_size > target_bit_size {
-                            self.context.cast_instruction(destination, source, target_bit_size);
-                        } else {
-                            self.context.mov_instruction(destination, source);
-                        }
-                    }
-                    (None, Some(target_bit_size)) => {
-                        self.context.cast_instruction(destination, source, target_bit_size);
-                    }
-                    _ => {
-                        // Casting to field is always a no_op
-                        self.context.mov_instruction(destination, source);
-                    }
-                }
+                (source_numeric_type, target_numeric_type)
             }
             _ => unimplemented!("The cast operation is only valid for integers."),
+        };
+
+        let source_bit_size = numeric_to_bit_size(source_numeric_type);
+        let target_bit_size = numeric_to_bit_size(target_numeric_type);
+
+        // Casting from a larger bit size to a smaller bit size (narrowing cast)
+        // requires a cast instruction.
+        // If its a widening cast, ie casting from a smaller bit size to a larger bit size
+        // we simply put a mov instruction as a no-op
+        //
+        // Field elements by construction always have the largest bit size
+        // This means that casting to a Field element, will always be a widening cast
+        // and therefore a no-op. Conversely, casting from a Field element
+        // will always be a narrowing cast and therefore a cast instruction
+        if source_bit_size > target_bit_size {
+            self.context.cast_instruction(destination, source, target_bit_size);
+        } else {
+            self.context.mov_instruction(destination, source);
         }
     }
 
