@@ -302,6 +302,7 @@ impl BrilligContext {
         });
     }
 
+    /// Emits a modulo instruction against 2**target_bit_size
     pub(crate) fn cast_instruction(
         &mut self,
         destination: RegisterIndex,
