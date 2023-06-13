@@ -83,6 +83,12 @@ impl PerBlockContext {
             }
         }
 
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
+            for value in return_values {
+                assert!(!self.last_stores.contains_key(value), "Mutable vars are loaded before being returned - if this pattern changes, so do our safety assumptions.");
+            }
+        }
+
         // Substitute load result values
         for (instruction_id, new_value) in &loads_to_substitute {
             let result_values = dfg.instruction_results(*instruction_id);
@@ -95,12 +101,6 @@ impl PerBlockContext {
             // Technically we could leave this removal to the DIE pass, but the debug print is
             // easier to read if we remove it now.
             block.remove_instruction(*instruction_id);
-        }
-
-        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
-            for value in return_values {
-                assert!(!self.last_stores.contains_key(value), "Mutable vars are loaded before being returned - if this pattern changes, so do our safety assumptions.");
-            }
         }
     }
 
@@ -120,7 +120,6 @@ impl PerBlockContext {
         // Delete unused stores
         let block = &mut dfg[self.block_id];
         for instruction_id in stores_to_remove {
-            println!("rm {:?}", instruction_id);
             block.remove_instruction(instruction_id);
         }
     }
