@@ -3,71 +3,44 @@
 //! mutable variables into values that are easier to manipulate.
 use std::collections::{BTreeMap, BTreeSet};
 
-use acvm::FieldElement;
-
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-        types::Type,
-        value::{Value, ValueId},
+        instruction::{Instruction, InstructionId, TerminatorInstruction},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
 
 impl Ssa {
-    /// Attempts to remove any load instructions that recover values that already available in
-    /// scope, and attempts to remove store that are subsequently redundant, as long as they are
-    /// not stores on memory that will be passed into a function call.
-    ///
-    /// This pass also assumes that constant folding has been run, such that all addresses given
-    /// as input to store/load instructions are represented as one of:
-    /// - a value that directly resolves to an allocate instruction
-    /// - a value that directly resolves to a binary add instruction which has a allocate
-    /// instruction and a numeric constant as its operands
+    /// Attempts to remove any load instructions that recover values that are already available in
+    /// scope. Also attempts to remove store instructions if the function contains only a single
+    /// block.
     pub(crate) fn mem2reg(mut self) -> Ssa {
-        let mut first_context = None;
-
         for function in self.functions.values_mut() {
+            let blocks = function.reachable_blocks();
+            let is_single_block = blocks.len() == 1;
             for block in function.reachable_blocks() {
                 let mut context = PerBlockContext::new(block);
                 context.eliminate_known_loads(&mut function.dfg);
-                first_context = Some(context);
+                if is_single_block {
+                    // If this function has only a single block, we know that the side effects of a
+                    // store instruction only have bearing within the scope of the block.
+                    context.remove_unused_stores(&mut function.dfg);
+                }
             }
-        }
-
-        // If there is only one block in total, remove any unused stores as well since we
-        // know there is no other block they can impact.
-        if self.functions.len() == 1 && self.main().dfg.basic_blocks_iter().len() == 1 {
-            first_context.unwrap().remove_unused_stores(&mut self.main_mut().dfg);
         }
 
         self
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
-enum Address {
-    Zeroth(InstructionId),
-    Offset(InstructionId, FieldElement),
-}
-
-impl Address {
-    fn alloc_id(&self) -> InstructionId {
-        match self {
-            Address::Zeroth(alloc_id) => *alloc_id,
-            Address::Offset(alloc_id, _) => *alloc_id,
-        }
-    }
-}
-
 struct PerBlockContext {
     block_id: BasicBlockId,
-    last_stores: BTreeMap<Address, ValueId>,
+    last_stores: BTreeMap<ValueId, ValueId>,
     store_ids: Vec<InstructionId>,
-    failed_substitutes: BTreeSet<Address>,
-    alloc_ids_used_externally: BTreeSet<InstructionId>,
+    failed_substitutes: BTreeSet<ValueId>,
 }
 
 impl PerBlockContext {
@@ -77,7 +50,6 @@ impl PerBlockContext {
             last_stores: BTreeMap::new(),
             store_ids: Vec::new(),
             failed_substitutes: BTreeSet::new(),
-            alloc_ids_used_externally: BTreeSet::new(),
         }
     }
 
@@ -90,30 +62,19 @@ impl PerBlockContext {
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { address, value } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
-                        // We can only track the address if it is a constant offset from an
-                        // allocation. A previous constant folding pass should make such addresses
-                        // possible to identify.
-                        self.last_stores.insert(address, *value);
-                    }
-                    // TODO: Consider if it's worth falling back to storing addresses by their
-                    // value id such we can shallowly check for dynamic address reuse.
+                    self.last_stores.insert(*address, *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { address } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
-                        if let Some(last_value) = self.last_stores.get(&address) {
-                            loads_to_substitute.push((*instruction_id, *last_value));
-                        } else {
-                            self.failed_substitutes.insert(address);
-                        }
+                    if let Some(last_value) = self.last_stores.get(address) {
+                        loads_to_substitute.push((*instruction_id, *last_value));
+                    } else {
+                        self.failed_substitutes.insert(*address);
                     }
                 }
                 Instruction::Call { arguments, .. } => {
-                    for arg in arguments {
-                        if let Some(address) = self.try_const_address(*arg, dfg) {
-                            self.alloc_ids_used_externally.insert(address.alloc_id());
-                        }
+                    for value in arguments {
+                        assert!(!self.last_stores.contains_key(value), "Mutable vars are loaded before being passed as function arguments - if this pattern changes, so do our safety assumptions.");
                     }
                 }
                 _ => {
@@ -122,29 +83,24 @@ impl PerBlockContext {
             }
         }
 
-        // Identify any arrays that are returned from this function
-        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
-            for value in return_values {
-                if let Some(address) = self.try_const_address(*value, dfg) {
-                    self.alloc_ids_used_externally.insert(address.alloc_id());
-                }
-            }
-        }
-
         // Substitute load result values
         for (instruction_id, new_value) in &loads_to_substitute {
-            let result_value = *dfg
-                .instruction_results(*instruction_id)
-                .first()
-                .expect("ICE: Load instructions should have single result");
-            dfg.set_value_from_id(result_value, *new_value);
+            let result_values = dfg.instruction_results(*instruction_id);
+            assert_eq!(result_values.len(), 1);
+            dfg.set_value_from_id(result_values[0], *new_value);
         }
 
-        // Delete load instructions
-        // TODO: should we let DCE do this instead?
         let block = &mut dfg[self.block_id];
-        for (instruction_id, _) in loads_to_substitute {
-            block.remove_instruction(instruction_id);
+        for (instruction_id, _) in &loads_to_substitute {
+            // Technically we could leave this removal to the DIE pass, but the debug print is
+            // easier to read if we remove it now.
+            block.remove_instruction(*instruction_id);
+        }
+
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
+            for value in return_values {
+                assert!(!self.last_stores.contains_key(value), "Mutable vars are loaded before being returned - if this pattern changes, so do our safety assumptions.");
+            }
         }
     }
 
@@ -156,70 +112,16 @@ impl PerBlockContext {
                 Instruction::Store { address, .. } => *address,
                 _ => unreachable!("store_ids should contain only store instructions"),
             };
-
-            if let Some(address) = self.try_const_address(address, dfg) {
-                if !self.failed_substitutes.contains(&address)
-                    && !self.alloc_ids_used_externally.contains(&address.alloc_id())
-                {
-                    stores_to_remove.push(*instruction_id);
-                }
+            if !self.failed_substitutes.contains(&address) {
+                stores_to_remove.push(*instruction_id);
             }
         }
 
         // Delete unused stores
         let block = &mut dfg[self.block_id];
         for instruction_id in stores_to_remove {
+            println!("rm {:?}", instruction_id);
             block.remove_instruction(instruction_id);
-        }
-    }
-
-    // Attempts to normalize the given value into a const address
-    fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
-        if dfg.type_of_value(value_id) != Type::Reference {
-            return None;
-        }
-        let value = &dfg[value_id];
-        let instruction_id = match value {
-            Value::Instruction { instruction, .. } => *instruction,
-            _ => return None,
-        };
-        let instruction = &dfg[instruction_id];
-        match instruction {
-            // Arrays can be returned by allocations and function calls
-            Instruction::Allocate { .. } | Instruction::Call { .. } => {
-                Some(Address::Zeroth(instruction_id))
-            }
-            Instruction::Binary(binary) => {
-                if binary.operator != BinaryOp::Add {
-                    return None;
-                }
-                let lhs = &dfg[binary.lhs];
-                let rhs = &dfg[binary.rhs];
-                self.try_const_address_offset(lhs, rhs, dfg)
-                    .or_else(|| self.try_const_address_offset(rhs, lhs, dfg))
-            }
-            _ => None,
-        }
-    }
-
-    // Tries val1 as an allocation instruction id and val2 as a constant offset
-    fn try_const_address_offset(
-        &self,
-        val1: &Value,
-        val2: &Value,
-        dfg: &DataFlowGraph,
-    ) -> Option<Address> {
-        let alloc_id = match val1 {
-            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-                Instruction::Allocate { .. } => *instruction,
-                _ => return None,
-            },
-            _ => return None,
-        };
-        if let Value::NumericConstant { constant, .. } = val2 {
-            Some(Address::Offset(alloc_id, *constant))
-        } else {
-            None
         }
     }
 }
@@ -270,8 +172,6 @@ mod tests {
 
         let ssa = builder.finish().mem2reg().fold_constants();
 
-        println!("{ssa}");
-
         let func = ssa.main();
         let block_id = func.entry_block();
 
@@ -286,7 +186,8 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_with_call() {
+    #[should_panic]
+    fn test_calls_disallowed() {
         // fn func {
         //   b0():
         //     v0 = allocate
@@ -295,6 +196,7 @@ mod tests {
         //     call f0(v0)
         //     return v1
         // }
+        // Passing a memory address as function arguments is unsupported
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
@@ -306,23 +208,12 @@ mod tests {
         builder.insert_call(f0, vec![v0], vec![]);
         builder.terminate_with_return(vec![v1]);
 
-        let ssa = builder.finish().mem2reg();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        assert_eq!(count_loads(block_id, &func.dfg), 0);
-        assert_eq!(count_stores(block_id, &func.dfg), 1);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
+        builder.finish().mem2reg();
     }
 
     #[test]
-    fn test_simple_with_return() {
+    #[should_panic]
+    fn test_return_disallowed() {
         // fn func {
         //   b0():
         //     v0 = allocate
@@ -337,19 +228,7 @@ mod tests {
         builder.insert_store(v0, const_one);
         builder.terminate_with_return(vec![v0]);
 
-        let ssa = builder.finish().mem2reg();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        // Store affects outcome of returned array, and can't be removed
-        assert_eq!(count_stores(block_id, &func.dfg), 1);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[v0]);
+        builder.finish().mem2reg();
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
