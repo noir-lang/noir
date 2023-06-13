@@ -168,20 +168,25 @@ impl BrilligBlock {
 
                 self.context.not_instruction(condition, result_register);
             }
-            Instruction::ForeignCall { func, arguments } => {
-                let result_ids = dfg.instruction_results(instruction_id);
+            Instruction::Call { func, arguments } => match &dfg[*func] {
+                Value::ForeignFunction(func_name) => {
+                    let result_ids = dfg.instruction_results(instruction_id);
 
-                let input_registers =
-                    vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
-                let output_registers =
-                    vecmap(result_ids, |value_id| self.convert_ssa_value(*value_id, dfg));
+                    let input_registers =
+                        vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
+                    let output_registers =
+                        vecmap(result_ids, |value_id| self.convert_ssa_value(*value_id, dfg));
 
-                self.context.foreign_call_instruction(
-                    func.to_owned(),
-                    &input_registers,
-                    &output_registers,
-                );
-            }
+                    self.context.foreign_call_instruction(
+                        func_name.to_owned(),
+                        &input_registers,
+                        &output_registers,
+                    );
+                }
+                _ => {
+                    unreachable!("only foreign function calls supported in unconstrained functions")
+                }
+            },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination =

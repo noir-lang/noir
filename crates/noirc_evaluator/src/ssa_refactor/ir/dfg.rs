@@ -196,6 +196,9 @@ impl DataFlowGraph {
 
     /// Gets or creates a ValueId for the given FunctionId.
     pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+        if let Some(existing) = self.foreign_functions.get(function) {
+            return *existing;
+        }
         self.values.insert(Value::ForeignFunction(function.to_owned()))
     }
 
