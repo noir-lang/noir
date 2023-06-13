@@ -96,52 +96,47 @@ impl InputValue {
         param_type: &AbiType,
         arg_name: &str,
     ) -> Result<InputValue, InputParserError> {
-        let input_value = match value {
-            TomlTypes::String(string) => match param_type {
-                AbiType::String { .. } => InputValue::String(string),
-                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
-                    InputValue::Field(parse_str_to_field(&string)?)
-                }
+        let input_value = match (value, param_type) {
+            (TomlTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
+            (
+                TomlTypes::String(string),
+                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+            ) => InputValue::Field(parse_str_to_field(&string)?),
 
-                AbiType::Array { .. } | AbiType::Struct { .. } => {
-                    return Err(InputParserError::AbiTypeMismatch(param_type.clone()))
-                }
-            },
-            TomlTypes::Integer(integer) => {
+            (TomlTypes::Integer(integer), AbiType::Field | AbiType::Integer { .. }) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
             }
-            TomlTypes::Bool(boolean) => InputValue::Field(boolean.into()),
-            TomlTypes::Array(array) => match param_type {
-                AbiType::Array { typ, .. }
-                    if matches!(
-                        typ.as_ref(),
-                        AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
-                    ) =>
-                {
-                    let array_elements =
-                        try_vecmap(array, |value| InputValue::try_from_toml(value, typ, arg_name))?;
-                    InputValue::Vec(array_elements)
-                }
-                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
-            },
-            TomlTypes::Table(table) => match param_type {
-                AbiType::Struct { fields } => {
-                    let native_table = try_btree_map(fields, |(field_name, abi_type)| {
-                        // Check that toml contains a value for each field of the struct.
-                        let field_id = format!("{arg_name}.{field_name}");
-                        let value = table
-                            .get(field_name)
-                            .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
-                        InputValue::try_from_toml(value.clone(), abi_type, &field_id)
-                            .map(|input_value| (field_name.to_string(), input_value))
-                    })?;
 
-                    InputValue::Struct(native_table)
-                }
-                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
-            },
+            (TomlTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
+
+            (TomlTypes::Array(array), AbiType::Array { typ, .. })
+                if matches!(
+                    typ.as_ref(),
+                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
+                ) =>
+            {
+                let array_elements =
+                    try_vecmap(array, |value| InputValue::try_from_toml(value, typ, arg_name))?;
+                InputValue::Vec(array_elements)
+            }
+
+            (TomlTypes::Table(table), AbiType::Struct { fields }) => {
+                let native_table = try_btree_map(fields, |(field_name, abi_type)| {
+                    // Check that json contains a value for each field of the struct.
+                    let field_id = format!("{arg_name}.{field_name}");
+                    let value = table
+                        .get(field_name)
+                        .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
+                    InputValue::try_from_toml(value.clone(), abi_type, &field_id)
+                        .map(|input_value| (field_name.to_string(), input_value))
+                })?;
+
+                InputValue::Struct(native_table)
+            }
+
+            (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
         };
 
         Ok(input_value)
