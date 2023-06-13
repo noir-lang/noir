@@ -8,7 +8,7 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -105,15 +105,14 @@ impl BrilligGen {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
             };
+
             match param_type {
                 Type::Numeric(_) => {
                     self.get_or_create_register(*param_id);
                 }
                 Type::Array(_, size) => {
-                    let array_ptr = self.get_or_create_register(*param_id);
-                    // TODO: check if size if the number of elements or the number of field elements
-                    // TODO needed. If the latter, the maths will be off for composite types
-                    self.context.allocate_array(array_ptr, *size as u32);
+                    let pointer_register = self.get_or_create_register(*param_id);
+                    self.context.allocate_array(pointer_register, *size as u32);
                 }
                 _ => {
                     todo!("ICE: Param type not supported {param_type:?}")
@@ -164,20 +163,27 @@ impl BrilligGen {
 
                 self.context.not_instruction(condition, result_register);
             }
-            Instruction::ForeignCall { func, arguments } => {
-                let result_ids = dfg.instruction_results(instruction_id);
+            Instruction::Call { func, arguments } => match &dfg[*func] {
+                Value::ForeignFunction(func_name) => {
+                    let result_ids = dfg.instruction_results(instruction_id);
 
-                let input_registers =
-                    vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
-                let output_registers =
-                    vecmap(result_ids, |value_id| self.convert_ssa_value(*value_id, dfg));
+                    let input_registers = vecmap(arguments, |value_id| {
+                        self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
+                    });
+                    let output_registers = vecmap(result_ids, |value_id| {
+                        self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
+                    });
 
-                self.context.foreign_call_instruction(
-                    func.to_owned(),
-                    &input_registers,
-                    &output_registers,
-                );
-            }
+                    self.context.foreign_call_instruction(
+                        func_name.to_owned(),
+                        &input_registers,
+                        &output_registers,
+                    );
+                }
+                _ => {
+                    unreachable!("only foreign function calls supported in unconstrained functions")
+                }
+            },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination = self.get_or_create_register(result_ids[0]);
@@ -274,7 +280,6 @@ impl BrilligGen {
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterIndex {
         let value = &dfg[value_id];
-
         let register = match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
@@ -301,9 +306,6 @@ impl BrilligGen {
 
         brillig.convert_ssa_function(func);
 
-        // TODO: shouldn't this be added when we process a return instruction
-        brillig.context.stop_instruction();
-
         brillig.context.artifact()
     }
 
@@ -319,6 +321,23 @@ impl BrilligGen {
 
         for block in reverse_post_order {
             self.convert_block(block, &func.dfg);
+        }
+    }
+
+    fn convert_ssa_value_to_register_value_or_array(
+        &mut self,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterValueOrArray {
+        let register_index = self.convert_ssa_value(value_id, dfg);
+        let typ = dfg[value_id].get_type();
+        match typ {
+            Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
+            Type::Array(_, size) => RegisterValueOrArray::HeapArray(register_index, size),
+            Type::Unit => RegisterValueOrArray::RegisterIndex(register_index),
+            _ => {
+                unreachable!("type not supported for conversion into brillig register")
+            }
         }
     }
 }
