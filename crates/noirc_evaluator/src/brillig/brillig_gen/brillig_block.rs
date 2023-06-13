@@ -38,7 +38,7 @@ impl BrilligBlock {
 
     fn convert_block(&mut self, dfg: &DataFlowGraph) {
         // Add a label for this block
-        self.context.add_label_to_next_opcode(self.create_block_label(self.block_id));
+        self.context.enter_context(self.create_block_label(self.block_id));
 
         // Convert the block parameters
         let block = &dfg[self.block_id];
@@ -55,14 +55,9 @@ impl BrilligBlock {
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
 
-    /// Creates a unique label for a block
+    /// Creates a unique global label for a block
     fn create_block_label(&self, block_id: BasicBlockId) -> String {
         format!("{}-{}", self.function_context.function_id, block_id)
-    }
-
-    /// Creates a unique label for an assert instruction
-    fn create_assert_label(&self, instruction_id: InstructionId) -> String {
-        format!("{}-{}-assert-{}", self.function_context.function_id, self.block_id, instruction_id)
     }
 
     /// Converts an SSA terminator instruction into the necessary opcodes.
@@ -133,7 +128,7 @@ impl BrilligBlock {
             Instruction::Constrain(value) => {
                 let condition = self.convert_ssa_value(*value, dfg);
                 self.context
-                    .constrain_instruction(condition, self.create_assert_label(instruction_id));
+                    .constrain_instruction(condition);
             }
             Instruction::Allocate => {
                 let pointer_register = self.function_context.get_or_create_register(

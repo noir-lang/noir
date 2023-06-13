@@ -28,6 +28,10 @@ pub(crate) struct BrilligContext {
     latest_register: usize,
     /// Tracks memory allocations
     memory: BrilligMemory,
+    /// Context label, must be unique in a linking context
+    context_label: String,
+    /// Section label, used to separate sections of code
+    section_label: usize,
 }
 
 impl BrilligContext {
@@ -52,8 +56,36 @@ impl BrilligContext {
     }
 
     /// Adds a label to the next opcode
-    pub(crate) fn add_label_to_next_opcode<T: ToString>(&mut self, label: T) {
+    pub(crate) fn enter_context<T: ToString>(&mut self, label: T) {
+        self.context_label = label.to_string();
+        self.section_label = 0;
+        // Add a context label to the next opcode
         self.obj.add_label_at_position(label.to_string(), self.obj.index_of_next_opcode());
+        // Add a section label to the next opcode
+        self.obj
+            .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
+    }
+
+    /// Increments the section label and adds a section label to the next opcode
+    fn enter_next_section(&mut self) {
+        self.section_label += 1;
+        self.obj
+            .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
+    }
+
+    /// Internal function used to compute the section labels
+    fn compute_section_label(&self, section: usize) -> String {
+        format!("{}-{}", self.context_label, section)
+    }
+
+    /// Returns the next section label
+    fn next_section_label(&self) -> String {
+        self.compute_section_label(self.section_label + 1)
+    }
+
+    /// Returns the current section label
+    fn current_section_label(&self) -> String {
+        self.compute_section_label(self.section_label)
     }
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
@@ -93,17 +125,13 @@ impl BrilligContext {
 impl BrilligContext {
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false.
-    pub(crate) fn constrain_instruction(
-        &mut self,
-        condition: RegisterIndex,
-        continue_label: String,
-    ) {
+    pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            continue_label.clone(),
+            self.next_section_label(),
         );
         self.push_opcode(BrilligOpcode::Trap);
-        self.add_label_to_next_opcode(continue_label);
+        self.enter_next_section();
     }
 
     /// Processes a return instruction.
