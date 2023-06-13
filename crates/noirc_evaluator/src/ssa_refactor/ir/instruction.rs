@@ -224,6 +224,9 @@ impl Instruction {
                 f(*index);
                 f(*value);
             }
+            Instruction::EnableSideEffects { condition } => {
+                f(*condition);
+            }
         }
     }
 
