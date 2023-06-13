@@ -441,20 +441,24 @@ impl<'f> Context<'f> {
         new_condition: ValueId,
         condition_value: FieldElement,
     ) -> Branch {
-        self.push_condition(jmpif_block, new_condition);
-        self.insert_current_side_effects_enabled();
-        let old_stores = std::mem::take(&mut self.store_values);
+        if destination != self.branch_ends[&jmpif_block] {
+            self.push_condition(jmpif_block, new_condition);
+            self.insert_current_side_effects_enabled();
+            let old_stores = std::mem::take(&mut self.store_values);
 
-        // Remember the old condition value is now known to be true/false within this branch
-        let known_value = self.function.dfg.make_constant(condition_value, Type::bool());
-        self.values.insert(old_condition, known_value);
+            // Remember the old condition value is now known to be true/false within this branch
+            let known_value = self.function.dfg.make_constant(condition_value, Type::bool());
+            self.values.insert(old_condition, known_value);
 
-        let final_block = self.inline_block(destination, &[]);
+            let final_block = self.inline_block(destination, &[]);
 
-        self.conditions.pop();
-        let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
+            self.conditions.pop();
+            let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
 
-        Branch { condition: new_condition, last_block: final_block, store_values: stores_in_branch }
+            Branch { condition: new_condition, last_block: final_block, store_values: stores_in_branch }
+        } else {
+            Branch { condition: new_condition, last_block: jmpif_block, store_values: HashMap::new() }
+        }
     }
 
     /// Inline the ending block of a branch, the point where all blocks from a jmpif instruction
