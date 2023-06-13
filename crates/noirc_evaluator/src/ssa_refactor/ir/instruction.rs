@@ -549,15 +549,21 @@ impl Binary {
         dfg: &mut DataFlowGraph,
         lhs: FieldElement,
         rhs: FieldElement,
-        operand_type: Type,
+        mut operand_type: Type,
     ) -> Option<Id<Value>> {
         let value = match self.operator {
             BinaryOp::Add => lhs + rhs,
             BinaryOp::Sub => lhs - rhs,
             BinaryOp::Mul => lhs * rhs,
             BinaryOp::Div => lhs / rhs,
-            BinaryOp::Eq => (lhs == rhs).into(),
-            BinaryOp::Lt => (lhs < rhs).into(),
+            BinaryOp::Eq => {
+                operand_type = Type::bool();
+                (lhs == rhs).into()
+            }
+            BinaryOp::Lt => {
+                operand_type = Type::bool();
+                (lhs < rhs).into()
+            }
 
             // The rest of the operators we must try to convert to u128 first
             BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
@@ -567,7 +573,6 @@ impl Binary {
             BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
             BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
         };
-        // TODO: Keep original type of constant
         Some(dfg.make_constant(value, operand_type))
     }
 
