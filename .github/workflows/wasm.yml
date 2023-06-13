@@ -24,4 +24,3 @@ jobs:
       - name: Build wasm package
         run: |
           nix build -L .#wasm
-          ls -la
