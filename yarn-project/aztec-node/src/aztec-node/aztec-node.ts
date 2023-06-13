@@ -1,9 +1,16 @@
 import { CONTRACT_TREE_HEIGHT, L1_TO_L2_MESSAGES_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { ContractPublicData, ContractData, L2Block, MerkleTreeId, L1ToL2MessageAndIndex } from '@aztec/types';
+import {
+  ContractPublicData,
+  ContractData,
+  L2Block,
+  MerkleTreeId,
+  L1ToL2MessageAndIndex,
+  L2BlockL2Logs,
+  TxHash,
+  Tx,
+} from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
-import { Tx, TxHash } from '@aztec/types';
-import { NoirLogs } from '@aztec/types';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -52,7 +59,7 @@ export interface AztecNode {
    * @param take - The number of encrypted logs to return.
    * @returns The requested encrypted logs.
    */
-  getEncryptedLogs(from: number, take: number): Promise<NoirLogs[]>;
+  getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
 
   /**
    * Method to submit a transaction to the p2p pool.

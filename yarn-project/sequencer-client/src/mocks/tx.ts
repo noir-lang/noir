@@ -14,15 +14,23 @@ import {
   makeSelector,
   makeTxContext,
 } from '@aztec/circuits.js/factories';
-import { PrivateTx, PublicTx, SignedTxExecutionRequest, Tx, TxExecutionRequest, NoirLogs } from '@aztec/types';
+import {
+  FunctionL2Logs,
+  PrivateTx,
+  PublicTx,
+  SignedTxExecutionRequest,
+  Tx,
+  TxExecutionRequest,
+  TxL2Logs,
+} from '@aztec/types';
 import times from 'lodash.times';
 
 /**
- * Testing utility to create empty encrypted logs composed by a single empty chunk.
+ * Testing utility to create empty encrypted logs composed from a single empty log.
  */
-export function makeEmptyEncryptedLogs(): NoirLogs {
-  const chunks = [Buffer.alloc(0)];
-  return new NoirLogs(chunks);
+export function makeEmptyEncryptedLogs(): TxL2Logs {
+  const functionLogs = [new FunctionL2Logs([Buffer.alloc(0)])];
+  return new TxL2Logs(functionLogs);
 }
 
 /**
@@ -39,7 +47,7 @@ export function makePrivateTx(seed = 0): PrivateTx {
   return Tx.createPrivate(
     makeKernelPublicInputs(seed),
     makeEmptyProof(),
-    NoirLogs.random(2),
+    TxL2Logs.random(2, 3),
     [],
     times(KERNEL_PUBLIC_CALL_STACK_LENGTH, makePublicCallRequest),
   );

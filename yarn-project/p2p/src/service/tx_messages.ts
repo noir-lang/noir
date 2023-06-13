@@ -1,6 +1,6 @@
 import { KernelCircuitPublicInputs, Proof, PublicCallRequest } from '@aztec/circuits.js';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
-import { EncodedContractFunction, SignedTxExecutionRequest, Tx, TxHash, NoirLogs } from '@aztec/types';
+import { EncodedContractFunction, SignedTxExecutionRequest, Tx, TxHash, TxL2Logs } from '@aztec/types';
 
 /**
  * Enumeration of P2P message types.
@@ -189,9 +189,9 @@ export function fromTxMessage(buffer: Buffer): Tx {
   const publicInputs = toObject(buffer.subarray(4), KernelCircuitPublicInputs);
   const proof = toObject(publicInputs.remainingData, Proof);
   const txRequest = toObject(proof.remainingData, SignedTxExecutionRequest);
-  const encryptedLogs = toObject(txRequest.remainingData, NoirLogs);
+  const encryptedLogs = toObject(txRequest.remainingData, TxL2Logs);
   if (!encryptedLogs.obj) {
-    encryptedLogs.obj = new NoirLogs([]);
+    encryptedLogs.obj = new TxL2Logs([]);
   }
   const functions = toObjectArray(encryptedLogs.remainingData, EncodedContractFunction);
   const publicCalls = toObjectArray(functions.remainingData, PublicCallRequest);

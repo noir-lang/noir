@@ -22,7 +22,7 @@ import { ProvingDataOracle } from './proving_data_oracle.js';
 import { Fr } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Tuple } from '@aztec/foundation/serialize';
-import { NoirLogs } from '@aztec/types';
+import { FunctionL2Logs } from '@aztec/types';
 
 describe('Kernel Prover', () => {
   let txRequest: TxRequest;
@@ -58,7 +58,7 @@ describe('Kernel Prover', () => {
       acir: Buffer.alloc(0),
       partialWitness: new Map(),
       enqueuedPublicFunctionCalls: [],
-      encryptedLogs: new NoirLogs([]),
+      encryptedLogs: new FunctionL2Logs([]),
     };
   };
 

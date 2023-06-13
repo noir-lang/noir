@@ -16,7 +16,7 @@ import { L2Tx } from './l2_tx.js';
 import { PublicDataWrite } from './public_data_write.js';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { sha256 } from '@aztec/foundation/crypto';
-import { NoirLogs } from './noir_logs.js';
+import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -121,13 +121,9 @@ export class L2Block {
      */
     public newL1ToL2Messages: Fr[] = [],
     /**
-     * Length (in bytes) of the encrypted logs in the block.
-     */
-    public newEncryptedLogsLength?: number,
-    /**
      * Consolidated logs from all txs.
      */
-    public newEncryptedLogs?: NoirLogs,
+    public newEncryptedLogs?: L2BlockL2Logs,
   ) {}
 
   /**
@@ -144,8 +140,7 @@ export class L2Block {
     const newPublicDataWrites = times(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * txsPerBlock, PublicDataWrite.random);
     const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
     const newL2ToL1Msgs = times(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, Fr.random);
-    const newEncryptedLogs = NoirLogs.random(txsPerBlock * 2);
-    const newEncryptedLogsLength = newEncryptedLogs.getSerializedLength();
+    const newEncryptedLogs = L2BlockL2Logs.random(txsPerBlock, 3, 2);
 
     return L2Block.fromFields({
       number: l2BlockNum,
@@ -172,7 +167,6 @@ export class L2Block {
       newPublicDataWrites,
       newL1ToL2Messages,
       newL2ToL1Msgs,
-      newEncryptedLogsLength,
       newEncryptedLogs,
     });
   }
@@ -286,7 +280,7 @@ export class L2Block {
     /**
      * Consolidated logs from all txs.
      */
-    newEncryptedLogs?: NoirLogs;
+    newEncryptedLogs?: L2BlockL2Logs;
   }) {
     return new this(
       fields.number,
@@ -313,7 +307,6 @@ export class L2Block {
       fields.newContracts,
       fields.newContractData,
       fields.newL1ToL2Messages,
-      fields.newEncryptedLogsLength,
       fields.newEncryptedLogs,
     );
   }
@@ -354,7 +347,6 @@ export class L2Block {
       this.newContractData,
       this.newL1ToL2Messages.length,
       this.newL1ToL2Messages,
-      this.newEncryptedLogsLength!,
       this.newEncryptedLogs!,
     );
   }
@@ -399,8 +391,7 @@ export class L2Block {
     const newContractData = reader.readArray(newContracts.length, ContractData);
     // TODO(sean): could an optimisation of this be that it is encoded such that zeros are assumed
     const newL1ToL2Messages = reader.readVector(Fr);
-    const newEncryptedLogsLength = reader.readNumber();
-    const newEncryptedLogs = new NoirLogs(reader.readBufferArray());
+    const newEncryptedLogs = reader.readObject(L2BlockL2Logs);
 
     return L2Block.fromFields({
       number,
@@ -427,7 +418,6 @@ export class L2Block {
       newContracts,
       newContractData,
       newL1ToL2Messages,
-      newEncryptedLogsLength,
       newEncryptedLogs,
     });
   }
@@ -437,15 +427,13 @@ export class L2Block {
    * this function helps attach them in order to make the block data manipulation easier.
    * @param encryptedLogs - The encrypted logs to be attached to the block.
    */
-  attachEncryptedLogs(encryptedLogs: NoirLogs) {
+  attachEncryptedLogs(encryptedLogs: L2BlockL2Logs) {
     // throw error if the block already has encrypted logs attached.
     if (this.newEncryptedLogs) {
       throw new Error('L2 block already has encrypted logs attached.');
     }
 
-    const encryptedLogsLength = encryptedLogs.getSerializedLength();
     this.newEncryptedLogs = encryptedLogs;
-    this.newEncryptedLogsLength = encryptedLogsLength;
   }
 
   /**

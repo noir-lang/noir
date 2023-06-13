@@ -1,6 +1,6 @@
 import { TxHash } from '@aztec/types';
 import { ContractDatabase } from '../contract_database/index.js';
-import { TxAuxDataDao } from './tx_aux_data_dao.js';
+import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
 import { TxDao } from './tx_dao.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -16,10 +16,10 @@ export interface Database extends ContractDatabase {
   addTx(tx: TxDao): Promise<void>;
   addTxs(txs: TxDao[]): Promise<void>;
 
-  getTxAuxData(contract: AztecAddress, storageSlot: Fr): Promise<TxAuxDataDao[]>;
-  addTxAuxData(txAuxDataDao: TxAuxDataDao): Promise<void>;
-  addTxAuxDataBatch(txAuxDataDaos: TxAuxDataDao[]): Promise<void>;
-  removeNullifiedTxAuxData(nullifiers: Fr[], account: Point): Promise<TxAuxDataDao[]>;
+  getNoteSpendingInfo(contract: AztecAddress, storageSlot: Fr): Promise<NoteSpendingInfoDao[]>;
+  addNoteSpendingInfo(noteSpendingInfoDao: NoteSpendingInfoDao): Promise<void>;
+  addNoteSpendingInfoBatch(noteSpendingInfoDaos: NoteSpendingInfoDao[]): Promise<void>;
+  removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: Point): Promise<NoteSpendingInfoDao[]>;
 
   getTreeRoots(): Record<MerkleTreeId, Fr>;
   setTreeRoots(roots: Record<MerkleTreeId, Fr>): Promise<void>;

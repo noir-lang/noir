@@ -8,10 +8,10 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 
 /**
- * A class which wraps the data required to compute a nullifier. Along with that this class contains the necessary
- * functionality to encrypt and decrypt the data.
+ * A class which wraps the data required to compute a nullifier/to spend a note. Along with that this class contains
+ * the necessary functionality to encrypt and decrypt the data.
  */
-export class TxAuxData {
+export class NoteSpendingInfo {
   constructor(
     /**
      * Preimage which can be used along with private key to compute nullifier.
@@ -28,28 +28,28 @@ export class TxAuxData {
   ) {}
 
   /**
-   * Deserializes the TxAuxData object from a Buffer.
+   * Deserializes the NoteSpendingInfo object from a Buffer.
    * @param buffer - Buffer or BufferReader object to deserialize.
-   * @returns An instance of TxAuxData.
+   * @returns An instance of NoteSpendingInfo.
    */
-  static fromBuffer(buffer: Buffer | BufferReader): TxAuxData {
+  static fromBuffer(buffer: Buffer | BufferReader): NoteSpendingInfo {
     const reader = BufferReader.asReader(buffer);
-    return new TxAuxData(reader.readObject(NotePreimage), reader.readObject(AztecAddress), reader.readFr());
+    return new NoteSpendingInfo(reader.readObject(NotePreimage), reader.readObject(AztecAddress), reader.readFr());
   }
 
   /**
-   * Serializes the TxAuxData object into a Buffer.
-   * @returns Buffer representation of the TxAuxData object.
+   * Serializes the NoteSpendingInfo object into a Buffer.
+   * @returns Buffer representation of the NoteSpendingInfo object.
    */
   toBuffer() {
     return serializeToBuffer([this.notePreimage, this.contractAddress, this.storageSlot]);
   }
 
   /**
-   * Encrypt the TxAuxData object using the owner's public key and the ephemeral private key.
-   * @param ownerPubKey - Public key of the owner of the TxAuxData object.
+   * Encrypt the NoteSpendingInfo object using the owner's public key and the ephemeral private key.
+   * @param ownerPubKey - Public key of the owner of the NoteSpendingInfo object.
    * @param grumpkin - Arbitrary Grumpkin class instance.
-   * @returns The encrypted TxAuxData object.
+   * @returns The encrypted NoteSpendingInfo object.
    */
   public toEncryptedBuffer(ownerPubKey: Point, grumpkin: Grumpkin): Buffer {
     const ephPrivKey = randomBytes(32);
@@ -57,25 +57,25 @@ export class TxAuxData {
   }
 
   /**
-   * Decrypts the TxAuxData object using the owner's private key.
-   * @param data - Encrypted TxAuxData object.
-   * @param ownerPrivKey - Private key of the owner of the TxAuxData object.
+   * Decrypts the NoteSpendingInfo object using the owner's private key.
+   * @param data - Encrypted NoteSpendingInfo object.
+   * @param ownerPrivKey - Private key of the owner of the NoteSpendingInfo object.
    * @param grumpkin - Arbitrary Grumpkin class instance.
-   * @returns Instance of TxAuxData if the decryption was successful, undefined otherwise.
+   * @returns Instance of NoteSpendingInfo if the decryption was successful, undefined otherwise.
    */
-  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grumpkin): TxAuxData | undefined {
+  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grumpkin): NoteSpendingInfo | undefined {
     const buf = decryptBuffer(data, ownerPrivKey, grumpkin);
     if (!buf) {
       return;
     }
-    return TxAuxData.fromBuffer(buf);
+    return NoteSpendingInfo.fromBuffer(buf);
   }
 
   /**
-   * Create a random TxAuxData object (useful for testing purposes).
-   * @returns A random TxAuxData object.
+   * Create a random NoteSpendingInfo object (useful for testing purposes).
+   * @returns A random NoteSpendingInfo object.
    */
   static random() {
-    return new TxAuxData(NotePreimage.random(), AztecAddress.random(), Fr.random());
+    return new NoteSpendingInfo(NotePreimage.random(), AztecAddress.random(), Fr.random());
   }
 }

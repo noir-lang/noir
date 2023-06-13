@@ -3,7 +3,7 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { INITIAL_L2_BLOCK_NUM, L1ToL2Message, L1ToL2MessageSource } from '@aztec/types';
+import { INITIAL_L2_BLOCK_NUM, L1ToL2Message, L1ToL2MessageSource, L2BlockL2Logs } from '@aztec/types';
 import {
   ContractData,
   ContractPublicData,
@@ -11,8 +11,7 @@ import {
   EncodedContractFunction,
   L2Block,
   L2BlockSource,
-  NoirLogs,
-  NoirLogsSource,
+  L2LogsSource,
 } from '@aztec/types';
 import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
 import { createEthereumChain } from '@aztec/ethereum';
@@ -32,7 +31,7 @@ import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
  * Responsible for handling robust L1 polling so that other components do not need to
  * concern themselves with it.
  */
-export class Archiver implements L2BlockSource, NoirLogsSource, ContractDataSource, L1ToL2MessageSource {
+export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource, L1ToL2MessageSource {
   /**
    * A promise in which we will be continually fetching new L2 blocks.
    */
@@ -197,7 +196,7 @@ export class Archiver implements L2BlockSource, NoirLogsSource, ContractDataSour
     });
     await this.store.addEncryptedLogs(encryptedLogs);
 
-    // store contracts for which we have retrieved rollups
+    // store contracts for which we have retrieved L2 blocks
     const lastKnownL2BlockNum = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
     retrievedContracts.retrievedData.forEach(async ([contracts, l2BlockNum], index) => {
       this.log(`Retrieved contract public data for rollup id: ${index}`);
@@ -212,12 +211,10 @@ export class Archiver implements L2BlockSource, NoirLogsSource, ContractDataSour
     this.log(`Confirming l1 to l2 messages in store`);
     await this.store.confirmL1ToL2Messages(messageKeysToRemove);
 
-    // store retrieved rollup blocks after removing new encrypted logs information.
+    // store retrieved L2 blocks after removing new encrypted logs information.
     // remove encrypted logs to serve "lightweight" block information. Logs can be fetched separately if needed.
     await this.store.addL2Blocks(
-      retrievedBlocks.retrievedData.map(block =>
-        L2Block.fromFields(omit(block, ['newEncryptedLogs', 'newEncryptedLogsLength'])),
-      ),
+      retrievedBlocks.retrievedData.map(block => L2Block.fromFields(omit(block, ['newEncryptedLogs']))),
     );
 
     // set the L1 block for the next search
@@ -306,7 +303,7 @@ export class Archiver implements L2BlockSource, NoirLogsSource, ContractDataSour
    * @param take - The number of encrypted logs to return.
    * @returns The requested encrypted logs.
    */
-  public getEncryptedLogs(from: number, take: number): Promise<NoirLogs[]> {
+  public getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
     return this.store.getEncryptedLogs(from, take);
   }
 

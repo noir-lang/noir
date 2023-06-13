@@ -13,15 +13,16 @@ import {
   INITIAL_L2_BLOCK_NUM,
   L2BlockContext,
   MerkleTreeId,
-  NoirLogs,
   SignedTxExecutionRequest,
   Tx,
-  TxAuxData,
+  NoteSpendingInfo,
   TxExecutionRequest,
+  TxL2Logs,
+  L2BlockL2Logs,
 } from '@aztec/types';
-import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
-import { Database, TxAuxDataDao, TxDao } from '../database/index.js';
+import { ContractDataOracle } from '../contract_data_oracle/index.js';
+import { Database, NoteSpendingInfoDao, TxDao } from '../database/index.js';
 import { generateFunctionSelector } from '../index.js';
 import { KernelProver } from '../kernel_prover/index.js';
 import { SimulatorOracle } from '../simulator_oracle/index.js';
@@ -41,7 +42,7 @@ interface ProcessedData {
   /**
    * A collection of data access objects for transaction auxiliary data.
    */
-  txAuxDataDaos: TxAuxDataDao[];
+  noteSpendingInfoDaos: NoteSpendingInfoDao[];
 }
 
 /**
@@ -255,10 +256,13 @@ export class AccountState {
       ? await this.getNewContractPublicFunctions(newContractAddress)
       : [];
 
+    // 1 tx containing only 1 function invocation
+    const encryptedLogs = new TxL2Logs([executionResult.encryptedLogs]);
+
     return Tx.createPrivate(
       publicInputs,
       proof,
-      executionResult.encryptedLogs,
+      encryptedLogs,
       newContractPublicFunctions,
       executionResult.enqueuedPublicFunctionCalls,
     );
@@ -293,13 +297,13 @@ export class AccountState {
    * Throws an error if the number of block contexts and encrypted logs do not match.
    *
    * @param l2BlockContexts - An array of L2 block contexts to be processed.
-   * @param encryptedLogs - An array of encrypted logs associated with the L2 block contexts.
+   * @param encryptedL2BlockLogs - An array of encrypted logs associated with the L2 block contexts.
    * @returns A promise that resolves once the processing is completed.
    */
-  public async process(l2BlockContexts: L2BlockContext[], encryptedLogs: NoirLogs[]): Promise<void> {
-    if (l2BlockContexts.length !== encryptedLogs.length) {
+  public async process(l2BlockContexts: L2BlockContext[], encryptedL2BlockLogs: L2BlockL2Logs[]): Promise<void> {
+    if (l2BlockContexts.length !== encryptedL2BlockLogs.length) {
       throw new Error(
-        `Number of blocks and EncryptedLogs is not equal. Received ${l2BlockContexts.length} blocks, ${encryptedLogs.length} encrypted logs.`,
+        `Number of blocks and EncryptedLogs is not equal. Received ${l2BlockContexts.length} blocks, ${encryptedL2BlockLogs.length} encrypted logs.`,
       );
     }
     if (!l2BlockContexts.length) {
@@ -310,40 +314,47 @@ export class AccountState {
     // https://github.com/AztecProtocol/aztec-packages/issues/788
     let dataStartIndex =
       (l2BlockContexts[0].block.number - INITIAL_L2_BLOCK_NUM) * this.TXS_PER_BLOCK * KERNEL_NEW_COMMITMENTS_LENGTH;
-    const blocksAndTxAuxData: ProcessedData[] = [];
+    const blocksAndNoteSpendingInfo: ProcessedData[] = [];
 
     // Iterate over both blocks and encrypted logs.
-    for (let i = 0; i < encryptedLogs.length; ++i) {
-      const { dataChunks } = encryptedLogs[i];
+    for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {
+      const { txLogs } = encryptedL2BlockLogs[blockIndex];
+      let logIndexWithinBlock = 0;
 
       // Try decrypting the encrypted logs.
       // Note: Public txs don't generate commitments and encrypted logs and for this reason we can ignore them here.
       const privateTxIndices: Set<number> = new Set();
-      const txAuxDataDaos: TxAuxDataDao[] = [];
-      for (let j = 0; j < dataChunks.length; ++j) {
-        const txAuxData = TxAuxData.fromEncryptedBuffer(dataChunks[j], this.privKey, this.grumpkin);
-        if (txAuxData) {
-          // We have successfully decrypted the data.
-          const privateTxIndex = Math.floor(j / KERNEL_NEW_COMMITMENTS_LENGTH);
-          privateTxIndices.add(privateTxIndex);
-          txAuxDataDaos.push({
-            ...txAuxData,
-            nullifier: await this.computeNullifier(txAuxData),
-            index: BigInt(dataStartIndex + j),
-            account: this.publicKey,
-          });
+      const noteSpendingInfoDaos: NoteSpendingInfoDao[] = [];
+      for (let txIndex = 0; txIndex < txLogs.length; ++txIndex) {
+        const txFunctionLogs = txLogs[txIndex].functionLogs;
+        for (const functionLogs of txFunctionLogs) {
+          for (const logs of functionLogs.logs) {
+            const noteSpendingInfo = NoteSpendingInfo.fromEncryptedBuffer(logs, this.privKey, this.grumpkin);
+            if (noteSpendingInfo) {
+              // We have successfully decrypted the data.
+              const privateTxIndex = Math.floor(txIndex / KERNEL_NEW_COMMITMENTS_LENGTH);
+              privateTxIndices.add(privateTxIndex);
+              noteSpendingInfoDaos.push({
+                ...noteSpendingInfo,
+                nullifier: await this.computeNullifier(noteSpendingInfo),
+                index: BigInt(dataStartIndex + logIndexWithinBlock),
+                account: this.publicKey,
+              });
+            }
+            logIndexWithinBlock += 1;
+          }
         }
       }
 
-      blocksAndTxAuxData.push({
-        blockContext: l2BlockContexts[i],
+      blocksAndNoteSpendingInfo.push({
+        blockContext: l2BlockContexts[blockIndex],
         userPertainingPrivateTxIndices: [...privateTxIndices],
-        txAuxDataDaos,
+        noteSpendingInfoDaos,
       });
-      dataStartIndex += dataChunks.length;
+      dataStartIndex += txLogs.length;
     }
 
-    await this.processBlocksAndTxAuxData(blocksAndTxAuxData);
+    await this.processBlocksAndNoteSpendingInfo(blocksAndNoteSpendingInfo);
 
     this.syncedToBlock = l2BlockContexts[l2BlockContexts.length - 1].block.number;
     this.log(`Synched block ${this.syncedToBlock}`);
@@ -352,19 +363,19 @@ export class AccountState {
   /**
    * Compute the nullifier for a given transaction auxiliary data.
    * The nullifier is calculated using the private key of the account,
-   * contract address, and note preimage associated with the txAuxData.
+   * contract address, and note preimage associated with the noteSpendingInfo.
    * This method assists in identifying spent commitments in the private state.
    *
-   * @param txAuxData - An instance of TxAuxData containing transaction details.
+   * @param noteSpendingInfo - An instance of NoteSpendingInfo containing transaction details.
    * @returns A Fr instance representing the computed nullifier.
    */
-  private async computeNullifier(txAuxData: TxAuxData) {
+  private async computeNullifier(noteSpendingInfo: NoteSpendingInfo) {
     const simulator = this.getAcirSimulator();
     // TODO In the future, we'll need to simulate an unconstrained fn associated with the contract ABI and slot
     return Fr.fromBuffer(
       simulator.computeSiloedNullifier(
-        txAuxData.contractAddress,
-        txAuxData.notePreimage.items,
+        noteSpendingInfo.contractAddress,
+        noteSpendingInfo.notePreimage.items,
         this.privKey,
         await CircuitsWasm.get(),
       ),
@@ -378,15 +389,15 @@ export class AccountState {
    * transaction auxiliary data from the database. This function keeps track of new nullifiers
    * and ensures all other transactions are updated with newly settled block information.
    *
-   * @param blocksAndTxAuxData - Array of objects containing L2BlockContexts, user-pertaining transaction indices, and TxAuxDataDaos.
+   * @param blocksAndNoteSpendingInfo - Array of objects containing L2BlockContexts, user-pertaining transaction indices, and NoteSpendingInfoDaos.
    */
-  private async processBlocksAndTxAuxData(blocksAndTxAuxData: ProcessedData[]) {
-    const txAuxDataDaosBatch: TxAuxDataDao[] = [];
+  private async processBlocksAndNoteSpendingInfo(blocksAndNoteSpendingInfo: ProcessedData[]) {
+    const noteSpendingInfoDaosBatch: NoteSpendingInfoDao[] = [];
     const txDaos: TxDao[] = [];
     let newNullifiers: Fr[] = [];
 
-    for (let i = 0; i < blocksAndTxAuxData.length; ++i) {
-      const { blockContext, userPertainingPrivateTxIndices, txAuxDataDaos } = blocksAndTxAuxData[i];
+    for (let i = 0; i < blocksAndNoteSpendingInfo.length; ++i) {
+      const { blockContext, userPertainingPrivateTxIndices, noteSpendingInfoDaos } = blocksAndNoteSpendingInfo[i];
 
       // Process all the user pertaining private txs.
       userPertainingPrivateTxIndices.map((txIndex, j) => {
@@ -394,10 +405,10 @@ export class AccountState {
         this.log(`Processing tx ${txHash!.toString()} from block ${blockContext.block.number}`);
         const { newContractData } = blockContext.block.getTx(txIndex);
         const isContractDeployment = !newContractData[0].contractAddress.isZero();
-        const txAuxData = txAuxDataDaos[j];
+        const noteSpendingInfo = noteSpendingInfoDaos[j];
         const [to, contractAddress] = isContractDeployment
-          ? [undefined, txAuxData.contractAddress]
-          : [txAuxData.contractAddress, undefined];
+          ? [undefined, noteSpendingInfo.contractAddress]
+          : [noteSpendingInfo.contractAddress, undefined];
         txDaos.push({
           txHash,
           blockHash: blockContext.getBlockHash(),
@@ -408,23 +419,23 @@ export class AccountState {
           error: '',
         });
       });
-      txAuxDataDaosBatch.push(...txAuxDataDaos);
+      noteSpendingInfoDaosBatch.push(...noteSpendingInfoDaos);
 
       newNullifiers = newNullifiers.concat(blockContext.block.newNullifiers);
 
       // Ensure all the other txs are updated with newly settled block info.
       await this.updateBlockInfoInBlockTxs(blockContext);
     }
-    if (txAuxDataDaosBatch.length) {
-      await this.db.addTxAuxDataBatch(txAuxDataDaosBatch);
-      txAuxDataDaosBatch.forEach(txAuxData => {
-        this.log(`Added tx aux data with nullifier ${txAuxData.nullifier.toString()}}`);
+    if (noteSpendingInfoDaosBatch.length) {
+      await this.db.addNoteSpendingInfoBatch(noteSpendingInfoDaosBatch);
+      noteSpendingInfoDaosBatch.forEach(noteSpendingInfo => {
+        this.log(`Added tx aux data with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
       });
     }
     if (txDaos.length) await this.db.addTxs(txDaos);
-    const removedAuxData = await this.db.removeNullifiedTxAuxData(newNullifiers, this.publicKey);
-    removedAuxData.forEach(txAuxData => {
-      this.log(`Removed tx aux data with nullifier ${txAuxData.nullifier.toString()}}`);
+    const removedNoteSpendingInfo = await this.db.removeNullifiedNoteSpendingInfo(newNullifiers, this.publicKey);
+    removedNoteSpendingInfo.forEach(noteSpendingInfo => {
+      this.log(`Removed tx aux data with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
     });
   }
 

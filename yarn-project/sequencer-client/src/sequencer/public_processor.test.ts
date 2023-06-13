@@ -29,7 +29,7 @@ import {
   EncodedContractFunction,
   Tx,
   TxExecutionRequest,
-  NoirLogs,
+  TxL2Logs,
 } from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 import { jest } from '@jest/globals';
@@ -247,7 +247,7 @@ describe('public_processor', () => {
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, KERNEL_PRIVATE_CALL_STACK_LENGTH);
 
-      const tx = Tx.createPrivate(kernelOutput, proof, NoirLogs.random(2), [], callRequests);
+      const tx = Tx.createPrivate(kernelOutput, proof, TxL2Logs.random(2, 3), [], callRequests);
 
       publicExecutor.execute.mockImplementation(execution => {
         for (const request of callRequests) {

@@ -25,7 +25,7 @@ import {
   makeTuple,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
-import { MerkleTreeId, ContractData, L2Block, PublicDataWrite, NoirLogs } from '@aztec/types';
+import { MerkleTreeId, ContractData, L2Block, PublicDataWrite, TxL2Logs, L2BlockL2Logs } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
@@ -132,14 +132,13 @@ export class SoloBlockBuilder implements BlockBuilder {
     const newL2ToL1Msgs = flatMap(txs, tx => tx.data.end.newL2ToL1Msgs);
 
     // Consolidate logs data from all txs
-    const encryptedLogsArr: NoirLogs[] = [];
+    const encryptedLogsArr: TxL2Logs[] = [];
     for (const tx of txs) {
       if (tx.encryptedLogs) {
         encryptedLogsArr.push(tx.encryptedLogs);
       }
     }
-    const newEncryptedLogs = NoirLogs.join(encryptedLogsArr);
-    const newEncryptedLogsLength = newEncryptedLogs.toBuffer().length;
+    const newEncryptedLogs = new L2BlockL2Logs(encryptedLogsArr);
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
@@ -167,7 +166,6 @@ export class SoloBlockBuilder implements BlockBuilder {
       newPublicDataWrites,
       newL1ToL2Messages,
       newEncryptedLogs,
-      newEncryptedLogsLength,
     });
 
     if (!l2Block.getCalldataHash().equals(circuitsOutput.sha256CalldataHash())) {

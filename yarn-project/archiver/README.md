@@ -7,7 +7,7 @@ The on-chain data specifically are the following events:
 2. `ContractDeployment` event emitted on ContractDeploymentEmitter contract,
 3. `MessageAdded` event emitted on Inbox contract,
 
-The interfaces defining how the data can be consumed from the archiver are `L2BlockSource`, `NoirLogsSource` and `ContractDataSource`.
+The interfaces defining how the data can be consumed from the archiver are `L2BlockSource`, `L2LogsSource` and `ContractDataSource`.
 
 ## Usage
 

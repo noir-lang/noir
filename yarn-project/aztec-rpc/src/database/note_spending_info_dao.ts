@@ -7,7 +7,7 @@ import { NotePreimage } from '@aztec/types';
  * Contains properties from the decrypted note, computed properties, and information about
  * the public key used for encryption, as well as the location of the data in the tree.
  */
-export interface TxAuxDataDao {
+export interface NoteSpendingInfoDao {
   /**
    * The contract address this note is created in.
    */

@@ -1,7 +1,7 @@
 import { TxHash } from '@aztec/types';
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database } from './database.js';
-import { TxAuxDataDao } from './tx_aux_data_dao.js';
+import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
 import { TxDao } from './tx_dao.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -15,7 +15,7 @@ import { MerkleTreeId } from '@aztec/types';
  */
 export class MemoryDB extends MemoryContractDatabase implements Database {
   private txTable: TxDao[] = [];
-  private txAuxDataTable: TxAuxDataDao[] = [];
+  private noteSpendingInfoTable: NoteSpendingInfoDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
 
   /**
@@ -71,44 +71,45 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   }
 
   /**
-   * Add a TxAuxDataDao instance to the txAuxDataTable.
+   * Add a NoteSpendingInfoDao instance to the noteSpendingInfoTable.
    * This function is used to store auxiliary data related to a transaction,
    * such as contract address and storage slot, in the database.
    *
-   * @param txAuxDataDao - The TxAuxDataDao instance containing the auxiliary data of a transaction.
+   * @param noteSpendingInfoDao - The NoteSpendingInfoDao instance containing the auxiliary data of a transaction.
    * @returns A promise that resolves when the auxiliary data is added to the database.
    */
-  public addTxAuxData(txAuxDataDao: TxAuxDataDao) {
-    this.txAuxDataTable.push(txAuxDataDao);
+  public addNoteSpendingInfo(noteSpendingInfoDao: NoteSpendingInfoDao) {
+    this.noteSpendingInfoTable.push(noteSpendingInfoDao);
     return Promise.resolve();
   }
 
   /**
-   * Adds an array of TxAuxDataDaos to the txAuxDataTable.
+   * Adds an array of NoteSpendingInfoDaos to the noteSpendingInfoTable.
    * This function is used to insert multiple transaction auxiliary data objects into the database at once,
    * which can improve performance when dealing with large numbers of transactions.
    *
-   * @param txAuxDataDaos - An array of TxAuxDataDao instances representing the auxiliary data of transactions.
-   * @returns A Promise that resolves when all TxAuxDataDaos have been successfully added to the txAuxDataTable.
+   * @param noteSpendingInfoDaos - An array of NoteSpendingInfoDao instances representing the auxiliary data of transactions.
+   * @returns A Promise that resolves when all NoteSpendingInfoDaos have been successfully added to the noteSpendingInfoTable.
    */
-  public addTxAuxDataBatch(txAuxDataDaos: TxAuxDataDao[]) {
-    this.txAuxDataTable.push(...txAuxDataDaos);
+  public addNoteSpendingInfoBatch(noteSpendingInfoDaos: NoteSpendingInfoDao[]) {
+    this.noteSpendingInfoTable.push(...noteSpendingInfoDaos);
     return Promise.resolve();
   }
 
   /**
    * Get auxiliary transaction data based on contract address and storage slot.
-   * It searches for matching TxAuxDataDao objects in the MemoryDB's txAuxDataTable
+   * It searches for matching NoteSpendingInfoDao objects in the MemoryDB's noteSpendingInfoTable
    * where both the contractAddress and storageSlot properties match the given inputs.
    *
    * @param contract - The contract address.
    * @param storageSlot - A Fr object representing the storage slot to search for in the auxiliary data.
-   * @returns An array of TxAuxDataDao objects that fulfill the contract address and storage slot criteria.
+   * @returns An array of NoteSpendingInfoDao objects that fulfill the contract address and storage slot criteria.
    */
-  public getTxAuxData(contract: AztecAddress, storageSlot: Fr) {
-    const res = this.txAuxDataTable.filter(
-      txAuxData =>
-        txAuxData.contractAddress.equals(contract) && txAuxData.storageSlot.toBuffer().equals(storageSlot.toBuffer()),
+  public getNoteSpendingInfo(contract: AztecAddress, storageSlot: Fr) {
+    const res = this.noteSpendingInfoTable.filter(
+      noteSpendingInfo =>
+        noteSpendingInfo.contractAddress.equals(contract) &&
+        noteSpendingInfo.storageSlot.toBuffer().equals(storageSlot.toBuffer()),
     );
     return Promise.resolve(res);
   }
@@ -116,28 +117,28 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   /**
    * Remove nullified transaction auxiliary data records associated with the given account and nullifiers.
    * The function filters the records based on matching account and nullifier values, and updates the
-   * txAuxDataTable with the remaining records. It returns an array of removed TxAuxDataDao instances.
+   * noteSpendingInfoTable with the remaining records. It returns an array of removed NoteSpendingInfoDao instances.
    *
    * @param nullifiers - An array of Fr instances representing nullifiers to be matched.
    * @param account - A Point instance representing the account for which the records are being removed.
-   * @returns A Promise resolved with an array of removed TxAuxDataDao instances.
+   * @returns A Promise resolved with an array of removed NoteSpendingInfoDao instances.
    */
-  public removeNullifiedTxAuxData(nullifiers: Fr[], account: Point) {
+  public removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: Point) {
     const nullifierSet = new Set(nullifiers.map(nullifier => nullifier.toString()));
-    const [remaining, removed] = this.txAuxDataTable.reduce(
-      (acc: [TxAuxDataDao[], TxAuxDataDao[]], txAuxData) => {
-        const nullifier = txAuxData.nullifier.toString();
-        if (txAuxData.account.equals(account) && nullifierSet.has(nullifier)) {
-          acc[1].push(txAuxData);
+    const [remaining, removed] = this.noteSpendingInfoTable.reduce(
+      (acc: [NoteSpendingInfoDao[], NoteSpendingInfoDao[]], noteSpendingInfo) => {
+        const nullifier = noteSpendingInfo.nullifier.toString();
+        if (noteSpendingInfo.account.equals(account) && nullifierSet.has(nullifier)) {
+          acc[1].push(noteSpendingInfo);
         } else {
-          acc[0].push(txAuxData);
+          acc[0].push(noteSpendingInfo);
         }
         return acc;
       },
       [[], []],
     );
 
-    this.txAuxDataTable = remaining;
+    this.noteSpendingInfoTable = remaining;
 
     return Promise.resolve(removed);
   }

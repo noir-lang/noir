@@ -14,7 +14,7 @@ import {
   Tx,
   TxExecutionRequest,
   TxHash,
-  NoirLogs,
+  TxL2Logs,
 } from '@aztec/types';
 import { expect } from '@jest/globals';
 import { randomBytes } from 'crypto';
@@ -39,7 +39,7 @@ const makePrivateTx = () => {
   return Tx.createPrivate(
     makeKernelPublicInputs(),
     Proof.fromBuffer(Buffer.alloc(10, 9)),
-    NoirLogs.random(8),
+    TxL2Logs.random(8, 2),
     encodedPublicFunctions,
     enqueuedPublicFunctionCalls,
   );
@@ -68,7 +68,7 @@ const makePublicPrivateTx = () => {
   return Tx.createPrivatePublic(
     publicInputs,
     Proof.fromBuffer(randomBytes(512)),
-    NoirLogs.random(8),
+    TxL2Logs.random(8, 2),
     makeSignedTxExecutionRequest(5),
   );
 };

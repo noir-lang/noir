@@ -31,7 +31,7 @@ import { sizeOfType } from '../index.js';
 import { fieldsToFormattedStr } from './debug.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { Tuple, assertLength } from '@aztec/foundation/serialize';
-import { NoirLogs, NotePreimage, TxAuxData } from '@aztec/types';
+import { NotePreimage, NoteSpendingInfo, FunctionL2Logs } from '@aztec/types';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 
 /**
@@ -102,7 +102,7 @@ export interface ExecutionResult {
    * Encrypted logs emitted during execution of this function call.
    * Note: These are preimages to `encryptedLogsHash`.
    */
-  encryptedLogs: NoirLogs;
+  encryptedLogs: FunctionL2Logs;
 }
 
 const notAvailable = () => {
@@ -140,7 +140,7 @@ export class PrivateFunctionExecution {
     const nestedExecutionContexts: ExecutionResult[] = [];
     const enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
     const readRequestCommitmentIndices: bigint[] = [];
-    const encryptedLogs = new NoirLogs([]);
+    const encryptedLogs = new FunctionL2Logs([]);
 
     const { partialWitness } = await acvm(acir, initialWitness, {
       getSecretKey: async ([address]: ACVMField[]) => [
@@ -231,14 +231,14 @@ export class PrivateFunctionExecution {
         const preimage = acvmPreimage.map(f => fromACVMField(f));
 
         const notePreimage = new NotePreimage(preimage);
-        const txAuxData = new TxAuxData(notePreimage, contractAddress, storageSlot);
+        const noteSpendingInfo = new NoteSpendingInfo(notePreimage, contractAddress, storageSlot);
         const ownerPublicKey = new Point(
           Buffer.concat([convertACVMFieldToBuffer(ownerX), convertACVMFieldToBuffer(ownerY)]),
         );
 
-        const encryptedNotePreimage = txAuxData.toEncryptedBuffer(ownerPublicKey, await Grumpkin.new());
+        const encryptedNotePreimage = noteSpendingInfo.toEncryptedBuffer(ownerPublicKey, await Grumpkin.new());
 
-        encryptedLogs.dataChunks.push(encryptedNotePreimage);
+        encryptedLogs.logs.push(encryptedNotePreimage);
 
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },

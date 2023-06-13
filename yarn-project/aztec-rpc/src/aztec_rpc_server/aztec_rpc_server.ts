@@ -131,8 +131,8 @@ export class AztecRPCServer implements AztecRPCClient {
    * @returns A promise that resolves to an array of note preimage items, each containing its value.
    */
   public async getStorageAt(contract: AztecAddress, storageSlot: Fr) {
-    const txAuxData = await this.db.getTxAuxData(contract, storageSlot);
-    return txAuxData.map(d => d.notePreimage.items.map(item => item.value));
+    const noteSpendingInfo = await this.db.getNoteSpendingInfo(contract, storageSlot);
+    return noteSpendingInfo.map(d => d.notePreimage.items.map(item => item.value));
   }
 
   /**

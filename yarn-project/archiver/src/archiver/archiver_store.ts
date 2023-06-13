@@ -1,4 +1,11 @@
-import { ContractPublicData, L2Block, NoirLogs, INITIAL_L2_BLOCK_NUM, ContractData, L1ToL2Message } from '@aztec/types';
+import {
+  ContractPublicData,
+  L2Block,
+  INITIAL_L2_BLOCK_NUM,
+  ContractData,
+  L1ToL2Message,
+  L2BlockL2Logs,
+} from '@aztec/types';
 import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
@@ -28,7 +35,7 @@ export interface ArchiverDataStore {
    * @param data - The encrypted logs to be added to the store.
    * @returns True if the operation is successful.
    */
-  addEncryptedLogs(data: NoirLogs[]): Promise<boolean>;
+  addEncryptedLogs(data: L2BlockL2Logs[]): Promise<boolean>;
 
   /**
    * Append new pending L1 to L2 messages to the store.
@@ -72,7 +79,7 @@ export interface ArchiverDataStore {
    * @param take - The number of encrypted logs to return.
    * @returns The requested encrypted logs.
    */
-  getEncryptedLogs(from: number, take: number): Promise<NoirLogs[]>;
+  getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
 
   /**
    * Store new Contract Public Data from an L2 block to the store's list.
@@ -138,7 +145,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * An array containing all the encrypted logs that have been fetched so far.
    * Note: Index in the "outer" array equals to (corresponding L2 block's number - INITIAL_L2_BLOCK_NUM).
    */
-  private encryptedLogs: NoirLogs[] = [];
+  private encryptedLogs: L2BlockL2Logs[] = [];
 
   /**
    * A sparse array containing all the contract data that have been fetched so far.
@@ -173,7 +180,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param data - The encrypted logs to be added to the store.
    * @returns True if the operation is successful (always in this implementation).
    */
-  public addEncryptedLogs(data: NoirLogs[]): Promise<boolean> {
+  public addEncryptedLogs(data: L2BlockL2Logs[]): Promise<boolean> {
     this.encryptedLogs.push(...data);
     return Promise.resolve(true);
   }
@@ -272,7 +279,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param take - The number of encrypted logs to return.
    * @returns The requested encrypted logs.
    */
-  public getEncryptedLogs(from: number, take: number): Promise<NoirLogs[]> {
+  public getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
     if (from < INITIAL_L2_BLOCK_NUM) {
       throw new Error(`Invalid block range ${from}`);
     }

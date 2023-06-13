@@ -50,7 +50,7 @@ export class SimulatorOracle implements DBOracle {
    * @returns A Promise that resolves to an object with properties 'count' and 'notes'.
    */
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr, limit: number, offset: number) {
-    const noteDaos = await this.db.getTxAuxData(contractAddress, storageSlot);
+    const noteDaos = await this.db.getNoteSpendingInfo(contractAddress, storageSlot);
     return {
       count: noteDaos.length,
       notes: await Promise.all(
