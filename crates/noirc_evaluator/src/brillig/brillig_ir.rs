@@ -246,10 +246,10 @@ impl BrilligContext {
         num_elements: u32,
         binary_operation: BrilligBinaryOp,
     ) {
-        // Reserve a register for the result of each comparation
-        let index_comparison_register = self.create_register();
+        // Reserve a register for the result of each binary operation
+        let new_value_register = self.create_register();
 
-        // Reserve a register for the index being compared
+        // Reserve a register for the index being processed
         let index_register = self.create_register();
 
         // Reserve registers for the values of left and right
@@ -263,15 +263,17 @@ impl BrilligContext {
             self.const_instruction(index_register, (i as u128).into());
             self.array_get(rhs_array_ptr, index_register, right_value_register);
 
-            // Compare the values
+            // Apply the binary operation to the values
             self.binary_instruction(
                 left_value_register,
                 right_value_register,
-                index_comparison_register,
+                new_value_register,
                 binary_operation,
             );
+            
+            // Store the result into the result array
             self.const_instruction(index_register, (i as u128).into());
-            self.array_store(result_array_ptr, index_register, index_comparison_register);
+            self.array_store(result_array_ptr, index_register, new_value_register);
         }
     }
 
@@ -282,7 +284,7 @@ impl BrilligContext {
         num_elements: u32,
         reduce_operation: BrilligBinaryOp,
     ) {
-        // Reserve a register for the index being compared
+        // Reserve a register for the index being processed
         let index_register = self.create_register();
 
         // Reserve register for the value at the index
