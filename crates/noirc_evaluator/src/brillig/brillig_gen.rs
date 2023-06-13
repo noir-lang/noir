@@ -188,6 +188,8 @@ impl BrilligGen {
         };
     }
 
+    /// Converts an SSA cast to a sequence of Brillig opcodes.
+    /// Casting is only necessary when shrinking the bit size of a numeric value.
     fn convert_cast(
         &mut self,
         destination: RegisterIndex,
