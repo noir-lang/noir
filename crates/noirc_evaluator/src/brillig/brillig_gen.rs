@@ -331,18 +331,8 @@ impl BrilligGen {
                     binary_op,
                 );
 
-                // Jump if the elements are not equal
-                //
-                // We negate the condition and do a jump_if to the exit label
-                //
-                // This essentially says that if the elements are not equal,
-                // then we jump to the end of the loop
-                let condition_negated = self.context.create_register();
-                self.context.not_instruction(result_register, condition_negated);
-                self.context.jump_if_instruction(condition_negated, EXIT_LOOP_LABEL);
-
-                // Unconditional jump to the start of the loop
-                self.context.jump_instruction(START_LOOP_LABEL);
+                // Jump back to start of the loop, if the elements are equal
+                self.context.jump_if_instruction(result_register, START_LOOP_LABEL);
 
                 // Add the exit_loop label to mark the end of the loop
                 self.context.add_label_to_next_opcode(EXIT_LOOP_LABEL);
