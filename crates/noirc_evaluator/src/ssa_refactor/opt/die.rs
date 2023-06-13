@@ -90,7 +90,10 @@ impl Context {
         let instruction = &function.dfg[instruction_id];
 
         // These instruction types cannot be removed
-        if matches!(instruction, Constrain(_) | Call { .. } | Store { .. }) {
+        if matches!(
+            instruction,
+            Constrain(_) | Call { .. } | Store { .. } | EnableSideEffects { .. }
+        ) {
             return false;
         }
 
