@@ -250,6 +250,10 @@ export class PrivateFunctionExecution {
     const wasm = await CircuitsWasm.get();
     publicInputs.argsHash = await computeVarArgsHash(wasm, this.args);
 
+    // TODO(#1347): Noir fails with too many unknowns error when public inputs struct contains too many members.
+    publicInputs.encryptedLogsHash = encryptedLogs.hash();
+    publicInputs.encryptedLogPreimagesLength = new Fr(encryptedLogs.getSerializedLength());
+
     const callStackItem = new PrivateCallStackItem(this.contractAddress, this.functionData, publicInputs);
     const returnValues = decodeReturnValues(this.abi, publicInputs.returnValues);
 
