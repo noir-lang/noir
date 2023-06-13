@@ -193,9 +193,6 @@ impl Context {
                                     self.ssa_values.insert(*result.0, result.1);
                                 }
                             }
-                            RuntimeType::Oracle(_) => unimplemented!(
-                                "expected an intrinsic/brillig call, but found {func:?}. All Oracle methods should be wrapped in an unconstrained fn"
-                            ),
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
@@ -215,6 +212,9 @@ impl Context {
                             self.ssa_values.insert(*result, output);
                         }
                     }
+                    Value::ForeignFunction(_) => unreachable!(
+                        "All `oracle` methods should be wrapped in an unconstrained fn"
+                    ),
                     _ => unreachable!("expected calling a function"),
                 }
             }
@@ -244,7 +244,6 @@ impl Context {
             Instruction::Load { .. } => {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
-            _ => unreachable!("instruction cannot be converted to ACIR"),
         }
     }
 
