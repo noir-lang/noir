@@ -85,5 +85,5 @@ jobs:
           workflow: update.yml
           repo: noir-lang/noir_wasm
           ref: master
-          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
