@@ -43,7 +43,12 @@ impl BrilligContext {
 
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
-    pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32, prefilled: bool) {
+    pub(crate) fn allocate_array(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size: u32,
+        prefilled: bool,
+    ) {
         let allocation = self.memory.allocate(size as usize);
 
         // If the array is prefilled (for example, parameter arrays), then we do not need to expand memory
@@ -86,6 +91,25 @@ impl BrilligContext {
         );
 
         self.load_instruction(result, index_of_element_in_memory);
+    }
+
+    /// Stores the value in the array at index `index`
+    pub(crate) fn array_store(
+        &mut self,
+        array_ptr: RegisterIndex,
+        index: RegisterIndex,
+        value: RegisterIndex,
+    ) {
+        // Computes array_ptr + index, ie array[index]
+        let index_of_element_in_memory = self.create_register();
+        self.binary_instruction(
+            array_ptr,
+            index,
+            index_of_element_in_memory,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
+        );
+
+        self.store_instruction(index_of_element_in_memory, value);
     }
 
     /// Adds a label to the next opcode
@@ -210,6 +234,72 @@ impl BrilligContext {
             BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
                 self.modulo_instruction(result, lhs, rhs, bit_size, is_signed_integer);
             }
+        }
+    }
+
+    /// Generates the instructions to apply a binary operation to all items of two arrays.
+    pub(crate) fn arrays_binary_instruction(
+        &mut self,
+        lhs_array_ptr: RegisterIndex,
+        rhs_array_ptr: RegisterIndex,
+        result_array_ptr: RegisterIndex,
+        num_elements: u32,
+        binary_operation: BrilligBinaryOp,
+    ) {
+        // Reserve a register for the result of each comparation
+        let index_comparison_register = self.create_register();
+
+        // Reserve a register for the index being compared
+        let index_register = self.create_register();
+
+        // Reserve registers for the values of left and right
+        let left_value_register = self.create_register();
+        let right_value_register = self.create_register();
+
+        for i in 0..num_elements {
+            // Load both values
+            self.const_instruction(index_register, (i as u128).into());
+            self.array_get(lhs_array_ptr, index_register, left_value_register);
+            self.const_instruction(index_register, (i as u128).into());
+            self.array_get(rhs_array_ptr, index_register, right_value_register);
+
+            // Compare the values
+            self.binary_instruction(
+                left_value_register,
+                right_value_register,
+                index_comparison_register,
+                binary_operation,
+            );
+            self.const_instruction(index_register, (i as u128).into());
+            self.array_store(result_array_ptr, index_register, index_comparison_register);
+        }
+    }
+
+    pub(crate) fn array_reduce(
+        &mut self,
+        array_ptr: RegisterIndex,
+        result_register: RegisterIndex,
+        num_elements: u32,
+        reduce_operation: BrilligBinaryOp,
+    ) {
+        // Reserve a register for the index being compared
+        let index_register = self.create_register();
+
+        // Reserve register for the value at the index
+        let value_register = self.create_register();
+
+        for i in 0..num_elements {
+            // Load value
+            self.const_instruction(index_register, (i as u128).into());
+            self.array_get(array_ptr, index_register, value_register);
+
+            // Reduce the value
+            self.binary_instruction(
+                result_register,
+                value_register,
+                result_register,
+                reduce_operation,
+            );
         }
     }
 
@@ -355,6 +445,7 @@ impl BrilligContext {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 /// Type to encapsulate the binary operation types in Brillig
 pub(crate) enum BrilligBinaryOp {
     Field { op: BinaryFieldOp },

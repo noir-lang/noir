@@ -225,7 +225,7 @@ impl BrilligGen {
                 &element_type,
                 left,
                 right,
-                num_elements,
+                num_elements as u32,
                 binary.operator,
                 result_register,
             );
@@ -243,7 +243,7 @@ impl BrilligGen {
         element_type: &[Type],
         lhs_array_ptr: RegisterIndex,
         rhs_array_ptr: RegisterIndex,
-        num_elements: usize,
+        num_elements: u32,
         operator: BinaryOp,
         // TODO: For array addition, perhaps this will need
         // TODO to be multiple registers
@@ -259,55 +259,30 @@ impl BrilligGen {
 
         match operator {
             BinaryOp::Eq => {
-                self.array_equals_instruction(lhs_array_ptr, rhs_array_ptr, result_register, num_elements, atomic_type);
+                // Allocate one array for the equality comparisons
+                let comparisons_array_ptr = self.context.create_register();
+                self.context.allocate_array(comparisons_array_ptr, num_elements, false);
+
+                // Perform the equality comparison for each element
+                self.context.arrays_binary_instruction(
+                    lhs_array_ptr,
+                    rhs_array_ptr,
+                    comparisons_array_ptr,
+                    num_elements,
+                    convert_ssa_binary_op_to_brillig_binary_op(BinaryOp::Eq, atomic_type),
+                );
+                // Start with equals = 1
+                self.context.const_instruction(result_register, 1_u128.into());
+
+                // Reduce the array of comparisons to a single value using AND
+                self.context.array_reduce(
+                    comparisons_array_ptr,
+                    result_register,
+                    num_elements,
+                    BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: 1 },
+                );
             }
             _ => unimplemented!("binary operation {operator} is not implemented for arrays"),
-        }
-    }
-
-    /// Generates the instructions to compare two arrays for equality.
-    fn array_equals_instruction(
-        &mut self,
-        lhs_array_ptr: RegisterIndex,
-        rhs_array_ptr: RegisterIndex,
-        result_register: RegisterIndex,
-        num_elements: usize,
-        atomic_type: Type,
-    ) {
-        // Start by setting the result register to true
-        self.context.const_instruction(result_register, 1_u128.into());
-
-        // Reserve a register for the result of each comparation
-        let index_comparison_register = self.context.create_register();
-
-        // Reserve a register for the index being compared
-        let index_register = self.context.create_register();
-
-        // Reserve registers for the values of left and right
-        let left_value_register = self.context.create_register();
-        let right_value_register = self.context.create_register();
-
-        for i in 0..num_elements {
-            // Load both values
-            self.context.const_instruction(index_register, i.into());
-            self.context.array_get(lhs_array_ptr, index_register, left_value_register);
-            self.context.const_instruction(index_register, i.into());
-            self.context.array_get(rhs_array_ptr, index_register, right_value_register);
-
-            // Compare the values
-            self.context.binary_instruction(
-                left_value_register,
-                right_value_register,
-                index_comparison_register,
-                convert_ssa_binary_op_to_brillig_binary_op(BinaryOp::Eq, atomic_type.clone()),
-            );
-            // Store the result to the result register
-            self.context.binary_instruction(
-                result_register,
-                index_comparison_register,
-                result_register,
-                BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: 1 },
-            );
         }
     }
 
