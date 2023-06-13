@@ -40,6 +40,10 @@ struct Context {
     /// already exists for this Value, we return the `AcirVar`.
     ssa_values: HashMap<Id<Value>, AcirValue>,
 
+    /// The `AcirVar` that describes the condition belonging to the most recently invoked
+    /// `SideEffectsEnabled` instruction.
+    current_side_effects_enabled_var: Option<AcirVar>,
+
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
 }
@@ -177,13 +181,7 @@ impl Context {
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
 
-                                let mut outputs: Vec<AcirType> = Vec::new();
-                                if Self::is_return_type_unit(result_ids, dfg) {
-                                    self.acir_context.brillig(code, inputs, vec![]);
-                                    return;
-                                } else {
-                                    outputs.extend(vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into()));
-                                }
+                                let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());                                
 
                                 let output_values = self.acir_context.brillig(code, inputs, outputs);
                                 // Compiler sanity check
@@ -228,6 +226,10 @@ impl Context {
                     .convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)
                     .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                let acir_var = self.convert_numeric_value(*condition, dfg);
+                self.current_side_effects_enabled_var = Some(acir_var);
             }
             Instruction::ArrayGet { array, index } => {
                 self.handle_array_operation(instruction_id, *array, *index, None, dfg);
@@ -306,10 +308,6 @@ impl Context {
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        if Self::is_return_type_unit(return_values, dfg) {
-            return;
-        }
-
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
@@ -332,6 +330,7 @@ impl Context {
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
+        let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();
@@ -414,7 +413,12 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self.acir_context.less_than_var(lhs, rhs, bit_count),
+            BinaryOp::Lt => self.acir_context.less_than_var(
+                lhs,
+                rhs,
+                bit_count,
+                self.current_side_effects_enabled_var,
+            ),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type),
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
@@ -453,9 +457,6 @@ impl Context {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            // Unit type currently can mean a 0 constant, so we return the
-            // other type.
-            (typ, Type::Unit) | (Type::Unit, typ) => typ,
             // If either side is a Field constant then, we coerce into the type
             // of the other operand
             (Type::Numeric(NumericType::NativeField), typ)
@@ -636,12 +637,6 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
-    }
-
-    /// Check if the program returns the `Unit/None` type.
-    /// This type signifies that the program returns nothing.
-    fn is_return_type_unit(return_values: &[ValueId], dfg: &DataFlowGraph) -> bool {
-        return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit
     }
 }
 

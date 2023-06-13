@@ -270,7 +270,6 @@ impl BrilligGen {
         match typ {
             Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
             Type::Array(_, size) => RegisterValueOrArray::HeapArray(register_index, size),
-            Type::Unit => RegisterValueOrArray::RegisterIndex(register_index),
             _ => {
                 unreachable!("type not supported for conversion into brillig register")
             }
