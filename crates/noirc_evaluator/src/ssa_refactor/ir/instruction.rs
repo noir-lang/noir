@@ -244,7 +244,7 @@ impl Instruction {
                 }
             }
             Instruction::Not(value) => {
-                match &dfg[*value] {
+                match &dfg[dfg.resolve(*value)] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
@@ -497,13 +497,13 @@ impl Binary {
                 }
             }
             BinaryOp::Eq => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
             }
             BinaryOp::Lt => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -523,7 +523,7 @@ impl Binary {
                 }
             }
             BinaryOp::Xor => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
