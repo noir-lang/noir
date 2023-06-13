@@ -39,6 +39,10 @@ struct Context {
     /// already exists for this Value, we return the `AcirVar`.
     ssa_values: HashMap<Id<Value>, AcirValue>,
 
+    /// The `AcirVar` that describes the condition belonging to the most recently invoked
+    /// `SideEffectsEnabled` instruction.
+    current_side_effects_enabled_var: Option<AcirVar>,
+
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
 }
@@ -217,6 +221,10 @@ impl Context {
                     .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
+            Instruction::EnableSideEffects { condition } => {
+                let acir_var = self.convert_numeric_value(*condition, dfg);
+                self.current_side_effects_enabled_var = Some(acir_var);
+            }
             Instruction::ArrayGet { array, index } => {
                 self.handle_array_operation(instruction_id, *array, *index, None, dfg);
             }
@@ -293,14 +301,6 @@ impl Context {
             TerminatorInstruction::Return { return_values } => return_values,
             _ => unreachable!("ICE: Program must have a singular return"),
         };
-
-        // Check if the program returns the `Unit/None` type.
-        // This type signifies that the program returns nothing.
-        let is_return_unit_type =
-            return_values.len() == 1 && dfg.type_of_value(return_values[0]) == Type::Unit;
-        if is_return_unit_type {
-            return;
-        }
 
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
@@ -405,7 +405,12 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self.acir_context.less_than_var(lhs, rhs, bit_count),
+            BinaryOp::Lt => self.acir_context.less_than_var(
+                lhs,
+                rhs,
+                bit_count,
+                self.current_side_effects_enabled_var,
+            ),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
             BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type),
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
@@ -444,9 +449,6 @@ impl Context {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            // Unit type currently can mean a 0 constant, so we return the
-            // other type.
-            (typ, Type::Unit) | (Type::Unit, typ) => typ,
             // If either side is a Field constant then, we coerce into the type
             // of the other operand
             (Type::Numeric(NumericType::NativeField), typ)

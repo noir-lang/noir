@@ -622,6 +622,7 @@ impl GeneratedAcir {
         a: &Expression,
         b: &Expression,
         max_bits: u32,
+        predicate: Option<Expression>,
     ) -> Result<Witness, AcirGenError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
@@ -667,7 +668,7 @@ impl GeneratedAcir {
             b: Expression::from_field(two_max_bits),
             q: q_witness,
             r: r_witness,
-            predicate: None,
+            predicate,
         })));
 
         // Add constraint to ensure `r` is correctly bounded

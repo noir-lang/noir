@@ -63,6 +63,11 @@ impl Value {
 pub(super) type Values = Tree<Value>;
 
 impl<T> Tree<T> {
+    /// Returns an empty tree node represented by a Branch with no branches
+    pub(super) fn empty() -> Self {
+        Tree::Branch(vec![])
+    }
+
     /// Flattens the tree into a vector of each leaf value
     pub(super) fn flatten(self) -> Vec<T> {
         match self {

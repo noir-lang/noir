@@ -154,6 +154,9 @@ pub(crate) fn display_instruction(
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
         }
+        Instruction::EnableSideEffects { condition } => {
+            writeln!(f, "enable_side_effects {}", show(*condition))
+        }
         Instruction::ArrayGet { array, index } => {
             writeln!(f, "array_get {}, index {}", show(*array), show(*index))
         }
