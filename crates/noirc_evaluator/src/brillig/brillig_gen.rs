@@ -1,4 +1,7 @@
-use super::brillig_ir::{artifact::BrilligArtifact, BrilligBinaryOp, BrilligContext};
+use super::{
+    brillig_ir::{artifact::BrilligArtifact, BrilligBinaryOp, BrilligContext},
+    Brillig,
+};
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -44,7 +47,7 @@ impl BrilligGen {
     }
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
-    fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
+    fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph, brillig: &Brillig) {
         // Add a label for this block
         self.context.add_label_to_next_opcode(block_id);
 
@@ -54,7 +57,7 @@ impl BrilligGen {
 
         // Convert all of the instructions int the block
         for instruction_id in block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg);
+            self.convert_ssa_instruction(*instruction_id, dfg, brillig);
         }
 
         // Process the block's terminator instruction
@@ -117,7 +120,12 @@ impl BrilligGen {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        brillig: &Brillig,
+    ) {
         let instruction = &dfg[instruction_id];
 
         match instruction {
@@ -178,6 +186,18 @@ impl BrilligGen {
                 let source = self.convert_ssa_value(*value, dfg);
                 self.context.truncate_instruction(destination, source);
             }
+            Instruction::Call { func, arguments } => {
+                let arg = vecmap(arguments.clone(), |a| self.get_or_create_register(a));
+                let result_ids = dfg.instruction_results(instruction_id);
+                let res = vecmap(result_ids, |a| self.get_or_create_register(*a));
+
+                let func_id = match dfg[*func] {
+                    Value::Function(func_id) => func_id,
+                    _ => unreachable!("Calling not a function"),
+                };
+                let block_label = brillig.function_label(func_id);
+                self.context.call(&arg, &res, block_label, func_id);
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
     }
@@ -226,13 +246,12 @@ impl BrilligGen {
 
     /// Compiles an SSA function into a Brillig artifact which
     /// contains a sequence of SSA opcodes.
-    pub(crate) fn compile(func: &Function) -> BrilligArtifact {
-        let mut brillig = BrilligGen::default();
+    pub(crate) fn compile(func: &Function, brillig: &Brillig) -> BrilligArtifact {
+        let mut brillig_gen = BrilligGen::default();
 
-        brillig.convert_ssa_function(func);
+        brillig_gen.convert_ssa_function(func, brillig);
 
-
-        brillig.context.artifact()
+        brillig_gen.context.artifact()
     }
 
     /// Converting an SSA function into Brillig bytecode.
@@ -240,13 +259,13 @@ impl BrilligGen {
     /// TODO: Change this to use `dfg.basic_blocks_iter` which will return an
     /// TODO iterator of all of the basic blocks.
     /// TODO(Jake): what order is this ^
-    fn convert_ssa_function(&mut self, func: &Function) {
+    fn convert_ssa_function(&mut self, func: &Function, brillig: &Brillig) {
         let mut reverse_post_order = Vec::new();
         reverse_post_order.extend_from_slice(PostOrder::with_function(func).as_slice());
         reverse_post_order.reverse();
 
         for block in reverse_post_order {
-            self.convert_block(block, &func.dfg);
+            self.convert_block(block, &func.dfg, brillig);
         }
     }
 }

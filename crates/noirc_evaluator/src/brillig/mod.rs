@@ -3,7 +3,10 @@ pub(crate) mod brillig_ir;
 
 use self::{brillig_gen::BrilligGen, brillig_ir::artifact::BrilligArtifact};
 use crate::ssa_refactor::{
-    ir::function::{Function, FunctionId, RuntimeType},
+    ir::{
+        basic_block::BasicBlockId,
+        function::{Function, FunctionId, RuntimeType},
+    },
     ssa_gen::Ssa,
 };
 use std::collections::HashMap;
@@ -14,13 +17,20 @@ use std::collections::HashMap;
 pub struct Brillig {
     /// Maps SSA functions to their brillig opcode
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact>,
+    /// Maps SSA functions to their entry block
+    ssa_function_to_block: HashMap<FunctionId, BasicBlockId>,
 }
 
 impl Brillig {
     /// Compiles a function into brillig and store the compilation artifacts
     pub(crate) fn compile(&mut self, func: &Function) {
-        let obj = BrilligGen::compile(func);
+        let obj = BrilligGen::compile(func, self);
         self.ssa_function_to_brillig.insert(func.id(), obj);
+        self.ssa_function_to_block.insert(func.id(), func.entry_block());
+    }
+
+    pub(crate) fn function_label(&self, id: FunctionId) -> String {
+        self.ssa_function_to_block[&id].to_string()
     }
 }
 
