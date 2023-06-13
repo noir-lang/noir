@@ -221,13 +221,14 @@ impl BrilligContext {
     pub(crate) fn foreign_call_instruction(
         &mut self,
         func_name: String,
-        inputs: &[RegisterIndex],
-        outputs: &[RegisterIndex],
+        inputs: &[RegisterValueOrArray],
+        outputs: &[RegisterValueOrArray],
     ) {
+        // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
-            destination: RegisterValueOrArray::RegisterIndex(outputs[0]),
-            input: RegisterValueOrArray::RegisterIndex(inputs[0]),
+            destination: outputs[0],
+            input: inputs[0],
         };
         self.push_opcode(opcode);
     }
