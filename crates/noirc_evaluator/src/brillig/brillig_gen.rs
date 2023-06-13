@@ -294,12 +294,14 @@ impl BrilligGen {
             self.context.const_instruction(index_register, i.into());
             self.context.array_get(rhs_array_ptr, index_register, right_value_register);
 
+            // Compare the values
             self.context.binary_instruction(
                 left_value_register,
                 right_value_register,
                 index_comparison_register,
                 convert_ssa_binary_op_to_brillig_binary_op(BinaryOp::Eq, atomic_type.clone()),
             );
+            // Store the result to the result register
             self.context.binary_instruction(
                 result_register,
                 index_comparison_register,
