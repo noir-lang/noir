@@ -35,6 +35,8 @@ jobs:
       - name: Output results
         run: ls -la ./result
 
+      # Todo: Enable wasm testing by injecting wasm into noir-wasm-testing
+
       # - name: Checkout noir-wasm-testing
       #   uses: actions/checkout@v3
       #   with:
