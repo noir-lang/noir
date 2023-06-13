@@ -171,7 +171,7 @@
       noirWasmArgs = wasmEnvironment // {
         pname = "noir_wasm";
 
-        src = ./.;
+        src = craneLib.cleanCargoSource ./.;
         
         cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
 
@@ -311,7 +311,7 @@
         '';
       });
 
-      packages.wasm = craneLib.mkCargoDerivation (noirWasmArgs // {
+      packages.wasm = craneLib.buildPackage (noirWasmArgs // {
 
         inherit GIT_COMMIT;
         inherit GIT_DIRTY;
@@ -333,8 +333,14 @@
           toml2json
         ];
 
-        buildPhaseCargoCommand = ''
-          bash crates/wasm/buildPhaseCargoCommand.sh
+        cargoExtraArgs = "--lib --release --package noir_wasm --target wasm32-unknown-unknown";
+        
+        preBuild = ''
+          bash crates/wasm/preBuild.sh
+        '';
+
+        postBuild = ''
+          bash crates/wasm/postBuild.sh
         '';
 
         installPhase = ''
