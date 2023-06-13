@@ -43,23 +43,25 @@ impl BrilligContext {
 
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
-    pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
+    pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32, prefilled: bool) {
         let allocation = self.memory.allocate(size as usize);
 
-        // Create a new register to store the pointer to the memory address
-        // of the last element in the array
-        let end_memory_address = self.create_register();
-        self.const_instruction(end_memory_address, allocation.end_address.into());
-
-        // Emit a store instruction for the last element in the array.
-        // The VM will expand the memory and zero fill all of the elements
-        // from `start_address` to `end_address`
-        //
-        // Since it is a store instruction, we need to indicate a value to
-        // store at `end_address` in memory. We will store zero here.
-        let zero = self.create_register();
-        self.const_instruction(zero, Value::from(0u128));
-        self.store_instruction(end_memory_address, zero);
+        // If the array is prefilled (for example, parameter arrays), then we do not need to expand memory
+        if !prefilled {
+            // Create a new register to store the pointer to the memory address
+            // of the last element in the array
+            let end_memory_address = self.create_register();
+            self.const_instruction(end_memory_address, allocation.end_address.into());
+            // Emit a store instruction for the last element in the array.
+            // The VM will expand the memory and zero fill all of the elements
+            // from `start_address` to `end_address`
+            //
+            // Since it is a store instruction, we need to indicate a value to
+            // store at `end_address` in memory. We will store zero here.
+            let zero = self.create_register();
+            self.const_instruction(zero, Value::from(0u128));
+            self.store_instruction(end_memory_address, zero);
+        }
 
         self.push_opcode(BrilligOpcode::Const {
             destination: pointer_register,
@@ -83,7 +85,7 @@ impl BrilligContext {
             BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
         );
 
-        self.load_instruction(result, index_of_element_in_memory)
+        self.load_instruction(result, index_of_element_in_memory);
     }
 
     /// Adds a label to the next opcode
@@ -130,6 +132,8 @@ impl BrilligContext {
         // In most cases, the register created is used in another instruction
         // which will cause the VM to expand the register space, but this is not
         // a guarantee.
+        //
+        // This would only be possible if it's not a function parameter register.
         //
         // TODO: check if the above can be true if we just return a constant for example
         // TODO from a program

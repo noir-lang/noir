@@ -34,7 +34,7 @@ impl BrilligMemory {
         self.free_mem_pointer += size;
         Allocation {
             start_address: MemoryAddress(start),
-            end_address: MemoryAddress(self.free_mem_pointer),
+            end_address: MemoryAddress(self.free_mem_pointer - 1),
         }
     }
 }

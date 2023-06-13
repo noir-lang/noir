@@ -112,7 +112,7 @@ impl BrilligGen {
                 }
                 Type::Array(_, size) => {
                     let pointer_register = self.get_or_create_register(*param_id);
-                    self.context.allocate_array(pointer_register, *size as u32);
+                    self.context.allocate_array(pointer_register, *size as u32, true);
                 }
                 _ => {
                     todo!("ICE: Param type not supported {param_type:?}")
@@ -138,7 +138,7 @@ impl BrilligGen {
             Instruction::Allocate => {
                 let pointer_register =
                     self.get_or_create_register(dfg.instruction_results(instruction_id)[0]);
-                self.context.allocate_array(pointer_register, 1);
+                self.context.allocate_array(pointer_register, 1, false);
             }
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_value(*address, dfg);
@@ -197,7 +197,7 @@ impl BrilligGen {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination = self.get_or_create_register(result_ids[0]);
 
-                self.context.array_get(array_ptr, index, destination)
+                self.context.array_get(array_ptr, index, destination);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
@@ -227,7 +227,6 @@ impl BrilligGen {
                 right,
                 num_elements,
                 binary.operator,
-                dfg,
                 result_register,
             );
         }
@@ -246,7 +245,6 @@ impl BrilligGen {
         rhs_array_ptr: RegisterIndex,
         num_elements: usize,
         operator: BinaryOp,
-        dfg: &DataFlowGraph,
         // TODO: For array addition, perhaps this will need
         // TODO to be multiple registers
         result_register: RegisterIndex,
@@ -261,19 +259,53 @@ impl BrilligGen {
 
         match operator {
             BinaryOp::Eq => {
-                // TODO:
-                // Add a for loop which does roughly
-                // for i in 0.. num_elements:
-                //     is_equal = lhs_array_ptr[i] == rhs_array_ptr[i]
-                //     if is_equal:
-                //          continue
-                //     else:
-                //          return false
-                // return true
-
-                self.context.const_instruction(result_register, 1u128.into());
+                self.array_equals_instruction(lhs_array_ptr, rhs_array_ptr, result_register, num_elements, atomic_type);
             }
             _ => unimplemented!("binary operation {operator} is not implemented for arrays"),
+        }
+    }
+
+    /// Generates the instructions to compare two arrays for equality.
+    fn array_equals_instruction(
+        &mut self,
+        lhs_array_ptr: RegisterIndex,
+        rhs_array_ptr: RegisterIndex,
+        result_register: RegisterIndex,
+        num_elements: usize,
+        atomic_type: Type,
+    ) {
+        // Start by setting the result register to true
+        self.context.const_instruction(result_register, 1_u128.into());
+
+        // Reserve a register for the result of each comparation
+        let index_comparison_register = self.context.create_register();
+
+        // Reserve a register for the index being compared
+        let index_register = self.context.create_register();
+
+        // Reserve registers for the values of left and right
+        let left_value_register = self.context.create_register();
+        let right_value_register = self.context.create_register();
+
+        for i in 0..num_elements {
+            // Load both values
+            self.context.const_instruction(index_register, i.into());
+            self.context.array_get(lhs_array_ptr, index_register, left_value_register);
+            self.context.const_instruction(index_register, i.into());
+            self.context.array_get(rhs_array_ptr, index_register, right_value_register);
+
+            self.context.binary_instruction(
+                left_value_register,
+                right_value_register,
+                index_comparison_register,
+                convert_ssa_binary_op_to_brillig_binary_op(BinaryOp::Eq, atomic_type.clone()),
+            );
+            self.context.binary_instruction(
+                result_register,
+                index_comparison_register,
+                result_register,
+                BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: 1 },
+            );
         }
     }
 
@@ -358,7 +390,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same"
             );
-            Type::Numeric(lhs_type.clone())
+            Type::Numeric(*lhs_type)
         }
         // If both sides are arrays, then we also expect their types to be the same.
         (Type::Array(_, _), Type::Array(_, _)) => {
