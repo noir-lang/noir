@@ -26,7 +26,6 @@ pub(crate) type JumpInstructionPosition = OpcodeLocation;
 
 /// When constructing the bytecode, there may be instructions
 /// which require one to jump to a specific region of code (function)
-/// or a position relative to the current instruction.
 ///
 /// The position of a function cannot always be known
 /// at this point in time, so Jumps are unresolved
@@ -34,17 +33,7 @@ pub(crate) type JumpInstructionPosition = OpcodeLocation;
 /// `Label` is used as the jump location and once all of the bytecode
 /// has been processed, the jumps are resolved using a map from Labels
 /// to their position in the bytecode.
-///
-/// Sometimes the jump destination may be relative to the jump instruction.
-/// Since the absolute position in the bytecode cannot be known until
-/// all internal and external functions have been linked, jumps of this
-/// nature cannot be fully resolved while building the bytecode either.
-/// We add relative jumps into the `Relative` variant of this enum.
-#[derive(Debug, Clone)]
-pub(crate) enum UnresolvedJumpLocation {
-    Label(String),
-    Relative(i32),
-}
+pub(crate) type UnresolvedJumpLocation = Label;
 
 impl BrilligArtifact {
     /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
@@ -126,12 +115,7 @@ impl BrilligArtifact {
     /// linkage with other bytecode has happened.
     fn resolve_jumps(&mut self) {
         for (location_of_jump, unresolved_location) in &self.unresolved_jumps {
-            let resolved_location = match unresolved_location {
-                UnresolvedJumpLocation::Label(label) => self.labels[label],
-                UnresolvedJumpLocation::Relative(offset) => {
-                    (offset + *location_of_jump as i32) as usize
-                }
-            };
+            let resolved_location = self.labels[unresolved_location];
 
             let jump_instruction = self.byte_code[*location_of_jump].clone();
             match jump_instruction {

@@ -58,10 +58,7 @@ impl BrilligContext {
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
     pub(crate) fn jump_instruction<T: ToString>(&mut self, target_label: T) {
-        self.add_unresolved_jump(
-            BrilligOpcode::Jump { location: 0 },
-            UnresolvedJumpLocation::Label(target_label.to_string()),
-        );
+        self.add_unresolved_jump(BrilligOpcode::Jump { location: 0 }, target_label.to_string());
     }
 
     /// Adds a unresolved `JumpIf` instruction to the bytecode.
@@ -72,7 +69,7 @@ impl BrilligContext {
     ) {
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            UnresolvedJumpLocation::Label(target_label.to_string()),
+            target_label.to_string(),
         );
     }
 
@@ -103,7 +100,7 @@ impl BrilligContext {
     ) {
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            UnresolvedJumpLocation::Label(continue_label.clone()),
+            continue_label.clone(),
         );
         self.push_opcode(BrilligOpcode::Trap);
         self.add_label_to_next_opcode(continue_label);
