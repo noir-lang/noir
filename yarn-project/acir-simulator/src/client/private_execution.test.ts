@@ -18,7 +18,7 @@ import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
   ChildAbi,
@@ -295,7 +295,13 @@ describe('Private Execution test suite', () => {
 
   describe('nested calls', () => {
     const historicRoots = PrivateHistoricTreeRoots.empty();
-    const contractDeploymentData = new ContractDeploymentData(Fr.random(), Fr.random(), Fr.random(), EthAddress.ZERO);
+    const contractDeploymentData = new ContractDeploymentData(
+      Point.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+      EthAddress.ZERO,
+    );
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 
     it('child function should be callable', async () => {

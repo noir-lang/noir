@@ -237,7 +237,10 @@ export class AccountState {
    * @param newContractAddress - Optional. The address of a new contract to be included in the transaction object.
    * @returns A private transaction object containing the proof, public inputs, and encrypted logs.
    */
-  public async simulateAndProve(txExecutionRequest: SignedTxExecutionRequest, newContractAddress?: AztecAddress) {
+  public async simulateAndProve(
+    txExecutionRequest: SignedTxExecutionRequest,
+    newContractAddress: AztecAddress | undefined,
+  ) {
     // TODO - Pause syncing while simulating.
 
     const contractDataOracle = new ContractDataOracle(this.db, this.node);

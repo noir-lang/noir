@@ -1,3 +1,4 @@
+import { IWasmModule } from '@aztec/foundation/wasm';
 import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
 import { abisComputeContractAddress, abisSiloCommitment } from '../cbind/circuits.gen.js';
@@ -8,13 +9,13 @@ import {
   FunctionData,
   FunctionLeafPreimage,
   NewContractData,
+  Point,
   PublicCallStackItem,
   SignedTxRequest,
   TxRequest,
   Vector,
 } from '../index.js';
 import { serializeBufferArrayToVector } from '../utils/serialize.js';
-import { IWasmModule } from '@aztec/foundation/wasm';
 
 /**
  * Synchronously calls a wasm function.
@@ -177,13 +178,19 @@ export function hashConstructor(
  */
 export function computeContractAddress(
   wasm: IWasmModule,
-  deployerAddr: AztecAddress,
+  deployerPubKey: Point,
   contractAddrSalt: Fr,
   fnTreeRoot: Fr,
   constructorHash: Buffer,
 ): AztecAddress {
   wasm.call('pedersen__init');
-  return abisComputeContractAddress(wasm, deployerAddr, contractAddrSalt, fnTreeRoot, Fr.fromBuffer(constructorHash));
+  return abisComputeContractAddress(
+    wasm,
+    [deployerPubKey.x, deployerPubKey.y],
+    contractAddrSalt,
+    fnTreeRoot,
+    Fr.fromBuffer(constructorHash),
+  );
 }
 
 /**

@@ -34,11 +34,11 @@ export class PublicExecutor {
    */
   public async execute(execution: PublicExecution): Promise<PublicExecutionResult> {
     const selectorHex = execution.functionData.functionSelectorBuffer.toString('hex');
-    this.log(`Executing public external function ${execution.contractAddress.toShortString()}:${selectorHex}`);
+    this.log(`Executing public external function ${execution.contractAddress.toString()}:${selectorHex}`);
 
     const selector = execution.functionData.functionSelectorBuffer;
     const acir = await this.contractsDb.getBytecode(execution.contractAddress, selector);
-    if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toShortString()}:${selectorHex}`);
+    if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toString()}:${selectorHex}`);
 
     const initialWitness = getInitialWitness(execution.args, execution.callContext, this.treeRoots);
     const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);

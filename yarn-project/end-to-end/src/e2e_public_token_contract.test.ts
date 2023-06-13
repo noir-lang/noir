@@ -27,7 +27,7 @@ describe('e2e_public_token_contract', () => {
     contract = new Contract(receipt.contractAddress!, PublicTokenContractAbi, aztecRpcServer);
     await tx.isMined(0, 0.1);
     const txReceipt = await tx.getReceipt();
-    logger('L2 contract deployed');
+    logger(`L2 contract deployed at ${receipt.contractAddress}`);
     return { contract, tx, txReceipt };
   };
 

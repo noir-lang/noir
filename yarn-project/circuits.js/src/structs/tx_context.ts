@@ -1,6 +1,6 @@
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 import { serializeToBuffer } from '../utils/serialize.js';
-import { EthAddress, Fr, AztecAddress } from './index.js';
+import { EthAddress, Fr, AztecAddress, Point, isPoint } from './index.js';
 
 /**
  * Contract deployment data in a TxContext
@@ -9,22 +9,19 @@ import { EthAddress, Fr, AztecAddress } from './index.js';
  * Not to be confused with NewContractData.
  */
 export class ContractDeploymentData {
-  /**
-   * Ethereum address of the portal contract on L1.
-   */
+  /** Ethereum address of the portal contract on L1. */
   public portalContractAddress: EthAddress;
+  /** Public key of the contract deployer (used when deploying account contracts). */
+  public deployerPublicKey: Tuple<Fr, 2>;
+
   constructor(
-    /**
-     * Hash of the constuctor verification key.
-     */
+    /** Public key of the contract deployer (used when deploying account contracts). */
+    deployerPublicKey: Point | Tuple<Fr, 2>,
+    /** Hash of the constuctor verification key. */
     public constructorVkHash: Fr,
-    /**
-     * Function tree root.
-     */
+    /** Function tree root. */
     public functionTreeRoot: Fr,
-    /**
-     * Contract address salt (used when deriving a contract address).
-     */
+    /** Contract address salt (used when deriving a contract address). */
     public contractAddressSalt: Fr,
     /**
      * Ethereum address of the portal contract on L1.
@@ -33,10 +30,14 @@ export class ContractDeploymentData {
     portalContractAddress: EthAddress | AztecAddress,
   ) {
     this.portalContractAddress = EthAddress.fromField(portalContractAddress.toField());
+    this.deployerPublicKey = isPoint(deployerPublicKey)
+      ? [deployerPublicKey.x, deployerPublicKey.y]
+      : deployerPublicKey;
   }
 
   toBuffer() {
     return serializeToBuffer(
+      this.deployerPublicKey,
       this.constructorVkHash,
       this.functionTreeRoot,
       this.contractAddressSalt,
@@ -49,7 +50,7 @@ export class ContractDeploymentData {
    * @returns The empty ContractDeploymentData.
    */
   public static empty(): ContractDeploymentData {
-    return new ContractDeploymentData(Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO);
+    return new ContractDeploymentData(Point.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO);
   }
   /**
    * Deserializes contract deployment data rom a buffer or reader.
@@ -59,6 +60,7 @@ export class ContractDeploymentData {
   static fromBuffer(buffer: Buffer | BufferReader): ContractDeploymentData {
     const reader = BufferReader.asReader(buffer);
     return new ContractDeploymentData(
+      reader.readObject(Point),
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
