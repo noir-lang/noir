@@ -167,6 +167,19 @@
         buildInputs = [ ] ++ extraBuildInputs;
       };
 
+      # Combine the environmnet with cargo args needed to build wasm package
+      noirWasmArgs = wasmEnvironment // {
+        pname = "noir_wasm";
+
+        src = ./.;
+        
+        cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
+
+        buildInputs = [ ] ++ extraBuildInputs;
+
+        doCheck = false;
+      };
+
       # The `port` is parameterized to support parallel test runs without colliding static servers
       testArgs = port: testEnvironment // {
         # We provide `barretenberg-transcript00` from the overlay to the tests as a URL hosted via a static server
@@ -195,6 +208,7 @@
       # Build *just* the cargo dependencies, so we can reuse all of that work between runs
       native-cargo-artifacts = craneLib.buildDepsOnly nativeArgs;
       wasm-cargo-artifacts = craneLib.buildDepsOnly wasmArgs;
+      noir-wasm-cargo-artifacts = craneLib.buildDepsOnly noirWasmArgs;
 
       noir-native = craneLib.buildPackage (nativeArgs // {
         inherit GIT_COMMIT GIT_DIRTY;
@@ -286,6 +300,7 @@
           git
           nil
           nixpkgs-fmt
+          toml2json
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
           wasm-bindgen-cli
         ];
@@ -296,19 +311,17 @@
         '';
       });
 
-      packages.wasm = craneLib.buildPackage rec {
-        pname = "noir_wasm";
-        version = "1.0.0";
+      packages.wasm = craneLib.mkCargoDerivation (noirWasmArgs // {
 
         inherit GIT_COMMIT;
         inherit GIT_DIRTY;
         doCheck = false;
 
+        cargoArtifacts = noir-wasm-cargo-artifacts;
+        
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
         PKG_PATH = "./pkg";
-
-        src = ./.;
 
         nativeBuildInputs = with pkgs; [
           which
@@ -320,43 +333,15 @@
           toml2json
         ];
 
-        cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
-
-        postBuild = ''
-          # Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
-          if [ -d ./pkg/ ]; then
-              rm -rf ./pkg/
-          fi
-          wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/nodejs --typescript --target nodejs
-          wasm-bindgen ./target/wasm32-unknown-unknown/release/noir_wasm.wasm --out-dir ./pkg/web --typescript --target web
-          wasm-opt ./pkg/nodejs/noir_wasm_bg.wasm -o ./pkg/nodejs/noir_wasm_bg.wasm -O
-          wasm-opt ./pkg/web/noir_wasm_bg.wasm -o ./pkg/web/noir_wasm_bg.wasm -O
+        buildPhaseCargoCommand = ''
+          bash crates/wasm/buildPhaseCargoCommand.sh
         '';
 
         installPhase = ''
-          # Extract version from Cargo.toml using toml2json
-          PACKAGE_VERSION=$(toml2json < Cargo.toml | jq -r .package.version)
-          if [ -z "$PACKAGE_VERSION" ]; then
-              echo "Could not extract version from Cargo.toml"
-              exit 1
-          fi
-          PACKAGE_VERSION+=$VERSION_APPENDIX
-
-          mkdir -p $out
-          cp README.md $out/
-          cp -r ./pkg/* $out/
-          jq -n --arg ver "$PACKAGE_VERSION" \
-              '{
-                "version": $ver, 
-                "repository": {"type": "git","url": "https://github.com/noir-lang/noir_wasm.git"},
-                "sideEffects": false, 
-                "files": ["nodejs","web","package.json"], 
-                "main": "./nodejs/noir_wasm.js", 
-                "types": "./web/noir_wasm.d.ts",
-                "module": "./web/noir_wasm.js"
-              }' > $out/package.json
+          bash crates/wasm/installPhase.sh
         '';
-      };
+
+      });
     });
 }
 
