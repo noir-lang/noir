@@ -441,7 +441,11 @@ impl<'f> Context<'f> {
         new_condition: ValueId,
         condition_value: FieldElement,
     ) -> Branch {
-        if destination != self.branch_ends[&jmpif_block] {
+        if destination == self.branch_ends[&jmpif_block] {
+            // If the branch destination is the same as the end of the branch, this must be the
+            // 'else' case of an if with no else - so there is no else branch.
+            Branch { condition: new_condition, last_block: jmpif_block, store_values: HashMap::new() }
+        } else {
             self.push_condition(jmpif_block, new_condition);
             self.insert_current_side_effects_enabled();
             let old_stores = std::mem::take(&mut self.store_values);
@@ -456,8 +460,6 @@ impl<'f> Context<'f> {
             let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
 
             Branch { condition: new_condition, last_block: final_block, store_values: stores_in_branch }
-        } else {
-            Branch { condition: new_condition, last_block: jmpif_block, store_values: HashMap::new() }
         }
     }
 
