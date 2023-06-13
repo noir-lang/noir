@@ -237,7 +237,9 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => {
-                if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                if let Some(constant) = dfg.get_numeric_constant(*value) {
+                    SimplifiedTo(dfg.make_constant(constant, typ.clone()))
+                } else if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
                     SimplifiedTo(value)
                 } else {
                     None
