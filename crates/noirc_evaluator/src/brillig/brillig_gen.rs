@@ -257,30 +257,95 @@ impl BrilligGen {
         );
         let atomic_type = element_type[0].clone();
 
+        // For now we set the maximum size of an array to be 2^64
+        // This is of course arbitrary and can be changed.
+        //
+        // This just means that when we create an index to iterate over the array,
+        // we will be interpreting the index as a 64 bit integer.
+        const MAX_BIT_SIZE_ARRAY: u32 = 64;
+
+        // Label to denote the start of the loop which we will use to
+        // store the bytecode being generated for the for loop
+        const START_LOOP_LABEL: &str = "start_loop";
+        // Label to denote code that will be executed after the loop
+        const EXIT_LOOP_LABEL: &str = "exit_loop";
+
         match operator {
             BinaryOp::Eq => {
-                // Allocate one array for the equality comparisons
-                let comparisons_array_ptr = self.context.create_register();
-                self.context.allocate_array(comparisons_array_ptr, num_elements, false);
+                // Set the result to true
+                self.context.const_instruction(result_register, 1u128.into());
 
-                // Perform the equality comparison for each element
-                self.context.arrays_binary_instruction(
-                    lhs_array_ptr,
-                    rhs_array_ptr,
-                    comparisons_array_ptr,
-                    num_elements,
-                    convert_ssa_binary_op_to_brillig_binary_op(BinaryOp::Eq, atomic_type),
+                // Set index to 0 to start
+                let index = self.context.create_register();
+                self.context.const_instruction(index, 0u128.into());
+
+                // Load number of elements into a register
+                let num_elements_register = self.context.create_register();
+                self.context
+                    .const_instruction(num_elements_register, (num_elements as u128).into());
+
+                // Create a register to store the current array elements
+                let lhs_array_element = self.context.create_register();
+                let rhs_array_element = self.context.create_register();
+
+                // Create a label for the start of the loop
+                self.context.add_label_to_next_opcode(START_LOOP_LABEL);
+
+                // Check if index < num_elements
+                //
+                // If it is not, then we jump to the exit label
+                let index_less_than_array_len = self.context.create_register();
+                self.context.binary_instruction(
+                    index,
+                    num_elements_register,
+                    index_less_than_array_len,
+                    BrilligBinaryOp::Integer {
+                        op: BinaryIntOp::LessThan,
+                        bit_size: MAX_BIT_SIZE_ARRAY,
+                    },
                 );
-                // Start with equals = 1
-                self.context.const_instruction(result_register, 1_u128.into());
+                self.context.not_instruction(index_less_than_array_len, index_less_than_array_len);
+                self.context.jump_if_instruction(index_less_than_array_len, EXIT_LOOP_LABEL);
 
-                // Reduce the array of comparisons to a single value using AND
-                self.context.array_reduce(
-                    comparisons_array_ptr,
+                // Load the current array element into the register
+                self.context.array_get(lhs_array_ptr, index, lhs_array_element);
+                self.context.array_get(rhs_array_ptr, index, rhs_array_element);
+
+                // Increment the index register
+                let one = self.context.make_constant(1u128.into());
+                self.context.binary_instruction(
+                    index,
+                    one,
+                    index,
+                    BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: MAX_BIT_SIZE_ARRAY },
+                );
+
+                // Check if the elements loaded are equal and store them in the result_register
+                //
+                // This code is actually more general and checks an arbitrary binary operation
+                let binary_op = convert_ssa_binary_op_to_brillig_binary_op(operator, atomic_type);
+                self.context.binary_instruction(
+                    lhs_array_element,
+                    rhs_array_element,
                     result_register,
-                    num_elements,
-                    BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: 1 },
+                    binary_op,
                 );
+
+                // Jump if the elements are not equal
+                //
+                // We negate the condition and do a jump_if to the exit label
+                //
+                // This essentially says that if the elements are not equal,
+                // then we jump to the end of the loop
+                let condition_negated = self.context.create_register();
+                self.context.not_instruction(result_register, condition_negated);
+                self.context.jump_if_instruction(condition_negated, EXIT_LOOP_LABEL);
+
+                // Unconditional jump to the start of the loop
+                self.context.jump_instruction(START_LOOP_LABEL);
+
+                // Add the exit_loop label to mark the end of the loop
+                self.context.add_label_to_next_opcode(EXIT_LOOP_LABEL);
             }
             _ => unimplemented!("binary operation {operator} is not implemented for arrays"),
         }
