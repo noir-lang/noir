@@ -1,7 +1,7 @@
 //! mem2reg implements a pass for promoting values stored in memory to values in registers where
 //! possible. This is particularly important for converting our memory-based representation of
 //! mutable variables into values that are easier to manipulate.
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::ssa_refactor::{
     ir::{
@@ -71,7 +71,7 @@ impl PerBlockContext {
     // Attempts to remove load instructions for which the result is already known from previous
     // store instructions to the same address in the same block.
     fn eliminate_known_loads(&mut self, dfg: &mut DataFlowGraph) {
-        let mut loads_to_substitute = Vec::new();
+        let mut loads_to_substitute = HashMap::new();
         let block = &dfg[self.block_id];
 
         for instruction_id in block.instructions() {
@@ -82,7 +82,7 @@ impl PerBlockContext {
                 }
                 Instruction::Load { address } => {
                     if let Some(last_value) = self.last_stores.get(address) {
-                        loads_to_substitute.push((*instruction_id, *last_value));
+                        loads_to_substitute.insert(*instruction_id, *last_value);
                     } else {
                         self.failed_substitutes.insert(*address);
                     }
@@ -120,10 +120,9 @@ impl PerBlockContext {
 
         // Delete load instructions
         // TODO: should we let DCE do this instead?
-        let block = &mut dfg[self.block_id];
-        for (instruction_id, _) in loads_to_substitute {
-            block.remove_instruction(instruction_id);
-        }
+        dfg[self.block_id]
+            .instructions_mut()
+            .retain(|instruction| !loads_to_substitute.contains_key(instruction));
     }
 
     fn value_is_from_allocation(value: ValueId, dfg: &DataFlowGraph) -> bool {
@@ -137,7 +136,8 @@ impl PerBlockContext {
 
     fn remove_unused_stores(self, dfg: &mut DataFlowGraph) {
         // Scan for unused stores
-        let mut stores_to_remove: Vec<InstructionId> = Vec::new();
+        let mut stores_to_remove = HashSet::new();
+
         for instruction_id in &self.store_ids {
             let address = match &dfg[*instruction_id] {
                 Instruction::Store { address, .. } => *address,
@@ -147,15 +147,14 @@ impl PerBlockContext {
             if !self.failed_substitutes.contains(&address)
                 && !self.alloc_ids_used_externally.contains(&address)
             {
-                stores_to_remove.push(*instruction_id);
+                stores_to_remove.insert(*instruction_id);
             }
         }
 
         // Delete unused stores
-        let block = &mut dfg[self.block_id];
-        for instruction_id in stores_to_remove {
-            block.remove_instruction(instruction_id);
-        }
+        dfg[self.block_id]
+            .instructions_mut()
+            .retain(|instruction| !stores_to_remove.contains(instruction));
     }
 }
 
