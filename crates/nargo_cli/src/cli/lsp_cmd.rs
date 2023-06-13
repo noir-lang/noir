@@ -28,19 +28,18 @@ pub(crate) fn run<B: Backend>(
 
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
-    let (server, _) = async_lsp::Frontend::new_server(|client| {
-        let router = NargoLspService::new();
-
-        ServiceBuilder::new()
-            .layer(TracingLayer::default())
-            .layer(LifecycleLayer::default())
-            .layer(CatchUnwindLayer::default())
-            .layer(ConcurrencyLayer::default())
-            .layer(ClientProcessMonitorLayer::new(client))
-            .service(router)
-    });
-
     runtime.block_on(async {
+        let (server, _) = async_lsp::Frontend::new_server(|client| {
+            let router = NargoLspService::new(&client);
+
+            ServiceBuilder::new()
+                .layer(TracingLayer::default())
+                .layer(LifecycleLayer::default())
+                .layer(CatchUnwindLayer::default())
+                .layer(ConcurrencyLayer::default())
+                .layer(ClientProcessMonitorLayer::new(client))
+                .service(router)
+        });
         let stdin = BufReader::new(PipeStdin::lock().unwrap());
         let stdout = async_lsp::stdio::PipeStdout::lock().unwrap();
         server.run(stdin, stdout).await.map_err(CliError::LspError)
