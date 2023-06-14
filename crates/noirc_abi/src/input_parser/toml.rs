@@ -75,7 +75,7 @@ impl From<InputValue> for TomlTypes {
                 // TODO: enforce that all `TomlTypes` in the vector are the same variant.
                 // This is technically valid in rust but doesn't correspond to a valid Noir ABI.
                 // Requires knowledge of the ABI (see #1655)
-                let array = vecmap(vector, |element| TomlTypes::from(element));
+                let array = vecmap(vector, TomlTypes::from);
                 TomlTypes::Array(array)
             }
             InputValue::String(s) => TomlTypes::String(s),

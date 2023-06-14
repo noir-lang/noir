@@ -78,7 +78,7 @@ impl From<InputValue> for JsonTypes {
                 // TODO: enforce that all `JsonTypes` in the vector are the same variant.
                 // This is technically valid in rust but doesn't correspond to a valid Noir ABI.
                 // Requires knowledge of the ABI (see #1655)
-                let array = vecmap(vector, |element| JsonTypes::from(element));
+                let array = vecmap(vector, JsonTypes::from);
                 JsonTypes::Array(array)
             }
             InputValue::String(s) => JsonTypes::String(s),
