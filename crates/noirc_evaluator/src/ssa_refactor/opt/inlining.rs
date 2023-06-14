@@ -263,7 +263,7 @@ impl<'function> PerFunctionContext<'function> {
             _ => {
                 self.context.failed_to_inline_a_call = true;
                 None
-            },
+            }
         }
     }
 
