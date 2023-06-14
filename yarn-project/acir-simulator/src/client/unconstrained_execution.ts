@@ -1,13 +1,13 @@
-import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { CallContext, FunctionData } from '@aztec/circuits.js';
-import { frToAztecAddress, frToNumber } from '../acvm/deserialize.js';
 import { FunctionAbi } from '@aztec/foundation/abi';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { decodeReturnValues } from '../abi_coder/decoder.js';
-import { ClientTxExecutionContext } from './client_execution_context.js';
-import { select_return_flattened as selectReturnFlattened } from '@noir-lang/noir_util_wasm';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { select_return_flattened as selectReturnFlattened } from '@noir-lang/noir_util_wasm';
+import { decodeReturnValues } from '../abi_coder/decoder.js';
+import { frToNumber } from '../acvm/deserialize.js';
+import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
+import { ClientTxExecutionContext } from './client_execution_context.js';
 import { fieldsToFormattedStr } from './debug.js';
 
 const notAvailable = () => {
@@ -44,8 +44,13 @@ export class UnconstrainedFunctionExecution {
     const initialWitness = toACVMWitness(1, this.args);
 
     const { partialWitness } = await acvm(acir, initialWitness, {
-      getSecretKey: async ([address]: ACVMField[]) => [
-        toACVMField(await this.context.db.getSecretKey(this.contractAddress, frToAztecAddress(fromACVMField(address)))),
+      getSecretKey: async ([ownerX, ownerY]: ACVMField[]) => [
+        toACVMField(
+          await this.context.db.getSecretKey(
+            this.contractAddress,
+            Point.fromCoordinates(fromACVMField(ownerX), fromACVMField(ownerY)),
+          ),
+        ),
       ],
       getNotes2: async ([storageSlot]: ACVMField[]) => {
         const { preimages } = await this.context.getNotes(this.contractAddress, storageSlot, 2);

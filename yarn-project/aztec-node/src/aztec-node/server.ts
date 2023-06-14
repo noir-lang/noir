@@ -1,30 +1,4 @@
 import { Archiver } from '@aztec/archiver';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import {
-  ContractPublicData,
-  ContractData,
-  ContractDataSource,
-  L2Block,
-  L2BlockSource,
-  MerkleTreeId,
-  L1ToL2MessageSource,
-  L1ToL2MessageAndIndex,
-  L2BlockL2Logs,
-} from '@aztec/types';
-import { SiblingPath } from '@aztec/merkle-tree';
-import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
-import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
-import { Tx, TxHash } from '@aztec/types';
-import { TxL2Logs, L2LogsSource } from '@aztec/types';
-import {
-  MerkleTrees,
-  ServerWorldStateSynchroniser,
-  WorldStateSynchroniser,
-  computePublicDataTreeLeafIndex,
-} from '@aztec/world-state';
-import { default as levelup } from 'levelup';
-import { default as memdown, MemDown } from 'memdown';
-import { AztecNodeConfig } from './config.js';
 import {
   CONTRACT_TREE_HEIGHT,
   CircuitsWasm,
@@ -32,7 +6,34 @@ import {
   L1_TO_L2_MESSAGES_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { SiblingPath } from '@aztec/merkle-tree';
+import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
+import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
+import {
+  ContractData,
+  ContractDataSource,
+  ContractPublicData,
+  L1ToL2MessageAndIndex,
+  L1ToL2MessageSource,
+  L2Block,
+  L2BlockL2Logs,
+  L2BlockSource,
+  L2LogsSource,
+  MerkleTreeId,
+  Tx,
+  TxHash,
+} from '@aztec/types';
+import {
+  MerkleTrees,
+  ServerWorldStateSynchroniser,
+  WorldStateSynchroniser,
+  computePublicDataTreeLeafIndex,
+} from '@aztec/world-state';
+import { default as levelup } from 'levelup';
+import { MemDown, default as memdown } from 'memdown';
 import { AztecNode } from './aztec-node.js';
+import { AztecNodeConfig } from './config.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 

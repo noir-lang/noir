@@ -7,8 +7,9 @@ import { Fr } from '@aztec/foundation/fields';
 import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { DBOracle } from './db_oracle.js';
-import { ExecutionResult, PrivateFunctionExecution } from './private_execution.js';
+import { PrivateFunctionExecution } from './private_execution.js';
 import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
+import { ExecutionResult } from './execution_result.js';
 
 export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);

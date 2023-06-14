@@ -9,11 +9,14 @@ import {
   PublicCallRequest,
 } from '@aztec/circuits.js';
 import { computeCallStackItemHash, computeVarArgsHash } from '@aztec/circuits.js/abis';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { Tuple, assertLength } from '@aztec/foundation/serialize';
+import { FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
 import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
 import {
@@ -27,83 +30,9 @@ import {
   toAcvmCallPrivateStackItem,
   toAcvmEnqueuePublicFunctionResult,
 } from '../acvm/index.js';
-import { sizeOfType } from '../index.js';
-import { fieldsToFormattedStr } from './debug.js';
+import { ExecutionResult, NewNoteData, NewNullifierData, sizeOfType } from '../index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
-import { Tuple, assertLength } from '@aztec/foundation/serialize';
-import { NotePreimage, NoteSpendingInfo, FunctionL2Logs } from '@aztec/types';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-
-/**
- * The contents of a new note.
- */
-export interface NewNoteData {
-  /** The preimage of the note. */
-  preimage: Fr[];
-  /** The storage slot of the note. */
-  storageSlot: Fr;
-  /** The note owner. */
-  owner: {
-    /** The x coordinate. */
-    x: Fr;
-    /** The y coordinate. */
-    y: Fr;
-  };
-}
-
-/**
- * The contents of a nullified commitment.
- */
-export interface NewNullifierData {
-  /** The preimage of the nullified commitment. */
-  preimage: Fr[];
-  /** The storage slot of the nullified commitment. */
-  storageSlot: Fr;
-  /** The nullifier. */
-  nullifier: Fr;
-}
-
-/**
- * The preimages of the executed function.
- */
-export interface ExecutionPreimages {
-  /** The preimages of the new notes. */
-  newNotes: NewNoteData[];
-  /** The preimages of the nullified commitments. */
-  nullifiedNotes: NewNullifierData[];
-}
-
-/**
- * The result of executing a private function.
- */
-export interface ExecutionResult {
-  // Needed for prover
-  /** The ACIR bytecode. */
-  acir: Buffer;
-  /** The verification key. */
-  vk: Buffer;
-  /** The partial witness. */
-  partialWitness: Map<number, ACVMField>;
-  // Needed for the verifier (kernel)
-  /** The call stack item. */
-  callStackItem: PrivateCallStackItem;
-  /** The indices (in private data tree) for commitments corresponding to read requests. */
-  readRequestCommitmentIndices: bigint[];
-  // Needed for the user
-  /** The preimages of the executed function. */
-  preimages: ExecutionPreimages;
-  /** The decoded return values of the executed function. */
-  returnValues: any[];
-  /** The nested executions. */
-  nestedExecutions: this[];
-  /** Enqueued public function execution requests to be picked up by the sequencer. */
-  enqueuedPublicFunctionCalls: PublicCallRequest[];
-  /**
-   * Encrypted logs emitted during execution of this function call.
-   * Note: These are preimages to `encryptedLogsHash`.
-   */
-  encryptedLogs: FunctionL2Logs;
-}
+import { fieldsToFormattedStr } from './debug.js';
 
 const notAvailable = () => {
   return Promise.reject(new Error(`Not available for private function execution`));
@@ -130,7 +59,7 @@ export class PrivateFunctionExecution {
    */
   public async run(): Promise<ExecutionResult> {
     const selector = this.functionData.functionSelectorBuffer.toString('hex');
-    this.log(`Executing external function ${this.contractAddress.toShortString()}:${selector}`);
+    this.log(`Executing external function ${this.contractAddress.toString()}:${selector}`);
 
     const acir = Buffer.from(this.abi.bytecode, 'hex');
     const initialWitness = this.writeInputs();
@@ -143,8 +72,13 @@ export class PrivateFunctionExecution {
     const encryptedLogs = new FunctionL2Logs([]);
 
     const { partialWitness } = await acvm(acir, initialWitness, {
-      getSecretKey: async ([address]: ACVMField[]) => [
-        toACVMField(await this.context.db.getSecretKey(this.contractAddress, frToAztecAddress(fromACVMField(address)))),
+      getSecretKey: async ([ownerX, ownerY]: ACVMField[]) => [
+        toACVMField(
+          await this.context.db.getSecretKey(
+            this.contractAddress,
+            Point.fromCoordinates(fromACVMField(ownerX), fromACVMField(ownerY)),
+          ),
+        ),
       ],
       getNotes2: async ([storageSlot]: ACVMField[]) => {
         const { preimages, indices } = await this.context.getNotes(this.contractAddress, storageSlot, 2);
@@ -180,7 +114,7 @@ export class PrivateFunctionExecution {
         const contractAddress = fromACVMField(acvmContractAddress);
         const functionSelector = fromACVMField(acvmFunctionSelector);
         this.log(
-          `Calling private function ${contractAddress.toShortString()}:${functionSelector} from ${this.callContext.storageContractAddress.toShortString()}`,
+          `Calling private function ${contractAddress.toString()}:${functionSelector} from ${this.callContext.storageContractAddress.toString()}`,
         );
 
         const childExecutionResult = await this.callPrivateFunction(
@@ -274,7 +208,7 @@ export class PrivateFunctionExecution {
     publicInputs.contractDeploymentData.deployerPublicKey =
       this.context.txContext.contractDeploymentData.deployerPublicKey;
 
-    this.log(`Returning from call to ${this.contractAddress.toShortString()}:${selector}`);
+    this.log(`Returning from call to ${this.contractAddress.toString()}:${selector}`);
 
     return {
       acir,

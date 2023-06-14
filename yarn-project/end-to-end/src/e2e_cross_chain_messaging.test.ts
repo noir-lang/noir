@@ -4,12 +4,12 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
 import { OutboxAbi } from '@aztec/l1-artifacts';
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 import { delay, deployAndInitializeNonNativeL2TokenContracts, pointToPublicKey, setup } from './utils.js';
-import { sha256 } from '@aztec/foundation/crypto';
 
 const sha256ToField = (buf: Buffer): Fr => {
   const tempContent = toBigIntBE(sha256(buf));
@@ -132,10 +132,10 @@ describe('e2e_cross_chain_messaging', () => {
     expect(transferReceipt.status).toBe(TxStatus.MINED);
 
     logger('Consuming messages on L2');
-    // Call the mint tokens function on the noir contract
 
+    // Call the mint tokens function on the noir contract
     const consumptionTx = l2Contract.methods
-      .mint(mintAmount, ownerPub, messageKey, secret, ethAccount.toField())
+      .mint(mintAmount, ownerPub, ownerAddress, messageKey, secret, ethAccount.toField())
       .send({ from: ownerAddress });
 
     await consumptionTx.isMined(0, 0.1);

@@ -31,7 +31,8 @@ export interface DeployedContract {
  */
 export interface AztecRPCClient {
   addExternallyOwnedAccount(): Promise<AztecAddress>;
-  addSmartAccount(privKey: Buffer, address: AztecAddress): Promise<AztecAddress>;
+  createSmartAccount(privKey?: Buffer): Promise<[TxHash, AztecAddress]>;
+  registerSmartAccount(privKey: Buffer, address: AztecAddress): Promise<AztecAddress>;
   getAccounts(): Promise<AztecAddress[]>;
   getAccountPublicKey(address: AztecAddress): Promise<Point>;
   addContracts(contracts: DeployedContract[]): Promise<void>;

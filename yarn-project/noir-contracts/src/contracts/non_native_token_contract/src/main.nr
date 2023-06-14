@@ -47,18 +47,18 @@ contract NonNativeToken {
         //*********************************/
         amount: pub Field, 
         owner: pub Point,
+        owner_address: pub Field,
         // This field should be hidden
         msg_key: pub Field,
         secret: pub Field,
         canceller: pub Field,
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
-        context.args = context.args.push_array([amount, owner.x, owner.y, msg_key, secret]);
-
+        context.args = context.args.push_array([amount, owner.x, owner.y, owner_address, msg_key, secret]);
 
         let mut hash_bytes: [u8; 100] = [0; 100];
         let amount_bytes = amount.to_be_bytes(32);
-        let recipient_bytes = owner.x.to_be_bytes(32);
+        let recipient_bytes = owner_address.to_be_bytes(32);
         let canceller_bytes = canceller.to_be_bytes(32);
 
         // Once loops are performant this will be moved into l1 message

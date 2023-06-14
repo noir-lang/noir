@@ -1,4 +1,3 @@
-import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
 import {
   ARGS_LENGTH,
   CallContext,
@@ -13,12 +12,14 @@ import {
   TxContext,
 } from '@aztec/circuits.js';
 import { computeSecretMessageHash, siloCommitment } from '@aztec/circuits.js/abis';
+import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
   ChildAbi,
@@ -36,7 +37,6 @@ import { encodeArguments } from '../abi_coder/index.js';
 import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -437,7 +437,7 @@ describe('Private Execution test suite', () => {
         AztecAddress.random(),
         contractAddress,
         new FunctionData(Buffer.alloc(4), true, true),
-        encodeArguments(abi, [bridgedAmount, recipient, messageKey, secret, canceller.toField()]),
+        encodeArguments(abi, [bridgedAmount, recipient, recipient.x, messageKey, secret, canceller.toField()]),
         Fr.random(),
         txContext,
         Fr.ZERO,

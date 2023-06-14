@@ -1,9 +1,6 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
-import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
-import { mnemonicToAccount } from 'viem/accounts';
-import { MNEMONIC, localAnvil } from './fixtures.js';
 import {
   AztecAddress,
   AztecRPCServer,
@@ -11,12 +8,19 @@ import {
   ContractDeployer,
   EthAddress,
   Point,
+  SentTx,
   createAztecRPCServer,
 } from '@aztec/aztec.js';
+import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
+import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { NonNativeTokenContractAbi } from '@aztec/noir-contracts/examples';
-import { PublicClient, WalletClient, HttpTransport, Chain, Account, getContract } from 'viem';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
+import { NonNativeTokenContractAbi } from '@aztec/noir-contracts/examples';
+import every from 'lodash.every';
+import zipWith from 'lodash.zipwith';
+import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
+import { mnemonicToAccount } from 'viem/accounts';
+import { MNEMONIC, localAnvil, privateKey } from './fixtures.js';
 
 /**
  * Sets up the environment for the end-to-end tests.
@@ -49,10 +53,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
   logger: DebugLogger;
 }> {
   const config = getConfigEnvVars();
-
-  const describeBlockName = expect.getState().currentTestName?.split(' ')[0];
-
-  const logger = createDebugLogger('aztec:' + describeBlockName);
+  const logger = getLogger();
 
   const hdAccount = mnemonicToAccount(MNEMONIC);
   const privKey = hdAccount.getHdKey().privateKey;
@@ -66,7 +67,18 @@ export async function setup(numberOfAccounts = 1): Promise<{
   const aztecNode = await AztecNodeService.createAndSync(config);
   const aztecRpcServer = await createAztecRPCServer(aztecNode);
   for (let i = 0; i < numberOfAccounts; ++i) {
-    await aztecRpcServer.addExternallyOwnedAccount();
+    let address;
+    if (i == 0) {
+      // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key and generate all accounts as smart accounts
+      const [txHash, newAddress] = await aztecRpcServer.createSmartAccount(privateKey);
+      const isMined = await new SentTx(aztecRpcServer, Promise.resolve(txHash)).isMined();
+      expect(isMined).toBeTruthy();
+      address = newAddress;
+    } else {
+      address = await aztecRpcServer.addExternallyOwnedAccount();
+    }
+    const pubKey = await aztecRpcServer.getAccountPublicKey(address);
+    logger(`Created account ${address.toString()} with public key ${pubKey.toString()}`);
   }
 
   const accounts = await aztecRpcServer.getAccounts();
@@ -93,6 +105,37 @@ export async function setNextBlockTimestamp(rpcUrl: string, timestamp: number) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+/**
+ * Deploys a set of contracts to the network.
+ * @param aztecRpcServer - the RPC server to make the request.
+ * @param abi - contracts to be deployed.
+ * @returns The deployed contract instances.
+ */
+export async function deployL2Contracts(aztecRpcServer: AztecRPCServer, abis: ContractAbi[]) {
+  const logger = getLogger();
+  const calls = await Promise.all(abis.map(abi => new ContractDeployer(abi, aztecRpcServer).deploy()));
+  for (const call of calls) await call.create();
+  const txs = await Promise.all(calls.map(c => c.send()));
+  expect(every(await Promise.all(txs.map(tx => tx.isMined(0, 0.1))))).toBeTruthy();
+  const receipts = await Promise.all(txs.map(tx => tx.getReceipt()));
+  const contracts = zipWith(
+    abis,
+    receipts,
+    (abi, receipt) => new Contract(receipt!.contractAddress!, abi!, aztecRpcServer),
+  );
+  contracts.forEach(c => logger(`L2 contract ${c.abi.name} deployed at ${c.address}`));
+  return contracts;
+}
+
+/**
+ * Returns a logger instance for the current test.
+ * @returns a logger instance for the current test.
+ */
+export function getLogger() {
+  const describeBlockName = expect.getState().currentTestName?.split(' ')[0];
+  return createDebugLogger('aztec:' + describeBlockName);
 }
 
 /**
