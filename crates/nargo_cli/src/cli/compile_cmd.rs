@@ -2,6 +2,7 @@ use acvm::Backend;
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
 use noirc_driver::{CompileOptions, CompiledProgram, Driver};
+use noirc_errors::reporter;
 use std::path::Path;
 
 use clap::Args;
@@ -49,9 +50,11 @@ pub(crate) fn run<B: Backend>(
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
         let mut driver = setup_driver(backend, &config.program_dir)?;
-        let compiled_contracts = driver
-            .compile_contracts(&args.compile_options)
-            .map_err(|_| CliError::CompilationError)?;
+        let compiled_contracts =
+            driver.compile_contracts(&args.compile_options).map_err(|errors| {
+                reporter::report_all(driver.file_manager(), &errors, false);
+                CliError::CompilationError
+            })?;
 
         // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
         // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
@@ -118,5 +121,8 @@ pub(crate) fn compile_circuit<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
-    driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
+    driver.compile_main(compile_options).map_err(|errors| {
+        reporter::report_all(driver.file_manager(), &errors, false);
+        CliError::CompilationError
+    })
 }
