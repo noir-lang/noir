@@ -11,25 +11,8 @@ Resolves <!-- Link to GitHub Issue -->
 
 ## Summary\*
 
-<!-- Describe the changes in this PR, particularly breaking changes if any. -->
-
-This PR sets out to
-
-### Example
-
-<!-- Code / step-by-step example(s) to demonstrate the effect of this PR. -->
-
-Before:
-
-```
-
-```
-
-After:
-
-```
-
-```
+<!-- Describe the changes in this PR. -->
+<!-- Supplement code examples and highlight breaking changes, if applicable. -->
 
 ## Documentation
 
