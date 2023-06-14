@@ -27,6 +27,12 @@ pub(crate) enum SpecialRegisters {
     Len = 2,
 }
 
+impl SpecialRegisters {
+    pub(crate) fn len() -> usize {
+        SpecialRegisters::Len as usize
+    }
+}
+
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
 pub(crate) struct BrilligContext {
@@ -357,7 +363,7 @@ impl BrilligContext {
         let one = self.create_register();
         self.push_opcode(BrilligOpcode::Const { destination: one, value: Value::from(1_usize) });
         self.allocate_array(registers, registers_len as u32);
-        for i in 0..registers_len {
+        for i in SpecialRegisters::len()..registers_len {
             self.push_opcode(BrilligOpcode::Store {
                 destination_pointer: registers,
                 source: RegisterIndex::from(i),
