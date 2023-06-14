@@ -313,7 +313,7 @@
         ];
 
         cargoExtraArgs = "--lib --release --package noir_wasm --target wasm32-unknown-unknown";
-
+        
         postBuild = ''
           bash crates/wasm/postBuild.sh
         '';
