@@ -1,18 +1,20 @@
-use super::brillig_ir::{artifact::BrilligArtifact, BrilligBinaryOp, BrilligContext};
+use super::{
+    brillig_ir::{artifact::BrilligArtifact, BrilligBinaryOp, BrilligContext},
+    Brillig,
+};
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
-    function::Function,
+    function::{Function, FunctionId},
     instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
     post_order::PostOrder,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
-#[derive(Default)]
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
     /// Context for creating brillig opcodes
@@ -22,6 +24,9 @@ pub(crate) struct BrilligGen {
 }
 
 impl BrilligGen {
+    pub(crate) fn new(func_id: FunctionId) -> BrilligGen {
+        BrilligGen { context: BrilligContext::new(func_id), ssa_value_to_register: HashMap::new() }
+    }
     /// Gets a `RegisterIndex` for a `ValueId`, if one already exists
     /// or creates a new `RegisterIndex` using the latest available
     /// free register.
@@ -44,9 +49,10 @@ impl BrilligGen {
     }
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
-    fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph) {
+    fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph, brillig: &Brillig) {
+        let label = self.context.block_label(block_id);
         // Add a label for this block
-        self.context.add_label_to_next_opcode(block_id);
+        self.context.add_label_to_next_opcode(label);
 
         // Convert the block parameters
         let block = &dfg[block_id];
@@ -54,7 +60,7 @@ impl BrilligGen {
 
         // Convert all of the instructions int the block
         for instruction_id in block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg);
+            self.convert_ssa_instruction(*instruction_id, dfg, brillig);
         }
 
         // Process the block's terminator instruction
@@ -75,8 +81,8 @@ impl BrilligGen {
         match terminator_instruction {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
-                self.context.jump_if_instruction(condition, then_destination);
-                self.context.jump_instruction(else_destination);
+                self.context.jump_if_instruction(condition, *then_destination);
+                self.context.jump_instruction(*else_destination);
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let target = &dfg[*destination];
@@ -85,7 +91,7 @@ impl BrilligGen {
                     let source = self.convert_ssa_value(*src, dfg);
                     self.context.mov_instruction(destination, source);
                 }
-                self.context.jump_instruction(destination);
+                self.context.jump_instruction(*destination);
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_registers: Vec<_> = return_values
@@ -122,7 +128,12 @@ impl BrilligGen {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        brillig: &Brillig,
+    ) {
         let instruction = &dfg[instruction_id];
 
         match instruction {
@@ -193,8 +204,15 @@ impl BrilligGen {
                         &output_registers,
                     );
                 }
+                Value::Function(func_id) => {
+                    let arg = vecmap(arguments.clone(), |a| self.get_or_create_register(a));
+                    let result_ids = dfg.instruction_results(instruction_id);
+                    let res = vecmap(result_ids, |a| self.get_or_create_register(*a));
+                    let block_label = brillig.function_label(*func_id);
+                    self.context.call(&arg, &res, block_label, *func_id);
+                }
                 _ => {
-                    unreachable!("only foreign function calls supported in unconstrained functions")
+                    unreachable!("should call a function")
                 }
             },
             Instruction::Truncate { value, .. } => {
@@ -250,12 +268,12 @@ impl BrilligGen {
 
     /// Compiles an SSA function into a Brillig artifact which
     /// contains a sequence of SSA opcodes.
-    pub(crate) fn compile(func: &Function) -> BrilligArtifact {
-        let mut brillig = BrilligGen::default();
+    pub(crate) fn compile(func: &Function, brillig: &Brillig) -> BrilligArtifact {
+        let mut brillig_gen = BrilligGen::new(func.id());
 
-        brillig.convert_ssa_function(func);
+        brillig_gen.convert_ssa_function(func, brillig);
 
-        brillig.context.artifact()
+        brillig_gen.context.artifact()
     }
 
     /// Converting an SSA function into Brillig bytecode.
@@ -263,13 +281,13 @@ impl BrilligGen {
     /// TODO: Change this to use `dfg.basic_blocks_iter` which will return an
     /// TODO iterator of all of the basic blocks.
     /// TODO(Jake): what order is this ^
-    fn convert_ssa_function(&mut self, func: &Function) {
+    fn convert_ssa_function(&mut self, func: &Function, brillig: &Brillig) {
         let mut reverse_post_order = Vec::new();
         reverse_post_order.extend_from_slice(PostOrder::with_function(func).as_slice());
         reverse_post_order.reverse();
 
         for block in reverse_post_order {
-            self.convert_block(block, &func.dfg);
+            self.convert_block(block, &func.dfg, brillig);
         }
     }
 
@@ -287,6 +305,11 @@ impl BrilligGen {
                 unreachable!("type not supported for conversion into brillig register")
             }
         }
+    }
+
+    pub(crate) fn init_main(mut self, len: usize) -> BrilligArtifact {
+        self.context.initialise_main(len);
+        self.context.artifact()
     }
 }
 

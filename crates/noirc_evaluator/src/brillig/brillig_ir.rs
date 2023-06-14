@@ -7,8 +7,10 @@
 pub(crate) mod artifact;
 pub(crate) mod memory;
 
+use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::FunctionId};
+
 use self::{
-    artifact::{BrilligArtifact, UnresolvedJumpLocation},
+    artifact::{BrilligArtifact, UnresolvedLocation},
     memory::BrilligMemory,
 };
 use acvm::{
@@ -18,9 +20,20 @@ use acvm::{
     FieldElement,
 };
 
+pub(crate) enum SpecialRegisters {
+    CallDepth = 0,
+    StackFrame = 1,
+    Len = 2,
+}
+
+impl SpecialRegisters {
+    pub(crate) fn len() -> usize {
+        SpecialRegisters::Len as usize
+    }
+}
+
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
-#[derive(Default)]
 pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
     /// A usize indicating the latest un-used register.
@@ -40,6 +53,18 @@ impl BrilligContext {
         self.obj
     }
 
+    pub(crate) fn new(func: FunctionId) -> BrilligContext {
+        BrilligContext {
+            obj: BrilligArtifact::new(func),
+            latest_register: SpecialRegisters::Len as usize,
+            memory: BrilligMemory::default(),
+        }
+    }
+
+    pub(crate) fn block_label(&self, block_id: BasicBlockId) -> String {
+        self.obj.block_label(block_id)
+    }
+
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
     pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
@@ -56,22 +81,22 @@ impl BrilligContext {
     }
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
-    pub(crate) fn jump_instruction<T: ToString>(&mut self, target_label: T) {
+    pub(crate) fn jump_instruction(&mut self, target_label: BasicBlockId) {
         self.add_unresolved_jump(
             BrilligOpcode::Jump { location: 0 },
-            UnresolvedJumpLocation::Label(target_label.to_string()),
+            UnresolvedLocation::Label(self.block_label(target_label)),
         );
     }
 
     /// Adds a unresolved `JumpIf` instruction to the bytecode.
-    pub(crate) fn jump_if_instruction<T: ToString>(
+    pub(crate) fn jump_if_instruction(
         &mut self,
         condition: RegisterIndex,
-        target_label: T,
+        target_label: BasicBlockId,
     ) {
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            UnresolvedJumpLocation::Label(target_label.to_string()),
+            UnresolvedLocation::Label(self.block_label(target_label)),
         );
     }
 
@@ -79,9 +104,19 @@ impl BrilligContext {
     fn add_unresolved_jump(
         &mut self,
         jmp_instruction: BrilligOpcode,
-        destination: UnresolvedJumpLocation,
+        destination: UnresolvedLocation,
     ) {
         self.obj.add_unresolved_jump(jmp_instruction, destination);
+    }
+
+    /// Adds a unresolved `Call` instruction to the bytecode.
+    fn add_unresolved_call(
+        &mut self,
+        call_instruction: BrilligOpcode,
+        destination: UnresolvedLocation,
+        func: FunctionId,
+    ) {
+        self.obj.add_unresolved_call(call_instruction, destination, func);
     }
 
     /// Creates a new register.
@@ -103,7 +138,7 @@ impl BrilligContext {
         // Jump to the relative location after the trap
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            UnresolvedJumpLocation::Relative(2),
+            UnresolvedLocation::Relative(2),
         );
         self.push_opcode(BrilligOpcode::Trap);
     }
@@ -304,6 +339,125 @@ impl BrilligContext {
             lhs: left,
             rhs: scratch_register_j,
         });
+    }
+
+    fn call_depth(&self) -> RegisterIndex {
+        RegisterIndex::from(SpecialRegisters::CallDepth as usize)
+    }
+
+    /// Returns the ith register after the special ones
+    fn register(&self, i: usize) -> RegisterIndex {
+        RegisterIndex::from(SpecialRegisters::Len as usize + i)
+    }
+    pub(crate) fn stack_frame(&self) -> RegisterIndex {
+        RegisterIndex::from(SpecialRegisters::StackFrame as usize)
+    }
+
+    pub(crate) fn call(
+        &mut self,
+        arguments: &[RegisterIndex],
+        results: &[RegisterIndex],
+        label: String,
+        func_id: FunctionId,
+    ) {
+        // copy the registers to memory
+        let registers_len = self.latest_register;
+        let registers = self.create_register();
+        let one = self.create_register();
+        self.push_opcode(BrilligOpcode::Const { destination: one, value: Value::from(1_usize) });
+        self.allocate_array(registers, registers_len as u32);
+        for i in SpecialRegisters::len()..registers_len {
+            self.push_opcode(BrilligOpcode::Store {
+                destination_pointer: registers,
+                source: RegisterIndex::from(i),
+            });
+            self.push_opcode(BrilligOpcode::BinaryIntOp {
+                destination: registers,
+                op: BinaryIntOp::Add,
+                bit_size: 32,
+                lhs: registers,
+                rhs: one,
+            });
+        }
+        // Put the arguments on registers, starting at SpecialRegisters::Len
+        for (i, argument) in arguments.iter().enumerate() {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: RegisterIndex::from(i + SpecialRegisters::Len as usize),
+                source: *argument,
+            });
+        }
+        //increment depth_call
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: self.call_depth(),
+            op: BinaryIntOp::Add,
+            bit_size: 32,
+            lhs: self.call_depth(),
+            rhs: one,
+        });
+        // Call instruction
+        self.add_unresolved_call(
+            BrilligOpcode::Call { location: 0 },
+            UnresolvedLocation::Label(label),
+            func_id,
+        );
+        // Copy from registers 0,.. to the result registers, but at their saved memory location
+        let stack_adr = self.create_register();
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: stack_adr,
+            op: BinaryIntOp::Add,
+            bit_size: 32,
+            lhs: self.stack_frame(),
+            rhs: self.call_depth(),
+        });
+        self.load_instruction(stack_adr, stack_adr);
+        let reg_adr = self.create_register();
+        for (i, result) in results.iter().enumerate() {
+            self.binary_instruction(
+                stack_adr,
+                *result,
+                reg_adr,
+                BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
+            );
+            self.store_instruction(reg_adr, self.register(i));
+        }
+        // Load the saved registers
+        let tmp = self.create_register();
+        self.load_instruction(tmp, stack_adr);
+        for i in 0..registers_len {
+            self.const_instruction(tmp, Value::from(i));
+            self.binary_instruction(
+                stack_adr,
+                tmp,
+                reg_adr,
+                BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
+            );
+            self.load_instruction(RegisterIndex::from(i + SpecialRegisters::Len as usize), reg_adr);
+        }
+        //decrement depth_call
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: self.call_depth(),
+            op: BinaryIntOp::Sub,
+            bit_size: 32,
+            lhs: registers,
+            rhs: one,
+        });
+    }
+
+    pub(crate) fn initialise_main(&mut self, input_len: usize) {
+        // translate the inputs by the special registers offset
+        for i in 0..input_len {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: RegisterIndex::from(i + SpecialRegisters::Len as usize),
+                source: RegisterIndex::from(i),
+            });
+            //initialise the calldepth
+            self.push_opcode(BrilligOpcode::Const {
+                destination: self.call_depth(),
+                value: Value::from(0_usize),
+            });
+            //initialise the stackframe
+            self.allocate_array(self.stack_frame(), 50);
+        }
     }
 }
 
