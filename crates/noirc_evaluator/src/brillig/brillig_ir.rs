@@ -13,8 +13,7 @@ use self::{
 };
 use acvm::{
     acir::brillig_vm::{
-        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
-        Value,
+        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory, Value,
     },
     FieldElement,
 };
@@ -192,14 +191,14 @@ impl BrilligContext {
     pub(crate) fn foreign_call_instruction(
         &mut self,
         func_name: String,
-        inputs: &[RegisterValueOrArray],
-        outputs: &[RegisterValueOrArray],
+        inputs: &[RegisterOrMemory],
+        outputs: &[RegisterOrMemory],
     ) {
         // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
-            destination: outputs[0],
-            input: inputs[0],
+            destinations: outputs.to_vec(),
+            inputs: inputs.to_vec(),
         };
         self.push_opcode(opcode);
     }

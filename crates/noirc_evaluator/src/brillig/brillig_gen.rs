@@ -8,7 +8,7 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -264,12 +264,12 @@ impl BrilligGen {
         &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterValueOrArray {
+    ) -> RegisterOrMemory {
         let register_index = self.convert_ssa_value(value_id, dfg);
         let typ = dfg[value_id].get_type();
         match typ {
-            Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
-            Type::Array(_, size) => RegisterValueOrArray::HeapArray(register_index, size),
+            Type::Numeric(_) => RegisterOrMemory::RegisterIndex(register_index),
+            Type::Array(_, size) => RegisterOrMemory::HeapArray(register_index, size),
             _ => {
                 unreachable!("type not supported for conversion into brillig register")
             }
