@@ -171,7 +171,7 @@
       noirWasmArgs = wasmEnvironment // {
         pname = "noir_wasm";
 
-        src = craneLib.cleanCargoSource ./.;
+        src = ./.;
         
         cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
 
