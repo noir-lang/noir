@@ -204,13 +204,14 @@ impl BrilligContext {
     pub(crate) fn foreign_call_instruction(
         &mut self,
         func_name: String,
-        inputs: &[RegisterIndex],
-        outputs: &[RegisterIndex],
+        inputs: &[RegisterValueOrArray],
+        outputs: &[RegisterValueOrArray],
     ) {
+        // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
-            destination: RegisterValueOrArray::RegisterIndex(outputs[0]),
-            input: RegisterValueOrArray::RegisterIndex(inputs[0]),
+            destination: outputs[0],
+            input: inputs[0],
         };
         self.push_opcode(opcode);
     }
@@ -334,7 +335,12 @@ impl BrilligContext {
         // So to cast any value to a target bit size we can just issue a no-op arithmetic operation
         // With bit size equal to target_bit_size
         let zero = self.make_constant(Value::from(FieldElement::zero()));
-        self.binary_instruction(source, zero, destination, BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: target_bit_size });
+        self.binary_instruction(
+            source,
+            zero,
+            destination,
+            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: target_bit_size },
+        );
     }
 }
 

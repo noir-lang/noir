@@ -330,7 +330,7 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(function) => match ssa.functions[&function].runtime() {
                         RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
-                        RuntimeType::Brillig | RuntimeType::Oracle(_) => {
+                        RuntimeType::Brillig => {
                             self.context.failed_to_inline_a_call = true;
                             self.push_instruction(*id);
                         }
@@ -365,13 +365,14 @@ impl<'function> PerFunctionContext<'function> {
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
         let results = self.source_function.dfg.instruction_results(id);
+        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
-            .then(|| vecmap(results, |result| self.source_function.dfg.type_of_value(*result)));
+            .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
-        Self::insert_new_instruction_results(&mut self.values, results, new_results);
+        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous

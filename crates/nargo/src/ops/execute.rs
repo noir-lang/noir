@@ -14,8 +14,8 @@ pub fn execute_circuit(
     let mut blocks = Blocks::default();
     let solver_status = solve(backend, &mut initial_witness, &mut blocks, circuit.opcodes)?;
 
-    // TODO(#1615): Nargo only supports "oracle_print_impl" functions that print a singular value and nothing else
-    // expand this in a general logging refactor
+    // TODO(#1615): Nargo only supports "oracle_print_**_impl" functions  that print a singular value or an array and nothing else
+    // This should be expanded in a general logging refactor
     if let PartialWitnessGeneratorStatus::RequiresOracleData {
         unresolved_brillig_calls,
         required_oracle_data,
@@ -28,13 +28,26 @@ pub fn execute_circuit(
         for unresolved_brillig_call in unresolved_brillig_calls {
             let UnresolvedBrilligCall { foreign_call_wait_info, mut brillig } =
                 unresolved_brillig_call;
-            let value = foreign_call_wait_info.inputs[0];
 
-            // Execute foreign call "oracle_print_impl"
-            println!("{:?}", value.to_field().to_hex());
-
-            // TODO(#1615): "oracle_print_impl" is just an identity func
-            brillig.foreign_call_results.push(ForeignCallResult { values: vec![value] });
+            // Execute foreign calls
+            // TODO(#1615): "oracle_print_impl" and "oracle_print_array_impl" are just identity funcs
+            if foreign_call_wait_info.function == "oracle_print_impl" {
+                let value = foreign_call_wait_info.inputs[0];
+                println!("{:?}", value.to_field().to_hex());
+                brillig.foreign_call_results.push(ForeignCallResult { values: vec![value] });
+            } else if foreign_call_wait_info.function == "oracle_print_array_impl" {
+                let mut outputs_hex = Vec::new();
+                for value in foreign_call_wait_info.inputs.clone() {
+                    outputs_hex.push(value.to_field().to_hex());
+                }
+                // Join all of the hex strings using a comma
+                let comma_separated_elements = outputs_hex.join(", ");
+                let output_witnesses_string = "[".to_owned() + &comma_separated_elements + "]";
+                println!("{output_witnesses_string}");
+                brillig
+                    .foreign_call_results
+                    .push(ForeignCallResult { values: vec![foreign_call_wait_info.inputs[0]] });
+            }
 
             let mut next_opcodes_for_solving = vec![Opcode::Brillig(brillig)];
             next_opcodes_for_solving.extend_from_slice(&unsolved_opcodes[..]);

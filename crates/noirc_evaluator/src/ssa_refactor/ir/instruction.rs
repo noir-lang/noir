@@ -92,10 +92,6 @@ pub(crate) enum Instruction {
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
 
-    /// Executes an "oracle" call
-    /// These are unconstrained functions that may access external state.
-    ForeignCall { func: String, arguments: Vec<ValueId> },
-
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
     /// This is used for representing mutable variables and references.
@@ -106,6 +102,15 @@ pub(crate) enum Instruction {
 
     /// Writes a value to memory.
     Store { address: ValueId, value: ValueId },
+
+    /// Provides a context for all instructions that follow up until the next
+    /// `EnableSideEffects` is encountered, for stating a condition that determines whether
+    /// such instructions are allowed to have side-effects.
+    ///
+    /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
+    /// instruction regions with an condition that corresponds to their position in the CFG's
+    /// if-branching structure.
+    EnableSideEffects { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
@@ -131,11 +136,12 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
-            Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
-            Instruction::Load { .. }
-            | Instruction::ArrayGet { .. }
-            | Instruction::Call { .. }
-            | Instruction::ForeignCall { .. } => InstructionResultType::Unknown,
+            Instruction::Constrain(_)
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
+                InstructionResultType::Unknown
+            }
         }
     }
 
@@ -163,10 +169,6 @@ impl Instruction {
                 max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
-            Instruction::ForeignCall { func, arguments } => Instruction::ForeignCall {
-                func: func.to_owned(),
-                arguments: vecmap(arguments.iter().copied(), f),
-            },
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -176,11 +178,54 @@ impl Instruction {
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
+            Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffects { condition: f(*condition) }
+            }
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
             Instruction::ArraySet { array, index, value } => {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
+            }
+        }
+    }
+
+    /// Applies a function to each input value this instruction holds.
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        match self {
+            Instruction::Binary(binary) => {
+                f(binary.lhs);
+                f(binary.rhs);
+            }
+            Instruction::Call { func, arguments } => {
+                f(*func);
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Instruction::Cast(value, _)
+            | Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::Constrain(value)
+            | Instruction::Load { address: value } => {
+                f(*value);
+            }
+            Instruction::Store { address, value } => {
+                f(*address);
+                f(*value);
+            }
+            Instruction::Allocate { .. } => (),
+            Instruction::ArrayGet { array, index } => {
+                f(*array);
+                f(*index);
+            }
+            Instruction::ArraySet { array, index, value } => {
+                f(*array);
+                f(*index);
+                f(*value);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                f(*condition);
             }
         }
     }
@@ -262,10 +307,10 @@ impl Instruction {
                 }
             }
             Instruction::Call { .. } => None,
-            Instruction::ForeignCall { .. } => None,
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::EnableSideEffects { .. } => None,
         }
     }
 }
@@ -335,6 +380,26 @@ impl TerminatorInstruction {
             }
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }
+            }
+        }
+    }
+
+    /// Apply a function to each value
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                f(*condition);
+            }
+            Jmp { arguments, .. } => {
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Return { return_values } => {
+                for return_value in return_values {
+                    f(*return_value);
+                }
             }
         }
     }

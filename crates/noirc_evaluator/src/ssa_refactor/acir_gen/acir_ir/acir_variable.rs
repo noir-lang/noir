@@ -17,7 +17,7 @@ use acvm::{
 use iter_extended::vecmap;
 use std::{borrow::Cow, hash::Hash};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.
 ///
 /// One can think of Expression/Witness/Const
@@ -27,25 +27,31 @@ use std::{borrow::Cow, hash::Hash};
 /// We could store this information when we do a range constraint
 /// but this information is readily available by the caller so
 /// we allow the user to pass it in.
-pub(crate) struct AcirType(NumericType);
+pub(crate) enum AcirType {
+    NumericType(NumericType),
+    Array(Vec<AcirType>, usize),
+}
 
 impl AcirType {
     pub(crate) fn new(typ: NumericType) -> Self {
-        Self(typ)
+        Self::NumericType(typ)
     }
 
     /// Returns the bit size of the underlying type
     pub(crate) fn bit_size(&self) -> u32 {
-        match self.0 {
-            NumericType::Signed { bit_size } => bit_size,
-            NumericType::Unsigned { bit_size } => bit_size,
-            NumericType::NativeField => FieldElement::max_num_bits(),
+        match self {
+            AcirType::NumericType(numeric_type) => match numeric_type {
+                NumericType::Signed { bit_size } => *bit_size,
+                NumericType::Unsigned { bit_size } => *bit_size,
+                NumericType::NativeField => FieldElement::max_num_bits(),
+            },
+            AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
         }
     }
 
     /// Returns a boolean type
     fn boolean() -> Self {
-        AcirType(NumericType::Unsigned { bit_size: 1 })
+        AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
     }
 }
 
@@ -58,7 +64,11 @@ impl From<SsaType> for AcirType {
 impl<'a> From<&'a SsaType> for AcirType {
     fn from(value: &SsaType) -> Self {
         match value {
-            SsaType::Numeric(numeric_type) => AcirType(*numeric_type),
+            SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
+            SsaType::Array(elements, size) => {
+                let elements = elements.iter().map(|e| e.into()).collect();
+                AcirType::Array(elements, *size)
+            }
             _ => unreachable!("The type {value}  cannot be represented in ACIR"),
         }
     }
@@ -170,7 +180,7 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
         let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs)?;
         Ok(outputs[0])
     }
@@ -182,7 +192,7 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
+        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
         let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
         Ok(outputs[0])
     }
@@ -209,7 +219,7 @@ impl AcirContext {
             let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
-            let inputs = vec![AcirValue::Var(a, typ), AcirValue::Var(b, typ)];
+            let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
             let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
             self.sub_var(max, outputs[0])
         }
@@ -514,6 +524,7 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: Option<AcirVar>,
     ) -> Result<AcirVar, AcirGenError> {
         let lhs_data = &self.vars[lhs];
         let rhs_data = &self.vars[rhs];
@@ -523,8 +534,13 @@ impl AcirContext {
 
         // TODO: check what happens when we do (a as u8) >= (b as u32)
         // TODO: The frontend should shout in this case
+
+        let predicate = predicate.map(|acir_var| {
+            let predicate_data = &self.vars[acir_var];
+            predicate_data.to_expression().into_owned()
+        });
         let is_greater_than_eq =
-            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size)?;
+            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size, predicate)?;
 
         Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
     }
@@ -536,10 +552,11 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: Option<AcirVar>,
     ) -> Result<AcirVar, AcirGenError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, predicate)?;
 
         let one = self.add_constant(FieldElement::one());
         self.sub_var(one, comparison) // comparison_negated
@@ -635,7 +652,7 @@ impl AcirContext {
 
         let mut limb_vars = vecmap(limbs, |witness| {
             let witness = self.add_data(AcirVarData::Witness(witness));
-            AcirValue::Var(witness, result_element_type)
+            AcirValue::Var(witness, result_element_type.clone())
         });
 
         if endian == Endian::Big {
@@ -711,18 +728,62 @@ impl AcirContext {
     pub(crate) fn brillig(
         &mut self,
         code: Vec<BrilligOpcode>,
-        inputs: Vec<AcirVar>,
-        output_len: usize,
-    ) -> Vec<AcirVar> {
-        let b_inputs =
-            vecmap(inputs, |i| BrilligInputs::Single(self.vars[&i].to_expression().into_owned()));
-        let outputs = vecmap(0..output_len, |_| self.acir_ir.next_witness_index());
-        let outputs_var =
-            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
-        let b_outputs = vecmap(outputs, BrilligOutputs::Simple);
+        inputs: Vec<AcirValue>,
+        outputs: Vec<AcirType>,
+    ) -> Vec<AcirValue> {
+        let b_inputs = vecmap(inputs, |i| match i {
+            AcirValue::Var(var, _) => {
+                BrilligInputs::Single(self.vars[&var].to_expression().into_owned())
+            }
+            AcirValue::Array(vars) => {
+                let mut var_expressions: Vec<Expression> = Vec::new();
+                for var in vars {
+                    self.brillig_array_input(&mut var_expressions, var);
+                }
+                BrilligInputs::Array(var_expressions)
+            }
+        });
+
+        let mut b_outputs = Vec::new();
+        let outputs_var = vecmap(outputs, |output| match output {
+            AcirType::NumericType(_) => {
+                let witness_index = self.acir_ir.next_witness_index();
+                b_outputs.push(BrilligOutputs::Simple(witness_index));
+                let var = self.add_data(AcirVarData::Witness(witness_index));
+                AcirValue::Var(var, output.clone())
+            }
+            AcirType::Array(element_types, size) => {
+                let mut witnesses = Vec::new();
+                let mut array_values = im::Vector::new();
+                for _ in 0..size {
+                    for element_type in &element_types {
+                        let witness_index = self.acir_ir.next_witness_index();
+                        witnesses.push(witness_index);
+                        let var = self.add_data(AcirVarData::Witness(witness_index));
+                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                    }
+                }
+                b_outputs.push(BrilligOutputs::Array(witnesses));
+                AcirValue::Array(array_values)
+            }
+        });
+
         self.acir_ir.brillig(code, b_inputs, b_outputs);
 
         outputs_var
+    }
+
+    fn brillig_array_input(&self, var_expressions: &mut Vec<Expression>, input: AcirValue) {
+        match input {
+            AcirValue::Var(var, _) => {
+                var_expressions.push(self.vars[var].to_expression().into_owned());
+            }
+            AcirValue::Array(vars) => {
+                for var in vars {
+                    self.brillig_array_input(var_expressions, var);
+                }
+            }
+        }
     }
 }
 

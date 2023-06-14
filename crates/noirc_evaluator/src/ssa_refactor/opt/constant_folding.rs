@@ -56,9 +56,9 @@ impl Context {
         for instruction in instructions {
             self.push_instruction(function, block, instruction);
         }
-
-        let terminator =
-            function.dfg[block].unwrap_terminator().map_values(|value| self.get_value(value));
+        let terminator = function.dfg[block]
+            .unwrap_terminator()
+            .map_values(|value| self.get_value(function.dfg.resolve(value)));
 
         function.dfg.set_block_terminator(block, terminator);
         self.block_queue.extend(function.dfg[block].successors());
@@ -74,8 +74,9 @@ impl Context {
         block: BasicBlockId,
         id: InstructionId,
     ) {
-        let instruction = function.dfg[id].map_values(|id| self.get_value(id));
-        let results = function.dfg.instruction_results(id).to_vec();
+        let instruction =
+            function.dfg[id].map_values(|id| self.get_value(function.dfg.resolve(id)));
+        let results = vecmap(function.dfg.instruction_results(id), |id| function.dfg.resolve(*id));
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()

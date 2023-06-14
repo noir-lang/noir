@@ -240,18 +240,6 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
-    /// Insert a foreign call instruction at the end of the current block and return
-    /// the results of the call.
-    pub(crate) fn insert_foreign_call(
-        &mut self,
-        func: String,
-        arguments: Vec<ValueId>,
-        result_types: Vec<Type>,
-    ) -> &[ValueId] {
-        self.insert_instruction(Instruction::ForeignCall { func, arguments }, Some(result_types))
-            .results()
-    }
-
     /// Insert an instruction to extract an element from an array
     pub(crate) fn insert_array_get(
         &mut self,
