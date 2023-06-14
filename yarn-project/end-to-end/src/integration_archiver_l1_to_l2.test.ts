@@ -99,7 +99,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     const mintAmount = 100n;
 
     logger('Sending messages to L1 portal');
-    const args = [ownerAddress.toString(), mintAmount, deadline, secretString] as const;
+    const args = [ownerAddress.toString(), mintAmount, deadline, secretString, ethAccount.toString()] as const;
     await tokenPortal.write.depositToAztec(args, {} as any);
     expect(await underlyingERC20.read.balanceOf([ethAccount.toString()])).toBe(1000000n - mintAmount);
 

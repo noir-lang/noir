@@ -363,9 +363,9 @@ describe('Private Execution test suite', () => {
     const buildL1ToL2Message = async (contentPreimage: Fr[], targetContract: AztecAddress, secret: Fr) => {
       const wasm = await CircuitsWasm.get();
 
-      // Function selector: 0x1801fbe5 keccak256('mint(uint256,bytes32)')
+      // Function selector: 0xeeb73071 keccak256('mint(uint256,bytes32,address)')
       const contentBuf = Buffer.concat([
-        Buffer.from([0x18, 0x01, 0xfb, 0xe5]),
+        Buffer.from([0xee, 0xb7, 0x30, 0x71]),
         ...contentPreimage.map(field => field.toBuffer()),
       ]);
       const temp = toBigIntBE(sha256(contentBuf));
@@ -401,7 +401,12 @@ describe('Private Execution test suite', () => {
       const abi = NonNativeTokenContractAbi.functions.find(f => f.name === 'mint')!;
 
       const secret = new Fr(1n);
-      const preimage = await buildL1ToL2Message([new Fr(bridgedAmount), new Fr(recipient.x)], contractAddress, secret);
+      const canceller = EthAddress.random();
+      const preimage = await buildL1ToL2Message(
+        [new Fr(bridgedAmount), new Fr(recipient.x), canceller.toField()],
+        contractAddress,
+        secret,
+      );
 
       // stub message key
       const messageKey = Fr.random();
@@ -431,7 +436,7 @@ describe('Private Execution test suite', () => {
         AztecAddress.random(),
         contractAddress,
         new FunctionData(Buffer.alloc(4), true, true),
-        encodeArguments(abi, [bridgedAmount, recipient, messageKey, secret]),
+        encodeArguments(abi, [bridgedAmount, recipient, messageKey, secret, canceller.toField()]),
         Fr.random(),
         txContext,
         Fr.ZERO,

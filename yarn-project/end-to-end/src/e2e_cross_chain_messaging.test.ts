@@ -104,7 +104,7 @@ describe('e2e_cross_chain_messaging', () => {
     const mintAmount = 100n;
 
     logger('Sending messages to L1 portal');
-    const args = [ownerAddress.toString(), mintAmount, deadline, secretString] as const;
+    const args = [ownerAddress.toString(), mintAmount, deadline, secretString, ethAccount.toString()] as const;
     const { result: messageKeyHex } = await tokenPortal.simulate.depositToAztec(args, {
       account: ethAccount.toString(),
     } as any);
@@ -135,7 +135,7 @@ describe('e2e_cross_chain_messaging', () => {
     // Call the mint tokens function on the noir contract
 
     const consumptionTx = l2Contract.methods
-      .mint(mintAmount, ownerPub, messageKey, secret)
+      .mint(mintAmount, ownerPub, messageKey, secret, ethAccount.toField())
       .send({ from: ownerAddress });
 
     await consumptionTx.isMined(0, 0.1);

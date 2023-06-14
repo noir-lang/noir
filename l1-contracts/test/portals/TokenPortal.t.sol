@@ -67,20 +67,30 @@ contract TokenPortalTest is Test {
     vm.deal(address(this), 100 ether);
   }
 
+  function _createExpectedL1ToL2Message(address _canceller)
+    internal
+    view
+    returns (DataStructures.L1ToL2Msg memory)
+  {
+    return DataStructures.L1ToL2Msg({
+      sender: DataStructures.L1Actor(address(tokenPortal), block.chainid),
+      recipient: DataStructures.L2Actor(l2TokenAddress, 1),
+      content: Hash.sha256ToField(
+        abi.encodeWithSignature("mint(uint256,bytes32,address)", amount, to, _canceller)
+        ),
+      secretHash: secretHash,
+      deadline: deadline,
+      fee: bid
+    });
+  }
+
   function testDeposit() public returns (bytes32) {
     // mint token and approve to the portal
     portalERC20.mint(address(this), mintAmount);
     portalERC20.approve(address(tokenPortal), mintAmount);
 
     // Check for the expected message
-    DataStructures.L1ToL2Msg memory expectedMessage = DataStructures.L1ToL2Msg({
-      sender: DataStructures.L1Actor(address(tokenPortal), block.chainid),
-      recipient: DataStructures.L2Actor(l2TokenAddress, 1),
-      content: Hash.sha256ToField(abi.encodeWithSignature("mint(uint256,bytes32)", amount, to)),
-      secretHash: secretHash,
-      deadline: deadline,
-      fee: bid
-    });
+    DataStructures.L1ToL2Msg memory expectedMessage = _createExpectedL1ToL2Message(address(this));
     bytes32 expectedEntryKey = inbox.computeEntryKey(expectedMessage);
 
     // Check the even was emitted
@@ -99,7 +109,8 @@ contract TokenPortalTest is Test {
     );
 
     // Perform op
-    bytes32 entryKey = tokenPortal.depositToAztec{value: bid}(to, amount, deadline, secretHash);
+    bytes32 entryKey =
+      tokenPortal.depositToAztec{value: bid}(to, amount, deadline, secretHash, address(this));
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
 
@@ -114,6 +125,18 @@ contract TokenPortalTest is Test {
     bytes32 expectedEntryKey = testDeposit();
     // now cancel the message - move time forward (post deadline)
     vm.warp(deadline + 1 days);
+
+    // ensure no one else can cancel the message:
+    vm.startPrank(address(0xdead));
+    bytes32 expectedWrongEntryKey =
+      inbox.computeEntryKey(_createExpectedL1ToL2Message(address(0xdead)));
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
+    );
+    tokenPortal.cancelL1ToAztecMessage(to, amount, deadline, secretHash, bid);
+    vm.stopPrank();
+
+    // actually cancel the message
     // check event was emitted
     vm.expectEmit(true, false, false, false);
     // expected event:
