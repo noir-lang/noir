@@ -181,7 +181,7 @@ impl Context {
                                 // Generate the brillig code of the function
                                 let code = BrilligArtifact::default().link(&brillig[*id]);
 
-                                let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());                                
+                                let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
                                 let output_values = self.acir_context.brillig(code, inputs, outputs);
                                 // Compiler sanity check

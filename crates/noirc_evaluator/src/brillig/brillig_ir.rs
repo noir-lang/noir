@@ -19,6 +19,18 @@ use acvm::{
     FieldElement,
 };
 
+/// Integer arithmetic in Brillig is limited to 127 bit
+/// integers.
+///
+/// We could lift this in the future and have Brillig
+/// do big integer arithmetic when it exceeds the field size
+/// or we could have users re-implement big integer arithmetic
+/// in Brillig.
+/// Since constrained functions do not have this property, it
+/// would mean that unconstrained functions will differ from
+/// constrained functions in terms of syntax compatibility.
+const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
+
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
 #[derive(Default)]
@@ -301,6 +313,34 @@ impl BrilligContext {
             lhs: left,
             rhs: scratch_register_j,
         });
+    }
+
+    /// Emits a modulo instruction against 2**target_bit_size
+    ///
+    /// Integer arithmetic in Brillig is currently constrained to 127 bit integers.
+    /// We restrict the cast operation, so that integer types over 127 bits
+    /// cannot be created.
+    pub(crate) fn cast_instruction(
+        &mut self,
+        destination: RegisterIndex,
+        source: RegisterIndex,
+        target_bit_size: u32,
+    ) {
+        assert!(
+            target_bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+            "tried to cast to a bit size greater than allowed {target_bit_size}"
+        );
+
+        // The brillig VM performs all arithmetic operations modulo 2**bit_size
+        // So to cast any value to a target bit size we can just issue a no-op arithmetic operation
+        // With bit size equal to target_bit_size
+        let zero = self.make_constant(Value::from(FieldElement::zero()));
+        self.binary_instruction(
+            source,
+            zero,
+            destination,
+            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: target_bit_size },
+        );
     }
 }
 

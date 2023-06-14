@@ -8,7 +8,10 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
+use acvm::{
+    acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray},
+    FieldElement,
+};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -190,8 +193,58 @@ impl BrilligGen {
                 let source = self.convert_ssa_value(*value, dfg);
                 self.context.truncate_instruction(destination, source);
             }
+            Instruction::Cast(value, target_type) => {
+                let result_ids = dfg.instruction_results(instruction_id);
+                let destination = self.get_or_create_register(result_ids[0]);
+                let source = self.convert_ssa_value(*value, dfg);
+                self.convert_cast(destination, source, target_type, &dfg.type_of_value(*value));
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+    }
+
+    /// Converts an SSA cast to a sequence of Brillig opcodes.
+    /// Casting is only necessary when shrinking the bit size of a numeric value.
+    fn convert_cast(
+        &mut self,
+        destination: RegisterIndex,
+        source: RegisterIndex,
+        target_type: &Type,
+        source_type: &Type,
+    ) {
+        fn numeric_to_bit_size(typ: &NumericType) -> u32 {
+            match typ {
+                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => *bit_size,
+                NumericType::NativeField => FieldElement::max_num_bits(),
+            }
+        }
+
+        // Casting is only valid for numeric types
+        // This should be checked by the frontend, so we panic if this is the case
+        let (source_numeric_type, target_numeric_type) = match (source_type, target_type) {
+            (Type::Numeric(source_numeric_type), Type::Numeric(target_numeric_type)) => {
+                (source_numeric_type, target_numeric_type)
+            }
+            _ => unimplemented!("The cast operation is only valid for integers."),
+        };
+
+        let source_bit_size = numeric_to_bit_size(source_numeric_type);
+        let target_bit_size = numeric_to_bit_size(target_numeric_type);
+
+        // Casting from a larger bit size to a smaller bit size (narrowing cast)
+        // requires a cast instruction.
+        // If its a widening cast, ie casting from a smaller bit size to a larger bit size
+        // we simply put a mov instruction as a no-op
+        //
+        // Field elements by construction always have the largest bit size
+        // This means that casting to a Field element, will always be a widening cast
+        // and therefore a no-op. Conversely, casting from a Field element
+        // will always be a narrowing cast and therefore a cast instruction
+        if source_bit_size > target_bit_size {
+            self.context.cast_instruction(destination, source, target_bit_size);
+        } else {
+            self.context.mov_instruction(destination, source);
+        }
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
