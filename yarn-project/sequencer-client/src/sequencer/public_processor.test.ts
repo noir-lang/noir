@@ -27,6 +27,7 @@ import {
   ContractDataSource,
   ContractPublicData,
   EncodedContractFunction,
+  FunctionL2Logs,
   Tx,
   TxExecutionRequest,
   TxL2Logs,
@@ -277,6 +278,7 @@ function makePublicExecutionResultFromRequest(item: PublicCallRequest): PublicEx
     returnValues: [new Fr(1n)],
     contractStorageReads: [],
     contractStorageUpdateRequests: [],
+    unencryptedLogs: new FunctionL2Logs([]),
   };
 }
 
@@ -297,5 +299,6 @@ function makePublicExecutionResult(
     returnValues: [],
     contractStorageReads: [],
     contractStorageUpdateRequests: [],
+    unencryptedLogs: new FunctionL2Logs([]),
   };
 }

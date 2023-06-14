@@ -15,7 +15,7 @@ import { SiblingPath } from '@aztec/merkle-tree';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
 import { Tx, TxHash } from '@aztec/types';
-import { TxL2Logs, L2LogsSource } from '@aztec/types';
+import { L2LogsSource } from '@aztec/types';
 import {
   MerkleTrees,
   ServerWorldStateSynchroniser,

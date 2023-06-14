@@ -219,6 +219,7 @@ export class PrivateFunctionExecution {
       storageRead: notAvailable,
       storageWrite: notAvailable,
       callPublicFunction: notAvailable,
+      emitUnencryptedLog: notAvailable,
       emitEncryptedLog: async ([
         acvmContractAddress,
         acvmStorageSlot,

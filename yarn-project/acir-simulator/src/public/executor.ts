@@ -1,9 +1,9 @@
 import { AztecAddress, CallContext, EthAddress, Fr, FunctionData, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { TxExecutionRequest } from '@aztec/types';
+import { FunctionL2Logs, TxExecutionRequest } from '@aztec/types';
 import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-lang/noir_util_wasm';
-import { acvm, frToAztecAddress, frToSelector, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
+import { ACVMField, ZERO_ACVM_FIELD, acvm, frToAztecAddress, frToSelector, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution, PublicExecutionResult } from './execution.js';
 import { ContractStorageActionsCollector } from './state_actions.js';
@@ -43,6 +43,7 @@ export class PublicExecutor {
     const initialWitness = getInitialWitness(execution.args, execution.callContext, this.treeRoots);
     const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);
     const nestedExecutions: PublicExecutionResult[] = [];
+    const unencryptedLogs = new FunctionL2Logs([]);
 
     const notAvailable = () => Promise.reject(`Built-in not available for public execution simulation`);
 
@@ -85,6 +86,15 @@ export class PublicExecutor {
         this.log(`Returning from nested call: ret=${childExecutionResult.returnValues.join(', ')}`);
         return padArrayEnd(childExecutionResult.returnValues, Fr.ZERO, NOIR_MAX_RETURN_VALUES).map(toACVMField);
       },
+      emitUnencryptedLog: ([...chars]: ACVMField[]) => {
+        let unencryptedLog = ''
+        for (const hex of chars) {
+          const unicodeChar = String.fromCharCode(parseInt(hex, 16));
+          unencryptedLog += unicodeChar;
+        }
+        unencryptedLogs.logs.push(Buffer.from(unencryptedLog))
+        return Promise.resolve([ZERO_ACVM_FIELD])
+      }
     });
 
     const returnValues = selectPublicWitnessFlattened(acir, partialWitness).map(fromACVMField);
@@ -96,6 +106,7 @@ export class PublicExecutor {
       contractStorageUpdateRequests,
       returnValues,
       nestedExecutions,
+      unencryptedLogs,
     };
   }
 

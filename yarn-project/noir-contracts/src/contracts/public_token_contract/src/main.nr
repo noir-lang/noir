@@ -6,6 +6,9 @@ contract PublicToken {
     use dep::aztec3::state_vars::storage_map::StorageMap;
     use dep::aztec3::state_vars::storage_field::StorageField;
 
+    // oracles
+    use dep::aztec3::oracle::logs::emit_unencrypted_log;
+
     global balances = StorageMap { storage_slot: 1 };
 
     fn constructor(
@@ -21,6 +24,8 @@ contract PublicToken {
         _padding: [Field; dep::aztec3::abi::MAX_ARGS - 3]
     ) -> pub Field {
         let recipient_balance = balances.at(recipient.x);
+        // emit event log
+        constrain emit_unencrypted_log("Coins minted") == 0;
         recipient_balance.write(recipient_balance.read() + amount)
     }
 
@@ -31,7 +36,7 @@ contract PublicToken {
         _padding: [Field; dep::aztec3::abi::MAX_ARGS - 3]
     ) -> pub Field {
         let sender = inputs.call_context.msg_sender;
-        
+
         let sender_balance = balances.at(sender);
         let recipient_balance = balances.at(recipient.x);
 

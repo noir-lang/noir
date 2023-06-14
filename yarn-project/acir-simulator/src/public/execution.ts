@@ -6,6 +6,7 @@ import {
   Fr,
   FunctionData,
 } from '@aztec/circuits.js';
+import { FunctionL2Logs } from '@aztec/types';
 
 /**
  * The public function execution result.
@@ -21,6 +22,11 @@ export interface PublicExecutionResult {
   contractStorageUpdateRequests: ContractStorageUpdateRequest[];
   /** The results of nested calls. */
   nestedExecutions: this[];
+  /**
+   * Unencrypted logs emitted during execution of this function call.
+   * Note: These are preimages to `encryptedLogsHash`.
+   */
+  unencryptedLogs: FunctionL2Logs;
 }
 
 /**
