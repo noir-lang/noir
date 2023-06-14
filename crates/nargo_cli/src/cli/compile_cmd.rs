@@ -1,7 +1,8 @@
 use acvm::Backend;
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
-use noirc_driver::{CompileOptions, CompiledProgram, Driver};
+use noirc_driver::{CompileOptions, CompiledProgram, Driver, ErrorsAndWarnings, Warnings};
+use noirc_errors::reporter::ReportedErrors;
 use std::path::Path;
 
 use clap::Args;
@@ -51,15 +52,14 @@ pub(crate) fn run<B: Backend>(
         let mut driver = setup_driver(backend, &config.program_dir)?;
 
         let result = driver.compile_contracts(&args.compile_options);
-        let compiled_contracts =
-            driver.report_errors(result, args.compile_options.deny_warnings)?;
+        let contracts = report_errors(result, &driver, args.compile_options.deny_warnings)?;
 
         // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
         // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
         // are compiled via nargo-core and then the PreprocessedContract is constructed here.
         // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
         let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError<B>> =
-            try_vecmap(compiled_contracts, |contract| {
+            try_vecmap(contracts, |contract| {
                 let preprocessed_contract_functions = try_vecmap(contract.functions, |func| {
                     common_reference_string = update_common_reference_string(
                         backend,
@@ -120,5 +120,20 @@ pub(crate) fn compile_circuit<B: Backend>(
 ) -> Result<CompiledProgram, CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
     let result = driver.compile_main(compile_options);
-    driver.report_errors(result, compile_options.deny_warnings).map_err(Into::into)
+    report_errors(result, &driver, compile_options.deny_warnings).map_err(Into::into)
+}
+
+/// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
+/// structure that is commonly used as a return result in this file.
+pub(crate) fn report_errors<T>(
+    result: Result<(T, Warnings), ErrorsAndWarnings>,
+    driver: &Driver,
+    deny_warnings: bool,
+) -> Result<T, ReportedErrors> {
+    let (t, warnings) = result.map_err(|errors| {
+        noirc_errors::reporter::report_all(driver.file_manager(), &errors, deny_warnings)
+    })?;
+
+    noirc_errors::reporter::report_all(driver.file_manager(), &warnings, deny_warnings);
+    Ok(t)
 }

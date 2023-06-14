@@ -7,7 +7,10 @@ use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{cli::compile_cmd::setup_driver, errors::CliError};
+use crate::{
+    cli::{check_cmd::check_crate_and_report_errors, compile_cmd::setup_driver},
+    errors::CliError,
+};
 
 use super::NargoConfig;
 
@@ -38,8 +41,7 @@ fn run_tests<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
-
-    driver.check_crate_and_report_errors(compile_options.deny_warnings)?;
+    check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
 
     let test_functions = driver.get_all_test_functions_in_crate_matching(test_name);
     println!("Running {} test functions...", test_functions.len());

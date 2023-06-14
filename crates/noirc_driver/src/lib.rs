@@ -8,7 +8,6 @@ use acvm::Language;
 use clap::Args;
 use fm::{FileId, FileManager, FileType};
 use noirc_abi::FunctionSignature;
-use noirc_errors::reporter::ReportedErrors;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
@@ -179,31 +178,6 @@ impl Driver {
         } else {
             Ok(errors)
         }
-    }
-
-    /// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
-    /// and errors found.
-    pub fn check_crate_and_report_errors(
-        &mut self,
-        deny_warnings: bool,
-    ) -> Result<(), ReportedErrors> {
-        let result = self.check_crate(deny_warnings).map(|warnings| ((), warnings));
-        self.report_errors(result, deny_warnings)
-    }
-
-    /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
-    /// structure that is commonly used as a return result in this file.
-    pub fn report_errors<T>(
-        &self,
-        result: Result<(T, Warnings), ErrorsAndWarnings>,
-        deny_warnings: bool,
-    ) -> Result<T, ReportedErrors> {
-        let (t, warnings) = result.map_err(|errors| {
-            noirc_errors::reporter::report_all(self.file_manager(), &errors, deny_warnings)
-        })?;
-
-        noirc_errors::reporter::report_all(self.file_manager(), &warnings, deny_warnings);
-        Ok(t)
     }
 
     pub fn compute_function_signature(&self) -> Option<FunctionSignature> {

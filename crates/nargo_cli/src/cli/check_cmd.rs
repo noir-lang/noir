@@ -4,6 +4,7 @@ use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::CompileOptions;
+use noirc_errors::reporter::ReportedErrors;
 use std::path::{Path, PathBuf};
 
 use super::NargoConfig;
@@ -33,7 +34,7 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let mut driver = setup_driver(backend, program_dir.as_ref())?;
-    driver.check_crate_and_report_errors(compile_options.deny_warnings)?;
+    check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = driver.compute_function_signature() {
@@ -203,4 +204,14 @@ d2 = ["", "", ""]
             );
         }
     }
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub(crate) fn check_crate_and_report_errors(
+    driver: &mut noirc_driver::Driver,
+    deny_warnings: bool,
+) -> Result<(), ReportedErrors> {
+    let result = driver.check_crate(deny_warnings).map(|warnings| ((), warnings));
+    super::compile_cmd::report_errors(result, driver, deny_warnings)
 }
