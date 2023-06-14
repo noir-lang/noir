@@ -75,6 +75,22 @@ impl BrilligContext {
         });
     }
 
+    /// Allocates a dynamic array of register size `size` and stores the pointer to the array
+    /// in `pointer_register`
+    // TODO(AD): currently this is unused except in a test, and uses StackFrame as a stack frame pointer instead
+    // of it's current meaning.
+    pub(crate) fn experimental_allocate_dynamic_array(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size: u32,
+    ) {
+        let array_pointer = self.memory.allocate(size as usize);
+        self.push_opcode(BrilligOpcode::Const {
+            destination: pointer_register,
+            value: Value::from(array_pointer),
+        });
+    }
+
     /// Adds a label to the next opcode
     pub(crate) fn add_label_to_next_opcode<T: ToString>(&mut self, label: T) {
         self.obj.add_label_at_position(label.to_string(), self.obj.index_of_next_opcode());
@@ -233,7 +249,6 @@ impl BrilligContext {
         inputs: &[RegisterOrMemory],
         outputs: &[RegisterOrMemory],
     ) {
-        // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
             destinations: outputs.to_vec(),
