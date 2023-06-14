@@ -72,11 +72,11 @@ pub fn experimental_create_circuit(
     // unoptimized backend-agnostic bytecode here
     let optimized_circuit = {
         use crate::errors::RuntimeErrorKind;
-        use acvm::compiler::Simplifier;
+        use acvm::compiler::CircuitSimplifier;
 
         let abi_len = abi.field_count();
 
-        let simplifier = Simplifier::new(abi_len);
+        let simplifier = CircuitSimplifier::new(abi_len);
         acvm::compiler::compile(
             Circuit { current_witness_index, opcodes, public_parameters, return_values },
             np_language,
