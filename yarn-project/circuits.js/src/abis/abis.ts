@@ -195,6 +195,7 @@ export function computeContractAddress(
 
 /**
  * Computes a siloed commitment, given the contract address and the commitment itself.
+ * A siloed commitment effectively namespaces a commitment to a specific contract.
  * @param wasm - A module providing low-level wasm access.
  * @param contract - The contract address
  * @param commitment - The commitment to silo.

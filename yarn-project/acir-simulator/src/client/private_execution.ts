@@ -194,8 +194,14 @@ export class PrivateFunctionExecution {
 
         return toAcvmCallPrivateStackItem(childExecutionResult.callStackItem);
       },
-      getL1ToL2Message: ([msgKey]: ACVMField[]) => this.context.getL1ToL2Message(fromACVMField(msgKey)),
-
+      getL1ToL2Message: ([msgKey]: ACVMField[]) => {
+        return this.context.getL1ToL2Message(fromACVMField(msgKey));
+      },
+      getCommitment: async ([commitment]: ACVMField[]) => {
+        const commitmentData = await this.context.getCommitment(this.contractAddress, fromACVMField(commitment));
+        readRequestCommitmentIndices.push(commitmentData.index);
+        return commitmentData.acvmData;
+      },
       debugLog: (fields: ACVMField[]) => {
         this.log(fieldsToFormattedStr(fields));
         return Promise.resolve([ZERO_ACVM_FIELD]);
@@ -218,6 +224,8 @@ export class PrivateFunctionExecution {
       viewNotesPage: notAvailable,
       storageRead: notAvailable,
       storageWrite: notAvailable,
+      createCommitment: notAvailable,
+      createL2ToL1Message: notAvailable,
       callPublicFunction: notAvailable,
       emitEncryptedLog: async ([
         acvmContractAddress,

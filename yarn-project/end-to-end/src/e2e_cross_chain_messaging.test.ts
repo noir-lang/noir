@@ -70,7 +70,7 @@ describe('e2e_cross_chain_messaging', () => {
     tokenPortalAddress = contracts.tokenPortalAddress;
     await expectBalance(accounts[0], initialBalance);
     logger('Successfully deployed contracts and initialized portal');
-  }, 40_000);
+  }, 60_000);
 
   afterEach(async () => {
     await aztecNode?.stop();

@@ -47,6 +47,6 @@ export interface PublicContractsDB {
 /** Database interface for providing access to commitment tree and l1 to l2 messages tree (append only data trees). */
 export interface CommitmentsDB {
   getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs>;
-  getCommitmentOracle(address: AztecAddress, msgKey: Fr): Promise<CommitmentDataOracleInputs>;
+  getCommitmentOracle(address: AztecAddress, commitment: Fr): Promise<CommitmentDataOracleInputs>;
   getTreeRoots(): PrivateHistoricTreeRoots;
 }

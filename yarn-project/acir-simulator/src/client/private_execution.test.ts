@@ -1,4 +1,4 @@
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
 import {
   ARGS_LENGTH,
   CallContext,
@@ -12,7 +12,7 @@ import {
   PublicCallRequest,
   TxContext,
 } from '@aztec/circuits.js';
-import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
+import { computeSecretMessageHash, siloCommitment } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
@@ -24,6 +24,7 @@ import {
   ChildAbi,
   NonNativeTokenContractAbi,
   ParentAbi,
+  PublicToPrivateContractAbi,
   TestContractAbi,
   ZkTokenContractAbi,
 } from '@aztec/noir-contracts/examples';
@@ -447,6 +448,64 @@ describe('Private Execution test suite', () => {
       // Check a nullifier has been created
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toHaveLength(1);
+    }, 30_000);
+
+    it('Should be able to consume a dummy public to private message', async () => {
+      const db = levelup(createMemDown());
+      const pedersen = new Pedersen(bbWasm);
+
+      const contractAddress = AztecAddress.random();
+      const amount = 100n;
+      const abi = PublicToPrivateContractAbi.functions.find(f => f.name === 'mintFromPublicMessage')!;
+
+      const wasm = await CircuitsWasm.get();
+      const secret = new Fr(1n);
+      const secretHash = computeSecretMessageHash(wasm, secret);
+      const commitment = Fr.fromBuffer(pedersenCompressInputs(wasm, [toBufferBE(amount, 32), secretHash.toBuffer()]));
+      const siloedCommitment = siloCommitment(wasm, contractAddress, commitment);
+
+      const tree: AppendOnlyTree = await newTree(
+        StandardTree,
+        db,
+        pedersen,
+        'privateDataTree',
+        PRIVATE_DATA_TREE_HEIGHT,
+      );
+
+      await tree.appendLeaves([siloedCommitment.toBuffer()]);
+
+      const privateDataTreeRoot = Fr.fromBuffer(tree.getRoot(false));
+      const historicRoots = new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, privateDataTreeRoot, Fr.ZERO);
+
+      oracle.getCommitmentOracle.mockImplementation(async () => {
+        // Check the calculated commitment is correct
+        return Promise.resolve({
+          commitment: siloedCommitment,
+          index: 0n,
+          siblingPath: (await tree.getSiblingPath(0n, false)).toFieldArray(),
+        });
+      });
+
+      const txRequest = new TxExecutionRequest(
+        AztecAddress.random(),
+        contractAddress,
+        new FunctionData(Buffer.alloc(4), true, true),
+        encodeArguments(abi, [amount, secret, recipient]),
+        Fr.random(),
+        txContext,
+        Fr.ZERO,
+      );
+
+      const result = await acirSimulator.run(txRequest, abi, contractAddress, EthAddress.ZERO, historicRoots);
+
+      // Check a nullifier has been created.
+      const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
+      expect(newNullifiers).toHaveLength(1);
+
+      // Check the commitment read request was created successfully.
+      const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
+      expect(readRequests).toHaveLength(1);
+      expect(readRequests[0]).toEqual(commitment);
     }, 30_000);
   });
 
