@@ -524,6 +524,7 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: Option<AcirVar>,
     ) -> Result<AcirVar, AcirGenError> {
         let lhs_data = &self.vars[lhs];
         let rhs_data = &self.vars[rhs];
@@ -533,8 +534,13 @@ impl AcirContext {
 
         // TODO: check what happens when we do (a as u8) >= (b as u32)
         // TODO: The frontend should shout in this case
+
+        let predicate = predicate.map(|acir_var| {
+            let predicate_data = &self.vars[acir_var];
+            predicate_data.to_expression().into_owned()
+        });
         let is_greater_than_eq =
-            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size)?;
+            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size, predicate)?;
 
         Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
     }
@@ -546,10 +552,11 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: Option<AcirVar>,
     ) -> Result<AcirVar, AcirGenError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, predicate)?;
 
         let one = self.add_constant(FieldElement::one());
         self.sub_var(one, comparison) // comparison_negated

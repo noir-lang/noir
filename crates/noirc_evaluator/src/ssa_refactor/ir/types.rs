@@ -31,9 +31,6 @@ pub(crate) enum Type {
 
     /// A function that may be called directly
     Function,
-
-    /// The Unit type with a single value
-    Unit,
 }
 
 impl Type {
@@ -78,7 +75,6 @@ impl std::fmt::Display for Type {
                 write!(f, "[{}; {length}]", elements.join(", "))
             }
             Type::Function => write!(f, "function"),
-            Type::Unit => write!(f, "unit"),
         }
     }
 }

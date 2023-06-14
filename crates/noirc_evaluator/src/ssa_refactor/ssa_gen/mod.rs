@@ -153,7 +153,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_block(&mut self, block: &[Expression]) -> Values {
-        let mut result = self.unit_value();
+        let mut result = Self::unit_value();
         for expr in block {
             result = self.codegen_expression(expr);
         }
@@ -260,7 +260,7 @@ impl<'a> FunctionContext<'a> {
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
-        self.unit_value()
+        Self::unit_value()
     }
 
     /// Codegens an if expression, handling the case of what to do if there is no 'else'.
@@ -298,7 +298,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.switch_to_block(then_block);
         let then_value = self.codegen_expression(&if_expr.consequence);
 
-        let mut result = self.unit_value();
+        let mut result = Self::unit_value();
 
         if let Some(alternative) = &if_expr.alternative {
             let end_block = self.builder.insert_block();
@@ -364,13 +364,13 @@ impl<'a> FunctionContext<'a> {
         }
 
         self.define(let_expr.id, values);
-        self.unit_value()
+        Self::unit_value()
     }
 
     fn codegen_constrain(&mut self, expr: &Expression, _location: Location) -> Values {
         let boolean = self.codegen_non_tuple_expression(expr);
         self.builder.insert_constrain(boolean);
-        self.unit_value()
+        Self::unit_value()
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Values {
@@ -378,11 +378,11 @@ impl<'a> FunctionContext<'a> {
         let rhs = self.codegen_expression(&assign.expression);
 
         self.assign_new_value(lhs, rhs);
-        self.unit_value()
+        Self::unit_value()
     }
 
     fn codegen_semi(&mut self, expr: &Expression) -> Values {
         self.codegen_expression(expr);
-        self.unit_value()
+        Self::unit_value()
     }
 }

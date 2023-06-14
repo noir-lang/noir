@@ -61,6 +61,7 @@ pub(crate) fn display_block(
 /// constant or a function we print those directly.
 fn value(function: &Function, id: ValueId) -> String {
     use super::value::Value;
+    let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")
@@ -154,6 +155,9 @@ pub(crate) fn display_instruction(
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
+        }
+        Instruction::EnableSideEffects { condition } => {
+            writeln!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index } => {
             writeln!(f, "array_get {}, index {}", show(*array), show(*index))
