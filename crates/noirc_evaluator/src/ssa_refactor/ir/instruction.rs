@@ -244,7 +244,7 @@ impl Instruction {
                 }
             }
             Instruction::Not(value) => {
-                match &dfg[*value] {
+                match &dfg[dfg.resolve(*value)] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
@@ -497,13 +497,13 @@ impl Binary {
                 }
             }
             BinaryOp::Eq => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
             }
             BinaryOp::Lt => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -523,7 +523,7 @@ impl Binary {
                 }
             }
             BinaryOp::Xor => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -549,15 +549,21 @@ impl Binary {
         dfg: &mut DataFlowGraph,
         lhs: FieldElement,
         rhs: FieldElement,
-        operand_type: Type,
+        mut operand_type: Type,
     ) -> Option<Id<Value>> {
         let value = match self.operator {
             BinaryOp::Add => lhs + rhs,
             BinaryOp::Sub => lhs - rhs,
             BinaryOp::Mul => lhs * rhs,
             BinaryOp::Div => lhs / rhs,
-            BinaryOp::Eq => (lhs == rhs).into(),
-            BinaryOp::Lt => (lhs < rhs).into(),
+            BinaryOp::Eq => {
+                operand_type = Type::bool();
+                (lhs == rhs).into()
+            }
+            BinaryOp::Lt => {
+                operand_type = Type::bool();
+                (lhs < rhs).into()
+            }
 
             // The rest of the operators we must try to convert to u128 first
             BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
@@ -567,7 +573,6 @@ impl Binary {
             BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
             BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
         };
-        // TODO: Keep original type of constant
         Some(dfg.make_constant(value, operand_type))
     }
 

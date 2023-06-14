@@ -197,7 +197,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed(*bits),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned(*bits),
             ast::Type::Bool => Type::unsigned(1),
-            ast::Type::String(_) => Type::Reference,
+            ast::Type::String(len) => Type::Array(Rc::new(vec![Type::char()]), *len as usize),
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
