@@ -21,7 +21,7 @@ use super::{
 };
 use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use acvm::FieldElement;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
@@ -342,7 +342,7 @@ impl Context {
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
-                unreachable!("ICE: Should have been in cache {value:?}")
+                unreachable!("ICE: Value {value_id:?} should have been in cache {value:?}")
             }
         };
         self.ssa_values.insert(value_id, acir_value.clone());
@@ -355,7 +355,9 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> im::Vector<AcirValue> {
         match self.convert_value(value_id, dfg) {
-            AcirValue::Var(acir_var, _) => panic!("Expected an array value, found: {acir_var:?}"),
+            AcirValue::Var(acir_var, _) => {
+                panic!("Expected an array value at {value_id:?}, found: {acir_var:?}")
+            }
             AcirValue::Array(array) => array,
         }
     }
@@ -363,7 +365,9 @@ impl Context {
     fn convert_numeric_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirVar {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => acir_var,
-            AcirValue::Array(array) => panic!("Expected a numeric value, found: {array:?}"),
+            AcirValue::Array(array) => {
+                panic!("Expected a numeric value at {value_id:?}, found: {array:?}")
+            }
         }
     }
 
@@ -373,8 +377,16 @@ impl Context {
         binary: &Binary,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, AcirGenError> {
-        let lhs = self.convert_numeric_value(binary.lhs, dfg);
-        let rhs = self.convert_numeric_value(binary.rhs, dfg);
+        let lhs = self.convert_value(binary.lhs, dfg);
+        let rhs = self.convert_value(binary.rhs, dfg);
+
+        let (lhs, rhs) = match (lhs, rhs) {
+            (AcirValue::Array(lhs), AcirValue::Array(rhs)) => {
+                return self.convert_ssa_array_binary(binary.operator, lhs, rhs);
+            }
+            (AcirValue::Var(lhs, _), AcirValue::Var(rhs, _)) => (lhs, rhs),
+            _ => unreachable!("Binary operands must both be vars or both be arrays"),
+        };
 
         let binary_type = self.type_of_binary_operation(binary, dfg);
         match &binary_type {
@@ -417,6 +429,46 @@ impl Context {
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
             BinaryOp::Mod => self.acir_context.modulo_var(lhs, rhs, bit_count),
+        }
+    }
+
+    fn convert_ssa_array_binary(
+        &mut self,
+        operator: BinaryOp,
+        lhs: im::Vector<AcirValue>,
+        rhs: im::Vector<AcirValue>,
+    ) -> Result<AcirVar, AcirGenError> {
+        assert_eq!(operator, BinaryOp::Eq, "Only array equality is supported");
+        assert_eq!(
+            lhs.len(),
+            rhs.len(),
+            "Arrays of different lengths cannot be checked for equality"
+        );
+        let unwrap_values = |values: im::Vector<AcirValue>| {
+            vecmap(values, |elem| match elem {
+                AcirValue::Var(var, _) => var,
+                _ => unreachable!("Nested array equality is not supported"),
+            })
+        };
+        let lhs_vars = unwrap_values(lhs);
+        let rhs_vars = unwrap_values(rhs);
+
+        let mut elem_equalities =
+            try_vecmap(lhs_vars.into_iter().zip(rhs_vars.into_iter()), |(lhs_elem, rhs_elem)| {
+                self.acir_context.eq_var(lhs_elem, rhs_elem)
+            })?;
+
+        if let Some(last_elem) = elem_equalities.pop() {
+            let mut coalesced_eq_var = last_elem;
+            for elem_eq in elem_equalities {
+                coalesced_eq_var =
+                    self.acir_context.and_var(coalesced_eq_var, elem_eq, Type::bool().into())?;
+            }
+            Ok(coalesced_eq_var)
+        } else {
+            // Arrays are empty, therefore the equality is always true
+            let true_var = self.acir_context.add_constant(FieldElement::one());
+            Ok(true_var)
         }
     }
 
