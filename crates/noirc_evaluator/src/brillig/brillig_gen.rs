@@ -5,7 +5,7 @@ use super::{
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
-    function::Function,
+    function::{Function, FunctionId},
     instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
     post_order::PostOrder,
     types::{NumericType, Type},
@@ -13,9 +13,9 @@ use crate::ssa_refactor::ir::{
 };
 use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex};
 use iter_extended::vecmap;
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
-#[derive(Default)]
+
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
     /// Context for creating brillig opcodes
@@ -25,6 +25,13 @@ pub(crate) struct BrilligGen {
 }
 
 impl BrilligGen {
+
+    pub(crate) fn new(func_id: FunctionId) -> BrilligGen {
+        BrilligGen {
+            context: BrilligContext::new(func_id),
+            ssa_value_to_register: HashMap::new(),
+        }
+    }
     /// Gets a `RegisterIndex` for a `ValueId`, if one already exists
     /// or creates a new `RegisterIndex` using the latest available
     /// free register.
@@ -48,8 +55,9 @@ impl BrilligGen {
 
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     fn convert_block(&mut self, block_id: BasicBlockId, dfg: &DataFlowGraph, brillig: &Brillig) {
+        let label = self.context.block_label(block_id);
         // Add a label for this block
-        self.context.add_label_to_next_opcode(block_id);
+        self.context.add_label_to_next_opcode(label);
 
         // Convert the block parameters
         let block = &dfg[block_id];
@@ -78,8 +86,8 @@ impl BrilligGen {
         match terminator_instruction {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
-                self.context.jump_if_instruction(condition, then_destination);
-                self.context.jump_instruction(else_destination);
+                self.context.jump_if_instruction(condition, *then_destination);
+                self.context.jump_instruction(*else_destination);
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let target = &dfg[*destination];
@@ -88,7 +96,7 @@ impl BrilligGen {
                     let source = self.convert_ssa_value(*src, dfg);
                     self.context.mov_instruction(destination, source);
                 }
-                self.context.jump_instruction(destination);
+                self.context.jump_instruction(*destination);
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_registers: Vec<_> = return_values
@@ -247,7 +255,7 @@ impl BrilligGen {
     /// Compiles an SSA function into a Brillig artifact which
     /// contains a sequence of SSA opcodes.
     pub(crate) fn compile(func: &Function, brillig: &Brillig) -> BrilligArtifact {
-        let mut brillig_gen = BrilligGen::default();
+        let mut brillig_gen = BrilligGen::new(func.id());
 
         brillig_gen.convert_ssa_function(func, brillig);
 

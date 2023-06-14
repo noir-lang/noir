@@ -26,11 +26,10 @@ impl Brillig {
     pub(crate) fn compile(&mut self, func: &Function) {
         let obj = BrilligGen::compile(func, self);
         self.ssa_function_to_brillig.insert(func.id(), obj);
-        self.ssa_function_to_block.insert(func.id(), func.entry_block());
     }
 
     pub(crate) fn function_label(&self, id: FunctionId) -> String {
-        self.ssa_function_to_block[&id].to_string()
+        id.to_string()+"-"+ &self.ssa_function_to_block[&id].to_string()
     }
 }
 
@@ -45,6 +44,10 @@ impl Ssa {
     /// Generate compilation artifacts for brillig functions
     pub(crate) fn to_brillig(&self) -> Brillig {
         let mut brillig = Brillig::default();
+        for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
+            brillig.ssa_function_to_block.insert(f.id(), f.entry_block());
+        }
+        
         for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
             let id = f.id();
             if id != self.main_id {

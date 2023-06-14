@@ -7,7 +7,7 @@
 pub(crate) mod artifact;
 pub(crate) mod memory;
 
-use crate::ssa_refactor::ir::function::FunctionId;
+use crate::ssa_refactor::ir::{function::FunctionId, basic_block::BasicBlockId};
 
 use self::{
     artifact::{BrilligArtifact, UnresolvedLocation},
@@ -29,7 +29,6 @@ pub(crate) enum SpecialRegisters {
 
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
-#[derive(Default)]
 pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
     /// A usize indicating the latest un-used register.
@@ -49,6 +48,18 @@ impl BrilligContext {
         self.obj
     }
 
+    pub(crate) fn new(func: FunctionId) -> BrilligContext {
+        BrilligContext {
+            obj: BrilligArtifact::new(func),
+            latest_register: 0,
+            memory: BrilligMemory::default(),
+        }
+    }
+
+    pub(crate) fn block_label(&self, block_id: BasicBlockId) -> String {
+        self.obj.block_label(block_id)
+    }
+
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
     pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
@@ -65,22 +76,22 @@ impl BrilligContext {
     }
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
-    pub(crate) fn jump_instruction<T: ToString>(&mut self, target_label: T) {
+    pub(crate) fn jump_instruction(&mut self, target_label: BasicBlockId) {
         self.add_unresolved_jump(
             BrilligOpcode::Jump { location: 0 },
-            UnresolvedLocation::Label(target_label.to_string()),
+            UnresolvedLocation::Label(self.block_label(target_label)),
         );
     }
 
     /// Adds a unresolved `JumpIf` instruction to the bytecode.
-    pub(crate) fn jump_if_instruction<T: ToString>(
+    pub(crate) fn jump_if_instruction(
         &mut self,
         condition: RegisterIndex,
-        target_label: T,
+        target_label: BasicBlockId,
     ) {
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            UnresolvedLocation::Label(target_label.to_string()),
+            UnresolvedLocation::Label(self.block_label(target_label)),
         );
     }
 
@@ -340,6 +351,7 @@ impl BrilligContext {
         func_id: FunctionId,
     ) {
         let registers_len = self.latest_register;
+        let empty = self.create_register();//TODO TEMP TO TEST , fiexer, debugger, et enlever...
         let registers = self.create_register();
         let one = self.create_register();
         self.push_opcode(BrilligOpcode::Const { destination: one, value: Value::from(1_usize) });

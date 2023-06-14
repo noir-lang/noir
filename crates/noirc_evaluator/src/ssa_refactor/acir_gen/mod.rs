@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{Brillig, brillig_ir::artifact::BrilligArtifact};
+use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
@@ -178,9 +178,12 @@ impl Context {
                                     .map(|(var, _typ)| var)
                                     .collect();
                                 // Generate the brillig code of the function
-                                let code = BrilligArtifact::default().link(&brillig[*id]);
+                                let mut obj = BrilligArtifact::new(*id);
+                                let code = obj.link(*id, arguments.len(), brillig);
+                                BrilligArtifact::print_code(&code);
                                 let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
-
+                         
+                             
                                 if Self::is_return_type_unit(result_ids, dfg) {
                                     return;
                                 }
