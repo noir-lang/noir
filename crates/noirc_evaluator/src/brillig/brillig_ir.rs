@@ -93,25 +93,6 @@ impl BrilligContext {
         self.load_instruction(result, index_of_element_in_memory);
     }
 
-    /// Stores the value in the array at index `index`
-    pub(crate) fn array_store(
-        &mut self,
-        array_ptr: RegisterIndex,
-        index: RegisterIndex,
-        value: RegisterIndex,
-    ) {
-        // Computes array_ptr + index, ie array[index]
-        let index_of_element_in_memory = self.create_register();
-        self.binary_instruction(
-            array_ptr,
-            index,
-            index_of_element_in_memory,
-            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
-        );
-
-        self.store_instruction(index_of_element_in_memory, value);
-    }
-
     /// Adds a label to the next opcode
     pub(crate) fn add_label_to_next_opcode<T: ToString>(&mut self, label: T) {
         self.obj.add_label_at_position(label.to_string(), self.obj.index_of_next_opcode());
@@ -234,74 +215,6 @@ impl BrilligContext {
             BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
                 self.modulo_instruction(result, lhs, rhs, bit_size, is_signed_integer);
             }
-        }
-    }
-
-    /// Generates the instructions to apply a binary operation to all items of two arrays.
-    pub(crate) fn arrays_binary_instruction(
-        &mut self,
-        lhs_array_ptr: RegisterIndex,
-        rhs_array_ptr: RegisterIndex,
-        result_array_ptr: RegisterIndex,
-        num_elements: u32,
-        binary_operation: BrilligBinaryOp,
-    ) {
-        // Reserve a register for the result of each binary operation
-        let new_value_register = self.create_register();
-
-        // Reserve a register for the index being processed
-        let index_register = self.create_register();
-
-        // Reserve registers for the values of left and right
-        let left_value_register = self.create_register();
-        let right_value_register = self.create_register();
-
-        for i in 0..num_elements {
-            // Load both values
-            self.const_instruction(index_register, (i as u128).into());
-            self.array_get(lhs_array_ptr, index_register, left_value_register);
-            self.const_instruction(index_register, (i as u128).into());
-            self.array_get(rhs_array_ptr, index_register, right_value_register);
-
-            // Apply the binary operation to the values
-            self.binary_instruction(
-                left_value_register,
-                right_value_register,
-                new_value_register,
-                binary_operation,
-            );
-            
-            // Store the result into the result array
-            self.const_instruction(index_register, (i as u128).into());
-            self.array_store(result_array_ptr, index_register, new_value_register);
-        }
-    }
-
-    pub(crate) fn array_reduce(
-        &mut self,
-        array_ptr: RegisterIndex,
-        result_register: RegisterIndex,
-        num_elements: u32,
-        reduce_operation: BrilligBinaryOp,
-    ) {
-        // Reserve a register for the index being processed
-        let index_register = self.create_register();
-
-        // Reserve register for the value at the index
-        let value_register = self.create_register();
-
-        for i in 0..num_elements {
-            // Load value
-            self.const_instruction(index_register, (i as u128).into());
-            self.array_get(array_ptr, index_register, value_register);
-
-            // Reduce the value
-            self.binary_instruction(
-                result_register,
-                value_register,
-                result_register,
-                reduce_operation,
-            );
         }
     }
 
