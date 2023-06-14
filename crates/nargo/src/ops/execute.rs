@@ -1,4 +1,3 @@
-use acvm::acir::brillig_vm::{ForeignCallOutput, ForeignCallResult};
 use acvm::acir::circuit::Opcode;
 use acvm::pwg::{solve, Blocks, PartialWitnessGeneratorStatus, UnresolvedBrilligCall};
 use acvm::PartialWitnessGenerator;
@@ -49,7 +48,7 @@ pub fn execute_circuit(
                 println!("{output_witnesses_string}");
                 brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
             } else if foreign_call_wait_info.function == "oracle_identity" {
-                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into())
+                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
             } else if foreign_call_wait_info.function == "oracle_identity_array" {
                 brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0].clone().into());
             }
