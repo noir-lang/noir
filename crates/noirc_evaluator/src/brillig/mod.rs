@@ -29,7 +29,7 @@ impl Brillig {
     }
 
     pub(crate) fn function_label(&self, id: FunctionId) -> String {
-        id.to_string()+"-"+ &self.ssa_function_to_block[&id].to_string()
+        id.to_string() + "-" + &self.ssa_function_to_block[&id].to_string()
     }
 }
 
@@ -47,7 +47,7 @@ impl Ssa {
         for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
             brillig.ssa_function_to_block.insert(f.id(), f.entry_block());
         }
-        
+
         for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
             let id = f.id();
             if id != self.main_id {

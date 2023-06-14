@@ -11,10 +11,11 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray,
+};
 use iter_extended::vecmap;
-use std::{collections::HashMap, hash::Hash};
-
+use std::{collections::HashMap};
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
@@ -25,12 +26,8 @@ pub(crate) struct BrilligGen {
 }
 
 impl BrilligGen {
-
     pub(crate) fn new(func_id: FunctionId) -> BrilligGen {
-        BrilligGen {
-            context: BrilligContext::new(func_id),
-            ssa_value_to_register: HashMap::new(),
-        }
+        BrilligGen { context: BrilligContext::new(func_id), ssa_value_to_register: HashMap::new() }
     }
     /// Gets a `RegisterIndex` for a `ValueId`, if one already exists
     /// or creates a new `RegisterIndex` using the latest available
@@ -197,8 +194,6 @@ impl BrilligGen {
                     );
                 }
                 Value::Function(func_id) => {
-                    dbg!("CALLING!!!");
-                    dbg!(&func_id);
                     let arg = vecmap(arguments.clone(), |a| self.get_or_create_register(a));
                     let result_ids = dfg.instruction_results(instruction_id);
                     let res = vecmap(result_ids, |a| self.get_or_create_register(*a));

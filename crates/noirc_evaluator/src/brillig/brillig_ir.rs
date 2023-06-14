@@ -7,7 +7,7 @@
 pub(crate) mod artifact;
 pub(crate) mod memory;
 
-use crate::ssa_refactor::ir::{function::FunctionId, basic_block::BasicBlockId};
+use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 use self::{
     artifact::{BrilligArtifact, UnresolvedLocation},
@@ -51,7 +51,7 @@ impl BrilligContext {
     pub(crate) fn new(func: FunctionId) -> BrilligContext {
         BrilligContext {
             obj: BrilligArtifact::new(func),
-            latest_register: 0,
+            latest_register: SpecialRegisters::Len as usize,
             memory: BrilligMemory::default(),
         }
     }
@@ -377,6 +377,14 @@ impl BrilligContext {
                 source: *argument,
             });
         }
+        //increment depth_call
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: self.call_depth(),
+            op: BinaryIntOp::Add,
+            bit_size: 32,
+            lhs: self.call_depth(),
+            rhs: one,
+        });
         // Call instruction
         self.add_unresolved_call(
             BrilligOpcode::Call { location: 0 },
@@ -403,9 +411,10 @@ impl BrilligContext {
             );
             self.store_instruction(reg_adr, self.register(i));
         }
-
+        // Load the saved registers
         let tmp = self.create_register();
-        for i in 0..10 {
+        self.load_instruction(tmp, stack_adr);
+        for i in 0..registers_len {
             self.const_instruction(tmp, Value::from(i));
             self.binary_instruction(
                 stack_adr,
@@ -415,6 +424,7 @@ impl BrilligContext {
             );
             self.load_instruction(RegisterIndex::from(i + SpecialRegisters::Len as usize), reg_adr);
         }
+        //decrement depth_call
         self.push_opcode(BrilligOpcode::BinaryIntOp {
             destination: self.call_depth(),
             op: BinaryIntOp::Sub,
@@ -432,11 +442,14 @@ impl BrilligContext {
                 source: RegisterIndex::from(i),
             });
             //initialise the calldepth
-            self.push_opcode(BrilligOpcode::Const { destination: self.call_depth(), value: Value::from(0_usize) });
+            self.push_opcode(BrilligOpcode::Const {
+                destination: self.call_depth(),
+                value: Value::from(0_usize),
+            });
             //initialise the stackframe
-            self.allocate_array(self.stack_frame(), 50);   
+            self.allocate_array(self.stack_frame(), 50);
+        }
     }
-}
 }
 
 /// Type to encapsulate the binary operation types in Brillig

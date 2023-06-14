@@ -1,10 +1,11 @@
-use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex, Value};
+use acvm::acir::brillig_vm::{Opcode as BrilligOpcode};
 use std::collections::{HashMap, HashSet};
 
-use crate::{brillig::Brillig, ssa_refactor::ir::{function::FunctionId, basic_block::BasicBlockId}};
+use crate::{
+    brillig::Brillig,
+    ssa_refactor::ir::{basic_block::BasicBlockId, function::FunctionId},
+};
 
-use super::{SpecialRegisters, memory::BrilligMemory};
-use std::fmt::Write;
 #[derive(Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// Currently it is just the brillig bytecode of the function.
@@ -66,15 +67,8 @@ impl BrilligArtifact {
     }
 
 
-
-
-
     /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
-    pub(crate) fn link(
-        &mut self,
-        id: FunctionId,
-        brillig: &Brillig,
-    ) -> Vec<BrilligOpcode> {
+    pub(crate) fn link(&mut self, id: FunctionId, brillig: &Brillig) -> Vec<BrilligOpcode> {
         let obj = &brillig[id];
         self.append_artifact(obj);
         self.push_opcode(BrilligOpcode::Stop);
@@ -194,9 +188,7 @@ impl BrilligArtifact {
     fn resolve_jumps(&mut self) {
         for (location_of_jump, unresolved_location) in &self.unresolved_jumps_or_calls {
             let resolved_location = match unresolved_location {
-                UnresolvedLocation::Label(label) => {
-                    self.labels[label]
-                },
+                UnresolvedLocation::Label(label) => self.labels[label],
                 UnresolvedLocation::Relative(offset) => {
                     (offset + *location_of_jump as i32) as usize
                 }
