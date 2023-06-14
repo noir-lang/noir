@@ -6,11 +6,11 @@ fn main(x: Field)  {
     // TODO(#1615) Nargo currently only supports resolving one foreign call
     // oracle_print_wrapper(x);
 
-    assert(x == oracle_identity_wrapper(x));
+    // assert(x == oracle_identity_wrapper(x));
 
-    // let arr = oracle_identity_array_wrapper([x, x]);
-    // assert(x == arr[0]);
-    // assert(x == arr[1]);
+    let arr = oracle_identity_array_wrapper([x, x]);
+    assert(x == arr[0]);
+    assert(x == arr[1]);
 }
 
 #[oracle(oracle_print_impl)]

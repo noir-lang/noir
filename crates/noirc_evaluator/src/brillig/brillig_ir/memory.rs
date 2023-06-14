@@ -3,7 +3,7 @@
 /// Will probably get smarter in the future
 #[derive(Default)]
 pub(crate) struct BrilligMemory {
-    free_mem_pointer: usize,
+    pub(crate) free_mem_pointer: usize,
 }
 
 impl BrilligMemory {

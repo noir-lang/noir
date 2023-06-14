@@ -51,14 +51,14 @@ pub fn execute_circuit(
                     values: vec![vec![foreign_call_wait_info.inputs[0][0]]],
                 });
             } else if foreign_call_wait_info.function == "oracle_identity" {
-                brillig.foreign_call_results.push(ForeignCallResult { 
-                    values: foreign_call_wait_info.inputs
-                })
+                brillig
+                    .foreign_call_results
+                    .push(ForeignCallResult { values: foreign_call_wait_info.inputs })
             } else if foreign_call_wait_info.function == "oracle_identity_array" {
-                brillig.foreign_call_results.push(ForeignCallResult {
-                    values: foreign_call_wait_info.inputs,
-                });
-            } 
+                brillig
+                    .foreign_call_results
+                    .push(ForeignCallResult { values: foreign_call_wait_info.inputs });
+            }
 
             let mut next_opcodes_for_solving = vec![Opcode::Brillig(brillig)];
             next_opcodes_for_solving.extend_from_slice(&unsolved_opcodes[..]);

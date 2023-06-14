@@ -174,6 +174,19 @@ impl BrilligGen {
                         self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
                     });
 
+                    for output_register in output_registers.clone() {
+                        match output_register {
+                            RegisterOrMemory::HeapArray(pointer_index, _)
+                            | RegisterOrMemory::HeapVector(pointer_index, _) => {
+                                self.context.const_instruction(
+                                    pointer_index,
+                                    self.context.free_mem_pointer().into(),
+                                );
+                            }
+                            _ => (),
+                        }
+                    }
+
                     self.context.foreign_call_instruction(
                         func_name.to_owned(),
                         &input_registers,

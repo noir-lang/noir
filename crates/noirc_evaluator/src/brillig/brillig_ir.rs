@@ -90,6 +90,10 @@ impl BrilligContext {
         self.latest_register += 1;
         register
     }
+
+    pub(crate) fn free_mem_pointer(&self) -> usize {
+        self.memory.free_mem_pointer
+    }
 }
 
 impl BrilligContext {
