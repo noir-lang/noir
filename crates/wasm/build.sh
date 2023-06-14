@@ -15,6 +15,7 @@ require_command wasm-opt
 
 export pname=$(toml2json < Cargo.toml | jq -r .package.name)
 
-./buildPhaseCargoCommand.sh
+./preBuild.sh
+./postBuild.sh
 ./installPhase.sh
 
