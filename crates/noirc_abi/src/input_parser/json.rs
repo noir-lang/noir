@@ -104,7 +104,10 @@ impl InputValue {
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
             ) => InputValue::Field(parse_str_to_field(&string)?),
 
-            (JsonTypes::Integer(integer), AbiType::Field | AbiType::Integer { .. }) => {
+            (
+                JsonTypes::Integer(integer),
+                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+            ) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)

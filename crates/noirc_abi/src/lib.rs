@@ -302,29 +302,27 @@ impl Abi {
 
     fn encode_value(value: InputValue, abi_type: &AbiType) -> Result<Vec<FieldElement>, AbiError> {
         let mut encoded_value = Vec::new();
-        match value {
-            InputValue::Field(elem) => encoded_value.push(elem),
-            InputValue::Vec(vec_elements) => match abi_type {
-                AbiType::Array { typ, .. } => {
-                    for elem in vec_elements {
-                        encoded_value.extend(Self::encode_value(elem, typ)?);
-                    }
+        match (value, abi_type) {
+            (InputValue::Field(elem), _) => encoded_value.push(elem),
+
+            (InputValue::Vec(vec_elements), AbiType::Array { typ, .. }) => {
+                for elem in vec_elements {
+                    encoded_value.extend(Self::encode_value(elem, typ)?);
                 }
-                _ => unreachable!("value should have already been checked to match abi type"),
-            },
-            InputValue::String(string) => {
+            }
+
+            (InputValue::String(string), _) => {
                 let str_as_fields =
                     string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
                 encoded_value.extend(str_as_fields);
             }
-            InputValue::Struct(object) => match abi_type {
-                AbiType::Struct { fields } => {
-                    for (field, typ) in fields {
-                        encoded_value.extend(Self::encode_value(object[field].clone(), typ)?);
-                    }
+
+            (InputValue::Struct(object), AbiType::Struct { fields }) => {
+                for (field, typ) in fields {
+                    encoded_value.extend(Self::encode_value(object[field].clone(), typ)?);
                 }
-                _ => unreachable!("value should have already been checked to match abi type"),
-            },
+            }
+            _ => unreachable!("value should have already been checked to match abi type"),
         }
         Ok(encoded_value)
     }
