@@ -8,7 +8,8 @@ use acvm::Language;
 use clap::Args;
 use fm::{FileId, FileManager, FileType};
 use noirc_abi::FunctionSignature;
-use noirc_errors::{reporter, CustomDiagnostic, FileDiagnostic};
+use noirc_errors::reporter::ReportedErrors;
+use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -65,6 +66,12 @@ impl Default for CompileOptions {
     }
 }
 
+/// Helper type used to signify where only warnings are expected in file diagnostics
+pub type Warnings = Vec<FileDiagnostic>;
+
+/// Helper type used to signify where errors or warnings are expected in file diagnostics
+pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
+
 impl Driver {
     pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
         Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
@@ -81,20 +88,10 @@ impl Driver {
         root_file: PathBuf,
         language: &Language,
         is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
-    ) -> Result<CompiledProgram, Vec<FileDiagnostic>> {
+    ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
         let mut driver = Driver::new(language, is_opcode_supported);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.compile_main(&CompileOptions::default())
-    }
-
-    /// Compiles a file and returns true if compilation was successful
-    ///
-    /// This is used for tests.
-    pub fn file_compiles(&mut self) -> bool {
-        let mut errs = vec![];
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        reporter::report_all(&self.context.file_manager, &errs, false);
-        errs.is_empty()
     }
 
     /// Adds the File with the local crate root to the file system
@@ -169,16 +166,44 @@ impl Driver {
         }
     }
 
-    /// Run the lexing, parsing, name resolution, and type checking passes,
-    /// returning Err(FrontendError) and printing any errors that were found.
-    pub fn check_crate(&mut self) -> Result<(), Vec<FileDiagnostic>> {
-        let mut errs = vec![];
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        if errs.is_empty() {
-            Ok(())
+    /// Run the lexing, parsing, name resolution, and type checking passes.
+    ///
+    /// This returns a (possibly empty) vector of any warnings found on success.
+    /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
+    pub fn check_crate(&mut self, deny_warnings: bool) -> Result<Warnings, ErrorsAndWarnings> {
+        let mut errors = vec![];
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errors);
+
+        if Self::has_errors(&errors, deny_warnings) {
+            Err(errors)
         } else {
-            Err(errs)
+            Ok(errors)
         }
+    }
+
+    /// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+    /// and errors found.
+    pub fn check_crate_and_report_errors(
+        &mut self,
+        deny_warnings: bool,
+    ) -> Result<(), ReportedErrors> {
+        let result = self.check_crate(deny_warnings).map(|warnings| ((), warnings));
+        self.report_errors(result, deny_warnings)
+    }
+
+    /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
+    /// structure that is commonly used as a return result in this file.
+    pub fn report_errors<T>(
+        &self,
+        result: Result<(T, Warnings), ErrorsAndWarnings>,
+        deny_warnings: bool,
+    ) -> Result<T, ReportedErrors> {
+        let (t, warnings) = result.map_err(|errors| {
+            noirc_errors::reporter::report_all(self.file_manager(), &errors, deny_warnings)
+        })?;
+
+        noirc_errors::reporter::report_all(self.file_manager(), &warnings, deny_warnings);
+        Ok(t)
     }
 
     pub fn compute_function_signature(&self) -> Option<FunctionSignature> {
@@ -192,11 +217,15 @@ impl Driver {
     }
 
     /// Run the frontend to check the crate for errors then compile the main function if there were none
+    ///
+    /// On success this returns the compiled program alongside any warnings that were found.
+    /// On error this returns the non-empty list of warnings and errors.
     pub fn compile_main(
         &mut self,
         options: &CompileOptions,
-    ) -> Result<CompiledProgram, Vec<FileDiagnostic>> {
-        self.check_crate()?;
+    ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
+        let warnings = self.check_crate(options.deny_warnings)?;
+
         let main = match self.main_function() {
             Some(m) => m,
             None => {
@@ -204,33 +233,41 @@ impl Driver {
                     file_id: FileId::default(),
                     diagnostic: CustomDiagnostic::from_message("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command")
                 };
-                return Err(err.into());
+                return Err(vec![err]);
             }
         };
+
         let compiled_program = self.compile_no_check(options, main)?;
+
         if options.print_acir {
             println!("Compiled ACIR for main:");
             println!("{}", compiled_program.circuit);
         }
-        Ok(compiled_program)
+
+        Ok((compiled_program, warnings))
     }
 
     /// Run the frontend to check the crate for errors then compile all contracts if there were none
     pub fn compile_contracts(
         &mut self,
         options: &CompileOptions,
-    ) -> Result<Vec<CompiledContract>, Vec<FileDiagnostic>> {
-        self.check_crate()?;
+    ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
+        let warnings = self.check_crate(options.deny_warnings)?;
+
         let contracts = self.get_all_contracts();
         let mut compiled_contracts = vec![];
-        let mut errs = vec![];
+        let mut errors = warnings;
+
         for contract in contracts {
             match self.compile_contract(contract, options) {
                 Ok(contract) => compiled_contracts.push(contract),
-                Err(err) => errs.push(err),
+                Err(mut more_errors) => errors.append(&mut more_errors),
             }
         }
-        if errs.is_empty() {
+
+        if Self::has_errors(&errors, options.deny_warnings) {
+            Err(errors)
+        } else {
             if options.print_acir {
                 for compiled_contract in &compiled_contracts {
                     for contract_function in &compiled_contract.functions {
@@ -242,9 +279,17 @@ impl Driver {
                     }
                 }
             }
-            Ok(compiled_contracts)
+            // errors here is either empty or contains only warnings
+            Ok((compiled_contracts, errors))
+        }
+    }
+
+    /// True if there are (non-warning) errors present and we should halt compilation
+    fn has_errors(errors: &[FileDiagnostic], deny_warnings: bool) -> bool {
+        if deny_warnings {
+            !errors.is_empty()
         } else {
-            Err(errs.concat())
+            errors.iter().filter(|error| error.diagnostic.is_error()).count() != 0
         }
     }
 
@@ -305,6 +350,9 @@ impl Driver {
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
+    ///
+    /// This function also assumes all errors in experimental_create_circuit and create_circuit
+    /// are not warnings.
     #[allow(deprecated)]
     pub fn compile_no_check(
         &self,
