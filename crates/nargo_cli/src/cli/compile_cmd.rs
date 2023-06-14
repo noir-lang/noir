@@ -2,6 +2,7 @@ use acvm::Backend;
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
 use noirc_driver::{CompileOptions, CompiledProgram, Driver};
+use noirc_errors::reporter;
 use std::path::Path;
 
 use clap::Args;
@@ -118,5 +119,12 @@ pub(crate) fn compile_circuit<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
-    driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
+    driver.compile_main(compile_options).map_err(|errs| {
+        let file_manager = driver.file_manager();
+        let error_count = reporter::report_all(file_manager, &errs, compile_options.deny_warnings);
+        if error_count != 0 {
+            reporter::finish_report(error_count);
+        }
+        CliError::CompilationError
+    })
 }

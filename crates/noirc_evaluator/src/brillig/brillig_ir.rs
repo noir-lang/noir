@@ -221,13 +221,14 @@ impl BrilligContext {
     pub(crate) fn foreign_call_instruction(
         &mut self,
         func_name: String,
-        inputs: &[RegisterIndex],
-        outputs: &[RegisterIndex],
+        inputs: &[RegisterValueOrArray],
+        outputs: &[RegisterValueOrArray],
     ) {
+        // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
-            destination: RegisterValueOrArray::RegisterIndex(outputs[0]),
-            input: RegisterValueOrArray::RegisterIndex(inputs[0]),
+            destination: outputs[0],
+            input: inputs[0],
         };
         self.push_opcode(opcode);
     }
@@ -339,7 +340,7 @@ impl BrilligContext {
     fn register(&self, i: usize) -> RegisterIndex {
         RegisterIndex::from(SpecialRegisters::Len as usize + i)
     }
-    fn stack_frame(&self) -> RegisterIndex {
+    pub(crate) fn stack_frame(&self) -> RegisterIndex {
         RegisterIndex::from(SpecialRegisters::StackFrame as usize)
     }
 
@@ -350,8 +351,8 @@ impl BrilligContext {
         label: String,
         func_id: FunctionId,
     ) {
+        // copy the registers to memory
         let registers_len = self.latest_register;
-        let empty = self.create_register();//TODO TEMP TO TEST , fiexer, debugger, et enlever...
         let registers = self.create_register();
         let one = self.create_register();
         self.push_opcode(BrilligOpcode::Const { destination: one, value: Value::from(1_usize) });
@@ -369,19 +370,20 @@ impl BrilligContext {
                 rhs: one,
             });
         }
+        // Put the arguments on registers, starting at SpecialRegisters::Len
         for (i, argument) in arguments.iter().enumerate() {
             self.push_opcode(BrilligOpcode::Mov {
                 destination: RegisterIndex::from(i + SpecialRegisters::Len as usize),
                 source: *argument,
             });
         }
-
+        // Call instruction
         self.add_unresolved_call(
             BrilligOpcode::Call { location: 0 },
             UnresolvedLocation::Label(label),
             func_id,
         );
-
+        // Copy from registers 0,.. to the result registers, but at their saved memory location
         let stack_adr = self.create_register();
         self.push_opcode(BrilligOpcode::BinaryIntOp {
             destination: stack_adr,
@@ -401,6 +403,7 @@ impl BrilligContext {
             );
             self.store_instruction(reg_adr, self.register(i));
         }
+
         let tmp = self.create_register();
         for i in 0..10 {
             self.const_instruction(tmp, Value::from(i));
@@ -420,6 +423,20 @@ impl BrilligContext {
             rhs: one,
         });
     }
+
+    pub(crate) fn initialise_main(&mut self, input_len: usize) {
+        // translate the inputs by the special registers offset
+        for i in 0..input_len {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: RegisterIndex::from(i + SpecialRegisters::Len as usize),
+                source: RegisterIndex::from(i),
+            });
+            //initialise the calldepth
+            self.push_opcode(BrilligOpcode::Const { destination: self.call_depth(), value: Value::from(0_usize) });
+            //initialise the stackframe
+            self.allocate_array(self.stack_frame(), 50);   
+    }
+}
 }
 
 /// Type to encapsulate the binary operation types in Brillig

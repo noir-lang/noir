@@ -11,7 +11,7 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
 use iter_extended::vecmap;
 use std::{collections::HashMap, hash::Hash};
 
@@ -116,9 +116,14 @@ impl BrilligGen {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
             };
+
             match param_type {
                 Type::Numeric(_) => {
                     self.get_or_create_register(*param_id);
+                }
+                Type::Array(_, size) => {
+                    let pointer_register = self.get_or_create_register(*param_id);
+                    self.context.allocate_array(pointer_register, *size as u32);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -174,37 +179,41 @@ impl BrilligGen {
 
                 self.context.not_instruction(condition, result_register);
             }
-            Instruction::ForeignCall { func, arguments } => {
-                let result_ids = dfg.instruction_results(instruction_id);
+            Instruction::Call { func, arguments } => match &dfg[*func] {
+                Value::ForeignFunction(func_name) => {
+                    let result_ids = dfg.instruction_results(instruction_id);
 
-                let input_registers =
-                    vecmap(arguments, |value_id| self.convert_ssa_value(*value_id, dfg));
-                let output_registers =
-                    vecmap(result_ids, |value_id| self.convert_ssa_value(*value_id, dfg));
+                    let input_registers = vecmap(arguments, |value_id| {
+                        self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
+                    });
+                    let output_registers = vecmap(result_ids, |value_id| {
+                        self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
+                    });
 
-                self.context.foreign_call_instruction(
-                    func.to_owned(),
-                    &input_registers,
-                    &output_registers,
-                );
-            }
+                    self.context.foreign_call_instruction(
+                        func_name.to_owned(),
+                        &input_registers,
+                        &output_registers,
+                    );
+                }
+                Value::Function(func_id) => {
+                    dbg!("CALLING!!!");
+                    dbg!(&func_id);
+                    let arg = vecmap(arguments.clone(), |a| self.get_or_create_register(a));
+                    let result_ids = dfg.instruction_results(instruction_id);
+                    let res = vecmap(result_ids, |a| self.get_or_create_register(*a));
+                    let block_label = brillig.function_label(*func_id);
+                    self.context.call(&arg, &res, block_label, *func_id);
+                }
+                _ => {
+                    unreachable!("should call a function")
+                }
+            },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination = self.get_or_create_register(result_ids[0]);
                 let source = self.convert_ssa_value(*value, dfg);
                 self.context.truncate_instruction(destination, source);
-            }
-            Instruction::Call { func, arguments } => {
-                let arg = vecmap(arguments.clone(), |a| self.get_or_create_register(a));
-                let result_ids = dfg.instruction_results(instruction_id);
-                let res = vecmap(result_ids, |a| self.get_or_create_register(*a));
-
-                let func_id = match dfg[*func] {
-                    Value::Function(func_id) => func_id,
-                    _ => unreachable!("Calling not a function"),
-                };
-                let block_label = brillig.function_label(func_id);
-                self.context.call(&arg, &res, block_label, func_id);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
@@ -232,7 +241,6 @@ impl BrilligGen {
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterIndex {
         let value = &dfg[value_id];
-
         let register = match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
@@ -275,6 +283,27 @@ impl BrilligGen {
         for block in reverse_post_order {
             self.convert_block(block, &func.dfg, brillig);
         }
+    }
+
+    fn convert_ssa_value_to_register_value_or_array(
+        &mut self,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterValueOrArray {
+        let register_index = self.convert_ssa_value(value_id, dfg);
+        let typ = dfg[value_id].get_type();
+        match typ {
+            Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
+            Type::Array(_, size) => RegisterValueOrArray::HeapArray(register_index, size),
+            _ => {
+                unreachable!("type not supported for conversion into brillig register")
+            }
+        }
+    }
+
+    pub(crate) fn init_main(mut self, len: usize) -> BrilligArtifact {
+        self.context.initialise_main(len);
+        self.context.artifact()
     }
 }
 

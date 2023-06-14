@@ -1,11 +1,11 @@
-use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex};
+use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex, Value};
 use std::collections::{HashMap, HashSet};
 
-use crate::{brillig::Brillig, ssa_refactor::ir::function::FunctionId};
+use crate::{brillig::Brillig, ssa_refactor::ir::{function::FunctionId, basic_block::BasicBlockId}};
 
-use super::SpecialRegisters;
-
-#[derive(Default, Debug, Clone)]
+use super::{SpecialRegisters, memory::BrilligMemory};
+use std::fmt::Write;
+#[derive(Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// Currently it is just the brillig bytecode of the function.
 pub(crate) struct BrilligArtifact {
@@ -17,6 +17,8 @@ pub(crate) struct BrilligArtifact {
     labels: HashMap<Label, OpcodeLocation>,
     /// functions called that need to be resolved
     functions_to_process: HashSet<FunctionId>,
+    ///function id
+    function_id: FunctionId,
 }
 
 /// A pointer to a location in the opcode.
@@ -53,28 +55,37 @@ pub(crate) enum UnresolvedLocation {
 }
 
 impl BrilligArtifact {
+    pub(crate) fn new(func_id: FunctionId) -> BrilligArtifact {
+        BrilligArtifact {
+            byte_code: Vec::new(),
+            unresolved_jumps_or_calls: Vec::new(),
+            labels: HashMap::new(),
+            functions_to_process: HashSet::new(),
+            function_id: func_id,
+        }
+    }
+
+
+
+
+
     /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
     pub(crate) fn link(
         &mut self,
         id: FunctionId,
-        input_len: usize,
         brillig: &Brillig,
     ) -> Vec<BrilligOpcode> {
-        for i in 0..input_len {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: RegisterIndex::from(i + SpecialRegisters::Len as usize),
-                source: RegisterIndex::from(i),
-            });
-        }
         let obj = &brillig[id];
         self.append_artifact(obj);
-
-        let mut queue: Vec<FunctionId> = self.functions_to_process.clone().into_iter().collect();
+        self.push_opcode(BrilligOpcode::Stop);
+        let mut queue: Vec<FunctionId> = obj.functions_to_process.clone().into_iter().collect();
         while let Some(func) = queue.pop() {
             dbg!(&brillig.function_label(func));
             if !self.labels.contains_key(&brillig.function_label(func)) {
                 let obj = &brillig[func];
                 self.append_artifact(obj);
+                self.byte_code.pop();
+                self.push_opcode(BrilligOpcode::Return);
                 let mut functions: Vec<FunctionId> =
                     obj.functions_to_process.clone().into_iter().collect();
                 queue.append(&mut functions);
@@ -85,6 +96,9 @@ impl BrilligArtifact {
         self.byte_code.clone()
     }
 
+    pub(crate) fn block_label(&self, block_id: BasicBlockId) -> String {
+        self.function_id.to_string() + "-" + &block_id.to_string()
+    }
     /// Link with an external brillig artifact.
     ///
     /// This method will offset the positions in the Brillig artifact to
@@ -180,7 +194,9 @@ impl BrilligArtifact {
     fn resolve_jumps(&mut self) {
         for (location_of_jump, unresolved_location) in &self.unresolved_jumps_or_calls {
             let resolved_location = match unresolved_location {
-                UnresolvedLocation::Label(label) => self.labels[label],
+                UnresolvedLocation::Label(label) => {
+                    self.labels[label]
+                },
                 UnresolvedLocation::Relative(offset) => {
                     (offset + *location_of_jump as i32) as usize
                 }

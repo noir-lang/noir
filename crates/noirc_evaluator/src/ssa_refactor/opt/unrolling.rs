@@ -441,7 +441,8 @@ impl<'f> LoopIteration<'f> {
 
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.function.dfg[id].map_values(|id| self.get_value(id));
-        let results = self.function.dfg.instruction_results(id).to_vec();
+        let results = self.function.dfg.instruction_results(id);
+        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
