@@ -1,4 +1,4 @@
-use acvm::acir::brillig_vm::ForeignCallResult;
+use acvm::acir::brillig_vm::{ForeignCallOutput, ForeignCallResult};
 use acvm::acir::circuit::Opcode;
 use acvm::pwg::{solve, Blocks, PartialWitnessGeneratorStatus, UnresolvedBrilligCall};
 use acvm::PartialWitnessGenerator;
@@ -34,7 +34,7 @@ pub fn execute_circuit(
             if foreign_call_wait_info.function == "oracle_print_impl" {
                 let value = foreign_call_wait_info.inputs[0][0];
                 println!("{:?}", value.to_field().to_hex());
-                brillig.foreign_call_results.push(ForeignCallResult { values: vec![vec![value]] });
+                brillig.foreign_call_results.push(value.into());
             } else if foreign_call_wait_info.function == "oracle_print_array_impl" {
                 dbg!(foreign_call_wait_info.clone());
                 let mut outputs_hex = Vec::new();
@@ -47,17 +47,11 @@ pub fn execute_circuit(
                 let comma_separated_elements = outputs_hex.join(", ");
                 let output_witnesses_string = "[".to_owned() + &comma_separated_elements + "]";
                 println!("{output_witnesses_string}");
-                brillig.foreign_call_results.push(ForeignCallResult {
-                    values: vec![vec![foreign_call_wait_info.inputs[0][0]]],
-                });
+                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
             } else if foreign_call_wait_info.function == "oracle_identity" {
-                brillig
-                    .foreign_call_results
-                    .push(ForeignCallResult { values: foreign_call_wait_info.inputs })
+                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into())
             } else if foreign_call_wait_info.function == "oracle_identity_array" {
-                brillig
-                    .foreign_call_results
-                    .push(ForeignCallResult { values: foreign_call_wait_info.inputs });
+                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0].clone().into());
             }
 
             let mut next_opcodes_for_solving = vec![Opcode::Brillig(brillig)];
