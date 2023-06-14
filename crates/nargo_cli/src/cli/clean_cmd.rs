@@ -11,7 +11,7 @@ use crate::{constants::TARGET_DIR, errors::CliError};
 
 use super::NargoConfig;
 
-/// Remove target directory and nargo cache
+/// Remove both target directory and nargo cache
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CleanCommand {
     /// remove cache (including the crs) only
