@@ -170,7 +170,7 @@ export class Sequencer {
   }
 
   /**
-   * Creates the encrypted logs from the txs and l2Block and publishes it on chain.
+   * Gets new contract public data from the txsand publishes it on chain.
    * @param validTxs - The set of real transactions being published as part of the block.
    * @param block - The L2Block to be published.
    */
@@ -192,9 +192,7 @@ export class Sequencer {
       .filter((cd): cd is Exclude<typeof cd, undefined> => cd !== undefined);
 
     const blockHash = block.getCalldataHash();
-    this.log(`Publishing data with block hash ${blockHash.toString('hex')}`);
-
-    // TODO: Stop publishing encrypted logs once Archiver is updated to store logs found in block data.
+    this.log(`Publishing contract public data with block hash ${blockHash.toString('hex')}`);
 
     const publishedContractData = await this.publisher.processNewContractData(block.number, blockHash, newContractData);
     if (publishedContractData) {
