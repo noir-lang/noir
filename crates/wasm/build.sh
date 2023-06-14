@@ -15,7 +15,7 @@ require_command wasm-opt
 
 export pname=$(toml2json < Cargo.toml | jq -r .package.name)
 
-./preBuild.sh
+cargo build --lib --release --package noir_wasm --target wasm32-unknown-unknown
 ./postBuild.sh
 ./installPhase.sh
 

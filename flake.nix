@@ -65,8 +65,11 @@
         # See https://discourse.nixos.org/t/rust-src-not-found-and-other-misadventures-of-developing-rust-on-nixos/11570/4
         extensions = [ "rust-src" ];
         # possible fix for "section too large"
-        # targets = [ "aarch64-apple-darwin" "wasm32-unknown-unknown" ];
-        targets = [ "wasm32-unknown-unknown" ];
+        targets = [ "wasm32-unknown-unknown" ]
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isx86_64 && pkgs.hostPlatform.isLinux) "x86_64-unknown-linux-gnu"
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isAarch64 && pkgs.hostPlatform.isLinux) "aarch64-unknown-linux-gnu"
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isx86_64 && pkgs.hostPlatform.isDarwin) "x86_64-apple-darwin"
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isAarch64 && pkgs.hostPlatform.isDarwin) "aarch64-apple-darwin";
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -310,10 +313,6 @@
         ];
 
         cargoExtraArgs = "--lib --release --package noir_wasm --target wasm32-unknown-unknown";
-        
-        preBuild = ''
-          bash crates/wasm/preBuild.sh
-        '';
 
         postBuild = ''
           bash crates/wasm/postBuild.sh
