@@ -1,0 +1,23 @@
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+
+name: release-please
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v3
+        with:
+          release-type: simple
+          package-name: barretenberg
+          bump-minor-pre-major: true
+          bump-patch-for-minor-pre-major: true
+          prerelease: true # Marks GitHub Releases for 0.x.x versions as "Pre-release"
+          pull-request-title-pattern: "chore(barretenberg): Release ${version}"
