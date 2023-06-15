@@ -217,13 +217,15 @@ impl<'block> BrilligBlock<'block> {
                 let index_register = self.convert_ssa_value(*index, dfg);
                 self.brillig_context.array_get(array_register, index_register, destination);
             }
+            // Array set operation in SSA returns a new array that is a copy of the parameter array
+            // With a specific value changed.
             Instruction::ArraySet { array, index, value } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination = self
                     .function_context
                     .get_or_create_register(self.brillig_context, result_ids[0]);
                 // First issue a array copy to the destination
-                let size = compute_size(&dfg.type_of_value(*array));
+                let size = compute_size_of_type(&dfg.type_of_value(*array));
                 self.brillig_context.allocate_array(destination, size as u32);
                 let source_array_register: RegisterIndex = self.convert_ssa_value(*array, dfg);
                 let size_register = self.brillig_context.make_constant(size.into());
@@ -237,6 +239,9 @@ impl<'block> BrilligBlock<'block> {
         };
     }
 
+    /// This function allows storing a Value in memory starting at the address specified by the
+    /// address_register. The value can be a single value or an array. The function will recursively
+    /// store the value in memory.
     fn store_in_memory(
         &mut self,
         address_register: RegisterIndex,
@@ -250,13 +255,18 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.store_instruction(address_register, value_register);
             }
             Value::Array { array, .. } => {
+                // Allocate a register for the iterator
                 let iterator_register = self.brillig_context.create_register();
+                // Set the iterator to the address of the array
                 self.brillig_context.mov_instruction(iterator_register, address_register);
                 for element_id in array.iter() {
+                    // Store the item in memory
                     self.store_in_memory(iterator_register, *element_id, dfg);
-                    let item_type = dfg.type_of_value(*element_id);
-                    let size_of_item_register =
-                        self.brillig_context.make_constant(compute_size(&item_type).into());
+                    // Increment the iterator by the size of the item
+                    let size_of_item_register = self.brillig_context.make_constant(
+                        compute_size_of_type(&dfg.type_of_value(*element_id)).into(),
+                    );
+
                     self.brillig_context.binary_instruction(
                         iterator_register,
                         size_of_item_register,
@@ -353,7 +363,7 @@ impl<'block> BrilligBlock<'block> {
                 let address_register = self.brillig_context.create_register();
                 self.brillig_context.allocate_array(
                     address_register,
-                    compute_size(&dfg.type_of_value(value_id)) as u32,
+                    compute_size_of_type(&dfg.type_of_value(value_id)) as u32,
                 );
                 self.store_in_memory(address_register, value_id, dfg);
                 address_register
@@ -477,18 +487,18 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
     }
 }
 
-fn compute_size(typ: &Type) -> usize {
+/// Finds out the size of a given SSA type
+/// This is needed to store values in memory
+fn compute_size_of_type(typ: &Type) -> usize {
     match typ {
         Type::Numeric(_) => 1,
         Type::Array(types, item_count) => {
-            let mut size = 0;
-            let first_type = types.first().unwrap();
-            for i in 0..*item_count {
-                let typ = types.get(i).unwrap_or(first_type);
-                size += compute_size(typ);
+            let mut item_size = 0;
+            for typ in types.iter() {
+                item_size += compute_size_of_type(typ);
             }
-            size
+            item_size * item_count
         }
-        _ => todo!("ICE: Type not supported"),
+        _ => todo!("ICE: Type not supported {typ:?}"),
     }
 }
