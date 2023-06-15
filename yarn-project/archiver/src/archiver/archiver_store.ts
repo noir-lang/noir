@@ -229,7 +229,11 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns True if the operation is successful (always in this implementation).
    */
   public addL2ContractPublicData(data: ContractPublicData[], blockNum: number): Promise<boolean> {
-    this.contractPublicData[blockNum] = data;
+    if (this.contractPublicData[blockNum]?.length) {
+      this.contractPublicData[blockNum]?.push(...data);
+    } else {
+      this.contractPublicData[blockNum] = [...data];
+    }
     return Promise.resolve(true);
   }
 
