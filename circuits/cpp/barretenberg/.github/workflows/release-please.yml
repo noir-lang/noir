@@ -21,3 +21,5 @@ jobs:
           bump-patch-for-minor-pre-major: true
           prerelease: true # Marks GitHub Releases for 0.x.x versions as "Pre-release"
           pull-request-title-pattern: "chore(barretenberg): Release ${version}"
+          extra-files: |
+            cpp/CMakeLists.txt
