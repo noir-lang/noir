@@ -11,11 +11,9 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray,
-};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
 use iter_extended::vecmap;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligGen {
@@ -194,7 +192,7 @@ impl BrilligGen {
                     );
                 }
                 Value::Function(func_id) => {
-                    let arg = vecmap(arguments.clone(), |a| self.get_or_create_register(a));
+                    let arg = vecmap(arguments.clone(), |a| self.convert_ssa_value(a, dfg));
                     let result_ids = dfg.instruction_results(instruction_id);
                     let res = vecmap(result_ids, |a| self.get_or_create_register(*a));
                     let block_label = brillig.function_label(*func_id);

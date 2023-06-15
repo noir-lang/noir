@@ -1,10 +1,12 @@
-use acvm::acir::brillig_vm::{Opcode as BrilligOpcode};
+use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 use std::collections::{HashMap, HashSet};
 
 use crate::{
     brillig::Brillig,
     ssa_refactor::ir::{basic_block::BasicBlockId, function::FunctionId},
 };
+
+use super::SpecialRegisters;
 
 #[derive(Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
@@ -66,12 +68,26 @@ impl BrilligArtifact {
         }
     }
 
-
     /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
-    pub(crate) fn link(&mut self, id: FunctionId, brillig: &Brillig) -> Vec<BrilligOpcode> {
+    pub(crate) fn link(
+        &mut self,
+        id: FunctionId,
+        brillig: &Brillig,
+        return_len: usize,
+    ) -> Vec<BrilligOpcode> {
         let obj = &brillig[id];
         self.append_artifact(obj);
+        //Remove the ending stop
+        self.byte_code.pop();
+        //Move the results to registers 0,..n
+        for i in 0..return_len {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: i.into(),
+                source: (i + SpecialRegisters::len()).into(),
+            });
+        }
         self.push_opcode(BrilligOpcode::Stop);
+
         let mut queue: Vec<FunctionId> = obj.functions_to_process.clone().into_iter().collect();
         while let Some(func) = queue.pop() {
             dbg!(&brillig.function_label(func));
