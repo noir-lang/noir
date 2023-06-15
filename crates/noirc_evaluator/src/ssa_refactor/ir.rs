@@ -3,6 +3,7 @@ pub(crate) mod cfg;
 pub(crate) mod dfg;
 pub(crate) mod dom;
 pub(crate) mod function;
+pub(crate) mod function_inserter;
 pub(crate) mod instruction;
 pub(crate) mod map;
 pub(crate) mod post_order;

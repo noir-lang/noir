@@ -14,18 +14,11 @@
 //! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
-use iter_extended::vecmap;
-
 use crate::ssa_refactor::{
     ir::{
-        basic_block::BasicBlockId,
-        cfg::ControlFlowGraph,
-        dfg::InsertInstructionResult,
-        dom::DominatorTree,
-        function::Function,
-        instruction::{InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
-        value::ValueId,
+        basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
+        function::Function, function_inserter::FunctionInserter,
+        instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -222,22 +215,22 @@ fn unroll_loop_header<'a>(
     let fresh_block = function.dfg.make_block();
 
     let mut context = LoopIteration::new(function, loop_, fresh_block, loop_.header);
-    let source_block = &context.function.dfg[context.source_block];
+    let source_block = &context.dfg()[context.source_block];
     assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
 
     // Insert the current value of the loop induction variable into our context.
     let first_param = source_block.parameters()[0];
-    context.values.insert(first_param, induction_value);
+    context.inserter.try_map_value(first_param, induction_value);
     context.inline_instructions_from_block();
 
-    match context.function.dfg[fresh_block].unwrap_terminator() {
+    match context.dfg()[fresh_block].unwrap_terminator() {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
             let next_blocks = context.handle_jmpif(*condition, *then_destination, *else_destination);
 
             // If there is only 1 next block the jmpif evaluated to a single known block.
             // This is the expected case and lets us know if we should loop again or not.
             if next_blocks.len() == 1 {
-                context.function.dfg.inline_block(fresh_block, unroll_into);
+                context.dfg_mut().inline_block(fresh_block, unroll_into);
 
                 // The fresh block is gone now so we're committing to insert into the original
                 // unroll_into block from now on.
@@ -257,13 +250,8 @@ fn unroll_loop_header<'a>(
 /// The context object for each loop iteration.
 /// Notably each loop iteration maps each loop block to a fresh, unrolled block.
 struct LoopIteration<'f> {
-    function: &'f mut Function,
+    inserter: FunctionInserter<'f>,
     loop_: &'f Loop,
-
-    /// Maps pre-unrolled ValueIds to unrolled ValueIds.
-    /// These will often be the exact same as before, unless the ValueId was
-    /// dependent on the loop induction variable which is changing on each iteration.
-    values: HashMap<ValueId, ValueId>,
 
     /// Maps pre-unrolled block ids from within the loop to new block ids of each loop
     /// block for each loop iteration.
@@ -291,11 +279,10 @@ impl<'f> LoopIteration<'f> {
         source_block: BasicBlockId,
     ) -> Self {
         Self {
-            function,
+            inserter: FunctionInserter::new(function),
             loop_,
             insert_block,
             source_block,
-            values: HashMap::new(),
             blocks: HashMap::new(),
             original_blocks: HashMap::new(),
             visited_blocks: HashSet::new(),
@@ -341,7 +328,7 @@ impl<'f> LoopIteration<'f> {
         self.inline_instructions_from_block();
         self.visited_blocks.insert(self.source_block);
 
-        match self.function.dfg[self.insert_block].unwrap_terminator() {
+        match self.inserter.function.dfg[self.insert_block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 self.handle_jmpif(*condition, *then_destination, *else_destination)
             }
@@ -365,9 +352,9 @@ impl<'f> LoopIteration<'f> {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) -> Vec<BasicBlockId> {
-        let condition = self.get_value(condition);
+        let condition = self.inserter.resolve(condition);
 
-        match self.function.dfg.get_numeric_constant(condition) {
+        match self.dfg().get_numeric_constant(condition) {
             Some(constant) => {
                 let destination =
                     if constant.is_zero() { else_destination } else { then_destination };
@@ -375,20 +362,11 @@ impl<'f> LoopIteration<'f> {
                 self.source_block = self.get_original_block(destination);
 
                 let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
-                self.function.dfg.set_block_terminator(self.insert_block, jmp);
+                self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
             }
             None => vec![then_destination, else_destination],
         }
-    }
-
-    /// Map a ValueId in the original pre-unrolled ssa to its new id in the unrolled SSA.
-    /// This is often the same ValueId as most values don't change while unrolling. The main
-    /// exception is instructions referencing the induction variable (or the variable itself)
-    /// which may have been simplified to another form. Block parameters or values outside the
-    /// loop shouldn't change at all and won't be present inside self.values.
-    fn get_value(&self, value: ValueId) -> ValueId {
-        self.values.get(&value).copied().unwrap_or(value)
     }
 
     /// Translate a block id to a block id in the unrolled loop. If the given
@@ -400,15 +378,8 @@ impl<'f> LoopIteration<'f> {
 
         // If the block is in the loop we create a fresh block for each iteration
         if self.loop_.blocks.contains(&block) {
-            let new_block = self.function.dfg.make_block_with_parameters_from_block(block);
-
-            let old_parameters = self.function.dfg.block_parameters(block);
-            let new_parameters = self.function.dfg.block_parameters(new_block);
-
-            for (param, new_param) in old_parameters.iter().zip(new_parameters) {
-                // Don't overwrite any existing entries to avoid overwriting the induction variable
-                self.values.entry(*param).or_insert(*new_param);
-            }
+            let new_block = self.dfg_mut().make_block_with_parameters_from_block(block);
+            self.inserter.remember_block_params_from_block(block, new_block);
 
             self.blocks.insert(block, new_block);
             self.original_blocks.insert(new_block, block);
@@ -423,62 +394,31 @@ impl<'f> LoopIteration<'f> {
     }
 
     fn inline_instructions_from_block(&mut self) {
-        let source_block = &self.function.dfg[self.source_block];
+        let source_block = &self.dfg()[self.source_block];
         let instructions = source_block.instructions().to_vec();
 
         // We cannot directly append each instruction since we need to substitute any
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            self.push_instruction(instruction);
+            self.inserter.push_instruction(instruction, self.insert_block);
         }
 
-        let mut terminator = self.function.dfg[self.source_block]
+        let mut terminator = self.dfg()[self.source_block]
             .unwrap_terminator()
-            .map_values(|value| self.get_value(value));
+            .clone()
+            .map_values(|value| self.inserter.resolve(value));
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
-        self.function.dfg.set_block_terminator(self.insert_block, terminator);
+        self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
     }
 
-    fn push_instruction(&mut self, id: InstructionId) {
-        let instruction = self.function.dfg[id].map_values(|id| self.get_value(id));
-        let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
-
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
-
-        let new_results = self.function.dfg.insert_instruction_and_results(
-            instruction,
-            self.insert_block,
-            ctrl_typevars,
-        );
-
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
+    fn dfg(&self) -> &DataFlowGraph {
+        &self.inserter.function.dfg
     }
 
-    /// Modify the values HashMap to remember the mapping between an instruction result's previous
-    /// ValueId (from the source_function) and its new ValueId in the destination function.
-    fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
-        new_results: InsertInstructionResult,
-    ) {
-        assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
-            }
-            InsertInstructionResult::Results(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
-        }
+    fn dfg_mut(&mut self) -> &mut DataFlowGraph {
+        &mut self.inserter.function.dfg
     }
 }
 
