@@ -105,12 +105,12 @@ impl<'block> BrilligBlock<'block> {
             match param_type {
                 Type::Numeric(_) => {
                     self.function_context
-                        .get_or_create_register(&mut self.brillig_context, *param_id);
+                        .get_or_create_register(self.brillig_context, *param_id);
                 }
                 Type::Array(_, size) => {
                     let pointer_register = self
                         .function_context
-                        .get_or_create_register(&mut self.brillig_context, *param_id);
+                        .get_or_create_register(self.brillig_context, *param_id);
                     self.brillig_context.allocate_array(pointer_register, *size as u32);
                 }
                 _ => {
@@ -129,7 +129,7 @@ impl<'block> BrilligBlock<'block> {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let result_register = self
                     .function_context
-                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
+                    .get_or_create_register(self.brillig_context, result_ids[0]);
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
             Instruction::Constrain(value) => {
@@ -138,7 +138,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Allocate => {
                 let pointer_register = self.function_context.get_or_create_register(
-                    &mut self.brillig_context,
+                    self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                 );
                 self.brillig_context.allocate_array(pointer_register, 1);
@@ -150,7 +150,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Load { address } => {
                 let target_register = self.function_context.get_or_create_register(
-                    &mut self.brillig_context,
+                    self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                 );
                 let address_register = self.convert_ssa_value(*address, dfg);
@@ -166,7 +166,7 @@ impl<'block> BrilligBlock<'block> {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let result_register = self
                     .function_context
-                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
+                    .get_or_create_register(self.brillig_context, result_ids[0]);
 
                 self.brillig_context.not_instruction(condition, result_register);
             }
@@ -195,7 +195,7 @@ impl<'block> BrilligBlock<'block> {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination = self
                     .function_context
-                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
+                    .get_or_create_register(self.brillig_context, result_ids[0]);
                 let source = self.convert_ssa_value(*value, dfg);
                 self.brillig_context.truncate_instruction(destination, source);
             }
@@ -203,7 +203,7 @@ impl<'block> BrilligBlock<'block> {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination = self
                     .function_context
-                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
+                    .get_or_create_register(self.brillig_context, result_ids[0]);
                 let source = self.convert_ssa_value(*value, dfg);
                 self.convert_cast(destination, source, target_type, &dfg.type_of_value(*value));
             }
@@ -279,12 +279,12 @@ impl<'block> BrilligBlock<'block> {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.function_context.get_or_create_register(&mut self.brillig_context, value_id)
+                self.function_context.get_or_create_register(self.brillig_context, value_id)
             }
             Value::NumericConstant { constant, .. } => {
                 let register_index = self
                     .function_context
-                    .get_or_create_register(&mut self.brillig_context, value_id);
+                    .get_or_create_register(self.brillig_context, value_id);
 
                 self.brillig_context.const_instruction(register_index, (*constant).into());
                 register_index

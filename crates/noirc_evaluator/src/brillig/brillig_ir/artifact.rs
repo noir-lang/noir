@@ -56,7 +56,7 @@ impl BrilligArtifact {
 
         for (label_id, position_in_bytecode) in &obj.labels {
             let old_value = self.labels.insert(label_id.clone(), position_in_bytecode + offset);
-            assert!(old_value.is_none(), "overwriting label {label_id} {old_value:?}")
+            assert!(old_value.is_none(), "overwriting label {label_id} {old_value:?}");
         }
 
         self.byte_code.extend_from_slice(&obj.byte_code);
