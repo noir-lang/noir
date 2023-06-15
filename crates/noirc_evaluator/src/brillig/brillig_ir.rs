@@ -555,14 +555,16 @@ mod tests {
             // TODO(AD): get rid of magic constant
             BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size: 64 },
         );
-        // We push a JumpIf opcode directly as the constrain instruction 
+        // We push a JumpIf and Trap opcode directly as the constrain instruction 
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
         context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
+        context.push_opcode(BrilligOpcode::Trap);
+        
         context.stop_instruction();
 
         let bytecode = context.artifact().byte_code;
-
+        dbg!(bytecode.clone());
         let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
         let mut vm = VM::new(
             Registers { inner: vec![] },
