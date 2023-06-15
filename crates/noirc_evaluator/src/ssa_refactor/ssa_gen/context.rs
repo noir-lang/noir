@@ -291,12 +291,17 @@ impl<'a> FunctionContext<'a> {
         let rhs_type = self.builder.type_of_value(rhs);
 
         let (array_length, element_type) = match (lhs_type, rhs_type) {
-            (Type::Array(lhs_elements, lhs_length), Type::Array(rhs_elements, rhs_length)) => {
-                assert_eq!(lhs_elements.len(), 1, "== is unimplemented for arrays of structs");
-                assert_eq!(rhs_elements.len(), 1, "== is unimplemented for arrays of structs");
-                assert_eq!(lhs_elements[0], rhs_elements[0]);
+            (
+                Type::Array(lhs_composite_type, lhs_length),
+                Type::Array(rhs_composite_type, rhs_length),
+            ) => {
+                assert!(
+                    lhs_composite_type.len() == 1 && rhs_composite_type.len() == 1,
+                    "== is unimplemented for arrays of structs"
+                );
+                assert_eq!(lhs_composite_type[0], rhs_composite_type[0]);
                 assert_eq!(lhs_length, rhs_length, "Expected two arrays of equal length");
-                (lhs_length, lhs_elements[0].clone())
+                (lhs_length, lhs_composite_type[0].clone())
             }
             _ => unreachable!("Expected two array values"),
         };
