@@ -55,5 +55,5 @@ wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
-acvm = { git = "https://github.com/noir-lang/acvm.git", rev = "a8db20bd62dc9ea00be956ffa1762acd41512cd6" }
+acvm = { git = "https://github.com/noir-lang/acvm.git", rev = "dcb94edeefedf0b743468f4e74964d313aa421fb" }
 
