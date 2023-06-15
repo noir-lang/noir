@@ -321,7 +321,7 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, Type)> {
-        match &self.values[value] {
+        match &self.values[self.resolve(value)] {
             Value::NumericConstant { constant, typ } => Some((*constant, typ.clone())),
             _ => None,
         }
@@ -333,7 +333,7 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(im::Vector<ValueId>, Rc<CompositeType>)> {
-        match &self.values[value] {
+        match &self.values[self.resolve(value)] {
             // Vectors are shared, so cloning them is cheap
             Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
             _ => None,

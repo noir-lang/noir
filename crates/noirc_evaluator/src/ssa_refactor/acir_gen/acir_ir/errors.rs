@@ -1,8 +1,11 @@
+use acvm::FieldElement;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) enum AcirGenError {
     InvalidRangeConstraint { num_bits: u32 },
     IndexOutOfBounds { index: usize, array_size: usize },
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32 },
+    BadConstantEquality { lhs: FieldElement, rhs: FieldElement },
 }
 
 impl AcirGenError {
@@ -18,6 +21,9 @@ impl AcirGenError {
             }
             AcirGenError::UnsupportedIntegerSize { num_bits, max_num_bits } => {
                 format!("Integer sized {num_bits} is over the max supported size of {max_num_bits}")
+            }
+            AcirGenError::BadConstantEquality { lhs, rhs } => {
+                format!("{lhs} and {rhs} constrained to be equal though they never can be")
             }
         }
     }

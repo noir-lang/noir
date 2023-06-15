@@ -160,7 +160,9 @@ impl Context {
             }
             Instruction::Constrain(value_id) => {
                 let constrain_condition = self.convert_numeric_value(*value_id, dfg);
-                self.acir_context.assert_eq_one(constrain_condition);
+                self.acir_context
+                    .assert_eq_one(constrain_condition)
+                    .expect("add Result types to all methods so errors bubble up");
             }
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
