@@ -88,7 +88,7 @@ impl BrilligContext {
         self.load_instruction(result, index_of_element_in_memory);
     }
 
-    /// Gets the value in the array at index `index` and stores it in `result`
+    /// Sets the item in the array at index `index` to `value`
     pub(crate) fn array_set(
         &mut self,
         array_ptr: RegisterIndex,
