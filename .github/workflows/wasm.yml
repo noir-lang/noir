@@ -21,17 +21,15 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update package.json version
-        id: update-version
-        working-directory: result
-        run: |
-          pwd
-          ls -la
-          cat package.json
-          npm version --no-git-tag-version ${{ needs.release-please.outputs.tag-name }}
-
       - name: Build wasm package
         run: |
           nix build -L .#wasm
           ls result/ -R
           cat result/package.json
+
+      - name: Update package.json version
+        id: update-version
+        working-directory: ./result
+        run: |
+          npm version --no-git-tag-version ${{ needs.release-please.outputs.tag-name }}
+          cat package.json
