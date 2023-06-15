@@ -246,6 +246,10 @@ impl Instruction {
                         (
                             Type::Numeric(NumericType::Unsigned { bit_size }),
                             Type::Numeric(NumericType::Unsigned { .. }),
+                        )
+                        | (
+                            Type::Numeric(NumericType::Unsigned { bit_size }),
+                            Type::Numeric(NumericType::NativeField),
                         ) => {
                             let integer_modulus = BigUint::from(2u128).pow(*bit_size);
                             let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
