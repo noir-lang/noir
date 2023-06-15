@@ -12,7 +12,7 @@ unconstrained fn bar(x : bool) -> Field {
     a + 1
 }
 
-unconstrained fn foo(x : bool, y: Field) -> Field {
+unconstrained fn foo(_x : bool, y: Field) -> Field {
     assert(y==4);
     2*foo2(4)
 
