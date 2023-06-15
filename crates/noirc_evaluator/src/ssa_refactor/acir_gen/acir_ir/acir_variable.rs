@@ -56,7 +56,11 @@ impl AcirType {
 
     /// True if type is signed
     pub(crate) fn is_signed(&self) -> bool {
-        matches!(self.0, NumericType::Signed { .. })
+        let numeric_type = match self {
+            AcirType::NumericType(numeric_type) => numeric_type,
+            AcirType::Array(_, _) => return false,
+        };
+        matches!(numeric_type, NumericType::Signed { .. })
     }
 }
 
