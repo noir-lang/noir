@@ -7,6 +7,7 @@ import {
   ACVMField,
   ZERO_ACVM_FIELD,
   acvm,
+  convertACVMFieldToBuffer,
   frToAztecAddress,
   frToSelector,
   fromACVMField,
@@ -120,13 +121,8 @@ export class PublicExecutor {
         this.log(`Returning from nested call: ret=${childExecutionResult.returnValues.join(', ')}`);
         return padArrayEnd(childExecutionResult.returnValues, Fr.ZERO, NOIR_MAX_RETURN_VALUES).map(toACVMField);
       },
-      emitUnencryptedLog: ([...chars]: ACVMField[]) => {
-        let unencryptedLog = '';
-        for (const hex of chars) {
-          const unicodeChar = String.fromCharCode(parseInt(hex, 16));
-          unencryptedLog += unicodeChar;
-        }
-        unencryptedLogs.logs.push(Buffer.from(unencryptedLog));
+      emitUnencryptedLog: ([...args]: ACVMField[]) => {
+        unencryptedLogs.logs.push(...args.map(str => convertACVMFieldToBuffer(str)));
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },
     });
