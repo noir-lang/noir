@@ -39,7 +39,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
         let preprocessed_contracts =
-            try_vecmap(compiled_contracts, |contract| preprocess_contract(&backend, contract))?;
+            try_vecmap(compiled_contracts, |contract| preprocess_contract(contract))?;
         for contract in preprocessed_contracts {
             save_contract_to_file(
                 &contract,

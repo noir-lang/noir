@@ -35,7 +35,4 @@ pub struct PreprocessedContractFunction {
         deserialize_with = "super::deserialize_circuit"
     )]
     pub bytecode: Circuit,
-
-    pub proving_key: Vec<u8>,
-    pub verification_key: Vec<u8>,
 }

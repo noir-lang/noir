@@ -32,14 +32,12 @@ pub fn preprocess_program(
 }
 
 pub fn preprocess_contract(
-    backend: &impl ProofSystemCompiler,
     compiled_contract: CompiledContract,
 ) -> Result<PreprocessedContract, NargoError> {
     let preprocessed_contract_functions = vecmap(compiled_contract.functions, |func| {
         // TODO: currently `func`'s bytecode is already optimized for the backend.
         // In future we'll need to apply those optimizations here.
         let optimized_bytecode = func.bytecode;
-        let (proving_key, verification_key) = backend.preprocess(&optimized_bytecode);
 
         PreprocessedContractFunction {
             name: func.name,
@@ -47,8 +45,6 @@ pub fn preprocess_contract(
             abi: func.abi,
 
             bytecode: optimized_bytecode,
-            proving_key,
-            verification_key,
         }
     });
 
