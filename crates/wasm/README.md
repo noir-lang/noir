@@ -4,7 +4,6 @@
 
 In order to build the wasm package, the following must be installed:
 
-- [jq](https://github.com/stedolan/jq)
 
 ## Build
 
