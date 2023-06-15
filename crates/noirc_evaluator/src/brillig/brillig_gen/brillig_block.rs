@@ -13,33 +13,31 @@ use iter_extended::vecmap;
 use super::brillig_fn::FunctionContext;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
-pub(crate) struct BrilligBlock {
-    function_context: FunctionContext,
+pub(crate) struct BrilligBlock<'block> {
+    function_context: &'block mut FunctionContext,
     /// The basic block that is being converted
     block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    context: BrilligContext,
+    brillig_context: &'block mut BrilligContext,
 }
 
-impl BrilligBlock {
+impl<'block> BrilligBlock<'block> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
-        function_context: FunctionContext,
-        brillig_context: BrilligContext,
+        function_context: &'block mut FunctionContext,
+        brillig_context: &'block mut BrilligContext,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
-    ) -> (FunctionContext, BrilligContext) {
-        let mut brillig_block =
-            BrilligBlock { function_context, block_id, context: brillig_context };
+    ) {
+        let mut brillig_block = BrilligBlock { function_context, block_id, brillig_context };
 
         brillig_block.convert_block(dfg);
-
-        (brillig_block.function_context, brillig_block.context)
     }
 
     fn convert_block(&mut self, dfg: &DataFlowGraph) {
         // Add a label for this block
-        self.context.enter_context(self.create_block_label(self.block_id));
+        let block_label = self.create_block_label(self.block_id);
+        self.brillig_context.enter_context(block_label);
 
         // Convert the block parameters
         let block = &dfg[self.block_id];
@@ -73,25 +71,25 @@ impl BrilligBlock {
         match terminator_instruction {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
-                self.context
+                self.brillig_context
                     .jump_if_instruction(condition, self.create_block_label(*then_destination));
-                self.context.jump_instruction(self.create_block_label(*else_destination));
+                self.brillig_context.jump_instruction(self.create_block_label(*else_destination));
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let target = &dfg[*destination];
                 for (src, dest) in arguments.iter().zip(target.parameters()) {
                     let destination = self.convert_ssa_value(*dest, dfg);
                     let source = self.convert_ssa_value(*src, dfg);
-                    self.context.mov_instruction(destination, source);
+                    self.brillig_context.mov_instruction(destination, source);
                 }
-                self.context.jump_instruction(self.create_block_label(*destination));
+                self.brillig_context.jump_instruction(self.create_block_label(*destination));
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_registers: Vec<_> = return_values
                     .iter()
                     .map(|value_id| self.convert_ssa_value(*value_id, dfg))
                     .collect();
-                self.context.return_instruction(&return_registers);
+                self.brillig_context.return_instruction(&return_registers);
             }
         }
     }
@@ -106,12 +104,14 @@ impl BrilligBlock {
             };
             match param_type {
                 Type::Numeric(_) => {
-                    self.function_context.get_or_create_register(&mut self.context, *param_id);
+                    self.function_context
+                        .get_or_create_register(&mut self.brillig_context, *param_id);
                 }
                 Type::Array(_, size) => {
-                    let pointer_register =
-                        self.function_context.get_or_create_register(&mut self.context, *param_id);
-                    self.context.allocate_array(pointer_register, *size as u32);
+                    let pointer_register = self
+                        .function_context
+                        .get_or_create_register(&mut self.brillig_context, *param_id);
+                    self.brillig_context.allocate_array(pointer_register, *size as u32);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -127,33 +127,34 @@ impl BrilligBlock {
         match instruction {
             Instruction::Binary(binary) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let result_register =
-                    self.function_context.get_or_create_register(&mut self.context, result_ids[0]);
+                let result_register = self
+                    .function_context
+                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
             Instruction::Constrain(value) => {
                 let condition = self.convert_ssa_value(*value, dfg);
-                self.context.constrain_instruction(condition);
+                self.brillig_context.constrain_instruction(condition);
             }
             Instruction::Allocate => {
                 let pointer_register = self.function_context.get_or_create_register(
-                    &mut self.context,
+                    &mut self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                 );
-                self.context.allocate_array(pointer_register, 1);
+                self.brillig_context.allocate_array(pointer_register, 1);
             }
             Instruction::Store { address, value } => {
                 let address_register = self.convert_ssa_value(*address, dfg);
                 let value_register = self.convert_ssa_value(*value, dfg);
-                self.context.store_instruction(address_register, value_register);
+                self.brillig_context.store_instruction(address_register, value_register);
             }
             Instruction::Load { address } => {
                 let target_register = self.function_context.get_or_create_register(
-                    &mut self.context,
+                    &mut self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                 );
                 let address_register = self.convert_ssa_value(*address, dfg);
-                self.context.load_instruction(target_register, address_register);
+                self.brillig_context.load_instruction(target_register, address_register);
             }
             Instruction::Not(value) => {
                 assert_eq!(
@@ -163,10 +164,11 @@ impl BrilligBlock {
                 );
                 let condition = self.convert_ssa_value(*value, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
-                let result_register =
-                    self.function_context.get_or_create_register(&mut self.context, result_ids[0]);
+                let result_register = self
+                    .function_context
+                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
 
-                self.context.not_instruction(condition, result_register);
+                self.brillig_context.not_instruction(condition, result_register);
             }
             Instruction::Call { func, arguments } => match &dfg[*func] {
                 Value::ForeignFunction(func_name) => {
@@ -179,7 +181,7 @@ impl BrilligBlock {
                         self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
                     });
 
-                    self.context.foreign_call_instruction(
+                    self.brillig_context.foreign_call_instruction(
                         func_name.to_owned(),
                         &input_registers,
                         &output_registers,
@@ -191,15 +193,17 @@ impl BrilligBlock {
             },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination =
-                    self.function_context.get_or_create_register(&mut self.context, result_ids[0]);
+                let destination = self
+                    .function_context
+                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
                 let source = self.convert_ssa_value(*value, dfg);
-                self.context.truncate_instruction(destination, source);
+                self.brillig_context.truncate_instruction(destination, source);
             }
             Instruction::Cast(value, target_type) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination =
-                    self.function_context.get_or_create_register(&mut self.context, result_ids[0]);
+                let destination = self
+                    .function_context
+                    .get_or_create_register(&mut self.brillig_context, result_ids[0]);
                 let source = self.convert_ssa_value(*value, dfg);
                 self.convert_cast(destination, source, target_type, &dfg.type_of_value(*value));
             }
@@ -242,9 +246,9 @@ impl BrilligBlock {
         // and therefore a no-op. Conversely, casting from a Field element
         // will always be a narrowing cast and therefore a cast instruction
         if source_bit_size > target_bit_size {
-            self.context.cast_instruction(destination, source, target_bit_size);
+            self.brillig_context.cast_instruction(destination, source, target_bit_size);
         } else {
-            self.context.mov_instruction(destination, source);
+            self.brillig_context.mov_instruction(destination, source);
         }
     }
 
@@ -264,7 +268,7 @@ impl BrilligBlock {
         let brillig_binary_op =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, binary_type);
 
-        self.context.binary_instruction(left, right, result_register, brillig_binary_op);
+        self.brillig_context.binary_instruction(left, right, result_register, brillig_binary_op);
     }
 
     /// Converts an SSA `ValueId` into a `RegisterIndex`.
@@ -275,13 +279,14 @@ impl BrilligBlock {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.function_context.get_or_create_register(&mut self.context, value_id)
+                self.function_context.get_or_create_register(&mut self.brillig_context, value_id)
             }
             Value::NumericConstant { constant, .. } => {
-                let register_index =
-                    self.function_context.get_or_create_register(&mut self.context, value_id);
+                let register_index = self
+                    .function_context
+                    .get_or_create_register(&mut self.brillig_context, value_id);
 
-                self.context.const_instruction(register_index, (*constant).into());
+                self.brillig_context.const_instruction(register_index, (*constant).into());
                 register_index
             }
             _ => {

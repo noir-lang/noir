@@ -40,7 +40,8 @@ pub(crate) struct BrilligContext {
     latest_register: usize,
     /// Tracks memory allocations
     memory: BrilligMemory,
-    /// Context label, must be unique in a linking context
+    /// Context label, must be unique with respect to the function
+    /// being linked.
     context_label: String,
     /// Section label, used to separate sections of code
     section_label: usize,

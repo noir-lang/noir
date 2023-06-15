@@ -25,8 +25,7 @@ pub(crate) fn convert_ssa_function(func: &Function) -> BrilligArtifact {
     let mut brillig_context = BrilligContext::default();
 
     for block in reverse_post_order {
-        (function_context, brillig_context) =
-            BrilligBlock::compile(function_context, brillig_context, block, &func.dfg);
+        BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
     }
 
     brillig_context.artifact()
