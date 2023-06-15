@@ -21,6 +21,7 @@
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/constants.hpp"
 
+#include "barretenberg/common/log.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel::testing_harness {
@@ -170,6 +171,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     const NT::fr acir_hash = 12341234;
 
     const NT::fr msg_sender_private_key = 123456789;
+    const std::array<NT::fr, 2> msg_sender_pub_key = { 123456789, 123456789 };
 
     FunctionData<NT> const function_data{
         .function_selector = 1,  // TODO(suyash): deduce this from the contract, somehow.
@@ -227,6 +229,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         // TODO(david) use actual function tree root computed from leaves
         // update cdd with actual info
         contract_deployment_data = {
+            .deployer_public_key = msg_sender_pub_key,
             .constructor_vk_hash = private_circuit_vk_hash,
             .function_tree_root = plonk::stdlib::merkle_tree::compute_tree_root_native(function_leaves),
             .contract_address_salt = contract_address_salt,
@@ -238,7 +241,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
 
         // Derive contract address so that it can be used inside the constructor itself
         contract_address = compute_contract_address<NT>(
-            msg_sender, contract_address_salt, contract_deployment_data.function_tree_root, constructor_hash);
+            msg_sender_pub_key, contract_address_salt, contract_deployment_data.function_tree_root, constructor_hash);
         // update the contract address in the call context now that it is known
         call_context.storage_contract_address = contract_address;
     } else {
@@ -515,9 +518,13 @@ bool validate_deployed_contract_address(PrivateKernelInputsInit<NT> const& priva
     auto expected_constructor_hash =
         NT::compress({ private_call_function_data_hash, tx_request.args_hash, private_circuit_vk_hash }, CONSTRUCTOR);
 
-    NT::fr const expected_contract_address =
-        NT::compress({ tx_request.from, cdd.contract_address_salt, cdd.function_tree_root, expected_constructor_hash },
-                     CONTRACT_ADDRESS);
+    NT::fr const expected_contract_address = NT::compress({ cdd.deployer_public_key[0],
+                                                            cdd.deployer_public_key[1],
+                                                            cdd.contract_address_salt,
+                                                            cdd.function_tree_root,
+                                                            expected_constructor_hash },
+                                                          CONTRACT_ADDRESS);
+
     return (public_inputs.end.new_contracts[0].contract_address.to_field() == expected_contract_address);
 }
 

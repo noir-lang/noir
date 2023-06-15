@@ -44,7 +44,7 @@ template <typename NCT> typename NCT::fr compute_constructor_hash(FunctionData<N
     return NCT::compress(inputs, aztec3::GeneratorIndex::CONSTRUCTOR);
 }
 
-template <typename NCT> typename NCT::address compute_contract_address(typename NCT::address deployer_address,
+template <typename NCT> typename NCT::address compute_contract_address(std::array<typename NCT::fr, 2> pub_key,
                                                                        typename NCT::fr contract_address_salt,
                                                                        typename NCT::fr function_tree_root,
                                                                        typename NCT::fr constructor_hash)
@@ -53,10 +53,7 @@ template <typename NCT> typename NCT::address compute_contract_address(typename 
     using address = typename NCT::address;
 
     std::vector<fr> const inputs = {
-        deployer_address.to_field(),
-        contract_address_salt,
-        function_tree_root,
-        constructor_hash,
+        pub_key[0], pub_key[1], contract_address_salt, function_tree_root, constructor_hash,
     };
 
     return address(NCT::compress(inputs, aztec3::GeneratorIndex::CONTRACT_ADDRESS));

@@ -6,6 +6,7 @@ import { AccountContractAbi, ChildAbi } from '@aztec/noir-contracts/examples';
 
 import { toBigInt } from '@aztec/foundation/serialize';
 import { setup } from './utils.js';
+import { privateKey } from './fixtures.js';
 
 describe('e2e_account_contract', () => {
   let aztecNode: AztecNodeService;
@@ -15,13 +16,11 @@ describe('e2e_account_contract', () => {
   let account: Contract;
   let child: Contract;
 
-  const privKey = Buffer.from('ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', 'hex');
-
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, logger } = await setup());
 
     account = await deployContract(AccountContractAbi);
-    await aztecRpcServer.addSmartAccount(privKey, account.address);
+    await aztecRpcServer.registerSmartAccount(privateKey, account.address);
 
     child = await deployContract(ChildAbi);
   }, 60_000);

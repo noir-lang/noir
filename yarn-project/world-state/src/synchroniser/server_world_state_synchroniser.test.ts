@@ -38,7 +38,7 @@ const getMockL1ToL2MessagesData = () => {
 };
 
 const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) => {
-  const newEncryptedLogs = L2BlockL2Logs.random(4, 2, 3);
+  const newEncryptedLogs = L2BlockL2Logs.random(1, 2, 3);
   const block = L2Block.fromFields({
     number: blockNumber,
     startPrivateDataTreeSnapshot: getMockTreeSnapshot(),
@@ -57,7 +57,7 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
     endPublicDataTreeRoot: Fr.random(),
     endL1ToL2MessageTreeSnapshot: getMockTreeSnapshot(),
     endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: getMockTreeSnapshot(),
-    newCommitments: [Fr.random()],
+    newCommitments: [Fr.random(), Fr.random(), Fr.random(), Fr.random()],
     newNullifiers: [Fr.random()],
     newContracts: newContractsCommitments?.map(x => Fr.fromBuffer(x)) ?? [Fr.random()],
     newContractData: [getMockContractData()],

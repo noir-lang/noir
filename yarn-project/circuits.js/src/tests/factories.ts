@@ -85,6 +85,7 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
   makeTuple,
   makeHalfFullTuple,
+  Point,
 } from '../index.js';
 
 /**
@@ -93,8 +94,7 @@ import {
  * @returns A tx context.
  */
 export function makeTxContext(seed: number): TxContext {
-  const deploymentData = new ContractDeploymentData(fr(seed), fr(seed + 1), fr(seed + 2), makeEthAddress(seed + 3));
-  return new TxContext(false, false, true, deploymentData);
+  return new TxContext(false, false, true, makeContractDeploymentData(seed));
 }
 
 /**
@@ -389,6 +389,15 @@ export function makeVerificationKey(): VerificationKey {
 }
 
 /**
+ * Creates an arbitrary point in a curve.
+ * @param seed - Seed to generate the point values.
+ * @returns A point.
+ */
+export function makePoint(seed = 1): Point {
+  return new Point(Buffer.concat([fr(seed).toBuffer(), fr(seed + 1).toBuffer()]));
+}
+
+/**
  * Makes arbitrary previous kernel data.
  * @param seed - The seed to use for generating the previous kernel data.
  * @param kernelPublicInputs - The kernel public inputs to use for generating the previous kernel data.
@@ -644,7 +653,13 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
  * @returns A contract deployment data.
  */
 export function makeContractDeploymentData(seed = 1) {
-  return new ContractDeploymentData(fr(seed), fr(seed + 1), fr(seed + 2), new EthAddress(numToUInt32BE(seed + 3, 20)));
+  return new ContractDeploymentData(
+    makePoint(seed),
+    fr(seed + 1),
+    fr(seed + 2),
+    fr(seed + 3),
+    makeEthAddress(seed + 4),
+  );
 }
 
 /**

@@ -29,6 +29,14 @@ export class TxHash {
   }
 
   /**
+   * Returns true if this hash is zero.
+   * @returns True if this hash is zero.
+   */
+  public isZero(): boolean {
+    return this.buffer.equals(Buffer.alloc(32, 0));
+  }
+
+  /**
    * Convert this hash to a hex string.
    * @returns The hex string.
    */

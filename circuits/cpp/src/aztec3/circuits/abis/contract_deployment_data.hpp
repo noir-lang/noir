@@ -6,6 +6,8 @@
 
 #include <barretenberg/barretenberg.hpp>
 
+#include <array>
+
 namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
@@ -17,18 +19,20 @@ template <typename NCT> struct ContractDeploymentData {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
+    std::array<fr, 2> deployer_public_key = { 0, 0 };
     fr constructor_vk_hash = 0;
     fr function_tree_root = 0;
     fr contract_address_salt = 0;
     address portal_contract_address = 0;
 
     // for serialization: update up with new fields
-    MSGPACK_FIELDS(constructor_vk_hash, function_tree_root, contract_address_salt, portal_contract_address);
+    MSGPACK_FIELDS(
+        deployer_public_key, constructor_vk_hash, function_tree_root, contract_address_salt, portal_contract_address);
 
     boolean operator==(ContractDeploymentData<NCT> const& other) const
     {
-        return constructor_vk_hash == other.constructor_vk_hash && function_tree_root == other.function_tree_root &&
-               contract_address_salt == other.contract_address_salt &&
+        return deployer_public_key == other.deployer_public_key && constructor_vk_hash == other.constructor_vk_hash &&
+               function_tree_root == other.function_tree_root && contract_address_salt == other.contract_address_salt &&
                portal_contract_address == other.portal_contract_address;
     };
 
@@ -41,10 +45,8 @@ template <typename NCT> struct ContractDeploymentData {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         ContractDeploymentData<CircuitTypes<Composer>> data = {
-            to_ct(constructor_vk_hash),
-            to_ct(function_tree_root),
-            to_ct(contract_address_salt),
-            to_ct(portal_contract_address),
+            to_ct(deployer_public_key),   to_ct(constructor_vk_hash),     to_ct(function_tree_root),
+            to_ct(contract_address_salt), to_ct(portal_contract_address),
         };
 
         return data;
@@ -56,10 +58,8 @@ template <typename NCT> struct ContractDeploymentData {
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
         ContractDeploymentData<NativeTypes> call_context = {
-            to_nt(constructor_vk_hash),
-            to_nt(function_tree_root),
-            to_nt(contract_address_salt),
-            to_nt(portal_contract_address),
+            to_nt(deployer_public_key),   to_nt(constructor_vk_hash),     to_nt(function_tree_root),
+            to_nt(contract_address_salt), to_nt(portal_contract_address),
         };
 
         return call_context;
@@ -69,6 +69,8 @@ template <typename NCT> struct ContractDeploymentData {
     {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
 
+        deployer_public_key[0].assert_is_zero();
+        deployer_public_key[1].assert_is_zero();
         constructor_vk_hash.assert_is_zero();
         function_tree_root.assert_is_zero();
         contract_address_salt.assert_is_zero();
@@ -79,6 +81,8 @@ template <typename NCT> struct ContractDeploymentData {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
+        deployer_public_key[0].set_public();
+        deployer_public_key[1].set_public();
         constructor_vk_hash.set_public();
         function_tree_root.set_public();
         contract_address_salt.set_public();
@@ -88,10 +92,8 @@ template <typename NCT> struct ContractDeploymentData {
     fr hash() const
     {
         std::vector<fr> const inputs = {
-            constructor_vk_hash,
-            function_tree_root,
-            contract_address_salt,
-            portal_contract_address.to_field(),
+            deployer_public_key[0], deployer_public_key[1], constructor_vk_hash,
+            function_tree_root,     contract_address_salt,  portal_contract_address.to_field(),
         };
 
         return NCT::compress(inputs, GeneratorIndex::CONTRACT_DEPLOYMENT_DATA);
@@ -102,6 +104,7 @@ template <typename NCT> void read(uint8_t const*& it, ContractDeploymentData<NCT
 {
     using serialize::read;
 
+    read(it, data.deployer_public_key);
     read(it, data.constructor_vk_hash);
     read(it, data.function_tree_root);
     read(it, data.contract_address_salt);
@@ -112,6 +115,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, ContractDeployment
 {
     using serialize::write;
 
+    write(buf, data.deployer_public_key);
     write(buf, data.constructor_vk_hash);
     write(buf, data.function_tree_root);
     write(buf, data.contract_address_salt);
@@ -120,7 +124,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, ContractDeployment
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, ContractDeploymentData<NCT> const& data)
 {
-    return os << "constructor_vk_hash: " << data.constructor_vk_hash << "\n"
+    return os << "deployer_public_key: " << data.deployer_public_key << "\n"
+              << "constructor_vk_hash: " << data.constructor_vk_hash << "\n"
               << "function_tree_root: " << data.function_tree_root << "\n"
               << "contract_address_salt: " << data.contract_address_salt << "\n"
               << "portal_contract_address: " << data.portal_contract_address << "\n";

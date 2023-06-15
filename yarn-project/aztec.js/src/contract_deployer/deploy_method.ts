@@ -45,15 +45,13 @@ export class DeployMethod extends ContractFunctionInteraction {
    */
   public async create(options: DeployOptions = {}) {
     const { portalContract, contractAddressSalt, from } = options;
-    const txRequest = await this.arc.createDeploymentTxRequest(
+    this.tx = await this.arc.createDeploymentTx(
       this.abi,
       this.args,
       portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
       contractAddressSalt,
       from,
     );
-
-    this.tx = await this.arc.createTx(txRequest);
     return this.tx;
   }
 

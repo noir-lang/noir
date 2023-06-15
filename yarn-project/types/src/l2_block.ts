@@ -17,12 +17,18 @@ import { PublicDataWrite } from './public_data_write.js';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { sha256 } from '@aztec/foundation/crypto';
 import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
+import { TxL2Logs } from './index.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
  * TODO: Reuse data types and serialization functions from circuits package.
  */
 export class L2Block {
+  /**
+   * Consolidated logs from all txs.
+   */
+  public newEncryptedLogs?: L2BlockL2Logs;
+
   constructor(
     /**
      * The number of the L2 block.
@@ -123,8 +129,16 @@ export class L2Block {
     /**
      * Consolidated logs from all txs.
      */
-    public newEncryptedLogs?: L2BlockL2Logs,
-  ) {}
+    newEncryptedLogs?: L2BlockL2Logs,
+  ) {
+    if (newCommitments.length % KERNEL_NEW_COMMITMENTS_LENGTH !== 0) {
+      throw new Error(`The number of new commitments must be a multiple of ${KERNEL_NEW_COMMITMENTS_LENGTH}.`);
+    }
+
+    if (newEncryptedLogs) {
+      this.attachEncryptedLogs(newEncryptedLogs);
+    }
+  }
 
   /**
    * Creates an L2 block containing random data.
@@ -433,6 +447,16 @@ export class L2Block {
       throw new Error('L2 block already has encrypted logs attached.');
     }
 
+    const numTxs = this.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH;
+    if (numTxs !== encryptedLogs.txLogs.length) {
+      throw new Error(
+        'Number of txLogs within encryptedLogs does not match number of transactions. Expected: ' +
+          numTxs +
+          ' Got: ' +
+          encryptedLogs.txLogs.length,
+      );
+    }
+
     this.newEncryptedLogs = encryptedLogs;
   }
 
@@ -556,6 +580,8 @@ export class L2Block {
       const newL2ToL1MsgsBuffer = Buffer.concat(
         this.newL2ToL1Msgs.slice(i * l2ToL1MsgsPerBase, (i + 1) * l2ToL1MsgsPerBase).map(x => x.toBuffer()),
       );
+      const encryptedLogsHashKernel0 = L2Block.computeKernelLogsHash(this.newEncryptedLogs!.txLogs[i * 2]);
+      const encryptedLogsHashKernel1 = L2Block.computeKernelLogsHash(this.newEncryptedLogs!.txLogs[i * 2 + 1]);
 
       const inputValue = Buffer.concat([
         commitmentsBuffer,
@@ -568,10 +594,8 @@ export class L2Block {
         this.newContractData[i * 2].portalContractAddress.toBuffer32(),
         this.newContractData[i * 2 + 1].contractAddress.toBuffer(),
         this.newContractData[i * 2 + 1].portalContractAddress.toBuffer32(),
-        // The following 2 are encrypted logs hashes from kernel 0 and kernel 1 of base rollup circuit
-        // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
-        // L2Block.computeKernelLogsHash(this.newEncryptedLogs.dataChunks[i * 2]),
-        // L2Block.computeKernelLogsHash(this.newEncryptedLogs.dataChunks[i * 2 + 1]),
+        encryptedLogsHashKernel0,
+        encryptedLogsHashKernel1,
       ]);
       leafs.push(sha256(inputValue));
     }
@@ -695,32 +719,21 @@ export class L2Block {
 
   /**
    * Computes logs hash as is done in the kernel and app circuits.
-   * @param encodedLogs - Encoded logs to be hashed.
+   * @param logs - Logs to be hashed.
    * @returns The hash of the logs.
    * Note: This is a TS implementation of `computeKernelLogsHash` function in Decoder.sol. See that function documentation
    *       for more details.
    */
-  static computeKernelLogsHash(encodedLogs: Buffer): Buffer {
-    const reader = new BufferReader(encodedLogs);
-
-    let remainingLogsLength = reader.readNumber();
+  static computeKernelLogsHash(logs: TxL2Logs): Buffer {
     const logsHashes: [Buffer, Buffer] = [Buffer.alloc(32), Buffer.alloc(32)];
     let kernelPublicInputsLogsHash = Buffer.alloc(32);
 
-    while (remainingLogsLength > 0) {
-      const iterationLogsLength = reader.readNumber();
-      const iterationLogs = reader.readBytes(iterationLogsLength);
-
-      const privateCircuitPublicInputsLogsHash = sha256(iterationLogs);
-
+    for (const functionLogs of logs.functionLogs) {
       logsHashes[0] = kernelPublicInputsLogsHash;
-      logsHashes[1] = privateCircuitPublicInputsLogsHash;
+      logsHashes[1] = functionLogs.hash(); // privateCircuitPublicInputsLogsHash
 
       // Hash logs hash from the public inputs of previous kernel iteration and logs hash from private circuit public inputs
       kernelPublicInputsLogsHash = sha256(Buffer.concat(logsHashes));
-
-      // Decrease remaining logs length by this iteration's logs length (len(I?_LOGS)) and 4 bytes for I?_LOGS_LEN
-      remainingLogsLength -= iterationLogsLength + 4;
     }
 
     return kernelPublicInputsLogsHash;

@@ -1,6 +1,5 @@
 import { AztecNode } from '@aztec/aztec-node';
 import {
-  AztecAddress,
   CONTRACT_TREE_HEIGHT,
   CircuitsWasm,
   EthAddress,
@@ -21,9 +20,10 @@ import {
   hashConstructor,
   hashVK,
 } from '@aztec/circuits.js/abis';
-import { FunctionType, ContractAbi } from '@aztec/foundation/abi';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { assertLength } from '@aztec/foundation/serialize';
-import { ContractFunctionDao, ContractDao } from '../contract_database/contract_dao.js';
+import { PublicKey } from '@aztec/key-store';
+import { ContractDao, ContractFunctionDao } from '../contract_database/contract_dao.js';
 import { generateFunctionSelector } from '../index.js';
 import { computeFunctionTreeData } from './function_tree_data.js';
 
@@ -166,7 +166,7 @@ export class ContractTree {
    * @param args - An array of Fr elements representing the constructor's arguments.
    * @param portalContract - The Ethereum address of the portal smart contract.
    * @param contractAddressSalt - An Fr element representing the salt used to compute the contract address.
-   * @param from - The Aztec address of the contract deployer.
+   * @param from - The public key of the contract deployer.
    * @param node - An instance of the AztecNode class representing the current node.
    * @returns A new ContractTree instance containing the contract data and computed values.
    */
@@ -175,7 +175,7 @@ export class ContractTree {
     args: Fr[],
     portalContract: EthAddress,
     contractAddressSalt: Fr,
-    from: AztecAddress,
+    from: PublicKey,
     node: AztecNode,
   ) {
     const wasm = await CircuitsWasm.get();

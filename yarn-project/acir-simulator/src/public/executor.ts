@@ -3,7 +3,18 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { FunctionL2Logs, TxExecutionRequest } from '@aztec/types';
 import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-lang/noir_util_wasm';
-import { ACVMField, ZERO_ACVM_FIELD, acvm, frToAztecAddress, frToSelector, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
+import {
+  ACVMField,
+  ZERO_ACVM_FIELD,
+  acvm,
+  frToAztecAddress,
+  frToSelector,
+  fromACVMField,
+  toACVMField,
+  toACVMWitness,
+  toAcvmCommitmentLoadOracleInputs,
+  toAcvmL1ToL2MessageLoadOracleInputs,
+} from '../acvm/index.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution, PublicExecutionResult } from './execution.js';
 import { ContractStorageActionsCollector } from './state_actions.js';
@@ -34,14 +45,16 @@ export class PublicExecutor {
    */
   public async execute(execution: PublicExecution): Promise<PublicExecutionResult> {
     const selectorHex = execution.functionData.functionSelectorBuffer.toString('hex');
-    this.log(`Executing public external function ${execution.contractAddress.toShortString()}:${selectorHex}`);
+    this.log(`Executing public external function ${execution.contractAddress.toString()}:${selectorHex}`);
 
     const selector = execution.functionData.functionSelectorBuffer;
     const acir = await this.contractsDb.getBytecode(execution.contractAddress, selector);
-    if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toShortString()}:${selectorHex}`);
+    if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toString()}:${selectorHex}`);
 
     const initialWitness = getInitialWitness(execution.args, execution.callContext, this.treeRoots);
     const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);
+    const newCommitments: Fr[] = [];
+    const newL2ToL1Messages: Fr[] = [];
     const nestedExecutions: PublicExecutionResult[] = [];
     const unencryptedLogs = new FunctionL2Logs([]);
 
@@ -58,7 +71,18 @@ export class PublicExecutor {
       emitEncryptedLog: notAvailable,
       viewNotesPage: notAvailable,
       debugLog: notAvailable,
-      getL1ToL2Message: notAvailable, // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616
+
+      getL1ToL2Message: async ([msgKey]: ACVMField[]) => {
+        const messageInputs = await this.commitmentsDb.getL1ToL2Message(fromACVMField(msgKey));
+        return toAcvmL1ToL2MessageLoadOracleInputs(messageInputs, this.treeRoots.l1ToL2MessagesTreeRoot);
+      }, // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616
+      getCommitment: async ([commitment]: ACVMField[]) => {
+        const commitmentInputs = await this.commitmentsDb.getCommitmentOracle(
+          execution.contractAddress,
+          fromACVMField(commitment),
+        );
+        return toAcvmCommitmentLoadOracleInputs(commitmentInputs, this.treeRoots.privateDataTreeRoot);
+      },
       storageRead: async ([slot]) => {
         const storageSlot = fromACVMField(slot);
         const value = await storageActions.read(storageSlot);
@@ -72,6 +96,16 @@ export class PublicExecutor {
         await this.stateDb.storageWrite(execution.contractAddress, storageSlot, newValue);
         this.log(`Oracle storage write: slot=${storageSlot.toShortString()} value=${value.toString()}`);
         return [toACVMField(newValue)];
+      },
+      createCommitment: async ([commitment]) => {
+        this.log('Creating commitment: ' + commitment.toString());
+        newCommitments.push(fromACVMField(commitment));
+        return await Promise.resolve([ZERO_ACVM_FIELD]);
+      },
+      createL2ToL1Message: async ([message]) => {
+        this.log('Creating L2 to L1 message: ' + message.toString());
+        newL2ToL1Messages.push(fromACVMField(message));
+        return await Promise.resolve([ZERO_ACVM_FIELD]);
       },
       callPublicFunction: async ([address, functionSelector, ...args]) => {
         this.log(`Public function call: addr=${address} selector=${functionSelector} args=${args.join(',')}`);
@@ -87,14 +121,14 @@ export class PublicExecutor {
         return padArrayEnd(childExecutionResult.returnValues, Fr.ZERO, NOIR_MAX_RETURN_VALUES).map(toACVMField);
       },
       emitUnencryptedLog: ([...chars]: ACVMField[]) => {
-        let unencryptedLog = ''
+        let unencryptedLog = '';
         for (const hex of chars) {
           const unicodeChar = String.fromCharCode(parseInt(hex, 16));
           unencryptedLog += unicodeChar;
         }
-        unencryptedLogs.logs.push(Buffer.from(unencryptedLog))
-        return Promise.resolve([ZERO_ACVM_FIELD])
-      }
+        unencryptedLogs.logs.push(Buffer.from(unencryptedLog));
+        return Promise.resolve([ZERO_ACVM_FIELD]);
+      },
     });
 
     const returnValues = selectPublicWitnessFlattened(acir, partialWitness).map(fromACVMField);
@@ -102,6 +136,8 @@ export class PublicExecutor {
 
     return {
       execution,
+      newCommitments,
+      newL2ToL1Messages,
       contractStorageReads,
       contractStorageUpdateRequests,
       returnValues,

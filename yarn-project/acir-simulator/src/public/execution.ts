@@ -16,6 +16,10 @@ export interface PublicExecutionResult {
   execution: PublicExecution;
   /** The return values of the function. */
   returnValues: Fr[];
+  /** The new commitments to be inserted into the commitments tree. */
+  newCommitments: Fr[];
+  /** The new l2 to l1 messages generated in this call. */
+  newL2ToL1Messages: Fr[];
   /** The contract storage reads performed by the function. */
   contractStorageReads: ContractStorageRead[];
   /** The contract storage update requests performed by the function. */

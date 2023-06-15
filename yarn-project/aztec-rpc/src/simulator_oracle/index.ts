@@ -1,6 +1,6 @@
 import { CommitmentDataOracleInputs, DBOracle, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, CircuitsWasm, EthAddress, Fr, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, EthAddress, Fr, Point, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { KeyPair } from '@aztec/key-store';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
@@ -21,18 +21,21 @@ export class SimulatorOracle implements DBOracle {
   ) {}
 
   /**
-   * Retrieve the secret key associated with a specific address.
+   * Retrieve the secret key associated with a specific public key.
    * The function only allows access to the secret keys of the transaction creator,
    * and throws an error if the address does not match the public key address of the key pair.
    *
    * @param _contractAddress - The contract address. Ignored here. But we might want to return different keys for different contracts.
-   * @param txOriginAddress - The address of an account.
+   * @param pubKey - The public key of an account.
    * @returns A Promise that resolves to the secret key as a Buffer.
    * @throws An Error if the input address does not match the public key address of the key pair.
    */
-  getSecretKey(_contractAddress: AztecAddress, txOriginAddress: AztecAddress): Promise<Buffer> {
-    if (!txOriginAddress.equals(this.address)) {
-      throw new Error('Only allow access to the secret keys of the tx creator.');
+  getSecretKey(_contractAddress: AztecAddress, pubKey: Point): Promise<Buffer> {
+    const thisPubKey = this.keyPair.getPublicKey();
+    if (!thisPubKey.equals(pubKey)) {
+      throw new Error(
+        `Only allow access to the secret keys of the tx creator (requested keys for ${pubKey}, expected ${thisPubKey}).`,
+      );
     }
     return this.keyPair.getPrivateKey();
   }

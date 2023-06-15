@@ -59,24 +59,19 @@ describe('e2e_zk_token_contract', () => {
   it('1.4 should call mint and increase balance', async () => {
     const mintAmount = 65n;
 
-    const [owner, receiver] = accounts;
+    const [owner] = accounts;
+    const ownerPublicKey = pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner));
 
-    const deployedContract = await deployContract(
-      0n,
-      pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)),
-    );
+    const deployedContract = await deployContract(0n, ownerPublicKey);
     await expectBalance(owner, 0n);
-    await expectBalance(receiver, 0n);
 
-    const tx = deployedContract.methods
-      .mint(mintAmount, pointToPublicKey(await aztecRpcServer.getAccountPublicKey(receiver)))
-      .send({ from: receiver });
+    const tx = deployedContract.methods.mint(mintAmount, ownerPublicKey).send({ from: owner });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
-    await expectBalance(receiver, mintAmount);
+    await expectBalance(owner, mintAmount);
   }, 60_000);
 
   /**

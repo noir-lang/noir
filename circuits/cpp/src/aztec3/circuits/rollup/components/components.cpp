@@ -106,13 +106,11 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
     // 8 public data update requests (4 per kernel) -> 16 fields
     // 4 l2 -> l1 messages (2 per kernel) -> 4 fields
     // 2 contract deployments (1 per kernel) -> 6 fields
-    // 2 encrypted logs hashes (1 per kernel) -> 4 fields
-    // 2 unencrypted logs hashes (1 per kernel) -> 4 fields
+    // 2 encrypted logs hashes (1 per kernel) -> 4 fields --> 2 sha256 hashes --> 64 bytes
+    // 2 unencrypted logs hashes (1 per kernel) -> 4 fields --> 2 sha256 hashes --> 64 bytes
     auto const number_of_inputs =
         (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 +
-         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3
-         // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
-         //  + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2
+         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3 + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2
          //  + KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2
          ) *
         2;
@@ -160,10 +158,10 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         calldata_hash_inputs[offset + i * 2] = new_contracts[0].contract_address;
         calldata_hash_inputs[offset + i * 2 + 1] = new_contracts[0].portal_contract_address;
 
-        // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
-        // offset += KERNEL_NEW_CONTRACTS_LENGTH * 2 * 2;
-        // calldata_hash_inputs[offset + i * 2] = encryptedLogsHash[0];
-        // calldata_hash_inputs[offset + i * 2 + 1] = encryptedLogsHash[1];
+        offset += KERNEL_NEW_CONTRACTS_LENGTH * 2 * 2;
+
+        calldata_hash_inputs[offset + i * 2] = encryptedLogsHash[0];
+        calldata_hash_inputs[offset + i * 2 + 1] = encryptedLogsHash[1];
 
         // offset += KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2;
 
@@ -171,14 +169,26 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         // calldata_hash_inputs[offset + i * 2 + 1] = unencryptedLogsHash[1];
     }
 
-    constexpr auto num_bytes = calldata_hash_inputs.size() * 32;
+    constexpr auto num_bytes = (calldata_hash_inputs.size() - 2) * 32;  // -2 because 1 logs hash is stored in 2 fields
     std::array<uint8_t, num_bytes> calldata_hash_inputs_bytes;
     // Convert all into a buffer, then copy into the array, then hash
-    for (size_t i = 0; i < calldata_hash_inputs.size(); i++) {
+    for (size_t i = 0; i < calldata_hash_inputs.size() - 4; i++) {  // -4 because logs are processed out of the loop
         auto as_bytes = calldata_hash_inputs[i].to_buffer();
 
         auto offset = i * 32;
         std::copy(as_bytes.begin(), as_bytes.end(), calldata_hash_inputs_bytes.begin() + offset);
+    }
+
+    // Copy the 4 fields of 2 encrypted logs to 64 bytes
+    // Modified version of:
+    // https://github.com/AztecProtocol/aztec-packages/blob/01080c7f1d2956512b6a9cff0582b43be25b3cc2/circuits/cpp/src/aztec3/circuits/hash.hpp#L350
+    const uint32_t encrypted_logs_start_index = calldata_hash_inputs.size() - 4;
+    const uint32_t first_modified_byte = encrypted_logs_start_index * 32;
+    for (uint8_t i = 0; i < 4; i++) {
+        auto half = calldata_hash_inputs[encrypted_logs_start_index + i].to_buffer();
+        for (uint8_t j = 0; j < 16; j++) {
+            calldata_hash_inputs_bytes[first_modified_byte + i * 16 + j] = half[16 + j];
+        }
     }
 
     std::vector<uint8_t> const calldata_hash_inputs_bytes_vec(calldata_hash_inputs_bytes.begin(),

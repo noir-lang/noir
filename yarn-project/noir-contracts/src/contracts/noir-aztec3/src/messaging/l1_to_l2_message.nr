@@ -57,7 +57,7 @@ impl L1ToL2Message {
     }
 
     fn validate_message_secret(self: Self) {
-        let recomputed_hash = dep::std::hash::pedersen([crate::L1ToL2MessageSecret, self.secret])[0];
+        let recomputed_hash = dep::std::hash::pedersen([crate::MessageSecret, self.secret])[0];
         constrain self.secret_hash == recomputed_hash;
     }
 

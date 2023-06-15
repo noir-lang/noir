@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { CommitmentsDB } from '../index.js';
 
@@ -57,7 +57,7 @@ export interface CommitmentDataOracleInputs {
  * The database oracle interface.
  */
 export interface DBOracle extends CommitmentsDB {
-  getSecretKey(contractAddress: AztecAddress, address: AztecAddress): Promise<Buffer>;
+  getSecretKey(contractAddress: AztecAddress, pubKey: Point): Promise<Buffer>;
   getNotes(
     contractAddress: AztecAddress,
     storageSlot: Fr,

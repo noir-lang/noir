@@ -28,15 +28,8 @@ contract DecoderHelper {
     pure
     returns (bytes32, uint256)
   {
-    uint256 offsetInCalldata;
-    assembly {
-      offsetInCalldata := _kernelLogs.offset
-    }
+    (bytes32 logsHash, uint256 offset) = Decoder.computeKernelLogsHash(0, _kernelLogs);
 
-    (bytes32 logsHash, uint256 offset) =
-      Decoder.computeKernelLogsHash(offsetInCalldata, _kernelLogs);
-    uint256 bytesAdvanced = offset - offsetInCalldata;
-
-    return (logsHash, bytesAdvanced);
+    return (logsHash, offset);
   }
 }

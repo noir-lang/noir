@@ -134,6 +134,9 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
   const l1Tol2TreeRoot = witnessReader.readField();
 
   const contractDeploymentData = new ContractDeploymentData(
+    // TODO: Uncomment when we fix the "too many unknowns" Noir issue
+    // [witnessReader.readField(), witnessReader.readField()],
+    [Fr.ZERO, Fr.ZERO],
     witnessReader.readField(),
     witnessReader.readField(),
     witnessReader.readField(),

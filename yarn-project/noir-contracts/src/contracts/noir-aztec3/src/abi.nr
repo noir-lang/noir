@@ -83,6 +83,8 @@ fn empty_commitment_trees_roots() -> CommitmentTreesRoots {
 }
 
 struct ContractDeploymentData {
+    // TODO Uncomment when we remove the too many unknowns issue
+    // deployer_public_key: [Field; 2],
     constructor_vk_hash : Field,
     function_tree_root : Field,
     contract_address_salt : Field,

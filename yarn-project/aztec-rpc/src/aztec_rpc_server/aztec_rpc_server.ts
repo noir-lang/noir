@@ -1,11 +1,19 @@
 import { encodeArguments } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, ContractDeploymentData, EthAddress, FunctionData, TxContext } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  ContractDeploymentData,
+  EcdsaSignature,
+  EthAddress,
+  FunctionData,
+  TxContext,
+} from '@aztec/circuits.js';
 import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { KeyStore, PublicKey, getAddressFromPublicKey } from '@aztec/key-store';
-import { Tx, TxExecutionRequest, TxHash } from '@aztec/types';
+import { AccountContractAbi } from '@aztec/noir-contracts/examples';
+import { ExecutionRequest, SignedTxExecutionRequest, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
 import { EcdsaAccountContract } from '../account_impl/ecdsa_account_contract.js';
 import { EcdsaExternallyOwnedAccount } from '../account_impl/ecdsa_eoa.js';
 import { AccountImplementation } from '../account_impl/index.js';
@@ -74,14 +82,42 @@ export class AztecRPCServer implements AztecRPCClient {
   }
 
   /**
-   * Adds a new account backed by an account contract.
+   * Creates or registers a new keypair in the keystore and deploys a new account contract for it.
+   * @param privKey - Private key to use for the deployment (a fresh one will be generated if not set).
+   * @returns A tuple with the deployment tx to be awaited and the address of the account.
+   */
+  public async createSmartAccount(privKey?: Buffer): Promise<[TxHash, AztecAddress]> {
+    const pubKey = await (privKey ? this.keyStore.addAccount(privKey) : this.keyStore.createAccount());
+    const portalContract = EthAddress.ZERO;
+    const contractAddressSalt = Fr.random();
+    const abi = AccountContractAbi;
+    const args: any[] = [];
+
+    const { txRequest, contract } = await this.prepareDeploy(abi, args, portalContract, contractAddressSalt, pubKey);
+
+    const account = await this.initAccountState(pubKey, contract.address);
+
+    const tx = await account.simulateAndProve(
+      new SignedTxExecutionRequest(txRequest, EcdsaSignature.empty()),
+      contract.address,
+    );
+
+    await this.db.addTx(
+      new TxDao(await tx.getTxHash(), undefined, undefined, account.getAddress(), undefined, contract.address, ''),
+    );
+
+    return [await this.sendTx(tx), account.getAddress()];
+  }
+
+  /**
+   * Registers an account backed by an account contract.
    *
    * TODO: We should not be passing in the private key in plain, instead, we should ask the keystore for a public key, create the smart account with it, and register it here.
    * @param privKey - Private key of the corresponding user master public key.
    * @param address - Address of the account contract.
    * @returns The address of the account contract.
    */
-  public async addSmartAccount(privKey: Buffer, address: AztecAddress) {
+  public async registerSmartAccount(privKey: Buffer, address: AztecAddress) {
     const pubKey = await this.keyStore.addAccount(privKey);
     await this.initAccountState(pubKey, address);
     return address;
@@ -157,32 +193,48 @@ export class AztecRPCServer implements AztecRPCClient {
    * @param from - (Optional) The Aztec address of the account that deploys the contract.
    * @returns A TxRequest instance containing all necessary information for contract deployment.
    */
-  public async createDeploymentTxRequest(
+  public async createDeploymentTx(
     abi: ContractAbi,
     args: any[],
     portalContract: EthAddress,
     contractAddressSalt = Fr.random(),
     from?: AztecAddress,
   ) {
-    const fromAddress = this.ensureAccountOrDefault(from);
+    const account = this.ensureAccountOrDefault(from);
+    const pubKey = account.getPublicKey();
 
+    const { txRequest, contract } = await this.prepareDeploy(abi, args, portalContract, contractAddressSalt, pubKey);
+
+    const tx = await account.simulateAndProve(
+      new SignedTxExecutionRequest(txRequest, EcdsaSignature.empty()),
+      contract.address,
+    );
+
+    await this.db.addTx(
+      new TxDao(await tx.getTxHash(), undefined, undefined, account.getAddress(), undefined, contract.address, ''),
+    );
+
+    return tx;
+  }
+
+  private async prepareDeploy(
+    abi: ContractAbi,
+    args: any[],
+    portalContract: EthAddress,
+    contractAddressSalt: Fr,
+    pubKey: PublicKey,
+  ) {
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) {
       throw new Error('Cannot find constructor in the ABI.');
     }
 
     const flatArgs = encodeArguments(constructorAbi, args);
-    const contractTree = await ContractTree.new(
-      abi,
-      flatArgs,
-      portalContract,
-      contractAddressSalt,
-      fromAddress,
-      this.node,
-    );
+    const contractTree = await ContractTree.new(abi, flatArgs, portalContract, contractAddressSalt, pubKey, this.node);
     const { functionData, vkHash } = contractTree.newContractConstructor!;
     const functionTreeRoot = await contractTree.getFunctionTreeRoot();
     const contractDeploymentData = new ContractDeploymentData(
+      pubKey,
       Fr.fromBuffer(vkHash),
       functionTreeRoot,
       contractAddressSalt,
@@ -193,31 +245,52 @@ export class AztecRPCServer implements AztecRPCClient {
     const contract = contractTree.contract;
     await this.db.addContract(contract);
 
-    return new TxExecutionRequest(
-      fromAddress,
+    const txRequest = new TxExecutionRequest(
+      AztecAddress.ZERO,
       contract.address,
       functionData,
       flatArgs,
-      Fr.random(), // nonce
+      Fr.random(),
       txContext,
-      Fr.ZERO, // chainId
+      Fr.ZERO,
     );
+    return { txRequest, contract };
   }
 
   /**
-   * Create a transaction request for a contract function call with the provided arguments.
-   * Retrieves necessary information about the contract from the database and constructs a TxRequest object.
+   * Create a transaction for a contract function call with the provided arguments.
    * Throws an error if the contract or function is unknown.
    *
    * @param functionName - Name of the function to be invoked in the contract.
    * @param args - Array of input arguments for the function.
    * @param to - Address of the target contract.
-   * @param from - (Optional) Address of the sender (defaults to first available account).
-   * @returns A TxRequest instance representing the contract function call and its context.
+   * @param optionalFromAddress - (Optional) Address of the sender (defaults to first available account).
+   * @returns A Tx ready to send to the p2p pool for execution.
    */
-  public async createTxRequest(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {
-    const fromAddress = this.ensureAccountOrDefault(from);
+  public async createTx(functionName: string, args: any[], to: AztecAddress, optionalFromAddress?: AztecAddress) {
+    const account = this.ensureAccountOrDefault(optionalFromAddress);
+    const accountContract = await this.db.getContract(account.getAddress());
+    const entrypoint: AccountImplementation = this.getAccountImplementation(account, accountContract);
 
+    const executionRequest = await this.getExecutionRequest(account, functionName, args, to);
+
+    // TODO: Can we remove tx context from this call?
+    const authedTxRequest = await entrypoint.createAuthenticatedTxRequest([executionRequest], TxContext.empty());
+    const tx = authedTxRequest.txRequest.functionData.isPrivate
+      ? await account.simulateAndProve(authedTxRequest, undefined)
+      : Tx.createPublic(authedTxRequest);
+
+    await this.db.addTx(new TxDao(await tx.getTxHash(), undefined, undefined, account.getAddress(), to, undefined, ''));
+
+    return tx;
+  }
+
+  private async getExecutionRequest(
+    account: AccountState,
+    functionName: string,
+    args: any[],
+    to: AztecAddress,
+  ): Promise<ExecutionRequest> {
     const contract = await this.db.getContract(to);
     if (!contract) {
       throw new Error('Unknown contract.');
@@ -236,63 +309,12 @@ export class AztecRPCServer implements AztecRPCClient {
       false,
     );
 
-    const txContext = TxContext.empty();
-
-    // TODO: Return just an ExecutionRequest!
-    return new TxExecutionRequest(
-      fromAddress,
-      to,
+    return {
+      args: flatArgs,
+      from: account.getAddress(),
       functionData,
-      flatArgs,
-      Fr.random(), // nonce
-      txContext,
-      Fr.ZERO, // chainId
-    );
-  }
-
-  /**
-   * Creates a new transaction object from a given signed transaction request.
-   * If the transaction is private, it simulates and proves the transaction request using accountState.
-   * If it is public, it creates a public transaction without the need for simulation.
-   * The resulting transaction object can then be sent to the network for execution using sendTx method.
-   *
-   * @param executionRequest - The signed transaction execution request containing all necessary details for executing the transaction.
-   * @returns A transaction object that can be sent to the network.
-   */
-  public async createTx(executionRequest: TxExecutionRequest) {
-    let toContract: AztecAddress | undefined;
-    let newContract: AztecAddress | undefined;
-
-    const { from } = executionRequest;
-    const accountState = this.ensureAccount(from);
-    const accountContract = await this.db.getContract(from);
-    const entrypoint: AccountImplementation = this.getAccountImplementation(accountState, accountContract);
-
-    const authedTxRequest = await entrypoint.createAuthenticatedTxRequest(
-      [executionRequest],
-      executionRequest.txContext,
-    );
-
-    const txRequest = authedTxRequest.txRequest;
-    const contractAddress = txRequest.to;
-
-    let tx: Tx;
-
-    if (!txRequest.functionData.isPrivate) {
-      // Note: there is no simulation being performed client-side for public functions execution.
-      tx = Tx.createPublic(authedTxRequest);
-    } else if (txRequest.functionData.isConstructor) {
-      newContract = contractAddress;
-      tx = await accountState.simulateAndProve(authedTxRequest, contractAddress);
-    } else {
-      toContract = contractAddress;
-      tx = await accountState.simulateAndProve(authedTxRequest);
-    }
-
-    const dao = new TxDao(await tx.getTxHash(), undefined, undefined, txRequest.from, toContract, newContract, '');
-    await this.db.addTx(dao);
-
-    return tx;
+      to,
+    };
   }
 
   // TODO: Store the kind of account in account state
@@ -334,9 +356,10 @@ export class AztecRPCServer implements AztecRPCClient {
    * @returns The result of the view function call, structured based on the function ABI.
    */
   public async viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {
-    const txRequest = await this.createTxRequest(functionName, args, to, from);
-    const accountState = this.ensureAccount(txRequest.from);
-    const executionResult = await accountState.simulateUnconstrained(txRequest);
+    const account = this.ensureAccountOrDefault(from);
+    const txRequest = await this.getExecutionRequest(account, functionName, args, to);
+
+    const executionResult = await account.simulateUnconstrained(txRequest);
 
     // TODO - Return typed result based on the function abi.
     return executionResult;
@@ -405,8 +428,9 @@ export class AztecRPCServer implements AztecRPCClient {
    */
   private async initAccountState(pubKey: PublicKey, address: AztecAddress) {
     const accountPrivateKey = await this.keyStore.getAccountPrivateKey(pubKey);
-    await this.synchroniser.addAccount(accountPrivateKey, address);
+    const account = await this.synchroniser.addAccount(accountPrivateKey, address);
     this.log(`Account added: ${address.toString()}`);
+    return account;
   }
 
   /**
@@ -416,7 +440,7 @@ export class AztecRPCServer implements AztecRPCClient {
    * Throws an error if there are no accounts available in the key store.
    *
    * @param account - (Optional) Address of the account to ensure its existence.
-   * @returns The ensured AztecAddress instance.
+   * @returns The ensured account instance.
    */
   private ensureAccountOrDefault(account?: AztecAddress) {
     const address = account || this.synchroniser.getAccounts()[0]?.getAddress();
@@ -424,9 +448,7 @@ export class AztecRPCServer implements AztecRPCClient {
       throw new Error('No accounts available in the key store.');
     }
 
-    this.ensureAccount(address);
-
-    return address;
+    return this.ensureAccount(address);
   }
 
   /**

@@ -4,8 +4,8 @@ import { Buffer } from 'buffer';
 import { callCbind } from './cbind.js';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import {
-  Address,
   Fr,
+  Address,
   Fq,
   G1AffineElement,
   NativeAggregationState,
@@ -573,6 +573,7 @@ export function fromCombinedHistoricTreeRoots(o: CombinedHistoricTreeRoots): Msg
 }
 
 interface MsgpackContractDeploymentData {
+  deployer_public_key: Tuple<Buffer, 2>;
   constructor_vk_hash: Buffer;
   function_tree_root: Buffer;
   contract_address_salt: Buffer;
@@ -580,6 +581,9 @@ interface MsgpackContractDeploymentData {
 }
 
 export function toContractDeploymentData(o: MsgpackContractDeploymentData): ContractDeploymentData {
+  if (o.deployer_public_key === undefined) {
+    throw new Error('Expected deployer_public_key in ContractDeploymentData deserialization');
+  }
   if (o.constructor_vk_hash === undefined) {
     throw new Error('Expected constructor_vk_hash in ContractDeploymentData deserialization');
   }
@@ -593,6 +597,7 @@ export function toContractDeploymentData(o: MsgpackContractDeploymentData): Cont
     throw new Error('Expected portal_contract_address in ContractDeploymentData deserialization');
   }
   return new ContractDeploymentData(
+    mapTuple(o.deployer_public_key, (v: Buffer) => Fr.fromBuffer(v)),
     Fr.fromBuffer(o.constructor_vk_hash),
     Fr.fromBuffer(o.function_tree_root),
     Fr.fromBuffer(o.contract_address_salt),
@@ -601,6 +606,9 @@ export function toContractDeploymentData(o: MsgpackContractDeploymentData): Cont
 }
 
 export function fromContractDeploymentData(o: ContractDeploymentData): MsgpackContractDeploymentData {
+  if (o.deployerPublicKey === undefined) {
+    throw new Error('Expected deployerPublicKey in ContractDeploymentData serialization');
+  }
   if (o.constructorVkHash === undefined) {
     throw new Error('Expected constructorVkHash in ContractDeploymentData serialization');
   }
@@ -614,6 +622,7 @@ export function fromContractDeploymentData(o: ContractDeploymentData): MsgpackCo
     throw new Error('Expected portalContractAddress in ContractDeploymentData serialization');
   }
   return {
+    deployer_public_key: mapTuple(o.deployerPublicKey, (v: Fr) => v.toBuffer()),
     constructor_vk_hash: o.constructorVkHash.toBuffer(),
     function_tree_root: o.functionTreeRoot.toBuffer(),
     contract_address_salt: o.contractAddressSalt.toBuffer(),
@@ -1279,10 +1288,16 @@ export function fromCircuitError(o: CircuitError): MsgpackCircuitError {
   };
 }
 
-export function abisComputeContractAddress(wasm: IWasmModule, arg0: Address, arg1: Fr, arg2: Fr, arg3: Fr): Address {
+export function abisComputeContractAddress(
+  wasm: IWasmModule,
+  arg0: Tuple<Fr, 2>,
+  arg1: Fr,
+  arg2: Fr,
+  arg3: Fr,
+): Address {
   return Address.fromBuffer(
     callCbind(wasm, 'abis__compute_contract_address', [
-      arg0.toBuffer(),
+      mapTuple(arg0, (v: Fr) => v.toBuffer()),
       arg1.toBuffer(),
       arg2.toBuffer(),
       arg3.toBuffer(),

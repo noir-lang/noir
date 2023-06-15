@@ -202,7 +202,6 @@ void common_contract_logic(DummyComposer& composer,
     const auto private_call_public_inputs = private_call.call_stack_item.public_inputs;
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
     const auto& portal_contract_address = private_call.portal_contract_address;
-    const auto& deployer_address = private_call_public_inputs.call_context.msg_sender;
 
     const auto private_call_vk_hash =
         stdlib::recursion::verification_key<CT::bn254>::compress_native(private_call.vk, GeneratorIndex::VK);
@@ -214,7 +213,7 @@ void common_contract_logic(DummyComposer& composer,
         auto constructor_hash =
             compute_constructor_hash(function_data, private_call_public_inputs.args_hash, private_call_vk_hash);
 
-        auto const new_contract_address = compute_contract_address<NT>(deployer_address,
+        auto const new_contract_address = compute_contract_address<NT>(contract_dep_data.deployer_public_key,
                                                                        contract_dep_data.contract_address_salt,
                                                                        contract_dep_data.function_tree_root,
                                                                        constructor_hash);

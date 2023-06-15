@@ -1,4 +1,4 @@
-import { AcirSimulator } from '@aztec/acir-simulator';
+import { AcirSimulator, collectEncryptedLogs, collectEnqueuedPublicFunctionCalls } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { CircuitsWasm, KERNEL_NEW_COMMITMENTS_LENGTH, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
@@ -237,7 +237,10 @@ export class AccountState {
    * @param newContractAddress - Optional. The address of a new contract to be included in the transaction object.
    * @returns A private transaction object containing the proof, public inputs, and encrypted logs.
    */
-  public async simulateAndProve(txExecutionRequest: SignedTxExecutionRequest, newContractAddress?: AztecAddress) {
+  public async simulateAndProve(
+    txExecutionRequest: SignedTxExecutionRequest,
+    newContractAddress: AztecAddress | undefined,
+  ) {
     // TODO - Pause syncing while simulating.
 
     const contractDataOracle = new ContractDataOracle(this.db, this.node);
@@ -257,14 +260,14 @@ export class AccountState {
       : [];
 
     // 1 tx containing only 1 function invocation
-    const encryptedLogs = new TxL2Logs([executionResult.encryptedLogs]);
+    const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
 
     return Tx.createPrivate(
       publicInputs,
       proof,
       encryptedLogs,
       newContractPublicFunctions,
-      executionResult.enqueuedPublicFunctionCalls,
+      collectEnqueuedPublicFunctionCalls(executionResult),
     );
   }
 
@@ -456,7 +459,7 @@ export class AccountState {
         txDao.blockNumber = blockContext.block.number;
         await this.db.addTx(txDao);
         this.log(`Added tx with hash ${txHash.toString()} from block ${blockContext.block.number}`);
-      } else {
+      } else if (!txHash.isZero()) {
         this.log(`Tx with hash ${txHash.toString()} from block ${blockContext.block.number} not found in db`);
       }
     }

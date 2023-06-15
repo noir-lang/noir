@@ -1,6 +1,7 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { solve_intermediate_witness as solveIntermediateWitness } from '@noir-lang/aztec_backend_wasm';
 
 /**
@@ -29,7 +30,10 @@ export interface ACIRCallback {
   enqueuePublicFunctionCall(params: ACVMField[]): Promise<ACVMField[]>;
   storageRead(params: ACVMField[]): Promise<[ACVMField]>;
   storageWrite(params: ACVMField[]): Promise<[ACVMField]>;
+  createCommitment(params: ACVMField[]): Promise<[ACVMField]>;
+  createL2ToL1Message(params: ACVMField[]): Promise<[ACVMField]>;
   viewNotesPage(params: ACVMField[]): Promise<ACVMField[]>;
+  getCommitment(params: ACVMField[]): Promise<ACVMField[]>;
   getL1ToL2Message(params: ACVMField[]): Promise<ACVMField[]>;
   /**
    * Oracle call used to emit an encrypted log.
@@ -61,13 +65,20 @@ export interface ACIRExecutionResult {
 export type execute = (acir: Buffer, initialWitness: ACVMWitness, oracle: ACIRCallback) => Promise<ACIRExecutionResult>;
 
 export const acvm: execute = async (acir, initialWitness, callback) => {
+  const logger = createDebugLogger('aztec:simulator:acvm');
   const partialWitness = await solveIntermediateWitness(
     acir,
     initialWitness,
     async (name: string, args: ACVMField[]) => {
-      if (!(name in callback)) throw new Error(`Callback ${name} not found`);
-      const result = await callback[name as keyof ACIRCallback](args);
-      return result;
+      try {
+        logger(`Oracle callback ${name}`);
+        if (!(name in callback)) throw new Error(`Callback ${name} not found`);
+        const result = await callback[name as keyof ACIRCallback](args);
+        return result;
+      } catch (err: any) {
+        logger(`Error in ACVM callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
+        throw err;
+      }
     },
   );
   return Promise.resolve({ partialWitness });

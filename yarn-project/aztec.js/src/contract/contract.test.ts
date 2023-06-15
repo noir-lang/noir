@@ -3,7 +3,6 @@ import { mock } from 'jest-mock-extended';
 
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { TxExecutionRequest } from '@aztec/types';
 import { Contract } from './contract.js';
 
 describe('Contract Class', () => {
@@ -12,7 +11,6 @@ describe('Contract Class', () => {
   const contractAddress = AztecAddress.random();
   const account = AztecAddress.random();
 
-  const mockTxRequest = { type: 'TxRequest' } as any as TxExecutionRequest;
   const mockTx = { type: 'Tx' } as any as Tx;
   const mockTxHash = { type: 'TxHash' } as any as TxHash;
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
@@ -87,8 +85,7 @@ describe('Contract Class', () => {
 
   beforeEach(() => {
     arc = mock<AztecRPCClient>();
-    arc.createDeploymentTxRequest.mockResolvedValue(mockTxRequest);
-    arc.createTxRequest.mockResolvedValue(mockTxRequest);
+    arc.createDeploymentTx.mockResolvedValue(mockTx);
     arc.createTx.mockResolvedValue(mockTx);
     arc.sendTx.mockResolvedValue(mockTxHash);
     arc.viewTx.mockResolvedValue(mockViewResultValue);
@@ -107,11 +104,9 @@ describe('Contract Class', () => {
 
     expect(txHash).toBe(mockTxHash);
     expect(receipt).toBe(mockTxReceipt);
-    expect(arc.createDeploymentTxRequest).toHaveBeenCalledTimes(0);
-    expect(arc.createTxRequest).toHaveBeenCalledTimes(1);
-    expect(arc.createTxRequest).toHaveBeenCalledWith('bar', [param0, param1], contractAddress, account);
+    expect(arc.createDeploymentTx).toHaveBeenCalledTimes(0);
     expect(arc.createTx).toHaveBeenCalledTimes(1);
-    expect(arc.createTx).toHaveBeenCalledWith(mockTxRequest);
+    expect(arc.createTx).toHaveBeenCalledWith('bar', [param0, param1], contractAddress, account);
     expect(arc.sendTx).toHaveBeenCalledTimes(1);
     expect(arc.sendTx).toHaveBeenCalledWith(mockTx);
   });

@@ -1,7 +1,7 @@
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Point } from '@aztec/foundation/fields';
-import { Tx, TxExecutionRequest, TxHash } from '@aztec/types';
+import { Tx, TxHash } from '@aztec/types';
 import { TxReceipt } from '../tx/index.js';
 
 /**
@@ -31,7 +31,8 @@ export interface DeployedContract {
  */
 export interface AztecRPCClient {
   addExternallyOwnedAccount(): Promise<AztecAddress>;
-  addSmartAccount(privKey: Buffer, address: AztecAddress): Promise<AztecAddress>;
+  createSmartAccount(privKey?: Buffer): Promise<[TxHash, AztecAddress]>;
+  registerSmartAccount(privKey: Buffer, address: AztecAddress): Promise<AztecAddress>;
   getAccounts(): Promise<AztecAddress[]>;
   getAccountPublicKey(address: AztecAddress): Promise<Point>;
   addContracts(contracts: DeployedContract[]): Promise<void>;
@@ -41,20 +42,14 @@ export interface AztecRPCClient {
    * @returns Whether the contract was deployed.
    */
   isContractDeployed(contract: AztecAddress): Promise<boolean>;
-  createDeploymentTxRequest(
+  createDeploymentTx(
     abi: ContractAbi,
     args: any[],
     portalContract: EthAddress,
     contractAddressSalt?: Fr,
     from?: AztecAddress,
-  ): Promise<TxExecutionRequest>;
-  createTxRequest(
-    functionName: string,
-    args: any[],
-    to: AztecAddress,
-    from?: AztecAddress,
-  ): Promise<TxExecutionRequest>;
-  createTx(txRequest: TxExecutionRequest): Promise<Tx>;
+  ): Promise<Tx>;
+  createTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<Tx>;
   sendTx(tx: Tx): Promise<TxHash>;
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
   getStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any>;

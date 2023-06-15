@@ -134,9 +134,8 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Consolidate logs data from all txs
     const encryptedLogsArr: TxL2Logs[] = [];
     for (const tx of txs) {
-      if (tx.encryptedLogs) {
-        encryptedLogsArr.push(tx.encryptedLogs);
-      }
+      const logs = tx.encryptedLogs || new TxL2Logs([]);
+      encryptedLogsArr.push(logs);
     }
     const newEncryptedLogs = new L2BlockL2Logs(encryptedLogsArr);
 

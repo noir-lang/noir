@@ -39,6 +39,22 @@ export class Point {
   }
 
   /**
+   * Returns x coordinate of this point.
+   * @returns x coordinate.
+   */
+  public get x(): Fr {
+    return Fr.fromBuffer(this.buffer.subarray(0, 32));
+  }
+
+  /**
+   * Returns y coordinate of this point.
+   * @returns y coordinate.
+   */
+  public get y(): Fr {
+    return Fr.fromBuffer(this.buffer.subarray(32, 64));
+  }
+
+  /**
    * Generate a random Point instance with coordinates within the valid range.
    * The coordinate values are generated as random Fr elements and converted to buffers
    * of size Point.SIZE_IN_BYTES before creating the Point instance.
@@ -61,6 +77,16 @@ export class Point {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new this(reader.readBytes(this.SIZE_IN_BYTES));
+  }
+
+  /**
+   * Creates a point instance from its x and y coordinates.
+   * @param x - X coordinate.
+   * @param y - Y coordinate.
+   * @returns A Point instance.
+   */
+  static fromCoordinates(x: Fr, y: Fr) {
+    return new this(Buffer.concat([x.toBuffer(), y.toBuffer()]));
   }
 
   /**
@@ -120,4 +146,15 @@ export class Point {
   equals(rhs: Point) {
     return this.buffer.equals(rhs.buffer);
   }
+}
+
+/**
+ * Does this object look like a point?
+ * @param obj - Object to test if it is a point.
+ * @returns Whether it looks like a point.
+ */
+export function isPoint(obj: object): obj is Point {
+  if (!obj) return false;
+  const point = obj as Point;
+  return point.kind === 'point' && point.x !== undefined && point.y !== undefined;
 }

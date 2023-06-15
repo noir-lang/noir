@@ -1,4 +1,3 @@
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import {
   ARGS_LENGTH,
   CallContext,
@@ -12,18 +11,21 @@ import {
   PublicCallRequest,
   TxContext,
 } from '@aztec/circuits.js';
-import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
+import { computeSecretMessageHash, siloCommitment } from '@aztec/circuits.js/abis';
+import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
   ChildAbi,
   NonNativeTokenContractAbi,
   ParentAbi,
+  PublicToPrivateContractAbi,
   TestContractAbi,
   ZkTokenContractAbi,
 } from '@aztec/noir-contracts/examples';
@@ -35,7 +37,6 @@ import { encodeArguments } from '../abi_coder/index.js';
 import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -295,7 +296,13 @@ describe('Private Execution test suite', () => {
 
   describe('nested calls', () => {
     const historicRoots = PrivateHistoricTreeRoots.empty();
-    const contractDeploymentData = new ContractDeploymentData(Fr.random(), Fr.random(), Fr.random(), EthAddress.ZERO);
+    const contractDeploymentData = new ContractDeploymentData(
+      Point.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+      EthAddress.ZERO,
+    );
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 
     it('child function should be callable', async () => {
@@ -357,9 +364,9 @@ describe('Private Execution test suite', () => {
     const buildL1ToL2Message = async (contentPreimage: Fr[], targetContract: AztecAddress, secret: Fr) => {
       const wasm = await CircuitsWasm.get();
 
-      // Function selector: 0x1801fbe5 keccak256('mint(uint256,bytes32)')
+      // Function selector: 0xeeb73071 keccak256('mint(uint256,bytes32,address)')
       const contentBuf = Buffer.concat([
-        Buffer.from([0x18, 0x01, 0xfb, 0xe5]),
+        Buffer.from([0xee, 0xb7, 0x30, 0x71]),
         ...contentPreimage.map(field => field.toBuffer()),
       ]);
       const temp = toBigIntBE(sha256(contentBuf));
@@ -395,7 +402,12 @@ describe('Private Execution test suite', () => {
       const abi = NonNativeTokenContractAbi.functions.find(f => f.name === 'mint')!;
 
       const secret = new Fr(1n);
-      const preimage = await buildL1ToL2Message([new Fr(bridgedAmount), new Fr(recipient.x)], contractAddress, secret);
+      const canceller = EthAddress.random();
+      const preimage = await buildL1ToL2Message(
+        [new Fr(bridgedAmount), new Fr(recipient.x), canceller.toField()],
+        contractAddress,
+        secret,
+      );
 
       // stub message key
       const messageKey = Fr.random();
@@ -425,7 +437,7 @@ describe('Private Execution test suite', () => {
         AztecAddress.random(),
         contractAddress,
         new FunctionData(Buffer.alloc(4), true, true),
-        encodeArguments(abi, [bridgedAmount, recipient, messageKey, secret]),
+        encodeArguments(abi, [bridgedAmount, recipient, recipient.x, messageKey, secret, canceller.toField()]),
         Fr.random(),
         txContext,
         Fr.ZERO,
@@ -436,6 +448,64 @@ describe('Private Execution test suite', () => {
       // Check a nullifier has been created
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toHaveLength(1);
+    }, 30_000);
+
+    it('Should be able to consume a dummy public to private message', async () => {
+      const db = levelup(createMemDown());
+      const pedersen = new Pedersen(bbWasm);
+
+      const contractAddress = AztecAddress.random();
+      const amount = 100n;
+      const abi = PublicToPrivateContractAbi.functions.find(f => f.name === 'mintFromPublicMessage')!;
+
+      const wasm = await CircuitsWasm.get();
+      const secret = new Fr(1n);
+      const secretHash = computeSecretMessageHash(wasm, secret);
+      const commitment = Fr.fromBuffer(pedersenCompressInputs(wasm, [toBufferBE(amount, 32), secretHash.toBuffer()]));
+      const siloedCommitment = siloCommitment(wasm, contractAddress, commitment);
+
+      const tree: AppendOnlyTree = await newTree(
+        StandardTree,
+        db,
+        pedersen,
+        'privateDataTree',
+        PRIVATE_DATA_TREE_HEIGHT,
+      );
+
+      await tree.appendLeaves([siloedCommitment.toBuffer()]);
+
+      const privateDataTreeRoot = Fr.fromBuffer(tree.getRoot(false));
+      const historicRoots = new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, privateDataTreeRoot, Fr.ZERO);
+
+      oracle.getCommitmentOracle.mockImplementation(async () => {
+        // Check the calculated commitment is correct
+        return Promise.resolve({
+          commitment: siloedCommitment,
+          index: 0n,
+          siblingPath: (await tree.getSiblingPath(0n, false)).toFieldArray(),
+        });
+      });
+
+      const txRequest = new TxExecutionRequest(
+        AztecAddress.random(),
+        contractAddress,
+        new FunctionData(Buffer.alloc(4), true, true),
+        encodeArguments(abi, [amount, secret, recipient]),
+        Fr.random(),
+        txContext,
+        Fr.ZERO,
+      );
+
+      const result = await acirSimulator.run(txRequest, abi, contractAddress, EthAddress.ZERO, historicRoots);
+
+      // Check a nullifier has been created.
+      const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
+      expect(newNullifiers).toHaveLength(1);
+
+      // Check the commitment read request was created successfully.
+      const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
+      expect(readRequests).toHaveLength(1);
+      expect(readRequests[0]).toEqual(commitment);
     }, 30_000);
   });
 

@@ -1,6 +1,13 @@
 import times from 'lodash.times';
 import { Fr, FunctionData, FunctionLeafPreimage, NewContractData } from '../index.js';
-import { makeAztecAddress, makeBytes, makeEthAddress, makeTxRequest, makeVerificationKey } from '../tests/factories.js';
+import {
+  makeAztecAddress,
+  makeBytes,
+  makeEthAddress,
+  makePoint,
+  makeTxRequest,
+  makeVerificationKey,
+} from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import {
   computeContractAddress,
@@ -76,11 +83,11 @@ describe('abis wasm bindings', () => {
   });
 
   it('computes a contract address', () => {
-    const deployerAddr = makeAztecAddress(1);
+    const deployerPubKey = makePoint();
     const contractAddrSalt = new Fr(2n);
     const treeRoot = new Fr(3n);
     const constructorHash = makeBytes();
-    const res = computeContractAddress(wasm, deployerAddr, contractAddrSalt, treeRoot, constructorHash);
+    const res = computeContractAddress(wasm, deployerPubKey, contractAddrSalt, treeRoot, constructorHash);
     expect(res).toMatchSnapshot();
   });
 
