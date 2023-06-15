@@ -1,0 +1,69 @@
+name: Barretenberg Benchmarks
+
+# Only run on push to master
+on:
+  push:
+    branches:
+      - master
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  bberg-bench:
+    name: Barretenberg Benchmarks
+    runs-on: ubuntu-latest # run in linux environment
+
+    steps:
+
+      - name: Checkout barretenberg
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }} # checkout HEAD of triggering branch
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+     # Only run in Linux environment for now
+      - name: Setup Linux environment
+        run: |
+          sudo apt update
+          sudo apt install libomp-dev cmake ninja-build
+
+      - name: Download SRS elements
+        working-directory: cpp/srs_db
+        run: ./download_ignition.sh 3 # only download first 4 transcript files
+        
+      - name: Build Honk benchmarks
+        working-directory: cpp
+        run: |
+          cmake --preset bench
+          cmake --build --preset bench --target ultra_honk_bench
+      
+      - name: Run Honk benchmarks
+        working-directory: cpp/build-bench
+        run: |
+          bin/ultra_honk_bench --benchmark_format=json > ../src/barretenberg/benchmark/honk_bench/bench_results.json
+      
+      # Utilize github-action-benchmark to automatically update the plots at 
+      # https://aztecprotocol.github.io/barretenberg/dev/bench/ with new benchmark data.
+      # This also creates an alert if benchmarks exceed the threshold specified below.
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: C++ Benchmark
+          tool: 'googlecpp'
+          output-file-path: cpp/src/barretenberg/benchmark/honk_bench/bench_results.json
+          # Access token to deploy GitHub Pages branch
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Push and deploy GitHub pages branch automatically
+          auto-push: true
+          # Enable Job Summary for PRs
+          summary-always: true
+          # Show alert with commit comment on detecting possible performance regression
+          alert-threshold: '120%' # alert if bench result is 1.2x worse
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@ledwards2225'
+
+                
