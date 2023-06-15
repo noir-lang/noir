@@ -103,6 +103,15 @@ pub(crate) enum Instruction {
     /// Writes a value to memory.
     Store { address: ValueId, value: ValueId },
 
+    /// Provides a context for all instructions that follow up until the next
+    /// `EnableSideEffects` is encountered, for stating a condition that determines whether
+    /// such instructions are allowed to have side-effects.
+    ///
+    /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
+    /// instruction regions with an condition that corresponds to their position in the CFG's
+    /// if-branching structure.
+    EnableSideEffects { condition: ValueId },
+
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
 
@@ -127,7 +136,9 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
-            Instruction::Constrain(_) | Instruction::Store { .. } => InstructionResultType::None,
+            Instruction::Constrain(_)
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
                 InstructionResultType::Unknown
             }
@@ -167,11 +178,54 @@ impl Instruction {
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
+            Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffects { condition: f(*condition) }
+            }
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
             Instruction::ArraySet { array, index, value } => {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
+            }
+        }
+    }
+
+    /// Applies a function to each input value this instruction holds.
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        match self {
+            Instruction::Binary(binary) => {
+                f(binary.lhs);
+                f(binary.rhs);
+            }
+            Instruction::Call { func, arguments } => {
+                f(*func);
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Instruction::Cast(value, _)
+            | Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::Constrain(value)
+            | Instruction::Load { address: value } => {
+                f(*value);
+            }
+            Instruction::Store { address, value } => {
+                f(*address);
+                f(*value);
+            }
+            Instruction::Allocate { .. } => (),
+            Instruction::ArrayGet { array, index } => {
+                f(*array);
+                f(*index);
+            }
+            Instruction::ArraySet { array, index, value } => {
+                f(*array);
+                f(*index);
+                f(*value);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                f(*condition);
             }
         }
     }
@@ -190,7 +244,7 @@ impl Instruction {
                 }
             }
             Instruction::Not(value) => {
-                match &dfg[*value] {
+                match &dfg[dfg.resolve(*value)] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
@@ -243,11 +297,20 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Truncate { .. } => None,
+            Instruction::Truncate { value, bit_size, .. } => {
+                if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
+                    let integer_modulus = 2_u128.pow(*bit_size);
+                    let truncated = numeric_constant.to_u128() % integer_modulus;
+                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                } else {
+                    None
+                }
+            }
             Instruction::Call { .. } => None,
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::EnableSideEffects { .. } => None,
         }
     }
 }
@@ -317,6 +380,26 @@ impl TerminatorInstruction {
             }
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }
+            }
+        }
+    }
+
+    /// Apply a function to each value
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                f(*condition);
+            }
+            Jmp { arguments, .. } => {
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Return { return_values } => {
+                for return_value in return_values {
+                    f(*return_value);
+                }
             }
         }
     }
@@ -414,13 +497,13 @@ impl Binary {
                 }
             }
             BinaryOp::Eq => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
             }
             BinaryOp::Lt => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -440,7 +523,7 @@ impl Binary {
                 }
             }
             BinaryOp::Xor => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -466,15 +549,21 @@ impl Binary {
         dfg: &mut DataFlowGraph,
         lhs: FieldElement,
         rhs: FieldElement,
-        operand_type: Type,
+        mut operand_type: Type,
     ) -> Option<Id<Value>> {
         let value = match self.operator {
             BinaryOp::Add => lhs + rhs,
             BinaryOp::Sub => lhs - rhs,
             BinaryOp::Mul => lhs * rhs,
             BinaryOp::Div => lhs / rhs,
-            BinaryOp::Eq => (lhs == rhs).into(),
-            BinaryOp::Lt => (lhs < rhs).into(),
+            BinaryOp::Eq => {
+                operand_type = Type::bool();
+                (lhs == rhs).into()
+            }
+            BinaryOp::Lt => {
+                operand_type = Type::bool();
+                (lhs < rhs).into()
+            }
 
             // The rest of the operators we must try to convert to u128 first
             BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
@@ -484,7 +573,6 @@ impl Binary {
             BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
             BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
         };
-        // TODO: Keep original type of constant
         Some(dfg.make_constant(value, operand_type))
     }
 

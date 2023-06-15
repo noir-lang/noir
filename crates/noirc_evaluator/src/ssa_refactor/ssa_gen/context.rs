@@ -2,16 +2,18 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
 
+use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::function::{Function, RuntimeType};
 use crate::ssa_refactor::ir::instruction::BinaryOp;
 use crate::ssa_refactor::ir::map::AtomicCounter;
-use crate::ssa_refactor::ir::types::Type;
+use crate::ssa_refactor::ir::types::{NumericType, Type};
 use crate::ssa_refactor::ir::value::ValueId;
 use crate::ssa_refactor::ssa_builder::FunctionBuilder;
 
@@ -168,6 +170,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(fields) => {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
+            ast::Type::Unit => Tree::empty(),
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
     }
@@ -194,8 +197,8 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed(*bits),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned(*bits),
             ast::Type::Bool => Type::unsigned(1),
-            ast::Type::String(_) => Type::Reference,
-            ast::Type::Unit => Type::Unit,
+            ast::Type::String(len) => Type::Array(Rc::new(vec![Type::char()]), *len as usize),
+            ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
 
@@ -206,10 +209,9 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Insert a unit constant into the current function if not already
-    /// present, and return its value
-    pub(super) fn unit_value(&mut self) -> Values {
-        self.builder.numeric_constant(0u128, Type::Unit).into()
+    /// Returns the unit value, represented as an empty tree of values
+    pub(super) fn unit_value() -> Values {
+        Values::empty()
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -229,6 +231,23 @@ impl<'a> FunctionContext<'a> {
         }
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
+
+        if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
+            operator,
+            lhs,
+            rhs,
+            &self.builder.current_function.dfg,
+        ) {
+            let result_type = self.builder.current_function.dfg.type_of_value(result);
+            let bit_size = match result_type {
+                Type::Numeric(NumericType::Signed { bit_size })
+                | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                _ => {
+                    unreachable!("ICE: Truncation attempted on non-integer");
+                }
+            };
+            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+        }
 
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
@@ -468,6 +487,64 @@ fn operator_requires_not(op: noirc_frontend::BinaryOpKind) -> bool {
 fn operator_requires_swapped_operands(op: noirc_frontend::BinaryOpKind) -> bool {
     use noirc_frontend::BinaryOpKind::*;
     matches!(op, Greater | LessEqual)
+}
+
+/// If the operation requires its result to be truncated because it is an integer, the maximum
+/// number of bits that result may occupy is returned.
+fn operator_result_max_bit_size_to_truncate(
+    op: noirc_frontend::BinaryOpKind,
+    lhs: ValueId,
+    rhs: ValueId,
+    dfg: &DataFlowGraph,
+) -> Option<u32> {
+    let lhs_type = dfg.type_of_value(lhs);
+    let rhs_type = dfg.type_of_value(rhs);
+
+    let get_bit_size = |typ| match typ {
+        Type::Numeric(NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size }) => {
+            Some(bit_size)
+        }
+        _ => None,
+    };
+
+    let lhs_bit_size = get_bit_size(lhs_type)?;
+    let rhs_bit_size = get_bit_size(rhs_type)?;
+    use noirc_frontend::BinaryOpKind::*;
+    match op {
+        Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
+        Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
+        Multiply => Some(lhs_bit_size + rhs_bit_size),
+        ShiftLeft => {
+            if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
+                // Happy case is that we know precisely by how many bits the the integer will
+                // increase: lhs_bit_size + rhs
+                return Some(lhs_bit_size + (rhs_constant.to_u128() as u32));
+            }
+            // Unhappy case is that we don't yet know the rhs value, (even though it will
+            // eventually have to resolve to a constant). The best we can is assume the value of
+            // rhs to be the maximum value of it's numeric type. If that turns out to be larger
+            // than the native field's bit size, we full back to using that.
+
+            // The formula for calculating the max bit size of a left shift is:
+            // lhs_bit_size + 2^{rhs_bit_size} - 1
+            // Inferring the max bit size of left shift from its operands can result in huge
+            // number, that might not only be larger than the native field's max bit size, but
+            // furthermore might not be representable as a u32. Hence we use overflow checks and
+            // fallback to the native field's max bits.
+            let field_max_bits = FieldElement::max_num_bits();
+            let (rhs_bit_size_pow_2, overflows) = 2_u32.overflowing_pow(rhs_bit_size);
+            if overflows {
+                return Some(field_max_bits);
+            }
+            let (max_bits_plus_1, overflows) = rhs_bit_size_pow_2.overflowing_add(lhs_bit_size);
+            if overflows {
+                return Some(field_max_bits);
+            }
+            let max_bit_size = std::cmp::min(max_bits_plus_1 - 1, field_max_bits);
+            Some(max_bit_size)
+        }
+        _ => None,
+    }
 }
 
 /// Converts the given operator to the appropriate BinaryOp.

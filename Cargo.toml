@@ -24,7 +24,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "=0.14.2"
+acvm = "0.15.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -40,8 +40,8 @@ noir_wasm = { path = "crates/wasm" }
 
 cfg-if = "1.0.0"
 clap = { version = "4.1.4", features = ["derive"] }
-codespan = "0.9.5"
-codespan-reporting = "0.9.5"
+codespan = "0.11.1"
+codespan-reporting = "0.11.1"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
@@ -55,5 +55,4 @@ wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
-acvm = { git = "https://github.com/noir-lang/acvm", rev = "26ff206c350c4bd05dd96a7b363d0944aa6863e3" }
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "6a3c12a263d0a67f0ffa3e246186e8df286ee6a6" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "07f35ec2d2bf363be726f0e1a6d56caa4a401acc" }

@@ -212,6 +212,18 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
+    /// Insert a truncate instruction at the end of the current block.
+    /// Returns the result of the truncate instruction.
+    pub(crate) fn insert_truncate(
+        &mut self,
+        value: ValueId,
+        bit_size: u32,
+        max_bit_size: u32,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+            .first()
+    }
+
     /// Insert a constrain instruction at the end of the current block.
     pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
         self.insert_instruction(Instruction::Constrain(boolean), None);

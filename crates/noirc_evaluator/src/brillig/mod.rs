@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use self::{artifact::BrilligArtifact, brillig_gen::BrilligGen};
 
 pub(crate) mod artifact;
+pub(crate) mod binary;
 pub(crate) mod brillig_gen;
+pub(crate) mod memory;
 
 use crate::ssa_refactor::{
     ir::function::{Function, FunctionId, RuntimeType},

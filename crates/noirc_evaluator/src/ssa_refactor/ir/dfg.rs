@@ -59,6 +59,11 @@ pub(crate) struct DataFlowGraph {
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
+
+    /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
+    /// for that of another. This information is purely used for printing the SSA, and has no
+    /// material effect on the SSA itself.
+    replaced_value_ids: HashMap<ValueId, ValueId>,
 }
 
 impl DataFlowGraph {
@@ -146,19 +151,28 @@ impl DataFlowGraph {
         self.values.insert(value)
     }
 
-    /// Replaces the value specified by the given ValueId with a new Value.
+    /// Set the value of value_to_replace to refer to the value referred to by new_value.
     ///
     /// This is the preferred method to call for optimizations simplifying
     /// values since other instructions referring to the same ValueId need
     /// not be modified to refer to a new ValueId.
-    pub(crate) fn set_value(&mut self, value_id: ValueId, new_value: Value) {
-        self.values[value_id] = new_value;
+    pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
+        if value_to_replace != new_value {
+            self.replaced_value_ids.insert(value_to_replace, self.resolve(new_value));
+            let new_value = self.values[new_value].clone();
+            self.values[value_to_replace] = new_value;
+        }
     }
 
-    /// Set the value of value_to_replace to refer to the value referred to by new_value.
-    pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        let new_value = self.values[new_value].clone();
-        self.values[value_to_replace] = new_value;
+    /// If `original_value_id`'s underlying `Value` has been substituted for that of another
+    /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
+    /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
+    /// is returned.
+    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ValueId {
+        match self.replaced_value_ids.get(&original_value_id) {
+            Some(id) => self.resolve(*id),
+            None => original_value_id,
+        }
     }
 
     /// Creates a new constant value, or returns the Id to an existing one if
@@ -294,7 +308,7 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, Type)> {
-        match &self.values[value] {
+        match &self.values[self.resolve(value)] {
             Value::NumericConstant { constant, typ } => Some((*constant, typ.clone())),
             _ => None,
         }
@@ -306,7 +320,7 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(im::Vector<ValueId>, Rc<CompositeType>)> {
-        match &self.values[value] {
+        match &self.values[self.resolve(value)] {
             // Vectors are shared, so cloning them is cheap
             Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
             _ => None,

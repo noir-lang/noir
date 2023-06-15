@@ -1,9 +1,11 @@
+use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use crate::ssa_refactor::acir_gen::AcirValue;
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, map::TwoWayMap, types::NumericType};
-use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
-
-use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
+use acvm::acir::{
+    brillig_vm::Opcode as BrilligOpcode,
+    circuit::brillig::{BrilligInputs, BrilligOutputs},
+};
 use acvm::{
     acir::{
         circuit::opcodes::FunctionInput,
@@ -512,6 +514,7 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: Option<AcirVar>,
     ) -> Result<AcirVar, AcirGenError> {
         let lhs_data = &self.vars[lhs];
         let rhs_data = &self.vars[rhs];
@@ -521,8 +524,13 @@ impl AcirContext {
 
         // TODO: check what happens when we do (a as u8) >= (b as u32)
         // TODO: The frontend should shout in this case
+
+        let predicate = predicate.map(|acir_var| {
+            let predicate_data = &self.vars[acir_var];
+            predicate_data.to_expression().into_owned()
+        });
         let is_greater_than_eq =
-            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size)?;
+            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size, predicate)?;
 
         Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
     }
@@ -534,10 +542,11 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: Option<AcirVar>,
     ) -> Result<AcirVar, AcirGenError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, predicate)?;
 
         let one = self.add_constant(FieldElement::one());
         self.sub_var(one, comparison) // comparison_negated
@@ -706,8 +715,21 @@ impl AcirContext {
         self.vars.insert(id, data)
     }
 
-    pub(crate) fn brillig(&mut self, _code: Vec<BrilligOpcode>) {
-        todo!();
+    pub(crate) fn brillig(
+        &mut self,
+        code: Vec<BrilligOpcode>,
+        inputs: Vec<AcirVar>,
+        output_len: usize,
+    ) -> Vec<AcirVar> {
+        let b_inputs =
+            vecmap(inputs, |i| BrilligInputs::Single(self.vars[&i].to_expression().into_owned()));
+        let outputs = vecmap(0..output_len, |_| self.acir_ir.next_witness_index());
+        let outputs_var =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+        let b_outputs = vecmap(outputs, BrilligOutputs::Simple);
+        self.acir_ir.brillig(code, b_inputs, b_outputs);
+
+        outputs_var
     }
 }
 
