@@ -59,10 +59,11 @@ void UltraHonkComposerHelper_<Flavor>::compute_witness(CircuitConstructor& circu
     // TODO(luke): The +1 size for z_lookup is not necessary and can lead to confusion. Resolve.
     polynomial z_lookup(subgroup_size + 1); // Only instantiated in this function; nothing assigned.
 
-    // Save space for adding random scalars in the s polynomial later. The subtracted 1 allows us to insert a `1` at the
-    // end, to ensure the evaluations (and hence coefficients) aren't all 0. See ComposerBase::compute_proving_key_base
-    // for further explanation, as a similar trick is done there.
-    size_t count = subgroup_size - tables_size - lookups_size - s_randomness - 1;
+    // TODO(kesha): Look at this once we figure out how we do ZK (previously we had roots cut out, so just added
+    // randomness)
+    // The size of empty space in sorted polynomials
+    size_t count = subgroup_size - tables_size - lookups_size;
+    ASSERT(count > 0); // We need at least 1 row of zeroes for the permutation argument
     for (size_t i = 0; i < count; ++i) {
         s_1[i] = 0;
         s_2[i] = 0;
@@ -115,18 +116,7 @@ void UltraHonkComposerHelper_<Flavor>::compute_witness(CircuitConstructor& circu
         }
     }
 
-    // Initialise the `s_randomness` positions in the s polynomials with 0.
-    // These will be the positions where we will be adding random scalars to add zero knowledge
-    // to plookup (search for `Blinding` in plonk/proof_system/widgets/random_widgets/plookup_widget_impl.hpp
-    // ProverPlookupWidget::compute_sorted_list_polynomial())
-    for (size_t i = 0; i < s_randomness; ++i) {
-        s_1[count] = 0;
-        s_2[count] = 0;
-        s_3[count] = 0;
-        s_4[count] = 0;
-        ++count;
-    }
-
+    // Polynomial memory is zeroed out when constructed with size hint, so we don't have to initialize trailing space
     proving_key->sorted_1 = s_1;
     proving_key->sorted_2 = s_2;
     proving_key->sorted_3 = s_3;
@@ -230,7 +220,7 @@ std::shared_ptr<typename Flavor::ProvingKey> UltraHonkComposerHelper_<Flavor>::c
     polynomial poly_q_table_column_3(subgroup_size);
     polynomial poly_q_table_column_4(subgroup_size);
 
-    size_t offset = subgroup_size - tables_size - s_randomness - 1;
+    size_t offset = subgroup_size - tables_size;
 
     // Create lookup selector polynomials which interpolate each table column.
     // Our selector polys always need to interpolate the full subgroup size, so here we offset so as to
@@ -259,15 +249,7 @@ std::shared_ptr<typename Flavor::ProvingKey> UltraHonkComposerHelper_<Flavor>::c
         }
     }
 
-    // Initialise the last `s_randomness` positions in table polynomials with 0. We don't need to actually randomise
-    // the table polynomials.
-    for (size_t i = 0; i < s_randomness; ++i) {
-        poly_q_table_column_1[offset] = 0;
-        poly_q_table_column_2[offset] = 0;
-        poly_q_table_column_3[offset] = 0;
-        poly_q_table_column_4[offset] = 0;
-        ++offset;
-    }
+    // Polynomial memory is zeroed out when constructed with size hint, so we don't have to initialize trailing space
 
     // // In the case of using UltraPlonkComposer for a circuit which does _not_ make use of any lookup tables, all
     // four

@@ -83,6 +83,8 @@ enum BasicTableId {
     PEDERSEN_1,
     PEDERSEN_0,
     PEDERSEN_IV_BASE,
+    HONK_DUMMY_BASIC1,
+    HONK_DUMMY_BASIC2,
     KECCAK_INPUT,
     KECCAK_THETA,
     KECCAK_RHO,
@@ -136,6 +138,7 @@ enum MultiTableId {
     BLAKE_XOR_ROTATE_8,
     BLAKE_XOR_ROTATE_7,
     PEDERSEN_IV,
+    HONK_DUMMY_MULTI,
     KECCAK_THETA_OUTPUT,
     KECCAK_CHI_OUTPUT,
     KECCAK_FORMAT_INPUT,
@@ -145,6 +148,7 @@ enum MultiTableId {
 };
 
 struct MultiTable {
+    // Coefficients are accumulated products of corresponding step sizes until that point
     std::vector<barretenberg::fr> column_1_coefficients;
     std::vector<barretenberg::fr> column_2_coefficients;
     std::vector<barretenberg::fr> column_3_coefficients;

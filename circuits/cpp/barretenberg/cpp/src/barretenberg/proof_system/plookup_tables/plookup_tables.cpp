@@ -96,6 +96,7 @@ void init_multi_tables()
         MULTI_TABLES[(size_t)MultiTableId::KECCAK_NORMALIZE_AND_ROTATE + i] =
             keccak_tables::Rho<8, i>::get_rho_output_table(MultiTableId::KECCAK_NORMALIZE_AND_ROTATE);
     });
+    MULTI_TABLES[MultiTableId::HONK_DUMMY_MULTI] = dummy_tables::get_honk_dummy_multitable();
 }
 } // namespace
 

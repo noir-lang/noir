@@ -38,12 +38,6 @@ template <UltraFlavor Flavor> class UltraHonkComposerHelper_ {
     bool contains_recursive_proof = false;
     bool computed_witness = false;
 
-    // This variable controls the amount with which the lookup table and witness values need to be shifted
-    // above to make room for adding randomness into the permutation and witness polynomials in the plookup widget.
-    // This must be (num_roots_cut_out_of_the_vanishing_polynomial - 1), since the variable num_roots_cut_out_of_
-    // vanishing_polynomial cannot be trivially fetched here, I am directly setting this to 4 - 1 = 3.
-    static constexpr size_t s_randomness = 3;
-
     explicit UltraHonkComposerHelper_(std::shared_ptr<srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
