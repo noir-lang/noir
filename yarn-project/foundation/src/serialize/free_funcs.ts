@@ -265,3 +265,21 @@ export function toBigInt(buf: Buffer): bigint {
   }
   return BigInt(`0x${hex}`);
 }
+
+/**
+ * Stores full 256 bits of information in 2 fields.
+ * @param buf - 32 bytes of data
+ * @returns 2 field elements
+ */
+export function to2Fields(buf: Buffer): [Fr, Fr] {
+  if (buf.length !== 32) {
+    throw new Error('Buffer must be 32 bytes');
+  }
+
+  // TS version of https://github.com/AztecProtocol/aztec-packages/blob/e2e3bf1dbeda5199060fb1711200d20414557cd4/circuits/cpp/src/aztec3/circuits/hash.hpp#L330
+  // Split the hash into two fields, a high and a low
+  const buf1 = Buffer.concat([Buffer.alloc(16), buf.subarray(0, 16)]);
+  const buf2 = Buffer.concat([Buffer.alloc(16), buf.subarray(16, 32)]);
+
+  return [Fr.fromBuffer(buf1), Fr.fromBuffer(buf2)];
+}

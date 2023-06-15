@@ -287,8 +287,8 @@ library Decoder {
 
       // Create the leaf to contain commitments (8 * 0x20) + nullifiers (8 * 0x20)
       // + new public data writes (8 * 0x40) + contract deployments (2 * 0x60) + logs hashes (4 * 0x20)
-      // TODO: Replace 0x540 with 0x5C0 once the logs functionality is added in other places
-      vars.baseLeaf = new bytes(0x540);
+      // TODO: Replace 0x580 with 0x5C0 once unencrypted logs are included
+      vars.baseLeaf = new bytes(0x580);
 
       for (uint256 i = 0; i < vars.baseLeaves.length; i++) {
         /*
@@ -317,15 +317,14 @@ library Decoder {
          * Zero values.
          */
 
-        // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
-        // /**
-        //  * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
-        //  * Note: `computeKernelLogsHash` will advance offsets by the number of bytes processed.
-        //  */
-        // (vars.encrypedLogsHashKernel1, offsets.encryptedLogsOffset) =
-        //   computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
-        // (vars.encrypedLogsHashKernel2, offsets.encryptedLogsOffset) =
-        //   computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
+        /**
+         * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
+         * Note: `computeKernelLogsHash` will advance offsets by the number of bytes processed.
+         */
+        (vars.encrypedLogsHashKernel1, offsets.encryptedLogsOffset) =
+          computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
+        (vars.encrypedLogsHashKernel2, offsets.encryptedLogsOffset) =
+          computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
 
         // (vars.unencryptedLogsHashKernel1, offsets.unencryptedLogsOffset) =
         //   computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
@@ -376,14 +375,13 @@ library Decoder {
           dstPtr := add(dstPtr, 0xc)
           calldatacopy(dstPtr, add(_l2Block.offset, add(contractDataOffset, 0x54)), 0x14)
 
-          // TODO #769, relevant issue https://github.com/AztecProtocol/aztec-packages/issues/769
-          // // encryptedLogsHashKernel1
-          // dstPtr := add(dstPtr, 0x14)
-          // mstore(dstPtr, mload(add(vars, 0x60))) // `encryptedLogsHashKernel1` starts at 0x60 in `vars`
+          // encryptedLogsHashKernel1
+          dstPtr := add(dstPtr, 0x14)
+          mstore(dstPtr, mload(add(vars, 0x60))) // `encryptedLogsHashKernel1` starts at 0x60 in `vars`
 
-          // // encryptedLogsHashKernel2
-          // dstPtr := add(dstPtr, 0x20)
-          // mstore(dstPtr, mload(add(vars, 0x80))) // `encryptedLogsHashKernel2` starts at 0x80 in `vars`
+          // encryptedLogsHashKernel2
+          dstPtr := add(dstPtr, 0x20)
+          mstore(dstPtr, mload(add(vars, 0x80))) // `encryptedLogsHashKernel2` starts at 0x80 in `vars`
 
           // // unencryptedLogsHashKernel1
           // dstPtr := add(dstPtr, 0x20)
@@ -429,9 +427,9 @@ library Decoder {
 
   /**
    * @notice Computes logs hash as is done in the kernel and app circuits.
-   * @param _offset - The offset of kernel's logs in calldata.
-   * @param - The L2 block calldata.
-   * @return The hash of the logs and offset pointing to the end of the logs in calldata.
+   * @param _offsetInBlock - The offset of kernel's logs in a block.
+   * @param _l2Block - The L2 block calldata.
+   * @return The hash of the logs and offset in a block after processing the logs.
    * @dev We have logs preimages on the input and we need to perform the same hashing process as is done in the app
    *      circuit (hashing the logs) and in the kernel circuit (accumulating the logs hashes). In each iteration of
    *      kernel, the kernel computes a hash of the previous iteration's logs hash (the hash in the previous kernel's
@@ -459,7 +457,7 @@ library Decoder {
    * @dev Link to a relevant discussion:
    *      https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426/9
    */
-  function computeKernelLogsHash(uint256 _offset, bytes calldata /* _l2Block */ )
+  function computeKernelLogsHash(uint256 _offsetInBlock, bytes calldata _l2Block)
     internal
     pure
     returns (bytes32, uint256)
@@ -467,11 +465,12 @@ library Decoder {
     uint256 remainingLogsLength;
     uint256 offset;
     assembly {
+      offset := add(_offsetInBlock, _l2Block.offset)
       // Set the remaining logs length to the total logs length
       // Loads 32 bytes from calldata, shifts right by 224 bits and masks the result with 0xffffffff
-      remainingLogsLength := and(shr(224, calldataload(_offset)), 0xffffffff)
+      remainingLogsLength := and(shr(224, calldataload(offset)), 0xffffffff)
       // Move the calldata offset by the 4 bytes we just read
-      offset := add(_offset, 0x4)
+      offset := add(offset, 0x4)
     }
 
     bytes32[2] memory logsHashes; // A memory to which we will write the 2 logs hashes to be accumulated
@@ -511,7 +510,12 @@ library Decoder {
       kernelPublicInputsLogsHash = sha256(abi.encodePacked(logsHashes));
     }
 
-    return (kernelPublicInputsLogsHash, offset);
+    uint256 offsetInBlock;
+    assembly {
+      offsetInBlock := sub(offset, _l2Block.offset)
+    }
+
+    return (kernelPublicInputsLogsHash, offsetInBlock);
   }
 
   /**

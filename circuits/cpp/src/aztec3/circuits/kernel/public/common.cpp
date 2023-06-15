@@ -29,6 +29,10 @@ void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_in
 
     end.public_data_update_requests = start.public_data_update_requests;
     end.public_data_reads = start.public_data_reads;
+
+    // Public kernel does not modify encrypted logs values --> we just copy them to output
+    end.encrypted_logs_hash = start.encrypted_logs_hash;
+    end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
 }
 
 /**
