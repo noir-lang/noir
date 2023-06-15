@@ -170,7 +170,7 @@ export class Sequencer {
   }
 
   /**
-   * Gets new contract public data from the txsand publishes it on chain.
+   * Gets new contract public data from the txs and publishes it on chain.
    * @param validTxs - The set of real transactions being published as part of the block.
    * @param block - The L2Block to be published.
    */
