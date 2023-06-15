@@ -23,8 +23,10 @@ jobs:
 
       - name: Update package.json version
         id: update-version
-        working-directory: ./result
+        working-directory: result
         run: |
+          pwd
+          ls -la
           cat package.json
           npm version --no-git-tag-version ${{ needs.release-please.outputs.tag-name }}
 
