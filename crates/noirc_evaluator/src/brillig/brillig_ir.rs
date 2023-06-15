@@ -516,7 +516,7 @@ mod tests {
         // pseudo-noir:
         //
         // #[oracle(make_number_sequence)]
-        // unconstrained fn make_number_sequence() -> Vec<u32> {
+        // unconstrained fn make_number_sequence(size: u32) -> Vec<u32> {
         // }
         //
         // unconstrained fn main() -> Vec<u32> {
