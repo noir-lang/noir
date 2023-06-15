@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, io::Write, path::Path};
 
 use acvm::{pwg::block::Blocks, PartialWitnessGenerator, ProofSystemCompiler, UnresolvedData};
 use clap::Args;
-use nargo::ops::execute_circuit;
+
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
