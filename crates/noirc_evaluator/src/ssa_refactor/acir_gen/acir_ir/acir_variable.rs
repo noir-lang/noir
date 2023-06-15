@@ -53,6 +53,11 @@ impl AcirType {
     fn boolean() -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
     }
+
+    /// True if type is signed
+    pub(crate) fn is_signed(&self) -> bool {
+        matches!(self.0, NumericType::Signed { .. })
+    }
 }
 
 impl From<SsaType> for AcirType {
@@ -431,24 +436,21 @@ impl AcirContext {
     }
 
     /// Constrains the `AcirVar` variable to be of type `NumericType`.
-    pub(crate) fn numeric_cast_var(
+    pub(crate) fn range_constrain_var(
         &mut self,
         variable: AcirVar,
         numeric_type: &NumericType,
     ) -> Result<AcirVar, AcirGenError> {
         let data = &self.vars[variable];
         match numeric_type {
-            NumericType::Signed { .. } => todo!("signed integer conversion is unimplemented"),
+            NumericType::Signed { .. } => todo!("signed integer constraining is unimplemented"),
             NumericType::Unsigned { bit_size } => {
                 let data_expr = data.to_expression();
                 let witness = self.acir_ir.get_or_create_witness(&data_expr);
                 self.acir_ir.range_constraint(witness, *bit_size)?;
             }
             NumericType::NativeField => {
-                // If someone has made a cast to a `Field` type then this is a Noop.
-                //
-                // The reason for doing this in code is for type safety; ie you have an
-                // integer, but a function requires the parameter to be a Field.
+                // Range constraining a Field is a no-op
             }
         }
         Ok(variable)
