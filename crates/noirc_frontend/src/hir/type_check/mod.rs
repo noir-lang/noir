@@ -89,10 +89,6 @@ impl<'interner> TypeChecker<'interner> {
         self.delayed_type_checks.push(f);
     }
 
-    pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
-        std::mem::take(&mut self.delayed_type_checks)
-    }
-
     fn check_function_body(
         mut self,
         body: &ExprId,
