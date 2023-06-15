@@ -44,6 +44,7 @@ pub struct CompileOptions {
     #[arg(long)]
     pub show_output: bool,
 
+    /// Outputs abi without the proving or verification key
     #[arg(long)]
     pub slim_abi: bool,
 }

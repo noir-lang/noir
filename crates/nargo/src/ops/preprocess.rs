@@ -41,14 +41,13 @@ pub fn preprocess_contract(
         // In future we'll need to apply those optimizations here.
         let optimized_bytecode = func.bytecode;
 
+        // If slim_abi is set, we do not generate a proving key or verification key.
         let (proving_key, verification_key) = if slim_abi {
             (None, None)
         } else {
             let (pk, vk) = backend.preprocess(&optimized_bytecode);
             (Some(pk), Some(vk))
         };
-
-        println!("SLIM ABI: {}", slim_abi);
 
         PreprocessedContractFunction {
             name: func.name,
