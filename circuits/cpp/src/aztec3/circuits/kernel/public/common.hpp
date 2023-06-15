@@ -7,7 +7,6 @@
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/public_data_update_request.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
-#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs_no_previous_kernel.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/utils/array.hpp"
 #include "aztec3/utils/dummy_composer.hpp"
@@ -19,7 +18,6 @@ using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
 using aztec3::circuits::abis::PublicDataUpdateRequest;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
-using aztec3::circuits::abis::public_kernel::PublicKernelInputsNoPreviousKernel;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::check_membership;
 using aztec3::circuits::compute_public_data_tree_index;

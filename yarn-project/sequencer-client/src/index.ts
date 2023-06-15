@@ -10,4 +10,3 @@ export { WasmRollupCircuitSimulator } from './simulator/rollup.js';
 export { EmptyRollupProver } from './prover/empty.js';
 export { SoloBlockBuilder } from './block_builder/solo_block_builder.js';
 export { makeProcessedTx, makeEmptyProcessedTx } from './sequencer/processed_tx.js';
-export { makePublicTx } from './mocks/tx.js';

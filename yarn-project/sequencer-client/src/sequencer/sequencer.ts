@@ -7,21 +7,18 @@ import {
   ContractPublicData,
   L1ToL2MessageSource,
   L2Block,
-  MerkleTreeId,
-  PrivateTx,
-  PublicTx,
-  Tx,
-  isPrivateTx,
   L2BlockSource,
+  MerkleTreeId,
+  Tx,
 } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import times from 'lodash.times';
 import { BlockBuilder } from '../block_builder/index.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
+import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
 import { PublicProcessorFactory } from './public_processor.js';
-import { ceilPowerOfTwo } from '../utils.js';
 
 /**
  * Sequencer client
@@ -178,7 +175,6 @@ export class Sequencer {
     // Publishes new encrypted logs & contract data for private txs to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_CONTRACT_DATA;
     const newContractData = validTxs
-      .filter(isPrivateTx)
       .map(tx => {
         // Currently can only have 1 new contract per tx
         const newContract = tx.data?.end.newContracts[0];
@@ -224,21 +220,14 @@ export class Sequencer {
   protected async takeValidTxs(txs: Tx[]) {
     const validTxs = [];
     const doubleSpendTxs = [];
-    const invalidSigTxs = [];
 
     // Process txs until we get to maxTxsPerBlock, rejecting double spends in the process
     for (const tx of txs) {
       // TODO(AD) - eventually we should add a limit to how many transactions we
       // skip in this manner and do something more DDOS-proof (like letting the transaction fail and pay a fee).
-      if (tx.isPrivate() && (await this.isTxDoubleSpend(tx))) {
+      if (await this.isTxDoubleSpend(tx)) {
         this.log(`Deleting double spend tx ${await tx.getTxHash()}`);
         doubleSpendTxs.push(tx);
-        continue;
-      }
-
-      if (tx.isPublic() && !(await this.isValidSignature(tx))) {
-        this.log(`Deleting invalid signature tx ${await tx.getTxHash()}`);
-        invalidSigTxs.push(tx);
         continue;
       }
 
@@ -249,8 +238,8 @@ export class Sequencer {
     }
 
     // Make sure we remove these from the tx pool so we do not consider it again
-    if (doubleSpendTxs.length > 0 || invalidSigTxs.length > 0) {
-      await this.p2pClient.deleteTxs(await Tx.getHashes([...doubleSpendTxs, ...invalidSigTxs]));
+    if (doubleSpendTxs.length > 0) {
+      await this.p2pClient.deleteTxs(await Tx.getHashes([...doubleSpendTxs]));
     }
 
     return validTxs;
@@ -303,7 +292,7 @@ export class Sequencer {
    * @param tx - The transaction.
    * @returns Whether this is a problematic double spend that the L1 contract would reject.
    */
-  protected async isTxDoubleSpend(tx: PrivateTx): Promise<boolean> {
+  protected async isTxDoubleSpend(tx: Tx): Promise<boolean> {
     // eslint-disable-next-line @typescript-eslint/await-thenable
     for (const nullifier of tx.data.end.newNullifiers) {
       // Skip nullifier if it's empty
@@ -318,11 +307,6 @@ export class Sequencer {
       }
     }
     return false;
-  }
-
-  protected isValidSignature(_tx: PublicTx): Promise<boolean> {
-    // TODO: Validate tx ECDSA signature!
-    return Promise.resolve(true);
   }
 }
 

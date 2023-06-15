@@ -13,7 +13,6 @@
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/private_historic_tree_roots.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
-#include "aztec3/circuits/abis/signed_tx_request.hpp"
 #include "aztec3/circuits/abis/tx_context.hpp"
 #include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/abis/types.hpp"
@@ -36,7 +35,6 @@ using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
 using aztec3::circuits::abis::PrivateHistoricTreeRoots;
 using aztec3::circuits::abis::PrivateTypes;
-using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
@@ -390,8 +388,7 @@ PrivateKernelInputsInit<NT> do_private_call_get_kernel_inputs_init(bool const is
         is_constructor, func, args_vec, msg_sender, encrypted_logs_hash, encrypted_log_preimages_length, is_circuit);
 
     //***************************************************************************
-    // We can create a TxRequest from some of the above data. Users must sign a TxRequest in order to give permission
-    // for a tx to take place - creating a SignedTxRequest.
+    // We can create a TxRequest from some of the above data.
     //***************************************************************************
     auto const tx_request = TxRequest<NT>{
         .from = tx_origin,
@@ -409,17 +406,11 @@ PrivateKernelInputsInit<NT> do_private_call_get_kernel_inputs_init(bool const is
         .chain_id = 1,
     };
 
-    auto const signed_tx_request = SignedTxRequest<NT>{
-        .tx_request = tx_request,
-
-        //.signature = TODO: need a method for signing a TxRequest.
-    };
-
     //***************************************************************************
     // Now we can construct the full private inputs to the kernel circuit
     //***************************************************************************
     PrivateKernelInputsInit<NT> kernel_private_inputs = PrivateKernelInputsInit<NT>{
-        .signed_tx_request = signed_tx_request,
+        .tx_request = tx_request,
         .private_call = private_call_data,
     };
 
@@ -508,8 +499,8 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(bool const 
 bool validate_deployed_contract_address(PrivateKernelInputsInit<NT> const& private_inputs,
                                         KernelCircuitPublicInputs<NT> const& public_inputs)
 {
-    auto tx_request = private_inputs.signed_tx_request.tx_request;
-    auto cdd = private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data;
+    auto tx_request = private_inputs.tx_request;
+    auto cdd = private_inputs.tx_request.tx_context.contract_deployment_data;
 
     auto private_circuit_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(
         private_inputs.private_call.vk, GeneratorIndex::VK);

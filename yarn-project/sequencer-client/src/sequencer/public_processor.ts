@@ -19,25 +19,15 @@ import {
   PublicCallStackItem,
   PublicCircuitPublicInputs,
   PublicKernelInputs,
-  PublicKernelInputsNoPreviousKernel,
   PublicKernelPublicInputs,
   RETURN_VALUES_LENGTH,
-  SignedTxRequest,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { computeCallStackItemHash, computeVarArgsHash } from '@aztec/circuits.js/abis';
 import { isArrayEmpty, padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Tuple, mapTuple } from '@aztec/foundation/serialize';
-import {
-  ContractDataSource,
-  L1ToL2MessageSource,
-  MerkleTreeId,
-  PrivateTx,
-  PublicTx,
-  SignedTxExecutionRequest,
-  Tx,
-} from '@aztec/types';
+import { ContractDataSource, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 import { getVerificationKeys } from '../index.js';
 import { EmptyPublicProver } from '../prover/empty.js';
@@ -119,43 +109,23 @@ export class PublicProcessor {
   }
 
   protected async processTx(tx: Tx): Promise<ProcessedTx> {
-    if (tx.isPublic()) {
-      const [publicKernelOutput, publicKernelProof] = await this.processPublicTx(tx);
-      return makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
-    } else if (tx.isPrivate() && !isArrayEmpty(tx.data.end.publicCallStack, item => item.isZero())) {
+    if (!isArrayEmpty(tx.data.end.publicCallStack, item => item.isZero())) {
       const [publicKernelOutput, publicKernelProof] = await this.processEnqueuedPublicCalls(tx);
       return makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
-    } else if (tx.isPrivate()) {
-      return makeProcessedTx(tx);
     } else {
-      return this.makeEmptyProcessedTx();
+      return makeProcessedTx(tx);
     }
   }
 
-  protected async processEnqueuedPublicCalls(tx: PrivateTx): Promise<[PublicKernelPublicInputs, Proof]> {
+  protected async processEnqueuedPublicCalls(tx: Tx): Promise<[PublicKernelPublicInputs, Proof]> {
     this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
     if (!tx.enqueuedPublicFunctionCalls) throw new Error(`Missing preimages for enqueued public calls`);
 
     // We execute the requests in order, which means reversing the input as the stack pops from the end of the array
     const executionStack: (PublicExecution | PublicExecutionResult)[] = [...tx.enqueuedPublicFunctionCalls].reverse();
-    return await this.processExecutionStack(executionStack, undefined, tx.data, tx.proof);
-  }
 
-  protected async processPublicTx(tx: PublicTx): Promise<[PublicKernelPublicInputs, Proof]> {
-    this.log(`Executing public tx request ${await tx.getTxHash()}`);
-    const firstExecution = await this.publicExecutor.getPublicExecution(tx.txRequest.txRequest);
-    const firstResult: PublicExecutionResult = await this.publicExecutor.execute(firstExecution);
-    const executionStack = [firstResult];
-    return await this.processExecutionStack(executionStack, tx.txRequest, undefined, undefined);
-  }
-
-  protected async processExecutionStack(
-    executionStack: (PublicExecution | PublicExecutionResult)[],
-    txRequest: SignedTxExecutionRequest | undefined,
-    kernelOutput: KernelCircuitPublicInputs | undefined,
-    kernelProof: Proof | undefined,
-  ): Promise<[PublicKernelPublicInputs, Proof]> {
-    if (!executionStack.length) throw new Error(`Execution stack cannot be empty`);
+    let kernelOutput = tx.data;
+    let kernelProof = tx.proof;
 
     while (executionStack.length) {
       const current = executionStack.pop()!;
@@ -166,29 +136,26 @@ export class PublicProcessor {
       executionStack.push(...result.nestedExecutions);
       const preimages = await this.getPublicCallStackPreimages(result);
       const callData = await this.getPublicCallData(result, preimages, isExecutionRequest);
-      [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, txRequest, kernelOutput, kernelProof);
+      [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, kernelOutput, kernelProof);
     }
 
-    return [kernelOutput!, kernelProof!];
+    return [kernelOutput, kernelProof];
   }
 
   protected async runKernelCircuit(
     callData: PublicCallData,
-    txExecutionRequest: SignedTxExecutionRequest | undefined,
-    previousOutput: KernelCircuitPublicInputs | undefined,
-    previousProof: Proof | undefined,
+    previousOutput: KernelCircuitPublicInputs,
+    previousProof: Proof,
   ): Promise<[KernelCircuitPublicInputs, Proof]> {
-    const txRequest = await txExecutionRequest?.toSignedTxRequest();
-    const output = await this.getKernelCircuitOutput(callData, txRequest, previousOutput, previousProof);
+    const output = await this.getKernelCircuitOutput(callData, previousOutput, previousProof);
     const proof = await this.publicProver.getPublicKernelCircuitProof(output);
     return [output, proof];
   }
 
-  protected async getKernelCircuitOutput(
+  protected getKernelCircuitOutput(
     callData: PublicCallData,
-    txRequest: SignedTxRequest | undefined,
-    previousOutput: KernelCircuitPublicInputs | undefined,
-    previousProof: Proof | undefined,
+    previousOutput: KernelCircuitPublicInputs,
+    previousProof: Proof,
   ): Promise<KernelCircuitPublicInputs> {
     if (previousOutput?.isPrivate && previousProof) {
       // Run the public kernel circuit with previous private kernel
@@ -200,11 +167,6 @@ export class PublicProcessor {
       const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
       const inputs = new PublicKernelInputs(previousKernel, callData);
       return this.publicKernel.publicKernelCircuitNonFirstIteration(inputs);
-    } else if (txRequest) {
-      // Run the public kernel circuit with no previous kernel
-      const treeRoots = await getCombinedHistoricTreeRoots(this.db);
-      const inputs = new PublicKernelInputsNoPreviousKernel(txRequest, callData, treeRoots);
-      return this.publicKernel.publicKernelCircuitNoInput(inputs);
     } else {
       throw new Error(`No public kernel circuit for inputs`);
     }

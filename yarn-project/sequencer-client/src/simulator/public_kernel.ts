@@ -1,25 +1,10 @@
-import {
-  PublicKernelInputs,
-  PublicKernelInputsNoPreviousKernel,
-  PublicKernelPublicInputs,
-  simulatePublicKernelCircuit,
-  simulatePublicKernelCircuitNoPreviousKernel,
-} from '@aztec/circuits.js';
+import { PublicKernelInputs, PublicKernelPublicInputs, simulatePublicKernelCircuit } from '@aztec/circuits.js';
 import { PublicKernelCircuitSimulator } from './index.js';
 
 /**
  * Implements the PublicKernelCircuitSimulator by calling the wasm implementations of the circuits.
  */
 export class WasmPublicKernelCircuitSimulator implements PublicKernelCircuitSimulator {
-  /**
-   * Simulates the public kernel circuit (with no previous kernel circuit run) from its inputs.
-   * @param input - Inputs to the circuit.
-   * @returns The public inputs as outputs of the simulation.
-   */
-  public publicKernelCircuitNoInput(input: PublicKernelInputsNoPreviousKernel): Promise<PublicKernelPublicInputs> {
-    return simulatePublicKernelCircuitNoPreviousKernel(input);
-  }
-
   /**
    * Simulates the public kernel circuit (with a previous private kernel circuit run) from its inputs.
    * @param input - Inputs to the circuit.

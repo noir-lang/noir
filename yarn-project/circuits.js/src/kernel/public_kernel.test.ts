@@ -1,15 +1,5 @@
-import {
-  CircuitError,
-  KERNEL_PUBLIC_DATA_READS_LENGTH,
-  makeTuple,
-  simulatePublicKernelCircuit,
-  simulatePublicKernelCircuitNoPreviousKernel,
-} from '../index.js';
-import {
-  makePublicDataRead,
-  makePublicKernelInputsNoKernelInput,
-  makePublicKernelInputsWithEmptyOutput,
-} from '../tests/factories.js';
+import { CircuitError, KERNEL_PUBLIC_DATA_READS_LENGTH, makeTuple, simulatePublicKernelCircuit } from '../index.js';
+import { makePublicDataRead, makePublicKernelInputsWithEmptyOutput } from '../tests/factories.js';
 
 describe('kernel/public_kernel', () => {
   it('simulates public kernel circuit with previous public kernel', async function () {
@@ -26,12 +16,6 @@ describe('kernel/public_kernel', () => {
     const input = await makePublicKernelInputsWithEmptyOutput();
     input.previousKernel.publicInputs.isPrivate = true;
     const result = await simulatePublicKernelCircuit(input);
-    expect(result).toBeDefined();
-  });
-
-  it('simulates public kernel circuit with no previous kernel', async function () {
-    const input = await makePublicKernelInputsNoKernelInput();
-    const result = await simulatePublicKernelCircuitNoPreviousKernel(input);
     expect(result).toBeDefined();
   });
 

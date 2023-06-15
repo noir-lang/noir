@@ -158,7 +158,7 @@ export class AztecNodeService implements AztecNode {
    */
   public async sendTx(tx: Tx) {
     // TODO: Patch tx to inject historic tree roots until the private kernel circuit supplies this value
-    if (tx.isPrivate() && tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.isEmpty()) {
+    if (tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.isEmpty()) {
       tx.data.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(this.merkleTreeDB.asLatest());
     }
 

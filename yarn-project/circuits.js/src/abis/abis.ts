@@ -11,7 +11,6 @@ import {
   NewContractData,
   Point,
   PublicCallStackItem,
-  SignedTxRequest,
   TxRequest,
   Vector,
 } from '../index.js';
@@ -246,7 +245,7 @@ export function computeContractLeaf(wasm: IWasmModule, cd: NewContractData): Fr 
  * @param txRequest - The signed transaction request.
  * @returns The transaction hash.
  */
-export function computeTxHash(wasm: IWasmModule, txRequest: SignedTxRequest): Fr {
+export function computeTxHash(wasm: IWasmModule, txRequest: TxRequest): Fr {
   wasm.call('pedersen__init');
   const value = wasmSyncCall(wasm, 'abis__compute_transaction_hash', txRequest, 32);
   return Fr.fromBuffer(value);

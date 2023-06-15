@@ -11,7 +11,7 @@ import {
   PrivateCallData,
   PrivateCallStackItem,
   READ_REQUESTS_LENGTH,
-  SignedTxRequest,
+  TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
   makeEmptyProof,
@@ -61,16 +61,16 @@ export class KernelProver {
   constructor(private oracle: ProvingDataOracle, private proofCreator: ProofCreator = new KernelProofCreator()) {}
 
   /**
-   * Generate a proof for a given transaction request, transaction signature, and execution result.
+   * Generate a proof for a given transaction request and execution result.
    * The function iterates through the nested executions in the execution result, creates private call data,
    * and generates a proof using the provided ProofCreator instance. It also maintains an index of new notes
    * created during the execution and returns them as a part of the KernelProverOutput.
    *
-   * @param signedTxRequest - The authenticated transaction request object.
+   * @param txRequest - The authenticated transaction request object.
    * @param executionResult - The execution result object containing nested executions and preimages.
    * @returns A Promise that resolves to a KernelProverOutput object containing proof, public inputs, and output notes.
    */
-  async prove(signedTxRequest: SignedTxRequest, executionResult: ExecutionResult): Promise<KernelProverOutput> {
+  async prove(txRequest: TxRequest, executionResult: ExecutionResult): Promise<KernelProverOutput> {
     const executionStack = [executionResult];
     const newNotes: { [commitmentStr: string]: OutputNoteData } = {};
     let firstIteration = true;
@@ -131,7 +131,7 @@ export class KernelProver {
         // add it to PrivateCallData: https://github.com/AztecProtocol/aztec-packages/issues/778
         privateCallData.callStackItem.publicInputs.historicPrivateDataTreeRoot = await this.oracle.getPrivateDataRoot();
 
-        output = await this.proofCreator.createProofInit(signedTxRequest, privateCallData);
+        output = await this.proofCreator.createProofInit(txRequest, privateCallData);
       } else {
         const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(previousVerificationKey);
         const previousKernelData = new PreviousKernelData(

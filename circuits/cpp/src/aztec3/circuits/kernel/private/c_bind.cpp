@@ -14,7 +14,7 @@ using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PreviousKernelData;
-using aztec3::circuits::abis::SignedTxRequest;
+using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
@@ -60,7 +60,7 @@ CBIND(private_kernel__dummy_previous_kernel, []() { return dummy_previous_kernel
 
 // TODO(dbanks12): comment about how public_inputs is a confusing name
 // returns size of public inputs
-WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* signed_tx_request_buf,
+WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* tx_request_buf,
                                               uint8_t const* private_call_buf,
                                               size_t* private_kernel_public_inputs_size_out,
                                               uint8_t const** private_kernel_public_inputs_buf)
@@ -70,11 +70,11 @@ WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* signed_tx_request_b
     PrivateCallData<NT> private_call_data;
     read(private_call_buf, private_call_data);
 
-    SignedTxRequest<NT> signed_tx_request;
-    read(signed_tx_request_buf, signed_tx_request);
+    TxRequest<NT> tx_request;
+    read(tx_request_buf, tx_request);
 
     PrivateKernelInputsInit<NT> const private_inputs = PrivateKernelInputsInit<NT>{
-        .signed_tx_request = signed_tx_request,
+        .tx_request = tx_request,
         .private_call = private_call_data,
     };
 
@@ -125,7 +125,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
 // was not splitted into inner/init counterparts. Once this is done, we have to modify
 // the below method to dispatch over the two variants based on first_iteration boolean.
 // returns size of proof data
-WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
+WASM_EXPORT size_t private_kernel__prove(uint8_t const* tx_request_buf,
                                          uint8_t const* previous_kernel_buf,
                                          uint8_t const* private_call_buf,
                                          uint8_t const* pk_buf,
@@ -137,8 +137,8 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
     (void)pk_buf;  // unused
     auto crs_factory = barretenberg::srs::get_crs_factory();
 
-    SignedTxRequest<NT> signed_tx_request;
-    read(signed_tx_request_buf, signed_tx_request);
+    TxRequest<NT> tx_request;
+    read(tx_request_buf, tx_request);
 
     PrivateCallData<NT> private_call_data;
     read(private_call_buf, private_call_data);
@@ -155,7 +155,7 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
         previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
             .l1_to_l2_messages_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_l1_to_l2_messages_tree_root;
-        previous_kernel.public_inputs.constants.tx_context = signed_tx_request.tx_request.tx_context;
+        previous_kernel.public_inputs.constants.tx_context = tx_request.tx_context;
         previous_kernel.public_inputs.is_private = true;
     } else {
         read(previous_kernel_buf, previous_kernel);

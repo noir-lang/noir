@@ -3,89 +3,87 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { mapTuple, numToUInt32BE } from '@aztec/foundation/serialize';
 import { computeCallStackItemHash } from '../abis/abis.js';
 import {
-  TxContext,
-  ContractDeploymentData,
-  PrivateHistoricTreeRoots,
-  CombinedHistoricTreeRoots,
-  CombinedConstantData,
-  PublicDataUpdateRequest,
-  PublicDataRead,
-  ContractStorageUpdateRequest,
-  ContractStorageRead,
-  CombinedAccumulatedData,
-  range,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-  KERNEL_PRIVATE_CALL_STACK_LENGTH,
-  Fr,
-  KERNEL_PUBLIC_CALL_STACK_LENGTH,
-  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
-  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
-  KERNEL_PUBLIC_DATA_READS_LENGTH,
-  NewContractData,
-  OptionallyRevealedData,
-  FunctionData,
-  READ_REQUESTS_LENGTH,
-  AggregationObject,
-  G1AffineElement,
-  Fq,
-  CallContext,
-  PublicCircuitPublicInputs,
   ARGS_LENGTH,
-  RETURN_VALUES_LENGTH,
-  PUBLIC_CALL_STACK_LENGTH,
-  NEW_L2_TO_L1_MSGS_LENGTH,
-  KernelCircuitPublicInputs,
-  PublicCallRequest,
-  MembershipWitness,
-  VerificationKey,
-  ComposerType,
-  PreviousKernelData,
-  Proof,
-  VK_TREE_HEIGHT,
-  PrivateKernelInputsInit,
-  PrivateKernelInputsInner,
-  PublicCallStackItem,
-  PublicCallData,
-  CircuitsWasm,
-  WitnessedPublicCallData,
-  PUBLIC_DATA_TREE_HEIGHT,
-  PublicKernelInputs,
-  PublicKernelInputsNoPreviousKernel,
-  SignedTxRequest,
-  TxRequest,
-  PrivateCallData,
-  PRIVATE_CALL_STACK_LENGTH,
-  FUNCTION_TREE_HEIGHT,
+  AggregationObject,
+  AppendOnlyTreeSnapshot,
+  BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
   CONTRACT_TREE_HEIGHT,
+  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
+  CallContext,
+  CircuitsWasm,
+  CombinedAccumulatedData,
+  CombinedConstantData,
+  CombinedHistoricTreeRoots,
+  ComposerType,
+  ConstantBaseRollupData,
+  ContractDeploymentData,
+  ContractStorageRead,
+  ContractStorageUpdateRequest,
+  EcdsaSignature,
+  FUNCTION_TREE_HEIGHT,
+  Fq,
+  Fr,
+  FunctionData,
+  G1AffineElement,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_CONTRACTS_LENGTH,
+  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
+  KERNEL_NEW_NULLIFIERS_LENGTH,
+  KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
+  KERNEL_PRIVATE_CALL_STACK_LENGTH,
+  KERNEL_PUBLIC_CALL_STACK_LENGTH,
+  KERNEL_PUBLIC_DATA_READS_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+  KernelCircuitPublicInputs,
+  L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
+  MembershipWitness,
+  MergeRollupInputs,
+  NEW_COMMITMENTS_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
+  NEW_NULLIFIERS_LENGTH,
+  NULLIFIER_TREE_HEIGHT,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  NewContractData,
+  NullifierLeafPreimage,
+  OptionallyRevealedData,
+  PRIVATE_CALL_STACK_LENGTH,
+  PRIVATE_DATA_TREE_HEIGHT,
+  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
+  PUBLIC_CALL_STACK_LENGTH,
+  PUBLIC_DATA_TREE_HEIGHT,
+  Point,
+  PreviousKernelData,
+  PreviousRollupData,
+  PrivateCallData,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
-  NEW_COMMITMENTS_LENGTH,
-  NEW_NULLIFIERS_LENGTH,
-  ConstantBaseRollupData,
-  AppendOnlyTreeSnapshot,
-  EcdsaSignature,
-  BaseOrMergeRollupPublicInputs,
-  RollupTypes,
-  PreviousRollupData,
+  PrivateHistoricTreeRoots,
+  PrivateKernelInputsInit,
+  PrivateKernelInputsInner,
+  Proof,
+  PublicCallData,
+  PublicCallRequest,
+  PublicCallStackItem,
+  PublicCircuitPublicInputs,
+  PublicDataRead,
+  PublicDataUpdateRequest,
+  PublicKernelInputs,
+  READ_REQUESTS_LENGTH,
+  RETURN_VALUES_LENGTH,
   ROLLUP_VK_TREE_HEIGHT,
+  RollupTypes,
   RootRollupInputs,
-  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
-  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
-  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-  L1_TO_L2_MESSAGES_SIBLING_PATH_LENGTH,
-  L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
   RootRollupPublicInputs,
-  MergeRollupInputs,
-  BaseRollupInputs,
-  NullifierLeafPreimage,
-  NULLIFIER_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_HEIGHT,
-  makeTuple,
+  TxContext,
+  TxRequest,
+  VK_TREE_HEIGHT,
+  VerificationKey,
+  WitnessedPublicCallData,
   makeHalfFullTuple,
-  Point,
+  makeTuple,
+  range,
 } from '../index.js';
 
 /**
@@ -428,7 +426,7 @@ export function makeProof(seed = 1) {
  * @returns Private kernel inputs.
  */
 export function makePrivateKernelInputsInit(seed = 1): PrivateKernelInputsInit {
-  return new PrivateKernelInputsInit(makeSignedTxRequest(seed), makePrivateCallData(seed + 0x1000));
+  return new PrivateKernelInputsInit(makeTxRequest(seed), makePrivateCallData(seed + 0x1000));
 }
 
 /**
@@ -537,28 +535,6 @@ export async function makePublicKernelInputsWithEmptyOutput(seed = 1): Promise<P
   publicKernelInputs.previousKernel.publicInputs.end.publicCallStack[KERNEL_PUBLIC_CALL_STACK_LENGTH - 1] =
     computeCallStackItemHash(wasm, publicKernelInputs.publicCall.callStackItem);
   return publicKernelInputs;
-}
-
-/**
- * Makes arbitrary public kernel inputs with no previous kernel data.
- * @param seed - The seed to use for generating the public kernel inputs.
- * @returns Public kernel inputs.
- */
-export async function makePublicKernelInputsNoKernelInput(seed = 1): Promise<PublicKernelInputsNoPreviousKernel> {
-  return new PublicKernelInputsNoPreviousKernel(
-    makeSignedTxRequest(seed),
-    await makePublicCallData(seed + 0x100),
-    makeCombinedHistoricTreeRoots(seed + 0x200),
-  );
-}
-
-/**
- * Makes arbitrary signed tx request.
- * @param seed - The seed to use for generating the signed tx request.
- * @returns A signed tx request.
- */
-export function makeSignedTxRequest(seed = 1): SignedTxRequest {
-  return new SignedTxRequest(makeTxRequest(seed), makeEcdsaSignature(seed + 0x200));
 }
 
 /**

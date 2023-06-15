@@ -4,43 +4,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 import { FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { FunctionData } from './function_data.js';
-import { EcdsaSignature } from './shared.js';
 import { TxContext } from './tx_context.js';
-
-/**
- * Signed transaction request.
- * @see cpp/src/aztec3/circuits/abis/signed_tx_request.hpp.
- */
-export class SignedTxRequest {
-  constructor(
-    /**
-     * Transaction request.
-     */
-    public txRequest: TxRequest,
-    /**
-     * Signature.
-     */
-    public signature: EcdsaSignature,
-  ) {}
-
-  /**
-   * Serialize as a buffer.
-   * @returns The buffer.
-   */
-  toBuffer() {
-    return serializeToBuffer(this.txRequest, this.signature);
-  }
-
-  /**
-   * Deserialises from a buffer.
-   * @param buffer - The buffer representation of the object.
-   * @returns The new object.
-   */
-  static fromBuffer(buffer: Buffer | BufferReader): SignedTxRequest {
-    const reader = BufferReader.asReader(buffer);
-    return new SignedTxRequest(reader.readObject(TxRequest), reader.readObject(EcdsaSignature));
-  }
-}
 
 /**
  * Transaction request.

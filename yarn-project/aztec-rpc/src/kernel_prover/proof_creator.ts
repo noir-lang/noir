@@ -5,10 +5,10 @@ import {
   PrivateCallData,
   PrivateCircuitPublicInputs,
   Proof,
-  SignedTxRequest,
+  TxRequest,
   makeEmptyProof,
-  privateKernelSimInner,
   privateKernelSimInit,
+  privateKernelSimInner,
 } from '@aztec/circuits.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
@@ -35,7 +35,7 @@ export interface ProofOutput {
  */
 export interface ProofCreator {
   getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs): Promise<Fr[]>;
-  createProofInit(signedTxRequest: SignedTxRequest, privateCallData: PrivateCallData): Promise<ProofOutput>;
+  createProofInit(txRequest: TxRequest, privateCallData: PrivateCallData): Promise<ProofOutput>;
   createProofInner(previousKernelData: PreviousKernelData, privateCallData: PrivateCallData): Promise<ProofOutput>;
 }
 
@@ -65,17 +65,14 @@ export class KernelProofCreator {
   /**
    * Creates a proof output for a given signed transaction request and private call data for the first iteration.
    *
-   * @param signedTxRequest - The signed transaction request object.
+   * @param txRequest - The signed transaction request object.
    * @param privateCallData - The private call data object.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  public async createProofInit(
-    signedTxRequest: SignedTxRequest,
-    privateCallData: PrivateCallData,
-  ): Promise<ProofOutput> {
+  public async createProofInit(txRequest: TxRequest, privateCallData: PrivateCallData): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation init...');
-    const publicInputs = privateKernelSimInit(wasm, signedTxRequest, privateCallData);
+    const publicInputs = privateKernelSimInit(wasm, txRequest, privateCallData);
     this.log('Skipping private kernel proving...');
     // TODO
     const proof = makeEmptyProof();

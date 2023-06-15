@@ -12,18 +12,17 @@ import {
   ExecutionRequest,
   INITIAL_L2_BLOCK_NUM,
   L2BlockContext,
+  L2BlockL2Logs,
   MerkleTreeId,
-  SignedTxExecutionRequest,
-  Tx,
   NoteSpendingInfo,
+  Tx,
   TxExecutionRequest,
   TxL2Logs,
-  L2BlockL2Logs,
 } from '@aztec/types';
-import { KernelOracle } from '../kernel_oracle/index.js';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database, NoteSpendingInfoDao, TxDao } from '../database/index.js';
 import { generateFunctionSelector } from '../index.js';
+import { KernelOracle } from '../kernel_oracle/index.js';
 import { KernelProver } from '../kernel_prover/index.js';
 import { SimulatorOracle } from '../simulator_oracle/index.js';
 
@@ -237,22 +236,16 @@ export class AccountState {
    * @param newContractAddress - Optional. The address of a new contract to be included in the transaction object.
    * @returns A private transaction object containing the proof, public inputs, and encrypted logs.
    */
-  public async simulateAndProve(
-    txExecutionRequest: SignedTxExecutionRequest,
-    newContractAddress: AztecAddress | undefined,
-  ) {
+  public async simulateAndProve(txExecutionRequest: TxExecutionRequest, newContractAddress: AztecAddress | undefined) {
     // TODO - Pause syncing while simulating.
 
     const contractDataOracle = new ContractDataOracle(this.db, this.node);
     const kernelOracle = new KernelOracle(contractDataOracle, this.node);
-    const executionResult = await this.simulate(txExecutionRequest.txRequest, contractDataOracle);
+    const executionResult = await this.simulate(txExecutionRequest, contractDataOracle);
 
     const kernelProver = new KernelProver(kernelOracle);
     this.log('Executing Prover...');
-    const { proof, publicInputs } = await kernelProver.prove(
-      await txExecutionRequest.toSignedTxRequest(),
-      executionResult,
-    );
+    const { proof, publicInputs } = await kernelProver.prove(await txExecutionRequest.toTxRequest(), executionResult);
     this.log('Proof completed!');
 
     const newContractPublicFunctions = newContractAddress
@@ -262,7 +255,7 @@ export class AccountState {
     // 1 tx containing only 1 function invocation
     const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
 
-    return Tx.createPrivate(
+    return Tx.createTx(
       publicInputs,
       proof,
       encryptedLogs,

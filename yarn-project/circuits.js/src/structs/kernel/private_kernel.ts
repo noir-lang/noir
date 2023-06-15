@@ -5,16 +5,16 @@ import { PrivateCallStackItem } from '../call_stack_item.js';
 import {
   CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_HEIGHT,
   PRIVATE_CALL_STACK_LENGTH,
+  PRIVATE_DATA_TREE_HEIGHT,
   READ_REQUESTS_LENGTH,
 } from '../constants.js';
+import { Fr } from '../index.js';
 import { MembershipWitness } from '../membership_witness.js';
-import { SignedTxRequest } from '../tx_request.js';
+import { Proof } from '../proof.js';
+import { TxRequest } from '../tx_request.js';
 import { VerificationKey } from '../verification_key.js';
 import { PreviousKernelData } from './previous_kernel_data.js';
-import { Fr } from '../index.js';
-import { Proof } from '../proof.js';
 
 /**
  * Private call data.
@@ -105,7 +105,7 @@ export class PrivateKernelInputsInit {
     /**
      * The transaction request which led to the creation of these inputs.
      */
-    public signedTxRequest: SignedTxRequest,
+    public txRequest: TxRequest,
     /**
      * Private calldata corresponding to this iteration of the kernel.
      */
@@ -117,7 +117,7 @@ export class PrivateKernelInputsInit {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.signedTxRequest, this.privateCall);
+    return serializeToBuffer(this.txRequest, this.privateCall);
   }
 }
 

@@ -1,19 +1,12 @@
 import { encodeArguments } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
-import {
-  AztecAddress,
-  ContractDeploymentData,
-  EcdsaSignature,
-  EthAddress,
-  FunctionData,
-  TxContext,
-} from '@aztec/circuits.js';
+import { AztecAddress, ContractDeploymentData, EthAddress, FunctionData, TxContext } from '@aztec/circuits.js';
 import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { KeyStore, PublicKey, getAddressFromPublicKey } from '@aztec/key-store';
 import { AccountContractAbi } from '@aztec/noir-contracts/examples';
-import { ExecutionRequest, SignedTxExecutionRequest, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
+import { ExecutionRequest, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
 import { EcdsaAccountContract } from '../account_impl/ecdsa_account_contract.js';
 import { EcdsaExternallyOwnedAccount } from '../account_impl/ecdsa_eoa.js';
 import { AccountImplementation } from '../account_impl/index.js';
@@ -97,10 +90,7 @@ export class AztecRPCServer implements AztecRPCClient {
 
     const account = await this.initAccountState(pubKey, contract.address);
 
-    const tx = await account.simulateAndProve(
-      new SignedTxExecutionRequest(txRequest, EcdsaSignature.empty()),
-      contract.address,
-    );
+    const tx = await account.simulateAndProve(txRequest, contract.address);
 
     await this.db.addTx(
       new TxDao(await tx.getTxHash(), undefined, undefined, account.getAddress(), undefined, contract.address, ''),
@@ -205,10 +195,7 @@ export class AztecRPCServer implements AztecRPCClient {
 
     const { txRequest, contract } = await this.prepareDeploy(abi, args, portalContract, contractAddressSalt, pubKey);
 
-    const tx = await account.simulateAndProve(
-      new SignedTxExecutionRequest(txRequest, EcdsaSignature.empty()),
-      contract.address,
-    );
+    const tx = await account.simulateAndProve(txRequest, contract.address);
 
     await this.db.addTx(
       new TxDao(await tx.getTxHash(), undefined, undefined, account.getAddress(), undefined, contract.address, ''),
@@ -276,10 +263,11 @@ export class AztecRPCServer implements AztecRPCClient {
 
     // TODO: Can we remove tx context from this call?
     const authedTxRequest = await entrypoint.createAuthenticatedTxRequest([executionRequest], TxContext.empty());
-    const tx = authedTxRequest.txRequest.functionData.isPrivate
-      ? await account.simulateAndProve(authedTxRequest, undefined)
-      : Tx.createPublic(authedTxRequest);
+    if (!authedTxRequest.functionData.isPrivate) {
+      throw new Error(`Public entrypoints are not allowed`);
+    }
 
+    const tx = await account.simulateAndProve(authedTxRequest, undefined);
     await this.db.addTx(new TxDao(await tx.getTxHash(), undefined, undefined, account.getAddress(), to, undefined, ''));
 
     return tx;

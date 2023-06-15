@@ -92,6 +92,8 @@ struct CircuitError {
     // for serialization, update with new fields
     MSGPACK_FIELDS(code, message);
     static CircuitError no_error() { return { CircuitErrorCode::NO_ERROR, "" }; }
+
+    bool operator==(CircuitError const& other) const { return code == other.code && message == other.message; }
 };
 
 // Define CircuitResult<T> as a std::variant T + error union type

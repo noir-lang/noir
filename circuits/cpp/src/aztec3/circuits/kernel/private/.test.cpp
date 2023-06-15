@@ -143,7 +143,7 @@ TEST_F(private_kernel_tests, circuit_create_proof_cbinds)
     // info("Verification key size: ", vk_size);
 
     std::vector<uint8_t> signed_constructor_tx_request_vec;
-    write(signed_constructor_tx_request_vec, private_inputs.signed_tx_request);
+    write(signed_constructor_tx_request_vec, private_inputs.tx_request);
 
     std::vector<uint8_t> private_constructor_call_vec;
     write(private_constructor_call_vec, private_inputs.private_call);

@@ -62,7 +62,7 @@ TEST_F(native_private_kernel_init_tests, deposit)
     EXPECT_TRUE(validate_no_new_deployed_contract(public_inputs));
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 
     // Log preimages length should increase by `encrypted_log_preimages_length` from private input
     ASSERT_EQ(public_inputs.end.encrypted_log_preimages_length, encrypted_log_preimages_length);
@@ -145,8 +145,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_construct
     auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
 
     // Pollute the constructor vk hash in the tx_request.
-    private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data.constructor_vk_hash =
-        NT::fr::random_element();
+    private_inputs.tx_request.tx_context.contract_deployment_data.constructor_vk_hash = NT::fr::random_element();
 
     DummyComposer composer =
         DummyComposer("private_kernel_tests__contract_deployment_incorrect_constructor_vk_hash_fails");
@@ -168,7 +167,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_contract_
     // Modify the contract address in appropriate places.
     const fr random_address = NT::fr::random_element();
     private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address = random_address;
-    private_inputs.signed_tx_request.tx_request.to = random_address;
+    private_inputs.tx_request.to = random_address;
     private_inputs.private_call.call_stack_item.contract_address = random_address;
 
     DummyComposer composer =
@@ -216,8 +215,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_function_data_misma
     auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
 
     // Modify the function selector in function data.
-    private_inputs.signed_tx_request.tx_request.function_data.function_selector =
-        numeric::random::get_engine().get_random_uint32();
+    private_inputs.tx_request.function_data.function_selector = numeric::random::get_engine().get_random_uint32();
 
     // Invoke the native private kernel circuit
     DummyComposer composer = DummyComposer("private_kernel_tests__contract_deployment_function_data_mismatch_fails");
@@ -241,7 +239,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_args_hash_mismatch_
     auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
 
     // Modify the args hash in tx request.
-    private_inputs.signed_tx_request.tx_request.args_hash = NT::fr::random_element();
+    private_inputs.tx_request.args_hash = NT::fr::random_element();
 
     // Invoke the native private kernel circuit
     DummyComposer composer = DummyComposer("private_kernel_tests__contract_deployment_args_hash_mismatch_fails");
@@ -375,7 +373,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_request)
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 TEST_F(native_private_kernel_init_tests, native_read_request_bad_leaf_index)
@@ -407,7 +405,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_leaf_index)
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 TEST_F(native_private_kernel_init_tests, native_read_request_bad_sibling_path)
@@ -439,7 +437,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_sibling_path)
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 TEST_F(native_private_kernel_init_tests, native_read_request_root_mismatch)
@@ -481,7 +479,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_root_mismatch)
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 TEST_F(native_private_kernel_init_tests, native_no_read_requests_works)
@@ -513,7 +511,7 @@ TEST_F(native_private_kernel_init_tests, native_no_read_requests_works)
     ASSERT_FALSE(composer.failed());
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 TEST_F(native_private_kernel_init_tests, native_one_read_requests_works)
@@ -547,7 +545,7 @@ TEST_F(native_private_kernel_init_tests, native_one_read_requests_works)
     ASSERT_FALSE(composer.failed());
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 TEST_F(native_private_kernel_init_tests, native_two_read_requests_works)
@@ -580,7 +578,7 @@ TEST_F(native_private_kernel_init_tests, native_two_read_requests_works)
     ASSERT_FALSE(composer.failed());
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
@@ -614,7 +612,7 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
     ASSERT_FALSE(composer.failed());
 
     // Check the first nullifier is hash of the signed tx request
-    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.signed_tx_request.hash());
+    ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 }
 
 // TODO(dbanks12): more tests of read_requests for multiple iterations.

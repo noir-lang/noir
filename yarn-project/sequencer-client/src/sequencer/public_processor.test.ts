@@ -32,11 +32,10 @@ import {
   TxL2Logs,
 } from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
-import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import pick from 'lodash.pick';
 import times from 'lodash.times';
-import { makePrivateTx, makePublicTx } from '../index.js';
+import { makeTx } from '../index.js';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
@@ -82,7 +81,7 @@ describe('public_processor', () => {
     });
 
     it('skips non-public txs without public execution requests', async function () {
-      const tx = makePrivateTx();
+      const tx = makeTx();
       tx.data.end.publicCallStack = makeTuple(KERNEL_PUBLIC_CALL_STACK_LENGTH, Fr.zero);
       const hash = await tx.getTxHash();
       const [processed, failed] = await processor.process([tx]);
@@ -94,34 +93,11 @@ describe('public_processor', () => {
     it('returns failed txs without aborting entire operation', async function () {
       publicExecutor.execute.mockRejectedValue(new Error(`Failed`));
 
-      const tx = makePublicTx();
+      const tx = makeTx();
       const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toEqual([]);
       expect(failed).toEqual([tx]);
-    });
-
-    it('runs a public tx', async function () {
-      const tx = makePublicTx();
-      const hash = await tx.getTxHash();
-
-      const publicExecutionResult = makePublicExecutionResult(tx.txRequest.txRequest);
-      publicExecutor.execute.mockResolvedValue(publicExecutionResult);
-
-      const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
-      db.getSiblingPath.mockResolvedValue(new SiblingPath<number>(PUBLIC_DATA_TREE_HEIGHT, path));
-
-      const output = makeKernelPublicInputs();
-      publicKernel.publicKernelCircuitNoInput.mockResolvedValue(output);
-
-      const [processed, failed] = await processor.process([tx]);
-
-      expect(processed).toHaveLength(1);
-      expect(processed).toEqual([{ isEmpty: false, hash, data: output, proof, ...pick(tx, 'txRequest') }]);
-      expect(failed).toEqual([]);
-
-      expect(publicExecutor.execute).toHaveBeenCalled();
-      expect(publicKernel.publicKernelCircuitNoInput).toHaveBeenCalled();
     });
   });
 
@@ -140,103 +116,11 @@ describe('public_processor', () => {
       processor = new PublicProcessor(db, publicExecutor, publicKernel, publicProver, contractDataSource);
     });
 
-    const expectedProcessedTx = async (tx: Tx) =>
-      expect.objectContaining({
-        hash: await tx.getTxHash(),
-        proof,
-        txRequest: tx.txRequest,
-        isEmpty: false,
-        data: expect.objectContaining({ isPrivate: false }),
-      });
-
     const expectedTxByHash = async (tx: Tx) =>
       expect.objectContaining({
         hash: await tx.getTxHash(),
         proof,
       });
-
-    it('runs a public tx', async function () {
-      const publicKernelSpy = jest.spyOn(publicKernel, 'publicKernelCircuitNoInput');
-      const tx = makePublicTx(0x10);
-      tx.txRequest.txRequest.functionData.isConstructor = false;
-      tx.txRequest.txRequest.functionData.isPrivate = false;
-
-      const publicExecutionResult = makePublicExecutionResult(tx.txRequest.txRequest);
-      publicExecutor.execute.mockResolvedValue(publicExecutionResult);
-
-      const [processed, failed] = await processor.process([tx]);
-
-      expect(processed).toHaveLength(1);
-      expect(processed).toEqual([await expectedProcessedTx(tx)]);
-      expect(failed).toEqual([]);
-
-      expect(publicExecutor.execute).toHaveBeenCalled();
-      expect(publicKernelSpy).toHaveBeenCalled();
-    });
-
-    it('runs a public tx with nested execution', async function () {
-      const tx = makePublicTx(0x10);
-      const txRequest = tx.txRequest.txRequest;
-      txRequest.functionData.isConstructor = false;
-      txRequest.functionData.isPrivate = false;
-
-      const publicExecutionResult = makePublicExecutionResult(txRequest);
-      publicExecutionResult.nestedExecutions = [
-        makePublicExecutionResult({
-          from: txRequest.to,
-          to: makeAztecAddress(30),
-          functionData: new FunctionData(makeSelector(5), false, false),
-          args: new Array(ARGS_LENGTH).fill(Fr.ZERO),
-        }),
-      ];
-      publicExecutor.execute.mockResolvedValue(publicExecutionResult);
-
-      const [processed, failed] = await processor.process([tx]);
-
-      expect(processed).toHaveLength(1);
-      expect(processed).toEqual([await expectedProcessedTx(tx)]);
-
-      const publicCallStack = processed[0].data.end.publicCallStack;
-      expect(publicCallStack).toEqual(times(KERNEL_PUBLIC_CALL_STACK_LENGTH, () => expect.any(Fr)));
-
-      expect(failed).toEqual([]);
-      expect(publicExecutor.execute).toHaveBeenCalled();
-    });
-
-    it('runs a public tx with nested execution two levels deep', async function () {
-      const tx = makePublicTx(0x10);
-      const txRequest = tx.txRequest.txRequest;
-      txRequest.functionData.isConstructor = false;
-      txRequest.functionData.isPrivate = false;
-
-      const intermediateContractAddress = makeAztecAddress(30);
-      const publicExecutionResult = makePublicExecutionResult(txRequest, [
-        makePublicExecutionResult(
-          {
-            from: txRequest.to,
-            to: intermediateContractAddress,
-            functionData: new FunctionData(makeSelector(5), false, false),
-            args: new Array(ARGS_LENGTH).fill(Fr.ZERO),
-          },
-          [
-            makePublicExecutionResult({
-              from: intermediateContractAddress,
-              to: makeAztecAddress(40),
-              functionData: new FunctionData(makeSelector(15), false, false),
-              args: new Array(ARGS_LENGTH).fill(Fr.ZERO),
-            }),
-          ],
-        ),
-      ]);
-      publicExecutor.execute.mockResolvedValue(publicExecutionResult);
-
-      const [processed, failed] = await processor.process([tx]);
-
-      expect(processed).toHaveLength(1);
-      expect(processed).toEqual([await expectedProcessedTx(tx)]);
-      expect(failed).toEqual([]);
-      expect(publicExecutor.execute).toHaveBeenCalled();
-    });
 
     it('runs a private tx with enqueued calls', async function () {
       const callRequests: PublicCallRequest[] = [makePublicCallRequest(0x100), makePublicCallRequest(0x100)];
@@ -247,7 +131,7 @@ describe('public_processor', () => {
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, KERNEL_PRIVATE_CALL_STACK_LENGTH);
 
-      const tx = Tx.createPrivate(kernelOutput, proof, TxL2Logs.random(2, 3), [], callRequests);
+      const tx = Tx.createTx(kernelOutput, proof, TxL2Logs.random(2, 3), [], callRequests);
 
       publicExecutor.execute.mockImplementation(execution => {
         for (const request of callRequests) {
@@ -266,7 +150,35 @@ describe('public_processor', () => {
       expect(publicExecutor.execute).toHaveBeenCalledTimes(2);
     });
 
-    it.todo('runs a private tx with enqueued calls that span nested calls');
+    it('runs a private tx with an enqueued call with nested execution', async function () {
+      const callRequest: PublicCallRequest = makePublicCallRequest(0x100);
+      const callStackItem = await callRequest.toPublicCallStackItem();
+      const callStackHash = computeCallStackItemHash(wasm, callStackItem);
+
+      const kernelOutput = makeKernelPublicInputs(0x10);
+      kernelOutput.end.publicCallStack = padArrayEnd([callStackHash], Fr.ZERO, KERNEL_PUBLIC_CALL_STACK_LENGTH);
+      kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, KERNEL_PRIVATE_CALL_STACK_LENGTH);
+
+      const tx = Tx.createTx(kernelOutput, proof, TxL2Logs.random(2, 3), [], [callRequest]);
+
+      const publicExecutionResult = makePublicExecutionResultFromRequest(callRequest);
+      publicExecutionResult.nestedExecutions = [
+        makePublicExecutionResult({
+          from: publicExecutionResult.execution.contractAddress,
+          to: makeAztecAddress(30),
+          functionData: new FunctionData(makeSelector(5), false, false),
+          args: new Array(ARGS_LENGTH).fill(Fr.ZERO),
+        }),
+      ];
+      publicExecutor.execute.mockResolvedValue(publicExecutionResult);
+
+      const [processed, failed] = await processor.process([tx]);
+
+      expect(processed).toHaveLength(1);
+      expect(processed).toEqual([await expectedTxByHash(tx)]);
+      expect(failed).toHaveLength(0);
+      expect(publicExecutor.execute).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

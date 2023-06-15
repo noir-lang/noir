@@ -3,7 +3,6 @@ import {
   BaseRollupInputs,
   MergeRollupInputs,
   PublicKernelInputs,
-  PublicKernelInputsNoPreviousKernel,
   PublicKernelPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
@@ -37,12 +36,6 @@ export interface RollupSimulator {
  * Circuit simulator for the public kernel circuits.
  */
 export interface PublicKernelCircuitSimulator {
-  /**
-   * Simulates the public kernel circuit (with no previous kernel circuit run) from its inputs.
-   * @param input - Inputs to the circuit.
-   * @returns The public inputs as outputs of the simulation.
-   */
-  publicKernelCircuitNoInput(inputs: PublicKernelInputsNoPreviousKernel): Promise<PublicKernelPublicInputs>;
   /**
    * Simulates the public kernel circuit (with a previous private kernel circuit run) from its inputs.
    * @param input - Inputs to the circuit.

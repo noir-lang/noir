@@ -61,7 +61,7 @@ void initialise_end_values(PrivateKernelInputsInit<NT> const& private_inputs,
                         .l1_to_l2_messages_tree_root = private_call_public_inputs.historic_l1_to_l2_messages_tree_root,
                     },
             },
-        .tx_context = private_inputs.signed_tx_request.tx_request.tx_context,
+        .tx_context = private_inputs.tx_request.tx_context,
     };
 
     // Set the constants in public_inputs.
@@ -74,8 +74,8 @@ void validate_this_private_call_against_tx_request(DummyComposer& composer,
     // TODO(mike): this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee'
     // tx, and the 'gas rebate' tx).
 
-    // Confirm that the SignedTxRequest (user's intent) matches the private call being executed
-    const auto& tx_request = private_inputs.signed_tx_request.tx_request;
+    // Confirm that the TxRequest (user's intent) matches the private call being executed
+    const auto& tx_request = private_inputs.tx_request;
     const auto& call_stack_item = private_inputs.private_call.call_stack_item;
 
     composer.do_assert(
@@ -139,7 +139,7 @@ void update_end_values(DummyComposer& composer,
     ASSERT(public_inputs.end.unencrypted_log_preimages_length == fr(0));
 
     // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
-    array_push(composer, public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.hash());
+    array_push(composer, public_inputs.end.new_nullifiers, private_inputs.tx_request.hash());
 
     // Note that we do not need to nullify the transaction request nonce anymore.
     // Should an account want to additionally use nonces for replay protection or handling cancellations,
@@ -183,8 +183,8 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_initial(DummyCompose
     common_contract_logic(composer,
                           private_inputs.private_call,
                           public_inputs,
-                          private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data,
-                          private_inputs.signed_tx_request.tx_request.function_data);
+                          private_inputs.tx_request.tx_context.contract_deployment_data,
+                          private_inputs.tx_request.function_data);
 
     // We'll skip any verification in this native implementation, because for a Local Developer Testnet, there won't
     // _be_ a valid proof to verify!!! auto aggregation_object = verify_proofs(composer,

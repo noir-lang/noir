@@ -13,11 +13,10 @@ import {
   NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   Proof,
-  PublicDataRead,
   PublicDataUpdateRequest,
   RootRollupPublicInputs,
-  range,
   makeTuple,
+  range,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
@@ -37,7 +36,7 @@ import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
 import { default as memdown, type MemDown } from 'memdown';
-import { makeEmptyEncryptedLogs, makePublicTx } from '../mocks/tx.js';
+import { makeEmptyEncryptedLogs, makeTx } from '../mocks/tx.js';
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 import { RollupProver } from '../prover/index.js';
@@ -50,6 +49,7 @@ import { getCombinedHistoricTreeRoots } from '../sequencer/utils.js';
 import { RollupSimulator } from '../simulator/index.js';
 import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
 import { SoloBlockBuilder } from './solo_block_builder.js';
+import { to2Fields } from '@aztec/foundation/serialize';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -137,7 +137,7 @@ describe('sequencer/solo_block_builder', () => {
     kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(expectsDb);
 
     const tx = await makeProcessedTx(
-      Tx.createPrivate(
+      Tx.createTx(
         kernelOutput,
         emptyProof,
         makeEmptyEncryptedLogs(),
@@ -295,17 +295,8 @@ describe('sequencer/solo_block_builder', () => {
       return tx;
     };
 
-    const makePublicCallProcessedTx = async (seed = 0x1) => {
-      const publicTx = makePublicTx(seed);
-      const kernelOutput = KernelCircuitPublicInputs.empty();
-      kernelOutput.end.publicDataReads[0] = new PublicDataRead(fr(1), fr(0));
-      kernelOutput.end.publicDataUpdateRequests[0] = new PublicDataUpdateRequest(fr(2), fr(0), fr(12));
-      kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
-      return await makeProcessedTx(publicTx, kernelOutput, makeProof());
-    };
-
     const makeBloatedProcessedTx = async (seed = 0x1) => {
-      const publicTx = makePublicTx(seed);
+      const tx = makeTx(seed);
       const kernelOutput = KernelCircuitPublicInputs.empty();
       kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
       kernelOutput.end.publicDataUpdateRequests = makeTuple(
@@ -314,15 +305,16 @@ describe('sequencer/solo_block_builder', () => {
         seed + 0x500,
       );
 
-      const tx = await makeProcessedTx(publicTx, kernelOutput, makeProof());
+      const processedTx = await makeProcessedTx(tx, kernelOutput, makeProof());
 
-      tx.data.end.newCommitments = makeTuple(KERNEL_NEW_COMMITMENTS_LENGTH, fr, seed + 0x100);
-      tx.data.end.newNullifiers = makeTuple(KERNEL_NEW_NULLIFIERS_LENGTH, fr, seed + 0x200);
-      tx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = Fr.ZERO;
-      tx.data.end.newL2ToL1Msgs = makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x300);
-      tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
+      processedTx.data.end.newCommitments = makeTuple(KERNEL_NEW_COMMITMENTS_LENGTH, fr, seed + 0x100);
+      processedTx.data.end.newNullifiers = makeTuple(KERNEL_NEW_NULLIFIERS_LENGTH, fr, seed + 0x200);
+      processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = Fr.ZERO;
+      processedTx.data.end.newL2ToL1Msgs = makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x300);
+      processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
+      processedTx.data.end.encryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.encryptedLogs));
 
-      return tx;
+      return processedTx;
     };
 
     it.each([
@@ -383,20 +375,6 @@ describe('sequencer/solo_block_builder', () => {
       const [l2Block] = await builder.buildL2Block(1, txs, l1ToL2Messages);
       expect(l2Block.number).toEqual(1);
     }, 20_000);
-
-    it('builds an L2 block with private and public txs', async () => {
-      const txs = await Promise.all([
-        makePublicCallProcessedTx(),
-        makeContractDeployProcessedTx(),
-        makeEmptyProcessedTx(),
-        makeEmptyProcessedTx(),
-      ]);
-
-      const [l2Block] = await builder.buildL2Block(blockNumber, txs, mockL1ToL2Messages);
-      expect(l2Block.number).toEqual(blockNumber);
-      expect(l2Block.newPublicDataWrites[0]).toEqual(new PublicDataWrite(fr(2), fr(12)));
-      await updateExpectedTreesFromTxs(txs);
-    }, 10_000);
 
     // This test specifically tests nullifier values which previously caused e2e_zk_token test to fail
     it('e2e_zk_token edge case regression test on nullifier values', async () => {

@@ -1,12 +1,10 @@
 import { expectSerializeToMatchSnapshot } from '../../tests/expectSerialize.js';
-import { makeSignedTxRequest } from '../../tests/factories.js';
 import { makeEcdsaSignature } from '../../tests/factories.js';
 import {
   makePreviousKernelData,
   makePrivateKernelInputsInner,
   makePrivateKernelInputsInit,
   makeKernelPublicInputs,
-  makePublicKernelInputsNoKernelInput,
   makePublicKernelInputs,
   makeAccumulatedData,
 } from '../../tests/factories.js';
@@ -39,12 +37,7 @@ describe('structs/kernel', () => {
   it(`serializes and prints EcdsaSignature`, async () => {
     await expectSerializeToMatchSnapshot(makeEcdsaSignature().toBuffer(), 'abis__test_roundtrip_serialize_signature');
   });
-  it(`serializes and prints SignedTxRequest`, async () => {
-    await expectSerializeToMatchSnapshot(
-      makeSignedTxRequest().toBuffer(),
-      'abis__test_roundtrip_serialize_signed_tx_request',
-    );
-  });
+
   it(`serializes and prints CombinedAccumulatedData`, async (seed = 1) => {
     await expectSerializeToMatchSnapshot(
       makeAccumulatedData(seed, true).toBuffer(),
@@ -64,14 +57,6 @@ describe('structs/kernel', () => {
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
       'abis__test_roundtrip_serialize_public_kernel_inputs',
-    );
-  });
-
-  it(`serializes and prints public_kernel_inputs_no_previous_kernel`, async () => {
-    const kernelInputs = await makePublicKernelInputsNoKernelInput();
-    await expectSerializeToMatchSnapshot(
-      kernelInputs.toBuffer(),
-      'abis__test_roundtrip_serialize_public_kernel_inputs_no_previous_kernel',
     );
   });
 });

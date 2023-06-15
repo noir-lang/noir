@@ -19,7 +19,6 @@ import {
   L2Block,
   L2BlockL2Logs,
   MerkleTreeId,
-  SignedTxExecutionRequest,
   Tx,
   TxHash,
   TxL2Logs,
@@ -34,7 +33,6 @@ export function txToJson(tx: Tx) {
   return {
     data: tx.data?.toBuffer().toString('hex'),
     encryptedLogs: tx.encryptedLogs?.toBuffer().toString('hex'),
-    txRequest: tx.txRequest?.toBuffer().toString('hex'),
     proof: tx.proof?.toBuffer().toString('hex'),
     newContractPublicFunctions: tx.newContractPublicFunctions?.map(f => f.toBuffer().toString('hex')) ?? [],
     enqueuedPublicFunctions: tx.enqueuedPublicFunctionCalls?.map(f => f.toBuffer().toString('hex')) ?? [],
@@ -47,31 +45,22 @@ export function txToJson(tx: Tx) {
  * @returns The deserialised transaction.
  */
 export function txFromJson(json: any) {
-  const publicInputs = json.data ? KernelCircuitPublicInputs.fromBuffer(Buffer.from(json.data, 'hex')) : undefined;
-  const encryptedLogs = json.encryptedLogs ? TxL2Logs.fromBuffer(Buffer.from(json.encryptedLogs, 'hex')) : undefined;
-  const txRequest = json.txRequest
-    ? SignedTxExecutionRequest.fromBuffer(Buffer.from(json.txRequest, 'hex'))
-    : undefined;
-  const proof = json.proof ? Buffer.from(json.proof, 'hex') : undefined;
+  const publicInputs = KernelCircuitPublicInputs.fromBuffer(Buffer.from(json.data, 'hex'));
+  const encryptedLogs = TxL2Logs.fromBuffer(Buffer.from(json.encryptedLogs, 'hex'));
+  const proof = Buffer.from(json.proof, 'hex');
   const newContractPublicFunctions = json.newContractPublicFunctions
     ? json.newContractPublicFunctions.map((x: string) => EncodedContractFunction.fromBuffer(Buffer.from(x, 'hex')))
     : [];
   const enqueuedPublicFunctions = json.enqueuedPublicFunctions
     ? json.enqueuedPublicFunctions.map((x: string) => PublicCallRequest.fromBuffer(Buffer.from(x, 'hex')))
     : [];
-  if (txRequest) {
-    return Tx.createPublic(txRequest);
-  }
-  if (publicInputs && proof && encryptedLogs) {
-    return Tx.createPrivate(
-      publicInputs,
-      Proof.fromBuffer(proof),
-      encryptedLogs,
-      newContractPublicFunctions,
-      enqueuedPublicFunctions,
-    );
-  }
-  return Tx.create(publicInputs, proof == undefined ? undefined : Proof.fromBuffer(proof), encryptedLogs, txRequest);
+  return Tx.createTx(
+    publicInputs,
+    Proof.fromBuffer(proof),
+    encryptedLogs,
+    newContractPublicFunctions,
+    enqueuedPublicFunctions,
+  );
 }
 
 /**

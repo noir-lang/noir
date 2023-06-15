@@ -4,7 +4,7 @@
 #include "tx_request.hpp"
 
 #include "aztec3/circuits/abis/new_contract_data.hpp"
-#include "aztec3/circuits/abis/signed_tx_request.hpp"
+#include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/hash.hpp"
 
 #include <barretenberg/barretenberg.hpp>
@@ -328,33 +328,15 @@ TEST(abi_tests, compute_transaction_hash)
         .chain_id = NT::fr::random_element(),
     };
 
-    std::array<uint8_t, 32> const r{
-        0xf3, 0xac, 0x80, 0x61, 0xb5, 0x14, 0x79, 0x5b, 0x88, 0x43, 0xe3, 0xd6, 0x62, 0x95, 0x27, 0xed,
-        0x2a, 0xfd, 0x6b, 0x1f, 0x6a, 0x55, 0x5a, 0x7a, 0xca, 0xbb, 0x5e, 0x6f, 0x79, 0xc8, 0xc2, 0xac,
-    };
-
-    std::array<uint8_t, 32> const s{
-        0x8b, 0xf7, 0x78, 0x19, 0xca, 0x05, 0xa6, 0xb2, 0x78, 0x6c, 0x76, 0x26, 0x2b, 0xf7, 0x37, 0x1c,
-        0xef, 0x97, 0xb2, 0x18, 0xe9, 0x6f, 0x17, 0x5a, 0x3c, 0xcd, 0xda, 0x2a, 0xcc, 0x05, 0x89, 0x03,
-    };
-
-    NT::ecdsa_signature const sig{ r, s, 27 };
-
-    // Construct SignedTxRequest with some randomized fields
-    SignedTxRequest<NT> const preimage = SignedTxRequest<NT>{
-        .tx_request = tx_request,
-        .signature = sig,
-    };
-
     // Write the leaf preimage to a buffer
     std::vector<uint8_t> preimage_buf;
-    write(preimage_buf, preimage);
+    write(preimage_buf, tx_request);
 
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
     abis__compute_transaction_hash(preimage_buf.data(), output.data());
 
     NT::fr const got_tx_hash = NT::fr::serialize_from_buffer(output.data());
-    EXPECT_EQ(got_tx_hash, preimage.hash());
+    EXPECT_EQ(got_tx_hash, tx_request.hash());
 }
 
 }  // namespace aztec3::circuits::abis

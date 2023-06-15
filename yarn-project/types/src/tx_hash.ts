@@ -10,6 +10,11 @@ export class TxHash {
    */
   public static SIZE = 32;
 
+  /**
+   * TxHash with value zero.
+   */
+  public static ZERO = new TxHash(Buffer.alloc(TxHash.SIZE));
+
   constructor(
     /**
      * The buffer containing the hash.
