@@ -2,16 +2,21 @@ use super::{
     brillig_ir::{artifact::BrilligArtifact, BrilligBinaryOp, BrilligContext},
     Brillig,
 };
-use crate::ssa_refactor::ir::{
-    basic_block::{BasicBlock, BasicBlockId},
-    dfg::DataFlowGraph,
-    function::{Function, FunctionId},
-    instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-    post_order::PostOrder,
-    types::{NumericType, Type},
-    value::{Value, ValueId},
+use crate::{
+    brillig::brillig_ir::SpecialRegisters,
+    ssa_refactor::ir::{
+        basic_block::{BasicBlock, BasicBlockId},
+        dfg::DataFlowGraph,
+        function::{Function, FunctionId},
+        instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        post_order::PostOrder,
+        types::{NumericType, Type},
+        value::{Value, ValueId},
+    },
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray, Value as BrilligValue,
+};
 use iter_extended::vecmap;
 use std::collections::HashMap;
 
@@ -192,11 +197,17 @@ impl BrilligGen {
                     );
                 }
                 Value::Function(func_id) => {
-                    let arg = vecmap(arguments.clone(), |a| self.convert_ssa_value(a, dfg));
+                    let function_arguments: Vec<RegisterIndex> =
+                        vecmap(arguments.clone(), |a| self.convert_ssa_value(a, dfg));
                     let result_ids = dfg.instruction_results(instruction_id);
-                    let res = vecmap(result_ids, |a| self.get_or_create_register(*a));
-                    let block_label = brillig.function_label(*func_id);
-                    self.context.call(&arg, &res, block_label, *func_id);
+                    let function_results = vecmap(result_ids, |a| self.get_or_create_register(*a));
+                    let function_block_label: String = brillig.function_block_label(*func_id);
+                    self.context.call(
+                        &function_arguments,
+                        &function_results,
+                        function_block_label,
+                        *func_id,
+                    );
                 }
                 _ => {
                     unreachable!("should call a function")
@@ -294,8 +305,31 @@ impl BrilligGen {
         }
     }
 
-    pub(crate) fn init_main(mut self, len: usize) -> BrilligArtifact {
-        self.context.initialise_main(len);
+    ///
+    pub(crate) fn initialize_entry_function(mut self, num_arguments: usize) -> BrilligArtifact {
+        // This was chosen arbitrarily
+        const MAXIMUM_NUMBER_OF_NESTED_CALLS: u32 = 50;
+
+        // Translate the inputs by the special registers offset
+        for i in (0..num_arguments).into_iter().rev() {
+            self.context.mov_instruction(self.context.register(i), RegisterIndex::from(i));
+        }
+
+        // Initialize the first three registers to be the special registers
+        //
+        // Initialize the call-depth
+        self.context.const_instruction(SpecialRegisters::call_depth(), BrilligValue::from(0_usize));
+        assert_eq!(RegisterIndex::from(0), SpecialRegisters::call_depth());
+        //
+        // Initialize alloc
+        self.context.const_instruction(SpecialRegisters::alloc(), BrilligValue::from(0_usize));
+        assert_eq!(RegisterIndex::from(1), SpecialRegisters::alloc());
+        //
+        // Initialize the stack-frame
+        self.context
+            .allocate_array(SpecialRegisters::stack_frame(), MAXIMUM_NUMBER_OF_NESTED_CALLS);
+        assert_eq!(RegisterIndex::from(2), SpecialRegisters::stack_frame());
+
         self.context.artifact()
     }
 }

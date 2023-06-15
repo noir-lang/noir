@@ -77,9 +77,11 @@ impl BrilligArtifact {
     ) -> Vec<BrilligOpcode> {
         let obj = &brillig[id];
         self.append_artifact(obj);
-        //Remove the ending stop
-        self.byte_code.pop();
-        //Move the results to registers 0,..n
+
+        // Remove the ending stop
+        let expected_stop = self.byte_code.pop().expect("expected at least one opcode");
+        assert_eq!(expected_stop, BrilligOpcode::Stop, "expected a stop code");
+        // Move the results to registers 0,..n
         for i in 0..return_len {
             self.push_opcode(BrilligOpcode::Mov {
                 destination: i.into(),
@@ -90,8 +92,7 @@ impl BrilligArtifact {
 
         let mut queue: Vec<FunctionId> = obj.functions_to_process.clone().into_iter().collect();
         while let Some(func) = queue.pop() {
-            dbg!(&brillig.function_label(func));
-            if !self.labels.contains_key(&brillig.function_label(func)) {
+            if !self.labels.contains_key(&brillig.function_block_label(func)) {
                 let obj = &brillig[func];
                 self.append_artifact(obj);
                 self.byte_code.pop();

@@ -180,7 +180,7 @@ impl Context {
 
                                 // Generate the brillig code of the function
                                 let brillig_gen = BrilligGen::new(*id);
-                                let mut obj = brillig_gen.init_main(arguments.len());
+                                let mut obj = brillig_gen.initialize_entry_function(arguments.len());
                                 let code = obj.link(*id, brillig, result_ids.len());
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());

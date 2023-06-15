@@ -28,7 +28,8 @@ impl Brillig {
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
-    pub(crate) fn function_label(&self, id: FunctionId) -> String {
+    /// Returns the function id concatenated with the block id
+    pub(crate) fn function_block_label(&self, id: FunctionId) -> String {
         id.to_string() + "-" + &self.ssa_function_to_block[&id].to_string()
     }
 }

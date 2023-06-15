@@ -5,7 +5,6 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 pub(crate) mod artifact;
-//pub(crate) mod memory;
 
 use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::FunctionId};
 
@@ -22,20 +21,30 @@ use acvm::{
 pub(crate) enum SpecialRegisters {
     // The index into the StackFrame, it is incremented for every nested call
     CallDepth = 0,
-    /// Contains the address of an array which hold stackframe data: the addresse of the memory where the registers are saved before a call
-    /// The stackframe has a fixed length, meaning the number nested function calls is limited to this length
-    StackFrame = 1,
     /// Represent address where free memory is available for allocation
-    Alloc = 2,
+    Alloc = 1,
+    /// Contains the address of an array which hold stack-frame data: the address of the memory where the registers are saved before a call
+    /// The stack-frame has a fixed length, meaning the number nested function calls is limited to this length
+    StackFrame = 2,
     /// Number of special registers
     Len = 3,
 }
 
 impl SpecialRegisters {
+    // TODO: doc
     pub(crate) fn len() -> usize {
         SpecialRegisters::Len as usize
     }
 
+    // TODO: doc
+    pub(crate) fn stack_frame() -> RegisterIndex {
+        RegisterIndex::from(SpecialRegisters::StackFrame as usize)
+    }
+    // TODO: doc
+    pub(crate) fn call_depth() -> RegisterIndex {
+        RegisterIndex::from(SpecialRegisters::CallDepth as usize)
+    }
+    // TODO: doc
     pub(crate) fn alloc() -> RegisterIndex {
         RegisterIndex::from(SpecialRegisters::Alloc as usize)
     }
@@ -125,13 +134,8 @@ impl BrilligContext {
     }
 
     /// Adds a unresolved `Call` instruction to the bytecode.
-    fn add_unresolved_call(
-        &mut self,
-        call_instruction: BrilligOpcode,
-        destination: UnresolvedLocation,
-        func: FunctionId,
-    ) {
-        self.obj.add_unresolved_call(call_instruction, destination, func);
+    fn add_unresolved_call(&mut self, destination: UnresolvedLocation, func: FunctionId) {
+        self.obj.add_unresolved_call(BrilligOpcode::Call { location: 0 }, destination, func);
     }
 
     /// Creates a new register.
@@ -355,16 +359,9 @@ impl BrilligContext {
         });
     }
 
-    fn call_depth(&self) -> RegisterIndex {
-        RegisterIndex::from(SpecialRegisters::CallDepth as usize)
-    }
-
     /// Returns the ith register after the special ones
-    fn register(&self, i: usize) -> RegisterIndex {
+    pub(crate) fn register(&self, i: usize) -> RegisterIndex {
         RegisterIndex::from(SpecialRegisters::Len as usize + i)
-    }
-    pub(crate) fn stack_frame(&self) -> RegisterIndex {
-        RegisterIndex::from(SpecialRegisters::StackFrame as usize)
     }
 
     /// Saves all of the registers that have been used up until this point
@@ -384,8 +381,8 @@ impl BrilligContext {
         self.allocate_array(register_index, registers_len as u32);
         let stack_pointer = self.create_register();
         self.binary_instruction(
-            self.stack_frame(),
-            self.call_depth(),
+            SpecialRegisters::stack_frame(),
+            SpecialRegisters::call_depth(),
             stack_pointer,
             BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
         );
@@ -408,6 +405,7 @@ impl BrilligContext {
     }
 
     /// Call a function
+    ///
     /// We first save the current registers into a new array, whose address is saved into the StackFrame (at CallDepth index)
     /// We move the arguments to registers 0,..n (plus the offset for the special registers)
     /// We increment CallDepth (in case the called function is doing some nested call)
@@ -420,18 +418,24 @@ impl BrilligContext {
         &mut self,
         arguments: &[RegisterIndex],
         results: &[RegisterIndex],
-        label: String,
+        function_entry_block_label: String,
         func_id: FunctionId,
     ) {
-        // Initialise the registers which will hold the value(s) returned from the call
-        // We need to initialise because we are going to save all the registers to memory
+        // Initialize the registers which will hold the value(s) returned from the call
+        //
+        //
+        // We need to initialize because we are going to save all the registers to memory
         for register in results {
             self.push_opcode(BrilligOpcode::Const {
                 destination: *register,
                 value: Value::from(0_usize),
             });
         }
+
         // Save all the registers
+        //
+        // This includes the arguments and return values
+        // TODO: change name `register_index`
         let register_index = self.create_register();
         let latest_register_len_before_saving_registers =
             self.save_all_used_registers(register_index);
@@ -440,7 +444,10 @@ impl BrilligContext {
         let one = self.create_register();
         self.push_opcode(BrilligOpcode::Const { destination: one, value: Value::from(1_usize) });
 
-        // Put the arguments on registers, starting at SpecialRegisters::Len
+        // Move argument values to the front of the registers
+        //
+        // This means that the arguments will be in the first `n` registers after
+        // the special registers which are reserved.
         for (i, argument) in arguments.iter().enumerate() {
             self.push_opcode(BrilligOpcode::Mov {
                 destination: self.register(i),
@@ -450,27 +457,23 @@ impl BrilligContext {
 
         // Increment depth_call
         self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: self.call_depth(),
+            destination: SpecialRegisters::call_depth(),
             op: BinaryIntOp::Add,
             bit_size: 32,
-            lhs: self.call_depth(),
+            lhs: SpecialRegisters::call_depth(),
             rhs: one,
         });
 
         // Call instruction
-        self.add_unresolved_call(
-            BrilligOpcode::Call { location: 0 },
-            UnresolvedLocation::Label(label),
-            func_id,
-        );
+        self.add_unresolved_call(UnresolvedLocation::Label(function_entry_block_label), func_id);
 
         // Decrement depth_call
         let one = self.make_constant(1u128.into());
         self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: self.call_depth(),
+            destination: SpecialRegisters::call_depth(),
             op: BinaryIntOp::Sub,
             bit_size: 32,
-            lhs: self.call_depth(),
+            lhs: SpecialRegisters::call_depth(),
             rhs: one,
         });
 
@@ -483,23 +486,26 @@ impl BrilligContext {
         // The function call may have overwritten the original `registers` so we cannot reuse `register_index`
         // Note: Right now, the memory could have been overwritten by the function call
         // so the memory address that the registers were saved at is not the same as `register_index`.
-        let stack_adr = self.create_register();
+        let stack_address = self.create_register();
         self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: stack_adr,
+            destination: stack_address,
             op: BinaryIntOp::Add,
             bit_size: 32,
             // array that stores all of the pointers to the saved registers
-            lhs: self.stack_frame(),
-            rhs: self.call_depth(),
+            // before the call instruction.
+            lhs: SpecialRegisters::stack_frame(),
+            rhs: SpecialRegisters::call_depth(),
         });
-        self.load_instruction(stack_adr, stack_adr);
+        self.load_instruction(stack_address, stack_address);
+
         // Copy the result registers to the memory location of the previous saved registers:
+        // TODO: rename `reg_adr`
         let reg_adr = self.create_register();
         for (i, result) in results.iter().enumerate() {
             let offset =
                 self.make_constant(Value::from(result.to_usize() - SpecialRegisters::len()));
             self.binary_instruction(
-                stack_adr,
+                stack_address,
                 offset,
                 reg_adr,
                 BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
@@ -508,38 +514,17 @@ impl BrilligContext {
         }
 
         // Load the saved registers
+        // TODO: rename `tmp`
         let tmp = self.create_register();
         for i in SpecialRegisters::len()..latest_register_len_before_saving_registers {
             self.const_instruction(tmp, Value::from(i - SpecialRegisters::len()));
             self.binary_instruction(
-                stack_adr,
+                stack_address,
                 tmp,
                 reg_adr,
                 BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
             );
             self.load_instruction(RegisterIndex::from(i), reg_adr);
-        }
-    }
-
-    pub(crate) fn initialise_main(&mut self, input_len: usize) {
-        // translate the inputs by the special registers offset
-        for i in 0..input_len {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: self.register(i),
-                source: RegisterIndex::from(i),
-            });
-            //initialise the calldepth
-            self.push_opcode(BrilligOpcode::Const {
-                destination: self.call_depth(),
-                value: Value::from(0_usize),
-            });
-            //initialise alloc
-            self.push_opcode(BrilligOpcode::Const {
-                destination: SpecialRegisters::alloc(),
-                value: Value::from(0_usize),
-            });
-            //initialise the stackframe
-            self.allocate_array(self.stack_frame(), 50);
         }
     }
 }
