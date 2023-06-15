@@ -43,11 +43,14 @@ pub struct CompileOptions {
     /// Display output of `println` statements
     #[arg(long)]
     pub show_output: bool,
+
+    #[arg(long)]
+    pub slim_abi: bool,
 }
 
 impl Default for CompileOptions {
     fn default() -> Self {
-        Self { show_ssa: false, allow_warnings: false, show_output: true }
+        Self { show_ssa: false, allow_warnings: false, show_output: true, slim_abi: false }
     }
 }
 

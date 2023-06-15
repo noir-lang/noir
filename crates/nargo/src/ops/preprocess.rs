@@ -34,6 +34,7 @@ pub fn preprocess_program(
 pub fn preprocess_contract(
     backend: &impl ProofSystemCompiler,
     compiled_contract: CompiledContract,
+    slim_abi: bool,
 ) -> Result<PreprocessedContract, NargoError> {
     let preprocessed_contract_functions = vecmap(compiled_contract.functions, |func| {
         // TODO: currently `func`'s bytecode is already optimized for the backend.
@@ -47,8 +48,8 @@ pub fn preprocess_contract(
             abi: func.abi,
 
             bytecode: optimized_bytecode,
-            proving_key,
-            verification_key,
+            proving_key: if slim_abi { None } else { Some(proving_key) },
+            verification_key: if slim_abi { None } else { Some(verification_key) },
         }
     });
 

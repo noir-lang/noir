@@ -38,8 +38,9 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         let compiled_contracts = driver
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
-        let preprocessed_contracts =
-            try_vecmap(compiled_contracts, |contract| preprocess_contract(&backend, contract))?;
+        let preprocessed_contracts = try_vecmap(compiled_contracts, |contract| {
+            preprocess_contract(&backend, contract, args.compile_options.slim_abi)
+        })?;
         for contract in preprocessed_contracts {
             save_contract_to_file(
                 &contract,
