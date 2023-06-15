@@ -28,7 +28,7 @@ export interface PublicExecutionResult {
   nestedExecutions: this[];
   /**
    * Unencrypted logs emitted during execution of this function call.
-   * Note: These are preimages to `encryptedLogsHash`.
+   * Note: These are preimages to `unencryptedLogsHash`.
    */
   unencryptedLogs: FunctionL2Logs;
 }
