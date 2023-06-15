@@ -40,6 +40,10 @@ export interface ACIRCallback {
    */
   emitEncryptedLog: (params: ACVMField[]) => Promise<ACVMField[]>;
   /**
+   * Oracle call used to emit an unencrypted log.
+   */
+  emitUnencryptedLog: (params: ACVMField[]) => Promise<string[]>;
+  /**
    * Debugging utility for printing out info from Noir (i.e. console.log).
    */
   debugLog: (params: ACVMField[]) => Promise<ACVMField[]>;

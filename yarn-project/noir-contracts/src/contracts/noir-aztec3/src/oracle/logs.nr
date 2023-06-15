@@ -17,9 +17,16 @@ unconstrained fn emit_encrypted_log(
     note: Note,
 ) -> Field {
     emit_encrypted_log_oracle(
-        contract_address, 
+        contract_address,
         storage_slot,
         owner,
         note,
     )
+}
+
+#[oracle(emitUnencryptedLog)]
+fn emit_unencrypted_log_oracle<T>(_message: T)  -> Field {}
+
+unconstrained fn emit_unencrypted_log<T>(message: T) -> Field {
+    emit_unencrypted_log_oracle(message)
 }

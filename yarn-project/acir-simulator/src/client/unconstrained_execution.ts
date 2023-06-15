@@ -83,6 +83,7 @@ export class UnconstrainedFunctionExecution {
       createCommitment: notAvailable,
       createL2ToL1Message: notAvailable,
       emitEncryptedLog: notAvailable,
+      emitUnencryptedLog: notAvailable,
     });
 
     const returnValues: ACVMField[] = selectReturnFlattened(acir, partialWitness);
