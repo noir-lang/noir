@@ -504,13 +504,13 @@ mod tests {
     };
 
     use crate::{
-        brillig::{brillig_ir::BrilligContext, Brillig},
+        brillig::brillig_ir::BrilligContext,
         ssa_refactor::ir::map::Id,
     };
 
-    use super::{BrilligBinaryOp, SpecialRegisters};
+    use super::{BrilligBinaryOp, SpecialRegisters, BrilligOpcode};
 
-    /// Test a brillig
+    /// Test a Brillig foreign call returning a vector
     #[test]
     fn test_brillig_ir_foreign_call_return_vector() {
         // pseudo-noir:
@@ -555,8 +555,14 @@ mod tests {
             // TODO(AD): get rid of magic constant
             BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size: 64 },
         );
-        context.constrain_instruction(r_equality);
+        // We push a JumpIf opcode directly as the constrain instruction 
+        // uses unresolved jumps which requires a block to be constructed in SSA and
+        // we don't need this for Brillig IR tests
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
+        context.stop_instruction();
+
         let bytecode = context.artifact().byte_code;
+
         let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
         let mut vm = VM::new(
             Registers { inner: vec![] },
