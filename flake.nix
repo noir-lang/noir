@@ -64,7 +64,6 @@
         # We include rust-src to ensure rust-analyzer works.
         # See https://discourse.nixos.org/t/rust-src-not-found-and-other-misadventures-of-developing-rust-on-nixos/11570/4
         extensions = [ "rust-src" ];
-        # possible fix for "section too large"
         targets = [ "wasm32-unknown-unknown" ]
           ++ pkgs.lib.optional (pkgs.hostPlatform.isx86_64 && pkgs.hostPlatform.isLinux) "x86_64-unknown-linux-gnu"
           ++ pkgs.lib.optional (pkgs.hostPlatform.isAarch64 && pkgs.hostPlatform.isLinux) "aarch64-unknown-linux-gnu"

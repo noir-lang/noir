@@ -7,18 +7,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    outputs:
-      tag-name: ${{ steps.release.outputs.tag_name }}
-    steps:
-      - name: Run release-please
-        id: release
-        uses: google-github-actions/release-please-action@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          release-type: node
-
   build:
     name: Build Wasm
     needs: release-please
@@ -36,11 +24,3 @@ jobs:
       - name: Build wasm package
         run: |
           nix build -L .#wasm
-          ls result/ -R
-
-      - name: Update package.json version
-        id: update-version
-        working-directory: ./result
-        run: |
-          npm version --no-git-tag-version ${{ needs.release-please.outputs.tag-name }}
-          cat package.json

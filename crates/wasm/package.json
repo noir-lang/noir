@@ -3,7 +3,7 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.6.0-77fba56",
+  "version": "0.6.0",
   "files": [
     "nodejs",
     "web",
