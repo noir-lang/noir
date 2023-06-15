@@ -75,21 +75,30 @@ impl BrilligContext {
         });
     }
 
-    /// Allocates a dynamic array of register size `size` and stores the pointer to the array
-    /// in `pointer_register`
-    // TODO(AD): currently this is unused except in a test, and uses StackFrame as a stack frame pointer instead
-    // of it's current meaning.
-    pub(crate) fn experimental_allocate_dynamic_array(
-        &mut self,
-        pointer_register: RegisterIndex,
-        size: u32,
-    ) {
-        let array_pointer = self.memory.allocate(size as usize);
-        self.push_opcode(BrilligOpcode::Const {
-            destination: pointer_register,
-            value: Value::from(array_pointer),
-        });
-    }
+    // /// Allocates a dynamic array of register size `size` and stores the pointer to the array
+    // /// in `pointer_register`
+    // // TODO(AD): currently this is unused except in a test, and uses StackFrame as a stack frame pointer instead
+    // // of it's current meaning.
+    // pub(crate) fn experimental_allocate_dynamic_array(
+    //     &mut self,
+    //     pointer_register: RegisterIndex,
+    //     size_register: RegisterIndex,
+    // ) {
+    //     // Move our stack frame pointer to our pointer register
+    //     self.push_opcode(BrilligOpcode::Mov {
+    //         destination: pointer_register,
+    //         source: self.stack_frame(),
+    //     });
+    //     // Add to our pointer register
+    //     // TODO(AD) constant for 64
+    //     self.push_opcode(BrilligOpcode::BinaryIntOp {
+    //         destination: pointer_register,
+    //         op: BinaryIntOp::Add,
+    //         bit_size: 64,
+    //         lhs: pointer_register,
+    //         rhs: size_register,
+    //     });
+    // }
 
     /// Adds a label to the next opcode
     pub(crate) fn add_label_to_next_opcode<T: ToString>(&mut self, label: T) {
@@ -483,4 +492,79 @@ pub(crate) enum BrilligBinaryOp {
     // Modulo operation requires more than one opcode
     // Brillig.
     Modulo { is_signed_integer: bool, bit_size: u32 },
+}
+
+#[cfg(test)]
+mod tests {
+    use std::vec;
+
+    use acvm::acir::brillig_vm::{
+        BinaryIntOp, ForeignCallOutput, ForeignCallResult, RegisterIndex, RegisterOrMemory,
+        Registers, VMStatus, Value, VM,
+    };
+
+    use crate::{
+        brillig::{brillig_ir::BrilligContext, Brillig},
+        ssa_refactor::ir::map::Id,
+    };
+
+    use super::{BrilligBinaryOp, SpecialRegisters};
+
+    /// Test a brillig
+    #[test]
+    fn test_brillig_ir_foreign_call_return_vector() {
+        // pseudo-noir:
+        //
+        // #[oracle(make_number_sequence)]
+        // unconstrained fn make_number_sequence() -> Vec<u32> {
+        // }
+        //
+        // unconstrained fn main() -> Vec<u32> {
+        //   let the_sequence = make_number_sequence(12);
+        //   assert(the_sequence.len() == 12);
+        // }
+        let mut context = BrilligContext::new(Id::test_new(0));
+        // Start stack pointer at 0
+        // TODO(AD): Align this interpretation of stack_frame with others
+        context.const_instruction(context.stack_frame(), Value::from(0_usize));
+        let r_input_size = RegisterIndex::from(SpecialRegisters::len());
+        let r_array_ptr = RegisterIndex::from(SpecialRegisters::len() + 1);
+        let r_output_size = RegisterIndex::from(SpecialRegisters::len() + 2);
+        let r_equality = RegisterIndex::from(SpecialRegisters::len() + 3);
+        context.const_instruction(r_input_size, Value::from(12_usize));
+        // copy our stack frame to r_array_ptr
+        context.mov_instruction(r_array_ptr, context.stack_frame());
+        context.foreign_call_instruction(
+            "make_number_sequence".into(),
+            &[RegisterOrMemory::RegisterIndex(r_input_size)],
+            &[RegisterOrMemory::HeapVector(context.stack_frame(), r_output_size)],
+        );
+        // push stack frame by r_returned_size
+        context.binary_instruction(
+            context.stack_frame(),
+            r_output_size,
+            context.stack_frame(),
+            // TODO(AD): get rid of magic constant
+            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 64 },
+        );
+        // check r_input_size == r_output_size
+        context.binary_instruction(
+            r_input_size,
+            r_output_size,
+            r_equality,
+            // TODO(AD): get rid of magic constant
+            BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size: 64 },
+        );
+        context.constrain_instruction(r_equality);
+        let bytecode = context.artifact().byte_code;
+        let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
+        let mut vm = VM::new(
+            Registers { inner: vec![] },
+            vec![],
+            bytecode,
+            vec![ForeignCallResult { values: vec![ForeignCallOutput::Array(number_sequence)] }],
+        );
+        let status = vm.process_opcodes();
+        assert_eq!(status, VMStatus::Finished);
+    }
 }
