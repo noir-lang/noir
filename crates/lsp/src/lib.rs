@@ -171,7 +171,12 @@ fn on_did_save_text_document(
 
     let mut diagnostics = Vec::new();
 
-    if let Err(file_diagnostics) = driver.check_crate() {
+    let file_diagnostics = match driver.check_crate(false) {
+        Ok(warnings) => warnings,
+        Err(errors_and_warnings) => errors_and_warnings,
+    };
+
+    if !file_diagnostics.is_empty() {
         let fm = driver.file_manager();
         let files = fm.as_simple_files();
 
