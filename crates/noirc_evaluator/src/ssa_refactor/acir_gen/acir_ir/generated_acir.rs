@@ -271,19 +271,26 @@ impl GeneratedAcir {
         limb_count: u32,
     ) -> Result<Vec<Witness>, AcirGenError> {
         let bit_size = u32::BITS - (radix - 1).leading_zeros();
-        assert_eq!(2_u32.pow(bit_size), radix, "ICE: Radix must be a power of 2");
+        let radix_big = BigUint::from(radix);
+        assert_eq!(
+            BigUint::from(2u128).pow(bit_size),
+            radix_big,
+            "ICE: Radix must be a power of 2"
+        );
 
         let mut composed_limbs = Expression::default();
 
-        let mut radix_pow: u128 = 1;
+        let mut radix_pow = BigUint::from(1u128);
         let limb_witnesses = try_vecmap(0..limb_count, |_| {
             let limb_witness = self.next_witness_index();
             self.range_constraint(limb_witness, bit_size)?;
 
-            composed_limbs = composed_limbs
-                .add_mul(FieldElement::from(radix_pow), &Expression::from(limb_witness));
+            composed_limbs = composed_limbs.add_mul(
+                FieldElement::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
+                &Expression::from(limb_witness),
+            );
 
-            radix_pow *= radix as u128;
+            radix_pow *= &radix_big;
             Ok(limb_witness)
         })?;
 
