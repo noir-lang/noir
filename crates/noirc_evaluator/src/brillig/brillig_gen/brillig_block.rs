@@ -43,7 +43,7 @@ impl<'block> BrilligBlock<'block> {
         let block = &dfg[self.block_id];
         self.convert_block_params(block, dfg);
 
-        // Convert all of the instructions int the block
+        // Convert all of the instructions into the block
         for instruction_id in block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg);
         }
