@@ -443,7 +443,7 @@ impl BrilligContext {
         // Put the arguments on registers, starting at SpecialRegisters::Len
         for (i, argument) in arguments.iter().enumerate() {
             self.push_opcode(BrilligOpcode::Mov {
-                destination: RegisterIndex::from(i + SpecialRegisters::Len as usize),
+                destination: self.register(i),
                 source: *argument,
             });
         }
@@ -525,7 +525,7 @@ impl BrilligContext {
         // translate the inputs by the special registers offset
         for i in 0..input_len {
             self.push_opcode(BrilligOpcode::Mov {
-                destination: RegisterIndex::from(i + SpecialRegisters::Len as usize),
+                destination: self.register(i),
                 source: RegisterIndex::from(i),
             });
             //initialise the calldepth
