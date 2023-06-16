@@ -271,7 +271,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => {
                     // Empty slice literal `[]`
-                    if array.len() == 0 {
+                    if array.is_empty() {
                         return ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                             contents: vec![],
                             element_type: ast::Type::Unit,
