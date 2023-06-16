@@ -1,12 +1,11 @@
 use acvm::acir::brillig_vm::RegisterIndex;
 
-const NUM_RESERVED_REGISTERS: usize = 1; // TODO merge with other constants
+use super::ReservedRegisters;
 
 /// Every brillig stack frame/call context has its own view of register space.
 /// This is maintained by copying these registers to the stack during calls and reading them back.
 ///
 /// Each has a stack base pointer from which all stack allocations can be offset.
-#[derive(Default)]
 pub(crate) struct BrilligRegistersContext {
     /// A free-list of registers that have been deallocated and can be used again.
     /// TODO(AD): currently, register deallocation is only done with immediate values.
@@ -21,14 +20,14 @@ impl BrilligRegistersContext {
     pub(crate) fn new() -> BrilligRegistersContext {
         BrilligRegistersContext {
             deallocated_registers: Vec::new(),
-            next_free_register_index: NUM_RESERVED_REGISTERS,
+            next_free_register_index: ReservedRegisters::len(),
         }
     }
     /// Lazily iterate over the used registers,
     /// counting to next_free_register_index while excluding deallocated and reserved registers.
     /// TODO(AD): unused
     pub(crate) fn _used_registers_iter(&self) -> impl Iterator<Item = RegisterIndex> + '_ {
-        (NUM_RESERVED_REGISTERS..self.next_free_register_index)
+        (ReservedRegisters::len()..self.next_free_register_index)
             .map(RegisterIndex::from)
             .filter(|&index| !self.deallocated_registers.contains(&index))
     }

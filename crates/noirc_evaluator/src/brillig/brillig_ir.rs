@@ -54,7 +54,6 @@ impl ReservedRegisters {
 
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
-#[derive(Default)]
 pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
     /// Tracks register allocations
@@ -67,6 +66,16 @@ pub(crate) struct BrilligContext {
 }
 
 impl BrilligContext {
+    /// Initial context state
+    pub(crate) fn new() -> BrilligContext {
+        BrilligContext {
+            obj: BrilligArtifact::default(),
+            registers: BrilligRegistersContext::new(),
+            context_label: String::default(),
+            section_label: 0,
+        }
+    }
+
     /// Adds the instructions needed to handle entry point parameters
     /// And sets the starting value of the reserved registers
     pub(crate) fn entry_point_instruction(&mut self, num_arguments: usize) {
@@ -279,7 +288,7 @@ impl BrilligContext {
         RegisterIndex::from(index + ReservedRegisters::len())
     }
 
-    /// Creates a new register.
+    /// Allocates an unused register.
     pub(crate) fn allocate_register(&mut self) -> RegisterIndex {
         self.registers.allocate_register()
     }
