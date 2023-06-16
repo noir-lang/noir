@@ -116,8 +116,7 @@ mod test {
     use acvm::{
         acir::{circuit::opcodes::FunctionInput, native_types::Witness, native_types::WitnessMap},
         pwg::{
-            block::Blocks, solve, OpcodeResolution, OpcodeResolutionError,
-            PartialWitnessGeneratorStatus,
+            solve, Blocks, OpcodeResolution, OpcodeResolutionError, PartialWitnessGeneratorStatus,
         },
         FieldElement, PartialWitnessGenerator,
     };
