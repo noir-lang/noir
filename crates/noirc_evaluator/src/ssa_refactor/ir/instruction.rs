@@ -8,7 +8,7 @@ use super::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     map::Id,
-    types::{NumericType, Type},
+    types::Type,
     value::{Value, ValueId},
 };
 
