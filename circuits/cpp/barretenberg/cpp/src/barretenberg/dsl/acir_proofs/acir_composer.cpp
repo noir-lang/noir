@@ -27,7 +27,8 @@ void AcirComposer::create_circuit(acir_format::acir_format& constraint_system)
 
     exact_circuit_size_ = composer_.get_num_gates();
     total_circuit_size_ = composer_.get_total_circuit_size();
-    circuit_subgroup_size_ = composer_.get_circuit_subgroup_size(total_circuit_size_);
+    circuit_subgroup_size_ =
+        composer_.get_circuit_subgroup_size(total_circuit_size_ + composer_.composer_helper.NUM_RESERVED_GATES);
     size_hint_ = circuit_subgroup_size_;
 }
 
@@ -44,7 +45,8 @@ void AcirComposer::init_proving_key(std::shared_ptr<barretenberg::srs::factories
 
     exact_circuit_size_ = composer_.get_num_gates();
     total_circuit_size_ = composer_.get_total_circuit_size();
-    circuit_subgroup_size_ = composer_.get_circuit_subgroup_size(total_circuit_size_);
+    circuit_subgroup_size_ =
+        composer_.get_circuit_subgroup_size(total_circuit_size_ + composer_.composer_helper.NUM_RESERVED_GATES);
 
     info("computing proving key...");
     proving_key_ = composer_.compute_proving_key();
