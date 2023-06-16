@@ -1,6 +1,8 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 
+use crate::ssa_refactor::ir::types::NumericType;
+
 use super::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -27,6 +29,8 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
     Sort,
+    ArrayLen,
+    SlicePushBack,
     Println,
     ToBits(Endian),
     ToRadix(Endian),
@@ -38,6 +42,8 @@ impl std::fmt::Display for Intrinsic {
         match self {
             Intrinsic::Println => write!(f, "println"),
             Intrinsic::Sort => write!(f, "arraysort"),
+            Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
             Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
@@ -54,6 +60,8 @@ impl Intrinsic {
         match name {
             "println" => Some(Intrinsic::Println),
             "arraysort" => Some(Intrinsic::Sort),
+            "array_len" => Some(Intrinsic::ArrayLen),
+            "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
@@ -276,7 +284,6 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
@@ -289,7 +296,6 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
@@ -308,7 +314,41 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { .. } => None,
+            Instruction::Call { func, arguments } => {
+                let mut simplify_result = None;
+                Intrinsic::lookup("slice_push_back").map(|intrinsic| {
+                    if let Some(intrinsic) = dfg.get_intrinsic(intrinsic) {
+                        dbg!(intrinsic);
+                        dbg!(func);
+                        if func == intrinsic {
+                            let slice = dfg.get_array_constant(arguments[0]);
+                            if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
+                                slice.push_back(elem);
+                                let new_slice = dfg.make_slice(slice, element_type);
+                                simplify_result = SimplifiedTo(new_slice);
+                            }
+                        }
+                    }
+                });
+                Intrinsic::lookup("array_len").map(|intrinsic| {
+                    if let Some(intrinsic) = dfg.get_intrinsic(intrinsic) {
+                        dbg!(intrinsic);
+                        dbg!(func);
+                        if func == intrinsic {
+                            let slice = dfg.get_array_constant(arguments[0]);
+                            if let Some((slice, _)) = slice {
+                                dbg!(slice.len());
+                                let slice_len = dfg.make_constant(
+                                    FieldElement::from(slice.len() as u128),
+                                    Type::Numeric(NumericType::NativeField),
+                                );
+                                simplify_result = SimplifiedTo(slice_len);
+                            }
+                        }
+                    }
+                });
+                simplify_result
+            }
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
@@ -675,6 +715,7 @@ impl std::fmt::Display for BinaryOp {
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
+#[derive(Debug, Clone)]
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
     SimplifiedTo(ValueId),

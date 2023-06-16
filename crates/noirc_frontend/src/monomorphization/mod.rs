@@ -12,7 +12,10 @@ use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::{
+    collections::{BTreeMap, HashMap, VecDeque},
+    result,
+};
 
 use crate::{
     hir_def::{
@@ -22,7 +25,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, FunctionKind, TypeBinding, TypeBindings,
+    CompTime, FunctionKind, Type, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -773,11 +776,16 @@ impl<'interner> Monomorphizer<'interner> {
             if let Definition::Builtin(opcode) = &ident.definition {
                 if opcode == "array_len" {
                     let typ = self.interner.id_type(arguments[0]);
-                    let len = typ.evaluate_to_u64().unwrap();
-                    return Some(ast::Expression::Literal(ast::Literal::Integer(
-                        (len as u128).into(),
-                        ast::Type::Field,
-                    )));
+                    match typ {
+                        Type::Array(_, _) => {
+                            let len = typ.evaluate_to_u64().unwrap();
+                            return Some(ast::Expression::Literal(ast::Literal::Integer(
+                                (len as u128).into(),
+                                ast::Type::Field,
+                            )));
+                        }
+                        _ => (),
+                    }
                 } else if opcode == "modulus_num_bits" {
                     return Some(ast::Expression::Literal(ast::Literal::Integer(
                         (FieldElement::max_num_bits() as u128).into(),

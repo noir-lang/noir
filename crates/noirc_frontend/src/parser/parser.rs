@@ -966,12 +966,7 @@ where
 {
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|elements, span, emit| {
-            if elements.is_empty() {
-                emit(ParserError::with_reason(ParserErrorReason::ZeroSizedArray, span));
-            }
-            ExpressionKind::array(elements)
-        })
+        .validate(|elements, _span, _emit| ExpressionKind::array(elements))
 }
 
 /// [a; N]

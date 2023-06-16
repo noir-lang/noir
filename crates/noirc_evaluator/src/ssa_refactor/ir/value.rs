@@ -40,8 +40,8 @@ pub(crate) enum Value {
     /// Represents a constant array value
     Array { array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
 
-    /// Represents an compile-time array
-    Slice { initial_array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
+    /// Represents a compile-time array
+    Slice { array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.

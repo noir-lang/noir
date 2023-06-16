@@ -200,10 +200,10 @@ impl DataFlowGraph {
     /// during program execution
     pub(crate) fn make_slice(
         &mut self,
-        initial_array: im::Vector<ValueId>,
+        array: im::Vector<ValueId>,
         element_type: Rc<CompositeType>,
     ) -> ValueId {
-        self.make_value(Value::Slice { initial_array, element_type })
+        self.make_value(Value::Slice { array, element_type })
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -216,10 +216,16 @@ impl DataFlowGraph {
 
     /// Gets or creates a ValueId for the given Intrinsic.
     pub(crate) fn import_intrinsic(&mut self, intrinsic: Intrinsic) -> ValueId {
-        if let Some(existing) = self.intrinsics.get(&intrinsic) {
+        if let Some(existing) = self.get_intrinsic(intrinsic) {
             return *existing;
         }
-        self.values.insert(Value::Intrinsic(intrinsic))
+        let intrinsic_value_id = self.values.insert(Value::Intrinsic(intrinsic));
+        self.intrinsics.insert(intrinsic, intrinsic_value_id);
+        intrinsic_value_id
+    }
+
+    pub(crate) fn get_intrinsic(&mut self, intrinsic: Intrinsic) -> Option<&ValueId> {
+        self.intrinsics.get(&intrinsic)
     }
 
     /// Attaches results to the instruction, clearing any previous results.
@@ -333,7 +339,10 @@ impl DataFlowGraph {
     ) -> Option<(im::Vector<ValueId>, Rc<CompositeType>)> {
         match &self.values[self.resolve(value)] {
             // Vectors are shared, so cloning them is cheap
-            Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
+            Value::Array { array, element_type } | Value::Slice { array, element_type } => {
+                Some((array.clone(), element_type.clone()))
+            }
+            // Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
             _ => None,
         }
     }
