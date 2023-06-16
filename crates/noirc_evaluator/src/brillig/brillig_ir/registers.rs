@@ -23,14 +23,6 @@ impl BrilligRegistersContext {
             next_free_register_index: ReservedRegisters::len(),
         }
     }
-    /// Lazily iterate over the used registers,
-    /// counting to next_free_register_index while excluding deallocated and reserved registers.
-    /// TODO(AD): unused
-    pub(crate) fn _used_registers_iter(&self) -> impl Iterator<Item = RegisterIndex> + '_ {
-        (ReservedRegisters::len()..self.next_free_register_index)
-            .map(RegisterIndex::from)
-            .filter(|&index| !self.deallocated_registers.contains(&index))
-    }
 
     /// Creates a new register.
     pub(crate) fn allocate_register(&mut self) -> RegisterIndex {
