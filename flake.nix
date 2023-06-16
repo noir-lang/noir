@@ -175,7 +175,7 @@
 
         src = ./.;
 
-        cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
+        cargoExtraArgs = "--package noir_wasm --target wasm32-unknown-unknown";
 
         buildInputs = [ ] ++ extraBuildInputs;
 
@@ -311,8 +311,6 @@
           binaryen
           toml2json
         ];
-
-        cargoExtraArgs = "--package noir_wasm --target wasm32-unknown-unknown";
 
         postBuild = ''
           bash crates/wasm/postBuild.sh
