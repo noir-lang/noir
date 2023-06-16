@@ -86,8 +86,10 @@ fn find_all_loops(function: &Function) -> Loops {
         }
     }
 
-    // Sort loops by block size so that we unroll the smaller, nested loops first as an optimization.
-    loops.sort_by(|loop_a, loop_b| loop_b.blocks.len().cmp(&loop_a.blocks.len()));
+    // Sort loops by block size so that we unroll the larger, outer loops of nested loops first.
+    // This is needed because inner loops may use the induction variable from their outer loops in
+    // their loop range.
+    loops.sort_by_key(|loop_| loop_.blocks.len());
 
     Loops {
         failed_to_unroll: HashSet::new(),
@@ -160,7 +162,7 @@ fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: &Loop) ->
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
-    while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value) {
+    while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
         let (last_block, last_value) = context.unroll_loop_iteration();
         unroll_into = last_block;
         jump_value = last_value;
@@ -213,7 +215,7 @@ fn unroll_loop_header<'a>(
     loop_: &'a Loop,
     unroll_into: BasicBlockId,
     induction_value: ValueId,
-) -> Option<LoopIteration<'a>> {
+) -> Result<Option<LoopIteration<'a>>, ()> {
     // We insert into a fresh block first and move instructions into the unroll_into block later
     // only once we verify the jmpif instruction has a constant condition. If it does not, we can
     // just discard this fresh block and leave the loop unmodified.
@@ -241,11 +243,11 @@ fn unroll_loop_header<'a>(
                 // unroll_into block from now on.
                 context.insert_block = unroll_into;
 
-                loop_.blocks.contains(&context.source_block).then_some(context)
+                Ok(loop_.blocks.contains(&context.source_block).then_some(context))
             } else {
                 // If this case is reached the loop either uses non-constant indices or we need
                 // another pass, such as mem2reg to resolve them to constants.
-                None
+                Err(())
             }
         }
         other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),

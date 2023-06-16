@@ -5,10 +5,11 @@ use std::collections::HashSet;
 use crate::ssa_refactor::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{Instruction, InstructionId},
         post_order::PostOrder,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -64,14 +65,16 @@ impl Context {
         block_id: BasicBlockId,
     ) {
         let block = &function.dfg[block_id];
-        self.mark_terminator_values_as_used(block);
+        self.mark_terminator_values_as_used(function, block);
 
         for instruction in block.instructions().iter().rev() {
             if self.is_unused(*instruction, function) {
                 self.instructions_to_remove.insert(*instruction);
             } else {
                 let instruction = &function.dfg[*instruction];
-                instruction.for_each_value(|value| self.used_values.insert(value));
+                instruction.for_each_value(|value| {
+                    self.mark_used_instruction_results(&function.dfg, value);
+                });
             }
         }
 
@@ -90,7 +93,10 @@ impl Context {
         let instruction = &function.dfg[instruction_id];
 
         // These instruction types cannot be removed
-        if matches!(instruction, Constrain(_) | Call { .. } | Store { .. }) {
+        if matches!(
+            instruction,
+            Constrain(_) | Call { .. } | Store { .. } | EnableSideEffects { .. }
+        ) {
             return false;
         }
 
@@ -99,8 +105,29 @@ impl Context {
     }
 
     /// Adds values referenced by the terminator to the set of used values.
-    fn mark_terminator_values_as_used(&mut self, block: &BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| self.used_values.insert(value));
+    fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
+        block.unwrap_terminator().for_each_value(|value| {
+            self.mark_used_instruction_results(&function.dfg, value);
+        });
+    }
+
+    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
+    /// results as used.
+    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
+        let value_id = dfg.resolve(value_id);
+        match &dfg[value_id] {
+            Value::Instruction { .. } => {
+                self.used_values.insert(value_id);
+            }
+            Value::Array { array, .. } => {
+                for elem in array {
+                    self.mark_used_instruction_results(dfg, *elem);
+                }
+            }
+            _ => {
+                // Does not comprise of any instruction results
+            }
+        }
     }
 }
 
