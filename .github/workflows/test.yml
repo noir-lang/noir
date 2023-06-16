@@ -19,9 +19,10 @@ jobs:
           - os: ubuntu
             runner: ubuntu-large
             target: x86_64-linux
-          # - os: mac
-          #   runner: macos-latest
-          #   target: x86_64-darwin
+          - os: mac
+            # The nix action doesn't fail on macos-13 according to https://github.com/cachix/install-nix-action/issues/183
+            runner: macos-13
+            target: x86_64-darwin
 
     steps:
       - name: Checkout

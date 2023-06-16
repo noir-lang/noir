@@ -2,7 +2,7 @@ use acvm::acir::brillig_vm::ForeignCallResult;
 use acvm::acir::circuit::Opcode;
 use acvm::pwg::{solve, PartialWitnessGeneratorStatus, UnresolvedBrilligCall};
 use acvm::PartialWitnessGenerator;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap, pwg::block::Blocks};
+use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use crate::NargoError;
 
