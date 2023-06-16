@@ -238,10 +238,22 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        _typ: AcirType,
+        typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let inv_rhs = self.inv_var(rhs)?;
-        self.mul_var(lhs, inv_rhs)
+        match typ.0 {
+            NumericType::NativeField => {
+                let inv_rhs = self.inv_var(rhs)?;
+                self.mul_var(lhs, inv_rhs)
+            }
+            NumericType::Unsigned { bit_size } => {
+                let (quotient_var, _remainder_var) =
+                    self.euclidean_division_var(lhs, rhs, bit_size)?;
+                Ok(quotient_var)
+            }
+            NumericType::Signed { .. } => {
+                todo!("Signed division");
+            }
+        }
     }
 
     /// Adds a new Variable to context whose value will
