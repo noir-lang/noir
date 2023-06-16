@@ -1,9 +1,6 @@
 /**
  * @brief Contains all the headers required to adequately compile the types defined in composers_fwd.hpp and instantiate
  * templates.
- *
- * @details This should be the ONLY file related to composer/circuit construct included in source files not part of the
- * proof systems.
  */
 #pragma once
 #include "barretenberg/plonk/composer/standard_plonk_composer.hpp"

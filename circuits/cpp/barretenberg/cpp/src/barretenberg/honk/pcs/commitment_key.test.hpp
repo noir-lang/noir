@@ -12,7 +12,6 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 
-#include "../oracle/oracle.hpp"
 #include "../../transcript/transcript_wrappers.hpp"
 
 #include "claim.hpp"

@@ -191,8 +191,6 @@ template <class Flavor> class StandardHonkComposer_ {
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
 };
-template class StandardHonkComposer_<flavor::Standard>;
-template class StandardHonkComposer_<flavor::StandardGrumpkin>;
 using StandardHonkComposer = StandardHonkComposer_<flavor::Standard>;
 using StandardGrumpkinHonkComposer = StandardHonkComposer_<flavor::StandardGrumpkin>;
 } // namespace proof_system::honk

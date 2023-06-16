@@ -1,5 +1,5 @@
 # TODO(Cody): Remove plonk dependency
-barretenberg_module(honk numeric ecc srs proof_system transcript plonk)
+barretenberg_module(honk numeric ecc srs proof_system transcript)
 
 if(TESTING)
     # TODO: Re-enable all these warnings once PoC is finished

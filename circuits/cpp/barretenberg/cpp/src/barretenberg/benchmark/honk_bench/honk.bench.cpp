@@ -1,11 +1,12 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <benchmark/benchmark.h>
 #include <cstddef>
+#include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
+#include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
 using namespace benchmark;
+using namespace proof_system::plonk::stdlib;
 
 namespace standard_honk_bench {
 
@@ -18,9 +19,9 @@ constexpr size_t NUM_REPETITIONS = 5;
 
 void generate_test_circuit(auto& composer, size_t num_gates)
 {
-    plonk::stdlib::field_t a(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
-    plonk::stdlib::field_t b(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
-    plonk::stdlib::field_t c(&composer);
+    field_t a(witness_t(&composer, barretenberg::fr::random_element()));
+    field_t b(witness_t(&composer, barretenberg::fr::random_element()));
+    field_t c(&composer);
     for (size_t i = 0; i < (num_gates / 4) - 4; ++i) {
         c = a + b;
         c = a * c;

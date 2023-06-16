@@ -293,8 +293,6 @@ template <class Flavor> class UltraHonkComposer_ {
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
 };
-template class UltraHonkComposer_<honk::flavor::Ultra>;
-template class UltraHonkComposer_<honk::flavor::UltraGrumpkin>;
 using UltraHonkComposer = UltraHonkComposer_<honk::flavor::Ultra>;
 using UltraGrumpkinHonkComposer = UltraHonkComposer_<honk::flavor::UltraGrumpkin>;
 
