@@ -241,41 +241,7 @@ impl Instruction {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
-            Instruction::Cast(value, typ) => {
-                if let Some(constant) = dfg.get_numeric_constant(*value) {
-                    let src_typ = dfg.type_of_value(*value);
-                    match (typ, src_typ) {
-                        (
-                            Type::Numeric(NumericType::NativeField),
-                            Type::Numeric(NumericType::Unsigned { .. }),
-                        ) => {
-                            // Unsigned -> Field: redefine same constant as Field
-                            SimplifiedTo(dfg.make_constant(constant, typ.clone()))
-                        }
-                        (
-                            Type::Numeric(NumericType::Unsigned { bit_size }),
-                            Type::Numeric(NumericType::Unsigned { .. }),
-                        )
-                        | (
-                            Type::Numeric(NumericType::Unsigned { bit_size }),
-                            Type::Numeric(NumericType::NativeField),
-                        ) => {
-                            // Field/Unsigned -> unsigned: truncate
-                            let integer_modulus = BigUint::from(2u128).pow(*bit_size);
-                            let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
-                            let truncated = constant % integer_modulus;
-                            let truncated =
-                                FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
-                            SimplifiedTo(dfg.make_constant(truncated, typ.clone()))
-                        }
-                        _ => None,
-                    }
-                } else if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
-                    SimplifiedTo(value)
-                } else {
-                    None
-                }
-            }
+            Instruction::Cast(value, typ) => simplify_cast(*value, typ, dfg),
             Instruction::Not(value) => {
                 match &dfg[dfg.resolve(*value)] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
@@ -339,37 +305,80 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => {
-                let intrinsic = match &dfg[*func] {
-                    Value::Intrinsic(intrinsic) => *intrinsic,
-                    _ => return None,
-                };
-                let constant_args: Option<Vec<_>> =
-                    arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-                let constant_args = match constant_args {
-                    Some(constant_args) => constant_args,
-                    Option::None => return None,
-                };
-                match intrinsic {
-                    Intrinsic::ToBits(endian) => {
-                        let field = constant_args[0];
-                        let limb_count = constant_args[1].to_u128() as u32;
-                        SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
-                    }
-                    Intrinsic::ToRadix(endian) => {
-                        let field = constant_args[0];
-                        let radix = constant_args[1].to_u128() as u32;
-                        let limb_count = constant_args[1].to_u128() as u32;
-                        SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
-                    }
-                    Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
-                }
-            }
+            Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg),
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
             Instruction::EnableSideEffects { .. } => None,
         }
+    }
+}
+
+/// Try to simplify this cast instruction. If the instruction can be simplified to a known value,
+/// that value is returned. Otherwise None is returned.
+fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> SimplifyResult {
+    use SimplifyResult::*;
+    if let Some(constant) = dfg.get_numeric_constant(value) {
+        let src_typ = dfg.type_of_value(value);
+        match (src_typ, dst_typ) {
+            (Type::Numeric(NumericType::NativeField), Type::Numeric(NumericType::NativeField)) => {
+                // Field -> Field: use src value
+                SimplifiedTo(value)
+            }
+            (
+                Type::Numeric(NumericType::Unsigned { .. }),
+                Type::Numeric(NumericType::NativeField),
+            ) => {
+                // Unsigned -> Field: redefine same constant as Field
+                SimplifiedTo(dfg.make_constant(constant, dst_typ.clone()))
+            }
+            (
+                Type::Numeric(NumericType::NativeField | NumericType::Unsigned { .. }),
+                Type::Numeric(NumericType::Unsigned { bit_size }),
+            ) => {
+                // Field/Unsigned -> unsigned: truncate
+                let integer_modulus = BigUint::from(2u128).pow(*bit_size);
+                let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
+                let truncated = constant % integer_modulus;
+                let truncated = FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
+                SimplifiedTo(dfg.make_constant(truncated, dst_typ.clone()))
+            }
+            _ => None,
+        }
+    } else if let Some(value) = (*dst_typ == dfg.type_of_value(value)).then_some(value) {
+        SimplifiedTo(value)
+    } else {
+        None
+    }
+}
+
+/// Try to simplify this call instruction. If the instruction can be simplified to a known value,
+/// that value is returned. Otherwise None is returned.
+fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) -> SimplifyResult {
+    use SimplifyResult::*;
+    let intrinsic = match &dfg[func] {
+        Value::Intrinsic(intrinsic) => *intrinsic,
+        _ => return None,
+    };
+    let constant_args: Option<Vec<_>> =
+        arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
+    let constant_args = match constant_args {
+        Some(constant_args) => constant_args,
+        Option::None => return None,
+    };
+    match intrinsic {
+        Intrinsic::ToBits(endian) => {
+            let field = constant_args[0];
+            let limb_count = constant_args[1].to_u128() as u32;
+            SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+        }
+        Intrinsic::ToRadix(endian) => {
+            let field = constant_args[0];
+            let radix = constant_args[1].to_u128() as u32;
+            let limb_count = constant_args[1].to_u128() as u32;
+            SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+        }
+        Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
     }
 }
 
@@ -404,8 +413,9 @@ fn constant_to_radix(
     while limbs.len() < limb_count_with_padding as usize {
         limbs.push(FieldElement::zero());
     }
-    let result_constants = vecmap(limbs, |limb| dfg.make_constant(limb, Type::unsigned(bit_size)));
-    dfg.make_array(result_constants.into(), Rc::new(vec![Type::unsigned(bit_size)]))
+    let result_constants =
+        limbs.into_iter().map(|limb| dfg.make_constant(limb, Type::unsigned(bit_size))).collect();
+    dfg.make_array(result_constants, Rc::new(vec![Type::unsigned(bit_size)]))
 }
 
 /// The possible return values for Instruction::return_types
