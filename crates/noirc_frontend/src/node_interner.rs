@@ -598,7 +598,7 @@ enum TypeMethodKey {
     /// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
-    Array,
+    ArrayOrSlice,
     Bool,
     String,
     Unit,
@@ -612,7 +612,8 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     let typ = typ.follow_bindings();
     match &typ {
         Type::FieldElement(_) => Some(FieldOrInt),
-        Type::Array(_, _) => Some(Array),
+        Type::Array(_, _) => Some(ArrayOrSlice),
+        Type::Slice(_) => Some(ArrayOrSlice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
         Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),

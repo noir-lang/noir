@@ -402,7 +402,10 @@ impl<'interner> Monomorphizer<'interner> {
                 },
             )),
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+            ast::Type::Array(_, _)
+            | ast::Type::String(_)
+            | ast::Type::Vec(_)
+            | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
             }
         }
@@ -445,7 +448,10 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+            ast::Type::Array(_, _)
+            | ast::Type::String(_)
+            | ast::Type::Vec(_)
+            | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
             }
         }
@@ -661,6 +667,11 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::aos_to_soa_type(length, element)
             }
 
+            HirType::Slice(element) => {
+                let element = Self::convert_type(element.as_ref());
+                ast::Type::Slice(Box::new(element))
+            }
+
             HirType::PolymorphicInteger(_, binding)
             | HirType::TypeVariable(binding)
             | HirType::NamedGeneric(binding, _) => {
@@ -722,7 +733,10 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+            ast::Type::Array(_, _)
+            | ast::Type::String(_)
+            | ast::Type::Vec(_)
+            | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays and arrays of strings are not supported")
             }
         }
@@ -980,6 +994,7 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Function(parameter_types, ret_type) => {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
+            ast::Type::Slice(_) => panic!("Cannot create a zeroed slice value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
             ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
         }
     }

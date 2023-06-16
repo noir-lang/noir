@@ -1211,6 +1211,7 @@ impl SsaContext {
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
             Type::String(_) => todo!("Conversion to ObjectType is unimplemented for strings"),
+            Type::Slice(_) => todo!("Conversion to ObjectType is unimplemented for slices"),
             Type::Vec(_) => todo!("Conversion to ObjectType is unimplemented for Vecs"),
         }
     }

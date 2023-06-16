@@ -195,6 +195,17 @@ impl DataFlowGraph {
         self.make_value(Value::Array { array, element_type })
     }
 
+    /// Create a new slice value from the given elements
+    /// This is the initial slice for which the length will change
+    /// during program execution
+    pub(crate) fn make_slice(
+        &mut self,
+        initial_array: im::Vector<ValueId>,
+        element_type: Rc<CompositeType>,
+    ) -> ValueId {
+        self.make_value(Value::Slice { initial_array, element_type })
+    }
+
     /// Gets or creates a ValueId for the given FunctionId.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         if let Some(existing) = self.functions.get(&function) {

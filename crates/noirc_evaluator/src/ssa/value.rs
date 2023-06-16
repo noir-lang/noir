@@ -96,6 +96,7 @@ impl Value {
             Type::Unit
             | Type::Function(..)
             | Type::Array(..)
+            | Type::Slice(..)
             | Type::Vec(..)
             | Type::String(..)
             | Type::Integer(..)

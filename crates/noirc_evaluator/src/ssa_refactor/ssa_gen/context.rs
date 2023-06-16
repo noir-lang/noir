@@ -201,6 +201,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
+            ast::Type::Slice(_) => Type::Reference,
 
             // How should we represent Vecs?
             // Are they a struct of array + length + capacity?

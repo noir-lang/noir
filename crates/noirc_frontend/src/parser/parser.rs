@@ -620,6 +620,7 @@ fn parse_type_inner(
         string_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
+        // slice_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         vec_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser),
@@ -709,8 +710,21 @@ fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
         .ignore_then(type_parser)
         .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|(element_type, size)| UnresolvedType::Array(size, Box::new(element_type)))
+        .map(|(element_type, size)| {
+            if size.is_none() {
+                UnresolvedType::Slice(Box::new(element_type))
+            } else {
+                UnresolvedType::Array(size, Box::new(element_type))
+            }
+            // UnresolvedType::Array(size, Box::new(element_type))
+        })
 }
+
+// fn slice_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+//     type_parser
+//     .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+//     .map(|element_type| UnresolvedType::Slice(Box::new(element_type)))
+// }
 
 fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
     recursive(|expr| expression_with_precedence(Precedence::lowest_type_precedence(), expr, true))

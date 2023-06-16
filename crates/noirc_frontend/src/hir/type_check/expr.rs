@@ -273,6 +273,7 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
+            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&index_expr.collection);
@@ -662,6 +663,7 @@ impl<'interner> TypeChecker<'interner> {
             other => match self.interner.lookup_primitive_method(other, method_name) {
                 Some(method_id) => Some(method_id),
                 None => {
+                    dbg!("got here");
                     self.errors.push(TypeCheckError::Unstructured {
                         span: self.interner.expr_span(expr_id),
                         msg: format!("No method named '{method_name}' found for type '{other}'",),

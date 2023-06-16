@@ -343,6 +343,11 @@ impl Context {
                 let elements = array.iter().map(|element| self.convert_value(*element, dfg));
                 AcirValue::Array(elements.collect())
             }
+            Value::Slice { initial_array, .. } => {
+                let elements =
+                    initial_array.iter().map(|element| self.convert_value(*element, dfg));
+                AcirValue::Array(elements.collect())
+            }
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {

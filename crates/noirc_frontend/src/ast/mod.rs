@@ -30,7 +30,8 @@ use iter_extended::vecmap;
 pub enum UnresolvedType {
     FieldElement(CompTime),
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(CompTime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
+    Slice(Box<UnresolvedType>),
+    Integer(CompTime, Signedness, u32), // u32 = Integer(unsigned, 32)
     Bool(CompTime),
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
@@ -39,6 +40,7 @@ pub enum UnresolvedType {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
+    // Slice(Box<UnresolvedType>),
     /// A vector of some element type.
     /// It is expected the length of the generics is 1 so the inner Vec is technically unnecessary,
     /// but we keep them all around to verify generic count after parsing for better error messages.
@@ -86,6 +88,7 @@ impl std::fmt::Display for UnresolvedType {
                 None => write!(f, "[{typ}]"),
                 Some(len) => write!(f, "[{typ}; {len}]"),
             },
+            Slice(typ) => write!(f, "[{typ}]"),
             Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{is_const}i{num_bits}"),
                 Signedness::Unsigned => write!(f, "{is_const}u{num_bits}"),
