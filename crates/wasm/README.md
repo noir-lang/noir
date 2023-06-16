@@ -4,11 +4,10 @@
 
 In order to build the wasm package, the following must be installed:
 
-
 ## Build
 
 The wasm package can be built using the command below:
 
 ```bash
-./build-wasm
+nix build -L #wasm
 ```
