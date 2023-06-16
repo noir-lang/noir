@@ -254,7 +254,13 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        match typ.0 {
+        let numeric_type = match typ {
+            AcirType::NumericType(numeric_type) => numeric_type,
+            AcirType::Array(_, _) => {
+                todo!("cannot divide arrays. This should have been caught by the frontend")
+            }
+        };
+        match numeric_type {
             NumericType::NativeField => {
                 let inv_rhs = self.inv_var(rhs)?;
                 self.mul_var(lhs, inv_rhs)
@@ -637,7 +643,7 @@ impl AcirContext {
         let limb_count_with_padding = max_decomposable_bits / bit_size;
         let zero = self.add_constant(FieldElement::zero());
         while limb_vars.len() < limb_count_with_padding as usize {
-            limb_vars.push(AcirValue::Var(zero, result_element_type));
+            limb_vars.push(AcirValue::Var(zero, result_element_type.clone()));
         }
 
         Ok(vec![AcirValue::Array(limb_vars.into())])
