@@ -284,7 +284,6 @@
         ];
 
         shellHook = ''
-          echo which wasm-bindgen $(which wasm-bindgen)
           eval "$(starship init bash)"
         '';
       });
