@@ -1,4 +1,7 @@
-use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
+use crate::brillig::brillig_ir::{
+    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+};
+use crate::ssa_refactor::ir::types::CompositeType;
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -104,8 +107,7 @@ impl<'block> BrilligBlock<'block> {
             };
             match param_type {
                 Type::Numeric(_) => {
-                    self.function_context
-                        .get_or_create_register(self.brillig_context, *param_id);
+                    self.function_context.get_or_create_register(self.brillig_context, *param_id);
                 }
                 Type::Array(_, size) => {
                     let pointer_register = self
@@ -137,24 +139,24 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.constrain_instruction(condition);
             }
             Instruction::Allocate => {
-                let pointer_register = self.function_context.get_or_create_register(
-                    self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
-                );
-                self.brillig_context.allocate_array(pointer_register, 1);
+                let value: crate::ssa_refactor::ir::map::Id<Value> =
+                    dfg.instruction_results(instruction_id)[0];
+                self.function_context.get_or_create_register(self.brillig_context, value);
             }
             Instruction::Store { address, value } => {
-                let address_register = self.convert_ssa_value(*address, dfg);
-                let value_register = self.convert_ssa_value(*value, dfg);
-                self.brillig_context.store_instruction(address_register, value_register);
+                let target_register = self.convert_ssa_value(*address, dfg);
+                let source_register = self.convert_ssa_value(*value, dfg);
+
+                self.brillig_context.mov_instruction(target_register, source_register);
             }
             Instruction::Load { address } => {
                 let target_register = self.function_context.get_or_create_register(
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                 );
-                let address_register = self.convert_ssa_value(*address, dfg);
-                self.brillig_context.load_instruction(target_register, address_register);
+                let source_register = self.convert_ssa_value(*address, dfg);
+
+                self.brillig_context.mov_instruction(target_register, source_register);
             }
             Instruction::Not(value) => {
                 assert_eq!(
@@ -207,8 +209,85 @@ impl<'block> BrilligBlock<'block> {
                 let source = self.convert_ssa_value(*value, dfg);
                 self.convert_cast(destination, source, target_type, &dfg.type_of_value(*value));
             }
+            Instruction::ArrayGet { array, index } => {
+                let result_ids = dfg.instruction_results(instruction_id);
+                let destination = self
+                    .function_context
+                    .get_or_create_register(self.brillig_context, result_ids[0]);
+                let array_register = self.convert_ssa_value(*array, dfg);
+                let index_register = self.convert_ssa_value(*index, dfg);
+                self.brillig_context.array_get(array_register, index_register, destination);
+            }
+            // Array set operation in SSA returns a new array that is a copy of the parameter array
+            // With a specific value changed.
+            Instruction::ArraySet { array, index, value } => {
+                let result_ids = dfg.instruction_results(instruction_id);
+                let destination = self
+                    .function_context
+                    .get_or_create_register(self.brillig_context, result_ids[0]);
+
+                // First issue a array copy to the destination
+                let array_size = compute_size_of_type(&dfg.type_of_value(*array));
+                self.brillig_context.allocate_array(destination, array_size as u32);
+                let source_array_register: RegisterIndex = self.convert_ssa_value(*array, dfg);
+                let size_register = self.brillig_context.make_constant(array_size.into());
+                self.brillig_context.copy_array_instruction(
+                    source_array_register,
+                    destination,
+                    size_register,
+                );
+
+                // Then set the value in the newly created array
+                let index_register = self.convert_ssa_value(*index, dfg);
+                let value_register = self.convert_ssa_value(*value, dfg);
+                self.brillig_context.array_set(destination, index_register, value_register);
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+    }
+
+    /// This function allows storing a Value in memory starting at the address specified by the
+    /// address_register. The value can be a single value or an array. The function will recursively
+    /// store the value in memory.
+    fn store_in_memory(
+        &mut self,
+        address_register: RegisterIndex,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) {
+        let value = &dfg[value_id];
+        match value {
+            Value::Param { .. } | Value::Instruction { .. } | Value::NumericConstant { .. } => {
+                let value_register = self.convert_ssa_value(value_id, dfg);
+                self.brillig_context.store_instruction(address_register, value_register);
+            }
+            Value::Array { array, element_type } => {
+                // Allocate a register for the iterator
+                let iterator_register = self.brillig_context.create_register();
+                // Set the iterator to the address of the array
+                self.brillig_context.mov_instruction(iterator_register, address_register);
+
+                let size_of_item_register = self
+                    .brillig_context
+                    .make_constant(compute_size_of_composite_type(element_type).into());
+
+                for element_id in array.iter() {
+                    // Store the item in memory
+                    self.store_in_memory(iterator_register, *element_id, dfg);
+                    // Increment the iterator by the size of the items
+                    self.brillig_context.binary_instruction(
+                        iterator_register,
+                        size_of_item_register,
+                        iterator_register,
+                        BrilligBinaryOp::Integer {
+                            op: BinaryIntOp::Add,
+                            bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+                        },
+                    );
+                }
+            }
+            _ => unimplemented!("ICE: Value {:?} not storeable in memory", value),
+        }
     }
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
@@ -282,12 +361,20 @@ impl<'block> BrilligBlock<'block> {
                 self.function_context.get_or_create_register(self.brillig_context, value_id)
             }
             Value::NumericConstant { constant, .. } => {
-                let register_index = self
-                    .function_context
-                    .get_or_create_register(self.brillig_context, value_id);
+                let register_index =
+                    self.function_context.get_or_create_register(self.brillig_context, value_id);
 
                 self.brillig_context.const_instruction(register_index, (*constant).into());
                 register_index
+            }
+            Value::Array { .. } => {
+                let address_register = self.brillig_context.create_register();
+                self.brillig_context.allocate_array(
+                    address_register,
+                    compute_size_of_type(&dfg.type_of_value(value_id)) as u32,
+                );
+                self.store_in_memory(address_register, value_id, dfg);
+                address_register
             }
             _ => {
                 todo!("ICE: Should have been in cache {value:?}")
@@ -405,5 +492,20 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
     match bit_size_signedness {
         Some((bit_size, is_signed)) => binary_op_to_int_op(ssa_op, bit_size, is_signed),
         None => binary_op_to_field_op(ssa_op),
+    }
+}
+
+/// Computes the size of an SSA composite type
+fn compute_size_of_composite_type(typ: &CompositeType) -> usize {
+    typ.iter().map(compute_size_of_type).sum()
+}
+
+/// Finds out the size of a given SSA type
+/// This is needed to store values in memory
+fn compute_size_of_type(typ: &Type) -> usize {
+    match typ {
+        Type::Numeric(_) => 1,
+        Type::Array(types, item_count) => compute_size_of_composite_type(types) * item_count,
+        _ => todo!("ICE: Type not supported {typ:?}"),
     }
 }
