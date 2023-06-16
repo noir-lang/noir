@@ -269,8 +269,8 @@ impl GeneratedAcir {
         input_expr: &Expression,
         radix: u32,
         limb_count: u32,
+        bit_size: u32,
     ) -> Result<Vec<Witness>, AcirGenError> {
-        let bit_size = u32::BITS - (radix - 1).leading_zeros();
         let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
