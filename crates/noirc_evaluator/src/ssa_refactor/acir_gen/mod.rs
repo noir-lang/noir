@@ -586,16 +586,6 @@ impl Context {
                 }
                 Vec::new()
             }
-            // Intrinsic::SlicePushBack => {
-            //     let mut slice = self.convert_array_value(arguments[0], dfg);
-            //     let elem = self.convert_value(arguments[1], dfg);
-
-            //     dbg!(slice.clone());
-            //     dbg!(elem.clone());
-            //     dbg!(self.convert_value(result_ids[0], dfg));
-            //     slice.push_back(elem);
-            //     vec![AcirValue::Array(slice)]
-            // }
             _ => todo!("expected a black box function"),
         }
     }
