@@ -547,6 +547,7 @@ impl Context {
         allow_log_ops: bool,
         result_ids: &[ValueId],
     ) -> Vec<AcirValue> {
+        dbg!(intrinsic.clone());
         match intrinsic {
             Intrinsic::BlackBox(black_box) => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));

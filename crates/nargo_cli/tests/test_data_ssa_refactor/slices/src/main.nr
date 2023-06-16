@@ -12,11 +12,10 @@ fn main(x : Field, y : pub Field) {
     assert(slice_plus_10[2] != 8);
     assert(slice_plus_10.len() == 3);
 
-    // TODO
-    // let mut new_slice: [Field] = [];
-    // for i in 0..5 {
-    //     new_slice = new_slice.push_back(0);
-    // }
-    // assert(new_slice.len() == 5);
+    let mut new_slice: [Field] = [];
+    for i in 0..5 {
+        new_slice = new_slice.push_back(0);
+    }
+    assert(new_slice.len() == 5);
 }
 

@@ -269,7 +269,16 @@ impl<'interner> Monomorphizer<'interner> {
                 Literal(Integer(value, typ))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
-                HirArrayLiteral::Standard(array) => self.standard_array(array),
+                HirArrayLiteral::Standard(array) => {
+                    // Empty slice literal `[]`
+                    if array.len() == 0 {
+                        return ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                            contents: vec![],
+                            element_type: ast::Type::Unit,
+                        }));
+                    }
+                    self.standard_array(array)
+                }
                 HirArrayLiteral::Repeated { repeated_element, length } => {
                     self.repeated_array(repeated_element, length)
                 }

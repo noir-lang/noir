@@ -5,7 +5,7 @@ use super::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     map::Id,
-    types::{Type, NumericType},
+    types::{NumericType, Type},
     value::{Value, ValueId},
 };
 
@@ -325,7 +325,8 @@ impl Instruction {
                             }
                         }
                     }
-                } else if let Some(intrinsic) = Intrinsic::lookup("array_len") {
+                }
+                if let Some(intrinsic) = Intrinsic::lookup("array_len") {
                     if let Some(intrinsic) = dfg.get_intrinsic(intrinsic) {
                         if func == intrinsic {
                             let slice = dfg.get_array_constant(arguments[0]);
