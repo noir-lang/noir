@@ -592,12 +592,23 @@ impl AcirContext {
 
         let input_expr = &self.vars[input_var].to_expression();
 
-        let limbs = self.acir_ir.radix_le_decompose(input_expr, radix, limb_count)?;
+        let bit_size = u32::BITS - (radix - 1).leading_zeros();
+        let limbs = self.acir_ir.radix_le_decompose(input_expr, radix, limb_count, bit_size)?;
 
         let mut limb_vars = vecmap(limbs, |witness| {
             let witness = self.add_data(AcirVarData::Witness(witness));
             AcirValue::Var(witness, result_element_type)
         });
+
+        // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
+        // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
+        // become zero padding.
+        let max_decomposable_bits: u32 = 256;
+        let limb_count_with_padding = max_decomposable_bits / bit_size;
+        let zero = self.add_constant(FieldElement::zero());
+        while limb_vars.len() < limb_count_with_padding as usize {
+            limb_vars.push(AcirValue::Var(zero, result_element_type));
+        }
 
         if endian == Endian::Big {
             limb_vars.reverse();
