@@ -145,6 +145,8 @@ impl BrilligContext {
         );
 
         self.load_instruction(result, index_of_element_in_memory);
+        // Free up temporary register
+        self.deallocate_register(index_of_element_in_memory);
     }
 
     /// Sets the item in the array at index `index` to `value`
@@ -164,6 +166,8 @@ impl BrilligContext {
         );
 
         self.store_instruction(index_of_element_in_memory, value);
+        // Free up temporary register
+        self.deallocate_register(index_of_element_in_memory);
     }
 
     /// Copies the values of an array pointed by source with length stored in `num_elements_register`
@@ -220,6 +224,8 @@ impl BrilligContext {
         // Exit the loop
         self.enter_next_section();
         // Deallocate our temporary registers
+        self.deallocate_register(index_less_than_array_len);
+        self.deallocate_register(value_register);
         self.deallocate_register(one_register);
         self.deallocate_register(index_register);
     }
@@ -324,6 +330,8 @@ impl BrilligContext {
     /// the VM.
     pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
         for (destination_index, return_register) in return_registers.iter().enumerate() {
+            // In case we have fewer return registers than indices to write to, ensure we've allocated this register
+            self.registers.ensure_register_is_allocated(destination_index.into());
             self.mov_instruction(destination_index.into(), *return_register);
         }
         self.stop_instruction();
@@ -502,6 +510,9 @@ impl BrilligContext {
             lhs: left,
             rhs: scratch_register_j,
         });
+        // Free scratch registers
+        self.deallocate_register(scratch_register_i);
+        self.deallocate_register(scratch_register_j);
     }
 
     /// Emits a modulo instruction against 2**target_bit_size
@@ -523,13 +534,14 @@ impl BrilligContext {
         // The brillig VM performs all arithmetic operations modulo 2**bit_size
         // So to cast any value to a target bit size we can just issue a no-op arithmetic operation
         // With bit size equal to target_bit_size
-        let zero = self.make_constant(Value::from(FieldElement::zero()));
+        let zero_register = self.make_constant(Value::from(FieldElement::zero()));
         self.binary_instruction(
             source,
-            zero,
+            zero_register,
             destination,
             BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: target_bit_size },
         );
+        self.deallocate_register(zero_register);
     }
 }
 

@@ -24,6 +24,18 @@ impl BrilligRegistersContext {
         }
     }
 
+    /// Ensures a register is allocated.
+    pub(crate) fn ensure_register_is_allocated(&mut self, register: RegisterIndex) {
+        let index = register.to_usize();
+        if index < self.next_free_register_index {
+            // If it could be allocated, check if it's in the deallocated list and remove it from there
+            self.deallocated_registers.retain(|&r| r != register);
+        } else {
+            // If it couldn't yet be, expand the register space.
+            self.next_free_register_index = index + 1;
+        }
+    }
+
     /// Creates a new register.
     pub(crate) fn allocate_register(&mut self) -> RegisterIndex {
         // If we have a register in our free list of deallocated registers,
