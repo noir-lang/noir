@@ -26,11 +26,12 @@ use acvm::{
 /// would mean that unconstrained functions will differ from
 /// constrained functions in terms of syntax compatibility.
 pub(crate) const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
-    /// This register stores the free memory pointer. Allocations must be done after this pointer.
-    Alloc = 0,
+    /// This register stores the stack pointer. Allocations must be done after this pointer.
+    StackPointer = 0,
     /// Number of reserved registers
     Len = 1,
 }
@@ -41,9 +42,9 @@ impl ReservedRegisters {
         ReservedRegisters::Len as usize
     }
 
-    /// Returns the memory allocation register. This will get used to allocate memory in runtime.
-    pub(crate) fn alloc() -> RegisterIndex {
-        RegisterIndex::from(ReservedRegisters::Alloc as usize)
+    /// Returns the stack pointer register. This will get used to allocate memory in runtime.
+    pub(crate) fn stack_pointer() -> RegisterIndex {
+        RegisterIndex::from(ReservedRegisters::StackPointer as usize)
     }
 }
 
@@ -69,8 +70,8 @@ impl BrilligContext {
         for i in (0..num_arguments).into_iter().rev() {
             self.mov_instruction(self.user_register_index(i), RegisterIndex::from(i));
         }
-        // Set the initial value of the alloc register
-        self.const_instruction(ReservedRegisters::alloc(), Value::from(0_usize));
+        // Set the initial value of the stack pointer register
+        self.const_instruction(ReservedRegisters::stack_pointer(), Value::from(0_usize));
     }
 
     /// Adds a brillig instruction to the brillig byte code
@@ -103,13 +104,13 @@ impl BrilligContext {
     ) {
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
-            source: ReservedRegisters::alloc(),
+            source: ReservedRegisters::stack_pointer(),
         });
         self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: ReservedRegisters::alloc(),
+            destination: ReservedRegisters::stack_pointer(),
             op: BinaryIntOp::Add,
-            bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-            lhs: ReservedRegisters::alloc(),
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            lhs: ReservedRegisters::stack_pointer(),
             rhs: size_register,
         });
     }
@@ -175,7 +176,7 @@ impl BrilligContext {
             index_less_than_array_len,
             BrilligBinaryOp::Integer {
                 op: BinaryIntOp::LessThan,
-                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             },
         );
 
@@ -197,7 +198,7 @@ impl BrilligContext {
             index,
             BrilligBinaryOp::Integer {
                 op: BinaryIntOp::Add,
-                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             },
         );
 

@@ -1,5 +1,5 @@
 use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+    BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 use crate::ssa_refactor::ir::types::CompositeType;
 use crate::ssa_refactor::ir::{
@@ -281,7 +281,7 @@ impl<'block> BrilligBlock<'block> {
                         iterator_register,
                         BrilligBinaryOp::Integer {
                             op: BinaryIntOp::Add,
-                            bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+                            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
                         },
                     );
                 }
