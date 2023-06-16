@@ -339,34 +339,32 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => match dfg[*func] {
-                Value::Function(_) => None,
-                Value::Intrinsic(intrinsic) => {
-                    let constant_args: Option<Vec<_>> = arguments
-                        .iter()
-                        .map(|value_id| dfg.get_numeric_constant(*value_id))
-                        .collect();
-                    let constant_args = match constant_args {
-                        Some(constant_args) => constant_args,
-                        Option::None => return None,
-                    };
-                    match intrinsic {
-                        Intrinsic::ToBits(endian) => {
-                            let field = constant_args[0];
-                            let limb_count = constant_args[1].to_u128() as u32;
-                            SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
-                        }
-                        Intrinsic::ToRadix(endian) => {
-                            let field = constant_args[0];
-                            let radix = constant_args[1].to_u128() as u32;
-                            let limb_count = constant_args[1].to_u128() as u32;
-                            SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
-                        }
-                        Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
+            Instruction::Call { func, arguments } => {
+                let intrinsic = match &dfg[*func] {
+                    Value::Intrinsic(intrinsic) => *intrinsic,
+                    _ => return None,
+                };
+                let constant_args: Option<Vec<_>> =
+                    arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
+                let constant_args = match constant_args {
+                    Some(constant_args) => constant_args,
+                    Option::None => return None,
+                };
+                match intrinsic {
+                    Intrinsic::ToBits(endian) => {
+                        let field = constant_args[0];
+                        let limb_count = constant_args[1].to_u128() as u32;
+                        SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
                     }
+                    Intrinsic::ToRadix(endian) => {
+                        let field = constant_args[0];
+                        let radix = constant_args[1].to_u128() as u32;
+                        let limb_count = constant_args[1].to_u128() as u32;
+                        SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+                    }
+                    Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
                 }
-                _ => unreachable!("Must be a function or intrinsic"),
-            },
+            }
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
