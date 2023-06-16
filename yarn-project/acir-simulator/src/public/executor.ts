@@ -19,6 +19,7 @@ import {
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution, PublicExecutionResult } from './execution.js';
 import { ContractStorageActionsCollector } from './state_actions.js';
+import { fieldsToFormattedStr } from '../client/debug.js';
 
 // Copied from crate::abi at noir-contracts/src/contracts/noir-aztec3/src/abi.nr
 const NOIR_MAX_RETURN_VALUES = 4;
@@ -56,6 +57,7 @@ export class PublicExecutor {
     const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);
     const newCommitments: Fr[] = [];
     const newL2ToL1Messages: Fr[] = [];
+    const newNullifiers: Fr[] = [];
     const nestedExecutions: PublicExecutionResult[] = [];
     const unencryptedLogs = new FunctionL2Logs([]);
 
@@ -71,8 +73,11 @@ export class PublicExecutor {
       enqueuePublicFunctionCall: notAvailable,
       emitEncryptedLog: notAvailable,
       viewNotesPage: notAvailable,
-      debugLog: notAvailable,
 
+      debugLog: (fields: ACVMField[]) => {
+        this.log(fieldsToFormattedStr(fields));
+        return Promise.resolve([ZERO_ACVM_FIELD]);
+      },
       getL1ToL2Message: async ([msgKey]: ACVMField[]) => {
         const messageInputs = await this.commitmentsDb.getL1ToL2Message(fromACVMField(msgKey));
         return toAcvmL1ToL2MessageLoadOracleInputs(messageInputs, this.treeRoots.l1ToL2MessagesTreeRoot);
@@ -108,6 +113,11 @@ export class PublicExecutor {
         newL2ToL1Messages.push(fromACVMField(message));
         return await Promise.resolve([ZERO_ACVM_FIELD]);
       },
+      createNullifier: async ([nullifier]) => {
+        this.log('Creating nullifier: ' + nullifier.toString());
+        newNullifiers.push(fromACVMField(nullifier));
+        return await Promise.resolve([ZERO_ACVM_FIELD]);
+      },
       callPublicFunction: async ([address, functionSelector, ...args]) => {
         this.log(`Public function call: addr=${address} selector=${functionSelector} args=${args.join(',')}`);
         const childExecutionResult = await this.callPublicFunction(
@@ -134,6 +144,7 @@ export class PublicExecutor {
       execution,
       newCommitments,
       newL2ToL1Messages,
+      newNullifiers,
       contractStorageReads,
       contractStorageUpdateRequests,
       returnValues,

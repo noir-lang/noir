@@ -24,6 +24,7 @@ contract PublicPrivate {
     use dep::aztec3::oracle::logs::emit_encrypted_log;
     use dep::aztec3::oracle::create_commitment::create_commitment;
     use dep::aztec3::oracle::create_l2_to_l1_message::create_l2_to_l1_message;
+    use dep::aztec3::oracle::create_nullifier::create_nullifier;
     use dep::aztec3::oracle::get_commitment::get_commitment;
 
     global balances = Map { storage_slot: 1 };
@@ -49,6 +50,7 @@ contract PublicPrivate {
         create_commitment(note.get_commitment());
     }
 
+    // Purely exists for testing
     open fn createL2ToL1MessagePublic(
         _inputs: PublicContextInputs,
         amount: Field,
@@ -62,6 +64,24 @@ contract PublicPrivate {
         // Public oracle call to emit new commitment.
         create_l2_to_l1_message(note.get_commitment());
     }
+
+    // Purely exists for testing
+    open fn createNullifierPublic(
+        _inputs: PublicContextInputs,
+        amount: Field,
+        secretHash: Field,
+        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 3]
+    ) -> Field {
+    
+        // Create a commitment to the amount
+        let note = TransparentNote::new(amount, secretHash);
+        
+        // Public oracle call to emit new commitment.
+        create_nullifier(note.get_commitment());
+        0
+    }
+
+    
 
 
     fn mintFromPublicMessage(

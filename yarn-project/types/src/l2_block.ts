@@ -14,8 +14,7 @@ import times from 'lodash.times';
 import { ContractData } from './contract_data.js';
 import { L2Tx } from './l2_tx.js';
 import { PublicDataWrite } from './public_data_write.js';
-import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { sha256 } from '@aztec/foundation/crypto';
+import { sha256, sha256ToField } from '@aztec/foundation/crypto';
 import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
 import { TxL2Logs } from './index.js';
 
@@ -487,8 +486,7 @@ export class L2Block {
       this.getL1ToL2MessagesHash(),
     );
 
-    const temp = toBigIntBE(sha256(buf));
-    return Fr.fromBuffer(toBufferBE(temp % Fr.MODULUS, 32));
+    return sha256ToField(buf);
   }
 
   /**

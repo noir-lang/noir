@@ -82,6 +82,7 @@ export class UnconstrainedFunctionExecution {
       storageWrite: notAvailable,
       createCommitment: notAvailable,
       createL2ToL1Message: notAvailable,
+      createNullifier: notAvailable,
       emitEncryptedLog: notAvailable,
       emitUnencryptedLog: notAvailable,
     });

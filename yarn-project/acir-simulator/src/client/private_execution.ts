@@ -160,6 +160,7 @@ export class PrivateFunctionExecution {
       storageWrite: notAvailable,
       createCommitment: notAvailable,
       createL2ToL1Message: notAvailable,
+      createNullifier: notAvailable,
       callPublicFunction: notAvailable,
       emitUnencryptedLog: notAvailable,
       emitEncryptedLog: async ([

@@ -1,12 +1,8 @@
 use crate::types::vec::BoundedVec;
 use crate::abi;
 
-// Oracles
-use crate::oracle::get_l1_to_l2_message::get_l1_to_l2_message_call;
-
 // l1 to l2 messaging
-use crate::messaging::l1_to_l2_message_getter_data::L1ToL2MessageGetterData;
-use crate::messaging::l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
+use crate::messaging::process_l1_to_l2_message;
 
 // When finished, one can call .finish() to convert back to the abi
 struct PrivateFunctionContext {
@@ -104,27 +100,10 @@ impl PrivateFunctionContext {
     // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
     fn consume_l1_to_l2_message(mut self: Self, inputs: abi::PrivateContextInputs, msg_key: Field, content: Field, secret: Field) -> PrivateFunctionContext {
-        let returned_message = get_l1_to_l2_message_call(msg_key);
-        let l1_to_l2_message_data = make_l1_to_l2_message_getter_data(returned_message, 0, secret);
-
-        // Check tree roots against the inputs 
-        constrain l1_to_l2_message_data.root == inputs.roots.l1_to_l2_messages_tree_root;
-
-        // Validate this is the target contract
-        constrain l1_to_l2_message_data.message.recipient == inputs.call_context.storage_contract_address;
-
-        // Validate the message hash is correct
-        constrain l1_to_l2_message_data.message.content == content;
-
-        // Validate the message secret is correct
-        l1_to_l2_message_data.message.validate_message_secret();
-
-        // Compute Nullifier
-        let nullifier = l1_to_l2_message_data.message.compute_nullifier();
+        let nullifier = process_l1_to_l2_message(inputs.roots.l1_to_l2_messages_tree_root, inputs.call_context.storage_contract_address, msg_key, content, secret);
 
         // Push nullifier
-        self = self.push_new_nullifier(nullifier);
-
-        self
+        self.push_new_nullifier(nullifier)
     }
+
 }
