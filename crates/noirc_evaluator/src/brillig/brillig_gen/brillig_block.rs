@@ -229,7 +229,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.allocate_array(destination, size as u32);
                 let source_array_register: RegisterIndex = self.convert_ssa_value(*array, dfg);
                 let size_register = self.brillig_context.make_constant(size.into());
-                self.brillig_context.copy_array(source_array_register, destination, size_register);
+                self.brillig_context.copy_array_instruction(source_array_register, destination, size_register);
                 // Then set the value in the newly created array
                 let index_register = self.convert_ssa_value(*index, dfg);
                 let value_register = self.convert_ssa_value(*value, dfg);

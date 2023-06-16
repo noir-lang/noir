@@ -109,7 +109,7 @@ impl BrilligContext {
 
     /// Copies the values of an array pointed by source with length stored in `num_elements_register`
     /// Into the array pointed by destination
-    pub(crate) fn copy_array(
+    pub(crate) fn copy_array_instruction(
         &mut self,
         source: RegisterIndex,
         destination: RegisterIndex,
