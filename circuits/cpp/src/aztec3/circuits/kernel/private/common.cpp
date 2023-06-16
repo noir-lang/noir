@@ -22,7 +22,6 @@ using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NewContractData;
 
-using aztec3::utils::array_length;
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;
@@ -73,26 +72,36 @@ void common_validate_read_requests(DummyComposer& composer,
                                               READ_REQUESTS_LENGTH> const& read_request_membership_witnesses,
                                    NT::fr const& historic_private_data_tree_root)
 {
-    const size_t num_read_requests = array_length(read_requests);
     // membership witnesses must resolve to the same private data root
     // for every request in all kernel iterations
-    for (size_t rr_idx = 0; rr_idx < num_read_requests; rr_idx++) {
+    for (size_t rr_idx = 0; rr_idx < aztec3::READ_REQUESTS_LENGTH; rr_idx++) {
         const auto& read_request = read_requests[rr_idx];
+
         // the read request comes un-siloed from the app circuit so we must silo it here
         // so that it matches the private data tree leaf that we are membership checking
         const auto leaf = silo_commitment<NT>(storage_contract_address, read_request);
         const auto& witness = read_request_membership_witnesses[rr_idx];
-        const auto& root_for_read_request = root_from_sibling_path<NT>(leaf, witness.leaf_index, witness.sibling_path);
 
-        composer.do_assert(root_for_read_request == historic_private_data_tree_root,
-                           format("private data root mismatch at read_request[",
-                                  rr_idx,
-                                  "] - ",
-                                  "Expected root: ",
-                                  historic_private_data_tree_root,
-                                  ", Read request gave root: ",
-                                  root_for_read_request),
-                           CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+        // A pending commitment is the one that is not yet added to private data tree
+        // An optimistic read is when we try to "read" a pending commitment
+        // We determine if it is an optimistic read depending on the leaf index from the membership witness
+        // Note that the Merkle membership proof would be null and void in case of an optimistic read
+        // but we use the leaf index as a placeholder to detect an optimistic read.
+        const auto is_optimistic_read = (witness.leaf_index == NT::fr(-1));
+
+        if (read_request != 0 && !is_optimistic_read) {
+            const auto& root_for_read_request =
+                root_from_sibling_path<NT>(leaf, witness.leaf_index, witness.sibling_path);
+            composer.do_assert(root_for_read_request == historic_private_data_tree_root,
+                               format("private data root mismatch at read_request[",
+                                      rr_idx,
+                                      "] - ",
+                                      "Expected root: ",
+                                      historic_private_data_tree_root,
+                                      ", Read request gave root: ",
+                                      root_for_read_request),
+                               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+        }
     }
 }
 

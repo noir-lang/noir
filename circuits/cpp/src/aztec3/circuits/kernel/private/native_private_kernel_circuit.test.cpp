@@ -3,12 +3,14 @@
 
 #include "aztec3/circuits/apps/test_apps/basic_contract_deployment/basic_contract_deployment.hpp"
 #include "aztec3/circuits/apps/test_apps/escrow/deposit.hpp"
+#include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
 #include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 
 namespace {
@@ -26,6 +28,11 @@ using aztec3::utils::CircuitErrorCode;
 }  // namespace
 
 namespace aztec3::circuits::kernel::private_kernel {
+
+// NOTE: *DO NOT* call fr constructors in static initializers and assign them to constants. This will fail. Instead, use
+// lazy initialization or functions. Lambdas were introduced here.
+// amount = 5,  asset_id = 1, memo = 999
+const auto standard_test_args = [] { return std::vector<NT::fr>{ NT::fr(5), NT::fr(1), NT::fr(999) }; };
 
 class native_private_kernel_init_tests : public ::testing::Test {
   protected:
@@ -48,14 +55,11 @@ class native_private_kernel_inner_tests : public ::testing::Test {
  */
 TEST_F(native_private_kernel_init_tests, deposit)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
     std::array<NT::fr, 2> const& encrypted_logs_hash = { NT::fr(16), NT::fr(69) };
     NT::fr const& encrypted_log_preimages_length = NT::fr(100);
 
     auto const& private_inputs = do_private_call_get_kernel_inputs_init(
-        false, deposit, { amount, asset_id, memo }, encrypted_logs_hash, encrypted_log_preimages_length);
+        false, deposit, standard_test_args(), encrypted_logs_hash, encrypted_log_preimages_length);
     DummyComposer composer = DummyComposer("private_kernel_tests__native_deposit");
     auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
 
@@ -89,11 +93,7 @@ TEST_F(native_private_kernel_init_tests, deposit)
  */
 TEST_F(native_private_kernel_init_tests, basic_contract_deployment)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto const& private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
+    auto const& private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
     DummyComposer composer = DummyComposer("private_kernel_tests__native_basic_contract_deployment");
     auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
 
@@ -118,11 +118,7 @@ TEST_F(native_private_kernel_init_tests, basic_contract_deployment)
 // TODO(suyash): Disabled until https://github.com/AztecProtocol/aztec-packages/issues/499 is resolved.
 TEST_F(native_private_kernel_init_tests, DISABLED_contract_deployment_call_stack_item_hash_mismatch_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
     // Randomise the second item in the private call stack (i.e. hash of the private call item).
     private_inputs.private_call.call_stack_item.public_inputs.private_call_stack[1] = NT::fr::random_element();
@@ -138,11 +134,7 @@ TEST_F(native_private_kernel_init_tests, DISABLED_contract_deployment_call_stack
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_constructor_vk_hash_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
     // Pollute the constructor vk hash in the tx_request.
     private_inputs.tx_request.tx_context.contract_deployment_data.constructor_vk_hash = NT::fr::random_element();
@@ -158,11 +150,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_construct
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_contract_address_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
     // Modify the contract address in appropriate places.
     const fr random_address = NT::fr::random_element();
@@ -181,11 +169,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_contract_
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_contract_address_mismatch_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
     // Modify the storage_contract_address.
     const auto random_contract_address = NT::fr::random_element();
@@ -208,11 +192,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_contract_address_mi
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_function_data_mismatch_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
     // Modify the function selector in function data.
     private_inputs.tx_request.function_data.function_selector = numeric::random::get_engine().get_random_uint32();
@@ -232,11 +212,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_function_data_misma
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_args_hash_mismatch_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
     // Modify the args hash in tx request.
     private_inputs.tx_request.args_hash = NT::fr::random_element();
@@ -256,11 +232,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_args_hash_mismatch_
 
 TEST_F(native_private_kernel_init_tests, private_function_is_private_false_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     // Set is_private in function data to false.
     private_inputs.private_call.call_stack_item.function_data.is_private = false;
@@ -280,11 +252,7 @@ TEST_F(native_private_kernel_init_tests, private_function_is_private_false_fails
 
 TEST_F(native_private_kernel_init_tests, private_function_static_call_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     // Set is_static_call to true.
     private_inputs.private_call.call_stack_item.public_inputs.call_context.is_static_call = true;
@@ -301,11 +269,7 @@ TEST_F(native_private_kernel_init_tests, private_function_static_call_fails)
 
 TEST_F(native_private_kernel_init_tests, private_function_delegate_call_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     // Set is_delegate_call to true.
     private_inputs.private_call.call_stack_item.public_inputs.call_context.is_delegate_call = true;
@@ -322,11 +286,7 @@ TEST_F(native_private_kernel_init_tests, private_function_delegate_call_fails)
 
 TEST_F(native_private_kernel_init_tests, private_function_incorrect_storage_contract_address_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     // Set the storage_contract_address to a random scalar.
     private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address =
@@ -345,11 +305,7 @@ TEST_F(native_private_kernel_init_tests, private_function_incorrect_storage_cont
 
 TEST_F(native_private_kernel_init_tests, native_read_request_bad_request)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -378,11 +334,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_request)
 
 TEST_F(native_private_kernel_init_tests, native_read_request_bad_leaf_index)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -410,11 +362,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_leaf_index)
 
 TEST_F(native_private_kernel_init_tests, native_read_request_bad_sibling_path)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -442,11 +390,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_sibling_path)
 
 TEST_F(native_private_kernel_init_tests, native_read_request_root_mismatch)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -486,11 +430,7 @@ TEST_F(native_private_kernel_init_tests, native_no_read_requests_works)
 {
     // no read requests should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     // empty requests
     std::array<fr, READ_REQUESTS_LENGTH> const read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
@@ -518,11 +458,7 @@ TEST_F(native_private_kernel_init_tests, native_one_read_requests_works)
 {
     // one read request should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -532,7 +468,6 @@ TEST_F(native_private_kernel_init_tests, native_one_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    // tweak sibling path so it gives wrong root when paired with its request
     DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_one_read_requests_works");
     auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
 
@@ -552,11 +487,7 @@ TEST_F(native_private_kernel_init_tests, native_two_read_requests_works)
 {
     // two read requests should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -585,11 +516,7 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
 {
     // max read requests should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -619,6 +546,70 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
 // Check enforcement that inner iterations' read_requests match root in constants
 // https://github.com/AztecProtocol/aztec-packages/issues/786
 
+
+TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_works)
+{
+    // one transient read request should work
+
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
+
+    auto const& contract_address =
+        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+
+    auto [read_requests, read_request_membership_witnesses, root] = get_random_reads(contract_address, 1);
+    private_inputs.private_call.call_stack_item.public_inputs.historic_private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
+
+    // Make the read request transient
+    read_request_membership_witnesses[0].leaf_index = NT::fr(-1);
+    read_request_membership_witnesses[0].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
+    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
+
+    DummyComposer composer =
+        DummyComposer("native_private_kernel_init_tests__native_one_transient_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+
+    validate_no_new_deployed_contract(public_inputs);
+
+    auto failure = composer.get_first_failure();
+    if (failure.code != CircuitErrorCode::NO_ERROR) {
+        info("failure: ", failure);
+    }
+    ASSERT_FALSE(composer.failed());
+}
+
+TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_works)
+{
+    // max read requests with one transient should work
+
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
+
+    auto const& contract_address =
+        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+
+    auto [read_requests, read_request_membership_witnesses, root] =
+        get_random_reads(contract_address, READ_REQUESTS_LENGTH);
+    private_inputs.private_call.call_stack_item.public_inputs.historic_private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
+
+    // Make the read request at position 1 transient
+    read_request_membership_witnesses[1].leaf_index = NT::fr(-1);
+    read_request_membership_witnesses[1].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
+    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
+
+    DummyComposer composer =
+        DummyComposer("native_private_kernel_init_tests__native_max_read_requests_one_transient_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+
+    validate_no_new_deployed_contract(public_inputs);
+
+    auto failure = composer.get_first_failure();
+    if (failure.code != CircuitErrorCode::NO_ERROR) {
+        info("failure: ", failure);
+    }
+    ASSERT_FALSE(composer.failed());
+}
+
 /**
  **************************************************************
  * Native inner private kernel circuit tests.
@@ -626,11 +617,7 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
  */
 TEST_F(native_private_kernel_inner_tests, private_function_zero_storage_contract_address_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Set storage_contract_address to 0
     private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address = 0;
@@ -654,11 +641,7 @@ TEST_F(native_private_kernel_inner_tests, private_function_zero_storage_contract
 
 TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_tree_root_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Set private_historic_tree_roots to a random scalar.
     private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
@@ -679,11 +662,7 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_tr
 
 TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_leaf_index_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Set the leaf index of the contract leaf to 20 (the correct value is 1).
     NT::fr const wrong_idx = 20;
@@ -704,11 +683,7 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_le
 
 TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_leaf_sibling_path_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Change the contract leaf's membership proof.
     private_inputs.private_call.contract_leaf_membership_witness.sibling_path[0] = fr::random_element();
@@ -728,11 +703,7 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_le
 
 TEST_F(native_private_kernel_inner_tests, private_function_incorrect_function_leaf_index_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Set the leaf index of the function leaf to 10 (the correct value is 1).
     NT::fr const wrong_idx = 10;
@@ -753,11 +724,7 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_function_le
 
 TEST_F(native_private_kernel_inner_tests, private_function_incorrect_function_leaf_sibling_path_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Change the function leaf's membership proof.
     private_inputs.private_call.function_leaf_membership_witness.sibling_path[0] = fr::random_element();
@@ -778,11 +745,7 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_function_le
 // TODO(suyash): Disabled until https://github.com/AztecProtocol/aztec-packages/issues/499 is resolved.
 TEST_F(native_private_kernel_inner_tests, DISABLED_private_function_incorrect_call_stack_item_hash_fails)
 {
-    NT::fr const arg0 = 5;
-    NT::fr const arg1 = 1;
-    NT::fr const arg2 = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { arg0, arg1, arg2 });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Set the first call stack member corresponding to the `deposit` function to random scalar.
     private_inputs.private_call.call_stack_item.public_inputs.private_call_stack[0] = NT::fr::random_element();
@@ -805,12 +768,8 @@ TEST_F(native_private_kernel_inner_tests, private_kernel_should_fail_if_aggregat
     // Negative test to check if push_array_to_array fails if two many commitments are merged together
     DummyComposer composer = DummyComposer("should_fail_if_aggregating_too_many_commitments");
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
     PrivateKernelInputsInner<NT> private_inputs =
-        do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+        do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Mock the previous new commitments to be full, therefore no need commitments can be added
     std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> full_new_commitments{};
@@ -841,11 +800,7 @@ TEST_F(native_private_kernel_inner_tests, cbind_private_kernel__dummy_previous_k
 
 TEST_F(native_private_kernel_inner_tests, native_read_request_bad_request)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -873,11 +828,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_request)
 
 TEST_F(native_private_kernel_inner_tests, native_read_request_bad_leaf_index)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -904,11 +855,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_leaf_index)
 
 TEST_F(native_private_kernel_inner_tests, native_read_request_bad_sibling_path)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -935,11 +882,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_sibling_path)
 
 TEST_F(native_private_kernel_inner_tests, native_read_request_root_mismatch)
 {
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -978,11 +921,7 @@ TEST_F(native_private_kernel_inner_tests, native_no_read_requests_works)
 {
     // no read requests should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // empty requests
     std::array<fr, READ_REQUESTS_LENGTH> const read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
@@ -1007,11 +946,7 @@ TEST_F(native_private_kernel_inner_tests, native_one_read_requests_works)
 {
     // one read request should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -1039,11 +974,7 @@ TEST_F(native_private_kernel_inner_tests, native_two_read_requests_works)
 {
     // two read requests should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -1071,11 +1002,7 @@ TEST_F(native_private_kernel_inner_tests, native_max_read_requests_works)
 {
     // max read requests should work
 
-    NT::fr const& amount = 5;
-    NT::fr const& asset_id = 1;
-    NT::fr const& memo = 999;
-
-    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, { amount, asset_id, memo });
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     auto const& contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -1089,6 +1016,71 @@ TEST_F(native_private_kernel_inner_tests, native_max_read_requests_works)
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_max_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+
+    validate_no_new_deployed_contract(public_inputs);
+
+    auto failure = composer.get_first_failure();
+    if (failure.code != CircuitErrorCode::NO_ERROR) {
+        info("failure: ", failure);
+    }
+    ASSERT_FALSE(composer.failed());
+}
+
+TEST_F(native_private_kernel_inner_tests, native_one_transient_read_requests_works)
+{
+    // one transient read request should work
+
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
+
+    auto const& contract_address =
+        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+
+    auto [read_requests, read_request_membership_witnesses, root] = get_random_reads(contract_address, 1);
+    private_inputs.private_call.call_stack_item.public_inputs.historic_private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
+
+    // Make the read request transient
+    read_request_membership_witnesses[0].leaf_index = NT::fr(-1);
+    read_request_membership_witnesses[0].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
+    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
+
+    DummyComposer composer =
+        DummyComposer("native_private_kernel_inner_tests__native_one_transient_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+
+    validate_no_new_deployed_contract(public_inputs);
+
+    auto failure = composer.get_first_failure();
+    if (failure.code != CircuitErrorCode::NO_ERROR) {
+        info("failure: ", failure);
+    }
+    ASSERT_FALSE(composer.failed());
+}
+
+TEST_F(native_private_kernel_inner_tests, native_max_read_requests_one_transient_works)
+{
+    // max read requests with one transient should work
+
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
+
+    auto const& contract_address =
+        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+
+    auto [read_requests, read_request_membership_witnesses, root] =
+        get_random_reads(contract_address, READ_REQUESTS_LENGTH);
+    private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
+        .private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
+
+    // Make the read request at position 1 transient
+    read_request_membership_witnesses[1].leaf_index = NT::fr(-1);
+    read_request_membership_witnesses[1].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
+    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
+
+    DummyComposer composer =
+        DummyComposer("native_private_kernel_inner_tests__native_max_read_requests_one_transient_works");
     auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
