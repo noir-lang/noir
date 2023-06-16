@@ -41,7 +41,11 @@ fn run_tests<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let mut driver = setup_driver(backend, program_dir)?;
-    check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
+    check_crate_and_report_errors(
+        &mut driver,
+        compile_options.deny_warnings,
+        compile_options.experimental_ssa,
+    )?;
 
     let test_functions = driver.get_all_test_functions_in_crate_matching(test_name);
     println!("Running {} test functions...", test_functions.len());

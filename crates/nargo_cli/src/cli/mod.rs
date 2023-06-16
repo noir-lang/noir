@@ -186,7 +186,7 @@ mod tests {
         driver.create_local_crate(&root_file, CrateType::Binary);
         crate::resolver::add_std_lib(&mut driver);
 
-        let result = driver.check_crate(false);
+        let result = driver.check_crate(false, false);
         let success = result.is_ok();
 
         let errors = match result {

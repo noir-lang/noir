@@ -91,7 +91,7 @@ pub fn compile(args: JsValue) -> JsValue {
     // We are always adding std lib implicitly. It comes bundled with binary.
     add_noir_lib(&mut driver, "std");
 
-    driver.check_crate(false).expect("Crate check failed");
+    driver.check_crate(false, false).expect("Crate check failed");
 
     if options.contracts {
         let compiled_contracts = driver

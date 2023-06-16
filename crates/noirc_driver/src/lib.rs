@@ -169,9 +169,13 @@ impl Driver {
     ///
     /// This returns a (possibly empty) vector of any warnings found on success.
     /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-    pub fn check_crate(&mut self, deny_warnings: bool) -> Result<Warnings, ErrorsAndWarnings> {
+    pub fn check_crate(
+        &mut self,
+        deny_warnings: bool,
+        enable_slices: bool,
+    ) -> Result<Warnings, ErrorsAndWarnings> {
         let mut errors = vec![];
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errors);
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errors, enable_slices);
 
         if Self::has_errors(&errors, deny_warnings) {
             Err(errors)
@@ -198,7 +202,7 @@ impl Driver {
         &mut self,
         options: &CompileOptions,
     ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-        let warnings = self.check_crate(options.deny_warnings)?;
+        let warnings = self.check_crate(options.deny_warnings, options.experimental_ssa)?;
 
         let main = match self.main_function() {
             Some(m) => m,
@@ -226,7 +230,7 @@ impl Driver {
         &mut self,
         options: &CompileOptions,
     ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-        let warnings = self.check_crate(options.deny_warnings)?;
+        let warnings = self.check_crate(options.deny_warnings, options.experimental_ssa)?;
 
         let contracts = self.get_all_contracts();
         let mut compiled_contracts = vec![];

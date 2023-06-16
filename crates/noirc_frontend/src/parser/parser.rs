@@ -709,13 +709,7 @@ fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
         .ignore_then(type_parser)
         .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|(element_type, size)| {
-            if size.is_none() {
-                UnresolvedType::Slice(Box::new(element_type))
-            } else {
-                UnresolvedType::Array(size, Box::new(element_type))
-            }
-        })
+        .map(|(element_type, size)| UnresolvedType::Array(size, Box::new(element_type)))
 }
 
 fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {

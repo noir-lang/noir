@@ -85,6 +85,7 @@ impl DefCollector {
         ast: ParsedModule,
         root_file_id: FileId,
         errors: &mut Vec<FileDiagnostic>,
+        enable_slices: bool,
     ) {
         let crate_id = def_map.krate;
 
@@ -96,7 +97,7 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            CrateDefMap::collect_defs(dep.crate_id, context, errors);
+            CrateDefMap::collect_defs(dep.crate_id, context, errors, enable_slices);
 
             let dep_def_root =
                 context.def_map(dep.crate_id).expect("ice: def map was just created").root;
@@ -155,14 +156,16 @@ impl DefCollector {
         let (integer_globals, other_globals) =
             filter_integer_globals(def_collector.collected_globals);
 
-        let mut file_global_ids = resolve_globals(context, integer_globals, crate_id, errors);
+        let mut file_global_ids =
+            resolve_globals(context, integer_globals, crate_id, errors, enable_slices);
 
         // Must resolve structs before we resolve globals.
-        resolve_structs(context, def_collector.collected_types, crate_id, errors);
+        resolve_structs(context, def_collector.collected_types, crate_id, errors, enable_slices);
 
         // We must wait to resolve non-integer globals until after we resolve structs since structs
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
-        let mut more_global_ids = resolve_globals(context, other_globals, crate_id, errors);
+        let mut more_global_ids =
+            resolve_globals(context, other_globals, crate_id, errors, enable_slices);
 
         file_global_ids.append(&mut more_global_ids);
 
@@ -170,7 +173,7 @@ impl DefCollector {
         // re-collect the methods within into their proper module. This cannot be
         // done before resolution since we need to be able to resolve the type of the
         // impl since that determines the module we should collect into.
-        collect_impls(context, crate_id, &def_collector.collected_impls, errors);
+        collect_impls(context, crate_id, &def_collector.collected_impls, errors, enable_slices);
 
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_free_functions(
@@ -180,6 +183,7 @@ impl DefCollector {
             def_collector.collected_functions,
             None,
             errors,
+            enable_slices,
         );
 
         let file_method_ids = resolve_impls(
@@ -188,6 +192,7 @@ impl DefCollector {
             &context.def_maps,
             def_collector.collected_impls,
             errors,
+            enable_slices,
         );
 
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
@@ -205,6 +210,7 @@ fn collect_impls(
     crate_id: CrateId,
     collected_impls: &ImplMap,
     errors: &mut Vec<FileDiagnostic>,
+    enable_slices: bool,
 ) {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
@@ -216,7 +222,8 @@ fn collect_impls(
         let file = def_maps[&crate_id].module_file_id(*module_id);
 
         for (generics, span, unresolved) in methods {
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let mut resolver =
+                Resolver::new(interner, &path_resolver, def_maps, file, enable_slices);
             resolver.add_generics(generics);
             let typ = resolver.resolve_type(unresolved_type.clone());
 
@@ -279,6 +286,7 @@ fn resolve_globals(
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
     errors: &mut Vec<FileDiagnostic>,
+    enable_slices: bool,
 ) -> Vec<(FileId, StmtId)> {
     vecmap(globals, |global| {
         let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
@@ -290,6 +298,7 @@ fn resolve_globals(
             &path_resolver,
             &context.def_maps,
             global.file_id,
+            enable_slices,
         );
 
         let name = global.stmt_def.pattern.name_ident().clone();
@@ -323,6 +332,7 @@ fn resolve_structs(
     structs: HashMap<StructId, UnresolvedStruct>,
     crate_id: CrateId,
     errors: &mut Vec<FileDiagnostic>,
+    enable_slices: bool,
 ) {
     // We must first go through the struct list once to ensure all IDs are pushed to
     // the def_interner map. This lets structs refer to each other regardless of declaration order
@@ -333,7 +343,8 @@ fn resolve_structs(
     }
 
     for (type_id, typ) in structs {
-        let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
+        let (generics, fields) =
+            resolve_struct_fields(context, crate_id, typ, errors, enable_slices);
         context.def_interner.update_struct(type_id, |struct_def| {
             struct_def.set_fields(fields);
             struct_def.generics = generics;
@@ -346,15 +357,21 @@ fn resolve_struct_fields(
     krate: CrateId,
     unresolved: UnresolvedStruct,
     all_errors: &mut Vec<FileDiagnostic>,
+    enable_slices: bool,
 ) -> (Generics, Vec<(Ident, Type)>) {
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 
     let file = unresolved.file_id;
 
-    let (generics, fields, errors) =
-        Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
-            .resolve_struct_fields(unresolved.struct_def);
+    let (generics, fields, errors) = Resolver::new(
+        &mut context.def_interner,
+        &path_resolver,
+        &context.def_maps,
+        file,
+        enable_slices,
+    )
+    .resolve_struct_fields(unresolved.struct_def);
 
     extend_errors(all_errors, unresolved.file_id, errors);
     (generics, fields)
@@ -366,6 +383,7 @@ fn resolve_impls(
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_impls: ImplMap,
     errors: &mut Vec<FileDiagnostic>,
+    enable_slices: bool,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_method_ids = Vec::new();
 
@@ -376,7 +394,8 @@ fn resolve_impls(
         let file = def_maps[&crate_id].module_file_id(module_id);
 
         for (generics, _, functions) in methods {
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let mut resolver =
+                Resolver::new(interner, &path_resolver, def_maps, file, enable_slices);
             resolver.add_generics(&generics);
             let generics = resolver.get_generics().to_vec();
             let self_type = resolver.resolve_type(unresolved_type.clone());
@@ -389,6 +408,7 @@ fn resolve_impls(
                 Some(self_type.clone()),
                 generics,
                 errors,
+                enable_slices,
             );
 
             if self_type != Type::Error {
@@ -422,6 +442,7 @@ fn resolve_free_functions(
     collected_functions: Vec<UnresolvedFunctions>,
     self_type: Option<Type>,
     errors: &mut Vec<FileDiagnostic>,
+    enable_slices: bool,
 ) -> Vec<(FileId, FuncId)> {
     // Lower each function in the crate. This is now possible since imports have been resolved
     collected_functions
@@ -435,11 +456,14 @@ fn resolve_free_functions(
                 self_type.clone(),
                 vec![], // no impl generics
                 errors,
+                enable_slices,
             )
         })
         .collect()
 }
 
+// Remove this attribute once we move to the new SSA pass and `enable_slices` is removed
+#[allow(clippy::too_many_arguments)]
 fn resolve_function_set(
     interner: &mut NodeInterner,
     crate_id: CrateId,
@@ -448,6 +472,7 @@ fn resolve_function_set(
     self_type: Option<Type>,
     impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
     errors: &mut Vec<FileDiagnostic>,
+    enable_slices: bool,
 ) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;
 
@@ -455,7 +480,8 @@ fn resolve_function_set(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
 
-        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
+        let mut resolver =
+            Resolver::new(interner, &path_resolver, def_maps, file_id, enable_slices);
         // Must use set_generics here to ensure we re-use the same generics from when
         // the impl was originally collected. Otherwise the function will be using different
         // TypeVariables for the same generic, causing it to instantiate incorrectly.

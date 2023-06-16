@@ -376,7 +376,7 @@ mod test {
         );
 
         let func_meta = vecmap(program.functions, |nf| {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file, false);
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)

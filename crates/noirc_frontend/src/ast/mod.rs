@@ -30,8 +30,7 @@ use iter_extended::vecmap;
 pub enum UnresolvedType {
     FieldElement(CompTime),
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Slice(Box<UnresolvedType>),
-    Integer(CompTime, Signedness, u32), // u32 = Integer(unsigned, 32)
+    Integer(CompTime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
     Bool(CompTime),
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
@@ -87,7 +86,6 @@ impl std::fmt::Display for UnresolvedType {
                 None => write!(f, "[{typ}]"),
                 Some(len) => write!(f, "[{typ}; {len}]"),
             },
-            Slice(typ) => write!(f, "[{typ}]"),
             Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{is_const}i{num_bits}"),
                 Signedness::Unsigned => write!(f, "{is_const}u{num_bits}"),

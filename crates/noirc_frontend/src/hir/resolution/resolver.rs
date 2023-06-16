@@ -86,6 +86,10 @@ pub struct Resolver<'a> {
     /// is declared we push a scope and set this lambda_index to the scope index.
     /// Any variable from a scope less than that must be from the parent function.
     lambda_index: usize,
+
+    /// This is technical debt that should be removed once we fully move over
+    /// to the new SSA pass which does have slices enabled
+    enable_slices: bool,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -102,6 +106,7 @@ impl<'a> Resolver<'a> {
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a HashMap<CrateId, CrateDefMap>,
         file: FileId,
+        enable_slices: bool,
     ) -> Resolver<'a> {
         Self {
             path_resolver,
@@ -113,6 +118,7 @@ impl<'a> Resolver<'a> {
             errors: Vec::new(),
             lambda_index: 0,
             file,
+            enable_slices,
         }
     }
 
@@ -326,12 +332,12 @@ impl<'a> Resolver<'a> {
         match typ {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                if self.enable_slices && size.is_none() {
+                    return Type::Slice(elem);
+                }
+                let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::Array(Box::new(resolved_size), elem)
-            }
-            UnresolvedType::Slice(elem) => {
-                Type::Slice(Box::new(self.resolve_type_inner(*elem, new_variables)))
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
             UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
@@ -1318,7 +1324,7 @@ mod test {
         for func in program.functions {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file, false);
             let (_, _, err) = resolver.resolve_function(func, id);
             errors.extend(err);
         }
