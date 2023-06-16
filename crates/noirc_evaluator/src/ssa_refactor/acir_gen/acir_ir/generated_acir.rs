@@ -222,9 +222,9 @@ impl GeneratedAcir {
             BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
                 public_key_x: inputs[0],
                 public_key_y: inputs[1],
-                // Schnorr signature is two field field elements (r,s)
-                signature: vec![inputs[2], inputs[3]],
-                message: inputs[4..].to_vec(),
+                // Schnorr signature is an r & s, 32 bytes each
+                signature: inputs[2..66].to_vec(),
+                message: inputs[66..].to_vec(),
                 output: outputs[0],
             },
             BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
