@@ -343,9 +343,9 @@ impl Context {
                 let elements = array.iter().map(|element| self.convert_value(*element, dfg));
                 AcirValue::Array(elements.collect())
             }
-            Value::Slice { array: initial_array, .. } => {
+            Value::Slice { array, .. } => {
                 let elements =
-                    initial_array.iter().map(|element| self.convert_value(*element, dfg));
+                    array.iter().map(|element| self.convert_value(*element, dfg));
                 AcirValue::Array(elements.collect())
             }
             Value::Intrinsic(..) => todo!(),
