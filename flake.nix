@@ -174,7 +174,7 @@
         pname = "noir_wasm";
 
         src = ./.;
-        
+
         cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
 
         buildInputs = [ ] ++ extraBuildInputs;
@@ -288,6 +288,8 @@
         '';
       });
 
+      # TODO: This fails with a "section too large" error on MacOS so we should limit to linux targets
+      # or fix the failure
       packages.wasm = craneLib.buildPackage (noirWasmArgs // {
 
         inherit GIT_COMMIT;
@@ -295,7 +297,7 @@
         doCheck = false;
 
         cargoArtifacts = noir-wasm-cargo-artifacts;
-        
+
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
         PKG_PATH = "./pkg";
@@ -310,8 +312,8 @@
           toml2json
         ];
 
-        cargoExtraArgs = "--lib --package noir_wasm --target wasm32-unknown-unknown";
-        
+        cargoExtraArgs = "--package noir_wasm --target wasm32-unknown-unknown";
+
         postBuild = ''
           bash crates/wasm/postBuild.sh
         '';
