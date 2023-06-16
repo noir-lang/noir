@@ -1,0 +1,26 @@
+{
+  "bootstrap-sha": "63d84a30fcbc117443cd3b404e872cb3c2f26111",
+  "release-type": "simple",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "prerelease": true,
+  "group-pull-request-title-pattern": "chore(noir): Release ${version}",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "root",
+      "extra-files": ["Cargo.toml", "flake.nix"]
+    },
+    "crates/wasm": {
+      "release-type": "node",
+      "component": "noir_wasm"
+    }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "noir",
+      "components": ["root", "noir_wasm"]
+    }
+  ]
+}
