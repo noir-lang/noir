@@ -231,8 +231,12 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.allocate_array(destination, array_size as u32);
                 let source_array_register: RegisterIndex = self.convert_ssa_value(*array, dfg);
                 let size_register = self.brillig_context.make_constant(array_size.into());
-                self.brillig_context.copy_array_instruction(source_array_register, destination, size_register);
-                
+                self.brillig_context.copy_array_instruction(
+                    source_array_register,
+                    destination,
+                    size_register,
+                );
+
                 // Then set the value in the newly created array
                 let index_register = self.convert_ssa_value(*index, dfg);
                 let value_register = self.convert_ssa_value(*value, dfg);
@@ -263,7 +267,9 @@ impl<'block> BrilligBlock<'block> {
                 // Set the iterator to the address of the array
                 self.brillig_context.mov_instruction(iterator_register, address_register);
 
-                let size_of_item_register = self.brillig_context.make_constant(compute_size_of_composite_type(element_type).into());
+                let size_of_item_register = self
+                    .brillig_context
+                    .make_constant(compute_size_of_composite_type(element_type).into());
 
                 for element_id in array.iter() {
                     // Store the item in memory
@@ -499,9 +505,7 @@ fn compute_size_of_composite_type(typ: &CompositeType) -> usize {
 fn compute_size_of_type(typ: &Type) -> usize {
     match typ {
         Type::Numeric(_) => 1,
-        Type::Array(types, item_count) => {
-            compute_size_of_composite_type(types) * item_count
-        }
+        Type::Array(types, item_count) => compute_size_of_composite_type(types) * item_count,
         _ => todo!("ICE: Type not supported {typ:?}"),
     }
 }
