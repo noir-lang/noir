@@ -111,7 +111,7 @@ impl<'block> BrilligBlock<'block> {
                     let pointer_register = self
                         .function_context
                         .get_or_create_register(self.brillig_context, *param_id);
-                    self.brillig_context.allocate_array(pointer_register, *size as u32);
+                    self.brillig_context.allocate_array(pointer_register, *size);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")

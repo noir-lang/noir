@@ -30,3 +30,10 @@ pub(crate) fn convert_ssa_function(func: &Function) -> BrilligArtifact {
 
     brillig_context.artifact()
 }
+
+/// Creates an entry point artifact, that will be linked with the brillig functions being called
+pub(crate) fn create_entry_point_function(num_arguments: usize) -> BrilligArtifact {
+    let mut brillig_context = BrilligContext::default();
+    brillig_context.entry_point_instruction(num_arguments);
+    brillig_context.artifact()
+}
