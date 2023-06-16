@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -244,6 +246,13 @@ impl Instruction {
                     let src_typ = dfg.type_of_value(*value);
                     match (typ, src_typ) {
                         (
+                            Type::Numeric(NumericType::NativeField),
+                            Type::Numeric(NumericType::Unsigned { .. }),
+                        ) => {
+                            // Unsigned -> Field: redefine same constant as Field
+                            SimplifiedTo(dfg.make_constant(constant, typ.clone()))
+                        }
+                        (
                             Type::Numeric(NumericType::Unsigned { bit_size }),
                             Type::Numeric(NumericType::Unsigned { .. }),
                         )
@@ -251,6 +260,7 @@ impl Instruction {
                             Type::Numeric(NumericType::Unsigned { bit_size }),
                             Type::Numeric(NumericType::NativeField),
                         ) => {
+                            // Field/Unsigned -> unsigned: truncate
                             let integer_modulus = BigUint::from(2u128).pow(*bit_size);
                             let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
                             let truncated = constant % integer_modulus;
@@ -329,13 +339,75 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { .. } => None,
+            Instruction::Call { func, arguments } => match dfg[*func] {
+                Value::Function(_) => None,
+                Value::Intrinsic(intrinsic) => {
+                    let constant_args: Option<Vec<_>> = arguments
+                        .iter()
+                        .map(|value_id| dfg.get_numeric_constant(*value_id))
+                        .collect();
+                    let constant_args = match constant_args {
+                        Some(constant_args) => constant_args,
+                        Option::None => return None,
+                    };
+                    match intrinsic {
+                        Intrinsic::ToBits(endian) => {
+                            let field = constant_args[0];
+                            let limb_count = constant_args[1].to_u128() as u32;
+                            SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+                        }
+                        Intrinsic::ToRadix(endian) => {
+                            let field = constant_args[0];
+                            let radix = constant_args[1].to_u128() as u32;
+                            let limb_count = constant_args[1].to_u128() as u32;
+                            SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+                        }
+                        Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
+                    }
+                }
+                _ => unreachable!("Must be a function or intrinsic"),
+            },
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
             Instruction::EnableSideEffects { .. } => None,
         }
     }
+}
+
+/// Returns a Value::Array of constants corresponding to the limbs of the radix decomposition.
+fn constant_to_radix(
+    endian: Endian,
+    field: FieldElement,
+    radix: u32,
+    limb_count: u32,
+    dfg: &mut DataFlowGraph,
+) -> ValueId {
+    let bit_size = u32::BITS - (radix - 1).leading_zeros();
+    let radix_big = BigUint::from(radix);
+    assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
+    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+
+    // Decompose the integer into its radix digits in little endian form.
+    let decomposed_integer = big_integer.to_radix_le(radix);
+    let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
+        Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
+        None => FieldElement::zero(),
+    });
+    if endian == Endian::Big {
+        limbs.reverse();
+    }
+
+    // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
+    // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
+    // become zero padding.
+    let max_decomposable_bits: u32 = 256;
+    let limb_count_with_padding = max_decomposable_bits / bit_size;
+    while limbs.len() < limb_count_with_padding as usize {
+        limbs.push(FieldElement::zero());
+    }
+    let result_constants = vecmap(limbs, |limb| dfg.make_constant(limb, Type::unsigned(bit_size)));
+    dfg.make_array(result_constants.into(), Rc::new(vec![Type::unsigned(bit_size)]))
 }
 
 /// The possible return values for Instruction::return_types
