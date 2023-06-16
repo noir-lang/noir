@@ -5,12 +5,8 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 pub(crate) mod artifact;
-pub(crate) mod memory;
 
-use self::{
-    artifact::{BrilligArtifact, UnresolvedJumpLocation},
-    memory::BrilligMemory,
-};
+use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
 use acvm::{
     acir::brillig_vm::{
         BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
@@ -30,6 +26,27 @@ use acvm::{
 /// would mean that unconstrained functions will differ from
 /// constrained functions in terms of syntax compatibility.
 pub(crate) const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
+
+// Registers reserved in runtime for special purposes.
+pub(crate) enum ReservedRegisters {
+    /// This register stores the stack pointer. Allocations must be done after this pointer.
+    StackPointer = 0,
+    /// Number of reserved registers
+    Len = 1,
+}
+
+impl ReservedRegisters {
+    /// Returns the length of the reserved registers
+    pub(crate) fn len() -> usize {
+        ReservedRegisters::Len as usize
+    }
+
+    /// Returns the stack pointer register. This will get used to allocate memory in runtime.
+    pub(crate) fn stack_pointer() -> RegisterIndex {
+        RegisterIndex::from(ReservedRegisters::StackPointer as usize)
+    }
+}
 
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
@@ -38,8 +55,6 @@ pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
     /// A usize indicating the latest un-used register.
     latest_register: usize,
-    /// Tracks memory allocations
-    memory: BrilligMemory,
     /// Context label, must be unique with respect to the function
     /// being linked.
     context_label: String,
@@ -48,6 +63,17 @@ pub(crate) struct BrilligContext {
 }
 
 impl BrilligContext {
+    /// Adds the instructions needed to handle entry point parameters
+    /// And sets the starting value of the reserved registers
+    pub(crate) fn entry_point_instruction(&mut self, num_arguments: usize) {
+        // Translate the inputs by the reserved registers offset
+        for i in (0..num_arguments).into_iter().rev() {
+            self.mov_instruction(self.user_register_index(i), RegisterIndex::from(i));
+        }
+        // Set the initial value of the stack pointer register
+        self.const_instruction(ReservedRegisters::stack_pointer(), Value::from(0_usize));
+    }
+
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
         self.obj.byte_code.push(opcode);
@@ -60,12 +86,32 @@ impl BrilligContext {
 
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
-    pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
-        let allocation = self.memory.allocate(size as usize);
+    pub(crate) fn allocate_fixed_length_array(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size: usize,
+    ) {
+        let size_register = self.make_constant(size.into());
+        self.allocate_array_instruction(pointer_register, size_register);
+    }
 
-        self.push_opcode(BrilligOpcode::Const {
+    /// Allocates an array of size contained in size_register and stores the
+    /// pointer to the array in `pointer_register`
+    pub(crate) fn allocate_array_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size_register: RegisterIndex,
+    ) {
+        self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
-            value: Value::from(allocation),
+            source: ReservedRegisters::stack_pointer(),
+        });
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: ReservedRegisters::stack_pointer(),
+            op: BinaryIntOp::Add,
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            lhs: ReservedRegisters::stack_pointer(),
+            rhs: size_register,
         });
     }
 
@@ -130,7 +176,7 @@ impl BrilligContext {
             index_less_than_array_len,
             BrilligBinaryOp::Integer {
                 op: BinaryIntOp::LessThan,
-                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             },
         );
 
@@ -152,7 +198,7 @@ impl BrilligContext {
             index,
             BrilligBinaryOp::Integer {
                 op: BinaryIntOp::Add,
-                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             },
         );
 
@@ -221,9 +267,14 @@ impl BrilligContext {
         self.obj.add_unresolved_jump(jmp_instruction, destination);
     }
 
+    /// Returns a user defined (non-reserved) register index.
+    fn user_register_index(&self, index: usize) -> RegisterIndex {
+        RegisterIndex::from(index + ReservedRegisters::len())
+    }
+
     /// Creates a new register.
     pub(crate) fn create_register(&mut self) -> RegisterIndex {
-        let register = RegisterIndex::from(self.latest_register);
+        let register = self.user_register_index(self.latest_register);
         self.latest_register += 1;
         register
     }
