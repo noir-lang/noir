@@ -294,7 +294,8 @@ impl BrilligContext {
     }
 
     /// Push a register to the deallocation list, ready for reuse.
-    /// TODO(AD): Currently only used for constants. Later, do lifecycle analysis.
+    /// TODO(AD): currently, register deallocation is only done with immediate values.
+    /// TODO(AD): See https://github.com/noir-lang/noir/issues/1720
     pub(crate) fn deallocate_register(&mut self, register_index: RegisterIndex) {
         self.registers.deallocate_register(register_index);
     }
