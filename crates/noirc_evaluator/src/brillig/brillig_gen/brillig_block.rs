@@ -1,6 +1,7 @@
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
+use crate::ssa_refactor::ir::types::CompositeType;
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -224,12 +225,14 @@ impl<'block> BrilligBlock<'block> {
                 let destination = self
                     .function_context
                     .get_or_create_register(self.brillig_context, result_ids[0]);
+
                 // First issue a array copy to the destination
-                let size = compute_size_of_type(&dfg.type_of_value(*array));
-                self.brillig_context.allocate_array(destination, size as u32);
+                let array_size = compute_size_of_type(&dfg.type_of_value(*array));
+                self.brillig_context.allocate_array(destination, array_size as u32);
                 let source_array_register: RegisterIndex = self.convert_ssa_value(*array, dfg);
-                let size_register = self.brillig_context.make_constant(size.into());
+                let size_register = self.brillig_context.make_constant(array_size.into());
                 self.brillig_context.copy_array_instruction(source_array_register, destination, size_register);
+                
                 // Then set the value in the newly created array
                 let index_register = self.convert_ssa_value(*index, dfg);
                 let value_register = self.convert_ssa_value(*value, dfg);
@@ -254,19 +257,18 @@ impl<'block> BrilligBlock<'block> {
                 let value_register = self.convert_ssa_value(value_id, dfg);
                 self.brillig_context.store_instruction(address_register, value_register);
             }
-            Value::Array { array, .. } => {
+            Value::Array { array, element_type } => {
                 // Allocate a register for the iterator
                 let iterator_register = self.brillig_context.create_register();
                 // Set the iterator to the address of the array
                 self.brillig_context.mov_instruction(iterator_register, address_register);
+
+                let size_of_item_register = self.brillig_context.make_constant(compute_size_of_composite_type(element_type).into());
+
                 for element_id in array.iter() {
                     // Store the item in memory
                     self.store_in_memory(iterator_register, *element_id, dfg);
-                    // Increment the iterator by the size of the item
-                    let size_of_item_register = self.brillig_context.make_constant(
-                        compute_size_of_type(&dfg.type_of_value(*element_id)).into(),
-                    );
-
+                    // Increment the iterator by the size of the items
                     self.brillig_context.binary_instruction(
                         iterator_register,
                         size_of_item_register,
@@ -487,17 +489,18 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
     }
 }
 
+/// Computes the size of an SSA composite type
+fn compute_size_of_composite_type(typ: &CompositeType) -> usize {
+    typ.iter().map(compute_size_of_type).sum()
+}
+
 /// Finds out the size of a given SSA type
 /// This is needed to store values in memory
 fn compute_size_of_type(typ: &Type) -> usize {
     match typ {
         Type::Numeric(_) => 1,
         Type::Array(types, item_count) => {
-            let mut item_size = 0;
-            for typ in types.iter() {
-                item_size += compute_size_of_type(typ);
-            }
-            item_size * item_count
+            compute_size_of_composite_type(types) * item_count
         }
         _ => todo!("ICE: Type not supported {typ:?}"),
     }
