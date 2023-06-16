@@ -20,15 +20,14 @@ jobs:
             runner: ubuntu-large
             target: x86_64-linux
           - os: mac
-            # The nix action doesn't fail on macos-13 according to https://github.com/cachix/install-nix-action/issues/183
-            runner: macos-13
+            runner: macos-latest
             target: x86_64-darwin
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - uses: cachix/install-nix-action@v20
+      - uses: cachix/install-nix-action@v22
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
