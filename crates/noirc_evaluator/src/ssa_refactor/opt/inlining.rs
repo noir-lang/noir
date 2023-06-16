@@ -256,8 +256,14 @@ impl<'function> PerFunctionContext<'function> {
         id = self.translate_value(id);
         match self.context.builder[id] {
             Value::Function(id) => Some(id),
+            // We don't set failed_to_inline_a_call for intrinsics since those
+            // don't correspond to actual functions in the SSA program that would
+            // need to be removed afterward.
             Value::Intrinsic(_) => None,
-            _ => None,
+            _ => {
+                self.context.failed_to_inline_a_call = true;
+                None
+            }
         }
     }
 
@@ -332,10 +338,7 @@ impl<'function> PerFunctionContext<'function> {
                             self.push_instruction(*id);
                         }
                     },
-                    None => {
-                        self.context.failed_to_inline_a_call = true;
-                        self.push_instruction(*id);
-                    }
+                    None => self.push_instruction(*id),
                 },
                 _ => self.push_instruction(*id),
             }

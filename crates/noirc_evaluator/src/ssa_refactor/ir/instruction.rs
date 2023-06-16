@@ -1,5 +1,8 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
+use num_bigint::BigUint;
+
+use crate::ssa_refactor::ir::types::NumericType;
 
 use super::{
     basic_block::BasicBlockId,
@@ -237,7 +240,27 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => {
-                if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                if let Some(constant) = dfg.get_numeric_constant(*value) {
+                    let src_typ = dfg.type_of_value(*value);
+                    match (typ, src_typ) {
+                        (
+                            Type::Numeric(NumericType::Unsigned { bit_size }),
+                            Type::Numeric(NumericType::Unsigned { .. }),
+                        )
+                        | (
+                            Type::Numeric(NumericType::Unsigned { bit_size }),
+                            Type::Numeric(NumericType::NativeField),
+                        ) => {
+                            let integer_modulus = BigUint::from(2u128).pow(*bit_size);
+                            let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
+                            let truncated = constant % integer_modulus;
+                            let truncated =
+                                FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
+                            SimplifiedTo(dfg.make_constant(truncated, typ.clone()))
+                        }
+                        _ => None,
+                    }
+                } else if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
                     SimplifiedTo(value)
                 } else {
                     None
