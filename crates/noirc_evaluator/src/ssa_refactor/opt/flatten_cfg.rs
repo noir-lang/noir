@@ -10,6 +10,26 @@
 //! while merging branches. These extra instructions can be cleaned up by a later dead instruction
 //! elimination (DIE) pass.
 //!
+//! Though CFG information is lost during this pass, some key information is retained in the form
+//! of `EnableSideEffect` instructions. Each time the flattening pass enters and exits a branch of
+//! a jmpif, an instruction is inserted to capture a condition that is analogous to the activeness
+//! of the program point. For example:
+//!
+//! b0(v0: u1):
+//!   jmpif v0, then: b1, else: b2
+//! b1():
+//!   v1 = call f0
+//!   jmp b3(v1)
+//! ... blocks b2 & b3 ...
+//!
+//! Would brace the call instruction as such:
+//!   enable_side_effects v0
+//!   v1 = call f0
+//!   enable_side_effects u1 1
+//!
+//! (Note: we restore to "true" to indicate that this program point is not nested within any
+//! other branches.)
+//!
 //! When we are flattening a block that was reached via a jmpif with a non-constant condition c,
 //! the following transformations of certain instructions within the block are expected:
 //!
@@ -184,6 +204,15 @@ struct Branch {
 }
 
 fn flatten_function_cfg(function: &mut Function) {
+    // TODO This pass will run forever on a brillig function.
+    // TODO In particular, analyze will check if the predecessors
+    // TODO have been processed and push the block to the back of the queue
+    // TODO This loops forever, if the predecessors are not then processed
+    // TODO Because it will visit the same block again, pop it out of the queue
+    // TODO then back into the queue again.
+    if let crate::ssa_refactor::ir::function::RuntimeType::Brillig = function.runtime() {
+        return;
+    }
     let mut context = Context {
         cfg: ControlFlowGraph::with_function(function),
         function,
@@ -288,6 +317,8 @@ impl<'f> Context<'f> {
                 let else_branch =
                     self.inline_branch(block, else_block, old_condition, else_condition, zero);
 
+                self.insert_current_side_effects_enabled();
+
                 // While there is a condition on the stack we don't compile outside the condition
                 // until it is popped. This ensures we inline the full then and else branches
                 // before continuing from the end of the conditional here where they can be merged properly.
@@ -359,6 +390,20 @@ impl<'f> Context<'f> {
         self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars)
     }
 
+    /// Checks the branch condition on the top of the stack and uses it to build and insert an
+    /// `EnableSideEffects` instruction into the entry block.
+    ///
+    /// If the stack is empty, a "true" u1 constant is taken to be the active condition. This is
+    /// necessary for re-enabling side-effects when re-emerging to a branch depth of 0.
+    fn insert_current_side_effects_enabled(&mut self) {
+        let condition = match self.conditions.last() {
+            Some((_, cond)) => *cond,
+            None => self.function.dfg.make_constant(FieldElement::one(), Type::unsigned(1)),
+        };
+        let enable_side_effects = Instruction::EnableSideEffects { condition };
+        self.insert_instruction_with_typevars(enable_side_effects, None);
+    }
+
     /// Merge two values a and b from separate basic blocks to a single value. This
     /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
     fn merge_values(
@@ -396,19 +441,34 @@ impl<'f> Context<'f> {
         new_condition: ValueId,
         condition_value: FieldElement,
     ) -> Branch {
-        self.push_condition(jmpif_block, new_condition);
-        let old_stores = std::mem::take(&mut self.store_values);
+        if destination == self.branch_ends[&jmpif_block] {
+            // If the branch destination is the same as the end of the branch, this must be the
+            // 'else' case of an if with no else - so there is no else branch.
+            Branch {
+                condition: new_condition,
+                last_block: jmpif_block,
+                store_values: HashMap::new(),
+            }
+        } else {
+            self.push_condition(jmpif_block, new_condition);
+            self.insert_current_side_effects_enabled();
+            let old_stores = std::mem::take(&mut self.store_values);
 
-        // Remember the old condition value is now known to be true/false within this branch
-        let known_value = self.function.dfg.make_constant(condition_value, Type::bool());
-        self.values.insert(old_condition, known_value);
+            // Remember the old condition value is now known to be true/false within this branch
+            let known_value = self.function.dfg.make_constant(condition_value, Type::bool());
+            self.values.insert(old_condition, known_value);
 
-        let final_block = self.inline_block(destination, &[]);
+            let final_block = self.inline_block(destination, &[]);
 
-        self.conditions.pop();
-        let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
+            self.conditions.pop();
+            let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
 
-        Branch { condition: new_condition, last_block: final_block, store_values: stores_in_branch }
+            Branch {
+                condition: new_condition,
+                last_block: final_block,
+                store_values: stores_in_branch,
+            }
+        }
     }
 
     /// Inline the ending block of a branch, the point where all blocks from a jmpif instruction
@@ -525,7 +585,8 @@ impl<'f> Context<'f> {
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.function.dfg[id].map_values(|id| self.translate_value(id));
         let instruction = self.handle_instruction_side_effects(instruction);
-        let results = self.function.dfg.instruction_results(id).to_vec();
+        let results = self.function.dfg.instruction_results(id);
+        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -643,11 +704,13 @@ mod test {
         // Expected output:
         // fn main f0 {
         //   b0(v0: u1):
-        //     v4 = not v0
-        //     v5 = mul v0, Field 3
-        //     v7 = not v0
-        //     v8 = mul v7, Field 4
-        //     v9 = add v5, v8
+        //     enable_side_effects v0
+        //     v5 = not v0
+        //     enable_side_effects v5
+        //     enable_side_effects u1 1
+        //     v7 = mul v0, Field 3
+        //     v8 = mul v5, Field 4
+        //     v9 = add v7, v8
         //     return v9
         // }
         let ssa = ssa.flatten_cfg();
@@ -686,13 +749,17 @@ mod test {
         let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
-        // Expected output (sans useless extra 'not' instruction):
+        // Expected output:
         // fn main f0 {
         //   b0(v0: u1, v1: u1):
-        //     v2 = mul v1, v0
-        //     v3 = eq v2, v0
-        //     constrain v3
-        //     return v1
+        //     enable_side_effects v0
+        //     v3 = mul v1, v0
+        //     v4 = eq v3, v0
+        //     constrain v4
+        //     v5 = not v0
+        //     enable_side_effects v5
+        //     enable_side_effects u1 1
+        //     return
         // }
         let ssa = ssa.flatten_cfg();
         assert_eq!(ssa.main().reachable_blocks().len(), 1);
@@ -733,14 +800,16 @@ mod test {
         // Expected output:
         // fn main f0 {
         //   b0(v0: u1, v1: reference):
+        //     enable_side_effects v0
         //     v4 = load v1
         //     store Field 5 at v1
         //     v5 = not v0
+        //     enable_side_effects v5
+        //     enable_side_effects u1 1
         //     v7 = mul v0, Field 5
-        //     v8 = not v0
-        //     v9 = mul v8, v4
-        //     v10 = add v7, v9
-        //     store v10 at v1
+        //     v8 = mul v5, v4
+        //     v9 = add v7, v8
+        //     store v9 at v1
         //     return
         // }
         let ssa = ssa.flatten_cfg();
@@ -807,21 +876,24 @@ mod test {
         // Expected output:
         // fn main f0 {
         //   b0(v0: u1, v1: reference):
-        //     v8 = add v1, Field 1
-        //     v9 = load v8
-        //     store Field 5 at v8
-        //     v10 = not v0
-        //     v12 = add v1, Field 1
-        //     v13 = load v12
-        //     store Field 6 at v12
-        //     v14 = mul v0, Field 5
-        //     v15 = mul v10, v9
-        //     v16 = add v14, v15
-        //     store v16 at v8
-        //     v17 = mul v0, v13
-        //     v18 = mul v10, Field 6
-        //     v19 = add v17, v18
-        //     store v19 at v12
+        //     enable_side_effects v0
+        //     v7 = add v1, Field 1
+        //     v8 = load v7
+        //     store Field 5 at v7
+        //     v9 = not v0
+        //     enable_side_effects v9
+        //     v11 = add v1, Field 1
+        //     v12 = load v11
+        //     store Field 6 at v11
+        //     enable_side_effects Field 1
+        //     v13 = mul v0, Field 5
+        //     v14 = mul v9, v8
+        //     v15 = add v13, v14
+        //     store v15 at v7
+        //     v16 = mul v0, v12
+        //     v17 = mul v9, Field 6
+        //     v18 = add v16, v17
+        //     store v18 at v11
         //     return
         // }
         let ssa = ssa.flatten_cfg();
@@ -947,7 +1019,7 @@ mod test {
         let c1 = builder.add_parameter(Type::bool());
         let c4 = builder.add_parameter(Type::bool());
 
-        let r1 = builder.insert_allocate(1);
+        let r1 = builder.insert_allocate();
 
         let store_value = |builder: &mut FunctionBuilder, value: u128| {
             let value = builder.field_constant(value);
@@ -957,9 +1029,8 @@ mod test {
         let println = builder.import_intrinsic_id(Intrinsic::Println);
 
         let call_println = |builder: &mut FunctionBuilder, block: u128| {
-            let zero = builder.field_constant(0u128);
             let block = builder.field_constant(block);
-            let load = builder.insert_load(r1, zero, Type::field());
+            let load = builder.insert_load(r1, Type::field());
             builder.insert_call(println, vec![block, load], Vec::new());
         };
 
@@ -1003,13 +1074,10 @@ mod test {
         builder.terminate_with_jmp(b9, vec![]);
 
         switch_and_print(&mut builder, b9, 9);
-        let zero = builder.field_constant(0u128);
-        let load = builder.insert_load(r1, zero, Type::field());
+        let load = builder.insert_load(r1, Type::field());
         builder.terminate_with_return(vec![load]);
 
         let ssa = builder.finish().flatten_cfg().mem2reg();
-
-        println!("{ssa}");
 
         // Expected results after mem2reg removes the allocation and each load and store:
         //
@@ -1017,31 +1085,38 @@ mod test {
         //   b0(v0: u1, v1: u1):
         //     call println(Field 0, Field 0)
         //     call println(Field 1, Field 1)
+        //     enable_side_effects v0
         //     call println(Field 2, Field 2)
-        //     call println(Field 4, Field 2) ; block 4 does not store a value
-        //     v45 = and v0, v1
+        //     call println(Field 4, Field 2)
+        //     v29 = and v0, v1
+        //     enable_side_effects v29
         //     call println(Field 5, Field 5)
-        //     v49 = not v1
-        //     v50 = and v0, v49
+        //     v32 = not v1
+        //     v33 = and v0, v32
+        //     enable_side_effects v33
         //     call println(Field 6, Field 6)
-        //     v54 = mul v1, Field 5
-        //     v55 = mul v49, Field 2
-        //     v56 = add v54, v55
-        //     v57 = mul v1, Field 5
-        //     v58 = mul v49, Field 6
-        //     v59 = add v57, v58
-        //     call println(Field 7, v59)  ; v59 = 5 and 6 merged
-        //     v61 = not v0
+        //     enable_side_effects v0
+        //     v36 = mul v1, Field 5
+        //     v37 = mul v32, Field 2
+        //     v38 = add v36, v37
+        //     v39 = mul v1, Field 5
+        //     v40 = mul v32, Field 6
+        //     v41 = add v39, v40
+        //     call println(Field 7, v42)
+        //     v43 = not v0
+        //     enable_side_effects v43
+        //     store Field 3 at v2
         //     call println(Field 3, Field 3)
-        //     call println(Field 8, Field 3) ; block 8 does not store a value
-        //     v66 = mul v0, v59
-        //     v67 = mul v61, Field 1
-        //     v68 = add v66, v67      ; This was from an unused store.
-        //     v69 = mul v0, v59
-        //     v70 = mul v61, Field 3
-        //     v71 = add v69, v70
-        //     call println(Field 9, v71)  ; v71 = 3, 5, and 6 merged
-        //     return v71
+        //     call println(Field 8, Field 3)
+        //     enable_side_effects Field 1
+        //     v47 = mul v0, v41
+        //     v48 = mul v43, Field 1
+        //     v49 = add v47, v48
+        //     v50 = mul v0, v44
+        //     v51 = mul v43, Field 3
+        //     v52 = add v50, v51
+        //     call println(Field 9, v53)
+        //     return v54
         // }
 
         let main = ssa.main();

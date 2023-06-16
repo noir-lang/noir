@@ -4,8 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.13.3"
-source = "git+https://github.com/noir-lang/acvm.git?rev=71e50173957794e9f2547c12e217b913e648244b#71e50173957794e9f2547c12e217b913e648244b"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a46e07ed303f80970f1d9decc1e8d8265ab3766bd51239a488fcd34c7224ad15"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -17,8 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.13.3"
-source = "git+https://github.com/noir-lang/acvm.git?rev=71e50173957794e9f2547c12e217b913e648244b#71e50173957794e9f2547c12e217b913e648244b"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfc12f808a783f3d5d38cea06a06a196924a0741c78c7ac32ee45542ca474c3"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -30,8 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.13.3"
-source = "git+https://github.com/noir-lang/acvm.git?rev=71e50173957794e9f2547c12e217b913e648244b#71e50173957794e9f2547c12e217b913e648244b"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74369333d147335a74871483868385ec8d6c89721693f71cb76f85515d89ef37"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -48,8 +51,9 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.3.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg.git?rev=8f56a684a5cad3d88371f91f8a8a01d1b7bf40a4#8f56a684a5cad3d88371f91f8a8a01d1b7bf40a4"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c9fd4e49aa0498725c79202e308cb7e2690d0faafbf22f5de4c8f0e704451c1"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -67,8 +71,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.13.3"
-source = "git+https://github.com/noir-lang/acvm.git?rev=71e50173957794e9f2547c12e217b913e648244b#71e50173957794e9f2547c12e217b913e648244b"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a1a417fb146c74b4674334a1512ebc1b81d972bf0f38dd843117f449ef6e72f"
 dependencies = [
  "acir",
 ]
@@ -347,6 +352,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-lsp"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73395fba7765010f2a98d007d601bd47e0d31ada90cd82f40c7eab753eba0870"
+dependencies = [
+ "either",
+ "futures",
+ "libc",
+ "lsp-types",
+ "pin-project-lite",
+ "rustix",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -454,6 +480,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
+name = "bitmaps"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031043d04099746d8db04daf1fa424b2bc8bd69d92b25962dcde24da39ab64a2"
+dependencies = [
+ "typenum",
+]
+
+[[package]]
 name = "bitvec"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -485,8 +520,9 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.13.3"
-source = "git+https://github.com/noir-lang/acvm.git?rev=71e50173957794e9f2547c12e217b913e648244b#71e50173957794e9f2547c12e217b913e648244b"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a655a12c64f9a8e3cf388a5577b35cec22c87cfc3156bfead33de0c3778cf37"
 dependencies = [
  "acir_field",
  "num-bigint",
@@ -662,18 +698,18 @@ checksum = "2da6da31387c7e4ef160ffab6d5e7f00c42626fe39aea70a7b0f1773f7dd6c1b"
 
 [[package]]
 name = "codespan"
-version = "0.9.5"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ebaf6bb6a863ad6aa3a18729e9710c53d75df03306714d9cc1f7357a00cd789"
+checksum = "3362992a0d9f1dd7c3d0e89e0ab2bb540b7a95fea8cd798090e758fda2899b5e"
 dependencies = [
  "codespan-reporting",
 ]
 
 [[package]]
 name = "codespan-reporting"
-version = "0.9.5"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e0762455306b1ed42bc651ef6a2197aabda5e1d4a43c34d5eab5c1a3634e81d"
+checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
 dependencies = [
  "termcolor",
  "unicode-width",
@@ -1209,12 +1245,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
+name = "futures"
+version = "0.3.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23342abe12aba583913b2e62f22225ff9c950774065e4bfb61a19cd9770fec40"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "955518d47e09b25bbebc7a18df10b81f0c766eaf4c4f1cccef2fca5f2a4fb5f2"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -1222,6 +1273,23 @@ name = "futures-core"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bca583b7e26f571124fe5b7561d49cb2868d79116cfa0eefce955557c6fee8c"
+
+[[package]]
+name = "futures-io"
+version = "0.3.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fff74096e71ed47f8e023204cfd0aa1289cd54ae5430a9523be060cdb849964"
+
+[[package]]
+name = "futures-macro"
+version = "0.3.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89ca545a94061b6365f2c7355b4b32bd20df3ff95f02da9329b34ccc3bd6ee72"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
+]
 
 [[package]]
 name = "futures-sink"
@@ -1241,10 +1309,16 @@ version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26b01e40b772d54cf6c6d721c1d1abd0647a0106a12ecaa1c186273392a69533"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-io",
+ "futures-macro",
+ "futures-sink",
  "futures-task",
+ "memchr",
  "pin-project-lite",
  "pin-utils",
+ "slab",
 ]
 
 [[package]]
@@ -1560,6 +1634,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "im"
+version = "15.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0acd33ff0285af998aaf9b57342af478078f53492322fafc47450e09397e0e9"
+dependencies = [
+ "bitmaps",
+ "rand_core 0.6.4",
+ "rand_xoshiro",
+ "sized-chunks",
+ "typenum",
+ "version_check",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1740,6 +1828,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lsp-types"
+version = "0.94.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b63735a13a1f9cd4f4835223d828ed9c2e35c8c5e61837774399f558b6a1237"
+dependencies = [
+ "bitflags",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "url",
+]
+
+[[package]]
 name = "mach"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1853,6 +1954,7 @@ dependencies = [
  "acvm-backend-barretenberg",
  "assert_cmd",
  "assert_fs",
+ "async-lsp",
  "build-data",
  "cfg-if",
  "clap",
@@ -1862,8 +1964,10 @@ dependencies = [
  "hex",
  "iter-extended",
  "nargo",
+ "noir_lsp",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "noirc_frontend",
  "predicates 2.1.5",
  "rustc_version",
@@ -1874,7 +1978,19 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "tower",
  "url",
+]
+
+[[package]]
+name = "noir_lsp"
+version = "0.6.0"
+dependencies = [
+ "async-lsp",
+ "lsp-types",
+ "serde_json",
+ "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -1915,7 +2031,6 @@ dependencies = [
  "acvm",
  "clap",
  "fm",
- "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
@@ -1931,7 +2046,6 @@ dependencies = [
  "codespan",
  "codespan-reporting",
  "fm",
- "serde",
 ]
 
 [[package]]
@@ -1940,6 +2054,7 @@ version = "0.6.0"
 dependencies = [
  "acvm",
  "arena",
+ "im",
  "iter-extended",
  "noirc_abi",
  "noirc_errors",
@@ -2286,6 +2401,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom",
+]
+
+[[package]]
+name = "rand_xoshiro"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
+dependencies = [
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -2795,6 +2919,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcec881020c684085e55a25f7fd888954d56609ef363479dc5a1305eb0d40cab"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2875,6 +3010,16 @@ name = "simdutf8"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
+
+[[package]]
+name = "sized-chunks"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16d69225bde7a69b235da73377861095455d298f2b970996eec25ddbb42b3d1e"
+dependencies = [
+ "bitmaps",
+ "typenum",
+]
 
 [[package]]
 name = "slab"
@@ -3126,7 +3271,19 @@ dependencies = [
  "mio",
  "pin-project-lite",
  "socket2",
+ "tokio-macros",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "630bdcf245f78637c13ec01ffae6187cca34625e8c63150d424b59e55af2675e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
 ]
 
 [[package]]
@@ -3186,6 +3343,23 @@ dependencies = [
  "toml_datetime",
  "winnow",
 ]
+
+[[package]]
+name = "tower"
+version = "0.4.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8fa9be0de6cf49e536ce1851f987bd21a43b771b09473c3549a6c853db37c1c"
+dependencies = [
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tower-layer"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c20c8dbed6283a09604c3e69b4b7eeb54e298b8a600d4d5ecb5ad39de609f1d0"
 
 [[package]]
 name = "tower-service"
@@ -3308,6 +3482,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

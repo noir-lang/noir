@@ -95,8 +95,8 @@ pub(crate) fn evaluate(
                 | BlackBoxFunc::HashToField128Security => {
                     prepare_outputs(&mut acir_gen.memory, instruction_id, 1, ctx, evaluator)
                 }
-                // There are some low level functions that have variable outputs and should not have a set output count
-                // in Noir
+                // There are some low level functions that have variable outputs and
+                // should not have a set output count in Noir
                 BlackBoxFunc::RecursiveAggregation => {
                     prepare_outputs_no_count(&mut acir_gen.memory, instruction_id, ctx, evaluator)
                 }
