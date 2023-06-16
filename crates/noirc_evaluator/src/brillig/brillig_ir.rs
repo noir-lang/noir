@@ -27,11 +27,11 @@ use acvm::{
 /// constrained functions in terms of syntax compatibility.
 pub(crate) const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
 
-// Registers reserved for special purpose by BrilligGen when generating the bytecode
+// Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
-    /// Represent address where free memory is available for allocation
+    /// This register stores the free memory pointer. Allocations must be done after this pointer.
     Alloc = 0,
-    /// Number of special registers
+    /// Number of reserved registers
     Len = 1,
 }
 
