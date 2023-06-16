@@ -183,6 +183,8 @@ impl Context {
                                 let mut obj = brillig_gen.initialize_entry_function(arguments.len());
                                 let code = obj.link(*id, brillig, result_ids.len());
 
+                                // TODO show brillig flag?
+                                println!("{}", serde_json::to_string_pretty(&code).unwrap());
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
                                 let output_values = self.acir_context.brillig(code, inputs, outputs);
                                 // Compiler sanity check

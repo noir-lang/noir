@@ -5,10 +5,12 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 pub(crate) mod artifact;
+pub(crate) mod registers;
 
 use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 use self::artifact::{BrilligArtifact, UnresolvedLocation};
+use self::registers::BrilligRegistersContext;
 use acvm::{
     acir::brillig_vm::{
         BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
@@ -19,34 +21,25 @@ use acvm::{
 
 // Registers reserved for special purpose by BrilligGen when generating the bytecode
 pub(crate) enum SpecialRegisters {
-    // The index into the StackFrame, it is incremented for every nested call
-    CallDepth = 0,
-    /// Represent address where free memory is available for allocation
-    Alloc = 1,
     /// Contains the address of an array which hold stack-frame data: the address of the memory where the registers are saved before a call
     /// The stack-frame has a fixed length, meaning the number nested function calls is limited to this length
-    StackFrame = 2,
-    /// Number of special registers
-    Len = 3,
+    StackFrame = 0,
+    /// The amount of special registers.
+    _Len = 1,
 }
+
+/// We don't want to allocate over the stack register, our single special register.
+const NUM_RESERVED_REGISTERS: usize = (SpecialRegisters::StackFrame as usize) + 1_usize;
 
 impl SpecialRegisters {
     // TODO: doc
     pub(crate) fn len() -> usize {
-        SpecialRegisters::Len as usize
+        SpecialRegisters::_Len as usize
     }
 
     // TODO: doc
-    pub(crate) fn stack_frame() -> RegisterIndex {
+    pub(crate) fn stack_pointer() -> RegisterIndex {
         RegisterIndex::from(SpecialRegisters::StackFrame as usize)
-    }
-    // TODO: doc
-    pub(crate) fn call_depth() -> RegisterIndex {
-        RegisterIndex::from(SpecialRegisters::CallDepth as usize)
-    }
-    // TODO: doc
-    pub(crate) fn alloc() -> RegisterIndex {
-        RegisterIndex::from(SpecialRegisters::Alloc as usize)
     }
 }
 
@@ -54,8 +47,7 @@ impl SpecialRegisters {
 /// Brillig bytecode.
 pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
-    /// A usize indicating the latest un-used register.
-    latest_register: usize,
+    registers: BrilligRegistersContext,
 }
 
 impl BrilligContext {
@@ -72,7 +64,7 @@ impl BrilligContext {
     pub(crate) fn new(func: FunctionId) -> BrilligContext {
         BrilligContext {
             obj: BrilligArtifact::new(func),
-            latest_register: SpecialRegisters::Len as usize,
+            registers: BrilligRegistersContext::new(),
         }
     }
 
@@ -83,18 +75,18 @@ impl BrilligContext {
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
     pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: u32) {
-        let len = self.create_register();
+        let len = self.allocate_register();
         self.const_instruction(len, Value::from(size as usize));
 
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
-            source: SpecialRegisters::alloc(),
+            source: SpecialRegisters::stack_pointer(),
         });
         self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: SpecialRegisters::alloc(),
+            destination: SpecialRegisters::stack_pointer(),
             op: BinaryIntOp::Add,
-            bit_size: 32,
-            lhs: SpecialRegisters::alloc(),
+            bit_size: 64,
+            lhs: SpecialRegisters::stack_pointer(),
             rhs: len,
         });
     }
@@ -134,15 +126,23 @@ impl BrilligContext {
     }
 
     /// Adds a unresolved `Call` instruction to the bytecode.
-    fn add_unresolved_call(&mut self, destination: UnresolvedLocation, func: FunctionId) {
+    pub(crate) fn add_unresolved_call(
+        &mut self,
+        destination: UnresolvedLocation,
+        func: FunctionId,
+    ) {
         self.obj.add_unresolved_call(BrilligOpcode::Call { location: 0 }, destination, func);
     }
 
-    /// Creates a new register.
-    pub(crate) fn create_register(&mut self) -> RegisterIndex {
-        let register = RegisterIndex::from(self.latest_register);
-        self.latest_register += 1;
-        register
+    /// Allocates an unused register.
+    pub(crate) fn allocate_register(&mut self) -> RegisterIndex {
+        self.registers.allocate_register()
+    }
+
+    /// Push a register to the deallocation list, ready for reuse.
+    /// TODO(AD): Currently only used for constants. Later, do lifecycle analysis.
+    pub(crate) fn deallocate_register(&mut self, register_index: RegisterIndex) {
+        self.registers.deallocate_register(register_index);
     }
 }
 
@@ -169,13 +169,15 @@ impl BrilligContext {
     /// the VM.
     pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
         for (destination_index, return_register) in return_registers.iter().enumerate() {
-            // If the destination register index is more than the latest register,
-            // we update the latest register to be the destination register because the
-            // brillig vm will expand the number of registers internally, when it encounters
-            // a register that has not been initialized.
-            if destination_index > self.latest_register {
-                self.latest_register = destination_index;
-            }
+            // TODO(AD) really dont think this could have ever happened - how could
+            // packing the registers starting at 0 cause > the highest live register count?
+            // // If the destination register index is more than the latest register,
+            // // we update the latest register to be the destination register because the
+            // // brillig vm will expand the number of registers internally, when it encounters
+            // // a register that has not been initialized.
+            // if destination_index > self.latest_register {
+            //     self.latest_register = destination_index;
+            // }
             self.mov_instruction(
                 (destination_index + SpecialRegisters::len()).into(),
                 *return_register,
@@ -228,17 +230,19 @@ impl BrilligContext {
     /// Not is computed using a subtraction operation as there is no native not instruction
     /// in Brillig.
     pub(crate) fn not_instruction(&mut self, condition: RegisterIndex, result: RegisterIndex) {
-        let one = self.make_constant(Value::from(FieldElement::one()));
+        let one_register = self.make_constant(Value::from(FieldElement::one()));
 
         // Compile !x as (1 - x)
         let opcode = BrilligOpcode::BinaryIntOp {
             destination: result,
             op: BinaryIntOp::Sub,
             bit_size: 1,
-            lhs: one,
+            lhs: one_register,
             rhs: condition,
         };
         self.push_opcode(opcode);
+        // Mark register slot as available for reuse
+        self.deallocate_register(one_register);
     }
 
     /// Processes a foreign call instruction.
@@ -303,7 +307,7 @@ impl BrilligContext {
 
     /// Returns a register which holds the value of a constant
     pub(crate) fn make_constant(&mut self, constant: Value) -> RegisterIndex {
-        let register = self.create_register();
+        let register = self.allocate_register();
         self.const_instruction(register, constant);
         register
     }
@@ -325,8 +329,8 @@ impl BrilligContext {
         bit_size: u32,
         signed: bool,
     ) {
-        let scratch_register_i = self.create_register();
-        let scratch_register_j = self.create_register();
+        let scratch_register_i = self.allocate_register();
+        let scratch_register_j = self.allocate_register();
 
         // i = left / right
         self.push_opcode(BrilligOpcode::BinaryIntOp {
@@ -361,88 +365,65 @@ impl BrilligContext {
 
     /// Returns the ith register after the special ones
     pub(crate) fn register(&self, i: usize) -> RegisterIndex {
-        RegisterIndex::from(SpecialRegisters::Len as usize + i)
+        RegisterIndex::from(NUM_RESERVED_REGISTERS + i)
     }
 
-    /// Saves all of the registers that have been used up until this point
-    /// in the pointer passed in and returns the latest register before
-    /// saving the registers.
-    fn save_all_used_registers(&mut self, register_index: RegisterIndex) -> usize {
+    /// Saves all of the registers that have been used up until this point.
+    fn save_all_used_registers(&mut self) -> Vec<RegisterIndex> {
         // Save all of the used registers at this point in memory
         // because the function call will/may overwrite them.
         //
-        // Copy the registers to memory
-        let registers_len = self.latest_register; // abstraction leak -- put in memory.rs?
-
-        // Store `1` in a register
-        let one = self.create_register();
-        self.push_opcode(BrilligOpcode::Const { destination: one, value: Value::from(1_usize) });
-
-        self.allocate_array(register_index, registers_len as u32);
-        let stack_pointer = self.create_register();
-        self.binary_instruction(
-            SpecialRegisters::stack_frame(),
-            SpecialRegisters::call_depth(),
-            stack_pointer,
-            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
-        );
-        self.store_instruction(stack_pointer, register_index);
-        for i in SpecialRegisters::len()..registers_len {
-            self.push_opcode(BrilligOpcode::Store {
-                destination_pointer: register_index,
-                source: RegisterIndex::from(i),
-            });
-            self.push_opcode(BrilligOpcode::BinaryIntOp {
-                destination: register_index,
-                op: BinaryIntOp::Add,
-                bit_size: 32,
-                lhs: register_index,
-                rhs: one,
-            });
+        // Note that here it is important that the stack pointer register is at register 0,
+        // as after the first register save we add to the
+        let used_registers = self.registers.used_registers_iter().collect::<Vec<_>>();
+        for register in used_registers.iter() {
+            self.store_instruction(SpecialRegisters::stack_pointer(), *register);
+            // Add one to our stack pointer
+            self.usize_op(SpecialRegisters::stack_pointer(), BinaryIntOp::Add, 1);
         }
-
-        registers_len
+        used_registers
     }
 
-    /// Call a function
-    ///
-    /// We first save the current registers into a new array, whose address is saved into the StackFrame (at CallDepth index)
-    /// We move the arguments to registers 0,..n (plus the offset for the special registers)
-    /// We increment CallDepth (in case the called function is doing some nested call)
-    /// We add the unresolved call instruction (which will jump to the entry block of the called function)
-    /// We decrement the CallDepth
-    /// We copy the return values (which are on registers 0,..n (plus the offset for the special registers))
-    /// into their location of the 'results', in the array where the registers were saved
-    /// We load the registers from the memory, and we can continue the execution
-    pub(crate) fn call(
+    /// Loads all of the registers that have been save by save_all_used_registers.
+    fn load_all_saved_registers(&mut self, used_registers: &[RegisterIndex]) {
+        // Load all of the used registers that we saved.
+        // We do all the reverse operations of save_all_used_registers.
+        // Iterate our registers in reverse
+        for register in used_registers.iter().rev() {
+            // Subtract one from our stack pointer
+            self.usize_op(SpecialRegisters::stack_pointer(), BinaryIntOp::Sub, 1);
+            self.load_instruction(*register, SpecialRegisters::stack_pointer());
+        }
+    }
+
+    /// Utility method to perform a binary instruction with a constant value
+    pub(crate) fn usize_op(
+        &mut self,
+        destination: RegisterIndex,
+        op: BinaryIntOp,
+        constant: usize,
+    ) {
+        let const_register = self.make_constant(Value::from(constant));
+        self.binary_instruction(
+            destination,
+            destination,
+            const_register,
+            // TODO(AD): magic constant
+            BrilligBinaryOp::Integer { op, bit_size: 64 },
+        );
+        // Mark as no longer used for this purpose, frees for reuse
+        self.deallocate_register(const_register);
+    }
+
+    // Used before a call instruction.
+    // Save all the registers we have used to the stack.
+    // Move argument values to the front of the register indices.
+    pub(crate) fn pre_call_save_registers_prep_args(
         &mut self,
         arguments: &[RegisterIndex],
-        results: &[RegisterIndex],
-        function_entry_block_label: String,
-        func_id: FunctionId,
-    ) {
-        // Initialize the registers which will hold the value(s) returned from the call
-        //
-        //
-        // We need to initialize because we are going to save all the registers to memory
-        for register in results {
-            self.push_opcode(BrilligOpcode::Const {
-                destination: *register,
-                value: Value::from(0_usize),
-            });
-        }
-
-        // Save all the registers
-        //
-        // This includes the arguments and return values
-        // TODO: change name `register_index`
-        let register_index = self.create_register();
-        let latest_register_len_before_saving_registers =
-            self.save_all_used_registers(register_index);
-
-        // Store `1` in a register
-        let one = self.create_register();
-        self.push_opcode(BrilligOpcode::Const { destination: one, value: Value::from(1_usize) });
+    ) -> Vec<RegisterIndex> {
+        // Save all the registers we have used to the stack.
+        let saved_registers = self.save_all_used_registers();
 
         // Move argument values to the front of the registers
         //
@@ -455,77 +436,29 @@ impl BrilligContext {
             });
         }
 
-        // Increment depth_call
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: SpecialRegisters::call_depth(),
-            op: BinaryIntOp::Add,
-            bit_size: 32,
-            lhs: SpecialRegisters::call_depth(),
-            rhs: one,
-        });
+        saved_registers
+    }
 
-        // Call instruction
-        self.add_unresolved_call(UnresolvedLocation::Label(function_entry_block_label), func_id);
-
-        // Decrement depth_call
-        let one = self.make_constant(1u128.into());
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: SpecialRegisters::call_depth(),
-            op: BinaryIntOp::Sub,
-            bit_size: 32,
-            lhs: SpecialRegisters::call_depth(),
-            rhs: one,
-        });
-
-        // Copy from registers SpecialRegisters::len,.. to the result registers, but at their saved memory location
-        //
-        // This stack_address value is the same as `register_index`
-        // ie we are trying to get the pointer to the array that stored all of the
-        // registers before the function call.
-        //
-        // The function call may have overwritten the original `registers` so we cannot reuse `register_index`
-        // Note: Right now, the memory could have been overwritten by the function call
-        // so the memory address that the registers were saved at is not the same as `register_index`.
-        let stack_address = self.create_register();
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: stack_address,
-            op: BinaryIntOp::Add,
-            bit_size: 32,
-            // array that stores all of the pointers to the saved registers
-            // before the call instruction.
-            lhs: SpecialRegisters::stack_frame(),
-            rhs: SpecialRegisters::call_depth(),
-        });
-        self.load_instruction(stack_address, stack_address);
-
-        // Copy the result registers to the memory location of the previous saved registers:
-        // TODO: rename `reg_adr`
-        let reg_adr = self.create_register();
-        for (i, result) in results.iter().enumerate() {
-            let offset =
-                self.make_constant(Value::from(result.to_usize() - SpecialRegisters::len()));
-            self.binary_instruction(
-                stack_address,
-                offset,
-                reg_adr,
-                BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
-            );
-            self.store_instruction(reg_adr, self.register(i));
+    // Used after a call instruction.
+    // Move return values to the front of the register indices.
+    // Load all the registers we have previous saved in save_registers_prep_args.
+    pub(crate) fn post_call_prep_returns_load_registers(
+        &mut self,
+        result_registers: &[RegisterIndex],
+        saved_registers: &[RegisterIndex],
+    ) {
+        // Allocate our result registers and write into them
+        // We assume the return values of our call are held in 0..num results register indices
+        for (i, result_register) in result_registers.iter().enumerate() {
+            self.mov_instruction(*result_register, self.register(i));
         }
 
-        // Load the saved registers
-        // TODO: rename `tmp`
-        let tmp = self.create_register();
-        for i in SpecialRegisters::len()..latest_register_len_before_saving_registers {
-            self.const_instruction(tmp, Value::from(i - SpecialRegisters::len()));
-            self.binary_instruction(
-                stack_address,
-                tmp,
-                reg_adr,
-                BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
-            );
-            self.load_instruction(RegisterIndex::from(i), reg_adr);
-        }
+        // Restore all the same registers we have, in exact reverse order.
+        // Note that we have allocated some registers above, which we will not be handling here,
+        // only restoring registers that were used prior to the call finishing.
+        // After the call instruction, the stack frame pointer should be back to where we left off,
+        // so we do our instructions in reverse order.
+        self.load_all_saved_registers(saved_registers);
     }
 }
 

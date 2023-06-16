@@ -2,11 +2,9 @@ use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    brillig::Brillig,
+    brillig::{brillig_ir::SpecialRegisters, Brillig},
     ssa_refactor::ir::{basic_block::BasicBlockId, function::FunctionId},
 };
-
-use super::SpecialRegisters;
 
 #[derive(Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.

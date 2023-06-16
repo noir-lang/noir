@@ -2052,6 +2052,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "rand 0.8.5",
+ "serde_json",
  "thiserror",
 ]
 

@@ -1,5 +1,8 @@
 use super::{
-    brillig_ir::{artifact::BrilligArtifact, BrilligBinaryOp, BrilligContext},
+    brillig_ir::{
+        artifact::{BrilligArtifact, UnresolvedLocation},
+        BrilligBinaryOp, BrilligContext,
+    },
     Brillig,
 };
 use crate::{
@@ -40,7 +43,7 @@ impl BrilligGen {
             return *register_index;
         }
 
-        let register = self.context.create_register();
+        let register = self.context.allocate_register();
 
         // Cache the `ValueId` so that if we call it again, it will
         // return the register that has just been created.
@@ -63,7 +66,7 @@ impl BrilligGen {
         let block = &dfg[block_id];
         self.convert_block_params(block, dfg);
 
-        // Convert all of the instructions int the block
+        // Convert all of the instructions in the block
         for instruction_id in block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg, brillig);
         }
@@ -200,14 +203,26 @@ impl BrilligGen {
                     let function_arguments: Vec<RegisterIndex> =
                         vecmap(arguments.clone(), |a| self.convert_ssa_value(a, dfg));
                     let result_ids = dfg.instruction_results(instruction_id);
-                    let function_results = vecmap(result_ids, |a| self.get_or_create_register(*a));
                     let function_block_label: String = brillig.function_block_label(*func_id);
-                    self.context.call(
-                        &function_arguments,
-                        &function_results,
-                        function_block_label,
+                    // TODO(AD) originally I wanted a lambda closure abstraction to make sure results
+                    // TODO(AD) are allocated in our register allocator *after* the pre_call_save_registers_prep_args operations.
+                    // TODO(AD) but the borrow checker hurt my head. Instead this is now in three parts. Can be iterated on.
+                    let saved_registers =
+                        self.context.pre_call_save_registers_prep_args(&function_arguments);
+                    // Call instruction, which will interpret above registers 0..num args
+                    self.context.add_unresolved_call(
+                        UnresolvedLocation::Label(function_block_label),
                         *func_id,
                     );
+                    // Important: resolve after pre_call_save_registers_prep_args
+                    // This ensures we don't save the results to registers unnecessarily.
+                    let result_registers = vecmap(result_ids, |a| self.get_or_create_register(*a));
+                    assert!(
+                        !saved_registers.iter().any(|x| result_registers.contains(x)),
+                        "should not save registers used as function results"
+                    );
+                    self.context
+                        .post_call_prep_returns_load_registers(&result_registers, &saved_registers);
                 }
                 _ => {
                     unreachable!("should call a function")
@@ -307,28 +322,15 @@ impl BrilligGen {
 
     ///
     pub(crate) fn initialize_entry_function(mut self, num_arguments: usize) -> BrilligArtifact {
-        // This was chosen arbitrarily
-        const MAXIMUM_NUMBER_OF_NESTED_CALLS: u32 = 50;
-
         // Translate the inputs by the special registers offset
         for i in (0..num_arguments).into_iter().rev() {
             self.context.mov_instruction(self.context.register(i), RegisterIndex::from(i));
         }
 
-        // Initialize the first three registers to be the special registers
-        //
-        // Initialize the call-depth
-        self.context.const_instruction(SpecialRegisters::call_depth(), BrilligValue::from(0_usize));
-        assert_eq!(RegisterIndex::from(0), SpecialRegisters::call_depth());
-        //
-        // Initialize alloc
-        self.context.const_instruction(SpecialRegisters::alloc(), BrilligValue::from(0_usize));
-        assert_eq!(RegisterIndex::from(1), SpecialRegisters::alloc());
-        //
-        // Initialize the stack-frame
+        // Initialize our special/reserved registers
+        // Currently just a stack frame register
         self.context
-            .allocate_array(SpecialRegisters::stack_frame(), MAXIMUM_NUMBER_OF_NESTED_CALLS);
-        assert_eq!(RegisterIndex::from(2), SpecialRegisters::stack_frame());
+            .const_instruction(SpecialRegisters::stack_pointer(), BrilligValue::from(0_usize));
 
         self.context.artifact()
     }
