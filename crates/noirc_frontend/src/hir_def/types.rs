@@ -596,7 +596,6 @@ impl Type {
                     }
                 })
             }
-            // Type::Slice(element) => element.contains_numeric_typevar(target_id),
             Type::Vec(element) => element.contains_numeric_typevar(target_id),
         }
     }

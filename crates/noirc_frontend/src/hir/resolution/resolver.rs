@@ -352,7 +352,6 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
-            // UnresolvedType::Slice(typ) => self.resolve_type_inner(*typ, new_variables),
             UnresolvedType::Vec(mut args, span) => {
                 let arg = if args.len() != 1 {
                     self.push_err(ResolverError::IncorrectGenericCount {
@@ -789,7 +788,6 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            // Type::Slice(element) => Self::find_numeric_generics_in_type(element, found),
             Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }

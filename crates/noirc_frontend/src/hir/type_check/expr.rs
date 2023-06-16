@@ -663,7 +663,6 @@ impl<'interner> TypeChecker<'interner> {
             other => match self.interner.lookup_primitive_method(other, method_name) {
                 Some(method_id) => Some(method_id),
                 None => {
-                    dbg!("got here");
                     self.errors.push(TypeCheckError::Unstructured {
                         span: self.interner.expr_span(expr_id),
                         msg: format!("No method named '{method_name}' found for type '{other}'",),
