@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{Brillig, brillig_gen::create_entry_point_function};
+use crate::brillig::{brillig_gen::create_entry_point_function, Brillig};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},

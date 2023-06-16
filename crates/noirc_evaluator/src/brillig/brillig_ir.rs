@@ -6,9 +6,7 @@
 //! A similar paradigm can be seen with the `acir_ir` module.
 pub(crate) mod artifact;
 
-use self::{
-    artifact::{BrilligArtifact, UnresolvedJumpLocation},
-};
+use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
 use acvm::{
     acir::brillig_vm::{
         BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
@@ -27,7 +25,7 @@ use acvm::{
 /// Since constrained functions do not have this property, it
 /// would mean that unconstrained functions will differ from
 /// constrained functions in terms of syntax compatibility.
-const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
+pub(crate) const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
 
 // Registers reserved for special purpose by BrilligGen when generating the bytecode
 pub(crate) enum ReservedRegisters {
@@ -98,6 +96,99 @@ impl BrilligContext {
             lhs: ReservedRegisters::alloc(),
             rhs: size_register,
         });
+    }
+
+    /// Gets the value in the array at index `index` and stores it in `result`
+    pub(crate) fn array_get(
+        &mut self,
+        array_ptr: RegisterIndex,
+        index: RegisterIndex,
+        result: RegisterIndex,
+    ) {
+        // Computes array_ptr + index, ie array[index]
+        let index_of_element_in_memory = self.create_register();
+        self.binary_instruction(
+            array_ptr,
+            index,
+            index_of_element_in_memory,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
+        );
+
+        self.load_instruction(result, index_of_element_in_memory);
+    }
+
+    /// Sets the item in the array at index `index` to `value`
+    pub(crate) fn array_set(
+        &mut self,
+        array_ptr: RegisterIndex,
+        index: RegisterIndex,
+        value: RegisterIndex,
+    ) {
+        // Computes array_ptr + index, ie array[index]
+        let index_of_element_in_memory = self.create_register();
+        self.binary_instruction(
+            array_ptr,
+            index,
+            index_of_element_in_memory,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
+        );
+
+        self.store_instruction(index_of_element_in_memory, value);
+    }
+
+    /// Copies the values of an array pointed by source with length stored in `num_elements_register`
+    /// Into the array pointed by destination
+    pub(crate) fn copy_array_instruction(
+        &mut self,
+        source: RegisterIndex,
+        destination: RegisterIndex,
+        num_elements_register: RegisterIndex,
+    ) {
+        let index = self.make_constant(0_u128.into());
+
+        let loop_label = self.next_section_label();
+        self.enter_next_section();
+
+        // Loop body
+
+        // Check if index < num_elements
+        let index_less_than_array_len = self.create_register();
+        self.binary_instruction(
+            index,
+            num_elements_register,
+            index_less_than_array_len,
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::LessThan,
+                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+            },
+        );
+
+        let exit_loop_label = self.next_section_label();
+
+        self.not_instruction(index_less_than_array_len, index_less_than_array_len);
+        self.jump_if_instruction(index_less_than_array_len, exit_loop_label);
+
+        // Copy the element from source to destination
+        let value_register = self.create_register();
+        self.array_get(source, index, value_register);
+        self.array_set(destination, index, value_register);
+
+        // Increment the index register
+        let one = self.make_constant(1u128.into());
+        self.binary_instruction(
+            index,
+            one,
+            index,
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::Add,
+                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+            },
+        );
+
+        self.jump_instruction(loop_label);
+
+        // Exit the loop
+        self.enter_next_section();
     }
 
     /// Adds a label to the next opcode
