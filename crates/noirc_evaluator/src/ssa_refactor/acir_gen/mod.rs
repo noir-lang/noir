@@ -458,6 +458,9 @@ impl Context {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
+            (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+                unreachable!("Arrays are invalid in binary operations")
+            }
             // If either side is a Field constant then, we coerce into the type
             // of the other operand
             (Type::Numeric(NumericType::NativeField), typ)
@@ -595,6 +598,10 @@ impl Context {
     fn array_element_type(dfg: &DataFlowGraph, value: ValueId) -> AcirType {
         match dfg.type_of_value(value) {
             Type::Array(elements, _) => {
+                assert_eq!(elements.len(), 1);
+                (&elements[0]).into()
+            }
+            Type::Slice(elements) => {
                 assert_eq!(elements.len(), 1);
                 (&elements[0]).into()
             }

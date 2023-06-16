@@ -63,7 +63,7 @@ impl Value {
             Value::Param { typ, .. } => typ.clone(),
             Value::NumericConstant { typ, .. } => typ.clone(),
             Value::Array { element_type, array } => Type::Array(element_type.clone(), array.len()),
-            Value::Slice { .. } => Type::Reference,
+            Value::Slice { element_type, .. } => Type::Slice(element_type.clone()),
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
         }
