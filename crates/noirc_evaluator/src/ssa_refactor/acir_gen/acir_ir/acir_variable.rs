@@ -600,6 +600,10 @@ impl AcirContext {
             AcirValue::Var(witness, result_element_type)
         });
 
+        if endian == Endian::Big {
+            limb_vars.reverse();
+        }
+
         // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
         // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
         // become zero padding.
@@ -608,10 +612,6 @@ impl AcirContext {
         let zero = self.add_constant(FieldElement::zero());
         while limb_vars.len() < limb_count_with_padding as usize {
             limb_vars.push(AcirValue::Var(zero, result_element_type));
-        }
-
-        if endian == Endian::Big {
-            limb_vars.reverse();
         }
 
         Ok(vec![AcirValue::Array(limb_vars.into())])
