@@ -63,11 +63,13 @@ pub(crate) struct BrilligContext {
 
 impl BrilligContext {
     /// Adds the instructions needed to handle entry point parameters
+    /// And sets the starting value of the reserved registers
     pub(crate) fn entry_point_instruction(&mut self, num_arguments: usize) {
         // Translate the inputs by the reserved registers offset
         for i in (0..num_arguments).into_iter().rev() {
             self.mov_instruction(self.user_register_index(i), RegisterIndex::from(i));
         }
+        // Set the initial value of the alloc register
         self.const_instruction(ReservedRegisters::alloc(), Value::from(0_usize));
     }
 
