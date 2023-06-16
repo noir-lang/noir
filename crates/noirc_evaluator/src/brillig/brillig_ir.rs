@@ -407,8 +407,8 @@ impl BrilligContext {
         // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
-            destination: outputs[0],
-            input: inputs[0],
+            destinations: outputs.to_vec(),
+            inputs: inputs.to_vec(),
         };
         self.push_opcode(opcode);
     }
