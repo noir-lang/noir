@@ -85,8 +85,22 @@ impl BrilligContext {
 
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
-    pub(crate) fn allocate_array(&mut self, pointer_register: RegisterIndex, size: usize) {
+    pub(crate) fn allocate_fixed_length_array(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size: usize,
+    ) {
         let size_register = self.make_constant(size.into());
+        self.allocate_array_instruction(pointer_register, size_register);
+    }
+
+    /// Allocates an array of size contained in size_register and stores the
+    /// pointer to the array in `pointer_register`
+    pub(crate) fn allocate_array_instruction(
+        &mut self,
+        pointer_register: RegisterIndex,
+        size_register: RegisterIndex,
+    ) {
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::alloc(),

@@ -113,7 +113,7 @@ impl<'block> BrilligBlock<'block> {
                     let pointer_register = self
                         .function_context
                         .get_or_create_register(self.brillig_context, *param_id);
-                    self.brillig_context.allocate_array(pointer_register, *size);
+                    self.brillig_context.allocate_fixed_length_array(pointer_register, *size);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -228,7 +228,7 @@ impl<'block> BrilligBlock<'block> {
 
                 // First issue a array copy to the destination
                 let array_size = compute_size_of_type(&dfg.type_of_value(*array));
-                self.brillig_context.allocate_array(destination, array_size);
+                self.brillig_context.allocate_fixed_length_array(destination, array_size);
                 let source_array_register: RegisterIndex = self.convert_ssa_value(*array, dfg);
                 let size_register = self.brillig_context.make_constant(array_size.into());
                 self.brillig_context.copy_array_instruction(
@@ -369,7 +369,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Value::Array { .. } => {
                 let address_register = self.brillig_context.create_register();
-                self.brillig_context.allocate_array(
+                self.brillig_context.allocate_fixed_length_array(
                     address_register,
                     compute_size_of_type(&dfg.type_of_value(value_id)),
                 );
