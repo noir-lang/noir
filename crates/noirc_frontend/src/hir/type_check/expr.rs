@@ -763,7 +763,7 @@ impl<'interner> TypeChecker<'interner> {
                     // This will be an error if these types later resolve to a Field, or stay
                     // polymorphic as the bit size will be unknown. Delay this error until the function
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
-                    self.interner.push_delayed_type_check(Box::new(move || {
+                    self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() {
                             Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first".into()))
                         } else if other.is_bindable() {

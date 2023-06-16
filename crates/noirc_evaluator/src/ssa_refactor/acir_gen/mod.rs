@@ -133,7 +133,7 @@ impl Context {
         let acir_var = self.acir_context.add_variable();
         if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
             self.acir_context
-                .numeric_cast_var(acir_var, numeric_type)
+                .range_constrain_var(acir_var, numeric_type)
                 .expect("invalid range constraint was applied {numeric_type}");
         }
         acir_var
@@ -159,10 +159,14 @@ impl Context {
             }
             Instruction::Constrain(value_id) => {
                 let constrain_condition = self.convert_numeric_value(*value_id, dfg);
-                self.acir_context.assert_eq_one(constrain_condition);
+                self.acir_context
+                    .assert_eq_one(constrain_condition)
+                    .expect("add Result types to all methods so errors bubble up");
             }
             Instruction::Cast(value_id, typ) => {
-                let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg);
+                let result_acir_var = self
+                    .convert_ssa_cast(value_id, typ, dfg)
+                    .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Call { func, arguments } => {
@@ -465,16 +469,40 @@ impl Context {
         }
     }
 
-    /// Returns an `AcirVar` that is constrained to be
-    fn convert_ssa_cast(&mut self, value_id: &ValueId, typ: &Type, dfg: &DataFlowGraph) -> AcirVar {
-        let variable = self.convert_numeric_value(*value_id, dfg);
-
-        match typ {
-            Type::Numeric(numeric_type) => self
-                .acir_context
-                .numeric_cast_var(variable, numeric_type)
-                .expect("invalid range constraint was applied {numeric_type}"),
-            _ => unimplemented!("The cast operation is only valid for integers."),
+    /// Returns an `AcirVar` that is constrained to fit in the target type by truncating the input.
+    /// If the target cast is to a `NativeField`, no truncation is required so the cast becomes a
+    /// no-op.
+    fn convert_ssa_cast(
+        &mut self,
+        value_id: &ValueId,
+        typ: &Type,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirVar, AcirGenError> {
+        let (variable, incoming_type) = match self.convert_value(*value_id, dfg) {
+            AcirValue::Var(variable, typ) => (variable, typ),
+            AcirValue::Array(_) => unreachable!("Cast is only applied to numerics"),
+        };
+        let target_numeric = match typ {
+            Type::Numeric(numeric) => numeric,
+            _ => unreachable!("Can only cast to a numeric"),
+        };
+        match target_numeric {
+            NumericType::NativeField => {
+                // Casting into a Field as a no-op
+                Ok(variable)
+            }
+            NumericType::Unsigned { bit_size } => {
+                if incoming_type.is_signed() {
+                    todo!("Cast from unsigned to signed")
+                }
+                let max_bit_size = incoming_type.bit_size();
+                if max_bit_size <= *bit_size {
+                    // Incoming variable already fits into target bit size -  this is a no-op
+                    return Ok(variable);
+                }
+                self.acir_context.truncate_var(variable, *bit_size, max_bit_size)
+            }
+            NumericType::Signed { .. } => todo!("Cast into signed"),
         }
     }
 

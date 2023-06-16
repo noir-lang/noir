@@ -1,5 +1,8 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
+use num_bigint::BigUint;
+
+use crate::ssa_refactor::ir::types::NumericType;
 
 use super::{
     basic_block::BasicBlockId,
@@ -190,6 +193,46 @@ impl Instruction {
         }
     }
 
+    /// Applies a function to each input value this instruction holds.
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        match self {
+            Instruction::Binary(binary) => {
+                f(binary.lhs);
+                f(binary.rhs);
+            }
+            Instruction::Call { func, arguments } => {
+                f(*func);
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Instruction::Cast(value, _)
+            | Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::Constrain(value)
+            | Instruction::Load { address: value } => {
+                f(*value);
+            }
+            Instruction::Store { address, value } => {
+                f(*address);
+                f(*value);
+            }
+            Instruction::Allocate { .. } => (),
+            Instruction::ArrayGet { array, index } => {
+                f(*array);
+                f(*index);
+            }
+            Instruction::ArraySet { array, index, value } => {
+                f(*array);
+                f(*index);
+                f(*value);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                f(*condition);
+            }
+        }
+    }
+
     /// Try to simplify this instruction. If the instruction can be simplified to a known value,
     /// that value is returned. Otherwise None is returned.
     pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
@@ -197,14 +240,34 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => {
-                if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
+                if let Some(constant) = dfg.get_numeric_constant(*value) {
+                    let src_typ = dfg.type_of_value(*value);
+                    match (typ, src_typ) {
+                        (
+                            Type::Numeric(NumericType::Unsigned { bit_size }),
+                            Type::Numeric(NumericType::Unsigned { .. }),
+                        )
+                        | (
+                            Type::Numeric(NumericType::Unsigned { bit_size }),
+                            Type::Numeric(NumericType::NativeField),
+                        ) => {
+                            let integer_modulus = BigUint::from(2u128).pow(*bit_size);
+                            let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
+                            let truncated = constant % integer_modulus;
+                            let truncated =
+                                FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
+                            SimplifiedTo(dfg.make_constant(truncated, typ.clone()))
+                        }
+                        _ => None,
+                    }
+                } else if let Some(value) = (*typ == dfg.type_of_value(*value)).then_some(*value) {
                     SimplifiedTo(value)
                 } else {
                     None
                 }
             }
             Instruction::Not(value) => {
-                match &dfg[*value] {
+                match &dfg[dfg.resolve(*value)] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
@@ -344,6 +407,26 @@ impl TerminatorInstruction {
         }
     }
 
+    /// Apply a function to each value
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                f(*condition);
+            }
+            Jmp { arguments, .. } => {
+                for argument in arguments {
+                    f(*argument);
+                }
+            }
+            Return { return_values } => {
+                for return_value in return_values {
+                    f(*return_value);
+                }
+            }
+        }
+    }
+
     /// Mutate each BlockId to a new BlockId specified by the given mapping function.
     pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
         use TerminatorInstruction::*;
@@ -437,13 +520,13 @@ impl Binary {
                 }
             }
             BinaryOp::Eq => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
             }
             BinaryOp::Lt => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -463,7 +546,7 @@ impl Binary {
                 }
             }
             BinaryOp::Xor => {
-                if self.lhs == self.rhs {
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -489,15 +572,21 @@ impl Binary {
         dfg: &mut DataFlowGraph,
         lhs: FieldElement,
         rhs: FieldElement,
-        operand_type: Type,
+        mut operand_type: Type,
     ) -> Option<Id<Value>> {
         let value = match self.operator {
             BinaryOp::Add => lhs + rhs,
             BinaryOp::Sub => lhs - rhs,
             BinaryOp::Mul => lhs * rhs,
             BinaryOp::Div => lhs / rhs,
-            BinaryOp::Eq => (lhs == rhs).into(),
-            BinaryOp::Lt => (lhs < rhs).into(),
+            BinaryOp::Eq => {
+                operand_type = Type::bool();
+                (lhs == rhs).into()
+            }
+            BinaryOp::Lt => {
+                operand_type = Type::bool();
+                (lhs < rhs).into()
+            }
 
             // The rest of the operators we must try to convert to u128 first
             BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
@@ -507,7 +596,6 @@ impl Binary {
             BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
             BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
         };
-        // TODO: Keep original type of constant
         Some(dfg.make_constant(value, operand_type))
     }
 

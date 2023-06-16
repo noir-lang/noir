@@ -47,6 +47,11 @@ impl AcirType {
     fn boolean() -> Self {
         AcirType(NumericType::Unsigned { bit_size: 1 })
     }
+
+    /// True if type is signed
+    pub(crate) fn is_signed(&self) -> bool {
+        matches!(self.0, NumericType::Signed { .. })
+    }
 }
 
 impl From<SsaType> for AcirType {
@@ -107,46 +112,36 @@ impl AcirContext {
     /// Note: `Variables` are immutable.
     pub(crate) fn neg_var(&mut self, var: AcirVar) -> AcirVar {
         let var_data = &self.vars[var];
-        match var_data {
-            AcirVarData::Witness(witness) => {
-                let mut expr = Expression::default();
-                expr.push_addition_term(-FieldElement::one(), *witness);
-
-                self.add_data(AcirVarData::Expr(expr))
-            }
-            AcirVarData::Expr(expr) => self.add_data(AcirVarData::Expr(-expr)),
-            AcirVarData::Const(constant) => self.add_data(AcirVarData::Const(-*constant)),
-        }
+        let result_data = if let AcirVarData::Const(constant) = var_data {
+            AcirVarData::Const(-*constant)
+        } else {
+            AcirVarData::Expr(-var_data.to_expression().as_ref())
+        };
+        self.add_data(result_data)
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the inverse of `var`.
     pub(crate) fn inv_var(&mut self, var: AcirVar) -> Result<AcirVar, AcirGenError> {
         let var_data = &self.vars[var];
-        let inverted_witness = match var_data {
-            AcirVarData::Witness(witness) => {
-                let expr = Expression::from(*witness);
-                self.acir_ir.directive_inverse(&expr)
-            }
-            AcirVarData::Expr(expr) => self.acir_ir.directive_inverse(expr),
-            AcirVarData::Const(constant) => {
-                // Note that this will return a 0 if the inverse is not available
-                let result_var = self.add_data(AcirVarData::Const(constant.inverse()));
-                return Ok(result_var);
-            }
-        };
+        if let AcirVarData::Const(constant) = var_data {
+            // Note that this will return a 0 if the inverse is not available
+            let result_var = self.add_data(AcirVarData::Const(constant.inverse()));
+            return Ok(result_var);
+        }
+        let inverted_witness = self.acir_ir.directive_inverse(&var_data.to_expression());
         let inverted_var = self.add_data(AcirVarData::Witness(inverted_witness));
 
         let should_be_one = self.mul_var(inverted_var, var)?;
-        self.assert_eq_one(should_be_one);
+        self.assert_eq_one(should_be_one)?;
 
         Ok(inverted_var)
     }
 
     /// Constrains the lhs to be equal to the constant value `1`
-    pub(crate) fn assert_eq_one(&mut self, var: AcirVar) {
+    pub(crate) fn assert_eq_one(&mut self, var: AcirVar) -> Result<(), AcirGenError> {
         let one_var = self.add_constant(FieldElement::one());
-        self.assert_eq_var(var, one_var);
+        self.assert_eq_var(var, one_var)
     }
 
     /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
@@ -216,39 +211,25 @@ impl AcirContext {
     }
 
     /// Constrains the `lhs` and `rhs` to be equal.
-    pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) {
+    pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<(), AcirGenError> {
         // TODO: could use sub_var and then assert_eq_zero
         let lhs_data = &self.vars[lhs];
         let rhs_data = &self.vars[rhs];
-
-        match (lhs_data, rhs_data) {
-            (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
-            | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
-                self.acir_ir.assert_is_zero(expr - *witness);
+        if let (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) = (lhs_data, rhs_data)
+        {
+            if lhs_const == rhs_const {
+                // Constraint is always true and need not be added
+                Ok(())
+            } else {
+                // Constraint is always false - this program is unprovable
+                Err(AcirGenError::BadConstantEquality { lhs: *lhs_const, rhs: *rhs_const })
             }
-            (AcirVarData::Witness(witness), AcirVarData::Const(constant))
-            | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => self
-                .acir_ir
-                .assert_is_zero(&Expression::from(*witness) - &Expression::from(*constant)),
-            (AcirVarData::Expr(expr), AcirVarData::Const(constant))
-            | (AcirVarData::Const(constant), AcirVarData::Expr(expr)) => {
-                self.acir_ir.assert_is_zero(expr.clone() - *constant);
-            }
-            (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                self.acir_ir.assert_is_zero(lhs_expr - rhs_expr);
-            }
-            (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => self
-                .acir_ir
-                .assert_is_zero(&Expression::from(*lhs_witness) - &Expression::from(*rhs_witness)),
-            (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
-                // TODO: for constants, we add it as a gate.
-                // TODO: Assuming users will never want to create unsatisfiable programs
-                // TODO: We could return an error here instead
-                self.acir_ir.assert_is_zero(Expression::from(FieldElement::from(
-                    lhs_constant == rhs_constant,
-                )));
-            }
-        };
+        } else {
+            self.acir_ir.assert_is_zero(
+                lhs_data.to_expression().as_ref() - rhs_data.to_expression().as_ref(),
+            );
+            Ok(())
+        }
     }
 
     /// Adds a new Variable to context whose value will
@@ -322,31 +303,15 @@ impl AcirContext {
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, AcirGenError> {
         let lhs_data = &self.vars[lhs];
         let rhs_data = &self.vars[rhs];
-        let result = match (lhs_data, rhs_data) {
-            (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
-            | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
-                self.add_data(AcirVarData::Expr(expr + &Expression::from(*witness)))
-            }
-            (AcirVarData::Witness(witness), AcirVarData::Const(constant))
-            | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => self.add_data(
-                AcirVarData::Expr(&Expression::from(*witness) + &Expression::from(*constant)),
-            ),
-            (AcirVarData::Expr(expr), AcirVarData::Const(constant))
-            | (AcirVarData::Const(constant), AcirVarData::Expr(expr)) => {
-                self.add_data(AcirVarData::Expr(expr + &Expression::from(*constant)))
-            }
-            (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                self.add_data(AcirVarData::Expr(lhs_expr + rhs_expr))
-            }
-            (AcirVarData::Witness(lhs), AcirVarData::Witness(rhs)) => {
-                // TODO: impl Add for Witness which returns an Expression instead of the below
-                self.add_data(AcirVarData::Expr(&Expression::from(*lhs) + &Expression::from(*rhs)))
-            }
-            (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) => {
-                self.add_data(AcirVarData::Const(*lhs_const + *rhs_const))
-            }
+        let result_data = if let (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) =
+            (lhs_data, rhs_data)
+        {
+            AcirVarData::Const(*lhs_const + *rhs_const)
+        } else {
+            let sum = lhs_data.to_expression().as_ref() + rhs_data.to_expression().as_ref();
+            AcirVarData::Expr(sum)
         };
-        Ok(result)
+        Ok(self.add_data(result_data))
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
@@ -354,15 +319,7 @@ impl AcirContext {
     /// `x` must be a 1-bit integer (i.e. a boolean)
     pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
         // Since `x` can only be 0 or 1, we can derive NOT as 1 - x
-        match &self.vars[x] {
-            AcirVarData::Const(constant) => {
-                self.add_data(AcirVarData::Expr(&Expression::one() - &Expression::from(*constant)))
-            }
-            AcirVarData::Expr(expr) => self.add_data(AcirVarData::Expr(&Expression::one() - expr)),
-            AcirVarData::Witness(witness) => {
-                self.add_data(AcirVarData::Expr(&Expression::one() - *witness))
-            }
-        }
+        self.add_data(AcirVarData::Expr(&Expression::one() - self.vars[x].to_expression().as_ref()))
     }
 
     /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
@@ -469,24 +426,21 @@ impl AcirContext {
     }
 
     /// Constrains the `AcirVar` variable to be of type `NumericType`.
-    pub(crate) fn numeric_cast_var(
+    pub(crate) fn range_constrain_var(
         &mut self,
         variable: AcirVar,
         numeric_type: &NumericType,
     ) -> Result<AcirVar, AcirGenError> {
         let data = &self.vars[variable];
         match numeric_type {
-            NumericType::Signed { .. } => todo!("signed integer conversion is unimplemented"),
+            NumericType::Signed { .. } => todo!("signed integer constraining is unimplemented"),
             NumericType::Unsigned { bit_size } => {
                 let data_expr = data.to_expression();
                 let witness = self.acir_ir.get_or_create_witness(&data_expr);
                 self.acir_ir.range_constraint(witness, *bit_size)?;
             }
             NumericType::NativeField => {
-                // If someone has made a cast to a `Field` type then this is a Noop.
-                //
-                // The reason for doing this in code is for type safety; ie you have an
-                // integer, but a function requires the parameter to be a Field.
+                // Range constraining a Field is a no-op
             }
         }
         Ok(variable)
