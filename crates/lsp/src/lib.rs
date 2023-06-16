@@ -5,28 +5,42 @@ use std::{
     task::{Context, Poll},
 };
 
+use acvm::Language;
 use async_lsp::{
-    router::Router, AnyEvent, AnyNotification, AnyRequest, Error, LspService, ResponseError,
+    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LanguageClient,
+    LspService, ResponseError,
 };
 use lsp_types::{
-    notification, request, DidChangeConfigurationParams, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams, InitializeResult,
-    InitializedParams, ServerCapabilities,
+    notification, request, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, InitializeParams, InitializeResult, InitializedParams,
+    PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions,
 };
+use noirc_driver::Driver;
+use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use noirc_frontend::graph::CrateType;
 use serde_json::Value as JsonValue;
 use tower::Service;
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
-#[derive(Debug, Default)]
-struct LspState;
+#[derive(Debug)]
+struct LspState {
+    client: ClientSocket,
+}
+
+impl LspState {
+    fn new(client: &ClientSocket) -> Self {
+        Self { client: client.clone() }
+    }
+}
 
 pub struct NargoLspService {
     router: Router<LspState>,
 }
 
 impl NargoLspService {
-    pub fn new() -> Self {
-        let state = LspState::default();
+    pub fn new(client: &ClientSocket) -> Self {
+        let state = LspState::new(client);
         let mut router = Router::new(state);
         router
             .request::<request::Initialize, _>(on_initialize)
@@ -36,14 +50,9 @@ impl NargoLspService {
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
             .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
             .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
+            .notification::<notification::DidSaveTextDocument>(on_did_save_text_document)
             .notification::<notification::Exit>(on_exit);
         Self { router }
-    }
-}
-
-impl Default for NargoLspService {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -90,8 +99,14 @@ fn on_initialize(
     _params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
     async {
+        let text_document_sync = TextDocumentSyncOptions {
+            save: Some(true.into()),
+            ..TextDocumentSyncOptions::default()
+        };
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                text_document_sync: Some(text_document_sync.into()),
                 // Add capabilities before this spread when adding support for one
                 ..ServerCapabilities::default()
             },
@@ -142,22 +157,99 @@ fn on_did_close_text_document(
     ControlFlow::Continue(())
 }
 
+fn on_did_save_text_document(
+    state: &mut LspState,
+    params: DidSaveTextDocumentParams,
+) -> ControlFlow<Result<(), async_lsp::Error>> {
+    // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
+    // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
+    let mut driver = Driver::new(&Language::R1CS, Box::new(|_op| false));
+
+    let file_path = &params.text_document.uri.to_file_path().unwrap();
+
+    driver.create_local_crate(file_path, CrateType::Binary);
+
+    let mut diagnostics = Vec::new();
+
+    let file_diagnostics = match driver.check_crate(false) {
+        Ok(warnings) => warnings,
+        Err(errors_and_warnings) => errors_and_warnings,
+    };
+
+    if !file_diagnostics.is_empty() {
+        let fm = driver.file_manager();
+        let files = fm.as_simple_files();
+
+        for FileDiagnostic { file_id, diagnostic } in file_diagnostics {
+            // TODO: This file_id never be 0 because the "path" where it maps is the directory, not a file
+            if file_id.as_usize() != 0 {
+                continue;
+            }
+
+            let mut range = Range::default();
+
+            // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
+            for sec in diagnostic.secondaries {
+                // TODO: Codespan ranges are often (always?) off by some amount of characters
+                if let Ok(codespan_range) =
+                    codespan_lsp::byte_span_to_range(files, file_id.as_usize(), sec.span.into())
+                {
+                    // We have to manually attach each because the codespan_lsp restricts lsp-types to the wrong version range
+                    range.start.line = codespan_range.start.line;
+                    range.start.character = codespan_range.start.character;
+                    range.end.line = codespan_range.end.line;
+                    range.end.character = codespan_range.end.character;
+                }
+            }
+            let severity = match diagnostic.kind {
+                DiagnosticKind::Error => Some(DiagnosticSeverity::ERROR),
+                DiagnosticKind::Warning => Some(DiagnosticSeverity::WARNING),
+            };
+            diagnostics.push(Diagnostic {
+                range,
+                severity,
+                message: diagnostic.message,
+                ..Diagnostic::default()
+            })
+        }
+    }
+
+    let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+        uri: params.text_document.uri,
+        version: None,
+        diagnostics,
+    });
+
+    ControlFlow::Continue(())
+}
+
 fn on_exit(_state: &mut LspState, _params: ()) -> ControlFlow<Result<(), async_lsp::Error>> {
     ControlFlow::Continue(())
 }
 
 #[cfg(test)]
 mod lsp_tests {
+    use lsp_types::TextDocumentSyncCapability;
     use tokio::test;
 
     use super::*;
 
     #[test]
     async fn test_on_initialize() {
-        let mut state = LspState::default();
+        // Not available in published release yet
+        let client = ClientSocket::new_closed();
+        let mut state = LspState::new(&client);
         let params = InitializeParams::default();
         let response = on_initialize(&mut state, params).await.unwrap();
-        assert_eq!(response.capabilities, ServerCapabilities::default());
+        assert!(matches!(
+            response.capabilities,
+            ServerCapabilities {
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions { save: Some(_), .. }
+                )),
+                ..
+            }
+        ));
         assert!(response.server_info.is_none());
     }
 }
