@@ -316,10 +316,8 @@ impl Instruction {
             }
             Instruction::Call { func, arguments } => {
                 let mut simplify_result = None;
-                Intrinsic::lookup("slice_push_back").map(|intrinsic| {
+                if let Some(intrinsic) = Intrinsic::lookup("slice_push_back") {
                     if let Some(intrinsic) = dfg.get_intrinsic(intrinsic) {
-                        dbg!(intrinsic);
-                        dbg!(func);
                         if func == intrinsic {
                             let slice = dfg.get_array_constant(arguments[0]);
                             if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
@@ -329,15 +327,11 @@ impl Instruction {
                             }
                         }
                     }
-                });
-                Intrinsic::lookup("array_len").map(|intrinsic| {
+                } else if let Some(intrinsic) = Intrinsic::lookup("array_len") {
                     if let Some(intrinsic) = dfg.get_intrinsic(intrinsic) {
-                        dbg!(intrinsic);
-                        dbg!(func);
                         if func == intrinsic {
                             let slice = dfg.get_array_constant(arguments[0]);
                             if let Some((slice, _)) = slice {
-                                dbg!(slice.len());
                                 let slice_len = dfg.make_constant(
                                     FieldElement::from(slice.len() as u128),
                                     Type::Numeric(NumericType::NativeField),
@@ -346,7 +340,7 @@ impl Instruction {
                             }
                         }
                     }
-                });
+                };
                 simplify_result
             }
             Instruction::Allocate { .. } => None,

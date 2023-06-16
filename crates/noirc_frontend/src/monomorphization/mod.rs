@@ -12,10 +12,7 @@ use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
-use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
-    result,
-};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
     hir_def::{
@@ -776,15 +773,12 @@ impl<'interner> Monomorphizer<'interner> {
             if let Definition::Builtin(opcode) = &ident.definition {
                 if opcode == "array_len" {
                     let typ = self.interner.id_type(arguments[0]);
-                    match typ {
-                        Type::Array(_, _) => {
-                            let len = typ.evaluate_to_u64().unwrap();
-                            return Some(ast::Expression::Literal(ast::Literal::Integer(
-                                (len as u128).into(),
-                                ast::Type::Field,
-                            )));
-                        }
-                        _ => (),
+                    if let Type::Array(_, _) = typ {
+                        let len = typ.evaluate_to_u64().unwrap();
+                        return Some(ast::Expression::Literal(ast::Literal::Integer(
+                            (len as u128).into(),
+                            ast::Type::Field,
+                        )));
                     }
                 } else if opcode == "modulus_num_bits" {
                     return Some(ast::Expression::Literal(ast::Literal::Integer(
