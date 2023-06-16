@@ -263,7 +263,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Value::Array { array, element_type } => {
                 // Allocate a register for the iterator
-                let iterator_register = self.brillig_context.create_register();
+                let iterator_register = self.brillig_context.allocate_register();
                 // Set the iterator to the address of the array
                 self.brillig_context.mov_instruction(iterator_register, address_register);
 
@@ -368,7 +368,7 @@ impl<'block> BrilligBlock<'block> {
                 register_index
             }
             Value::Array { .. } => {
-                let address_register = self.brillig_context.create_register();
+                let address_register = self.brillig_context.allocate_register();
                 self.brillig_context.allocate_fixed_length_array(
                     address_register,
                     compute_size_of_type(&dfg.type_of_value(value_id)),

@@ -5,8 +5,12 @@
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
 pub(crate) mod artifact;
+pub(crate) mod registers;
 
-use self::artifact::{BrilligArtifact, UnresolvedJumpLocation};
+use self::{
+    artifact::{BrilligArtifact, UnresolvedJumpLocation},
+    registers::BrilligRegistersContext,
+};
 use acvm::{
     acir::brillig_vm::{
         BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
@@ -53,8 +57,8 @@ impl ReservedRegisters {
 #[derive(Default)]
 pub(crate) struct BrilligContext {
     obj: BrilligArtifact,
-    /// A usize indicating the latest un-used register.
-    latest_register: usize,
+    /// Tracks register allocations
+    registers: BrilligRegistersContext,
     /// Context label, must be unique with respect to the function
     /// being linked.
     context_label: String,
@@ -123,7 +127,7 @@ impl BrilligContext {
         result: RegisterIndex,
     ) {
         // Computes array_ptr + index, ie array[index]
-        let index_of_element_in_memory = self.create_register();
+        let index_of_element_in_memory = self.allocate_register();
         self.binary_instruction(
             array_ptr,
             index,
@@ -142,7 +146,7 @@ impl BrilligContext {
         value: RegisterIndex,
     ) {
         // Computes array_ptr + index, ie array[index]
-        let index_of_element_in_memory = self.create_register();
+        let index_of_element_in_memory = self.allocate_register();
         self.binary_instruction(
             array_ptr,
             index,
@@ -161,7 +165,7 @@ impl BrilligContext {
         destination: RegisterIndex,
         num_elements_register: RegisterIndex,
     ) {
-        let index = self.make_constant(0_u128.into());
+        let index_register = self.make_constant(0_u128.into());
 
         let loop_label = self.next_section_label();
         self.enter_next_section();
@@ -169,9 +173,9 @@ impl BrilligContext {
         // Loop body
 
         // Check if index < num_elements
-        let index_less_than_array_len = self.create_register();
+        let index_less_than_array_len = self.allocate_register();
         self.binary_instruction(
-            index,
+            index_register,
             num_elements_register,
             index_less_than_array_len,
             BrilligBinaryOp::Integer {
@@ -186,16 +190,16 @@ impl BrilligContext {
         self.jump_if_instruction(index_less_than_array_len, exit_loop_label);
 
         // Copy the element from source to destination
-        let value_register = self.create_register();
-        self.array_get(source, index, value_register);
-        self.array_set(destination, index, value_register);
+        let value_register = self.allocate_register();
+        self.array_get(source, index_register, value_register);
+        self.array_set(destination, index_register, value_register);
 
         // Increment the index register
-        let one = self.make_constant(1u128.into());
+        let one_register = self.make_constant(1u128.into());
         self.binary_instruction(
-            index,
-            one,
-            index,
+            index_register,
+            one_register,
+            index_register,
             BrilligBinaryOp::Integer {
                 op: BinaryIntOp::Add,
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -206,6 +210,9 @@ impl BrilligContext {
 
         // Exit the loop
         self.enter_next_section();
+        // Deallocate our temporary registers
+        self.deallocate_register(one_register);
+        self.deallocate_register(index_register);
     }
 
     /// Adds a label to the next opcode
@@ -273,10 +280,14 @@ impl BrilligContext {
     }
 
     /// Creates a new register.
-    pub(crate) fn create_register(&mut self) -> RegisterIndex {
-        let register = self.user_register_index(self.latest_register);
-        self.latest_register += 1;
-        register
+    pub(crate) fn allocate_register(&mut self) -> RegisterIndex {
+        self.registers.allocate_register()
+    }
+
+    /// Push a register to the deallocation list, ready for reuse.
+    /// TODO(AD): Currently only used for constants. Later, do lifecycle analysis.
+    pub(crate) fn deallocate_register(&mut self, register_index: RegisterIndex) {
+        self.registers.deallocate_register(register_index);
     }
 }
 
@@ -303,13 +314,6 @@ impl BrilligContext {
     /// the VM.
     pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
         for (destination_index, return_register) in return_registers.iter().enumerate() {
-            // If the destination register index is more than the latest register,
-            // we update the latest register to be the destination register because the
-            // brillig vm will expand the number of registers internally, when it encounters
-            // a register that has not been initialized.
-            if destination_index > self.latest_register {
-                self.latest_register = destination_index;
-            }
             self.mov_instruction(destination_index.into(), *return_register);
         }
         self.stop_instruction();
@@ -434,7 +438,7 @@ impl BrilligContext {
 
     /// Returns a register which holds the value of a constant
     pub(crate) fn make_constant(&mut self, constant: Value) -> RegisterIndex {
-        let register = self.create_register();
+        let register = self.allocate_register();
         self.const_instruction(register, constant);
         register
     }
@@ -456,8 +460,8 @@ impl BrilligContext {
         bit_size: u32,
         signed: bool,
     ) {
-        let scratch_register_i = self.create_register();
-        let scratch_register_j = self.create_register();
+        let scratch_register_i = self.allocate_register();
+        let scratch_register_j = self.allocate_register();
 
         // i = left / right
         self.push_opcode(BrilligOpcode::BinaryIntOp {

@@ -26,7 +26,7 @@ impl FunctionContext {
             return *register_index;
         }
 
-        let register = brillig_context.create_register();
+        let register = brillig_context.allocate_register();
 
         // Cache the `ValueId` so that if we call it again, it will
         // return the register that has just been created.
