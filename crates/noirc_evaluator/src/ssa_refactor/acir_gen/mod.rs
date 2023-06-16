@@ -351,7 +351,7 @@ impl Context {
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
-                unreachable!("ICE: Should have been in cache {value:?}")
+                unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
         };
         self.ssa_values.insert(value_id, acir_value.clone());
