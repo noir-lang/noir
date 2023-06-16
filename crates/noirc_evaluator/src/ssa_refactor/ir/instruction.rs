@@ -345,7 +345,7 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
             }
             _ => None,
         }
-    } else if let Some(value) = (*dst_typ == dfg.type_of_value(value)).then_some(value) {
+    } else if *dst_typ == dfg.type_of_value(value) {
         SimplifiedTo(value)
     } else {
         None
