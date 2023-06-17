@@ -54,6 +54,11 @@ impl ReservedRegisters {
     pub(crate) fn stack_pointer() -> RegisterIndex {
         RegisterIndex::from(ReservedRegisters::StackPointer as usize)
     }
+
+    /// Returns a user defined (non-reserved) register index.
+    fn user_register_index(index: usize) -> RegisterIndex {
+        RegisterIndex::from(index + ReservedRegisters::len())
+    }
 }
 
 /// Brillig context object that is used while constructing the
@@ -71,24 +76,13 @@ pub(crate) struct BrilligContext {
 
 impl BrilligContext {
     /// Initial context state
-    pub(crate) fn new() -> BrilligContext {
+    pub(crate) fn new(num_arguments: usize, num_return_parameters: usize) -> BrilligContext {
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj: BrilligArtifact::new(num_arguments, num_return_parameters),
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
         }
-    }
-
-    /// Adds the instructions needed to handle entry point parameters
-    /// And sets the starting value of the reserved registers
-    pub(crate) fn entry_point_instruction(&mut self, num_arguments: usize) {
-        // Translate the inputs by the reserved registers offset
-        for i in (0..num_arguments).rev() {
-            self.mov_instruction(self.user_register_index(i), RegisterIndex::from(i));
-        }
-        // Set the initial value of the stack pointer register
-        self.const_instruction(ReservedRegisters::stack_pointer(), Value::from(0_usize));
     }
 
     /// Adds a brillig instruction to the brillig byte code
@@ -291,11 +285,6 @@ impl BrilligContext {
         destination: UnresolvedJumpLocation,
     ) {
         self.obj.add_unresolved_jump(jmp_instruction, destination);
-    }
-
-    /// Returns a user defined (non-reserved) register index.
-    fn user_register_index(&self, index: usize) -> RegisterIndex {
-        RegisterIndex::from(index + ReservedRegisters::len())
     }
 
     /// Allocates an unused register.
