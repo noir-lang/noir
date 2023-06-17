@@ -1,7 +1,9 @@
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_fn;
 
-use crate::ssa_refactor::ir::{function::Function, post_order::PostOrder};
+use crate::ssa_refactor::ir::{
+    function::Function, instruction::TerminatorInstruction, post_order::PostOrder,
+};
 
 use std::collections::HashMap;
 
@@ -28,7 +30,19 @@ pub(crate) fn convert_ssa_function(
     let mut function_context =
         FunctionContext { function_id: func.id(), ssa_value_to_register: HashMap::new() };
 
-    let mut brillig_context = BrilligContext::new();
+    fn func_num_return_values(func: &Function) -> usize {
+        let dfg = &func.dfg;
+        let term = dfg[func.entry_block()]
+            .terminator()
+            .expect("expected a terminator instruction, as block is finished construction ");
+        match term {
+            TerminatorInstruction::Return { return_values } => return_values.len(),
+            _ => panic!("expected a return instruction, as block is finished construction "),
+        }
+    }
+    let num_parameters = func.parameters().len();
+    let num_return_values = func_num_return_values(func);
+    let mut brillig_context = BrilligContext::new(num_parameters, num_return_values);
 
     for block in reverse_post_order {
         BrilligBlock::compile(
@@ -40,12 +54,5 @@ pub(crate) fn convert_ssa_function(
         );
     }
 
-    brillig_context.artifact()
-}
-
-/// Creates an entry point artifact, that will be linked with the brillig functions being called
-pub(crate) fn create_entry_point_function(num_arguments: usize) -> BrilligArtifact {
-    let mut brillig_context = BrilligContext::new();
-    brillig_context.entry_point_instruction(num_arguments);
     brillig_context.artifact()
 }
