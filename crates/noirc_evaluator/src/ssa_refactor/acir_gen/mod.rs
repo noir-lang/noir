@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{brillig_gen::create_entry_point_function, Brillig};
+use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
@@ -182,8 +182,8 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                // Generate the brillig code of the function
-                                let code = create_entry_point_function(arguments.len()).link(&brillig[*id]);
+                                // Link the brillig code of the function using the artifacts and produce one stream of bytecode
+                                let code = BrilligArtifact::link(&brillig[*id]);
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
