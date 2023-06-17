@@ -601,8 +601,7 @@ impl BrilligContext {
             destination,
             destination,
             const_register,
-            // TODO(AD): magic constant
-            BrilligBinaryOp::Integer { op, bit_size: 64 },
+            BrilligBinaryOp::Integer { op, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
         );
         // Mark as no longer used for this purpose, frees for reuse
         self.deallocate_register(const_register);
@@ -621,12 +620,9 @@ impl BrilligContext {
         // Move argument values to the front of the registers
         //
         // This means that the arguments will be in the first `n` registers after
-        // the special registers which are reserved.
+        // the number of reserved registers.
         for (i, argument) in arguments.iter().enumerate() {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: self.register(i),
-                source: *argument,
-            });
+            self.mov_instruction(self.register(i), *argument);
         }
 
         saved_registers
