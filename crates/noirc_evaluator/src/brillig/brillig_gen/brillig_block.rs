@@ -217,7 +217,7 @@ impl<'block> BrilligBlock<'block> {
                 }
                 Value::Function(func_id) => {
                     let function_arguments: Vec<RegisterIndex> =
-                        vecmap(arguments.clone(), |arg| self.convert_ssa_value(arg, dfg));
+                        vecmap(arguments, |arg| self.convert_ssa_value(*arg, dfg));
                     let result_ids = dfg.instruction_results(instruction_id);
 
                     // Create label for the function that will be called
