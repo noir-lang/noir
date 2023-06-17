@@ -11,6 +11,13 @@ pub(crate) struct BrilligArtifact {
     unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
     /// A map of labels to their position in byte code.
     labels: HashMap<Label, OpcodeLocation>,
+    /// Set of labels which are external to the bytecode.
+    ///
+    /// This will most commonly contain the labels of functions
+    /// which are defined in other bytecode, that this bytecode has called.
+    /// TODO: perhaps we should combine this with the `unresolved_jumps` field
+    /// TODO: and have an enum which indicates whether the jump is internal or external
+    unresolved_external_call_labels: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
 }
 
 /// A pointer to a location in the opcode.
@@ -37,6 +44,10 @@ pub(crate) type UnresolvedJumpLocation = Label;
 
 impl BrilligArtifact {
     /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
+    ///
+    /// TODO: This method could be renamed to `link_and_resolve_jumps`
+    /// TODO: We could make this consume self, so the Clone is explicitly
+    /// TODO: done by the caller
     pub(crate) fn link(&mut self, obj: &BrilligArtifact) -> Vec<BrilligOpcode> {
         self.append_artifact(obj);
         self.resolve_jumps();
@@ -80,6 +91,17 @@ impl BrilligArtifact {
 
         self.unresolved_jumps.push((self.index_of_next_opcode(), destination));
         self.push_opcode(jmp_instruction);
+    }
+    /// Adds a unresolved external call that will be fixed once linking has been done.
+    pub(crate) fn add_unresolved_external_call(
+        &mut self,
+        call_instruction: BrilligOpcode,
+        destination: UnresolvedJumpLocation,
+    ) {
+        // TODO: Add a check to ensure that the opcode is a call instruction
+
+        self.unresolved_external_call_labels.push((self.index_of_next_opcode(), destination));
+        self.push_opcode(call_instruction);
     }
 
     /// Returns true if the opcode is a jump instruction
