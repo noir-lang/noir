@@ -1,5 +1,9 @@
-use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
+};
 use std::collections::HashMap;
+
+use crate::brillig::brillig_ir::ReservedRegisters;
 
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
@@ -18,6 +22,11 @@ pub(crate) struct BrilligArtifact {
     /// TODO: perhaps we should combine this with the `unresolved_jumps` field
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
+    /// The number of return values that this function will return.
+    number_of_return_parameters: usize,
+
+    /// The number of arguments that this function will take.
+    number_of_arguments: usize,
 }
 
 /// A pointer to a location in the opcode.
@@ -43,15 +52,89 @@ pub(crate) type JumpInstructionPosition = OpcodeLocation;
 pub(crate) type UnresolvedJumpLocation = Label;
 
 impl BrilligArtifact {
-    /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
+    /// Initialize an artifact with the number of arguments and return parameters
+    pub(crate) fn new(
+        number_of_arguments: usize,
+        number_of_return_parameters: usize,
+    ) -> BrilligArtifact {
+        BrilligArtifact {
+            byte_code: Vec::new(),
+            unresolved_jumps: Vec::new(),
+            labels: HashMap::new(),
+            unresolved_external_call_labels: Vec::new(),
+            number_of_return_parameters,
+            number_of_arguments,
+        }
+    }
+
+    /// Links Brillig artifact and resolve all unresolved jump instructions.
+    ///
+    /// Current usage of this method, does not link two independent Brillig artifacts.
+    /// `Self` at this point in time
     ///
     /// TODO: This method could be renamed to `link_and_resolve_jumps`
     /// TODO: We could make this consume self, so the Clone is explicitly
     /// TODO: done by the caller
-    pub(crate) fn link(&mut self, obj: &BrilligArtifact) -> Vec<BrilligOpcode> {
-        self.append_artifact(obj);
-        self.resolve_jumps();
-        self.byte_code.clone()
+    pub(crate) fn link(artifact_to_append: &BrilligArtifact) -> Vec<BrilligOpcode> {
+        let mut linked_artifact = BrilligArtifact::default();
+
+        linked_artifact.entry_point_instruction(artifact_to_append.number_of_arguments);
+        // First we append the artifact to the end of the current artifact
+        // Updating the offsets of the appended artefact, so that the jumps
+        // are still correct.
+        linked_artifact.append_artifact(artifact_to_append);
+
+        linked_artifact.exit_point_instruction(artifact_to_append.number_of_return_parameters);
+
+        linked_artifact.resolve_jumps();
+
+        linked_artifact.byte_code.clone()
+    }
+
+    /// Adds the instructions needed to handle entry point parameters
+    ///
+    /// And sets the starting value of the reserved registers
+    pub(crate) fn entry_point_instruction(&mut self, num_arguments: usize) {
+        // Translate the inputs by the reserved registers offset
+        for i in (0..num_arguments).rev() {
+            self.byte_code.push(BrilligOpcode::Mov {
+                destination: ReservedRegisters::user_register_index(i),
+                source: RegisterIndex::from(i),
+            })
+        }
+
+        // Set the initial value of the stack pointer register
+        self.byte_code.push(BrilligOpcode::Const {
+            destination: ReservedRegisters::stack_pointer(),
+            value: Value::from(0_usize),
+        });
+    }
+
+    /// Adds the instructions needed to handle return parameters
+    pub(crate) fn exit_point_instruction(&mut self, num_return_parameters: usize) {
+        // We want all functions to follow the calling convention of returning
+        // their results in the first `n` registers. So we modify the bytecode of the
+        // function to move the return values to the first `n` registers once completed.
+        //
+        // Remove the ending stop
+        // TODO: Shouldn't this be the case when we process a terminator instruction?
+        // TODO: If so, then entry_point_instruction and exit_point_instruction should be
+        // TODO put in brillig_gen.
+        // TODO: entry_point is called when we process a function, and exit_point is called
+        // TODO when we process a terminator instruction.
+        let expected_stop = self.byte_code.pop().expect("expected at least one opcode");
+        assert_eq!(expected_stop, BrilligOpcode::Stop, "expected a stop code");
+
+        // TODO: this _seems_ like an abstraction leak, we need to know about the reserved
+        // TODO: registers in order to do this.
+        // Move the results to registers 0..n
+        for i in 0..num_return_parameters {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: i.into(),
+                source: ReservedRegisters::user_register_index(i),
+            });
+        }
+        self.push_opcode(BrilligOpcode::Stop);
     }
 
     /// Link with an external brillig artifact.
@@ -165,5 +248,106 @@ impl BrilligArtifact {
                 ),
             }
         }
+    }
+
+    fn pretty_print_opcode(opcode: &BrilligOpcode) -> String {
+        fn binary_field_op_to_string(op: &BinaryFieldOp) -> &str {
+            match op {
+                BinaryFieldOp::Add => "+",
+                BinaryFieldOp::Sub => "-",
+                BinaryFieldOp::Mul => "*",
+                BinaryFieldOp::Div => "/",
+                BinaryFieldOp::Equals => "==",
+            }
+        }
+
+        fn binary_int_op_to_string(op: &BinaryIntOp) -> &str {
+            match op {
+                BinaryIntOp::Add => "+",
+                BinaryIntOp::Sub => "-",
+                BinaryIntOp::Mul => "*",
+                BinaryIntOp::SignedDiv => "SDiv",
+                BinaryIntOp::UnsignedDiv => "UDiv",
+                BinaryIntOp::Equals => "==",
+                BinaryIntOp::LessThan => "<",
+                BinaryIntOp::LessThanEquals => "<=",
+                BinaryIntOp::And => "&&",
+                BinaryIntOp::Or => "||",
+                BinaryIntOp::Xor => "^",
+                BinaryIntOp::Shl => "<<",
+                BinaryIntOp::Shr => ">>",
+            }
+        }
+
+        match opcode {
+            BrilligOpcode::BinaryFieldOp { destination, op, lhs, rhs } => {
+                format!(
+                    "r{} = r{} {} r{}",
+                    destination.to_usize(),
+                    lhs.to_usize(),
+                    binary_field_op_to_string(op),
+                    rhs.to_usize()
+                )
+            }
+            BrilligOpcode::BinaryIntOp { destination, op, bit_size, lhs, rhs } => {
+                format!(
+                    "r{} = ({}-bit) r{} {} r{}",
+                    destination.to_usize(),
+                    bit_size,
+                    lhs.to_usize(),
+                    binary_int_op_to_string(op),
+                    rhs.to_usize()
+                )
+            }
+            BrilligOpcode::JumpIfNot { condition, location } => {
+                format!("IF NOT r{} GOTO LABEL {}", condition.to_usize(), location)
+            }
+            BrilligOpcode::JumpIf { condition, location } => {
+                format!("IF r{} GOTO LABEL {}", condition.to_usize(), location)
+            }
+            BrilligOpcode::Jump { location } => format!("GOTO LABEL {}", location),
+            BrilligOpcode::Call { location } => format!("CALL LABEL {}", location),
+            BrilligOpcode::Const { destination, value } => {
+                format!("r{} = CONST {}", destination.to_usize(), value.to_field().to_hex())
+            }
+            BrilligOpcode::Return => String::from("RETURN"),
+            BrilligOpcode::ForeignCall { function, destinations, inputs } => {
+                // Assuming RegisterOrMemory also has a 'to_string' method
+                // let destinations: Vec<String> =
+                //     destinations.iter().map(|d| d.to_string()).collect();
+                // let inputs: Vec<String> = inputs.iter().map(|i| i.to_string()).collect();
+                // format!(
+                //     "FOREIGNCALL {} IN ({}) OUT ({})",
+                //     function,
+                //     inputs.join(", "),
+                //     destinations.join(", ")
+                // )
+                todo!()
+            }
+            BrilligOpcode::Mov { destination, source } => {
+                format!("r{} = MOV r{}", destination.to_usize(), source.to_usize())
+            }
+            BrilligOpcode::Load { destination, source_pointer } => {
+                format!("r{} = LOAD r{}", destination.to_usize(), source_pointer.to_usize())
+            }
+            BrilligOpcode::Store { destination_pointer, source } => {
+                format!("STORE r{} TO r{}", source.to_usize(), destination_pointer.to_usize())
+            }
+            BrilligOpcode::Trap => String::from("TRAP"),
+            BrilligOpcode::Stop => String::from("STOP"),
+        }
+    }
+}
+
+impl std::fmt::Display for BrilligArtifact {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            self.byte_code
+                .iter()
+                .map(Self::pretty_print_opcode)
+                .collect::<Vec<_>>()
+                .join("\n")
+                .as_str(),
+        )
     }
 }
