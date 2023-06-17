@@ -72,7 +72,9 @@ fn value(function: &Function, id: ValueId) -> String {
             let elements = vecmap(array, |element| value(function, *element));
             format!("[{}]", elements.join(", "))
         }
-        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
+        Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
+            id.to_string()
+        }
     }
 }
 

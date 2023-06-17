@@ -207,6 +207,9 @@ impl<'function> PerFunctionContext<'function> {
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::ForeignFunction(function) => {
+                self.context.builder.import_foreign_function(function)
+            }
             Value::Array { array, element_type } => {
                 let elements = array.iter().map(|value| self.translate_value(*value)).collect();
                 self.context.builder.array_constant(elements, element_type.clone())
