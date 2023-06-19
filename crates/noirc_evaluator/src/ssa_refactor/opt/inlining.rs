@@ -284,7 +284,7 @@ impl<'function> PerFunctionContext<'function> {
             self.context.builder.switch_to_block(translated_block_id);
 
             seen_blocks.insert(source_block_id);
-            self.inline_block(ssa, source_block_id);
+            self.inline_block_instructions(ssa, source_block_id);
 
             if let Some((block, values)) =
                 self.handle_terminator_instruction(source_block_id, &mut block_queue)
@@ -329,7 +329,7 @@ impl<'function> PerFunctionContext<'function> {
 
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
-    fn inline_block(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
+    fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
