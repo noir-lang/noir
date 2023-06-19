@@ -63,7 +63,7 @@ impl FunctionContext {
                 match typ {
                     Type::Numeric(_) => BrilligParameter::Register,
                     Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
-                    _ => unimplemented!("Only numeric param types are supported for now {typ:?}"),
+                    _ => unimplemented!("Unsupported function parameter type {typ:?}"),
                 }
             })
             .collect()
@@ -88,7 +88,7 @@ impl FunctionContext {
                 match typ {
                     Type::Numeric(_) => BrilligParameter::Register,
                     Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
-                    _ => unimplemented!("Only numeric return types are supported for now {typ:?}"),
+                    _ => unimplemented!("Unsupported return value type {typ:?}"),
                 }
             })
             .collect()
