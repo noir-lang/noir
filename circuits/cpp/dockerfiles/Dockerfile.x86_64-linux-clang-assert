@@ -19,5 +19,6 @@ RUN cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --b
 FROM alpine:3.17
 RUN apk update && apk add curl openmp bash
 COPY --from=builder /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/barretenberg/cpp/srs_db
+COPY --from=builder /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures
 COPY --from=builder /usr/src/circuits/cpp/scripts /usr/src/circuits/cpp/scripts
 COPY --from=builder /usr/src/circuits/cpp/build/bin/*_tests /usr/src/circuits/cpp/build/bin/

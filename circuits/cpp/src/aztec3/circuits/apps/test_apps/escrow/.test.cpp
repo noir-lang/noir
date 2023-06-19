@@ -53,13 +53,12 @@ TEST_F(escrow_tests, circuit_deposit)
     auto result = deposit(exec_ctx, { amount, asset_id, memo });
     info("result: ", result);
 
-    info("computed witness: ", composer.composer_helper.computed_witness);
     // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
-    info("failed?: ", composer.failed());
-    info("err: ", composer.err());
-    info("n: ", composer.num_gates);
+    info("failed?: ", composer.circuit_constructor.failed());
+    info("err: ", composer.circuit_constructor.err());
+    info("n: ", composer.circuit_constructor.num_gates);
 }
 
 TEST_F(escrow_tests, circuit_transfer)
@@ -79,13 +78,12 @@ TEST_F(escrow_tests, circuit_transfer)
 
     transfer(exec_ctx, amount, to, asset_id, memo, reveal_msg_sender_to_recipient, fee);
 
-    info("computed witness: ", composer.composer_helper.computed_witness);
     // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
-    info("failed?: ", composer.failed());
-    info("err: ", composer.err());
-    info("n: ", composer.num_gates);
+    info("failed?: ", composer.circuit_constructor.failed());
+    info("err: ", composer.circuit_constructor.err());
+    info("n: ", composer.circuit_constructor.num_gates);
 }
 
 TEST_F(escrow_tests, circuit_withdraw)
@@ -104,13 +102,12 @@ TEST_F(escrow_tests, circuit_withdraw)
 
     withdraw(exec_ctx, amount, asset_id, memo, l1_withdrawal_address, fee);
 
-    info("computed witness: ", composer.composer_helper.computed_witness);
     // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
-    info("failed?: ", composer.failed());
-    info("err: ", composer.err());
-    info("n: ", composer.num_gates);
+    info("failed?: ", composer.circuit_constructor.failed());
+    info("err: ", composer.circuit_constructor.err());
+    info("n: ", composer.circuit_constructor.num_gates);
 }
 
 }  // namespace aztec3::circuits::apps::test_apps::escrow

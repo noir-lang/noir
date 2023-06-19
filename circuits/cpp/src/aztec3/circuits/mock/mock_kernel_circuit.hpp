@@ -43,7 +43,7 @@ KernelCircuitPublicInputs<NT> mock_kernel_circuit(Composer& composer,
     // We still add dummy witness indices in the recursive proof indices just so that we don't trigger an assertion in
     // while setting recursion elements as public inputs. These dummy indices would not be used as we're setting
     // contains_recursive_proof to be false.
-    composer.contains_recursive_proof = false;
+    composer.circuit_constructor.contains_recursive_proof = false;
 
     plonk::stdlib::pedersen_commitment<Composer>::compress(fr(witness_t(&composer, 1)), fr(witness_t(&composer, 1)));
     return public_inputs.template to_native_type<Composer>();

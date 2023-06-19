@@ -13,5 +13,6 @@ FROM ubuntu:kinetic
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y xz-utils curl
 RUN curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v3.0.1
 COPY --from=builder /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/barretenberg/cpp/srs_db
+COPY --from=builder /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures
 COPY --from=builder /usr/src/circuits/cpp/scripts /usr/src/circuits/cpp/scripts
 COPY --from=builder /usr/src/circuits/cpp/build-wasm/bin/*_tests /usr/src/circuits/cpp/build-wasm/bin/

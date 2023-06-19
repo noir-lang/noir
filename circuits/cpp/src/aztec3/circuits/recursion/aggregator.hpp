@@ -1,11 +1,6 @@
 #pragma once
 #include "init.hpp"
 
-#include "aztec3/utils/types/circuit_types.hpp"
-#include "aztec3/utils/types/native_types.hpp"
-
-#include <barretenberg/barretenberg.hpp>
-
 namespace aztec3::circuits::recursion {
 
 class Aggregator {

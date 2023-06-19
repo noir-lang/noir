@@ -15,3 +15,4 @@ RUN cmake --preset gcc -DCI=ON && cmake --build --preset gcc
 FROM alpine:3.17
 RUN apk update && apk add libstdc++ libgomp
 COPY --from=builder /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/barretenberg/cpp/srs_db
+COPY --from=builder /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures

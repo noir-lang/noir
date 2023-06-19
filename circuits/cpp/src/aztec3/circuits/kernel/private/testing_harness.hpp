@@ -85,18 +85,6 @@ std::tuple<std::array<NT::fr, READ_REQUESTS_LENGTH>,
 get_random_reads(NT::fr const& contract_address, int num_read_requests);
 
 /**
- * @brief Generate a verification key for a private circuit.
- *
- * @details Use some dummy inputs just to get the VK for a private circuit
- *
- * @param is_constructor Whether this private call is a constructor call
- * @param func The private circuit call to generate a VK for
- * @param num_args Number of args to that private circuit call
- * @return std::shared_ptr<NT::VK> - the generated VK
- */
-std::shared_ptr<NT::VK> gen_func_vk(bool is_constructor, private_function const& func, size_t num_args);
-
-/**
  * @brief Create a private call deploy data object
  *
  * @param is_constructor Whether this private call is a constructor call
