@@ -14,7 +14,8 @@ use self::{
 };
 use acvm::{
     acir::brillig_vm::{
-        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory, Value,
+        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterValueOrArray,
+        Value,
     },
     FieldElement,
 };
@@ -437,8 +438,8 @@ impl BrilligContext {
     pub(crate) fn foreign_call_instruction(
         &mut self,
         func_name: String,
-        inputs: &[RegisterOrMemory],
-        outputs: &[RegisterOrMemory],
+        inputs: &[RegisterValueOrArray],
+        outputs: &[RegisterValueOrArray],
     ) {
         debug_show::foreign_call_instruction(func_name.clone(), inputs, outputs);
         let opcode = BrilligOpcode::ForeignCall {
