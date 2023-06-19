@@ -6,7 +6,7 @@ use acvm::acir::brillig_vm::{
 };
 
 /// Controls whether debug traces are enabled
-const ENABLE_DEBUG_TRACE: bool = false;
+const ENABLE_DEBUG_TRACE: bool = true;
 
 /// Trait for converting values into debug-friendly strings.
 trait DebugToString {
