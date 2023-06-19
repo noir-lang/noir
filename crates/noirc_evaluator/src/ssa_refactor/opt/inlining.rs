@@ -73,8 +73,13 @@ struct PerFunctionContext<'function> {
     /// argument values.
     values: HashMap<ValueId, ValueId>,
 
-    /// Maps BasicBlockIds in the function being inlined to the new BasicBlockIds to use in the
-    /// function being inlined into.
+    /// Maps BasicBlockIds in the function being inlined from to the new BasicBlockIds to use in
+    /// the function being inlined into.
+    ///
+    /// Note that this 1-to-1 mapping only holds true in respect to the start of a source block.
+    /// This is because the inlining process potentially splits a single block into many. It is
+    /// not safe to query this mapping in respect to a program point midway or at the end of a
+    /// source block because the mapping may be stale.
     blocks: HashMap<BasicBlockId, BasicBlockId>,
 
     /// Maps InstructionIds from the function being inlined to the function being inlined into.
@@ -449,7 +454,14 @@ impl<'function> PerFunctionContext<'function> {
                 if self.inlining_main {
                     self.context.builder.terminate_with_return(return_values.clone());
                 }
-                let block_id = self.translate_block(block_id, block_queue);
+                // The decision of how to continue this block is handled by
+                // `handle_function_returns` once we know whether there are multiple returns to
+                // consider. Note that we identify the block containing the return terminator
+                // using `current_block` instead of `translate_block`. This is because the
+                // inlining of other calls within the this block can split it into multiple
+                // blocks. As such, the mapping provided by `translate_block` is considered stale
+                // and unusable for this annotation.
+                let block_id = self.context.builder.current_block();
                 Some((block_id, return_values))
             }
         }
