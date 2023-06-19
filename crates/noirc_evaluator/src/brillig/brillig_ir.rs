@@ -30,6 +30,9 @@ use acvm::{
 /// would mean that unconstrained functions will differ from
 /// constrained functions in terms of syntax compatibility.
 pub(crate) const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
+/// The Brillig VM does not apply a limit to the memory address space,
+/// As a convention, we take use 64 bits. This means that we assume that
+/// memory has 2^64 memory slots.
 pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
 
 // Registers reserved in runtime for special purposes.
