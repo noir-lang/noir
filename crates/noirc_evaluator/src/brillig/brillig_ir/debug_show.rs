@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 ///! This module contains functions for producing a higher level view disassembler of Brillig.
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
@@ -133,10 +131,13 @@ pub(crate) fn constrain_instruction(condition: RegisterIndex) {
 
 /// Processes a return instruction.
 pub(crate) fn return_instruction(return_registers: &[RegisterIndex]) {
-    for (destination_index, return_register) in return_registers.iter().enumerate() {
-        debug_println!("  MOV {}, {}", destination_index, *return_register);
-    }
-    debug_println!("  STOP");
+    let registers_string = return_registers
+        .iter()
+        .map(|reg| reg.to_usize().to_string())
+        .collect::<Vec<String>>()
+        .join(", ");
+
+    debug_println!("  // return {};", registers_string);
 }
 
 /// Emits a `mov` instruction.
