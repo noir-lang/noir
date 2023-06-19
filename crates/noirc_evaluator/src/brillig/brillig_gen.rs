@@ -32,13 +32,17 @@ pub(crate) fn convert_ssa_function(
 
     fn func_num_return_values(func: &Function) -> usize {
         let dfg = &func.dfg;
-        let term = dfg[func.entry_block()]
-            .terminator()
-            .expect("expected a terminator instruction, as block is finished construction ");
-        match term {
-            TerminatorInstruction::Return { return_values } => return_values.len(),
-            _ => panic!("expected a return instruction, as block is finished construction "),
+        let blocks = func.reachable_blocks();
+        let mut function_return_values = None;
+        for block in blocks {
+            let terminator = dfg[block].terminator();
+            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
+                function_return_values = Some(return_values);
+                break;
+            }
         }
+        function_return_values.expect("Expected a return instruction, as block is finished construction").len()
+        
     }
     let num_parameters = func.parameters().len();
     let num_return_values = func_num_return_values(func);

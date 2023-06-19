@@ -1,5 +1,5 @@
 use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
+    Opcode as BrilligOpcode, RegisterIndex, Value,
 };
 use std::collections::HashMap;
 
@@ -67,40 +67,30 @@ impl BrilligArtifact {
         }
     }
 
-    /// Links Brillig artifact and resolve all unresolved jump instructions.
-    ///
-    /// Current usage of this method, does not link two independent Brillig artifacts.
-    /// `Self` at this point in time
-    ///
-    /// TODO: This method could be renamed to `link_and_resolve_jumps`
-    /// TODO: We could make this consume self, so the Clone is explicitly
-    /// TODO: done by the caller
-    pub(crate) fn link(artifact_to_append: &BrilligArtifact) -> Vec<BrilligOpcode> {
-        let mut linked_artifact = BrilligArtifact::default();
+    pub(crate) fn to_entry_point_artifact(artifact: &BrilligArtifact) -> BrilligArtifact {
+        let mut entry_point_artifact = BrilligArtifact::new(artifact.number_of_arguments, artifact.number_of_return_parameters);
+        entry_point_artifact.entry_point_instruction();
+        entry_point_artifact.link_with(artifact);
+        entry_point_artifact.exit_point_instruction();
+        entry_point_artifact
+    }
 
-        linked_artifact.entry_point_instruction(artifact_to_append.number_of_arguments);
-        // First we append the artifact to the end of the current artifact
-        // Updating the offsets of the appended artefact, so that the jumps
-        // are still correct.
-        linked_artifact.append_artifact(artifact_to_append);
-
-        linked_artifact.exit_point_instruction(artifact_to_append.number_of_return_parameters);
-
-        linked_artifact.resolve_jumps();
-
-        linked_artifact.byte_code.clone()
+    /// Resolves all jumps and generates the final bytecode
+    pub(crate) fn finish(mut self) -> Vec<BrilligOpcode> {
+        self.resolve_jumps();
+        self.byte_code
     }
 
     /// Adds the instructions needed to handle entry point parameters
     ///
     /// And sets the starting value of the reserved registers
-    pub(crate) fn entry_point_instruction(&mut self, num_arguments: usize) {
+    fn entry_point_instruction(&mut self) {
         // Translate the inputs by the reserved registers offset
-        for i in (0..num_arguments).rev() {
+        for i in (0..self.number_of_arguments).rev() {
             self.byte_code.push(BrilligOpcode::Mov {
                 destination: ReservedRegisters::user_register_index(i),
                 source: RegisterIndex::from(i),
-            })
+            });
         }
 
         // Set the initial value of the stack pointer register
@@ -111,24 +101,26 @@ impl BrilligArtifact {
     }
 
     /// Adds the instructions needed to handle return parameters
-    pub(crate) fn exit_point_instruction(&mut self, num_return_parameters: usize) {
+    fn exit_point_instruction(&mut self) {
         // We want all functions to follow the calling convention of returning
         // their results in the first `n` registers. So we modify the bytecode of the
         // function to move the return values to the first `n` registers once completed.
         //
-        // Remove the ending stop
-        // TODO: Shouldn't this be the case when we process a terminator instruction?
-        // TODO: If so, then entry_point_instruction and exit_point_instruction should be
-        // TODO put in brillig_gen.
-        // TODO: entry_point is called when we process a function, and exit_point is called
-        // TODO when we process a terminator instruction.
-        let expected_stop = self.byte_code.pop().expect("expected at least one opcode");
-        assert_eq!(expected_stop, BrilligOpcode::Stop, "expected a stop code");
+        // Swap the stop opcode with a jump to the exit point section
+
+        let stop_position = self.byte_code.iter().position(|opcode| {
+            matches!(opcode, BrilligOpcode::Stop)
+        });
+
+        let stop_position = stop_position.expect("expected a stop opcode");
+
+        let exit_section = self.index_of_next_opcode();
+        self.byte_code[stop_position] = BrilligOpcode::Jump { location: exit_section };
 
         // TODO: this _seems_ like an abstraction leak, we need to know about the reserved
         // TODO: registers in order to do this.
         // Move the results to registers 0..n
-        for i in 0..num_return_parameters {
+        for i in 0..self.number_of_return_parameters {
             self.push_opcode(BrilligOpcode::Mov {
                 destination: i.into(),
                 source: ReservedRegisters::user_register_index(i),
@@ -142,7 +134,7 @@ impl BrilligArtifact {
     /// This method will offset the positions in the Brillig artifact to
     /// account for the fact that it is being appended to the end of this
     /// Brillig artifact (self).
-    fn append_artifact(&mut self, obj: &BrilligArtifact) {
+    pub(crate) fn link_with(&mut self, obj: &BrilligArtifact) {
         let offset = self.index_of_next_opcode();
         for (jump_label, jump_location) in &obj.unresolved_jumps {
             self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));

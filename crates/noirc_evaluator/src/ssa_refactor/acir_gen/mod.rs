@@ -182,8 +182,9 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                // Link the brillig code of the function using the artifacts and produce one stream of bytecode
-                                let code = BrilligArtifact::link(&brillig[*id]);
+                                // Create the entry point artifact
+                                let entry_point = BrilligArtifact::to_entry_point_artifact(&brillig[*id]);
+                                let code = entry_point.finish();
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 

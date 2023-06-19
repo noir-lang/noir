@@ -324,8 +324,9 @@ impl BrilligContext {
     pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
         for (destination_index, return_register) in return_registers.iter().enumerate() {
             // In case we have fewer return registers than indices to write to, ensure we've allocated this register
-            self.registers.ensure_register_is_allocated(destination_index.into());
-            self.mov_instruction(destination_index.into(), *return_register);
+            let destination_register = ReservedRegisters::user_register_index(destination_index);
+            self.registers.ensure_register_is_allocated(destination_register);
+            self.mov_instruction(destination_register, *return_register);
         }
         self.stop_instruction();
     }
