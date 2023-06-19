@@ -26,6 +26,7 @@ impl Brillig {
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
+    /// Finds a brillig function artifact by its function label
     pub(crate) fn find_by_function_label(&self, function_label: Label) -> Option<&BrilligArtifact> {
         self.ssa_function_to_brillig.iter().find_map(|(function_id, obj)| {
             if FunctionContext::function_id_to_function_label(*function_id) == function_label {

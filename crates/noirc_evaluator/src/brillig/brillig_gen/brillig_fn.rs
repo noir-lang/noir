@@ -39,6 +39,7 @@ impl FunctionContext {
         register
     }
 
+    /// Creates a function label from a given SSA function id.
     pub(crate) fn function_id_to_function_label(function_id: FunctionId) -> Label {
         function_id.to_string()
     }
