@@ -474,6 +474,7 @@ mod test {
 
     use crate::ssa_refactor::{
         ir::{
+            basic_block::BasicBlockId,
             function::RuntimeType,
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
@@ -637,15 +638,26 @@ mod test {
         //   b0():
         //     jmp b1()
         //   b1():
+        //     jmp b2()
+        //   b2():
+        //     jmp b3()
+        //   b3():
+        //     jmp b4()
+        //   b4():
+        //     jmp b5()
+        //   b5():
+        //     jmp b6()
+        //   b6():
         //     return Field 120
         // }
         let inlined = ssa.inline_functions();
         assert_eq!(inlined.functions.len(), 1);
 
         let main = inlined.main();
-        let b1 = &main.dfg[b1];
+        let b6_id: BasicBlockId = Id::test_new(6);
+        let b6 = &main.dfg[b6_id];
 
-        match b1.terminator() {
+        match b6.terminator() {
             Some(TerminatorInstruction::Return { return_values }) => {
                 assert_eq!(return_values.len(), 1);
                 let value = main
