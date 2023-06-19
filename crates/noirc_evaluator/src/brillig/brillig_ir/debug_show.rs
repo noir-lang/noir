@@ -1,6 +1,6 @@
 ///! This module contains functions for producing a higher level view disassembler of Brillig.
 use super::BrilligBinaryOp;
-use crate::brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
+use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 use acvm::acir::brillig_vm::{
     BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray, Value,
 };
@@ -27,7 +27,11 @@ default_to_string_impl! { str usize u32 }
 
 impl DebugToString for RegisterIndex {
     fn debug_to_string(&self) -> String {
-        format!("R{}", self.to_usize())
+        if *self == ReservedRegisters::stack_pointer() {
+            "Stack".into()
+        } else {
+            format!("R{}", self.to_usize())
+        }
     }
 }
 
@@ -72,11 +76,12 @@ impl DebugToString for BrilligBinaryOp {
                 if *bit_size >= BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
                     op.debug_to_string()
                 } else {
-                    format!("{}:{}", op.debug_to_string(), bit_size)
+                    format!("i{}::{}", bit_size, op.debug_to_string())
                 }
             }
             BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
                 let op = if *is_signed_integer { "%" } else { "%%" };
+                // rationale: if there's >= 64 bits, we should not bother with this detail
                 if *bit_size >= BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
                     op.into()
                 } else {
@@ -126,14 +131,14 @@ macro_rules! debug_println {
 /// Emits brillig bytecode to jump to a trap condition if `condition`
 /// is false.
 pub(crate) fn constrain_instruction(condition: RegisterIndex) {
-    debug_println!("  ASSERT {} == 0", condition);
+    debug_println!("  ASSERT {} != 0", condition);
 }
 
 /// Processes a return instruction.
 pub(crate) fn return_instruction(return_registers: &[RegisterIndex]) {
     let registers_string = return_registers
         .iter()
-        .map(|reg| reg.to_usize().to_string())
+        .map(RegisterIndex::debug_to_string)
         .collect::<Vec<String>>()
         .join(", ");
 
@@ -233,7 +238,10 @@ pub(crate) fn copy_array_instruction(
 
 /// Debug function for enter_context
 pub(crate) fn enter_context(label: String) {
-    debug_println!("{}:", label);
+    if !label.ends_with("-b0") {
+        // Hacky readability fix: don't print labels e.g. f1 then f1-b0 one after another, they mean the same thing
+        debug_println!("{}:", label);
+    }
 }
 
 /// Debug function for jump_instruction
