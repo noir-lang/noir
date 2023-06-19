@@ -455,10 +455,12 @@ impl<'function> PerFunctionContext<'function> {
 
 #[cfg(test)]
 mod test {
+    use acvm::FieldElement;
+
     use crate::ssa_refactor::{
         ir::{
             function::RuntimeType,
-            instruction::{BinaryOp, TerminatorInstruction},
+            instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
         },
@@ -640,5 +642,84 @@ mod test {
             }
             other => unreachable!("Unexpected terminator {other:?}"),
         }
+    }
+
+    #[test]
+    fn displaced_return_mapping() {
+        // This test is designed specifically to catch a regression in which the ids of blocks
+        // terminated by a returns are badly tracked. As a result, the continuation of a source
+        // block after a call instruction could but inlined into a block that's already been
+        // terminated, producing an incorrect order and orphaning successors.
+
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v2 = call f1(v0)
+        //     call println(v2)
+        //     return
+        // }
+        // fn inner1 f1 {
+        //   b0(v0: u1):
+        //     v2 = call f2(v0)
+        //     return v2
+        // }
+        // fn inner2 f2 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b1, else: b2
+        //   b1():
+        //     jmp b3(Field 1)
+        //   b3(v3: Field):
+        //     return v3
+        //   b2():
+        //     jmp b3(Field 2)
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let main_cond = builder.add_parameter(Type::bool());
+        let inner1_id = Id::test_new(1);
+        let inner1 = builder.import_function(inner1_id);
+        let main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()])[0];
+        let println = builder.import_intrinsic_id(Intrinsic::Println);
+        builder.insert_call(println, vec![main_v2], vec![]);
+        builder.terminate_with_return(vec![]);
+
+        builder.new_function("inner1".into(), inner1_id);
+        let inner1_cond = builder.add_parameter(Type::bool());
+        let inner2_id = Id::test_new(2);
+        let inner2 = builder.import_function(inner2_id);
+        let inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()])[0];
+        builder.terminate_with_return(vec![inner1_v2]);
+
+        builder.new_function("inner2".into(), inner2_id);
+        let inner2_cond = builder.add_parameter(Type::bool());
+        let then_block = builder.insert_block();
+        let else_block = builder.insert_block();
+        let join_block = builder.insert_block();
+        builder.terminate_with_jmpif(inner2_cond, then_block, else_block);
+        builder.switch_to_block(then_block);
+        let one = builder.numeric_constant(FieldElement::one(), Type::field());
+        builder.terminate_with_jmp(join_block, vec![one]);
+        builder.switch_to_block(else_block);
+        let two = builder.numeric_constant(FieldElement::from(2_u128), Type::field());
+        builder.terminate_with_jmp(join_block, vec![two]);
+        let join_param = builder.add_block_parameter(join_block, Type::field());
+        builder.switch_to_block(join_block);
+        builder.terminate_with_return(vec![join_param]);
+
+        let ssa = builder.finish().inline_functions();
+        // Expected result:
+        // fn main f3 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b1, else: b2
+        //   b1():
+        //     jmp b3(Field 1)
+        //   b3(v3: Field):
+        //     call println(v3)
+        //     return
+        //   b2():
+        //     jmp b3(Field 2)
+        // }
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 4);
     }
 }
