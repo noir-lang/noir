@@ -1,6 +1,4 @@
-use acvm::acir::brillig_vm::{
-    Opcode as BrilligOpcode, RegisterIndex, Value,
-};
+use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex, Value};
 use std::collections::HashMap;
 
 use crate::brillig::brillig_ir::ReservedRegisters;
@@ -68,9 +66,15 @@ impl BrilligArtifact {
     }
 
     pub(crate) fn to_entry_point_artifact(artifact: &BrilligArtifact) -> BrilligArtifact {
-        let mut entry_point_artifact = BrilligArtifact::new(artifact.number_of_arguments, artifact.number_of_return_parameters);
+        let mut entry_point_artifact = BrilligArtifact::new(
+            artifact.number_of_arguments,
+            artifact.number_of_return_parameters,
+        );
         entry_point_artifact.entry_point_instruction();
-        entry_point_artifact.link_with(artifact);
+
+        entry_point_artifact.link_unresolved_jumps(artifact);
+        entry_point_artifact.byte_code.extend_from_slice(&artifact.byte_code);
+
         entry_point_artifact.exit_point_instruction();
         entry_point_artifact
     }
@@ -108,9 +112,8 @@ impl BrilligArtifact {
         //
         // Swap the stop opcode with a jump to the exit point section
 
-        let stop_position = self.byte_code.iter().position(|opcode| {
-            matches!(opcode, BrilligOpcode::Stop)
-        });
+        let stop_position =
+            self.byte_code.iter().position(|opcode| matches!(opcode, BrilligOpcode::Stop));
 
         let stop_position = stop_position.expect("expected a stop opcode");
 
@@ -129,12 +132,41 @@ impl BrilligArtifact {
         self.push_opcode(BrilligOpcode::Stop);
     }
 
+    pub(crate) fn first_unresolved_function_call(&self) -> Option<Label> {
+        self.unresolved_external_call_labels.first().map(|(_, label)| label.clone())
+    }
+
     /// Link with an external brillig artifact.
     ///
     /// This method will offset the positions in the Brillig artifact to
     /// account for the fact that it is being appended to the end of this
     /// Brillig artifact (self).
-    pub(crate) fn link_with(&mut self, obj: &BrilligArtifact) {
+    pub(crate) fn link_with(&mut self, func_label: Label, obj: &BrilligArtifact) {
+        let unresolved_external_call = self
+            .unresolved_external_call_labels
+            .iter()
+            .position(|(_, label)| label == &func_label)
+            .expect("Trying to link with an unknown function");
+        let unresolved_external_call =
+            self.unresolved_external_call_labels.remove(unresolved_external_call);
+        self.unresolved_jumps.push(unresolved_external_call);
+
+        self.link_unresolved_jumps(obj);
+
+        let mut byte_code = obj.byte_code.clone();
+
+        // Replace STOP with RETURN
+        let stop_position = byte_code
+            .iter()
+            .position(|opcode| matches!(opcode, BrilligOpcode::Stop))
+            .expect("Trying to link with a function that does not have a stop opcode");
+
+        byte_code[stop_position] = BrilligOpcode::Return;
+
+        self.byte_code.append(&mut byte_code);
+    }
+
+    fn link_unresolved_jumps(&mut self, obj: &BrilligArtifact) {
         let offset = self.index_of_next_opcode();
         for (jump_label, jump_location) in &obj.unresolved_jumps {
             self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));
@@ -145,7 +177,10 @@ impl BrilligArtifact {
             assert!(old_value.is_none(), "overwriting label {label_id} {old_value:?}");
         }
 
-        self.byte_code.extend_from_slice(&obj.byte_code);
+        for (position_in_bytecode, label_id) in &obj.unresolved_external_call_labels {
+            self.unresolved_external_call_labels
+                .push((position_in_bytecode + offset, label_id.clone()));
+        }
     }
 
     /// Adds a brillig instruction to the brillig byte code
@@ -234,6 +269,12 @@ impl BrilligArtifact {
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::JumpIf { condition, location: resolved_location };
+                }
+                BrilligOpcode::Call { location } => {
+                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+
+                    self.byte_code[*location_of_jump] =
+                        BrilligOpcode::Call { location: resolved_location };
                 }
                 _ => unreachable!(
                     "all jump labels should point to a jump instruction in the bytecode"

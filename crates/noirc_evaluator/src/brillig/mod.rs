@@ -1,40 +1,39 @@
 pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
-use self::{brillig_gen::convert_ssa_function, brillig_ir::artifact::BrilligArtifact};
+use self::{
+    brillig_gen::{brillig_fn::FunctionContext, convert_ssa_function},
+    brillig_ir::artifact::{BrilligArtifact, Label},
+};
 use crate::ssa_refactor::{
-    ir::{
-        basic_block::BasicBlockId,
-        function::{Function, FunctionId, RuntimeType},
-    },
+    ir::function::{Function, FunctionId, RuntimeType},
     ssa_gen::Ssa,
 };
 use std::collections::HashMap;
-
-pub(crate) type FuncIdEntryBlockId = HashMap<FunctionId, BasicBlockId>;
 
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
 #[derive(Default)]
 pub struct Brillig {
-    /// Maps SSA function IDs to their entry block IDs
-    ///
-    /// Used for external call instructions
-    ssa_function_id_to_block_id: HashMap<FunctionId, BasicBlockId>,
-    /// Maps SSA functions to their brillig opcode
+    /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact>,
 }
 
 impl Brillig {
-    /// Creates a Brillig object with a prefilled map of function IDs to entry block IDs
-    pub(crate) fn new(ssa_function_id_to_block_id: FuncIdEntryBlockId) -> Brillig {
-        Brillig { ssa_function_id_to_block_id, ssa_function_to_brillig: HashMap::new() }
-    }
-
     /// Compiles a function into brillig and store the compilation artifacts
     pub(crate) fn compile(&mut self, func: &Function) {
-        let obj = convert_ssa_function(func, &self.ssa_function_id_to_block_id);
+        let obj = convert_ssa_function(func);
         self.ssa_function_to_brillig.insert(func.id(), obj);
+    }
+
+    pub(crate) fn find_by_function_label(&self, function_label: Label) -> Option<&BrilligArtifact> {
+        self.ssa_function_to_brillig.iter().find_map(|(function_id, obj)| {
+            if FunctionContext::function_id_to_function_label(*function_id) == function_label {
+                Some(obj)
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -52,23 +51,7 @@ impl Ssa {
         let brillig_functions =
             self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig);
 
-        // Collect the entry block IDs for each function.
-        //
-        // Call instructions only specify their function ID, not their entry block ID.
-        // But in order to jump to a function, we need to know the label that is assigned to
-        // the entry-block of the function. This will be the function_id
-        // concatenated with the entry_block_id.
-        let brillig_func_ids_to_entry_block_ids: HashMap<FunctionId, BasicBlockId> =
-            brillig_functions
-                .clone()
-                .map(|func| {
-                    let func_id = func.id();
-                    let entry_block_id = func.entry_block();
-                    (func_id, entry_block_id)
-                })
-                .collect();
-
-        let mut brillig = Brillig::new(brillig_func_ids_to_entry_block_ids);
+        let mut brillig = Brillig::default();
         for brillig_function in brillig_functions {
             // TODO: document why we are skipping the `main_id` for Brillig functions
             if brillig_function.id() != self.main_id {

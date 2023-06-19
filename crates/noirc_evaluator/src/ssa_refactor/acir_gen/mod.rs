@@ -183,7 +183,13 @@ impl Context {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
                                 // Create the entry point artifact
-                                let entry_point = BrilligArtifact::to_entry_point_artifact(&brillig[*id]);
+                                let mut entry_point = BrilligArtifact::to_entry_point_artifact(&brillig[*id]);
+                                // Link the entry point with all dependencies
+                                while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
+                                    let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone()).expect("Cannot find linked fn {unresolved_fn_label}");
+                                    entry_point.link_with(unresolved_fn_label, artifact);
+                                }
+                                // Generate the final bytecode
                                 let code = entry_point.finish();
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());

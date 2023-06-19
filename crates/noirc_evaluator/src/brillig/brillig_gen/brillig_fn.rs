@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use acvm::acir::brillig_vm::RegisterIndex;
 
 use crate::{
-    brillig::brillig_ir::BrilligContext,
+    brillig::brillig_ir::{artifact::Label, BrilligContext},
     ssa_refactor::ir::{function::FunctionId, value::ValueId},
 };
 
@@ -37,5 +37,9 @@ impl FunctionContext {
         self.ssa_value_to_register.insert(value, register);
 
         register
+    }
+
+    pub(crate) fn function_id_to_function_label(function_id: FunctionId) -> Label {
+        function_id.to_string()
     }
 }
