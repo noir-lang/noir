@@ -50,14 +50,14 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
-    /// Returns a user defined (non-reserved) register index.
-    fn user_register_index(index: usize) -> RegisterIndex {
-        RegisterIndex::from(index + ReservedRegisters::len())
-    }
-
     /// Returns the stack pointer register. This will get used to allocate memory in runtime.
     pub(crate) fn stack_pointer() -> RegisterIndex {
         RegisterIndex::from(ReservedRegisters::StackPointer as usize)
+    }
+
+    /// Returns a user defined (non-reserved) register index.
+    fn user_register_index(index: usize) -> RegisterIndex {
+        RegisterIndex::from(index + ReservedRegisters::len())
     }
 }
 
