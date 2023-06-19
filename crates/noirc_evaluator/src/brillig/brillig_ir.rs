@@ -589,8 +589,8 @@ impl BrilligContext {
         let const_register = self.make_constant(Value::from(constant));
         self.binary_instruction(
             destination,
-            destination,
             const_register,
+            destination,
             BrilligBinaryOp::Integer { op, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
         );
         // Mark as no longer used for this purpose, frees for reuse
