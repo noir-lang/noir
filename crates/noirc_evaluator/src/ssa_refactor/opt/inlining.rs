@@ -280,6 +280,9 @@ impl<'function> PerFunctionContext<'function> {
         let mut function_returns = vec![];
 
         while let Some(source_block_id) = block_queue.pop() {
+            if seen_blocks.contains(&source_block_id) {
+                continue;
+            }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
 
