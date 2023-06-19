@@ -1,9 +1,7 @@
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_fn;
 
-use crate::ssa_refactor::ir::{
-    function::Function, instruction::TerminatorInstruction, post_order::PostOrder,
-};
+use crate::ssa_refactor::ir::{function::Function, post_order::PostOrder};
 
 use std::collections::HashMap;
 
@@ -24,24 +22,10 @@ pub(crate) fn convert_ssa_function(func: &Function) -> BrilligArtifact {
     let mut function_context =
         FunctionContext { function_id: func.id(), ssa_value_to_register: HashMap::new() };
 
-    fn func_num_return_values(func: &Function) -> usize {
-        let dfg = &func.dfg;
-        let blocks = func.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
-            let terminator = dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
-                function_return_values = Some(return_values);
-                break;
-            }
-        }
-        function_return_values
-            .expect("Expected a return instruction, as block is finished construction")
-            .len()
-    }
-    let num_parameters = func.parameters().len();
-    let num_return_values = func_num_return_values(func);
-    let mut brillig_context = BrilligContext::new(num_parameters, num_return_values);
+    let mut brillig_context = BrilligContext::new(
+        FunctionContext::parameters(func),
+        FunctionContext::return_values(func),
+    );
 
     brillig_context.enter_context(FunctionContext::function_id_to_function_label(func.id()));
     for block in reverse_post_order {

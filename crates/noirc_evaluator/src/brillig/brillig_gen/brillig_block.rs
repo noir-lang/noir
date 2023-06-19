@@ -125,14 +125,11 @@ impl<'block> BrilligBlock<'block> {
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
             };
             match param_type {
-                Type::Numeric(_) => {
+                // Simple parameters and arrays are passed as already filled registers
+                // In the case of arrays, the values should already be in memory and the register should
+                // Be a valid pointer to the array.
+                Type::Numeric(_) | Type::Array(..) => {
                     self.function_context.get_or_create_register(self.brillig_context, *param_id);
-                }
-                Type::Array(_, size) => {
-                    let pointer_register = self
-                        .function_context
-                        .get_or_create_register(self.brillig_context, *param_id);
-                    self.brillig_context.allocate_fixed_length_array(pointer_register, *size);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -548,7 +545,7 @@ fn compute_size_of_composite_type(typ: &CompositeType) -> usize {
 
 /// Finds out the size of a given SSA type
 /// This is needed to store values in memory
-fn compute_size_of_type(typ: &Type) -> usize {
+pub(crate) fn compute_size_of_type(typ: &Type) -> usize {
     match typ {
         Type::Numeric(_) => 1,
         Type::Array(types, item_count) => compute_size_of_composite_type(types) * item_count,

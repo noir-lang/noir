@@ -8,7 +8,7 @@ pub(crate) mod artifact;
 pub(crate) mod registers;
 
 use self::{
-    artifact::{BrilligArtifact, UnresolvedJumpLocation},
+    artifact::{BrilligArtifact, BrilligParameter, UnresolvedJumpLocation},
     registers::BrilligRegistersContext,
 };
 use acvm::{
@@ -76,9 +76,12 @@ pub(crate) struct BrilligContext {
 
 impl BrilligContext {
     /// Initial context state
-    pub(crate) fn new(num_arguments: usize, num_return_parameters: usize) -> BrilligContext {
+    pub(crate) fn new(
+        arguments: Vec<BrilligParameter>,
+        return_parameters: Vec<BrilligParameter>,
+    ) -> BrilligContext {
         BrilligContext {
-            obj: BrilligArtifact::new(num_arguments, num_return_parameters),
+            obj: BrilligArtifact::new(arguments, return_parameters),
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,

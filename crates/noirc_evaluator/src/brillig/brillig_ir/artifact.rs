@@ -1,7 +1,15 @@
-use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex, Value};
+use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex};
 use std::collections::HashMap;
 
 use crate::brillig::brillig_ir::ReservedRegisters;
+
+/// Represents a parameter or a return value of a function.
+#[derive(Debug, Clone)]
+pub(crate) enum BrilligParameter {
+    Register,
+    // A heap array is filled in memory and a pointer to the first element is passed in the register.
+    HeapArray(usize),
+}
 
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
@@ -20,11 +28,11 @@ pub(crate) struct BrilligArtifact {
     /// TODO: perhaps we should combine this with the `unresolved_jumps` field
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
-    /// The number of return values that this function will return.
-    number_of_return_parameters: usize,
+    /// The return values that this function will return.
+    return_parameters: Vec<BrilligParameter>,
 
-    /// The number of arguments that this function will take.
-    number_of_arguments: usize,
+    /// The arguments that this function will take.
+    arguments: Vec<BrilligParameter>,
 }
 
 /// A pointer to a location in the opcode.
@@ -52,25 +60,23 @@ pub(crate) type UnresolvedJumpLocation = Label;
 impl BrilligArtifact {
     /// Initialize an artifact with the number of arguments and return parameters
     pub(crate) fn new(
-        number_of_arguments: usize,
-        number_of_return_parameters: usize,
+        arguments: Vec<BrilligParameter>,
+        return_parameters: Vec<BrilligParameter>,
     ) -> BrilligArtifact {
         BrilligArtifact {
             byte_code: Vec::new(),
             unresolved_jumps: Vec::new(),
             labels: HashMap::new(),
             unresolved_external_call_labels: Vec::new(),
-            number_of_return_parameters,
-            number_of_arguments,
+            arguments,
+            return_parameters,
         }
     }
 
     /// Creates an entry point artifact wrapping the bytecode of the function provided.
     pub(crate) fn to_entry_point_artifact(artifact: &BrilligArtifact) -> BrilligArtifact {
-        let mut entry_point_artifact = BrilligArtifact::new(
-            artifact.number_of_arguments,
-            artifact.number_of_return_parameters,
-        );
+        let mut entry_point_artifact =
+            BrilligArtifact::new(artifact.arguments.clone(), artifact.return_parameters.clone());
         entry_point_artifact.entry_point_instruction();
 
         entry_point_artifact.add_unresolved_jumps_and_calls(artifact);
@@ -91,17 +97,27 @@ impl BrilligArtifact {
     /// And sets the starting value of the reserved registers
     fn entry_point_instruction(&mut self) {
         // Translate the inputs by the reserved registers offset
-        for i in (0..self.number_of_arguments).rev() {
+        for i in (0..self.arguments.len()).rev() {
             self.byte_code.push(BrilligOpcode::Mov {
                 destination: ReservedRegisters::user_register_index(i),
                 source: RegisterIndex::from(i),
             });
         }
 
+        // Calculate the initial value for the stack pointer register
+        let size_arguments_memory = self
+            .arguments
+            .iter()
+            .map(|arg| match arg {
+                BrilligParameter::Register => 0,
+                BrilligParameter::HeapArray(size) => *size,
+            })
+            .sum::<usize>();
+
         // Set the initial value of the stack pointer register
         self.byte_code.push(BrilligOpcode::Const {
             destination: ReservedRegisters::stack_pointer(),
-            value: Value::from(0_usize),
+            value: size_arguments_memory.into(),
         });
     }
 
@@ -124,7 +140,7 @@ impl BrilligArtifact {
         // TODO: this _seems_ like an abstraction leak, we need to know about the reserved
         // TODO: registers in order to do this.
         // Move the results to registers 0..n
-        for i in 0..self.number_of_return_parameters {
+        for i in 0..self.return_parameters.len() {
             self.push_opcode(BrilligOpcode::Mov {
                 destination: i.into(),
                 source: ReservedRegisters::user_register_index(i),
