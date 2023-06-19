@@ -1,9 +1,6 @@
-use std::collections::HashMap;
-
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
-use crate::brillig::FuncIdEntryBlockId;
 use crate::ssa_refactor::ir::function::FunctionId;
 use crate::ssa_refactor::ir::types::CompositeType;
 use crate::ssa_refactor::ir::{
@@ -26,8 +23,6 @@ pub(crate) struct BrilligBlock<'block> {
     block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     brillig_context: &'block mut BrilligContext,
-    /// TODO: document
-    function_ids_to_block_ids: &'block HashMap<FunctionId, BasicBlockId>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -35,12 +30,10 @@ impl<'block> BrilligBlock<'block> {
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext,
-        function_ids_to_block_ids: &'block FuncIdEntryBlockId,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
-        let mut brillig_block =
-            BrilligBlock { function_context, block_id, brillig_context, function_ids_to_block_ids };
+        let mut brillig_block = BrilligBlock { function_context, block_id, brillig_context };
 
         brillig_block.convert_block(dfg);
     }
@@ -221,15 +214,8 @@ impl<'block> BrilligBlock<'block> {
                     let result_ids = dfg.instruction_results(instruction_id);
 
                     // Create label for the function that will be called
-                    //
-                    // TODO: We _could_ avoid this by having the label for the entry block
-                    // TODO be just the function_id. Since the entry_block won't have any predecessors
-                    // TODO ie no block in this function, will be jumping to the entry block
-                    // TODO: it should be fine; ie we don't need to check if we are jumping to the
-                    // TODO entry block or a regular block when creating the label.
-                    let entry_block_id = self.function_ids_to_block_ids[func_id];
                     let label_of_function_to_call =
-                        Self::create_block_label(*func_id, entry_block_id);
+                        FunctionContext::function_id_to_function_label(*func_id);
 
                     let saved_registers =
                         self.brillig_context.pre_call_save_registers_prep_args(&function_arguments);
