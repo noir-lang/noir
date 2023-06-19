@@ -65,6 +65,7 @@ impl BrilligArtifact {
         }
     }
 
+    /// Creates an entry point artifact wrapping the bytecode of the function provided.
     pub(crate) fn to_entry_point_artifact(artifact: &BrilligArtifact) -> BrilligArtifact {
         let mut entry_point_artifact = BrilligArtifact::new(
             artifact.number_of_arguments,
@@ -72,7 +73,7 @@ impl BrilligArtifact {
         );
         entry_point_artifact.entry_point_instruction();
 
-        entry_point_artifact.link_unresolved_jumps(artifact);
+        entry_point_artifact.add_unresolved_jumps_and_calls(artifact);
         entry_point_artifact.byte_code.extend_from_slice(&artifact.byte_code);
 
         entry_point_artifact.exit_point_instruction();
@@ -132,30 +133,36 @@ impl BrilligArtifact {
         self.push_opcode(BrilligOpcode::Stop);
     }
 
+    /// Gets the first unresolved function call of this artifact.
     pub(crate) fn first_unresolved_function_call(&self) -> Option<Label> {
         self.unresolved_external_call_labels.first().map(|(_, label)| label.clone())
     }
 
-    /// Link with an external brillig artifact.
+    /// Link with an external brillig artifact called from this artifact.
     ///
     /// This method will offset the positions in the Brillig artifact to
     /// account for the fact that it is being appended to the end of this
     /// Brillig artifact (self).
     pub(crate) fn link_with(&mut self, func_label: Label, obj: &BrilligArtifact) {
+        // First get the unresolved function call we are linking against.
         let unresolved_external_call = self
             .unresolved_external_call_labels
             .iter()
             .position(|(_, label)| label == &func_label)
             .expect("Trying to link with an unknown function");
+
+        // Remove it from the list, since it is now resolved.
         let unresolved_external_call =
             self.unresolved_external_call_labels.remove(unresolved_external_call);
+        // Transform the unresolved external call into an unresolved jump to the linked function.
         self.unresolved_jumps.push(unresolved_external_call);
 
-        self.link_unresolved_jumps(obj);
+        // Add the unresolved jumps of the linked function to this artifact.
+        self.add_unresolved_jumps_and_calls(obj);
 
         let mut byte_code = obj.byte_code.clone();
 
-        // Replace STOP with RETURN
+        // Replace STOP with RETURN because this is not the end of the program now.
         let stop_position = byte_code
             .iter()
             .position(|opcode| matches!(opcode, BrilligOpcode::Stop))
@@ -166,7 +173,8 @@ impl BrilligArtifact {
         self.byte_code.append(&mut byte_code);
     }
 
-    fn link_unresolved_jumps(&mut self, obj: &BrilligArtifact) {
+    /// Adds unresolved jumps & function calls from another artifact offset by the current opcode count in the artifact.
+    fn add_unresolved_jumps_and_calls(&mut self, obj: &BrilligArtifact) {
         let offset = self.index_of_next_opcode();
         for (jump_label, jump_location) in &obj.unresolved_jumps {
             self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));
@@ -271,7 +279,7 @@ impl BrilligArtifact {
                         BrilligOpcode::JumpIf { condition, location: resolved_location };
                 }
                 BrilligOpcode::Call { location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+                    assert_eq!(location, 0, "location is not zero, which means that the call label does not need resolving");
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Call { location: resolved_location };
