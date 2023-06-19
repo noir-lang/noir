@@ -674,7 +674,7 @@ mod test {
     #[test]
     fn displaced_return_mapping() {
         // This test is designed specifically to catch a regression in which the ids of blocks
-        // terminated by a returns are badly tracked. As a result, the continuation of a source
+        // terminated by returns are badly tracked. As a result, the continuation of a source
         // block after a call instruction could but inlined into a block that's already been
         // terminated, producing an incorrect order and orphaning successors.
 
