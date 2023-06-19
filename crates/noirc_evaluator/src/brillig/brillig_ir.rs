@@ -322,13 +322,38 @@ impl BrilligContext {
     /// method will move all register values to the first `N` values in
     /// the VM.
     pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
+        let mut sources = Vec::with_capacity(return_registers.len());
+        let mut destinations = Vec::with_capacity(return_registers.len());
+
         for (destination_index, return_register) in return_registers.iter().enumerate() {
             // In case we have fewer return registers than indices to write to, ensure we've allocated this register
             let destination_register = ReservedRegisters::user_register_index(destination_index);
             self.registers.ensure_register_is_allocated(destination_register);
-            self.mov_instruction(destination_register, *return_register);
+            sources.push(*return_register);
+            destinations.push(destination_register);
         }
+        self.mov_registers_to_registers_instruction(sources, destinations);
         self.stop_instruction();
+    }
+
+    /// This function moves values from a set of registers to another set of registers.
+    /// It first moves all sources to new allocated registers to avoid overwriting.
+    pub(crate) fn mov_registers_to_registers_instruction(
+        &mut self,
+        sources: Vec<RegisterIndex>,
+        destinations: Vec<RegisterIndex>,
+    ) {
+        let new_sources: Vec<_> = sources
+            .iter()
+            .map(|source| {
+                let new_source = self.allocate_register();
+                self.mov_instruction(new_source, *source);
+                new_source
+            })
+            .collect();
+        for (new_source, destination) in new_sources.iter().zip(destinations.iter()) {
+            self.mov_instruction(*destination, *new_source);
+        }
     }
 
     /// Emits a `mov` instruction.
@@ -611,10 +636,9 @@ impl BrilligContext {
         //
         // This means that the arguments will be in the first `n` registers after
         // the number of reserved registers.
-        for (i, argument) in arguments.iter().enumerate() {
-            self.mov_instruction(self.register(i), *argument);
-        }
-
+        let (sources, destinations) =
+            arguments.iter().enumerate().map(|(i, argument)| (*argument, self.register(i))).unzip();
+        self.mov_registers_to_registers_instruction(sources, destinations);
         saved_registers
     }
 
