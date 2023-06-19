@@ -59,13 +59,15 @@ struct ArrayHeap {
 
 impl ArrayHeap {
     fn commit_staged(&mut self) {
-        for (idx, (value, op)) in &self.staged {
-            let item = MemOp {
-                operation: op.clone(),
-                value: value.clone(),
-                index: Expression::from_field(FieldElement::from(*idx as i128)),
-            };
-            self.trace.push(item);
+        // generates the memory operations to be added to the trace
+        let trace = vecmap(&self.staged, |(idx, (value, op))| MemOp {
+            operation: op.clone(),
+            value: value.clone(),
+            index: Expression::from_field(FieldElement::from(*idx as i128)),
+        });
+        // Add to trace
+        for item in trace {
+            self.push(item);
         }
         self.staged.clear();
     }
