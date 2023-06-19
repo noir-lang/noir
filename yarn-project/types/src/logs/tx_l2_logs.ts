@@ -31,16 +31,27 @@ export class TxL2Logs {
   }
 
   /**
+   * Adds function logs to the existing logs.
+   * @param functionLogs - The function logs to add
+   * @remarks Used by sequencer to append unencrypted logs emitted in public function calls.
+   */
+  public addFunctionLogs(functionLogs: FunctionL2Logs[]) {
+    this.functionLogs.push(...functionLogs);
+  }
+
+  /**
    * Deserializes logs from a buffer.
    * @param buf - The buffer containing the serialized logs.
    * @param isLengthPrefixed - Whether the buffer is prefixed with 4 bytes for its total length.
    * @returns A new L2Logs object.
    */
   public static fromBuffer(buf: Buffer, isLengthPrefixed = true): TxL2Logs {
-    const offset = isLengthPrefixed ? 4 : 0;
-    const reader = new BufferReader(buf, offset);
+    const reader = new BufferReader(buf, 0);
 
-    const serializedFunctionLogs = reader.readBufferArray();
+    // If the buffer is length prefixed use the length to read the array. Otherwise, the entire buffer is consumed.
+    const logsBufLength = isLengthPrefixed ? reader.readNumber() : -1;
+    const serializedFunctionLogs = reader.readBufferArray(logsBufLength);
+
     const functionLogs = serializedFunctionLogs.map(logs => FunctionL2Logs.fromBuffer(logs, false));
     return new TxL2Logs(functionLogs);
   }

@@ -25,6 +25,7 @@ const makePrivateTx = () => {
     makeKernelPublicInputs(),
     Proof.fromBuffer(Buffer.alloc(10, 9)),
     TxL2Logs.random(8, 2),
+    TxL2Logs.random(8, 3),
     encodedPublicFunctions,
     enqueuedPublicFunctionCalls,
   );

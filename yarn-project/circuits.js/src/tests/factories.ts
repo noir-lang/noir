@@ -312,6 +312,8 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(NEW_COMMITMENTS_LENGTH, fr, seed + 0x700),
     tupleGenerator(NEW_NULLIFIERS_LENGTH, fr, seed + 0x800),
     tupleGenerator(NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x900),
+    tupleGenerator(2, fr, seed + 0x901),
+    fr(seed + 0x902),
     fr(seed + 0xa00),
     makeAztecAddress(seed + 0xb01),
   );

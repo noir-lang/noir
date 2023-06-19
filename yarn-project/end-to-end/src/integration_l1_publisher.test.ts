@@ -170,6 +170,7 @@ describe('L1Publisher integration', () => {
     tx.data.end.newL2ToL1Msgs = makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x300);
     tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
     tx.data.end.encryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(tx.encryptedLogs));
+    tx.data.end.unencryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(tx.unencryptedLogs));
 
     return tx;
   };

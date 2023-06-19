@@ -362,6 +362,35 @@ void propagate_new_l2_to_l1_messages(Composer& composer,
 }
 
 /**
+ * @brief Accumulates unencrypted logs hashes and lengths.
+ * @tparam The type of kernel input
+ * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
+ * @param circuit_outputs The circuit outputs to be populated
+ * @note See the following thread if not clear:
+ *       https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426
+ * @note Used by public kernels which had previous iterations.
+ */
+template <typename NT> void accumulate_unencrypted_logs(PublicKernelInputs<NT> const& public_kernel_inputs,
+                                                        KernelCircuitPublicInputs<NT>& circuit_outputs)
+{
+    const auto public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
+
+    const auto& previous_kernel_end = public_kernel_inputs.previous_kernel.public_inputs.end;
+    const auto& previous_unencrypted_logs_hash = previous_kernel_end.unencrypted_logs_hash;
+
+    const auto& current_unencrypted_logs_hash = public_call_public_inputs.unencrypted_logs_hash;
+    circuit_outputs.end.unencrypted_logs_hash = accumulate_sha256<NT>({ previous_unencrypted_logs_hash[0],
+                                                                        previous_unencrypted_logs_hash[1],
+                                                                        current_unencrypted_logs_hash[0],
+                                                                        current_unencrypted_logs_hash[1] });
+
+    // Add log preimages lengths from current iteration to accumulated lengths
+    const auto& current_unencrypted_log_preimages_length = public_call_public_inputs.unencrypted_log_preimages_length;
+    circuit_outputs.end.unencrypted_log_preimages_length =
+        previous_kernel_end.unencrypted_log_preimages_length + current_unencrypted_log_preimages_length;
+}
+
+/**
  * @brief Propagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
  * @tparam The type of kernel input
  * @tparam The current composer

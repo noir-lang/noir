@@ -174,6 +174,15 @@ export class PublicCircuitPublicInputs {
      */
     public newL2ToL1Msgs: Tuple<Fr, typeof NEW_L2_TO_L1_MSGS_LENGTH>,
     /**
+     * Hash of the unencrypted logs emitted in this function call.
+     * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
+     */
+    public unencryptedLogsHash: [Fr, Fr],
+    /**
+     * Length of the unencrypted log preimages emitted in this function call.
+     */
+    public unencryptedLogPreimagesLength: Fr,
+    /**
      * Root of the public data tree when the call started.
      */
     public historicPublicDataTreeRoot: Fr,
@@ -189,6 +198,7 @@ export class PublicCircuitPublicInputs {
     assertMemberLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
     assertMemberLength(this, 'contractStorageUpdateRequests', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);
     assertMemberLength(this, 'contractStorageReads', KERNEL_PUBLIC_DATA_READS_LENGTH);
+    assertMemberLength(this, 'unencryptedLogsHash', 2);
   }
 
   /**
@@ -215,6 +225,8 @@ export class PublicCircuitPublicInputs {
       makeTuple(NEW_COMMITMENTS_LENGTH, Fr.zero),
       makeTuple(NEW_NULLIFIERS_LENGTH, Fr.zero),
       makeTuple(NEW_L2_TO_L1_MSGS_LENGTH, Fr.zero),
+      makeTuple(2, Fr.zero),
+      Fr.ZERO,
       Fr.ZERO,
       AztecAddress.ZERO,
     );
@@ -232,6 +244,8 @@ export class PublicCircuitPublicInputs {
       isFrArrayEmpty(this.newCommitments) &&
       isFrArrayEmpty(this.newNullifiers) &&
       isFrArrayEmpty(this.newL2ToL1Msgs) &&
+      isFrArrayEmpty(this.unencryptedLogsHash) &&
+      this.unencryptedLogPreimagesLength.isZero() &&
       this.historicPublicDataTreeRoot.isZero() &&
       this.proverAddress.isZero()
     );
@@ -253,6 +267,8 @@ export class PublicCircuitPublicInputs {
       fields.newCommitments,
       fields.newNullifiers,
       fields.newL2ToL1Msgs,
+      fields.unencryptedLogsHash,
+      fields.unencryptedLogPreimagesLength,
       fields.historicPublicDataTreeRoot,
       fields.proverAddress,
     ] as const;

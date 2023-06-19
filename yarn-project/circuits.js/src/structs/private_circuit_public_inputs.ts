@@ -56,23 +56,23 @@ export class PrivateCircuitPublicInputs {
      */
     public newL2ToL1Msgs: Fr[],
     /**
-     * Hash of the encrypted logs emitted in the current kernel iteration.
+     * Hash of the encrypted logs emitted in this function call.
      * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
      */
     public encryptedLogsHash: [Fr, Fr],
     /**
-     * Hash of the unencrypted logs emitted in the current kernel iteration.
+     * Hash of the unencrypted logs emitted in this function call.
      * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
      */
     public unencryptedLogsHash: [Fr, Fr],
     /**
-     * Length of the encrypted log preimages emitted in the current kernel iteration.
+     * Length of the encrypted log preimages emitted in this function call.
      * Note: Here so that the gas cost of this request can be measured by circuits, without actually needing to feed
      *       in the variable-length data.
      */
     public encryptedLogPreimagesLength: Fr,
     /**
-     * Length of the unencrypted log preimages emitted in the current kernel iteration.
+     * Length of the unencrypted log preimages emitted in this function call.
      */
     public unencryptedLogPreimagesLength: Fr,
     /**

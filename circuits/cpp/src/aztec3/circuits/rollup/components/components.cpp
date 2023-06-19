@@ -110,9 +110,8 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
     // 2 unencrypted logs hashes (1 per kernel) -> 4 fields --> 2 sha256 hashes --> 64 bytes
     auto const number_of_inputs =
         (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 +
-         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3 + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2
-         //  + KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2
-         ) *
+         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3 + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2 +
+         KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2) *
         2;
     std::array<NT::fr, number_of_inputs> calldata_hash_inputs;
 
@@ -122,7 +121,7 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         auto public_data_update_requests = kernel_data[i].public_inputs.end.public_data_update_requests;
         auto newL2ToL1msgs = kernel_data[i].public_inputs.end.new_l2_to_l1_msgs;
         auto encryptedLogsHash = kernel_data[i].public_inputs.end.encrypted_logs_hash;
-        // auto unencryptedLogsHash = kernel_data[i].public_inputs.end.unencrypted_logs_hash;
+        auto unencryptedLogsHash = kernel_data[i].public_inputs.end.unencrypted_logs_hash;
 
         size_t offset = 0;
 
@@ -163,13 +162,15 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
         calldata_hash_inputs[offset + i * 2] = encryptedLogsHash[0];
         calldata_hash_inputs[offset + i * 2 + 1] = encryptedLogsHash[1];
 
-        // offset += KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2;
+        offset += KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2 * 2;
 
-        // calldata_hash_inputs[offset + i * 2] = unencryptedLogsHash[0];
-        // calldata_hash_inputs[offset + i * 2 + 1] = unencryptedLogsHash[1];
+        calldata_hash_inputs[offset + i * 2] = unencryptedLogsHash[0];
+        calldata_hash_inputs[offset + i * 2 + 1] = unencryptedLogsHash[1];
     }
 
-    constexpr auto num_bytes = (calldata_hash_inputs.size() - 2) * 32;  // -2 because 1 logs hash is stored in 2 fields
+    // We subtract 4 from inputs size because 1 logs hash is stored in 2 fields and those 2 fields get converted only
+    // to 256 bits and there are 4 logs hashes in total.
+    constexpr auto num_bytes = (calldata_hash_inputs.size() - 4) * 32;
     std::array<uint8_t, num_bytes> calldata_hash_inputs_bytes;
     // Convert all into a buffer, then copy into the array, then hash
     for (size_t i = 0; i < calldata_hash_inputs.size() - 4; i++) {  // -4 because logs are processed out of the loop
@@ -182,12 +183,23 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
     // Copy the 4 fields of 2 encrypted logs to 64 bytes
     // Modified version of:
     // https://github.com/AztecProtocol/aztec-packages/blob/01080c7f1d2956512b6a9cff0582b43be25b3cc2/circuits/cpp/src/aztec3/circuits/hash.hpp#L350
-    const uint32_t encrypted_logs_start_index = calldata_hash_inputs.size() - 4;
-    const uint32_t first_modified_byte = encrypted_logs_start_index * 32;
+    const uint32_t encrypted_logs_start_index = calldata_hash_inputs.size() - 8;
+    const uint32_t first_modified_byte_encrypted = num_bytes - 128;  // 128 = num bytes occupied by all the logs hashes
     for (uint8_t i = 0; i < 4; i++) {
         auto half = calldata_hash_inputs[encrypted_logs_start_index + i].to_buffer();
         for (uint8_t j = 0; j < 16; j++) {
-            calldata_hash_inputs_bytes[first_modified_byte + i * 16 + j] = half[16 + j];
+            calldata_hash_inputs_bytes[first_modified_byte_encrypted + i * 16 + j] = half[16 + j];
+        }
+    }
+
+    // Do the same for the unencrypted logs
+    const uint32_t unencrypted_logs_start_index = calldata_hash_inputs.size() - 4;
+    const uint32_t first_modified_byte_unencrypted =
+        num_bytes - 64;  // 64 = num bytes occupied by unencrypted logs hashes
+    for (uint8_t i = 0; i < 4; i++) {
+        auto half = calldata_hash_inputs[unencrypted_logs_start_index + i].to_buffer();
+        for (uint8_t j = 0; j < 16; j++) {
+            calldata_hash_inputs_bytes[first_modified_byte_unencrypted + i * 16 + j] = half[16 + j];
         }
     }
 

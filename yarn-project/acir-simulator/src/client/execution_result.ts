@@ -72,6 +72,11 @@ export interface ExecutionResult {
    * Note: These are preimages to `encryptedLogsHash`.
    */
   encryptedLogs: FunctionL2Logs;
+  /**
+   * Unencrypted logs emitted during execution of this function call.
+   * Note: These are preimages to `unencryptedLogsHash`.
+   */
+  unencryptedLogs: FunctionL2Logs;
 }
 
 /**
@@ -81,6 +86,15 @@ export interface ExecutionResult {
  */
 export function collectEncryptedLogs(execResult: ExecutionResult): FunctionL2Logs[] {
   return [execResult.encryptedLogs, ...execResult.nestedExecutions.flatMap(collectEncryptedLogs)];
+}
+
+/**
+ * Collect all unencrypted logs across all nested executions.
+ * @param execResult - The topmost execution result.
+ * @returns All unencrypted logs.
+ */
+export function collectUnencryptedLogs(execResult: ExecutionResult): FunctionL2Logs[] {
+  return [execResult.unencryptedLogs, ...execResult.nestedExecutions.flatMap(collectUnencryptedLogs)];
 }
 
 /**

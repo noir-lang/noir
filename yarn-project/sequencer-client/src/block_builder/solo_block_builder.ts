@@ -133,11 +133,15 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     // Consolidate logs data from all txs
     const encryptedLogsArr: TxL2Logs[] = [];
+    const unencryptedLogsArr: TxL2Logs[] = [];
     for (const tx of txs) {
-      const logs = tx.encryptedLogs || new TxL2Logs([]);
-      encryptedLogsArr.push(logs);
+      const encryptedLogs = tx.encryptedLogs || new TxL2Logs([]);
+      encryptedLogsArr.push(encryptedLogs);
+      const unencryptedLogs = tx.unencryptedLogs || new TxL2Logs([]);
+      unencryptedLogsArr.push(unencryptedLogs);
     }
     const newEncryptedLogs = new L2BlockL2Logs(encryptedLogsArr);
+    const newUnencryptedLogs = new L2BlockL2Logs(unencryptedLogsArr);
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
@@ -165,6 +169,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       newPublicDataWrites,
       newL1ToL2Messages,
       newEncryptedLogs,
+      newUnencryptedLogs,
     });
 
     if (!l2Block.getCalldataHash().equals(circuitsOutput.sha256CalldataHash())) {

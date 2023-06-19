@@ -287,8 +287,7 @@ library Decoder {
 
       // Create the leaf to contain commitments (8 * 0x20) + nullifiers (8 * 0x20)
       // + new public data writes (8 * 0x40) + contract deployments (2 * 0x60) + logs hashes (4 * 0x20)
-      // TODO: Replace 0x580 with 0x5C0 once unencrypted logs are included
-      vars.baseLeaf = new bytes(0x580);
+      vars.baseLeaf = new bytes(0x5C0);
 
       for (uint256 i = 0; i < vars.baseLeaves.length; i++) {
         /*
@@ -326,10 +325,10 @@ library Decoder {
         (vars.encrypedLogsHashKernel2, offsets.encryptedLogsOffset) =
           computeKernelLogsHash(offsets.encryptedLogsOffset, _l2Block);
 
-        // (vars.unencryptedLogsHashKernel1, offsets.unencryptedLogsOffset) =
-        //   computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
-        // (vars.unencryptedLogsHashKernel2, offsets.unencryptedLogsOffset) =
-        //   computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
+        (vars.unencryptedLogsHashKernel1, offsets.unencryptedLogsOffset) =
+          computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
+        (vars.unencryptedLogsHashKernel2, offsets.unencryptedLogsOffset) =
+          computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
 
         assembly {
           let baseLeaf := mload(add(vars, 0x40)) // Load the pointer to `vars.baseLeaf`
@@ -383,13 +382,13 @@ library Decoder {
           dstPtr := add(dstPtr, 0x20)
           mstore(dstPtr, mload(add(vars, 0x80))) // `encryptedLogsHashKernel2` starts at 0x80 in `vars`
 
-          // // unencryptedLogsHashKernel1
-          // dstPtr := add(dstPtr, 0x20)
-          // mstore(dstPtr, mload(add(vars, 0xa0))) // `unencryptedLogsHashKernel1` starts at 0xa0 in `vars`
+          // unencryptedLogsHashKernel1
+          dstPtr := add(dstPtr, 0x20)
+          mstore(dstPtr, mload(add(vars, 0xa0))) // `unencryptedLogsHashKernel1` starts at 0xa0 in `vars`
 
-          // // unencryptedLogsHashKernel2
-          // dstPtr := add(dstPtr, 0x20)
-          // mstore(dstPtr, mload(add(vars, 0xc0))) // `unencryptedLogsHashKernel2` starts at 0xc0 in `vars`
+          // unencryptedLogsHashKernel2
+          dstPtr := add(dstPtr, 0x20)
+          mstore(dstPtr, mload(add(vars, 0xc0))) // `unencryptedLogsHashKernel2` starts at 0xc0 in `vars`
         }
 
         offsets.commitmentOffset += 2 * Constants.COMMITMENTS_PER_KERNEL * 0x20;

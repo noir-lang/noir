@@ -62,6 +62,8 @@ KernelCircuitPublicInputs<NT> native_public_kernel_circuit_public_previous_kerne
     // update the public end state of the circuit
     common_update_public_end_values(composer, public_kernel_inputs, public_inputs);
 
+    accumulate_unencrypted_logs<NT>(public_kernel_inputs, public_inputs);
+
     return public_inputs;
 };
 

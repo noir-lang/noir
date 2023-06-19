@@ -36,7 +36,7 @@ import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
 import { default as memdown, type MemDown } from 'memdown';
-import { makeEmptyEncryptedLogs, makeTx } from '../mocks/tx.js';
+import { makeEmptyLogs, makeTx } from '../mocks/tx.js';
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 import { RollupProver } from '../prover/index.js';
@@ -140,7 +140,8 @@ describe('sequencer/solo_block_builder', () => {
       Tx.createTx(
         kernelOutput,
         emptyProof,
-        makeEmptyEncryptedLogs(),
+        makeEmptyLogs(),
+        makeEmptyLogs(),
         [],
         times(KERNEL_PUBLIC_CALL_STACK_LENGTH, makePublicCallRequest),
       ),
@@ -195,6 +196,7 @@ describe('sequencer/solo_block_builder', () => {
     );
     const newL2ToL1Msgs = flatMap(txs, tx => tx.data.end.newL2ToL1Msgs);
     const newEncryptedLogs = new L2BlockL2Logs(txs.map(tx => tx.encryptedLogs || new TxL2Logs([])));
+    const newUnencryptedLogs = new L2BlockL2Logs(txs.map(tx => tx.unencryptedLogs || new TxL2Logs([])));
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
@@ -223,6 +225,7 @@ describe('sequencer/solo_block_builder', () => {
       newL1ToL2Messages: mockL1ToL2Messages,
       newL2ToL1Msgs,
       newEncryptedLogs,
+      newUnencryptedLogs,
     });
 
     const callDataHash = l2Block.getCalldataHash();
@@ -313,6 +316,7 @@ describe('sequencer/solo_block_builder', () => {
       processedTx.data.end.newL2ToL1Msgs = makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x300);
       processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
       processedTx.data.end.encryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.encryptedLogs));
+      processedTx.data.end.unencryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.unencryptedLogs));
 
       return processedTx;
     };

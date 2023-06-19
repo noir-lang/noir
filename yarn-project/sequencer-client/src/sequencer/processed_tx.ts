@@ -5,7 +5,7 @@ import { Tx, TxHash, TxL2Logs } from '@aztec/types';
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
  */
-export type ProcessedTx = Pick<Tx, 'data' | 'proof' | 'encryptedLogs'> & {
+export type ProcessedTx = Pick<Tx, 'data' | 'proof' | 'encryptedLogs' | 'unencryptedLogs'> & {
   /**
    * Hash of the transaction.
    */
@@ -49,7 +49,8 @@ export async function makeProcessedTx(
     hash: await tx.getTxHash(),
     data: kernelOutput ?? tx.data,
     proof: proof ?? tx.proof,
-    encryptedLogs: tx.encryptedLogs, // TODO: Are there encrypted logs from pub executions?
+    encryptedLogs: tx.encryptedLogs,
+    unencryptedLogs: tx.unencryptedLogs,
     isEmpty: false,
   };
 }
@@ -67,6 +68,7 @@ export function makeEmptyProcessedTx(historicTreeRoots: CombinedHistoricTreeRoot
   return Promise.resolve({
     hash,
     encryptedLogs: new TxL2Logs([]),
+    unencryptedLogs: new TxL2Logs([]),
     data: emptyKernelOutput,
     proof: emptyProof,
     isEmpty: true,

@@ -47,6 +47,7 @@ export function txToJson(tx: Tx) {
 export function txFromJson(json: any) {
   const publicInputs = KernelCircuitPublicInputs.fromBuffer(Buffer.from(json.data, 'hex'));
   const encryptedLogs = TxL2Logs.fromBuffer(Buffer.from(json.encryptedLogs, 'hex'));
+  const unencryptedLogs = TxL2Logs.fromBuffer(Buffer.from(json.unencryptedLogs, 'hex'));
   const proof = Buffer.from(json.proof, 'hex');
   const newContractPublicFunctions = json.newContractPublicFunctions
     ? json.newContractPublicFunctions.map((x: string) => EncodedContractFunction.fromBuffer(Buffer.from(x, 'hex')))
@@ -58,6 +59,7 @@ export function txFromJson(json: any) {
     publicInputs,
     Proof.fromBuffer(proof),
     encryptedLogs,
+    unencryptedLogs,
     newContractPublicFunctions,
     enqueuedPublicFunctions,
   );

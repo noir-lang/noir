@@ -39,6 +39,13 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs =
         zero_array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>();
 
+    // sha256 hash of the log preimages (in two fields to accommodate all 256-bits of the hash)
+    std::array<fr, 2> unencrypted_logs_hash = zero_array<fr, 2>();
+
+    // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
+    // variable-length data.
+    fr unencrypted_log_preimages_length = 0;
+
     fr historic_public_data_tree_root = 0;
 
     address prover_address;
@@ -53,6 +60,8 @@ template <typename NCT> struct PublicCircuitPublicInputs {
                    new_commitments,
                    new_nullifiers,
                    new_l2_to_l1_msgs,
+                   unencrypted_logs_hash,
+                   unencrypted_log_preimages_length,
                    historic_public_data_tree_root,
                    prover_address);
 
@@ -84,6 +93,9 @@ template <typename NCT> struct PublicCircuitPublicInputs {
             .new_nullifiers = to_ct(new_nullifiers),
             .new_l2_to_l1_msgs = to_ct(new_l2_to_l1_msgs),
 
+            .unencrypted_logs_hash = to_ct(unencrypted_logs_hash),
+            .unencrypted_log_preimages_length = to_ct(unencrypted_log_preimages_length),
+
             .historic_public_data_tree_root = to_ct(historic_public_data_tree_root),
 
             .prover_address = to_ct(prover_address),
@@ -112,6 +124,10 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         spread_arr_into_vec(new_commitments, inputs);
         spread_arr_into_vec(new_nullifiers, inputs);
         spread_arr_into_vec(new_l2_to_l1_msgs, inputs);
+
+        spread_arr_into_vec(unencrypted_logs_hash, inputs);
+
+        inputs.push_back(unencrypted_log_preimages_length);
 
         inputs.push_back(historic_public_data_tree_root);
 
@@ -142,6 +158,9 @@ template <typename NCT> void read(uint8_t const*& it, PublicCircuitPublicInputs<
     read(it, pis.new_nullifiers);
     read(it, pis.new_l2_to_l1_msgs);
 
+    read(it, pis.unencrypted_logs_hash);
+    read(it, pis.unencrypted_log_preimages_length);
+
     read(it, pis.historic_public_data_tree_root);
 
     read(it, pis.prover_address);
@@ -165,6 +184,9 @@ void write(std::vector<uint8_t>& buf, PublicCircuitPublicInputs<NCT> const& publ
     write(buf, pis.new_commitments);
     write(buf, pis.new_nullifiers);
     write(buf, pis.new_l2_to_l1_msgs);
+
+    write(buf, pis.unencrypted_logs_hash);
+    write(buf, pis.unencrypted_log_preimages_length);
 
     write(buf, pis.historic_public_data_tree_root);
 

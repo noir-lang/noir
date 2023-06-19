@@ -1017,6 +1017,8 @@ interface MsgpackPublicCircuitPublicInputs {
   new_commitments: Tuple<Buffer, 4>;
   new_nullifiers: Tuple<Buffer, 4>;
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;
+  unencrypted_logs_hash: Tuple<Buffer, 2>;
+  unencrypted_log_preimages_length: Buffer;
   historic_public_data_tree_root: Buffer;
   prover_address: Buffer;
 }
@@ -1049,6 +1051,12 @@ export function toPublicCircuitPublicInputs(o: MsgpackPublicCircuitPublicInputs)
   if (o.new_l2_to_l1_msgs === undefined) {
     throw new Error('Expected new_l2_to_l1_msgs in PublicCircuitPublicInputs deserialization');
   }
+  if (o.unencrypted_logs_hash === undefined) {
+    throw new Error('Expected unencrypted_logs_hash in PublicCircuitPublicInputs deserialization');
+  }
+  if (o.unencrypted_log_preimages_length === undefined) {
+    throw new Error('Expected unencrypted_log_preimages_length in PublicCircuitPublicInputs deserialization');
+  }
   if (o.historic_public_data_tree_root === undefined) {
     throw new Error('Expected historic_public_data_tree_root in PublicCircuitPublicInputs deserialization');
   }
@@ -1067,6 +1075,8 @@ export function toPublicCircuitPublicInputs(o: MsgpackPublicCircuitPublicInputs)
     mapTuple(o.new_commitments, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.new_nullifiers, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.new_l2_to_l1_msgs, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.unencrypted_logs_hash, (v: Buffer) => Fr.fromBuffer(v)),
+    Fr.fromBuffer(o.unencrypted_log_preimages_length),
     Fr.fromBuffer(o.historic_public_data_tree_root),
     Address.fromBuffer(o.prover_address),
   );
@@ -1100,6 +1110,12 @@ export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): Msg
   if (o.newL2ToL1Msgs === undefined) {
     throw new Error('Expected newL2ToL1Msgs in PublicCircuitPublicInputs serialization');
   }
+  if (o.unencryptedLogsHash === undefined) {
+    throw new Error('Expected unencryptedLogsHash in PublicCircuitPublicInputs serialization');
+  }
+  if (o.unencryptedLogPreimagesLength === undefined) {
+    throw new Error('Expected unencryptedLogPreimagesLength in PublicCircuitPublicInputs serialization');
+  }
   if (o.historicPublicDataTreeRoot === undefined) {
     throw new Error('Expected historicPublicDataTreeRoot in PublicCircuitPublicInputs serialization');
   }
@@ -1118,6 +1134,8 @@ export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): Msg
     new_commitments: mapTuple(o.newCommitments, (v: Fr) => v.toBuffer()),
     new_nullifiers: mapTuple(o.newNullifiers, (v: Fr) => v.toBuffer()),
     new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => v.toBuffer()),
+    unencrypted_logs_hash: mapTuple(o.unencryptedLogsHash, (v: Fr) => v.toBuffer()),
+    unencrypted_log_preimages_length: o.unencryptedLogPreimagesLength.toBuffer(),
     historic_public_data_tree_root: o.historicPublicDataTreeRoot.toBuffer(),
     prover_address: o.proverAddress.toBuffer(),
   };

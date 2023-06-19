@@ -1197,10 +1197,12 @@ current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  ]
-public_call_stack: [ 0x2812daf003a40d987ef583e5d3dc87a84ead09c1b5eccebe12e8013cfbfcffd2 0x33033643ffb00431436f68bca1fb302283f1970ed0a1552679d7a183711c108 0x1096b84981fc52a03cc9dfba7b7310b4f990b775e2d57ff10c05ba192b8b572d 0x1ef2deb29c62c944a8002988827e18ccca5386e9434c15379f32f7190b46de4f ]
+public_call_stack: [ 0x1cd2a06c18e69d762829615c4428e73412784f74c1d3befd92df44086afec8bf 0x143632f20bea44252eccc4dc1c13fbda6416dc2fbdbe33c3078deccdeacbd8ab 0x1ce275753e532470bcbcb2c4ff46d3d9afd307d906175da47cb5cd7e9cd5a44e 0x18bf24f20caff1d612f83b682e3af6df1b495597ac85e63c4f4ccd7e90493a7d ]
 new_commitments: [ 0x1711 0x1712 0x0 0x0 ]
 new_nullifiers: [ 0x1811 0x1812 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1911 0x0 ]
+unencrypted_logs_hash: [ 0x1912 0x0 ]
+unencrypted_log_preimages_length: 0x1913
 historic_public_data_tree_root: 0x1a11
 prover_address: 0x1b12
 
@@ -1247,6 +1249,8 @@ public_call_stack: [ 0x1911 0x1912 0x0 0x0 ]
 new_commitments: [ 0x1a11 0x1a12 0x0 0x0 ]
 new_nullifiers: [ 0x1b11 0x1b12 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c11 0x0 ]
+unencrypted_logs_hash: [ 0x1c12 0x0 ]
+unencrypted_log_preimages_length: 0x1c13
 historic_public_data_tree_root: 0x1d11
 prover_address: 0x1e12
 
@@ -1291,6 +1295,8 @@ public_call_stack: [ 0x1912 0x1913 0x0 0x0 ]
 new_commitments: [ 0x1a12 0x1a13 0x0 0x0 ]
 new_nullifiers: [ 0x1b12 0x1b13 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c12 0x0 ]
+unencrypted_logs_hash: [ 0x1c13 0x0 ]
+unencrypted_log_preimages_length: 0x1c14
 historic_public_data_tree_root: 0x1d12
 prover_address: 0x1e13
 
@@ -1335,6 +1341,8 @@ public_call_stack: [ 0x1913 0x1914 0x0 0x0 ]
 new_commitments: [ 0x1a13 0x1a14 0x0 0x0 ]
 new_nullifiers: [ 0x1b13 0x1b14 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c13 0x0 ]
+unencrypted_logs_hash: [ 0x1c14 0x0 ]
+unencrypted_log_preimages_length: 0x1c15
 historic_public_data_tree_root: 0x1d13
 prover_address: 0x1e14
 
@@ -1379,6 +1387,8 @@ public_call_stack: [ 0x1914 0x1915 0x0 0x0 ]
 new_commitments: [ 0x1a14 0x1a15 0x0 0x0 ]
 new_nullifiers: [ 0x1b14 0x1b15 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c14 0x0 ]
+unencrypted_logs_hash: [ 0x1c15 0x0 ]
+unencrypted_log_preimages_length: 0x1c16
 historic_public_data_tree_root: 0x1d14
 prover_address: 0x1e15
 

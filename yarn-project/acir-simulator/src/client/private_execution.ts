@@ -70,6 +70,7 @@ export class PrivateFunctionExecution {
     const enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
     const readRequestCommitmentIndices: bigint[] = [];
     const encryptedLogs = new FunctionL2Logs([]);
+    const unencryptedLogs = new FunctionL2Logs([]);
 
     const { partialWitness } = await acvm(acir, initialWitness, {
       getSecretKey: async ([ownerX, ownerY]: ACVMField[]) => [
@@ -162,7 +163,10 @@ export class PrivateFunctionExecution {
       createL2ToL1Message: notAvailable,
       createNullifier: notAvailable,
       callPublicFunction: notAvailable,
-      emitUnencryptedLog: notAvailable,
+      emitUnencryptedLog: ([...args]: ACVMField[]) => {
+        unencryptedLogs.logs.push(...args.map(str => convertACVMFieldToBuffer(str)));
+        return Promise.resolve([ZERO_ACVM_FIELD]);
+      },
       emitEncryptedLog: async ([
         acvmContractAddress,
         acvmStorageSlot,
@@ -197,6 +201,8 @@ export class PrivateFunctionExecution {
     // TODO(#1347): Noir fails with too many unknowns error when public inputs struct contains too many members.
     publicInputs.encryptedLogsHash = to2Fields(encryptedLogs.hash());
     publicInputs.encryptedLogPreimagesLength = new Fr(encryptedLogs.getSerializedLength());
+    publicInputs.unencryptedLogsHash = to2Fields(unencryptedLogs.hash());
+    publicInputs.unencryptedLogPreimagesLength = new Fr(unencryptedLogs.getSerializedLength());
 
     const callStackItem = new PrivateCallStackItem(this.contractAddress, this.functionData, publicInputs);
     const returnValues = decodeReturnValues(this.abi, publicInputs.returnValues);
@@ -226,6 +232,7 @@ export class PrivateFunctionExecution {
       nestedExecutions: nestedExecutionContexts,
       enqueuedPublicFunctionCalls,
       encryptedLogs,
+      unencryptedLogs,
     };
   }
 

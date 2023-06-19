@@ -66,7 +66,7 @@ export async function retrieveBlocks(
 /**
  * Fetches new contract data.
  * @param publicClient - The viem public client to use for transaction retrieval.
- * @param contractDeploymentEmitterAddress - The address of the encrypted logs emitter contract.
+ * @param contractDeploymentEmitterAddress - The address of the contract deployment emitter contract.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.

@@ -43,7 +43,6 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.
-    // TODO: Mike has this as uint32 but I have issue compiling it like that. Should it be used or is fr ok?
     fr encrypted_log_preimages_length = 0;
     fr unencrypted_log_preimages_length = 0;
 

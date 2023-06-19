@@ -7,7 +7,8 @@ export const MockTx = () => {
   return Tx.createTx(
     makeKernelPublicInputs(),
     new Proof(Buffer.alloc(0)),
-    TxL2Logs.random(8, 3),
+    TxL2Logs.random(8, 3), // 8 priv function invocations creating 3 encrypted logs each
+    TxL2Logs.random(11, 2), // 8 priv + 3 pub function invocations creating 2 unencrypted logs each
     [],
     times(KERNEL_PUBLIC_CALL_STACK_LENGTH, makePublicCallRequest),
   );

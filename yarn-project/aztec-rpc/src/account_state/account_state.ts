@@ -25,6 +25,7 @@ import { generateFunctionSelector } from '../index.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
 import { KernelProver } from '../kernel_prover/index.js';
 import { SimulatorOracle } from '../simulator_oracle/index.js';
+import { collectUnencryptedLogs } from '@aztec/acir-simulator';
 
 /**
  * Contains all the decrypted data in this array so that we can later batch insert it all into the database.
@@ -252,13 +253,14 @@ export class AccountState {
       ? await this.getNewContractPublicFunctions(newContractAddress)
       : [];
 
-    // 1 tx containing only 1 function invocation
     const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
+    const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
 
     return Tx.createTx(
       publicInputs,
       proof,
       encryptedLogs,
+      unencryptedLogs,
       newContractPublicFunctions,
       collectEnqueuedPublicFunctionCalls(executionResult),
     );

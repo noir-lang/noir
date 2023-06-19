@@ -51,10 +51,12 @@ export class FunctionL2Logs {
    * @returns Deserialized instance of `FunctionL2Logs`.
    */
   public static fromBuffer(buf: Buffer, isLengthPrefixed = true): FunctionL2Logs {
-    const offset = isLengthPrefixed ? 4 : 0;
-    const reader = new BufferReader(buf, offset);
+    const reader = new BufferReader(buf, 0);
 
-    const logs = reader.readBufferArray();
+    // If the buffer is length prefixed use the length to read the array. Otherwise, the entire buffer is consumed.
+    const logsBufLength = isLengthPrefixed ? reader.readNumber() : -1;
+    const logs = reader.readBufferArray(logsBufLength);
+
     return new FunctionL2Logs(logs);
   }
 

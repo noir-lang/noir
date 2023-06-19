@@ -51,11 +51,13 @@ std::vector<uint8_t> get_empty_calldata_leaf()
 {
     auto const number_of_inputs =
         (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 +
-         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3 + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2
-         //  + KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2
-         ) *
+         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3 + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2 +
+         KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2) *
         2;
-    auto const size = (number_of_inputs - 2) * 32;  // -2 because 1 logs hash is stored in 2 fields
+
+    // We subtract 4 from inputs size because 1 logs hash is stored in 2 fields and those 2 fields get converted only
+    // to 256 bits and there are 4 logs hashes in total.
+    auto const size = (number_of_inputs - 4) * 32;
     std::vector<uint8_t> input_data(size, 0);
     return input_data;
 }

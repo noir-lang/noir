@@ -132,7 +132,7 @@ export const deployL1Contracts = async (
     ContractDeploymentEmitterAbi,
     ContractDeploymentEmitterBytecode,
   );
-  logger(`Deployed encrypted logs emitter at ${contractDeploymentEmitterAddress}`);
+  logger(`Deployed contract deployment emitter at ${contractDeploymentEmitterAddress}`);
 
   let decoderHelperAddress: EthAddress | undefined;
   if (deployDecoderHelper) {
