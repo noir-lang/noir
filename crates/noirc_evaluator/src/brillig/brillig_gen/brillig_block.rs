@@ -104,8 +104,7 @@ impl<'block> BrilligBlock<'block> {
             };
             match param_type {
                 Type::Numeric(_) => {
-                    self.function_context
-                        .get_or_create_register(self.brillig_context, *param_id);
+                    self.function_context.get_or_create_register(self.brillig_context, *param_id);
                 }
                 Type::Array(_, size) => {
                     let pointer_register = self
@@ -187,8 +186,27 @@ impl<'block> BrilligBlock<'block> {
                         &output_registers,
                     );
                 }
+                Value::Function(func_id) => {
+                    let function_arguments: Vec<RegisterIndex> =
+                        vecmap(arguments.clone(), |a| self.convert_ssa_value(a, dfg));
+                    let result_ids = dfg.instruction_results(instruction_id);
+
+                    let function_results = vecmap(result_ids, |a| {
+                        self.function_context.get_or_create_register(self.brillig_context, *a)
+                    });
+
+                    let function_block_label: String =
+                        self.brillig_context.function_block_label(func_id);
+
+                    self.brillig_context.call(
+                        &function_arguments,
+                        &function_results,
+                        function_block_label,
+                        *func_id,
+                    );
+                }
                 _ => {
-                    unreachable!("only foreign function calls supported in unconstrained functions")
+                    unreachable!("should call a function")
                 }
             },
             Instruction::Truncate { value, .. } => {
@@ -282,9 +300,8 @@ impl<'block> BrilligBlock<'block> {
                 self.function_context.get_or_create_register(self.brillig_context, value_id)
             }
             Value::NumericConstant { constant, .. } => {
-                let register_index = self
-                    .function_context
-                    .get_or_create_register(self.brillig_context, value_id);
+                let register_index =
+                    self.function_context.get_or_create_register(self.brillig_context, value_id);
 
                 self.brillig_context.const_instruction(register_index, (*constant).into());
                 register_index

@@ -183,10 +183,9 @@ impl Context {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
                                 // Generate the brillig code of the function
                                 let mut ctx = BrilligContext::new(brillig.function_labels());
-                                ctx.initialize_entry_function(arguments.len());
+                                ctx.initialize_entry_function(arguments.len(), result_ids.len());
                                 let obj = &mut ctx.artifact();
-                                let code = obj.link(*id, brillig, result_ids.len());
-
+                                let code = obj.link(*id, brillig);
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
                                 let output_values = self.acir_context.brillig(code, inputs, outputs);
                                 // Compiler sanity check

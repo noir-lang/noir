@@ -3,8 +3,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{brillig::Brillig, ssa_refactor::ir::function::FunctionId};
 
-use super::SpecialRegisters;
-
 #[derive(Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// Currently it is just the brillig bytecode of the function.
@@ -17,8 +15,6 @@ pub(crate) struct BrilligArtifact {
     labels: HashMap<Label, OpcodeLocation>,
     /// functions called that need to be resolved
     functions_to_process: HashSet<FunctionId>,
-    //function id
-    //function_id: FunctionId,
 }
 
 /// A pointer to a location in the opcode.
@@ -54,26 +50,9 @@ impl BrilligArtifact {
     }
 
     /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
-    pub(crate) fn link(
-        &mut self,
-        id: FunctionId,
-        brillig: &Brillig,
-        return_len: usize,
-    ) -> Vec<BrilligOpcode> {
+    pub(crate) fn link(&mut self, id: FunctionId, brillig: &Brillig) -> Vec<BrilligOpcode> {
         let obj = &brillig[id];
         self.append_artifact(obj);
-
-        // Remove the ending stop
-        let expected_stop = self.byte_code.pop().expect("expected at least one opcode");
-        assert_eq!(expected_stop, BrilligOpcode::Stop, "expected a stop code");
-        // Move the results to registers 0,..n
-        for i in 0..return_len {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: i.into(),
-                source: (i + SpecialRegisters::len()).into(),
-            });
-        }
-        self.push_opcode(BrilligOpcode::Stop);
 
         let mut queue: Vec<FunctionId> = obj.functions_to_process.clone().into_iter().collect();
         while let Some(func) = queue.pop() {

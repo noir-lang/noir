@@ -350,7 +350,9 @@ impl BrilligContext {
 
     /// Emits a stop instruction
     pub(crate) fn stop_instruction(&mut self) {
-        self.push_opcode(BrilligOpcode::Stop);
+        // In order to ensure the copy of the return values to the first registers, we jump to the location one which will
+        // copy the return values to the first registers and then stop.
+        self.push_opcode(BrilligOpcode::Jump { location: 1 });
     }
 
     /// Returns a register which holds the value of a constant
@@ -412,8 +414,12 @@ impl BrilligContext {
     }
 
     /// Returns the ith register after the special ones
-    pub(crate) fn register(&self, i: usize) -> RegisterIndex {
-        RegisterIndex::from(SpecialRegisters::Len as usize + i)
+    pub(crate) fn register(&mut self, i: usize) -> RegisterIndex {
+        let register = SpecialRegisters::len() + i;
+        if self.latest_register <= register {
+            self.latest_register = register + 1;
+        }
+        RegisterIndex::from(SpecialRegisters::len() + i)
     }
 
     /// Saves all of the registers that have been used up until this point
@@ -501,10 +507,8 @@ impl BrilligContext {
         // This means that the arguments will be in the first `n` registers after
         // the special registers which are reserved.
         for (i, argument) in arguments.iter().enumerate() {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: self.register(i),
-                source: *argument,
-            });
+            let register = self.register(i);
+            self.push_opcode(BrilligOpcode::Mov { destination: register, source: *argument });
         }
 
         // Increment depth_call
@@ -562,7 +566,8 @@ impl BrilligContext {
                 reg_adr,
                 BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: 32 },
             );
-            self.store_instruction(reg_adr, self.register(i));
+            let register = self.register(i);
+            self.store_instruction(reg_adr, register);
         }
 
         // Load the saved registers
@@ -608,13 +613,24 @@ impl BrilligContext {
     }
 
     ///
-    pub(crate) fn initialize_entry_function(&mut self, num_arguments: usize) {
+    pub(crate) fn initialize_entry_function(&mut self, num_arguments: usize, num_return: usize) {
         // This was chosen arbitrarily
         const MAXIMUM_NUMBER_OF_NESTED_CALLS: u32 = 50;
+        // Jump to the initialisation code
+        self.push_opcode(BrilligOpcode::Jump { location: num_return + 2 });
+        // finalise entry function execution by copying the return values to the first registers, and then stop.
+        for i in 0..num_return {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: i.into(),
+                source: (i + SpecialRegisters::len()).into(),
+            });
+        }
+        self.push_opcode(BrilligOpcode::Stop);
 
         // Translate the inputs by the special registers offset
         for i in (0..num_arguments).into_iter().rev() {
-            self.mov_instruction(self.register(i), RegisterIndex::from(i));
+            let register = self.register(i);
+            self.mov_instruction(register, RegisterIndex::from(i));
         }
 
         // Initialize the first three registers to be the special registers
