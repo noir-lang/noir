@@ -50,6 +50,11 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
+    /// Returns a user defined (non-reserved) register index.
+    fn user_register_index(index: usize) -> RegisterIndex {
+        RegisterIndex::from(index + ReservedRegisters::len())
+    }
+
     /// Returns the stack pointer register. This will get used to allocate memory in runtime.
     pub(crate) fn stack_pointer() -> RegisterIndex {
         RegisterIndex::from(ReservedRegisters::StackPointer as usize)
@@ -71,24 +76,13 @@ pub(crate) struct BrilligContext {
 
 impl BrilligContext {
     /// Initial context state
-    pub(crate) fn new() -> BrilligContext {
+    pub(crate) fn new(num_arguments: usize, num_return_parameters: usize) -> BrilligContext {
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj: BrilligArtifact::new(num_arguments, num_return_parameters),
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
         }
-    }
-
-    /// Adds the instructions needed to handle entry point parameters
-    /// And sets the starting value of the reserved registers
-    pub(crate) fn entry_point_instruction(&mut self, num_arguments: usize) {
-        // Translate the inputs by the reserved registers offset
-        for i in (0..num_arguments).rev() {
-            self.mov_instruction(self.user_register_index(i), RegisterIndex::from(i));
-        }
-        // Set the initial value of the stack pointer register
-        self.const_instruction(ReservedRegisters::stack_pointer(), Value::from(0_usize));
     }
 
     /// Adds a brillig instruction to the brillig byte code
@@ -241,7 +235,7 @@ impl BrilligContext {
 
     /// Adds a label to the next opcode
     pub(crate) fn enter_context<T: ToString>(&mut self, label: T) {
-        debug_show::enter_context(label);
+        debug_show::enter_context(label.to_string());
         self.context_label = label.to_string();
         self.section_label = 0;
         // Add a context label to the next opcode
@@ -275,7 +269,7 @@ impl BrilligContext {
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
     pub(crate) fn jump_instruction<T: ToString>(&mut self, target_label: T) {
-        debug_show::jump_instruction(target_label);
+        debug_show::jump_instruction(target_label.to_string());
         self.add_unresolved_jump(BrilligOpcode::Jump { location: 0 }, target_label.to_string());
     }
 
@@ -285,7 +279,7 @@ impl BrilligContext {
         condition: RegisterIndex,
         target_label: T,
     ) {
-        debug_show::jump_if_instruction(condition, target_label);
+        debug_show::jump_if_instruction(condition, target_label.to_string());
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
             target_label.to_string(),
@@ -299,11 +293,6 @@ impl BrilligContext {
         destination: UnresolvedJumpLocation,
     ) {
         self.obj.add_unresolved_jump(jmp_instruction, destination);
-    }
-
-    /// Returns a user defined (non-reserved) register index.
-    fn user_register_index(&self, index: usize) -> RegisterIndex {
-        RegisterIndex::from(index + ReservedRegisters::len())
     }
 
     /// Allocates an unused register.
@@ -370,7 +359,7 @@ impl BrilligContext {
         result: RegisterIndex,
         operation: BrilligBinaryOp,
     ) {
-        debug_show::binary_instruction(lhs, rhs, result, operation);
+        debug_show::binary_instruction(lhs, rhs, result, operation.clone());
         match operation {
             BrilligBinaryOp::Field { op } => {
                 let opcode = BrilligOpcode::BinaryFieldOp { op, destination: result, lhs, rhs };
@@ -422,7 +411,7 @@ impl BrilligContext {
         inputs: &[RegisterOrMemory],
         outputs: &[RegisterOrMemory],
     ) {
-        debug_show::foreign_call_instruction(func_name, inputs, outputs);
+        debug_show::foreign_call_instruction(func_name.clone(), inputs, outputs);
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
             destinations: outputs.to_vec(),
@@ -569,7 +558,7 @@ impl BrilligContext {
 
     /// Adds a unresolved external `Call` instruction to the bytecode.
     pub(crate) fn add_external_call_instruction<T: ToString>(&mut self, func_label: T) {
-        debug_show::add_external_call_instruction(func_label);
+        debug_show::add_external_call_instruction(func_label.to_string());
         self.obj.add_unresolved_external_call(
             BrilligOpcode::Call { location: 0 },
             func_label.to_string(),
@@ -672,6 +661,7 @@ impl BrilligContext {
 }
 
 /// Type to encapsulate the binary operation types in Brillig
+#[derive(Clone)]
 pub(crate) enum BrilligBinaryOp {
     Field { op: BinaryFieldOp },
     Integer { op: BinaryIntOp, bit_size: u32 },

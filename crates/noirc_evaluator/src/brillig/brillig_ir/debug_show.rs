@@ -25,7 +25,7 @@ default_to_string_impl! { str usize u32 }
 
 impl DebugToString for RegisterIndex {
     fn debug_to_string(&self) -> String {
-        format!("R{}", self.to_usize().to_string())
+        format!("R{}", self.to_usize())
     }
 }
 
@@ -126,12 +126,12 @@ macro_rules! debug_println {
 
 /// Emits brillig bytecode to jump to a trap condition if `condition`
 /// is false.
-pub fn constrain_instruction(condition: RegisterIndex) {
+pub(crate) fn constrain_instruction(condition: RegisterIndex) {
     debug_println!("ASSERT R{} == 0", condition);
 }
 
 /// Processes a return instruction.
-pub fn return_instruction(return_registers: &[RegisterIndex]) {
+pub(crate) fn return_instruction(return_registers: &[RegisterIndex]) {
     for (destination_index, return_register) in return_registers.iter().enumerate() {
         debug_println!("MOV R{}, R{}", destination_index, *return_register);
     }
@@ -139,12 +139,12 @@ pub fn return_instruction(return_registers: &[RegisterIndex]) {
 }
 
 /// Emits a `mov` instruction.
-pub fn mov_instruction(destination: RegisterIndex, source: RegisterIndex) {
+pub(crate) fn mov_instruction(destination: RegisterIndex, source: RegisterIndex) {
     debug_println!("MOV R{}, R{}", destination, source);
 }
 
 /// Processes a binary instruction according `operation`.
-pub fn binary_instruction(
+pub(crate) fn binary_instruction(
     lhs: RegisterIndex,
     rhs: RegisterIndex,
     result: RegisterIndex,
@@ -154,17 +154,17 @@ pub fn binary_instruction(
 }
 
 /// Stores the value of `constant` in the `result` register
-pub fn const_instruction(result: RegisterIndex, constant: Value) {
+pub(crate) fn const_instruction(result: RegisterIndex, constant: Value) {
     debug_println!("CONST {} = {}", result, constant);
 }
 
 /// Processes a not instruction. Append with "_" as this is a high-level instruction.
-pub fn not_instruction(condition: RegisterIndex, result: RegisterIndex) {
+pub(crate) fn not_instruction(condition: RegisterIndex, result: RegisterIndex) {
     debug_println!("_NOT {} = !R{}", result, condition);
 }
 
 /// Processes a foreign call instruction.
-pub fn foreign_call_instruction(
+pub(crate) fn foreign_call_instruction(
     func_name: String,
     inputs: &[RegisterOrMemory],
     outputs: &[RegisterOrMemory],
@@ -173,47 +173,50 @@ pub fn foreign_call_instruction(
 }
 
 /// Emits a load instruction
-pub fn load_instruction(destination: RegisterIndex, source_pointer: RegisterIndex) {
+pub(crate) fn load_instruction(destination: RegisterIndex, source_pointer: RegisterIndex) {
     debug_println!("LOAD R{} = *R{}", destination, source_pointer);
 }
 
 /// Emits a store instruction
-pub fn store_instruction(destination_pointer: RegisterIndex, source: RegisterIndex) {
+pub(crate) fn store_instruction(destination_pointer: RegisterIndex, source: RegisterIndex) {
     debug_println!("STORE *{} = {}", destination_pointer, source);
 }
 
 /// Emits a stop instruction
-pub fn stop_instruction() {
+pub(crate) fn stop_instruction() {
     debug_println!("STOP");
 }
 
 /// Adds a unresolved external `Call` instruction to the bytecode.
-pub fn add_external_call_instruction<T: ToString>(func_label: T) {
-    debug_println!("CALL {}", func_label.to_string());
+pub(crate) fn add_external_call_instruction(func_label: String) {
+    debug_println!("CALL {}", func_label);
 }
 
 /// Debug function for allocate_fixed_length_array instruction
-pub fn allocate_fixed_length_array(pointer_register: RegisterIndex, size: usize) {
+pub(crate) fn allocate_fixed_length_array(pointer_register: RegisterIndex, size: usize) {
     debug_println!("ALLOCATE_FIXED_LENGTH_ARRAY {} = {}", pointer_register, size);
 }
 
 /// Debug function for allocate_array_instruction
-pub fn allocate_array_instruction(pointer_register: RegisterIndex, size_register: RegisterIndex) {
+pub(crate) fn allocate_array_instruction(
+    pointer_register: RegisterIndex,
+    size_register: RegisterIndex,
+) {
     debug_println!("ALLOCATE_ARRAY {} SIZE {}", pointer_register, size_register);
 }
 
 /// Debug function for array_get
-pub fn array_get(array_ptr: RegisterIndex, index: RegisterIndex, result: RegisterIndex) {
+pub(crate) fn array_get(array_ptr: RegisterIndex, index: RegisterIndex, result: RegisterIndex) {
     debug_println!("ARRAY_GET {}[{}] -> {}", array_ptr, index, result);
 }
 
 /// Debug function for array_set
-pub fn array_set(array_ptr: RegisterIndex, index: RegisterIndex, value: RegisterIndex) {
+pub(crate) fn array_set(array_ptr: RegisterIndex, index: RegisterIndex, value: RegisterIndex) {
     debug_println!("ARRAY_SET {}[{}] = {}", array_ptr, index, value);
 }
 
 /// Debug function for copy_array_instruction
-pub fn copy_array_instruction(
+pub(crate) fn copy_array_instruction(
     source: RegisterIndex,
     destination: RegisterIndex,
     num_elements_register: RegisterIndex,
@@ -222,21 +225,25 @@ pub fn copy_array_instruction(
 }
 
 /// Debug function for enter_context
-pub fn enter_context<T: ToString>(label: T) {
-    debug_println!("ENTER_CONTEXT {}", label.to_string());
+pub(crate) fn enter_context(label: String) {
+    debug_println!("ENTER_CONTEXT {}", label);
 }
 
 /// Debug function for jump_instruction
-pub fn jump_instruction<T: ToString>(target_label: T) {
-    debug_println!("JUMP_TO {}", target_label.to_string());
+pub(crate) fn jump_instruction(target_label: String) {
+    debug_println!("JUMP_TO {}", target_label);
 }
 
 /// Debug function for jump_if_instruction
-pub fn jump_if_instruction<T: ToString>(condition: RegisterIndex, target_label: T) {
+pub(crate) fn jump_if_instruction<T: ToString>(condition: RegisterIndex, target_label: T) {
     debug_println!("JUMP_IF {} TO {}", condition, target_label.to_string());
 }
 
 /// Debug function for cast_instruction
-pub fn cast_instruction(destination: RegisterIndex, source: RegisterIndex, target_bit_size: u32) {
+pub(crate) fn cast_instruction(
+    destination: RegisterIndex,
+    source: RegisterIndex,
+    target_bit_size: u32,
+) {
     debug_println!("CAST {} FROM {} TO {} BITS", destination, source, target_bit_size);
 }

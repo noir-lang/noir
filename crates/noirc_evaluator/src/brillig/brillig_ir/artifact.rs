@@ -129,7 +129,10 @@ impl BrilligArtifact {
         // TODO: registers in order to do this.
         // Move the results to registers 0..n
         for i in 0..num_return_parameters {
-            self.push_opcode(BrilligOpcode::Mov { destination: i.into(), source: self.reg(i) });
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: i.into(),
+                source: ReservedRegisters::user_register_index(i),
+            });
         }
         self.push_opcode(BrilligOpcode::Stop);
     }
