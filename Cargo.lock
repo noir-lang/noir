@@ -8,21 +8,8 @@ version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a0f4d70cd78f13cc17b2b16953af71d1a4fd0aa923cc35e6741c1f810eccdad"
 dependencies = [
- "acir_field 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "brillig_vm 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "flate2",
- "rmp-serde",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "acir"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=c53af91#c53af91f80f0ec71bbce729d1427e73e837d5c28"
-dependencies = [
- "acir_field 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
- "brillig_vm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acir_field",
+ "brillig_vm",
  "flate2",
  "rmp-serde",
  "serde",
@@ -44,44 +31,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "acir_field"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=c53af91#c53af91f80f0ec71bbce729d1427e73e837d5c28"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "cfg-if",
- "hex",
- "num-bigint",
- "serde",
-]
-
-[[package]]
 name = "acvm"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e27004072f628c96c5666068c0d9efae134423331859b60923265a017a5920b"
 dependencies = [
- "acir 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "acvm_stdlib 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "async-trait",
- "blake2",
- "indexmap",
- "k256",
- "num-bigint",
- "num-traits",
- "sha2",
- "sha3",
- "thiserror",
-]
-
-[[package]]
-name = "acvm"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=c53af91#c53af91f80f0ec71bbce729d1427e73e837d5c28"
-dependencies = [
- "acir 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
- "acvm_stdlib 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acir",
+ "acvm_stdlib",
  "async-trait",
  "blake2",
  "indexmap",
@@ -99,7 +55,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90594c6d8107569d2ba337a3e1ff2c440cf5ba3f7bc2d3b07af5a405d769584d"
 dependencies = [
- "acvm 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "acvm",
  "barretenberg-sys",
  "bincode",
  "bytesize",
@@ -119,15 +75,7 @@ version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a16b18f0dc47de9c3f60eb320dda05b31355d7d4f76239f75852cc5a518db69e"
 dependencies = [
- "acir 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "acvm_stdlib"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=c53af91#c53af91f80f0ec71bbce729d1427e73e837d5c28"
-dependencies = [
- "acir 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acir",
 ]
 
 [[package]]
@@ -568,17 +516,7 @@ version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae057025d1898257631c65c63071209dc41093cf9c0d77cdaae976798fa18b93"
 dependencies = [
- "acir_field 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde",
-]
-
-[[package]]
-name = "brillig_vm"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=c53af91#c53af91f80f0ec71bbce729d1427e73e837d5c28"
-dependencies = [
- "acir_field 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
- "num-bigint",
+ "acir_field",
  "serde",
 ]
 
@@ -2010,7 +1948,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "noirc_abi",
  "noirc_driver",
  "rustc_version",
@@ -2023,7 +1961,7 @@ dependencies = [
 name = "nargo_cli"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "acvm-backend-barretenberg",
  "assert_cmd",
  "assert_fs",
@@ -2059,7 +1997,7 @@ dependencies = [
 name = "noir_lsp"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "async-lsp",
  "codespan-lsp",
  "lsp-types 0.94.0",
@@ -2075,7 +2013,7 @@ dependencies = [
 name = "noir_wasm"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "build-data",
  "console_error_panic_hook",
  "getrandom",
@@ -2092,7 +2030,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "iter-extended",
  "serde",
  "serde_json",
@@ -2106,7 +2044,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "clap",
  "fm",
  "noirc_abi",
@@ -2130,7 +2068,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "arena",
  "im",
  "iter-extended",
@@ -2147,7 +2085,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.7.0"
 dependencies = [
- "acvm 0.15.1 (git+https://github.com/noir-lang/acvm?rev=c53af91)",
+ "acvm",
  "arena",
  "chumsky",
  "fm",

@@ -1,13 +1,8 @@
 use acvm::Backend;
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
-<<<<<<< HEAD
-use noirc_driver::{CompileOptions, CompiledProgram, Driver};
-use noirc_errors::reporter;
-=======
 use noirc_driver::{CompileOptions, CompiledProgram, Driver, ErrorsAndWarnings, Warnings};
 use noirc_errors::reporter::ReportedErrors;
->>>>>>> origin
 use std::path::Path;
 
 use clap::Args;
