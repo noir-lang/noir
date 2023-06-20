@@ -57,9 +57,4 @@ wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
-<<<<<<< HEAD
-acvm = { git = "https://github.com/noir-lang/acvm.git", rev = "dcb94edeefedf0b743468f4e74964d313aa421fb" }
-
-=======
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "9fc2db84ddcda291a864f044657f68d4377557f7" }
->>>>>>> origin
