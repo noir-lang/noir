@@ -36,9 +36,9 @@ pub(crate) struct ProveCommand {
 }
 
 pub(crate) fn run<B: Backend>(
-    backend: &B,
+    _: &B,
     args: ProveCommand,
-    config: NargoConfig,
+    _: NargoConfig,
 ) -> Result<(), CliError<B>> {
     use tracing::{debug};
     use std::process::{Command, Stdio};
