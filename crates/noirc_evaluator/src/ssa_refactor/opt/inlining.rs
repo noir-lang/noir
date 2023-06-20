@@ -145,7 +145,9 @@ impl InlineContext {
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        context.inline_blocks(ssa)
+        let return_values = context.inline_blocks(ssa);
+        self.recursion_level -= 1;
+        return_values
     }
 
     /// Finish inlining and return the new Ssa struct with the inlined version of main.
