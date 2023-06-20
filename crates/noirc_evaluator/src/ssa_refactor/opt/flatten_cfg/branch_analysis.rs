@@ -1,3 +1,4 @@
+//! This is an algorithm for identifying branch starts and ends.
 use std::collections::{HashMap, HashSet};
 
 use crate::ssa_refactor::ir::{
@@ -57,18 +58,33 @@ fn step_until_rejoin(
     collision
 }
 
-/// Tracks traversal
+/// Tracks traversal along the arm of a branch. Steppers are progressed in pairs, such that the
+/// re-convergence point of two arms is discovered as soon as possible. The exceptional case is
+/// that of the top level stepper, which conveniently steps the whole CFG as if it were a single
+/// arm.
 struct Stepper {
+    /// The block that will be interrogated when calling `step`
     current_block: BasicBlockId,
+    /// Indicates that the stepper has no more block successors to process, either because it has
+    /// reached the end of the CFG, or because it encountered a block already visited by its
+    /// sibling stepper.
     finished: bool,
+    /// Once finished this option indicates whether a collision was encountered before reaching
+    /// the end of the CFG.
     collision: Option<BasicBlockId>,
 }
 
 impl Stepper {
+    /// Creates a fresh stepper instance
     fn new(current_block: BasicBlockId) -> Self {
         Stepper { current_block, finished: false, collision: None }
     }
 
+    /// Checks the current block to see if it has already been visited and if so marks it as a
+    /// collision. If a sub-branch is encountered `step_until_rejoin` is called to start a pair
+    /// of child steppers stepping along its arms.
+    ///
+    /// It is safe to call this even when the stepper has reached its end.
     fn step(
         &mut self,
         cfg: &ControlFlowGraph,
@@ -77,33 +93,43 @@ impl Stepper {
         branch_ends: &mut HashMap<BasicBlockId, BasicBlockId>,
     ) {
         if self.finished {
+            // The caller still needs to progress the other stepper, while this one sits idle.
             return;
         }
         if visited.contains(&self.current_block) {
+            // The other stepper has already visited this block - thus this block is the
+            // re.-convergence point.
             self.collision = Some(self.current_block);
             self.finished = true;
         }
         visited.insert(self.current_block);
+
         let mut successors = cfg.successors(self.current_block);
         match successors.len() {
             0 => {
+                // Reached the end of the CFG without a collision - this will happen in the other
+                // stepper assuming the CFG contains no early returns.
                 self.finished = true;
             }
             1 => {
+                // This block doesn't describe any branch starts or ends - move on.
                 self.current_block = successors.next().unwrap();
             }
             2 => {
+                // Sub-branch start encountered - recurse to find the end of the sub branch
                 let left = successors.next().unwrap();
                 let right = successors.next().unwrap();
-                let collision = step_until_rejoin(cfg, dom_tree, branch_ends, left, right);
-                for collision_predecessor in cfg.predecessors(collision) {
+                let sub_branch_end = step_until_rejoin(cfg, dom_tree, branch_ends, left, right);
+                for collision_predecessor in cfg.predecessors(sub_branch_end) {
                     assert!(dom_tree.dominates(self.current_block, collision_predecessor));
                 }
-                branch_ends.insert(self.current_block, collision);
-                self.current_block = collision;
+                branch_ends.insert(self.current_block, sub_branch_end);
+
+                // Resume stepping though the current arm fro where the sub-branch left off
+                self.current_block = sub_branch_end;
             }
             _ => {
-                unreachable!()
+                unreachable!("Basic blocks never have more than 2 successors")
             }
         }
     }
