@@ -79,11 +79,15 @@ fn evaluate_intrinsic(
     block_id: BlockId,
 ) -> Result<Vec<NodeId>, RuntimeErrorKind> {
     match op {
-        builtin::Opcode::ToBits(_) => {
+        builtin::Opcode::ToBits(endian) => {
             let bit_count = args[1].to_u128() as u32;
             let mut result = Vec::new();
             let mut bits = args[0].bits();
             bits.reverse();
+            bits.resize(bit_count as usize, false);
+            if endian == builtin::Endian::Big {
+                bits.reverse();
+            }
 
             if let ObjectType::ArrayPointer(a) = res_type {
                 for i in 0..bit_count {
