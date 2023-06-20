@@ -396,20 +396,6 @@ impl<'f> Context<'f> {
         self.insert_instruction_with_typevars(enable_side_effects, None);
     }
 
-    /// Checks the branch condition on the top of the stack and uses it to build and insert an
-    /// `EnableSideEffects` instruction into the entry block.
-    ///
-    /// If the stack is empty, a "true" u1 constant is taken to be the active condition. This is
-    /// necessary for re-enabling side-effects when re-emerging to a branch depth of 0.
-    fn insert_current_side_effects_enabled(&mut self) {
-        let condition = match self.conditions.last() {
-            Some((_, cond)) => *cond,
-            None => self.function.dfg.make_constant(FieldElement::one(), Type::unsigned(1)),
-        };
-        let enable_side_effects = Instruction::EnableSideEffects { condition };
-        self.insert_instruction_with_typevars(enable_side_effects, None);
-    }
-
     /// Merge two values a and b from separate basic blocks to a single value. This
     /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
     fn merge_values(

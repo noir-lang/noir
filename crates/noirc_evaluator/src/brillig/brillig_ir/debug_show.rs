@@ -1,10 +1,10 @@
 ///! This module contains functions for producing a higher level view disassembler of Brillig.
 use super::BrilligBinaryOp;
-use crate::brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
+use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory, Value};
 
 /// Controls whether debug traces are enabled
-const ENABLE_DEBUG_TRACE: bool = false;
+const ENABLE_DEBUG_TRACE: bool = true;
 
 /// Trait for converting values into debug-friendly strings.
 trait DebugToString {
@@ -25,15 +25,11 @@ default_to_string_impl! { str usize u32 }
 
 impl DebugToString for RegisterIndex {
     fn debug_to_string(&self) -> String {
-<<<<<<< HEAD
         if *self == ReservedRegisters::stack_pointer() {
             "Stack".into()
         } else {
             format!("R{}", self.to_usize())
         }
-=======
-        format!("R{}", self.to_usize())
->>>>>>> kw/x86-call-instruction
     }
 }
 
@@ -100,12 +96,15 @@ impl DebugToString for Value {
     }
 }
 
-impl DebugToString for RegisterValueOrArray {
+impl DebugToString for RegisterOrMemory {
     fn debug_to_string(&self) -> String {
         match self {
-            RegisterValueOrArray::RegisterIndex(index) => index.debug_to_string(),
-            RegisterValueOrArray::HeapArray(index, size) => {
+            RegisterOrMemory::RegisterIndex(index) => index.debug_to_string(),
+            RegisterOrMemory::HeapArray(index, size) => {
                 format!("{}[0..{}]", index.debug_to_string(), size)
+            }
+            RegisterOrMemory::HeapVector(index, size_register) => {
+                format!("{}[0..*{}]", index.debug_to_string(), size_register.debug_to_string())
             }
         }
     }
@@ -175,8 +174,8 @@ pub(crate) fn not_instruction(condition: RegisterIndex, result: RegisterIndex) {
 /// Processes a foreign call instruction.
 pub(crate) fn foreign_call_instruction(
     func_name: String,
-    inputs: &[RegisterValueOrArray],
-    outputs: &[RegisterValueOrArray],
+    inputs: &[RegisterOrMemory],
+    outputs: &[RegisterOrMemory],
 ) {
     debug_println!("  FOREIGN_CALL {} ({}) => {}", func_name, inputs, outputs);
 }
@@ -253,4 +252,9 @@ pub(crate) fn cast_instruction(
     target_bit_size: u32,
 ) {
     debug_println!("  CAST {} FROM {} TO {} BITS", destination, source, target_bit_size);
+}
+
+/// Debug function for cast_instruction
+pub(crate) fn add_external_call_instruction(func_label: String) {
+    debug_println!("  CALL {}", func_label);
 }

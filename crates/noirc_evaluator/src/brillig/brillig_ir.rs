@@ -108,7 +108,7 @@ impl BrilligContext {
         pointer_register: RegisterIndex,
         size: usize,
     ) {
-        debug_show::allocate_fixed_length_array(pointer_register, size);
+        // debug_show handled by allocate_array_instruction
         let size_register = self.make_constant(size.into());
         self.allocate_array_instruction(pointer_register, size_register);
     }
@@ -589,6 +589,7 @@ impl BrilligContext {
     }
 
     /// Adds a unresolved external `Call` instruction to the bytecode.
+    /// This calls into another function compiled into this brillig artefact.
     pub(crate) fn add_external_call_instruction<T: ToString>(&mut self, func_label: T) {
         debug_show::add_external_call_instruction(func_label.to_string());
         self.obj.add_unresolved_external_call(
