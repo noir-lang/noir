@@ -392,7 +392,7 @@ impl GeneratedAcir {
 
         let mut lhs_offset = lhs + offset;
 
-        // Optimisation when rhs is const and fits within a u128
+        // Optimization when rhs is const and fits within a u128
         if rhs.is_const() && rhs.q_c.fits_in_u128() {
             // We try to move the offset to rhs
             let rhs_offset = if *offset == Expression::one() && rhs.q_c.to_u128() >= 1 {
