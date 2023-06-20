@@ -20,8 +20,6 @@
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/constants.hpp"
 
-#include "barretenberg/common/log.hpp"
-#include "barretenberg/polynomials/evaluation_domain.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 #include <cstdint>

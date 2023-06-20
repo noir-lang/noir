@@ -1,11 +1,10 @@
 #include "common.hpp"
+#include "init.hpp"
 
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
 #include "aztec3/circuits/abis/combined_historic_tree_roots.hpp"
 #include "aztec3/circuits/abis/private_historic_tree_roots.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
-#include "aztec3/circuits/hash.hpp"
-#include "aztec3/circuits/kernel/private/init.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
 

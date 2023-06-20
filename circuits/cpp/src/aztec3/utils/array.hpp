@@ -116,6 +116,30 @@ void array_push(Composer& composer, std::array<T, SIZE>& arr, T const& value)
 };
 
 /**
+ * @brief Helper method to move all non-zero elements to the left of the array. E.g., [0,7,4,0,5] --> [7,4,5,0,0]
+ *        Remark: The ordering of the non-zero values is preserved.
+ *
+ * @tparam The type of the value stored in the array
+ * @tparam The size of the array
+ * @param The array into which we want to store the value
+ */
+template <typename T, size_t SIZE> void array_rearrange(std::array<T, SIZE>& arr)
+{
+    size_t target_pos = 0;
+    for (size_t i = 0; i < SIZE; i++) {
+        if (arr[i] != NT::fr(0)) {
+            arr[target_pos] = arr[i];
+            target_pos++;
+        }
+    }
+
+    // Cleaning needed to avoid duplicate values, e.g., [1,0,3,0] --> [1,3,3,0] otherwise.
+    for (size_t i = target_pos; i < SIZE; i++) {
+        arr[i] = NT::fr(0);
+    }
+}
+
+/**
  * @brief Helper method to determine if an array contains all 'empty' items
  * @tparam The type of the value stored in the array
  * @tparam The size of the array

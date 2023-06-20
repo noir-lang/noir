@@ -41,32 +41,6 @@ using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 //     return aggregation_object;
 // }
 
-void initialise_end_values(PrivateKernelInputsInner<NT> const& private_inputs,
-                           KernelCircuitPublicInputs<NT>& public_inputs)
-{
-    public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
-
-    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other functions
-    // within this circuit:
-    auto& end = public_inputs.end;
-    const auto& start = private_inputs.previous_kernel.public_inputs.end;
-
-    end.new_commitments = start.new_commitments;
-    end.new_nullifiers = start.new_nullifiers;
-
-    end.private_call_stack = start.private_call_stack;
-    end.public_call_stack = start.public_call_stack;
-    end.new_l2_to_l1_msgs = start.new_l2_to_l1_msgs;
-
-    end.encrypted_logs_hash = start.encrypted_logs_hash;
-    end.unencrypted_logs_hash = start.unencrypted_logs_hash;
-
-    end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
-    end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
-
-    end.optionally_revealed_data = start.optionally_revealed_data;
-}
-
 void validate_this_private_call_hash(DummyComposer& composer,
                                      PrivateKernelInputsInner<NT> const& private_inputs,
                                      KernelCircuitPublicInputs<NT>& public_inputs)
@@ -131,7 +105,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyComposer&
     KernelCircuitPublicInputs<NT> public_inputs{};
 
     // Do this before any functions can modify the inputs.
-    initialise_end_values(private_inputs, public_inputs);
+    common_initialise_end_values(private_inputs, public_inputs);
 
     validate_inputs(composer, private_inputs);
 

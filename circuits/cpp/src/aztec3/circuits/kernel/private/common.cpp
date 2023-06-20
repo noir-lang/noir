@@ -48,7 +48,6 @@ void common_validate_call_stack(DummyComposer& composer, PrivateCallData<NT> con
     }
 }
 
-
 /**
  * @brief Validate all read requests against the historic private data root.
  * Use their membership witnesses to do so. If the historic root is not yet
@@ -83,13 +82,13 @@ void common_validate_read_requests(DummyComposer& composer,
         const auto& witness = read_request_membership_witnesses[rr_idx];
 
         // A pending commitment is the one that is not yet added to private data tree
-        // An optimistic read is when we try to "read" a pending commitment
-        // We determine if it is an optimistic read depending on the leaf index from the membership witness
-        // Note that the Merkle membership proof would be null and void in case of an optimistic read
-        // but we use the leaf index as a placeholder to detect an optimistic read.
-        const auto is_optimistic_read = (witness.leaf_index == NT::fr(-1));
+        // A transient read is when we try to "read" a pending commitment
+        // We determine if it is a transient read depending on the leaf index from the membership witness
+        // Note that the Merkle membership proof would be null and void in case of an transient read
+        // but we use the leaf index as a placeholder to detect a transient read.
+        const auto is_transient_read = (witness.leaf_index == NT::fr(-1));
 
-        if (read_request != 0 && !is_optimistic_read) {
+        if (read_request != 0 && !is_transient_read) {
             const auto& root_for_read_request =
                 root_from_sibling_path<NT>(leaf, witness.leaf_index, witness.sibling_path);
             composer.do_assert(root_for_read_request == historic_private_data_tree_root,
@@ -287,6 +286,32 @@ void common_contract_logic(DummyComposer& composer,
             "computed_contract_tree_root doesn't match purported_contract_tree_root",
             CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
     }
+}
+
+void common_initialise_end_values(PrivateKernelInputsInner<NT> const& private_inputs,
+                                  KernelCircuitPublicInputs<NT>& public_inputs)
+{
+    public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
+
+    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other functions
+    // within this circuit:
+    auto& end = public_inputs.end;
+    const auto& start = private_inputs.previous_kernel.public_inputs.end;
+
+    end.new_commitments = start.new_commitments;
+    end.new_nullifiers = start.new_nullifiers;
+
+    end.private_call_stack = start.private_call_stack;
+    end.public_call_stack = start.public_call_stack;
+    end.new_l2_to_l1_msgs = start.new_l2_to_l1_msgs;
+
+    end.encrypted_logs_hash = start.encrypted_logs_hash;
+    end.unencrypted_logs_hash = start.unencrypted_logs_hash;
+
+    end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
+    end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
+
+    end.optionally_revealed_data = start.optionally_revealed_data;
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel
