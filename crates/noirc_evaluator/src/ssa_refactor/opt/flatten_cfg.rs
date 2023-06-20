@@ -442,7 +442,7 @@ impl<'f> Context<'f> {
                     }
                 }
 
-                self.inserter.function.dfg.make_array(merged, element_types.clone())
+                self.inserter.function.dfg.make_array(merged, element_types)
             }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
