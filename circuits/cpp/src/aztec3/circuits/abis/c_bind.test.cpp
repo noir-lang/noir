@@ -60,13 +60,10 @@ TEST(abi_tests, hash_tx_request)
 {
     // Construct TxRequest with some randomized fields
     TxRequest<NT> const tx_request = TxRequest<NT>{
-        .from = NT::fr::random_element(),
-        .to = NT::fr::random_element(),
+        .origin = NT::fr::random_element(),
         .function_data = FunctionData<NT>(),
         .args_hash = NT::fr::random_element(),
-        .nonce = NT::fr::random_element(),
         .tx_context = TxContext<NT>(),
-        .chain_id = NT::fr::random_element(),
     };
 
     // Write the tx request to a buffer and
@@ -318,13 +315,10 @@ TEST(abi_tests, compute_transaction_hash)
 {
     // Construct TxRequest with some randomized fields
     TxRequest<NT> const tx_request = TxRequest<NT>{
-        .from = NT::fr::random_element(),
-        .to = NT::fr::random_element(),
+        .origin = NT::fr::random_element(),
         .function_data = FunctionData<NT>(),
         .args_hash = NT::fr::random_element(),
-        .nonce = NT::fr::random_element(),
         .tx_context = TxContext<NT>(),
-        .chain_id = NT::fr::random_element(),
     };
 
     // Write the leaf preimage to a buffer

@@ -337,7 +337,6 @@ PrivateKernelInputsInit<NT> do_private_call_get_kernel_inputs_init(bool const is
 
     const NT::address msg_sender =
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
-    const NT::address& tx_origin = msg_sender;
 
     auto const& [private_call_data, contract_deployment_data] = create_private_call_deploy_data(
         is_constructor, func, args_vec, msg_sender, encrypted_logs_hash, encrypted_log_preimages_length, is_circuit);
@@ -345,21 +344,15 @@ PrivateKernelInputsInit<NT> do_private_call_get_kernel_inputs_init(bool const is
     //***************************************************************************
     // We can create a TxRequest from some of the above data.
     //***************************************************************************
-    auto const tx_request = TxRequest<NT>{
-        .from = tx_origin,
-        .to = private_call_data.call_stack_item.contract_address,
-        .function_data = private_call_data.call_stack_item.function_data,
-        .args_hash = compute_var_args_hash<NT>(args_vec),
-        .nonce = 0,
-        .tx_context =
-            TxContext<NT>{
-                .is_fee_payment_tx = false,
-                .is_rebate_payment_tx = false,
-                .is_contract_deployment_tx = is_constructor,
-                .contract_deployment_data = contract_deployment_data,
-            },
-        .chain_id = 1,
-    };
+    auto const tx_request = TxRequest<NT>{ .origin = private_call_data.call_stack_item.contract_address,
+                                           .function_data = private_call_data.call_stack_item.function_data,
+                                           .args_hash = compute_var_args_hash<NT>(args_vec),
+                                           .tx_context = TxContext<NT>{
+                                               .is_fee_payment_tx = false,
+                                               .is_rebate_payment_tx = false,
+                                               .is_contract_deployment_tx = is_constructor,
+                                               .contract_deployment_data = contract_deployment_data,
+                                           } };
 
     //***************************************************************************
     // Now we can construct the full private inputs to the kernel circuit

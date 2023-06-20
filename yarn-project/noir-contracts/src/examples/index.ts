@@ -8,6 +8,7 @@ import PublicToPrivateContractJson from './public_private_contract.json' assert 
 import { ContractAbi } from '@aztec/foundation/abi' assert { type: 'json' };
 import NonNativeTokenContractJson from './non_native_token_contract.json' assert { type: 'json' };
 import AccountContractJson from './account_contract.json' assert { type: 'json' };
+import GullibleAccountContractJson from './gullible_account_contract.json' assert { type: 'json' };
 
 export const TestContractAbi = TestContractJson as ContractAbi;
 export const ZkTokenContractAbi = ZkTokenContractJson as ContractAbi;
@@ -17,3 +18,4 @@ export const PublicTokenContractAbi = PublicTokenContractJson as ContractAbi;
 export const PublicToPrivateContractAbi = PublicToPrivateContractJson as ContractAbi;
 export const NonNativeTokenContractAbi = NonNativeTokenContractJson as ContractAbi;
 export const AccountContractAbi = AccountContractJson as ContractAbi;
+export const GullibleAccountContractAbi = GullibleAccountContractJson as ContractAbi;

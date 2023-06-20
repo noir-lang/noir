@@ -546,13 +546,10 @@ export async function makePublicKernelInputsWithEmptyOutput(seed = 1): Promise<P
  */
 export function makeTxRequest(seed = 1): TxRequest {
   return TxRequest.from({
-    from: makeAztecAddress(seed),
-    to: makeAztecAddress(seed + 0x10),
+    origin: makeAztecAddress(seed),
     functionData: new FunctionData(makeSelector(seed + 0x100), true, true),
     argsHash: fr(seed + 0x200),
-    nonce: fr(seed + 0x300),
     txContext: makeTxContext(seed + 0x400),
-    chainId: fr(seed + 0x500),
   });
 }
 

@@ -270,7 +270,6 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     const NT::fr portal_contract_address = 23456;
 
     const NT::address msg_sender = NT::fr(1);
-    const NT::address& tx_origin = msg_sender;
 
     FunctionData<NT> const function_data{
         .function_selector = 1,
@@ -292,21 +291,15 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     //***************************************************************************
     // We can create a TxRequest from some of the above data.
     //***************************************************************************
-    auto const tx_request = TxRequest<NT>{
-        .from = tx_origin,
-        .to = contract_address,
-        .function_data = function_data,
-        .args_hash = compute_var_args_hash<NT>(args),
-        .nonce = 0,
-        .tx_context =
-            TxContext<NT>{
-                .is_fee_payment_tx = false,
-                .is_rebate_payment_tx = false,
-                .is_contract_deployment_tx = false,
-                .contract_deployment_data = {},
-            },
-        .chain_id = 1,
-    };
+    auto const tx_request = TxRequest<NT>{ .origin = contract_address,
+                                           .function_data = function_data,
+                                           .args_hash = compute_var_args_hash<NT>(args),
+                                           .tx_context = TxContext<NT>{
+                                               .is_fee_payment_tx = false,
+                                               .is_rebate_payment_tx = false,
+                                               .is_contract_deployment_tx = false,
+                                               .contract_deployment_data = {},
+                                           } };
 
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
     NT::fr child_contract_address = 100000;

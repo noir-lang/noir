@@ -1,12 +1,11 @@
+import { CircuitsWasm, FunctionData, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { ContractDeploymentData, FunctionData, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
 
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
-import { TxExecutionRequest } from '@aztec/types';
+import { ExecutionRequest } from '@aztec/types';
 import { mock } from 'jest-mock-extended';
 import { encodeArguments } from '../abi_coder/index.js';
 import { NoirPoint, toPublicKey } from '../utils.js';
@@ -29,10 +28,6 @@ describe('Unconstrained Execution test suite', () => {
 
   describe('zk token contract', () => {
     let currentNonce = 0n;
-
-    const contractDeploymentData = ContractDeploymentData.empty();
-    const txContext = new TxContext(false, false, false, contractDeploymentData);
-
     let ownerPk: Buffer;
     let owner: NoirPoint;
 
@@ -67,18 +62,15 @@ describe('Unconstrained Execution test suite', () => {
         });
       });
 
-      const txRequest = new TxExecutionRequest(
-        AztecAddress.random(),
-        contractAddress,
-        new FunctionData(Buffer.alloc(4), true, true),
-        encodeArguments(abi, [owner]),
-        Fr.random(),
-        txContext,
-        Fr.ZERO,
-      );
+      const execRequest: ExecutionRequest = {
+        from: AztecAddress.random(),
+        to: contractAddress,
+        functionData: new FunctionData(Buffer.alloc(4), true, true),
+        args: encodeArguments(abi, [owner]),
+      };
 
       const result = await acirSimulator.runUnconstrained(
-        txRequest,
+        execRequest,
         abi,
         AztecAddress.random(),
         EthAddress.ZERO,

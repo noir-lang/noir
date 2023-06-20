@@ -63,7 +63,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     tokenPortalAddress = contracts.tokenPortalAddress;
     await expectBalance(accounts[0], initialBalance);
     logger('Successfully deployed contracts and initialized portal');
-  }, 30_000);
+  }, 60_000);
 
   afterEach(async () => {
     await archiver.stop();

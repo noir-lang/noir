@@ -267,13 +267,11 @@ vk_path: [ 0x1000 0x1001 0x1002 ]
 exports[`structs/kernel serializes and prints private_kernel_inputs_init 1`] = `
 "tx_request:
 from: 0x1
-to: 0x11
 function_data: function_selector: 257
 is_private: 1
 is_constructor: 1
 
 args_hash: 0x201
-nonce: 0x301
 tx_context: is_fee_payment_tx: 0
 is_rebate_payment_tx: 0
 is_contract_deployment_tx: 1
@@ -284,7 +282,6 @@ function_tree_root: 0x403
 contract_address_salt: 0x404
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x501
 
 private_call:
 call_stack_item:

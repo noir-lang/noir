@@ -27,9 +27,9 @@ import {
   ContractDataSource,
   ContractPublicData,
   EncodedContractFunction,
+  ExecutionRequest,
   FunctionL2Logs,
   Tx,
-  TxExecutionRequest,
   TxL2Logs,
 } from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
@@ -200,7 +200,7 @@ function makePublicExecutionResultFromRequest(item: PublicCallRequest): PublicEx
 }
 
 function makePublicExecutionResult(
-  tx: Pick<TxExecutionRequest, 'from' | 'to' | 'functionData' | 'args'>,
+  tx: ExecutionRequest,
   nestedExecutions: PublicExecutionResult[] = [],
 ): PublicExecutionResult {
   const callContext = new CallContext(tx.from, tx.to, EthAddress.ZERO, false, false, false);

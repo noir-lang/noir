@@ -15,11 +15,7 @@ export class TxRequest {
     /**
      * Sender.
      */
-    public from: AztecAddress,
-    /**
-     * Target.
-     */
-    public to: AztecAddress,
+    public origin: AztecAddress,
     /**
      * Function data representing the function to call.
      */
@@ -29,29 +25,13 @@ export class TxRequest {
      */
     public argsHash: Fr,
     /**
-     * Tx nonce.
-     */
-    public nonce: Fr,
-    /**
      * Transaction context.
      */
     public txContext: TxContext,
-    /**
-     * Chain ID of the transaction. Here for replay protection.
-     */
-    public chainId: Fr,
   ) {}
 
   static getFields(fields: FieldsOf<TxRequest>) {
-    return [
-      fields.from,
-      fields.to,
-      fields.functionData,
-      fields.argsHash,
-      fields.nonce,
-      fields.txContext,
-      fields.chainId,
-    ] as const;
+    return [fields.origin, fields.functionData, fields.argsHash, fields.txContext] as const;
   }
 
   static from(fields: FieldsOf<TxRequest>): TxRequest {
@@ -76,12 +56,9 @@ export class TxRequest {
     const reader = BufferReader.asReader(buffer);
     return new TxRequest(
       reader.readObject(AztecAddress),
-      reader.readObject(AztecAddress),
       reader.readObject(FunctionData),
       reader.readFr(),
-      reader.readFr(),
       reader.readObject(TxContext),
-      reader.readFr(),
     );
   }
 }

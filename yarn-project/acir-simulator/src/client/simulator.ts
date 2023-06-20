@@ -10,6 +10,7 @@ import { DBOracle } from './db_oracle.js';
 import { PrivateFunctionExecution } from './private_execution.js';
 import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
 import { ExecutionResult } from './execution_result.js';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);
@@ -21,13 +22,17 @@ const OUTER_NULLIFIER_GENERATOR_INDEX = 7;
  * The ACIR simulator.
  */
 export class AcirSimulator {
-  constructor(private db: DBOracle) {}
+  private log: DebugLogger;
+
+  constructor(private db: DBOracle) {
+    this.log = createDebugLogger('aztec:simulator');
+  }
 
   /**
    * Runs a private function.
    * @param request - The transaction request.
    * @param entryPointABI - The ABI of the entry point function.
-   * @param contractAddress - The address of the contract.
+   * @param contractAddress - The address of the contract (should match request.origin)
    * @param portalContractAddress - The address of the portal contract.
    * @param historicRoots - The historic roots.
    * @returns The result of the execution.
@@ -43,8 +48,12 @@ export class AcirSimulator {
       throw new Error(`Cannot run ${entryPointABI.functionType} function as secret`);
     }
 
+    if (request.origin !== contractAddress) {
+      this.log(`WARN: Request origin does not match contract address in simulation`);
+    }
+
     const callContext = new CallContext(
-      request.from,
+      AztecAddress.ZERO,
       contractAddress,
       portalContractAddress,
       false,

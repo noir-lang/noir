@@ -12,6 +12,7 @@ import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId, exportLibP2PPeerIdToString } from '@aztec/p2p';
 
 import { setup } from './utils.js';
+import { randomBytes } from 'crypto';
 
 const NUM_NODES = 4;
 const NUM_TXS_PER_BLOCK = 4;
@@ -148,12 +149,12 @@ describe('e2e_p2p_network', () => {
     numTxs: number,
   ): Promise<NodeContext> => {
     const aztecRpcServer = await createAztecRPCServer(node);
-    const eoa = await aztecRpcServer.addExternallyOwnedAccount();
+    const account = await aztecRpcServer.registerSmartAccount(randomBytes(32), AztecAddress.random());
 
-    const txs = await submitTxsTo(aztecRpcServer, eoa, numTxs);
+    const txs = await submitTxsTo(aztecRpcServer, account, numTxs);
     return {
       txs,
-      account: eoa,
+      account,
       rpcServer: aztecRpcServer,
       node,
     };

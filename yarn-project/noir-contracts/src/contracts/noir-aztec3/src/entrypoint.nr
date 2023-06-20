@@ -1,5 +1,5 @@
-use dep::aztec3::abi;
-use dep::aztec3::types::vec::BoundedVec;
+use crate::abi;
+use crate::types::vec::BoundedVec;
 
 global ACCOUNT_MAX_PRIVATE_CALLS: comptime Field = 1;
 global ACCOUNT_MAX_PUBLIC_CALLS: comptime Field = 1;

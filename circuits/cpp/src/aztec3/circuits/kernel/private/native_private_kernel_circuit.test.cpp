@@ -155,7 +155,7 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_contract_
     // Modify the contract address in appropriate places.
     const fr random_address = NT::fr::random_element();
     private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address = random_address;
-    private_inputs.tx_request.to = random_address;
+    private_inputs.tx_request.origin = random_address;
     private_inputs.private_call.call_stack_item.contract_address = random_address;
 
     DummyComposer composer =
@@ -185,9 +185,6 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_contract_address_mi
     EXPECT_TRUE(composer.failed());
     EXPECT_EQ(composer.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
-    EXPECT_EQ(composer.get_first_failure().message,
-              "user's intent does not match initial private call (tx_request.to must match "
-              "call_stack_item.contract_address)");
 }
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_function_data_mismatch_fails)

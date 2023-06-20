@@ -78,10 +78,10 @@ void validate_this_private_call_against_tx_request(DummyComposer& composer,
     const auto& tx_request = private_inputs.tx_request;
     const auto& call_stack_item = private_inputs.private_call.call_stack_item;
 
-    composer.do_assert(
-        tx_request.to == call_stack_item.contract_address,
-        "user's intent does not match initial private call (tx_request.to must match call_stack_item.contract_address)",
-        CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
+    composer.do_assert(tx_request.origin == call_stack_item.contract_address,
+                       "user's intent does not match initial private call (tx_request.origin must match "
+                       "call_stack_item.contract_address)",
+                       CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
 
     composer.do_assert(tx_request.function_data.hash() == call_stack_item.function_data.hash(),
                        "user's intent does not match initial private call (tx_request.function_data must match "

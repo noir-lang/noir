@@ -8,7 +8,6 @@ import { KeyStore, PublicKey, getAddressFromPublicKey } from '@aztec/key-store';
 import { AccountContractAbi } from '@aztec/noir-contracts/examples';
 import { ExecutionRequest, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
 import { EcdsaAccountContract } from '../account_impl/ecdsa_account_contract.js';
-import { EcdsaExternallyOwnedAccount } from '../account_impl/ecdsa_eoa.js';
 import { AccountImplementation } from '../account_impl/index.js';
 import { AccountState } from '../account_state/account_state.js';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
@@ -62,28 +61,15 @@ export class AztecRPCServer implements AztecRPCClient {
   }
 
   /**
-   * Adds a new account to the AztecRPCServer instance.
-   *
-   * @returns The AztecAddress of the newly added account.
-   * @deprecated EOAs to be removed.
-   */
-  public async addExternallyOwnedAccount() {
-    const accountPubKey = await this.keyStore.createAccount();
-    const address = getAddressFromPublicKey(accountPubKey);
-    await this.initAccountState(accountPubKey, address);
-    return address;
-  }
-
-  /**
    * Creates or registers a new keypair in the keystore and deploys a new account contract for it.
    * @param privKey - Private key to use for the deployment (a fresh one will be generated if not set).
+   * @param abi - Implementation of the account contract to deploy.
    * @returns A tuple with the deployment tx to be awaited and the address of the account.
    */
-  public async createSmartAccount(privKey?: Buffer): Promise<[TxHash, AztecAddress]> {
+  public async createSmartAccount(privKey?: Buffer, abi = AccountContractAbi): Promise<[TxHash, AztecAddress]> {
     const pubKey = await (privKey ? this.keyStore.addAccount(privKey) : this.keyStore.createAccount());
     const portalContract = EthAddress.ZERO;
     const contractAddressSalt = Fr.random();
-    const abi = AccountContractAbi;
     const args: any[] = [];
 
     const { txRequest, contract } = await this.prepareDeploy(abi, args, portalContract, contractAddressSalt, pubKey);
@@ -232,15 +218,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const contract = contractTree.contract;
     await this.db.addContract(contract);
 
-    const txRequest = new TxExecutionRequest(
-      AztecAddress.ZERO,
-      contract.address,
-      functionData,
-      flatArgs,
-      Fr.random(),
-      txContext,
-      Fr.ZERO,
-    );
+    const txRequest = new TxExecutionRequest(contract.address, functionData, flatArgs, txContext);
     return { txRequest, contract };
   }
 
@@ -311,8 +289,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const pubKey = accountState.getPublicKey();
 
     if (!contract) {
-      this.log(`Using ECDSA EOA implementation for ${address}`);
-      return new EcdsaExternallyOwnedAccount(address, pubKey, this.keyStore);
+      throw new Error(`Account contract not found at ${address}`);
     } else if (contract.name === 'Account') {
       this.log(`Using ECDSA account contract implementation for ${address}`);
       return new EcdsaAccountContract(address, pubKey, this.keyStore);
