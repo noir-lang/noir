@@ -318,19 +318,10 @@ impl GeneratedAcir {
         max_bit_size: u32,
         predicate: &Expression,
     ) -> Result<(Witness, Witness), AcirGenError> {
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
-
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: lhs.clone(),
-            b: rhs.clone(),
-            q: q_witness,
-            r: r_witness,
-            predicate: Some(predicate.clone()),
-        })));
+         let (q_witness, r_witness) = self.brillig_quotient(lhs, rhs, predicate, max_bit_size);
 
         // Constrain r to be 0 <= r < 2^{max_bit_size}
         let r_expr = Expression::from(r_witness);
@@ -355,6 +346,20 @@ impl GeneratedAcir {
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
         Ok((q_witness, r_witness))
+    }
+
+
+    pub(crate) fn brillig_quotient(&mut self, lhs: &Expression, rhs: &Expression, predicate: &Expression, max_bit_size: u32) -> (Witness, Witness) {
+        // Create the witness for the result
+        let q_witness = self.next_witness_index();
+        let r_witness = self.next_witness_index();
+
+        let quotient_code = brillig_directive::directive_quotient(max_bit_size);
+        let inputs = vec![BrilligInputs::Single(lhs.clone()), BrilligInputs::Single(rhs.clone()), BrilligInputs::Single(predicate.clone())];
+        let outputs = vec![BrilligOutputs::Simple(q_witness), BrilligOutputs::Simple(r_witness)];
+        self.brillig(quotient_code, inputs, outputs);
+
+        (q_witness, r_witness)
     }
 
     /// Generate constraints that are satisfied iff
@@ -639,8 +644,6 @@ impl GeneratedAcir {
         let two_max_bits = two.pow(&FieldElement::from(max_bits as i128));
         comparison_evaluation.q_c += two_max_bits;
 
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
 
         // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
@@ -667,13 +670,8 @@ impl GeneratedAcir {
         expr.push_addition_term(FieldElement::one(), r_witness);
         self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
 
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: comparison_evaluation,
-            b: Expression::from_field(two_max_bits),
-            q: q_witness,
-            r: r_witness,
-            predicate,
-        })));
+        let (q_witness, r_witness) = self.brillig_quotient(comparison_evaluation, &Expression::from_field(two_max_bits), &predicate, max_bits + 1);
+
 
         // Add constraint to ensure `r` is correctly bounded
         // between [0, 2^{max_bits}-1]
