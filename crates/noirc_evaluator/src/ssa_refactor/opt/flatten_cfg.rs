@@ -396,9 +396,62 @@ impl<'f> Context<'f> {
         self.insert_instruction_with_typevars(enable_side_effects, None);
     }
 
-    /// Merge two values a and b from separate basic blocks to a single value. This
-    /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
+    /// Merge two values a and b from separate basic blocks to a single value.
+    /// If these two values are numeric, the result will be
+    /// `then_condition * then_value + else_condition * else_value`.
+    /// Otherwise, if the values being merged are arrays, a new array will be made
+    /// recursively from combining each element of both input arrays.
+    ///
+    /// It is currently an error to call this function on reference or function values
+    /// as it is less clear how to merge these.
     fn merge_values(
+        &mut self,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+    ) -> ValueId {
+        match self.inserter.function.dfg.type_of_value(then_value) {
+            Type::Numeric(_) => {
+                self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
+            }
+            Type::Array(element_types, len) => {
+                let mut merged = im::Vector::new();
+
+                for i in 0..len {
+                    for (element_index, element_type) in element_types.iter().enumerate() {
+                        let index = ((i * element_types.len() + element_index) as u128).into();
+                        let index = self.inserter.function.dfg.make_constant(index, Type::field());
+
+                        let typevars = Some(vec![element_type.clone()]);
+
+                        let mut get_element = |array, typevars| {
+                            let get = Instruction::ArrayGet { array, index };
+                            self.insert_instruction_with_typevars(get, typevars).first()
+                        };
+
+                        let then_element = get_element(then_value, typevars.clone());
+                        let else_element = get_element(else_value, typevars);
+
+                        merged.push_back(self.merge_values(
+                            then_condition,
+                            else_condition,
+                            then_element,
+                            else_element,
+                        ));
+                    }
+                }
+
+                self.inserter.function.dfg.make_array(merged, element_types.clone())
+            }
+            Type::Reference => panic!("Cannot return references from an if expression"),
+            Type::Function => panic!("Cannot return functions from an if expression"),
+        }
+    }
+
+    /// Merge two numeric values a and b from separate basic blocks to a single value. This
+    /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
+    fn merge_numeric_values(
         &mut self,
         then_condition: ValueId,
         else_condition: ValueId,
