@@ -392,63 +392,28 @@ impl GeneratedAcir {
 
         let mut lhs_offset = lhs + offset;
 
-        // Optimisation when rhs is const
+        // Optimisation when rhs is const and fits within a u128
         if rhs.is_const() && rhs.q_c.fits_in_u128() {
             // We try to move the offset to rhs
-            let rhs_offset = if *offset == Expression::one() {
+            let rhs_offset = if *offset == Expression::one() && rhs.q_c.to_u128() >= 1 {
                 lhs_offset = lhs.clone();
-                assert!(rhs.q_c.to_u128() >= 1);
                 rhs.q_c.to_u128() - 1
             } else {
                 rhs.q_c.to_u128()
             };
             // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
-            // when rhs is small, we use arithmetic constraints
-            if rhs_offset < 3 {
-                match rhs_offset {
-                    // lhs_offset <= rhs_offset iff lhs_offset = 0, if rhs_offset = 0
-                    0 => self.push_opcode(AcirOpcode::Arithmetic(lhs_offset)),
-                    1 => {
-                        // lhs_offset <= rhs_offset iff lhs_offset is boolean, if rhs_offset = 1
-                        let expr = self.boolean_expr(&lhs_offset);
-                        self.push_opcode(AcirOpcode::Arithmetic(expr));
-                    }
-                    2 => {
-                        // when rhs_offset = 2;
-                        // lhs_offset <= rhs_offset iff lhs_offset(lhs_offset-1)(lhs_offset-2)=0
-
-                        // We compute y=lhs_offset^2-lhs_offset
-                        let lhs_offsets_bool_expr = self.boolean_expr(&lhs_offset);
-                        let y = self.create_witness_for_expression(&lhs_offsets_bool_expr);
-                        // We add the constraint y*lhs_offset=2y
-                        let neg_two = -FieldElement::from(2_i128);
-                        let lhs_offset_witness = self.create_witness_for_expression(&lhs_offset);
-                        let mut eee = Expression::default();
-                        eee.push_multiplication_term(FieldElement::one(), y, lhs_offset_witness);
-                        eee.push_addition_term(neg_two, y);
-
-                        self.push_opcode(AcirOpcode::Arithmetic(eee));
-                    }
-                    _ => unreachable!(),
-                }
-                return Ok(());
-            }
-
-            // when rhs is less than 128 bits
             let bit_size = bit_size_u128(rhs_offset);
-            if bit_size < 128 {
-                // r = 2^bit_size - rhs_offset
-                let r = (1_u128 << bit_size) - rhs_offset - 1;
-                // witness = lhs_offset + r
-                assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
-                let mut aor = lhs_offset.clone();
-                aor.q_c += FieldElement::from(r);
-                let witness = self.create_witness_for_expression(&aor);
-                // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
-                self.range_constraint(witness, bit_size)?;
-                return Ok(());
-            }
+            // r = 2^bit_size - rhs_offset
+            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            // witness = lhs_offset + r
+            assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+            let mut aor = lhs_offset;
+            aor.q_c += FieldElement::from(r);
+            let witness = self.create_witness_for_expression(&aor);
+            // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
+            self.range_constraint(witness, bit_size)?;
+            return Ok(());
         }
 
         // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
