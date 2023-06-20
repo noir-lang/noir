@@ -1467,7 +1467,7 @@ bool TurboCircuitConstructor::check_circuit()
     std::vector<fr> alpha_powers;
     alpha_powers.push_back(alpha_base);
     for (size_t i = 1; i < 7; i++) {
-        alpha_powers.push_back(alpha_powers[i] * alpha);
+        alpha_powers.push_back(alpha_powers[i - 1] * alpha);
     }
 
     for (size_t i = 0; i < get_num_gates(); i++) {

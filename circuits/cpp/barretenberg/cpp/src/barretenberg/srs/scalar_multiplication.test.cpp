@@ -720,7 +720,7 @@ TYPED_TEST(ScalarMultiplicationTests, UndersizedInputs)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (num_points * 2 + 1));
 
     for (size_t i = 0; i < num_points; ++i) {
         scalars[i] = Fr::random_element();
@@ -758,7 +758,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerSmall)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (num_points * 2 + 1));
 
     for (size_t i = 0; i < num_points; ++i) {
         scalars[i] = Fr::random_element();
@@ -795,7 +795,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerEdgeCaseDbl)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (num_points * 2 + 1));
 
     AffineElement point = AffineElement(Element::random_element());
     for (size_t i = 0; i < num_points; ++i) {
@@ -928,7 +928,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerUnsafeShortInputs)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (num_points * 2 + 1));
 
     for (size_t i = 0; i < num_points; ++i) {
         points[i] = AffineElement(Element::random_element());
@@ -986,7 +986,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerOne)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * 1);
 
-    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * num_points * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (num_points * 2 + 1));
 
     for (size_t i = 0; i < num_points; ++i) {
         scalars[i] = Fr::random_element();
@@ -1021,7 +1021,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerZeroPoints)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr));
 
-    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (2 + 1));
 
     barretenberg::scalar_multiplication::pippenger_runtime_state<Curve> state(0);
     Element result = barretenberg::scalar_multiplication::pippenger<Curve>(scalars, points, 0, state);
@@ -1042,7 +1042,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerMulByZero)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr));
 
-    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * 2 + 1);
+    AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (2 + 1));
 
     scalars[0] = Fr::zero();
     points[0] = Group::affine_one;
