@@ -1,9 +1,7 @@
 ///! This module contains functions for producing a higher level view disassembler of Brillig.
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray, Value,
-};
+use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory, Value};
 
 /// Controls whether debug traces are enabled
 const ENABLE_DEBUG_TRACE: bool = true;
@@ -98,12 +96,19 @@ impl DebugToString for Value {
     }
 }
 
-impl DebugToString for RegisterValueOrArray {
+impl DebugToString for RegisterOrMemory {
     fn debug_to_string(&self) -> String {
         match self {
-            RegisterValueOrArray::RegisterIndex(index) => index.debug_to_string(),
-            RegisterValueOrArray::HeapArray(index, size) => {
+            RegisterOrMemory::RegisterIndex(index) => index.debug_to_string(),
+            RegisterOrMemory::HeapArray(index, size) => {
                 format!("{}[0..{}]", index.debug_to_string(), size)
+            }
+            RegisterOrMemory::HeapVector(location_index, length_index) => {
+                format!(
+                    "{}[0..{}]",
+                    location_index.debug_to_string(),
+                    length_index.debug_to_string()
+                )
             }
         }
     }
@@ -173,8 +178,8 @@ pub(crate) fn not_instruction(condition: RegisterIndex, result: RegisterIndex) {
 /// Processes a foreign call instruction.
 pub(crate) fn foreign_call_instruction(
     func_name: String,
-    inputs: &[RegisterValueOrArray],
-    outputs: &[RegisterValueOrArray],
+    inputs: &[RegisterOrMemory],
+    outputs: &[RegisterOrMemory],
 ) {
     debug_println!("  FOREIGN_CALL {} ({}) => {}", func_name, inputs, outputs);
 }
