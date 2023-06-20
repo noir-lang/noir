@@ -459,6 +459,17 @@ impl<'f> Context<'f> {
         else_value: ValueId,
     ) -> ValueId {
         let block = self.inserter.function.entry_block();
+        let then_type = self.inserter.function.dfg.type_of_value(then_value);
+        let else_type = self.inserter.function.dfg.type_of_value(else_value);
+        assert_eq!(
+            then_type, else_type,
+            "Expected values merged to be of the same type but found {then_type} and {else_type}"
+        );
+
+        // We must cast the bool conditions to the actual numeric type used by each value.
+        let then_condition = self.insert_instruction(Instruction::Cast(then_condition, then_type));
+        let else_condition = self.insert_instruction(Instruction::Cast(else_condition, else_type));
+
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
         let then_value =
             self.inserter.function.dfg.insert_instruction_and_results(mul, block, None).first();
