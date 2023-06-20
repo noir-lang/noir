@@ -52,8 +52,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90594c6d8107569d2ba337a3e1ff2c440cf5ba3f7bc2d3b07af5a405d769584d"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=3043e9f69f25c48027d95fae7ecbb8d576b3a82f#3043e9f69f25c48027d95fae7ecbb8d576b3a82f"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -1405,9 +1404,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-utils"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8e8fc851e9c7b9852508bc6e3f690f452f474417e8545ec9857b7f7377036b5"
+checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
 dependencies = [
  "js-sys",
  "serde",
@@ -3677,7 +3676,6 @@ dependencies = [
  "wasmer-engine-universal",
  "wasmer-types",
  "wasmer-vm",
- "wasmparser",
  "wat",
  "winapi",
 ]
