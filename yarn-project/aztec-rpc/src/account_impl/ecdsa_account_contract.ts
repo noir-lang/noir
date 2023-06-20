@@ -34,7 +34,7 @@ export class EcdsaAccountContract implements AccountImplementation {
     const payload = buildPayload(privateCalls, publicCalls);
     const hash = hashPayload(payload);
     const signature = await this.keyStore.ecdsaSign(hash, this.pubKey);
-    const signatureAsFrArray = Array.from(signature.toBuffer()).map(byte => new Fr(byte));
+    const signatureAsFrArray = signature.toFields(false);
     const args = [payload, signatureAsFrArray];
     const abi = this.getEntrypointAbi();
     const selector = generateFunctionSelector(abi.name, abi.parameters);

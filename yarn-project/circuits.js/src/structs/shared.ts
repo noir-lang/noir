@@ -1,8 +1,9 @@
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple, mapTuple } from '@aztec/foundation/serialize';
 import { assertMemberLength } from '../utils/jsUtils.js';
 import { Bufferable, serializeToBuffer } from '../utils/serialize.js';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { Fr } from './index.js';
 
 /**
  * Implementation of a vector. Matches how we are serializing and deserializing vectors in cpp (length in the first position, followed by the items).
@@ -55,6 +56,20 @@ export class EcdsaSignature {
 
   toBuffer() {
     return serializeToBuffer(this.r, this.s, this.v);
+  }
+
+  toFields(includeV = false): Tuple<Fr, 3> {
+    const sig = this.toBuffer();
+
+    const buf1 = Buffer.alloc(32);
+    const buf2 = Buffer.alloc(32);
+    const buf3 = Buffer.alloc(32);
+
+    sig.copy(buf1, 1, 0, 31);
+    sig.copy(buf2, 1, 31, 62);
+    sig.copy(buf3, 1, 62, includeV ? 65 : 64);
+
+    return mapTuple([buf1, buf2, buf3], Fr.fromBuffer);
   }
 
   static fromBigInts(r: bigint, s: bigint, v: number) {

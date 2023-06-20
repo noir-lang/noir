@@ -1,27 +1,27 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DebugLogger } from '@aztec/foundation/log';
-import { AccountContractAbi, ChildAbi } from '@aztec/noir-contracts/examples';
+import { ChildAbi } from '@aztec/noir-contracts/examples';
 
+import { EcdsaSignature } from '@aztec/circuits.js';
 import { toBigInt } from '@aztec/foundation/serialize';
+import { KeyStore } from '@aztec/key-store';
 import { setup } from './utils.js';
-import { privateKey } from './fixtures.js';
 
 describe('e2e_account_contract', () => {
   let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
+  let keyStore: KeyStore;
   let logger: DebugLogger;
 
-  let account: Contract;
+  let account: AztecAddress;
   let child: Contract;
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, logger } = await setup());
+    ({ aztecNode, aztecRpcServer, keyStore, logger } = await setup(1));
 
-    account = await deployContract(AccountContractAbi);
-    await aztecRpcServer.registerSmartAccount(privateKey, account.address);
-
+    account = (await aztecRpcServer.getAccounts())[0];
     child = await deployContract(ChildAbi);
   }, 60_000);
 
@@ -44,7 +44,7 @@ describe('e2e_account_contract', () => {
   };
 
   it('calls a private function', async () => {
-    const tx = child.methods.value(42).send({ from: account.address });
+    const tx = child.methods.value(42).send({ from: account });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
@@ -53,7 +53,7 @@ describe('e2e_account_contract', () => {
   }, 30_000);
 
   it('calls a public function', async () => {
-    const tx = child.methods.pubStoreValue(42).send({ from: account.address });
+    const tx = child.methods.pubStoreValue(42).send({ from: account });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
@@ -62,10 +62,10 @@ describe('e2e_account_contract', () => {
     expect(toBigInt((await aztecNode.getStorageAt(child.address, 1n))!)).toEqual(42n);
   }, 30_000);
 
-  // TODO: Reenable this test by hijacking the keystore to generate a different signature!
-  // it('rejects ecdsa signature from a different key', async () => {
-  //   const payload = buildPayload([callChildValue(42)], []);
-  //   const call = buildCall(payload, { privKey: '2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6' });
-  //   await expect(call.create({ from: accounts[0] })).rejects.toMatch(/could not satisfy all constraints/);
-  // }, 30_000);
+  it('rejects ecdsa signature from a different key', async () => {
+    keyStore.ecdsaSign = () => Promise.resolve(EcdsaSignature.random());
+    await expect(child.methods.value(42).create({ from: account })).rejects.toMatch(
+      /could not satisfy all constraints/,
+    );
+  }, 30_000);
 });

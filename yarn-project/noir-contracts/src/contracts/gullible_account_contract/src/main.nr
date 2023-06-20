@@ -13,7 +13,7 @@ contract GullibleAccount {
     fn entrypoint(
         inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload,
-        _signature: pub [u8;64]
+        _signature: pub [Field;3]
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
 

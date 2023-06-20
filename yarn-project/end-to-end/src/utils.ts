@@ -27,7 +27,8 @@ import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract 
 import { mnemonicToAccount } from 'viem/accounts';
 import { MNEMONIC, localAnvil, privateKey } from './fixtures.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
-import { pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { KeyStore, TestKeyStore } from '@aztec/key-store';
 
 /**
  * Sets up the environment for the end-to-end tests.
@@ -54,6 +55,8 @@ export async function setup(numberOfAccounts = 1): Promise<{
    * The Aztec Node configuration.
    */
   config: AztecNodeConfig;
+  /** The underlying keystore. */
+  keyStore: KeyStore;
   /**
    * Logger instance named as the current test.
    */
@@ -72,7 +75,8 @@ export async function setup(numberOfAccounts = 1): Promise<{
   config.inboxContract = deployL1ContractsValues.inboxAddress;
 
   const aztecNode = await AztecNodeService.createAndSync(config);
-  const aztecRpcServer = await createAztecRPCServer(aztecNode);
+  const keyStore = new TestKeyStore(await Grumpkin.new());
+  const aztecRpcServer = await createAztecRPCServer(aztecNode, { keyStore });
   for (let i = 0; i < numberOfAccounts; ++i) {
     // We use the well-known private key and the validating account contract for the first account,
     // and generate random keypairs with gullible account contracts (ie no sig validation) for the rest.
@@ -94,6 +98,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
     deployL1ContractsValues,
     accounts,
     config,
+    keyStore,
     logger,
   };
 }

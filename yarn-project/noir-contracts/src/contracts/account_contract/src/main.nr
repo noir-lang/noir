@@ -18,16 +18,30 @@ contract Account {
     fn entrypoint(
         inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload,
-        // TODO(#706): Compress signature as 3 fields
-        signature: pub [u8;64]
+        signature: pub [Field;3]
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
 
+        // Decompress signature from 3 fields to 64 bytes
+        let mut decompressed_signature: [u8;64] = [0;64];
+
+        let signature_part_0 = signature[0].to_be_bytes(32);
+        for i in 0..31 {
+            decompressed_signature[i] = signature_part_0[i + 1];
+        }
+        let signature_part_1 = signature[1].to_be_bytes(32);
+        for i in 0..31 {
+            decompressed_signature[i + 31] = signature_part_1[i + 1];
+        }
+        let signature_part_2 = signature[2].to_be_bytes(32);
+        for i in 0..2 {
+            decompressed_signature[i + 62] = signature_part_2[i + 1];
+        }
+
         // Verify payload signature using ethereum's signing scheme
-        // TODO: Switch to keccak when available in Noir
         let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
         let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
-        let verification = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, payload_hash);
+        let verification = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, decompressed_signature, payload_hash);
         constrain verification == 1;
 
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
