@@ -21,20 +21,3 @@ unconstrained fn oracle_print_array_wrapper(arr: [Field; 2]) {
     oracle_print_array(arr);
 }
 
-<<<<<<< HEAD
-#[oracle(oracle_identity)]
-unconstrained fn oracle_identity(_x : Field) -> Field {}
-
-unconstrained fn oracle_identity_wrapper(x: Field) -> Field {
-    oracle_identity(x)
-}
-
-#[oracle(oracle_identity_array)]
-unconstrained fn oracle_identity_array(_arr : [Field; 2]) -> [Field; 2] {}
-
-unconstrained fn oracle_identity_array_wrapper(arr: [Field; 2]) -> [Field; 2] {
-    oracle_identity_array(arr)
-}
-=======
-
->>>>>>> origin
