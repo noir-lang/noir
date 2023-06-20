@@ -152,6 +152,8 @@ use crate::ssa_refactor::{
     ssa_gen::Ssa,
 };
 
+mod branch_analysis;
+
 impl Ssa {
     /// Flattens the control flow graph of each function such that the function is left with a
     /// single block containing all instructions and no more control-flow.
