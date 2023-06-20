@@ -132,7 +132,10 @@ export class PublicExecutor {
         return padArrayEnd(childExecutionResult.returnValues, Fr.ZERO, NOIR_MAX_RETURN_VALUES).map(toACVMField);
       },
       emitUnencryptedLog: ([...args]: ACVMField[]) => {
-        unencryptedLogs.logs.push(...args.map(str => convertACVMFieldToBuffer(str)));
+        // https://github.com/AztecProtocol/aztec-packages/issues/885
+        const log = Buffer.concat(args.map(charBuffer => convertACVMFieldToBuffer(charBuffer).subarray(-1)));
+        unencryptedLogs.logs.push(log);
+        this.log(`Emitted unencrypted log: "${log.toString('ascii')}"`);
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },
     });

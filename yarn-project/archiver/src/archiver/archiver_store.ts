@@ -38,6 +38,13 @@ export interface ArchiverDataStore {
   addEncryptedLogs(data: L2BlockL2Logs[]): Promise<boolean>;
 
   /**
+   * Append new unencrypted logs to the store's list.
+   * @param data - The unencrypted logs to be added to the store.
+   * @returns True if the operation is successful.
+   */
+  addUnencryptedLogs(data: L2BlockL2Logs[]): Promise<boolean>;
+
+  /**
    * Append new pending L1 to L2 messages to the store.
    * @param messages - The L1 to L2 messages to be added to the store.
    * @returns True if the operation is successful.
@@ -80,6 +87,14 @@ export interface ArchiverDataStore {
    * @returns The requested encrypted logs.
    */
   getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
+
+  /**
+   * Gets the `take` amount of unencrypted logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first `unencryptedLogs` to be returned.
+   * @param take - The number of unencrypted logs to return.
+   * @returns The requested unencrypted logs.
+   */
+  getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
 
   /**
    * Store new Contract Public Data from an L2 block to the store's list.
@@ -148,6 +163,12 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   private encryptedLogs: L2BlockL2Logs[] = [];
 
   /**
+   * An array containing all the unencrypted logs that have been fetched so far.
+   * Note: Index in the "outer" array equals to (corresponding L2 block's number - INITIAL_L2_BLOCK_NUM).
+   */
+  private unencryptedLogs: L2BlockL2Logs[] = [];
+
+  /**
    * A sparse array containing all the contract data that have been fetched so far.
    */
   private contractPublicData: (ContractPublicData[] | undefined)[] = [];
@@ -186,6 +207,16 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
+   * Append new unencrypted logs data to the store's list.
+   * @param data - The unencrypted logs to be added to the store.
+   * @returns True if the operation is successful (always in this implementation).
+   */
+  public addUnencryptedLogs(data: L2BlockL2Logs[]): Promise<boolean> {
+    this.unencryptedLogs.push(...data);
+    return Promise.resolve(true);
+  }
+
+  /**
    * Append new pending L1 to L2 messages to the store.
    * @param messages - The L1 to L2 messages to be added to the store.
    * @returns True if the operation is successful (always in this implementation).
@@ -208,6 +239,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     });
     return Promise.resolve(true);
   }
+
   /**
    * Messages that have been published in an L2 block are confirmed.
    * Add them to the confirmed store, also remove them from the pending store.
@@ -293,6 +325,24 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     const startIndex = from - INITIAL_L2_BLOCK_NUM;
     const endIndex = from + take;
     return Promise.resolve(this.encryptedLogs.slice(startIndex, endIndex));
+  }
+
+  /**
+   * Gets the 'take' amount of unencrypted logs starting from 'from'.
+   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
+   * @param take - The number of unencrypted logs to return.
+   * @returns The requested unencrypted logs.
+   */
+  public getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
+    if (from < INITIAL_L2_BLOCK_NUM) {
+      throw new Error(`Invalid block range ${from}`);
+    }
+    if (from > this.unencryptedLogs.length) {
+      return Promise.resolve([]);
+    }
+    const startIndex = from - INITIAL_L2_BLOCK_NUM;
+    const endIndex = from + take;
+    return Promise.resolve(this.unencryptedLogs.slice(startIndex, endIndex));
   }
 
   /**

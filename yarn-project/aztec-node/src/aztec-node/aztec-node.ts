@@ -62,6 +62,14 @@ export interface AztecNode {
   getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
 
   /**
+   * Gets the `take` amount of unencrypted logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
+   * @param take - The number of unencrypted logs to return.
+   * @returns The requested unencrypted logs.
+   */
+  getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
+
+  /**
    * Method to submit a transaction to the p2p pool.
    * @param tx - The transaction to be submitted.
    */

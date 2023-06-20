@@ -157,9 +157,20 @@ export class L2Block {
    * Creates an L2 block containing random data.
    * @param l2BlockNum - The number of the L2 block.
    * @param txsPerBlock - The number of transactions to include in the block.
+   * @param numPrivateFunctionCalls - The number of private function calls to include in each transaction.
+   * @param numPublicFunctionCalls - The number of public function calls to include in each transaction.
+   * @param numEncryptedLogs - The number of encrypted logs to include in each transaction.
+   * @param numUnencryptedLogs - The number of unencrypted logs to include in each transaction.
    * @returns The L2 block.
    */
-  static random(l2BlockNum: number, txsPerBlock = 4): L2Block {
+  static random(
+    l2BlockNum: number,
+    txsPerBlock = 4,
+    numPrivateFunctionCalls = 2,
+    numPublicFunctionCalls = 3,
+    numEncryptedLogs = 2,
+    numUnencryptedLogs = 1,
+  ): L2Block {
     const newNullifiers = times(KERNEL_NEW_NULLIFIERS_LENGTH * txsPerBlock, Fr.random);
     const newCommitments = times(KERNEL_NEW_COMMITMENTS_LENGTH * txsPerBlock, Fr.random);
     const newContracts = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, Fr.random);
@@ -167,8 +178,8 @@ export class L2Block {
     const newPublicDataWrites = times(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * txsPerBlock, PublicDataWrite.random);
     const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
     const newL2ToL1Msgs = times(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, Fr.random);
-    const newEncryptedLogs = L2BlockL2Logs.random(txsPerBlock, 3, 2);
-    const newUnencryptedLogs = L2BlockL2Logs.random(txsPerBlock, 3, 2);
+    const newEncryptedLogs = L2BlockL2Logs.random(txsPerBlock, numPrivateFunctionCalls, numEncryptedLogs);
+    const newUnencryptedLogs = L2BlockL2Logs.random(txsPerBlock, numPublicFunctionCalls, numUnencryptedLogs);
 
     return L2Block.fromFields({
       number: l2BlockNum,

@@ -54,7 +54,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    * @param inboxAddress - Ethereum address of the inbox contract.
    * @param contractDeploymentEmitterAddress - Ethereum address of the contractDeploymentEmitter contract.
    * @param searchStartBlock - The L1 block from which to start searching for new blocks.
-   * @param pollingIntervalMs - The interval for polling for rollup logs (in milliseconds).
+   * @param pollingIntervalMs - The interval for polling for L1 logs (in milliseconds).
    * @param store - An archiver data store for storage & retrieval of blocks, encrypted logs & contract data.
    * @param log - A logger.
    */
@@ -134,7 +134,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       this.inboxAddress,
       blockUntilSynced,
       currentBlockNumber,
-      this.lastProcessedBlockNumber + 1n, // + 1 to prevent re including messages from the last processed block
+      this.lastProcessedBlockNumber + 1n, // + 1 to prevent re-including messages from the last processed block
     );
     const retrievedCancelledL1ToL2Messages = await retrieveNewCancelledL1ToL2Messages(
       this.publicClient,
@@ -160,7 +160,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     // Read all data from chain and then write to our stores at the end
     const nextExpectedL2BlockNum = BigInt(this.store.getBlocksLength() + INITIAL_L2_BLOCK_NUM);
     this.log(
-      `Retrieving chain state from L1 block: ${this.nextL2BlockFromBlock}, next expected rollup id: ${nextExpectedL2BlockNum}`,
+      `Retrieving chain state from L1 block: ${this.nextL2BlockFromBlock}, next expected l2 block number: ${nextExpectedL2BlockNum}`,
     );
     const retrievedBlocks = await retrieveBlocks(
       this.publicClient,
@@ -196,10 +196,16 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     });
     await this.store.addEncryptedLogs(encryptedLogs);
 
+    // store unencrypted logs from L2 Blocks that we have retrieved
+    const unencryptedLogs = retrievedBlocks.retrievedData.map(block => {
+      return block.newUnencryptedLogs!;
+    });
+    await this.store.addUnencryptedLogs(unencryptedLogs);
+
     // store contracts for which we have retrieved L2 blocks
     const lastKnownL2BlockNum = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
     retrievedContracts.retrievedData.forEach(async ([contracts, l2BlockNum], index) => {
-      this.log(`Retrieved contract public data for rollup id: ${index}`);
+      this.log(`Retrieved contract public data for l2 block number: ${index}`);
       if (l2BlockNum <= lastKnownL2BlockNum) {
         await this.store.addL2ContractPublicData(contracts, l2BlockNum);
       }
@@ -211,10 +217,12 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     this.log(`Confirming l1 to l2 messages in store`);
     await this.store.confirmL1ToL2Messages(messageKeysToRemove);
 
-    // store retrieved L2 blocks after removing new encrypted logs information.
-    // remove encrypted logs to serve "lightweight" block information. Logs can be fetched separately if needed.
+    // store retrieved L2 blocks after removing new logs information.
+    // remove logs to serve "lightweight" block information. Logs can be fetched separately if needed.
     await this.store.addL2Blocks(
-      retrievedBlocks.retrievedData.map(block => L2Block.fromFields(omit(block, ['newEncryptedLogs']))),
+      retrievedBlocks.retrievedData.map(block =>
+        L2Block.fromFields(omit(block, ['newEncryptedLogs', 'newUnencryptedLogs'])),
+      ),
     );
 
     // set the L1 block for the next search
@@ -305,6 +313,16 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    */
   public getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
     return this.store.getEncryptedLogs(from, take);
+  }
+
+  /**
+   * Gets the `take` amount of unencrypted logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
+   * @param take - The number of unencrypted logs to return.
+   * @returns The requested unencrypted logs.
+   */
+  public getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
+    return this.store.getUnencryptedLogs(from, take);
   }
 
   /**

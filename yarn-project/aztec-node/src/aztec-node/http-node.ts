@@ -151,6 +151,27 @@ export class HttpNode implements AztecNode {
   }
 
   /**
+   * Gets the `take` amount of unencrypted logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
+   * @param take - The number of unencrypted logs to return.
+   * @returns The requested unencrypted logs.
+   */
+  public async getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
+    const url = new URL(`${this.baseUrl}/get-unencrypted-logs`);
+    url.searchParams.append('from', from.toString());
+    if (take !== undefined) {
+      url.searchParams.append('take', take.toString());
+    }
+    const response = await (await fetch(url.toString())).json();
+    const unencryptedLogs = response.unencryptedLogs as string[];
+
+    if (!unencryptedLogs) {
+      return Promise.resolve([]);
+    }
+    return Promise.resolve(unencryptedLogs.map(x => L2BlockL2Logs.fromBuffer(Buffer.from(x, 'hex'))));
+  }
+
+  /**
    * Lookup the L2 contract info for this contract.
    * Contains the ethereum portal address .
    * @param contractAddress - The contract data address.

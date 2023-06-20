@@ -70,6 +70,12 @@ export class Synchroniser {
         return from;
       }
 
+      let unencryptedLogs = await this.node.getUnencryptedLogs(from, take);
+      if (!unencryptedLogs.length) {
+        await this.interruptableSleep.sleep(retryInterval);
+        return from;
+      }
+
       // Note: If less than `take` encrypted logs is returned, then we fetch only that number of blocks.
       const blocks = await this.node.getBlocks(from, encryptedLogs.length);
       if (!blocks.length) {
@@ -82,8 +88,16 @@ export class Synchroniser {
         encryptedLogs = encryptedLogs.slice(0, blocks.length);
       }
 
-      // attach encrypted logs to blocks
-      blocks.forEach((block, i) => block.attachLogs(encryptedLogs[i], 'newEncryptedLogs'));
+      if (blocks.length !== unencryptedLogs.length) {
+        // "Trim" the unencrypted logs to match the number of blocks.
+        unencryptedLogs = unencryptedLogs.slice(0, blocks.length);
+      }
+
+      // attach logs to blocks
+      blocks.forEach((block, i) => {
+        block.attachLogs(encryptedLogs[i], 'newEncryptedLogs');
+        block.attachLogs(unencryptedLogs[i], 'newUnencryptedLogs');
+      });
 
       // Wrap blocks in block contexts.
       const blockContexts = blocks.map(block => new L2BlockContext(block));

@@ -47,6 +47,7 @@ contract PublicToken {
         if (current_sender_balance as u120) > (amount as u120) {
             // TODO: Compiler complains if we don't assign the result of the write to anything
             let _void1 = sender_balance.write(current_sender_balance - amount);
+            constrain emit_unencrypted_log("Coins transferred") == 0;
             recipient_balance.write(current_recipient_balance + amount)
         } else {
             // TODO: Revert if there is not enough balance

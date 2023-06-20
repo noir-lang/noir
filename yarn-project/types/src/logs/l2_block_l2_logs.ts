@@ -60,4 +60,21 @@ export class L2BlockL2Logs {
     }
     return new L2BlockL2Logs(txLogs);
   }
+
+  /**
+   * Unrolls logs from a set of blocks.
+   * @param blockLogs - Input logs from a set of blocks.
+   * @returns Unrolled logs.
+   */
+  public static unrollLogs(blockLogs: L2BlockL2Logs[]): Buffer[] {
+    const logs: Buffer[] = [];
+    for (const blockLog of blockLogs) {
+      for (const txLog of blockLog.txLogs) {
+        for (const functionLog of txLog.functionLogs) {
+          logs.push(...functionLog.logs);
+        }
+      }
+    }
+    return logs;
+  }
 }

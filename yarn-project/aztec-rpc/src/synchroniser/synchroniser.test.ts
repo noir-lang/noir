@@ -32,10 +32,7 @@ describe('Synchroniser', () => {
     };
 
     aztecNode = mock<AztecNode>();
-    aztecNode.getEncryptedLogs.mockResolvedValue([]);
-
     database = new MemoryDB();
-
     synchroniser = new TestSynchroniser(aztecNode, database);
   });
 
@@ -61,10 +58,9 @@ describe('Synchroniser', () => {
 
   it('sets tree roots from latest block', async () => {
     const block = L2Block.random(1, 4);
-    aztecNode.getBlocks.mockResolvedValue([
-      L2Block.fromFields(omit(block, 'newEncryptedLogs', 'newEncryptedLogsLength')),
-    ]);
+    aztecNode.getBlocks.mockResolvedValue([L2Block.fromFields(omit(block, 'newEncryptedLogs', 'newUnencryptedLogs'))]);
     aztecNode.getEncryptedLogs.mockResolvedValue([block.newEncryptedLogs!]);
+    aztecNode.getUnencryptedLogs.mockResolvedValue([block.newUnencryptedLogs!]);
 
     await synchroniser.work();
 
@@ -84,9 +80,10 @@ describe('Synchroniser', () => {
     // We then process block with height 1, this should not change tree roots
     const block1 = L2Block.random(1, 4);
     aztecNode.getBlocks.mockResolvedValueOnce([
-      L2Block.fromFields(omit(block1, 'newEncryptedLogs', 'newEncryptedLogsLength')),
+      L2Block.fromFields(omit(block1, 'newEncryptedLogs', 'newUnencryptedLogs')),
     ]);
     aztecNode.getEncryptedLogs.mockResolvedValue([block1.newEncryptedLogs!]);
+    aztecNode.getUnencryptedLogs.mockResolvedValue([block1.newUnencryptedLogs!]);
 
     await synchroniser.work();
     const roots1 = database.getTreeRoots();
@@ -96,7 +93,7 @@ describe('Synchroniser', () => {
     // But they should change when we process block with height 5
     const block5 = L2Block.random(5, 4);
     aztecNode.getBlocks.mockResolvedValueOnce([
-      L2Block.fromFields(omit(block5, 'newEncryptedLogs', 'newEncryptedLogsLength')),
+      L2Block.fromFields(omit(block5, 'newEncryptedLogs', 'newUnencryptedLogs')),
     ]);
 
     await synchroniser.work();

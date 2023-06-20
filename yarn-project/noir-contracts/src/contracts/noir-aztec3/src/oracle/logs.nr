@@ -28,5 +28,6 @@ unconstrained fn emit_encrypted_log(
 fn emit_unencrypted_log_oracle<T>(_message: T)  -> Field {}
 
 unconstrained fn emit_unencrypted_log<T>(message: T) -> Field {
+    // https://github.com/AztecProtocol/aztec-packages/issues/885
     emit_unencrypted_log_oracle(message)
 }

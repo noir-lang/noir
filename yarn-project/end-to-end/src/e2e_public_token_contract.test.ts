@@ -5,6 +5,7 @@ import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 
 import times from 'lodash.times';
 import { expectStorageSlot, pointToPublicKey, setup } from './utils.js';
+import { L2BlockL2Logs } from '@aztec/types';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService;
@@ -27,6 +28,15 @@ describe('e2e_public_token_contract', () => {
     const txReceipt = await tx.getReceipt();
     logger(`L2 contract deployed at ${receipt.contractAddress}`);
     return { contract, tx, txReceipt };
+  };
+
+  const expectLogsFromLastBlockToBe = async (logMessages: string[]) => {
+    const l2BlockNum = await aztecNode.getBlockHeight();
+    const unencryptedLogs = await aztecNode.getUnencryptedLogs(l2BlockNum, 1);
+    const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
+    const asciiLogs = unrolledLogs.map(log => log.toString('ascii'));
+
+    expect(asciiLogs).toStrictEqual(logMessages);
   };
 
   beforeEach(async () => {
@@ -60,6 +70,8 @@ describe('e2e_public_token_contract', () => {
 
     expect(receipt.status).toBe(TxStatus.MINED);
     await expectStorageSlot(logger, aztecNode, contract, balanceSlot, PK.x, mintAmount);
+
+    await expectLogsFromLastBlockToBe(['Coins minted']);
   }, 45_000);
 
   // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
@@ -83,5 +95,7 @@ describe('e2e_public_token_contract', () => {
     expect(receipts.map(r => r.blockNumber)).toEqual(times(3, () => receipts[0].blockNumber));
 
     await expectStorageSlot(logger, aztecNode, contract, balanceSlot, PK.x, mintAmount * 3n);
+
+    await expectLogsFromLastBlockToBe(['Coins minted', 'Coins minted', 'Coins minted']);
   }, 60_000);
 });

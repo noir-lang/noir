@@ -32,22 +32,22 @@ type DataRetrieval<T> = {
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param rollupAddress - The address of the rollup contract.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param currentBlockNumber - Latest available block number in the ETH node.
+ * @param currentL1BlockNum - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
- * @param expectedNextRollupNumber - The next rollup id that we expect to find.
+ * @param expectedNextL2BlockNum - The next L2 block number that we expect to find.
  * @returns An array of L2 Blocks and the next eth block to search from
  */
 export async function retrieveBlocks(
   publicClient: PublicClient,
   rollupAddress: EthAddress,
   blockUntilSynced: boolean,
-  currentBlockNumber: bigint,
+  currentL1BlockNum: bigint,
   searchStartBlock: bigint,
-  expectedNextRollupNumber: bigint,
+  expectedNextL2BlockNum: bigint,
 ): Promise<DataRetrieval<L2Block>> {
   const retrievedBlocks: L2Block[] = [];
   do {
-    if (searchStartBlock > currentBlockNumber) {
+    if (searchStartBlock > currentL1BlockNum) {
       break;
     }
     const l2BlockProcessedLogs = await getL2BlockProcessedLogs(publicClient, rollupAddress, searchStartBlock);
@@ -55,11 +55,11 @@ export async function retrieveBlocks(
       break;
     }
 
-    const newBlocks = await processBlockLogs(publicClient, expectedNextRollupNumber, l2BlockProcessedLogs);
+    const newBlocks = await processBlockLogs(publicClient, expectedNextL2BlockNum, l2BlockProcessedLogs);
     retrievedBlocks.push(...newBlocks);
     searchStartBlock = l2BlockProcessedLogs[l2BlockProcessedLogs.length - 1].blockNumber! + 1n;
-    expectedNextRollupNumber += BigInt(newBlocks.length);
-  } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
+    expectedNextL2BlockNum += BigInt(newBlocks.length);
+  } while (blockUntilSynced && searchStartBlock <= currentL1BlockNum);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedBlocks };
 }
 

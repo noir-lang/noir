@@ -45,6 +45,7 @@ export class AztecNodeService implements AztecNode {
     protected p2pClient: P2P,
     protected blockSource: L2BlockSource,
     protected encryptedLogsSource: L2LogsSource,
+    protected unencryptedLogsSource: L2LogsSource,
     protected contractDataSource: ContractDataSource,
     protected l1ToL2MessageSource: L1ToL2MessageSource,
     protected merkleTreeDB: MerkleTrees,
@@ -86,6 +87,7 @@ export class AztecNodeService implements AztecNode {
     );
     return new AztecNodeService(
       p2pClient,
+      archiver,
       archiver,
       archiver,
       archiver,
@@ -144,12 +146,22 @@ export class AztecNodeService implements AztecNode {
 
   /**
    * Gets the `take` amount of encrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first encryptedLogsSource to be returned.
-   * @param take - The number of encryptedLogsSource to return.
-   * @returns The requested encryptedLogsSource.
+   * @param from - Number of the L2 block to which corresponds the first encrypted log to be returned.
+   * @param take - The number of encrypted logs to return.
+   * @returns The requested encrypted logs.
    */
   public getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
     return this.encryptedLogsSource.getEncryptedLogs(from, take);
+  }
+
+  /**
+   * Gets the `take` amount of unencrypted logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first unencrypted log to be returned.
+   * @param take - The number of unencrypted logs to return.
+   * @returns The requested unencrypted logs.
+   */
+  public getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
+    return this.unencryptedLogsSource.getUnencryptedLogs(from, take);
   }
 
   /**
