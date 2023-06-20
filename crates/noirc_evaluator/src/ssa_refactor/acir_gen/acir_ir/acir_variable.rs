@@ -347,11 +347,14 @@ impl AcirContext {
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
-    ///
-    /// `x` must be a 1-bit integer (i.e. a boolean)
-    pub(crate) fn not_var(&mut self, x: AcirVar) -> AcirVar {
-        // Since `x` can only be 0 or 1, we can derive NOT as 1 - x
-        self.add_data(AcirVarData::Expr(&Expression::one() - self.vars[x].to_expression().as_ref()))
+    pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, AcirGenError> {
+        if typ.is_signed() {
+            todo!("implement NOT for signed integers");
+        }
+        let bit_size = typ.bit_size();
+        // Subtracting from max flips the bits
+        let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));
+        self.sub_var(max, x)
     }
 
     /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
