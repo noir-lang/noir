@@ -14,7 +14,7 @@ pub(crate) fn directive_invert() -> Vec<BrilligOpcode> {
         BrilligOpcode::JumpIfNot { condition: input, location: 3 },
         // put value one in register (1)
         BrilligOpcode::Const { destination: RegisterIndex::from(1), value: Value::from(1_usize) },
-        // Divide 1 by the input, and set the esult of the division into register (0)
+        // Divide 1 by the input, and set the result of the division into register (0)
         BrilligOpcode::BinaryFieldOp {
             op: BinaryFieldOp::Div,
             lhs: RegisterIndex::from(1),
