@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::brillig::{brillig_gen::create_entry_point_function, Brillig};
+
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
     errors::AcirGenError,
@@ -19,7 +21,6 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::{artifact::BrilligArtifact, Brillig};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
@@ -179,17 +180,19 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
-                                let inputs:Vec<AcirVar> = arguments
-                                    .iter()
-                                    .flat_map(|arg| self.convert_value(*arg, dfg).flatten())
-                                    .map(|(var, _typ)| var)
-                                    .collect();
+                                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+
                                 // Generate the brillig code of the function
-                                let code = BrilligArtifact::default().link(&brillig[*id]);
-                                let outputs = self.acir_context.brillig(code, inputs, result_ids.len());
-                                for (result, output) in result_ids.iter().zip(outputs) {
-                                    let result_acir_type = dfg.type_of_value(*result).into();
-                                    self.ssa_values.insert(*result, AcirValue::Var(output, result_acir_type));
+                                let code = create_entry_point_function(arguments.len()).link(&brillig[*id]);
+
+                                let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
+
+                                let output_values = self.acir_context.brillig(code, inputs, outputs);
+                                // Compiler sanity check
+                                assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
+
+                                for result in result_ids.iter().zip(output_values) {
+                                    self.ssa_values.insert(*result.0, result.1);
                                 }
                             }
                         }
@@ -211,6 +214,9 @@ impl Context {
                             self.ssa_values.insert(*result, output);
                         }
                     }
+                    Value::ForeignFunction(_) => unreachable!(
+                        "All `oracle` methods should be wrapped in an unconstrained fn"
+                    ),
                     _ => unreachable!("expected calling a function"),
                 }
             }
@@ -309,7 +315,6 @@ impl Context {
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
-
         for acir_var in return_acir_vars {
             self.acir_context.return_var(acir_var);
         }
@@ -345,8 +350,11 @@ impl Context {
             }
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
+            Value::ForeignFunction(_) => unimplemented!(
+                "Oracle calls directly in constrained functions are not yet available."
+            ),
             Value::Instruction { .. } | Value::Param { .. } => {
-                unreachable!("ICE: Should have been in cache {value:?}")
+                unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
         };
         self.ssa_values.insert(value_id, acir_value.clone());

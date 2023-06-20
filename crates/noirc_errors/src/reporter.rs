@@ -5,10 +5,10 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
-    message: String,
-    secondaries: Vec<CustomLabel>,
+    pub message: String,
+    pub secondaries: Vec<CustomLabel>,
     notes: Vec<String>,
-    kind: DiagnosticKind,
+    pub kind: DiagnosticKind,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -93,9 +93,9 @@ impl std::fmt::Display for CustomDiagnostic {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CustomLabel {
+pub struct CustomLabel {
     message: String,
-    span: Span,
+    pub span: Span,
 }
 
 impl CustomLabel {

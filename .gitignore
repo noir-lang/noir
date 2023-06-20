@@ -6,6 +6,7 @@ node_modules
 pkg/
 
 # Nix stuff
+**/outputs
 result
 .envrc.local
 .direnv/

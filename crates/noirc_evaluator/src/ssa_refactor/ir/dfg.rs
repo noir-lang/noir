@@ -54,6 +54,11 @@ pub(crate) struct DataFlowGraph {
     /// represented by only 1 ValueId within this function.
     intrinsics: HashMap<Intrinsic, ValueId>,
 
+    /// Contains each foreign function that has been imported into the current function.
+    /// This map is used to ensure that the ValueId for any given foreign functôn is always
+    /// represented by only 1 ValueId within this function.
+    foreign_functions: HashMap<String, ValueId>,
+
     /// Function signatures of external methods
     signatures: DenseMap<Signature>,
 
@@ -201,6 +206,14 @@ impl DataFlowGraph {
             return *existing;
         }
         self.values.insert(Value::Function(function))
+    }
+
+    /// Gets or creates a ValueId for the given FunctionId.
+    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+        if let Some(existing) = self.foreign_functions.get(function) {
+            return *existing;
+        }
+        self.values.insert(Value::ForeignFunction(function.to_owned()))
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.
