@@ -73,13 +73,13 @@ struct PerFunctionContext<'function> {
     /// argument values.
     values: HashMap<ValueId, ValueId>,
 
-    /// Maps BasicBlockIds in the function being inlined from to the new BasicBlockIds to use in
-    /// the function being inlined into.
+    /// Maps blocks in the source function to blocks in the function being inlined into, where
+    /// each mapping is from the start of a source block to an inlined block in which the
+    /// analogous program point occurs.
     ///
-    /// Note that this 1-to-1 mapping only holds true in respect to the start of a source block.
-    /// This is because the inlining process potentially splits a single block into many. It is
-    /// not safe to query this mapping in respect to a program point midway or at the end of a
-    /// source block because the mapping may be stale.
+    /// Note that the starts of multiple source blocks can map into a single inlined block.
+    /// Conversely the whole of a source block is not guaranteed to map into a single inlined
+    /// block.
     blocks: HashMap<BasicBlockId, BasicBlockId>,
 
     /// Maps InstructionIds from the function being inlined to the function being inlined into.
@@ -225,7 +225,9 @@ impl<'function> PerFunctionContext<'function> {
         new_value
     }
 
-    /// Translate a block id from the source function to one of the target function.
+    /// Translates the program point representing the start of the given `source_block` to the
+    /// inlined block in which the analogous program point occurs. (Once inlined, the source
+    /// block's analogous program region may span multiple inlined blocks.)
     ///
     /// If the block isn't already known, this will insert a new block into the target function
     /// with the same parameter types as the source block.
@@ -454,13 +456,10 @@ impl<'function> PerFunctionContext<'function> {
                 if self.inlining_main {
                     self.context.builder.terminate_with_return(return_values.clone());
                 }
-                // The decision of how to continue this block is handled by
-                // `handle_function_returns` once we know whether there are multiple returns to
-                // consider. Note that we identify the block containing the return terminator
-                // using `current_block` instead of `translate_block`. This is because the
-                // inlining of other calls within the this block can split it into multiple
-                // blocks. As such, the mapping provided by `translate_block` is considered stale
-                // and unusable for this annotation.
+                // Note that `translate_block` would take us back to the point at which the
+                // inlining of this source block began. Since additional blocks may have been
+                // inlined since, we are interested in the block representing the current program
+                // point, obtained via `current_block`.
                 let block_id = self.context.builder.current_block();
                 Some((block_id, return_values))
             }
