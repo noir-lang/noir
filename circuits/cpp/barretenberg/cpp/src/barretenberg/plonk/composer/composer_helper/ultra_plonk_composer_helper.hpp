@@ -34,6 +34,12 @@ class UltraPlonkComposerHelper {
     // vanishing_polynomial cannot be trivially fetched here, I am directly setting this to 4 - 1 = 3.
     static constexpr size_t s_randomness = 3;
 
+    UltraPlonkComposerHelper()
+        : UltraPlonkComposerHelper("../srs_db/ignition"){};
+
+    UltraPlonkComposerHelper(std::string const& crs_path)
+        : UltraPlonkComposerHelper(std::make_unique<barretenberg::srs::factories::FileCrsFactory>(crs_path)){};
+
     explicit UltraPlonkComposerHelper(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
@@ -69,8 +75,6 @@ class UltraPlonkComposerHelper {
     }
 
     [[nodiscard]] size_t get_num_selectors() { return ultra_selector_properties().size(); }
-
-    void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
     std::shared_ptr<plonk::proving_key> compute_proving_key(CircuitConstructor& circuit_constructor);
     std::shared_ptr<plonk::verification_key> compute_verification_key(CircuitConstructor& circuit_constructor);

@@ -149,7 +149,8 @@ void UltraHonkComposerHelper_<Flavor>::compute_witness(CircuitConstructor& circu
 template <UltraFlavor Flavor>
 UltraProver_<Flavor> UltraHonkComposerHelper_<Flavor>::create_prover(CircuitConstructor& circuit_constructor)
 {
-    finalize_circuit(circuit_constructor);
+    circuit_constructor.add_gates_to_ensure_all_polys_are_non_zero();
+    circuit_constructor.finalize_circuit();
 
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);

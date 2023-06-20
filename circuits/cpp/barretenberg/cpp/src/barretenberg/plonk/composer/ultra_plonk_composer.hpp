@@ -182,7 +182,6 @@ class UltraPlonkComposer {
     barretenberg::fr get_variable(const uint32_t index) const { return circuit_constructor.get_variable(index); }
 
     std::vector<barretenberg::fr> get_public_inputs() const { return circuit_constructor.get_public_inputs(); }
-    void finalize_circuit() { circuit_constructor.finalize_circuit(); };
 
     void print_num_gates() { circuit_constructor.print_num_gates(); }
 

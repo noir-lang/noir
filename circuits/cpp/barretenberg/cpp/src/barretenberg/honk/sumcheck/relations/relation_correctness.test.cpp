@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "barretenberg/honk/composer/ultra_honk_composer.hpp"
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
+#include "barretenberg/honk/composer/composer_helper/standard_honk_composer_helper.hpp"
+#include "barretenberg/honk/composer/composer_helper/ultra_honk_composer_helper.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
@@ -82,22 +82,24 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
     // using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
     // Create a composer and a dummy circuit with a few gates
-    auto composer = StandardHonkComposer();
+    auto circuit_constructor = StandardCircuitConstructor();
     fr a = fr::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
-    uint32_t a_idx = composer.add_public_variable(a);
+    uint32_t a_idx = circuit_constructor.add_public_variable(a);
     fr b = fr::one();
     fr c = a + b;
     fr d = a + c;
-    uint32_t b_idx = composer.add_variable(b);
-    uint32_t c_idx = composer.add_variable(c);
-    uint32_t d_idx = composer.add_variable(d);
+    uint32_t b_idx = circuit_constructor.add_variable(b);
+    uint32_t c_idx = circuit_constructor.add_variable(c);
+    uint32_t d_idx = circuit_constructor.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-        composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+        circuit_constructor.create_add_gate(
+            { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
     }
     // Create a prover (it will compute proving key and witness)
-    auto prover = composer.create_prover();
+    auto composer = StandardHonkComposerHelper();
+    auto prover = composer.create_prover(circuit_constructor);
     auto circuit_size = prover.key->circuit_size;
 
     // Generate beta and gamma
@@ -105,7 +107,7 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
     fr gamma = fr::random_element();
 
     // Compute public input delta
-    const auto public_inputs = composer.circuit_constructor.get_public_inputs();
+    const auto public_inputs = circuit_constructor.get_public_inputs();
     auto public_input_delta =
         honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
 
@@ -173,55 +175,55 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
     // by each relation are non-trivially exercised.
-    auto composer = UltraHonkComposer();
+    auto circuit_constructor = UltraCircuitConstructor();
 
     barretenberg::fr pedersen_input_value = fr::random_element();
     fr a = fr::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
-    // TODO(luke): add method "add_public_variable" to UH composer
-    // uint32_t a_idx = composer.add_public_variable(a);
+    // TODO(luke): add method "add_public_variable" to UH circuit_constructor
+    // uint32_t a_idx = circuit_constructor.add_public_variable(a);
 
     // Add some basic add gates
-    uint32_t a_idx = composer.add_variable(a);
+    uint32_t a_idx = circuit_constructor.add_variable(a);
     fr b = fr::one();
     fr c = a + b;
     fr d = a + c;
-    uint32_t b_idx = composer.add_variable(b);
-    uint32_t c_idx = composer.add_variable(c);
-    uint32_t d_idx = composer.add_variable(d);
+    uint32_t b_idx = circuit_constructor.add_variable(b);
+    uint32_t c_idx = circuit_constructor.add_variable(c);
+    uint32_t d_idx = circuit_constructor.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        composer.create_add_gate({ a_idx, b_idx, c_idx, 1, 1, -1, 0 });
-        composer.create_add_gate({ d_idx, c_idx, a_idx, 1, -1, -1, 0 });
+        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, 1, 1, -1, 0 });
+        circuit_constructor.create_add_gate({ d_idx, c_idx, a_idx, 1, -1, -1, 0 });
     }
 
     // Add a big add gate with use of next row to test q_arith = 2
     fr e = a + b + c + d;
-    uint32_t e_idx = composer.add_variable(e);
+    uint32_t e_idx = circuit_constructor.add_variable(e);
 
-    uint32_t zero_idx = composer.get_zero_idx();
-    composer.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true); // use next row
-    composer.create_big_add_gate({ zero_idx, zero_idx, zero_idx, e_idx, 0, 0, 0, 0, 0 }, false);
+    uint32_t zero_idx = circuit_constructor.zero_idx;
+    circuit_constructor.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true); // use next row
+    circuit_constructor.create_big_add_gate({ zero_idx, zero_idx, zero_idx, e_idx, 0, 0, 0, 0, 0 }, false);
 
     // Add some lookup gates (related to pedersen hashing)
     const fr input_hi = uint256_t(pedersen_input_value).slice(126, 256);
     const fr input_lo = uint256_t(pedersen_input_value).slice(0, 126);
-    const auto input_hi_index = composer.add_variable(input_hi);
-    const auto input_lo_index = composer.add_variable(input_lo);
+    const auto input_hi_index = circuit_constructor.add_variable(input_hi);
+    const auto input_lo_index = circuit_constructor.add_variable(input_lo);
 
     const auto sequence_data_hi = plookup::get_lookup_accumulators(plookup::MultiTableId::PEDERSEN_LEFT_HI, input_hi);
     const auto sequence_data_lo = plookup::get_lookup_accumulators(plookup::MultiTableId::PEDERSEN_LEFT_LO, input_lo);
 
-    composer.create_gates_from_plookup_accumulators(
+    circuit_constructor.create_gates_from_plookup_accumulators(
         plookup::MultiTableId::PEDERSEN_LEFT_HI, sequence_data_hi, input_hi_index);
-    composer.create_gates_from_plookup_accumulators(
+    circuit_constructor.create_gates_from_plookup_accumulators(
         plookup::MultiTableId::PEDERSEN_LEFT_LO, sequence_data_lo, input_lo_index);
 
     // Add a sort gate (simply checks that consecutive inputs have a difference of < 4)
-    a_idx = composer.add_variable(FF(0));
-    b_idx = composer.add_variable(FF(1));
-    c_idx = composer.add_variable(FF(2));
-    d_idx = composer.add_variable(FF(3));
-    composer.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx });
+    a_idx = circuit_constructor.add_variable(FF(0));
+    b_idx = circuit_constructor.add_variable(FF(1));
+    c_idx = circuit_constructor.add_variable(FF(2));
+    d_idx = circuit_constructor.add_variable(FF(3));
+    circuit_constructor.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx });
 
     // Add an elliptic curve addition gate
     grumpkin::g1::affine_element p1 = crypto::generators::get_generator_data({ 0, 0 }).generator;
@@ -233,52 +235,53 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 
     grumpkin::g1::affine_element p3(grumpkin::g1::element(p1) - grumpkin::g1::element(p2_endo));
 
-    uint32_t x1 = composer.add_variable(p1.x);
-    uint32_t y1 = composer.add_variable(p1.y);
-    uint32_t x2 = composer.add_variable(p2.x);
-    uint32_t y2 = composer.add_variable(p2.y);
-    uint32_t x3 = composer.add_variable(p3.x);
-    uint32_t y3 = composer.add_variable(p3.y);
+    uint32_t x1 = circuit_constructor.add_variable(p1.x);
+    uint32_t y1 = circuit_constructor.add_variable(p1.y);
+    uint32_t x2 = circuit_constructor.add_variable(p2.x);
+    uint32_t y2 = circuit_constructor.add_variable(p2.y);
+    uint32_t x3 = circuit_constructor.add_variable(p3.x);
+    uint32_t y3 = circuit_constructor.add_variable(p3.y);
 
     ecc_add_gate gate{ x1, y1, x2, y2, x3, y3, beta_scalar, -1 };
-    composer.create_ecc_add_gate(gate);
+    circuit_constructor.create_ecc_add_gate(gate);
 
     // Add some RAM gates
     uint32_t ram_values[8]{
-        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
-        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
-        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
-        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
+        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
+        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
+        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
+        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
     };
 
-    size_t ram_id = composer.create_RAM_array(8);
+    size_t ram_id = circuit_constructor.create_RAM_array(8);
 
     for (size_t i = 0; i < 8; ++i) {
-        composer.init_RAM_element(ram_id, i, ram_values[i]);
+        circuit_constructor.init_RAM_element(ram_id, i, ram_values[i]);
     }
 
-    a_idx = composer.read_RAM_array(ram_id, composer.add_variable(5));
+    a_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(5));
     EXPECT_EQ(a_idx != ram_values[5], true);
 
-    b_idx = composer.read_RAM_array(ram_id, composer.add_variable(4));
-    c_idx = composer.read_RAM_array(ram_id, composer.add_variable(1));
+    b_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(4));
+    c_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(1));
 
-    composer.write_RAM_array(ram_id, composer.add_variable(4), composer.add_variable(500));
-    d_idx = composer.read_RAM_array(ram_id, composer.add_variable(4));
+    circuit_constructor.write_RAM_array(
+        ram_id, circuit_constructor.add_variable(4), circuit_constructor.add_variable(500));
+    d_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(4));
 
-    EXPECT_EQ(composer.get_variable(d_idx), 500);
+    EXPECT_EQ(circuit_constructor.get_variable(d_idx), 500);
 
     // ensure these vars get used in another arithmetic gate
-    const auto e_value = composer.get_variable(a_idx) + composer.get_variable(b_idx) + composer.get_variable(c_idx) +
-                         composer.get_variable(d_idx);
-    e_idx = composer.add_variable(e_value);
+    const auto e_value = circuit_constructor.get_variable(a_idx) + circuit_constructor.get_variable(b_idx) +
+                         circuit_constructor.get_variable(c_idx) + circuit_constructor.get_variable(d_idx);
+    e_idx = circuit_constructor.add_variable(e_value);
 
-    composer.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true);
-    composer.create_big_add_gate(
+    circuit_constructor.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true);
+    circuit_constructor.create_big_add_gate(
         {
-            composer.get_zero_idx(),
-            composer.get_zero_idx(),
-            composer.get_zero_idx(),
+            circuit_constructor.zero_idx,
+            circuit_constructor.zero_idx,
+            circuit_constructor.zero_idx,
             e_idx,
             0,
             0,
@@ -289,7 +292,8 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
         false);
 
     // Create a prover (it will compute proving key and witness)
-    auto prover = composer.create_prover();
+    auto composer = UltraHonkComposerHelper();
+    auto prover = composer.create_prover(circuit_constructor);
     auto circuit_size = prover.key->circuit_size;
 
     // Generate eta, beta and gamma
@@ -298,7 +302,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
     fr gamma = fr::random_element();
 
     // Compute public input delta
-    const auto public_inputs = composer.circuit_constructor.get_public_inputs();
+    const auto public_inputs = circuit_constructor.get_public_inputs();
     auto public_input_delta =
         honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
     auto lookup_grand_product_delta =

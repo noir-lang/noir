@@ -153,7 +153,7 @@ StandardProver_<Flavor> StandardHonkComposerHelper_<Flavor>::create_prover(
 
     return output_state;
 }
+
 template class StandardHonkComposerHelper_<honk::flavor::Standard>;
 template class StandardHonkComposerHelper_<honk::flavor::StandardGrumpkin>;
-
 } // namespace proof_system::honk

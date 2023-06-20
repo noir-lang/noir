@@ -36,6 +36,9 @@ template <UltraFlavor Flavor> class UltraHonkComposerHelper_ {
     bool contains_recursive_proof = false;
     bool computed_witness = false;
 
+    UltraHonkComposerHelper_()
+        : crs_factory_(barretenberg::srs::get_crs_factory()){};
+
     explicit UltraHonkComposerHelper_(std::shared_ptr<srs::factories::CrsFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
@@ -50,8 +53,6 @@ template <UltraFlavor Flavor> class UltraHonkComposerHelper_ {
     UltraHonkComposerHelper_& operator=(UltraHonkComposerHelper_&& other) noexcept = default;
     UltraHonkComposerHelper_& operator=(UltraHonkComposerHelper_ const& other) noexcept = default;
     ~UltraHonkComposerHelper_() = default;
-
-    void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
     std::shared_ptr<ProvingKey> compute_proving_key(const CircuitConstructor& circuit_constructor);
     std::shared_ptr<VerificationKey> compute_verification_key(const CircuitConstructor& circuit_constructor);
@@ -70,5 +71,7 @@ template <UltraFlavor Flavor> class UltraHonkComposerHelper_ {
 };
 extern template class UltraHonkComposerHelper_<honk::flavor::Ultra>;
 extern template class UltraHonkComposerHelper_<honk::flavor::UltraGrumpkin>;
+// TODO(#532): this pattern is weird; is this not instantiating the templates?
 using UltraHonkComposerHelper = UltraHonkComposerHelper_<honk::flavor::Ultra>;
+using UltraGrumpkinHonkComposerHelper = UltraHonkComposerHelper_<honk::flavor::UltraGrumpkin>;
 } // namespace proof_system::honk

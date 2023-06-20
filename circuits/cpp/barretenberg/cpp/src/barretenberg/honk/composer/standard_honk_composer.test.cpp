@@ -1,18 +1,17 @@
-#include "standard_honk_composer.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include "barretenberg/honk/proof_system/prover.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
-#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
-
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#include "barretenberg/honk/utils/grand_product_delta.hpp"
-
 #include <gtest/gtest.h>
+
+#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/honk/composer/composer_helper/standard_honk_composer_helper.hpp"
+#include "barretenberg/honk/proof_system/prover.hpp"
+#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
+#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
+#include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
+#include "barretenberg/honk/utils/grand_product_delta.hpp"
 
 using namespace proof_system::honk;
 
@@ -33,13 +32,13 @@ class StandardHonkComposerTests : public ::testing::Test {
  */
 TEST_F(StandardHonkComposerTests, SigmaIDCorrectness)
 {
-    auto test_permutation = [](StandardHonkComposer& composer) {
-        auto proving_key = composer.compute_proving_key();
+    auto test_permutation = [](StandardCircuitConstructor& circuit_constructor, StandardHonkComposerHelper& composer) {
+        auto proving_key = composer.compute_proving_key(circuit_constructor);
         const auto n = proving_key->circuit_size;
 
-        auto public_inputs = composer.circuit_constructor.get_public_inputs();
+        auto public_inputs = circuit_constructor.get_public_inputs();
         auto num_public_inputs = public_inputs.size();
-        auto num_gates = composer.circuit_constructor.get_num_gates();
+        auto num_gates = circuit_constructor.get_num_gates();
 
         // Using the same random beta and gamma as in the permutation argument
         barretenberg::fr beta = barretenberg::fr::random_element();
@@ -73,12 +72,12 @@ TEST_F(StandardHonkComposerTests, SigmaIDCorrectness)
         right = barretenberg::fr::one();
 
         // Now let's check that witness values correspond to the permutation
-        composer.compute_witness();
+        composer.compute_witness(circuit_constructor);
 
         auto permutation_polynomials = proving_key->get_sigma_polynomials();
         auto id_polynomials = proving_key->get_id_polynomials();
         auto wire_polynomials = proving_key->get_wires();
-        for (size_t j = 0; j < StandardHonkComposer::NUM_WIRES; ++j) {
+        for (size_t j = 0; j < StandardHonkComposerHelper::NUM_WIRES; ++j) {
             std::string index = std::to_string(j + 1);
             const auto& permutation_polynomial = permutation_polynomials[j];
             const auto& witness_polynomial = wire_polynomials[j];
@@ -115,29 +114,30 @@ TEST_F(StandardHonkComposerTests, SigmaIDCorrectness)
         EXPECT_EQ(left, right);
     };
 
-    StandardHonkComposer composer = StandardHonkComposer();
+    auto circuit_constructor = StandardCircuitConstructor();
     fr a = fr::one();
-    uint32_t a_idx = composer.add_variable(a);
+    uint32_t a_idx = circuit_constructor.add_variable(a);
     fr b = fr::one();
     fr c = a + b;
-    uint32_t b_idx = composer.add_variable(b);
-    uint32_t c_idx = composer.add_variable(c);
+    uint32_t b_idx = circuit_constructor.add_variable(b);
+    uint32_t c_idx = circuit_constructor.add_variable(c);
     fr d = a + c;
-    uint32_t d_idx = composer.add_public_variable(d);
+    uint32_t d_idx = circuit_constructor.add_public_variable(d);
 
-    uint32_t e_idx = composer.put_constant_variable(d);
-    composer.assert_equal(e_idx, d_idx, "");
+    uint32_t e_idx = circuit_constructor.put_constant_variable(d);
+    circuit_constructor.assert_equal(e_idx, d_idx, "");
 
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ b_idx, a_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    circuit_constructor.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+    circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    circuit_constructor.create_add_gate({ b_idx, a_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     for (size_t i = 0; i < 30; ++i) {
-        composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     }
 
-    test_permutation(composer);
+    auto composer = StandardHonkComposerHelper();
+    test_permutation(circuit_constructor, composer);
 }
 
 /**
@@ -146,22 +146,25 @@ TEST_F(StandardHonkComposerTests, SigmaIDCorrectness)
  */
 TEST_F(StandardHonkComposerTests, LagrangeCorrectness)
 {
-    // Create a composer and a dummy circuit with a few gates
-    StandardHonkComposer composer = StandardHonkComposer();
+    // Create a dummy circuit with a few gates
+    auto circuit_constructor = StandardCircuitConstructor();
     fr a = fr::one();
-    uint32_t a_idx = composer.add_variable(a);
+    uint32_t a_idx = circuit_constructor.add_variable(a);
     fr b = fr::one();
     fr c = a + b;
     fr d = a + c;
-    uint32_t b_idx = composer.add_variable(b);
-    uint32_t c_idx = composer.add_variable(c);
-    uint32_t d_idx = composer.add_variable(d);
+    uint32_t b_idx = circuit_constructor.add_variable(b);
+    uint32_t c_idx = circuit_constructor.add_variable(c);
+    uint32_t d_idx = circuit_constructor.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-        composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+        circuit_constructor.create_add_gate(
+            { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
     }
+
     // Generate proving key
-    auto proving_key = composer.compute_proving_key();
+    auto composer = StandardHonkComposerHelper();
+    auto proving_key = composer.compute_proving_key(circuit_constructor);
     // Generate a random polynomial
     barretenberg::polynomial random_polynomial = barretenberg::polynomial(proving_key->circuit_size);
     for (size_t i = 0; i < proving_key->circuit_size; i++) {
@@ -200,17 +203,19 @@ TEST_F(StandardHonkComposerTests, AssertEquals)
      * @brief A function that creates a simple circuit with repeated gates, leading to large permutation cycles
      *
      */
-    auto create_simple_circuit = [](auto& composer) {
+    auto create_simple_circuit = [](auto& circuit_constructor) {
         fr a = fr::one();
-        uint32_t a_idx = composer.add_variable(a);
+        uint32_t a_idx = circuit_constructor.add_variable(a);
         fr b = fr::one();
         fr c = a + b;
-        uint32_t b_idx = composer.add_variable(b);
-        uint32_t c_idx = composer.add_variable(c);
+        uint32_t b_idx = circuit_constructor.add_variable(b);
+        uint32_t c_idx = circuit_constructor.add_variable(c);
 
         for (size_t i = 0; i < 10; i++) {
-            composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-            composer.create_add_gate({ b_idx, a_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+            circuit_constructor.create_add_gate(
+                { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+            circuit_constructor.create_add_gate(
+                { b_idx, a_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
         }
         return std::make_tuple(a_idx, b_idx);
     };
@@ -218,9 +223,9 @@ TEST_F(StandardHonkComposerTests, AssertEquals)
      * @brief A function that computes the largest cycle from the sigma permutation generated by the composer
      *
      */
-    auto get_maximum_cycle = [](auto& composer) {
+    auto get_maximum_cycle = [](auto& circuit_constructor, auto& composer) {
         // Compute the proving key for sigma polynomials
-        auto proving_key = composer.compute_proving_key();
+        auto proving_key = composer.compute_proving_key(circuit_constructor);
         auto permutation_length = composer.NUM_WIRES * proving_key->circuit_size;
         auto sigma_polynomials = proving_key->get_sigma_polynomials();
 
@@ -272,56 +277,63 @@ TEST_F(StandardHonkComposerTests, AssertEquals)
     };
 
     // Get 2 circuits
-    StandardHonkComposer composer_no_assert_equal = StandardHonkComposer();
-    StandardHonkComposer composer_with_assert_equal = StandardHonkComposer();
+    auto circuit_constructor_no_assert_equal = StandardCircuitConstructor();
+    auto circuit_constructor_with_assert_equal = StandardCircuitConstructor();
 
     // Construct circuits
-    create_simple_circuit(composer_no_assert_equal);
-    auto assert_eq_params = create_simple_circuit(composer_with_assert_equal);
+    create_simple_circuit(circuit_constructor_no_assert_equal);
+    auto assert_eq_params = create_simple_circuit(circuit_constructor_with_assert_equal);
 
     // Use assert_equal on one of them
-    composer_with_assert_equal.assert_equal(std::get<0>(assert_eq_params),
-                                            std::get<1>(assert_eq_params),
-                                            "Equality asssertion in standard honk composer test");
+    circuit_constructor_with_assert_equal.assert_equal(std::get<0>(assert_eq_params),
+                                                       std::get<1>(assert_eq_params),
+                                                       "Equality asssertion in standard honk composer test");
 
     // Check that the maximum cycle in the one, where we used assert_equal, is twice as long
-    EXPECT_EQ(get_maximum_cycle(composer_with_assert_equal), get_maximum_cycle(composer_no_assert_equal) * 2);
+    auto composer_no_assert_equal = StandardHonkComposerHelper();
+    auto composer_with_assert_equal = StandardHonkComposerHelper();
+    EXPECT_EQ(get_maximum_cycle(circuit_constructor_with_assert_equal, composer_with_assert_equal),
+              get_maximum_cycle(circuit_constructor_no_assert_equal, composer_no_assert_equal) * 2);
 }
 
 TEST_F(StandardHonkComposerTests, VerificationKeyCreation)
 {
 
     // Create a composer and a dummy circuit with a few gates
-    StandardHonkComposer composer = StandardHonkComposer();
+    auto circuit_constructor = StandardCircuitConstructor();
     fr a = fr::one();
-    uint32_t a_idx = composer.add_variable(a);
+    uint32_t a_idx = circuit_constructor.add_variable(a);
     fr b = fr::one();
     fr c = a + b;
     fr d = a + c;
-    uint32_t b_idx = composer.add_variable(b);
-    uint32_t c_idx = composer.add_variable(c);
-    uint32_t d_idx = composer.add_variable(d);
+    uint32_t b_idx = circuit_constructor.add_variable(b);
+    uint32_t c_idx = circuit_constructor.add_variable(c);
+    uint32_t d_idx = circuit_constructor.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-        composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+        circuit_constructor.create_add_gate(
+            { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
     }
-    composer.create_prover();
-    auto verification_key = composer.compute_verification_key();
+
+    auto composer = StandardHonkComposerHelper();
+    composer.create_prover(circuit_constructor);
+    auto verification_key = composer.compute_verification_key(circuit_constructor);
     // There is nothing we can really check apart from the fact that constraint selectors and permutation selectors were
     // committed to, we simply check that the verification key now contains the appropriate number of constraint and
     // permutation selector commitments. This method should work with any future arithemtization.
-    EXPECT_EQ(verification_key->size(), composer.circuit_constructor.selectors.size() + composer.NUM_WIRES * 2 + 2);
+    EXPECT_EQ(verification_key->size(), circuit_constructor.selectors.size() + composer.NUM_WIRES * 2 + 2);
 }
 
 TEST_F(StandardHonkComposerTests, BaseCase)
 {
-    auto composer = StandardHonkComposer();
+    auto circuit_constructor = StandardCircuitConstructor();
     fr a = 1;
-    composer.circuit_constructor.add_variable(a);
+    circuit_constructor.add_variable(a);
 
-    auto prover = composer.create_prover();
+    auto composer = StandardHonkComposerHelper();
+    auto prover = composer.create_prover(circuit_constructor);
     auto proof = prover.construct_proof();
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier(circuit_constructor);
     bool verified = verifier.verify_proof(proof);
     ASSERT_TRUE(verified);
 }
@@ -329,29 +341,29 @@ TEST_F(StandardHonkComposerTests, BaseCase)
 TEST_F(StandardHonkComposerTests, TwoGates)
 {
     auto run_test = [](bool expect_verified) {
-        auto composer = StandardHonkComposer();
-
+        auto circuit_constructor = StandardCircuitConstructor();
         // 1 + 1 - 2 = 0
         uint32_t w_l_1_idx;
         if (expect_verified) {
-            w_l_1_idx = composer.circuit_constructor.add_variable(1);
+            w_l_1_idx = circuit_constructor.add_variable(1);
         } else {
-            w_l_1_idx = composer.circuit_constructor.add_variable(0);
+            w_l_1_idx = circuit_constructor.add_variable(0);
         }
-        uint32_t w_r_1_idx = composer.circuit_constructor.add_variable(1);
-        uint32_t w_o_1_idx = composer.circuit_constructor.add_variable(2);
-        composer.create_add_gate({ w_l_1_idx, w_r_1_idx, w_o_1_idx, 1, 1, -1, 0 });
+        uint32_t w_r_1_idx = circuit_constructor.add_variable(1);
+        uint32_t w_o_1_idx = circuit_constructor.add_variable(2);
+        circuit_constructor.create_add_gate({ w_l_1_idx, w_r_1_idx, w_o_1_idx, 1, 1, -1, 0 });
 
         // 2 * 2 - 4 = 0
-        uint32_t w_l_2_idx = composer.circuit_constructor.add_variable(2);
-        uint32_t w_r_2_idx = composer.circuit_constructor.add_variable(2);
-        uint32_t w_o_2_idx = composer.circuit_constructor.add_variable(4);
-        composer.create_mul_gate({ w_l_2_idx, w_r_2_idx, w_o_2_idx, 1, -1, 0 });
+        uint32_t w_l_2_idx = circuit_constructor.add_variable(2);
+        uint32_t w_r_2_idx = circuit_constructor.add_variable(2);
+        uint32_t w_o_2_idx = circuit_constructor.add_variable(4);
+        circuit_constructor.create_mul_gate({ w_l_2_idx, w_r_2_idx, w_o_2_idx, 1, -1, 0 });
 
-        auto prover = composer.create_prover();
+        auto composer = StandardHonkComposerHelper();
+        auto prover = composer.create_prover(circuit_constructor);
 
         auto proof = prover.construct_proof();
-        auto verifier = composer.create_verifier();
+        auto verifier = composer.create_verifier(circuit_constructor);
         bool verified = verifier.verify_proof(proof);
         EXPECT_EQ(verified, expect_verified);
     };
@@ -363,10 +375,10 @@ TEST_F(StandardHonkComposerTests, TwoGates)
 TEST_F(StandardHonkComposerTests, SumcheckEvaluations)
 {
     auto run_test = [](bool expected_result) {
-        auto composer = StandardHonkComposer();
+        auto circuit_constructor = StandardCircuitConstructor();
         fr a = fr::one();
         // Construct a small but non-trivial circuit
-        uint32_t a_idx = composer.add_public_variable(a);
+        uint32_t a_idx = circuit_constructor.add_public_variable(a);
         fr b = fr::one();
         fr c = a + b;
         fr d = a + c;
@@ -375,17 +387,20 @@ TEST_F(StandardHonkComposerTests, SumcheckEvaluations)
             d += 1;
         };
 
-        uint32_t b_idx = composer.add_variable(b);
-        uint32_t c_idx = composer.add_variable(c);
-        uint32_t d_idx = composer.add_variable(d);
+        uint32_t b_idx = circuit_constructor.add_variable(b);
+        uint32_t c_idx = circuit_constructor.add_variable(c);
+        uint32_t d_idx = circuit_constructor.add_variable(d);
         for (size_t i = 0; i < 16; i++) {
-            composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-            composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+            circuit_constructor.create_add_gate(
+                { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+            circuit_constructor.create_add_gate(
+                { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
         }
-        auto prover = composer.create_prover();
-        auto proof = prover.construct_proof();
 
-        auto verifier = composer.create_verifier();
+        auto composer = StandardHonkComposerHelper();
+        auto prover = composer.create_prover(circuit_constructor);
+        auto proof = prover.construct_proof();
+        auto verifier = composer.create_verifier(circuit_constructor);
         bool verified = verifier.verify_proof(proof);
         ASSERT_EQ(verified, expected_result);
     };
@@ -394,13 +409,14 @@ TEST_F(StandardHonkComposerTests, SumcheckEvaluations)
 }
 TEST(StandardGrumpkinHonkComposer, BaseCase)
 {
-    auto composer = StandardGrumpkinHonkComposer();
+    auto circuit_constructor = StandardCircuitConstructor();
     fr a = 1;
-    composer.circuit_constructor.add_variable(a);
+    circuit_constructor.add_variable(a);
 
-    auto prover = composer.create_prover();
+    auto composer = StandardGrumpkinHonkComposerHelper();
+    auto prover = composer.create_prover(circuit_constructor);
     auto proof = prover.construct_proof();
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier(circuit_constructor);
     bool verified = verifier.verify_proof(proof);
     ASSERT_TRUE(verified);
 }

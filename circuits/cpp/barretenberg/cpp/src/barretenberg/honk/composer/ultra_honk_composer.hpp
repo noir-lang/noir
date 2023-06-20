@@ -78,8 +78,6 @@ template <class Flavor> class UltraHonkComposer_ {
 
     barretenberg::fr get_variable(const uint32_t index) const { return circuit_constructor.get_variable(index); }
 
-    void finalize_circuit() { circuit_constructor.finalize_circuit(); };
-
     UltraProver_<Flavor> create_prover() { return composer_helper.create_prover(circuit_constructor); };
     UltraVerifier_<Flavor> create_verifier() { return composer_helper.create_verifier(circuit_constructor); };
 

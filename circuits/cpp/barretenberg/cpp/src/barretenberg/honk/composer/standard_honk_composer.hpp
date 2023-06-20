@@ -191,6 +191,8 @@ template <class Flavor> class StandardHonkComposer_ {
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
 };
+
+// TODO(#532): These using declarations instantiate the templates?
 using StandardHonkComposer = StandardHonkComposer_<flavor::Standard>;
 using StandardGrumpkinHonkComposer = StandardHonkComposer_<flavor::StandardGrumpkin>;
 } // namespace proof_system::honk

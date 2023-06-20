@@ -42,7 +42,7 @@ template <typename Curve> struct aggregation_state {
     void assign_object_to_proof_outputs()
     {
         if (proof_witness_indices.size() == 0) {
-            std::cerr << "warning. calling `add_proof_outputs_as_public_inputs`, but aggregation object already has "
+            std::cerr << "warning. calling `assign_object_to_proof_outputs`, but aggregation object already has "
                          "assigned proof outputs to public inputs.";
             return;
         }
@@ -70,6 +70,8 @@ template <typename Curve> struct aggregation_state {
 
         auto* context = P0.get_context();
 
+        context->check_circuit();
+        info("checked circuit before add_recursive_proof");
         context->add_recursive_proof(proof_witness_indices);
     }
 };

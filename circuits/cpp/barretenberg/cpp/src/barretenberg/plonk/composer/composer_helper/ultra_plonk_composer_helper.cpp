@@ -165,7 +165,7 @@ void UltraPlonkComposerHelper::compute_witness(CircuitConstructor& circuit_const
 
 UltraProver UltraPlonkComposerHelper::create_prover(CircuitConstructor& circuit_constructor)
 {
-    finalize_circuit(circuit_constructor);
+    circuit_constructor.finalize_circuit();
 
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
@@ -211,7 +211,7 @@ UltraProver UltraPlonkComposerHelper::create_prover(CircuitConstructor& circuit_
  */
 UltraToStandardProver UltraPlonkComposerHelper::create_ultra_to_standard_prover(CircuitConstructor& circuit_constructor)
 {
-    finalize_circuit(circuit_constructor);
+    circuit_constructor.finalize_circuit();
 
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
@@ -257,7 +257,7 @@ UltraToStandardProver UltraPlonkComposerHelper::create_ultra_to_standard_prover(
  */
 UltraWithKeccakProver UltraPlonkComposerHelper::create_ultra_with_keccak_prover(CircuitConstructor& circuit_constructor)
 {
-    finalize_circuit(circuit_constructor);
+    circuit_constructor.finalize_circuit();
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 

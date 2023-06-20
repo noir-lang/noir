@@ -136,7 +136,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             verification_key_pt::from_witness(&outer_composer, verification_key_native);
 
         info("Constructing the ultra (inner) proof ...");
-        plonk::proof recursive_proof = prover.construct_proof();
+        plonk::proof proof_to_recursively_verify = prover.construct_proof();
 
         {
             // Native check is mainly for comparison vs circuit version of the verifier.
@@ -150,7 +150,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             }
 
             info("Verifying the ultra (inner) proof natively...");
-            auto native_result = native_verifier.verify_proof(recursive_proof);
+            auto native_result = native_verifier.verify_proof(proof_to_recursively_verify);
 
             info("Native result: ", native_result);
         }
@@ -160,7 +160,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         info("Verifying the ultra (inner) proof with CIRCUIT TYPES (i.e. within a standard plonk arithmetic circuit):");
         stdlib::recursion::aggregation_state<outer_curve> output =
             stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
-                &outer_composer, verification_key, recursive_manifest, recursive_proof);
+                &outer_composer, verification_key, recursive_manifest, proof_to_recursively_verify);
 
         return { output, verification_key };
     };
@@ -188,13 +188,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         std::shared_ptr<verification_key_pt> verification_key =
             verification_key_pt::from_witness(&outer_composer, verification_key_native);
 
-        plonk::proof recursive_proof_a = prover.construct_proof();
+        plonk::proof proof_to_recursively_verify_a = prover.construct_proof();
 
         transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
 
         stdlib::recursion::aggregation_state<outer_curve> previous_output =
             stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
-                &outer_composer, verification_key, recursive_manifest, recursive_proof_a);
+                &outer_composer, verification_key, recursive_manifest, proof_to_recursively_verify_a);
 
         if constexpr (is_ultra_to_ultra) {
             prover = inner_composer_b.create_prover();
@@ -206,11 +206,14 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         std::shared_ptr<verification_key_pt> verification_key_b =
             verification_key_pt::from_witness(&outer_composer, verification_key_b_raw);
 
-        plonk::proof recursive_proof_b = prover.construct_proof();
+        plonk::proof proof_to_recursively_verify_b = prover.construct_proof();
 
         stdlib::recursion::aggregation_state<outer_curve> output =
-            stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
-                &outer_composer, verification_key_b, recursive_manifest, recursive_proof_b, previous_output);
+            stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(&outer_composer,
+                                                                            verification_key_b,
+                                                                            recursive_manifest,
+                                                                            proof_to_recursively_verify_b,
+                                                                            previous_output);
 
         verification_key_b->compress();
         verification_key->compress();

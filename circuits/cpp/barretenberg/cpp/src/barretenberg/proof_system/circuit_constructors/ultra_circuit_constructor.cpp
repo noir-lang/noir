@@ -58,8 +58,7 @@ void UltraCircuitConstructor::finalize_circuit()
  */
 // TODO(#423): This function adds valid (but arbitrary) gates to ensure that the circuit which includes
 // them will not result in any zero-polynomials. It also ensures that the first coefficient of the wire
-// polynomials is zero, which is required for them to be shiftable. Its currently wildly inefficient
-// (~16k gates) mostly due to the lookups it includes.
+// polynomials is zero, which is required for them to be shiftable.
 // TODO(#423)(luke): Add 0 as a PI since PI always start at the 0th index of the wire polynomials?
 // TODO(luke): may need to reevaluate once aux relation is implemented
 void UltraCircuitConstructor::add_gates_to_ensure_all_polys_are_non_zero()

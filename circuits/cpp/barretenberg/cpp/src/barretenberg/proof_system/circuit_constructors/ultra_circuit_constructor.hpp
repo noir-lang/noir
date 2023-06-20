@@ -1179,7 +1179,6 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
                                      fr alpha_base,
                                      fr alpha) const;
 
-    void update_circuit_in_the_head();
     bool check_circuit();
 };
 } // namespace proof_system

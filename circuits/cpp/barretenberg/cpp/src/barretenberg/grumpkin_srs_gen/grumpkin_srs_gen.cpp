@@ -7,9 +7,12 @@
 #include "barretenberg/common/net.hpp"
 
 const std::string protocol_name = "BARRETENBERG_GRUMPKIN_IPA_CRS";
-/* Generates a monomial basis Grumpkin SRS for testing purposes.
-   We only provide functionality create a single transcript file.
-   The SRS has the form [1]_1, [x]_1, [x^2]_1, ... where x = 2. */
+/**
+ * @brief Generates a monomial basis Grumpkin SRS.
+ *
+ * @details We only provide functionality create a single transcript file.
+ *
+ */
 int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);

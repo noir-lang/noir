@@ -73,8 +73,10 @@ template <StandardFlavor Flavor> class StandardHonkComposerHelper_ {
         commitment_key = std::make_shared<typename PCSParams::CommitmentKey>(circuit_size, crs_factory_);
     };
 };
+
 extern template class StandardHonkComposerHelper_<honk::flavor::Standard>;
 extern template class StandardHonkComposerHelper_<honk::flavor::StandardGrumpkin>;
+// TODO(#532): this pattern is weird; is this not instantiating the templates?
 using StandardHonkComposerHelper = StandardHonkComposerHelper_<honk::flavor::Standard>;
-
+using StandardGrumpkinHonkComposerHelper = StandardHonkComposerHelper_<honk::flavor::StandardGrumpkin>;
 } // namespace proof_system::honk

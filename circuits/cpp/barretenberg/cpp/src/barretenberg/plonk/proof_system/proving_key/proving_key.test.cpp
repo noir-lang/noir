@@ -2,8 +2,10 @@
 #include "barretenberg/common/streams.hpp"
 #include "proving_key.hpp"
 #include "serialize.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 
 #ifndef __wasm__
 #include <filesystem>
@@ -11,15 +13,17 @@
 
 using namespace barretenberg;
 using namespace proof_system;
+using namespace proof_system::plonk;
 
 // Test proving key serialization/deserialization to/from buffer
 TEST(proving_key, proving_key_from_serialized_key)
 {
-    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
+    auto builder = StandardCircuitConstructor();
+    auto composer = StandardPlonkComposerHelper();
     fr a = fr::one();
-    composer.add_public_variable(a);
+    builder.add_public_variable(a);
 
-    plonk::proving_key& p_key = *composer.compute_proving_key();
+    plonk::proving_key& p_key = *composer.compute_proving_key(builder);
     auto pk_buf = to_buffer(p_key);
     auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
     auto crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
@@ -51,11 +55,12 @@ TEST(proving_key, proving_key_from_serialized_key)
 // Test proving key serialization/deserialization to/from buffer using UltraPlonkComposer
 TEST(proving_key, proving_key_from_serialized_key_ultra)
 {
-    plonk::UltraPlonkComposer composer = plonk::UltraPlonkComposer();
+    auto builder = UltraCircuitConstructor();
+    auto composer = UltraPlonkComposerHelper();
     fr a = fr::one();
-    composer.add_public_variable(a);
+    builder.add_public_variable(a);
 
-    plonk::proving_key& p_key = *composer.compute_proving_key();
+    plonk::proving_key& p_key = *composer.compute_proving_key(builder);
     auto pk_buf = to_buffer(p_key);
     auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
     auto crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
@@ -89,9 +94,8 @@ TEST(proving_key, proving_key_from_serialized_key_ultra)
 #ifndef __wasm__
 TEST(proving_key, proving_key_from_mmaped_key)
 {
-    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
-    fr a = fr::one();
-    composer.add_public_variable(a);
+        builder coStandardCircuitConstructor = StandardPlonkComposerHelper();auto composer =
+StandardPlonkComposerHelper(); fr a = fr::one(); builder.add_public_variable(a);
 
     // Write each precomputed polynomial in the proving key to
     // its own file using write_mmap
@@ -116,7 +120,7 @@ TEST(proving_key, proving_key_from_mmaped_key)
     if (!os.good()) {
         std::cerr << "OS failed in composer_from_mmap_keys! \n";
     }
-    plonk::proving_key& p_key = *composer.compute_proving_key();
+    plonk::proving_key& p_key = *composer.compute_proving_key(builder);
     write_mmap(os, pk_dir, p_key);
     os.close();
 

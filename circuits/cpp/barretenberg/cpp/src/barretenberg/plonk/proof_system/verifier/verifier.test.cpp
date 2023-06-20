@@ -4,7 +4,7 @@
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
 #include "../../../transcript/transcript.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
 #include "verifier.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include <gtest/gtest.h>
@@ -58,7 +58,7 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
     circuit_verification_key->commitments.insert({ "SIGMA_2", commitments[6] });
     circuit_verification_key->commitments.insert({ "SIGMA_3", commitments[7] });
 
-    Verifier verifier(circuit_verification_key, plonk::StandardPlonkComposer::create_manifest(0));
+    Verifier verifier(circuit_verification_key, plonk::StandardPlonkComposerHelper::create_manifest(0));
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
@@ -233,7 +233,7 @@ plonk::Prover generate_test_data(const size_t n)
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
 
-    plonk::Prover state = plonk::Prover(std::move(key), plonk::StandardPlonkComposer::create_manifest(0));
+    plonk::Prover state = plonk::Prover(std::move(key), plonk::StandardPlonkComposerHelper::create_manifest(0));
     state.random_widgets.emplace_back(std::move(permutation_widget));
     state.transition_widgets.emplace_back(std::move(widget));
     state.commitment_scheme = std::move(kate_commitment_scheme);
