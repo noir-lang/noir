@@ -8,18 +8,23 @@ pub(crate) fn directive_invert() -> Vec<BrilligOpcode> {
     // }
 
     // The input argument, ie the value that will be inverted.
+    // We store the result in this register too.
     let input = RegisterIndex::from(0);
+    let one_const = RegisterIndex::from(1);
+    // Location of the stop opcode
+    let stop_location = 3;
+
     vec![
         // If the input is zero, then we jump to the stop opcode
-        BrilligOpcode::JumpIfNot { condition: input, location: 3 },
-        // put value one in register (1)
-        BrilligOpcode::Const { destination: RegisterIndex::from(1), value: Value::from(1_usize) },
+        BrilligOpcode::JumpIfNot { condition: input, location: stop_location },
+        // Put value one in register (1)
+        BrilligOpcode::Const { destination: one_const, value: Value::from(1_usize) },
         // Divide 1 by the input, and set the result of the division into register (0)
         BrilligOpcode::BinaryFieldOp {
             op: BinaryFieldOp::Div,
-            lhs: RegisterIndex::from(1),
+            lhs: one_const,
             rhs: input,
-            destination: RegisterIndex::from(0),
+            destination: input,
         },
         BrilligOpcode::Stop,
     ]
