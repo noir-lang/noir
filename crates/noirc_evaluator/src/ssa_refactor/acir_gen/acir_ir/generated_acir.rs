@@ -1,5 +1,7 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
+use crate::brillig::brillig_gen::brillig_directive;
+
 use super::errors::AcirGenError;
 use acvm::acir::{
     brillig_vm::Opcode as BrilligOpcode,
@@ -467,28 +469,23 @@ impl GeneratedAcir {
         self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
     }
 
-    /// Adds an inversion directive.
+    /// Adds an inversion brillig opcode.
     ///
-    /// This directive will invert `expr` without applying constraints
+    /// This code will invert `expr` without applying constraints
     /// and return a `Witness` which may or may not be the result of
     /// inverting `expr`.
     ///
     /// Safety: It is the callers responsibility to ensure that the
     /// resulting `Witness` is constrained to be the inverse.
-    pub(crate) fn directive_inverse(&mut self, expr: &Expression) -> Witness {
-        // The inversion directive requires that
-        // the inputs be Witness, so we need this potential extra
-        // reduction constraint.
-        // Note: changing this in ACIR would allow us to remove it
-        let witness = self.get_or_create_witness(expr);
-
+    pub(crate) fn brillig_inverse(&mut self, expr: &Expression) -> Witness {
         // Create the witness for the result
         let inverted_witness = self.next_witness_index();
 
-        self.push_opcode(AcirOpcode::Directive(Directive::Invert {
-            x: witness,
-            result: inverted_witness,
-        }));
+        // Compute the inverse with brillig code
+        let inverse_code = brillig_directive::directive_invert();
+        let inputs = vec![BrilligInputs::Single(expr.clone())];
+        let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
+        self.brillig(inverse_code, inputs, outputs);
 
         inverted_witness
     }
@@ -572,7 +569,7 @@ impl GeneratedAcir {
 
         // Call the inversion directive, since we do not apply a constraint
         // the prover can choose anything here.
-        let z = self.directive_inverse(&Expression::from(t_witness));
+        let z = self.brillig_inverse(&Expression::from(t_witness));
 
         let y = self.next_witness_index();
 
