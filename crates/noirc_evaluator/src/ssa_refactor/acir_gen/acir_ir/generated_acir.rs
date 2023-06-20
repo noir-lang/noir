@@ -358,20 +358,20 @@ impl GeneratedAcir {
     }
 
     /// Generate constraints that are satisfied iff
-    /// a < b , when offset is 1, or
-    /// a <= b, when offset is 0
+    /// lhs < rhs , when offset is 1, or
+    /// lhs <= rhs, when offset is 0
     /// bits is the bit size of a and b (or an upper bound of the bit size)
     ///
-    /// a<=b is done by constraining b-a to a bit size of 'bits':
-    /// if a<=b, 0 <= b-a <= b < 2^bits
-    /// if a>b, b-a = p+b-a > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
-    /// n.b: we do NOT check here that a and b are indeed 'bits' size
-    /// a < b <=> a+1<=b
+    /// lhs<=rhs is done by constraining b-a to a bit size of 'bits':
+    /// if lhs<=rhs, 0 <= rhs-lhs <= b < 2^bits
+    /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
+    /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
+    /// lhs < rhs <=> a+1<=b
     /// TODO: Consolidate this with bounds_check function.
     fn bound_constraint_with_offset(
         &mut self,
-        a: &Expression,
-        b: &Expression,
+        lhs: &Expression,
+        rhs: &Expression,
         offset: &Expression,
         bits: u32,
     ) -> Result<(), AcirGenError> {
@@ -392,55 +392,34 @@ impl GeneratedAcir {
             "range check with bit size of the prime field is not implemented yet"
         );
 
-        let mut aof = a + offset;
+        let mut lhs_offset = lhs + offset;
 
-        if b.is_const() && b.q_c.fits_in_u128() {
-            let f = if *offset == Expression::one() {
-                aof = a.clone();
-                assert!(b.q_c.to_u128() >= 1);
-                b.q_c.to_u128() - 1
+        // Optimization when rhs is const and fits within a u128
+        if rhs.is_const() && rhs.q_c.fits_in_u128() {
+            // We try to move the offset to rhs
+            let rhs_offset = if *offset == Expression::one() && rhs.q_c.to_u128() >= 1 {
+                lhs_offset = lhs.clone();
+                rhs.q_c.to_u128() - 1
             } else {
-                b.q_c.to_u128()
+                rhs.q_c.to_u128()
             };
+            // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
-            if f < 3 {
-                match f {
-                    0 => self.push_opcode(AcirOpcode::Arithmetic(aof)),
-                    1 => {
-                        let expr = self.boolean_expr(&aof);
-                        self.push_opcode(AcirOpcode::Arithmetic(expr));
-                    }
-                    2 => {
-                        let aof_boolean_expr = self.boolean_expr(&aof);
-                        let y = self.create_witness_for_expression(&aof_boolean_expr);
-                        let neg_two = -FieldElement::from(2_i128);
-
-                        let aof_witness = self.create_witness_for_expression(&aof);
-                        let mut eee = Expression::default();
-                        eee.push_multiplication_term(FieldElement::one(), y, aof_witness);
-                        eee.push_addition_term(neg_two, y);
-
-                        self.push_opcode(AcirOpcode::Arithmetic(eee));
-                    }
-                    _ => unreachable!(),
-                }
-                return Ok(());
-            }
-            let bit_size = bit_size_u128(f);
-            if bit_size < 128 {
-                let r = (1_u128 << bit_size) - f - 1;
-                assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure a+r does not overflow
-
-                let mut aor = aof.clone();
-                aor.q_c += FieldElement::from(r);
-
-                let witness = self.create_witness_for_expression(&aor);
-                self.range_constraint(witness, bit_size)?;
-                return Ok(());
-            }
+            let bit_size = bit_size_u128(rhs_offset);
+            // r = 2^bit_size - rhs_offset
+            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            // witness = lhs_offset + r
+            assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+            let mut aor = lhs_offset;
+            aor.q_c += FieldElement::from(r);
+            let witness = self.create_witness_for_expression(&aor);
+            // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
+            self.range_constraint(witness, bit_size)?;
+            return Ok(());
         }
 
-        let sub_expression = b - &aof; //b-(a+offset)
+        // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
+        let sub_expression = rhs - &lhs_offset; //rhs-lhs_offset
         let w = self.create_witness_for_expression(&sub_expression);
         self.range_constraint(w, bits)?;
 
