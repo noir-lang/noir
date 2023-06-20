@@ -53,14 +53,14 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
-    /// Returns a user defined (non-reserved) register index.
-    fn user_register_index(index: usize) -> RegisterIndex {
-        RegisterIndex::from(index + ReservedRegisters::len())
-    }
-
     /// Returns the stack pointer register. This will get used to allocate memory in runtime.
     pub(crate) fn stack_pointer() -> RegisterIndex {
         RegisterIndex::from(ReservedRegisters::StackPointer as usize)
+    }
+
+    /// Returns a user defined (non-reserved) register index.
+    fn user_register_index(index: usize) -> RegisterIndex {
+        RegisterIndex::from(index + ReservedRegisters::len())
     }
 }
 
@@ -589,7 +589,7 @@ impl BrilligContext {
     }
 
     /// Adds a unresolved external `Call` instruction to the bytecode.
-    /// This calls into another function compiled into this brillig artefact.
+    /// This calls into another function compiled into this brillig artifact.
     pub(crate) fn add_external_call_instruction<T: ToString>(&mut self, func_label: T) {
         debug_show::add_external_call_instruction(func_label.to_string());
         self.obj.add_unresolved_external_call(
