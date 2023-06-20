@@ -1,7 +1,10 @@
 pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
-use self::{brillig_gen::convert_ssa_function, brillig_ir::artifact::BrilligArtifact};
+use self::{
+    brillig_gen::{brillig_fn::FunctionContext, convert_ssa_function},
+    brillig_ir::artifact::{BrilligArtifact, Label},
+};
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
@@ -15,7 +18,7 @@ use std::collections::HashMap;
 /// It stores brillig-related data required for brillig generation.
 #[derive(Default)]
 pub struct Brillig {
-    /// Maps SSA functions to their brillig opcode
+    /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact>,
     /// Maps SSA functions to their entry block
     ssa_function_to_block: HashMap<FunctionId, BasicBlockId>,
@@ -28,8 +31,15 @@ impl Brillig {
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
-    pub(crate) fn function_label(&self, id: FunctionId) -> String {
-        id.to_string() + "-" + &self.ssa_function_to_block[&id].to_string()
+    /// Finds a brillig function artifact by its function label
+    pub(crate) fn find_by_function_label(&self, function_label: Label) -> Option<&BrilligArtifact> {
+        self.ssa_function_to_brillig.iter().find_map(|(function_id, obj)| {
+            if FunctionContext::function_id_to_function_label(*function_id) == function_label {
+                Some(obj)
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -43,17 +53,18 @@ impl std::ops::Index<FunctionId> for Brillig {
 impl Ssa {
     /// Generate compilation artifacts for brillig functions
     pub(crate) fn to_brillig(&self) -> Brillig {
-        let mut brillig = Brillig::default();
-        for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
-            brillig.ssa_function_to_block.insert(f.id(), f.entry_block());
-        }
+        // Collect all of the brillig functions
+        let brillig_functions =
+            self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig);
 
-        for f in self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig) {
-            let id = f.id();
-            if id != self.main_id {
-                brillig.compile(f);
+        let mut brillig = Brillig::default();
+        for brillig_function in brillig_functions {
+            // TODO: document why we are skipping the `main_id` for Brillig functions
+            if brillig_function.id() != self.main_id {
+                brillig.compile(brillig_function);
             }
         }
+
         brillig
     }
 }
