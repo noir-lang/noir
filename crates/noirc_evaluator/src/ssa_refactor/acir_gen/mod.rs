@@ -221,8 +221,14 @@ impl Context {
                 }
             }
             Instruction::Not(value_id) => {
-                let boolean_var = self.convert_numeric_value(*value_id, dfg);
-                let result_acir_var = self.acir_context.not_var(boolean_var);
+                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
+                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
+                    _ => unreachable!("NOT is only applied to numerics"),
+                };
+                let result_acir_var = self
+                    .acir_context
+                    .not_var(acir_var, typ)
+                    .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
