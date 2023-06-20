@@ -6,10 +6,7 @@ use self::{
     brillig_ir::artifact::{BrilligArtifact, Label},
 };
 use crate::ssa_refactor::{
-    ir::{
-        basic_block::BasicBlockId,
-        function::{Function, FunctionId, RuntimeType},
-    },
+    ir::function::{Function, FunctionId, RuntimeType},
     ssa_gen::Ssa,
 };
 use std::collections::HashMap;
@@ -20,8 +17,6 @@ use std::collections::HashMap;
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact>,
-    /// Maps SSA functions to their entry block
-    ssa_function_to_block: HashMap<FunctionId, BasicBlockId>,
 }
 
 impl Brillig {

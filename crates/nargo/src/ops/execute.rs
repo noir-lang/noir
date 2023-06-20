@@ -1,4 +1,3 @@
-use acvm::acir::brillig_vm::ForeignCallResult;
 use acvm::acir::circuit::Opcode;
 use acvm::pwg::{solve, Blocks, PartialWitnessGeneratorStatus, UnresolvedBrilligCall};
 use acvm::PartialWitnessGenerator;
@@ -34,9 +33,7 @@ pub fn execute_circuit(
             if foreign_call_wait_info.function == "oracle_print_impl" {
                 let values = &foreign_call_wait_info.inputs[0];
                 println!("{:?}", values[0].to_field().to_hex());
-                brillig.foreign_call_results.push(ForeignCallResult {
-                    values: vec![vec![foreign_call_wait_info.inputs[0][0]]],
-                });
+                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
             } else if foreign_call_wait_info.function == "oracle_print_array_impl" {
                 let mut outputs_hex = Vec::new();
                 for value in foreign_call_wait_info.inputs.clone() {
@@ -46,9 +43,7 @@ pub fn execute_circuit(
                 let comma_separated_elements = outputs_hex.join(", ");
                 let output_witnesses_string = "[".to_owned() + &comma_separated_elements + "]";
                 println!("{output_witnesses_string}");
-                brillig.foreign_call_results.push(ForeignCallResult {
-                    values: vec![vec![foreign_call_wait_info.inputs[0][0]]],
-                });
+                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
             }
 
             let mut next_opcodes_for_solving = vec![Opcode::Brillig(brillig)];
