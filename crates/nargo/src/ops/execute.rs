@@ -1,3 +1,4 @@
+use acvm::acir::brillig_vm::ForeignCallResult;
 use acvm::acir::circuit::Opcode;
 use acvm::pwg::{solve, Blocks, PartialWitnessGeneratorStatus, UnresolvedBrilligCall};
 use acvm::PartialWitnessGenerator;
@@ -31,26 +32,23 @@ pub fn execute_circuit(
             // Execute foreign calls
             // TODO(#1615): "oracle_print_impl" and "oracle_print_array_impl" are just identity funcs
             if foreign_call_wait_info.function == "oracle_print_impl" {
-                let value = foreign_call_wait_info.inputs[0][0];
-                println!("{:?}", value.to_field().to_hex());
-                brillig.foreign_call_results.push(value.into());
+                let values = &foreign_call_wait_info.inputs[0];
+                println!("{:?}", values[0].to_field().to_hex());
+                brillig.foreign_call_results.push(ForeignCallResult {
+                    values: vec![vec![foreign_call_wait_info.inputs[0][0]]],
+                });
             } else if foreign_call_wait_info.function == "oracle_print_array_impl" {
-                dbg!(foreign_call_wait_info.clone());
                 let mut outputs_hex = Vec::new();
-                for values in foreign_call_wait_info.inputs.clone() {
-                    for value in values {
-                        outputs_hex.push(value.to_field().to_hex());
-                    }
+                for value in foreign_call_wait_info.inputs.clone() {
+                    outputs_hex.push(value[0].to_field().to_hex());
                 }
                 // Join all of the hex strings using a comma
                 let comma_separated_elements = outputs_hex.join(", ");
                 let output_witnesses_string = "[".to_owned() + &comma_separated_elements + "]";
                 println!("{output_witnesses_string}");
-                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
-            } else if foreign_call_wait_info.function == "oracle_identity" {
-                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
-            } else if foreign_call_wait_info.function == "oracle_identity_array" {
-                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0].clone().into());
+                brillig.foreign_call_results.push(ForeignCallResult {
+                    values: vec![vec![foreign_call_wait_info.inputs[0][0]]],
+                });
             }
 
             let mut next_opcodes_for_solving = vec![Opcode::Brillig(brillig)];

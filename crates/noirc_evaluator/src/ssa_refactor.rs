@@ -28,23 +28,27 @@ pub mod ssa_gen;
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into ACIR and return it.
-pub(crate) fn optimize_into_acir(program: Program, allow_log_ops: bool) -> GeneratedAcir {
-    let ssa = ssa_gen::generate_ssa(program).print("Initial SSA:");
+pub(crate) fn optimize_into_acir(
+    program: Program,
+    allow_log_ops: bool,
+    print_ssa_passes: bool,
+) -> GeneratedAcir {
+    let ssa = ssa_gen::generate_ssa(program).print(print_ssa_passes, "Initial SSA:");
     let brillig = ssa.to_brillig();
     ssa.inline_functions()
-        .print("After Inlining:")
+        .print(print_ssa_passes, "After Inlining:")
         .unroll_loops()
-        .print("After Unrolling:")
+        .print(print_ssa_passes, "After Unrolling:")
         .simplify_cfg()
-        .print("After Simplifying:")
+        .print(print_ssa_passes, "After Simplifying:")
         .flatten_cfg()
-        .print("After Flattening:")
+        .print(print_ssa_passes, "After Flattening:")
         .mem2reg()
-        .print("After Mem2Reg:")
+        .print(print_ssa_passes, "After Mem2Reg:")
         .fold_constants()
-        .print("After Constant Folding:")
+        .print(print_ssa_passes, "After Constant Folding:")
         .dead_instruction_elimination()
-        .print("After Dead Instruction Elimination:")
+        .print(print_ssa_passes, "After Dead Instruction Elimination:")
         .into_acir(brillig, allow_log_ops)
 }
 
@@ -55,12 +59,12 @@ pub fn experimental_create_circuit(
     program: Program,
     np_language: Language,
     is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
-    _enable_logging: bool,
+    enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
-        optimize_into_acir(program, show_output);
+        optimize_into_acir(program, show_output, enable_logging);
 
     let abi = gen_abi(func_sig, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
@@ -92,8 +96,10 @@ pub fn experimental_create_circuit(
 }
 
 impl Ssa {
-    fn print(self, msg: &str) -> Ssa {
-        println!("{msg}\n{self}");
+    fn print(self, print_ssa_passes: bool, msg: &str) -> Ssa {
+        if print_ssa_passes {
+            println!("{msg}\n{self}");
+        }
         self
     }
 }

@@ -17,14 +17,14 @@ default-members = ["crates/nargo_cli"]
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.6.0"
+version = "0.7.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "=0.14.2"
+acvm = "0.15.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -41,9 +41,11 @@ noir_wasm = { path = "crates/wasm" }
 cfg-if = "1.0.0"
 clap = { version = "4.1.4", features = ["derive"] }
 codespan = "0.11.1"
+codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 dirs = "4"
+lsp-types = "0.94"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
 smol_str = "0.1.17"
@@ -55,5 +57,9 @@ wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
+<<<<<<< HEAD
 acvm = { git = "https://github.com/noir-lang/acvm.git", rev = "dcb94edeefedf0b743468f4e74964d313aa421fb" }
 
+=======
+async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "9fc2db84ddcda291a864f044657f68d4377557f7" }
+>>>>>>> origin

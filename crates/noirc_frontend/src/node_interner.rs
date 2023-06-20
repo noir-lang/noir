@@ -9,7 +9,6 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::type_check::TypeCheckError;
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
@@ -66,16 +65,12 @@ pub struct NodeInterner {
 
     next_type_variable_id: usize,
 
-    delayed_type_checks: Vec<TypeCheckFn>,
-
     /// A map from a struct type and method name to a function id for the method.
     struct_methods: HashMap<(StructId, String), FuncId>,
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
 }
-
-type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -252,7 +247,6 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
-            delayed_type_checks: vec![],
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
         };
@@ -559,14 +553,6 @@ impl NodeInterner {
 
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
         self.function_definition_ids[&function]
-    }
-
-    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
-        self.delayed_type_checks.push(f);
-    }
-
-    pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
-        std::mem::take(&mut self.delayed_type_checks)
     }
 
     /// Add a method to a type.

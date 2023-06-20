@@ -1,23 +1,26 @@
 use crate::{FileDiagnostic, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::term;
-use codespan_reporting::term::termcolor::{
-    Color, ColorChoice, ColorSpec, StandardStream, WriteColor,
-};
-use std::io::Write;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
-    message: String,
-    secondaries: Vec<CustomLabel>,
+    pub message: String,
+    pub secondaries: Vec<CustomLabel>,
     notes: Vec<String>,
-    kind: DiagnosticKind,
+    pub kind: DiagnosticKind,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DiagnosticKind {
     Error,
     Warning,
+}
+
+/// A count of errors that have been already reported to stderr
+#[derive(Debug, Copy, Clone)]
+pub struct ReportedErrors {
+    pub error_count: u32,
 }
 
 impl CustomDiagnostic {
@@ -68,7 +71,7 @@ impl CustomDiagnostic {
         self.secondaries.push(CustomLabel::new(message, span));
     }
 
-    fn is_error(&self) -> bool {
+    pub fn is_error(&self) -> bool {
         matches!(self.kind, DiagnosticKind::Error)
     }
 }
@@ -90,9 +93,9 @@ impl std::fmt::Display for CustomDiagnostic {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CustomLabel {
+pub struct CustomLabel {
     message: String,
-    span: Span,
+    pub span: Span,
 }
 
 impl CustomLabel {
@@ -107,11 +110,13 @@ pub fn report_all(
     files: &fm::FileManager,
     diagnostics: &[FileDiagnostic],
     deny_warnings: bool,
-) -> u32 {
-    diagnostics
+) -> ReportedErrors {
+    let error_count = diagnostics
         .iter()
         .map(|error| report(files, &error.diagnostic, Some(error.file_id), deny_warnings) as u32)
-        .sum()
+        .sum();
+
+    ReportedErrors { error_count }
 }
 
 /// Report the given diagnostic, and return true if it was an error
@@ -154,15 +159,4 @@ fn convert_diagnostic(
     };
 
     diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())
-}
-
-pub fn finish_report(error_count: u32) {
-    if error_count != 0 {
-        let writer = StandardStream::stderr(ColorChoice::Always);
-        let mut writer = writer.lock();
-
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
-        writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
-        writer.reset().ok();
-    }
 }

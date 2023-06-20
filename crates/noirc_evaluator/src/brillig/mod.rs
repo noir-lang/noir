@@ -1,7 +1,7 @@
 pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
-use self::{brillig_gen::BrilligGen, brillig_ir::artifact::BrilligArtifact};
+use self::{brillig_gen::convert_ssa_function, brillig_ir::artifact::BrilligArtifact};
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
@@ -24,7 +24,7 @@ pub struct Brillig {
 impl Brillig {
     /// Compiles a function into brillig and store the compilation artifacts
     pub(crate) fn compile(&mut self, func: &Function) {
-        let obj = BrilligGen::compile(func, self);
+        let obj = convert_ssa_function(func);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 

@@ -143,6 +143,7 @@ use crate::ssa_refactor::{
         dfg::InsertInstructionResult,
         dom::DominatorTree,
         function::Function,
+        function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
@@ -167,7 +168,7 @@ impl Ssa {
 }
 
 struct Context<'f> {
-    function: &'f mut Function,
+    inserter: FunctionInserter<'f>,
 
     /// This ControlFlowGraph is the graph from before the function was modified by this flattening pass.
     cfg: ControlFlowGraph,
@@ -185,11 +186,6 @@ struct Context<'f> {
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
-
-    /// A map of values from the unmodified function to their values given from this pass.
-    /// In particular, this pass will remove all block arguments except for function parameters.
-    /// Each value in the function's entry block is also left unchanged.
-    values: HashMap<ValueId, ValueId>,
 }
 
 struct Store {
@@ -215,11 +211,10 @@ fn flatten_function_cfg(function: &mut Function) {
     }
     let mut context = Context {
         cfg: ControlFlowGraph::with_function(function),
-        function,
+        inserter: FunctionInserter::new(function),
         store_values: HashMap::new(),
         branch_ends: HashMap::new(),
         conditions: Vec::new(),
-        values: HashMap::new(),
     };
     context.flatten();
 }
@@ -230,19 +225,19 @@ impl<'f> Context<'f> {
 
         // Start with following the terminator of the entry block since we don't
         // need to flatten the entry block into itself.
-        self.handle_terminator(self.function.entry_block());
+        self.handle_terminator(self.inserter.function.entry_block());
     }
 
     /// Visits every block in the current function to find all blocks with a jmpif instruction and
     /// all blocks which terminate the jmpif by having each of its branches as a predecessor.
     fn analyze_function(&mut self) {
-        let post_order = PostOrder::with_function(self.function);
+        let post_order = PostOrder::with_function(self.inserter.function);
         let dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &post_order);
         let mut branch_beginnings = Vec::new();
 
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
-        queue.push_front(self.function.entry_block());
+        queue.push_front(self.inserter.function.entry_block());
 
         while let Some(block_id) = queue.pop_front() {
             // If multiple blocks branch to the same successor before we visit it we can end up in
@@ -278,7 +273,7 @@ impl<'f> Context<'f> {
                 self.branch_ends.insert(branch_beginning, block_id);
             }
 
-            let block = &self.function.dfg[block_id];
+            let block = &self.inserter.function.dfg[block_id];
             if let Some(TerminatorInstruction::JmpIf { .. }) = block.terminator() {
                 branch_beginnings.push(block_id);
             }
@@ -300,12 +295,12 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        match self.function.dfg[block].unwrap_terminator() {
+        match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let old_condition = *condition;
-                let then_condition = self.translate_value(old_condition);
                 let then_block = *then_destination;
                 let else_block = *else_destination;
+                let then_condition = self.inserter.resolve(old_condition);
 
                 let one = FieldElement::one();
                 let then_branch =
@@ -331,24 +326,19 @@ impl<'f> Context<'f> {
                         return block;
                     }
                 }
-                let arguments = vecmap(arguments, |value| self.translate_value(*value));
-                self.inline_block(*destination, &arguments)
+                let destination = *destination;
+                let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
+                self.inline_block(destination, &arguments)
             }
             TerminatorInstruction::Return { return_values } => {
-                let return_values = vecmap(return_values, |value| self.translate_value(*value));
-                let entry = self.function.entry_block();
+                let return_values =
+                    vecmap(return_values.clone(), |value| self.inserter.resolve(value));
+                let entry = self.inserter.function.entry_block();
                 let new_return = TerminatorInstruction::Return { return_values };
-                self.function.dfg.set_block_terminator(entry, new_return);
+                self.inserter.function.dfg.set_block_terminator(entry, new_return);
                 block
             }
         }
-    }
-
-    /// Translate a value id from before the function was modified to one from after it has been
-    /// flattened. In particular, all block parameters should be removed, having been mapped to
-    /// their (merged) arguments, and all values from the entry block are unchanged.
-    fn translate_value(&self, value: ValueId) -> ValueId {
-        self.values.get(&value).copied().unwrap_or(value)
     }
 
     /// Push a condition to the stack of conditions.
@@ -373,8 +363,8 @@ impl<'f> Context<'f> {
     /// Unlike push_instruction, this function will not map any ValueIds.
     /// within the given instruction, nor will it modify self.values in any way.
     fn insert_instruction(&mut self, instruction: Instruction) -> ValueId {
-        let block = self.function.entry_block();
-        self.function.dfg.insert_instruction_and_results(instruction, block, None).first()
+        let block = self.inserter.function.entry_block();
+        self.inserter.function.dfg.insert_instruction_and_results(instruction, block, None).first()
     }
 
     /// Inserts a new instruction into the function's entry block, using the given
@@ -386,8 +376,24 @@ impl<'f> Context<'f> {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
-        let block = self.function.entry_block();
-        self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars)
+        let block = self.inserter.function.entry_block();
+        self.inserter.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars)
+    }
+
+    /// Checks the branch condition on the top of the stack and uses it to build and insert an
+    /// `EnableSideEffects` instruction into the entry block.
+    ///
+    /// If the stack is empty, a "true" u1 constant is taken to be the active condition. This is
+    /// necessary for re-enabling side-effects when re-emerging to a branch depth of 0.
+    fn insert_current_side_effects_enabled(&mut self) {
+        let condition = match self.conditions.last() {
+            Some((_, cond)) => *cond,
+            None => {
+                self.inserter.function.dfg.make_constant(FieldElement::one(), Type::unsigned(1))
+            }
+        };
+        let enable_side_effects = Instruction::EnableSideEffects { condition };
+        self.insert_instruction_with_typevars(enable_side_effects, None);
     }
 
     /// Checks the branch condition on the top of the stack and uses it to build and insert an
@@ -413,15 +419,17 @@ impl<'f> Context<'f> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
-        let block = self.function.entry_block();
+        let block = self.inserter.function.entry_block();
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value = self.function.dfg.insert_instruction_and_results(mul, block, None).first();
+        let then_value =
+            self.inserter.function.dfg.insert_instruction_and_results(mul, block, None).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value = self.function.dfg.insert_instruction_and_results(mul, block, None).first();
+        let else_value =
+            self.inserter.function.dfg.insert_instruction_and_results(mul, block, None).first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        self.function.dfg.insert_instruction_and_results(add, block, None).first()
+        self.inserter.function.dfg.insert_instruction_and_results(add, block, None).first()
     }
 
     /// Inline one branch of a jmpif instruction.
@@ -441,20 +449,35 @@ impl<'f> Context<'f> {
         new_condition: ValueId,
         condition_value: FieldElement,
     ) -> Branch {
-        self.push_condition(jmpif_block, new_condition);
-        self.insert_current_side_effects_enabled();
-        let old_stores = std::mem::take(&mut self.store_values);
+        if destination == self.branch_ends[&jmpif_block] {
+            // If the branch destination is the same as the end of the branch, this must be the
+            // 'else' case of an if with no else - so there is no else branch.
+            Branch {
+                condition: new_condition,
+                last_block: jmpif_block,
+                store_values: HashMap::new(),
+            }
+        } else {
+            self.push_condition(jmpif_block, new_condition);
+            self.insert_current_side_effects_enabled();
+            let old_stores = std::mem::take(&mut self.store_values);
 
-        // Remember the old condition value is now known to be true/false within this branch
-        let known_value = self.function.dfg.make_constant(condition_value, Type::bool());
-        self.values.insert(old_condition, known_value);
+            // Remember the old condition value is now known to be true/false within this branch
+            let known_value =
+                self.inserter.function.dfg.make_constant(condition_value, Type::bool());
+            self.inserter.map_value(old_condition, known_value);
 
-        let final_block = self.inline_block(destination, &[]);
+            let final_block = self.inline_block(destination, &[]);
 
-        self.conditions.pop();
-        let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
+            self.conditions.pop();
+            let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
 
-        Branch { condition: new_condition, last_block: final_block, store_values: stores_in_branch }
+            Branch {
+                condition: new_condition,
+                last_block: final_block,
+                store_values: stores_in_branch,
+            }
+        }
     }
 
     /// Inline the ending block of a branch, the point where all blocks from a jmpif instruction
@@ -474,15 +497,17 @@ impl<'f> Context<'f> {
     ) -> BasicBlockId {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
 
-        let then_args = self.function.dfg[then_branch.last_block].terminator_arguments();
-        let else_args = self.function.dfg[else_branch.last_block].terminator_arguments();
+        let then_args =
+            self.inserter.function.dfg[then_branch.last_block].terminator_arguments().to_vec();
+        let else_args =
+            self.inserter.function.dfg[else_branch.last_block].terminator_arguments().to_vec();
 
-        let params = self.function.dfg.block_parameters(destination);
+        let params = self.inserter.function.dfg.block_parameters(destination);
         assert_eq!(params.len(), then_args.len());
         assert_eq!(params.len(), else_args.len());
 
         let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
-            (self.translate_value(*then_arg), self.translate_value(*else_arg))
+            (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -529,7 +554,7 @@ impl<'f> Context<'f> {
             store_value.new_value = new_value;
         } else {
             let load = Instruction::Load { address };
-            let load_type = Some(vec![self.function.dfg.type_of_value(new_value)]);
+            let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
             let old_value = self.insert_instruction_with_typevars(load, load_type).first();
 
             self.store_values.insert(address, Store { old_value, new_value });
@@ -541,20 +566,15 @@ impl<'f> Context<'f> {
     ///
     /// Returns the final block that was inlined.
     ///
-    /// Expects that the `arguments` given are already translated via self.translate_value.
+    /// Expects that the `arguments` given are already translated via self.inserter.resolve.
     /// If they are not, it is possible some values which no longer exist, such as block
     /// parameters, will be kept in the program.
     fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId]) -> BasicBlockId {
-        let parameters = self.function.dfg.block_parameters(destination);
-        Self::insert_new_instruction_results(
-            &mut self.values,
-            parameters,
-            InsertInstructionResult::Results(arguments),
-        );
+        self.inserter.remember_block_params(destination, arguments);
 
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
-        let instructions = self.function.dfg[destination].instructions().to_vec();
+        let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
         for instruction in instructions {
             self.push_instruction(instruction);
         }
@@ -564,24 +584,15 @@ impl<'f> Context<'f> {
 
     /// Push the given instruction to the end of the entry block of the current function.
     ///
-    /// Note that each ValueId of the instruction will be mapped via self.translate_value.
+    /// Note that each ValueId of the instruction will be mapped via self.inserter.resolve.
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
-        let instruction = self.function.dfg[id].map_values(|id| self.translate_value(id));
+        let instruction = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction);
-        let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
-
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
-
-        let block = self.function.entry_block();
-        let new_results =
-            self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars);
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
+        let entry = self.inserter.function.entry_block();
+        self.inserter.push_instruction_value(instruction, id, entry);
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
@@ -609,26 +620,6 @@ impl<'f> Context<'f> {
             instruction
         }
     }
-
-    fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
-        new_results: InsertInstructionResult,
-    ) {
-        assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
-            }
-            InsertInstructionResult::Results(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -640,6 +631,7 @@ mod test {
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             function::RuntimeType,
+            function_inserter::FunctionInserter,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -950,11 +942,10 @@ mod test {
         let function = ssa.main_mut();
         let mut context = super::Context {
             cfg: ControlFlowGraph::with_function(function),
-            function,
+            inserter: FunctionInserter::new(function),
             store_values: HashMap::new(),
             branch_ends: HashMap::new(),
             conditions: Vec::new(),
-            values: HashMap::new(),
         };
         context.analyze_function();
         assert_eq!(context.branch_ends.len(), 2);

@@ -1,4 +1,5 @@
 use acvm::acir::brillig_vm::Opcode as BrilligOpcode;
+<<<<<<< HEAD
 use std::collections::{HashMap, HashSet};
 
 use crate::{
@@ -7,12 +8,18 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+=======
+use std::collections::HashMap;
+
+#[derive(Default, Debug, Clone)]
+>>>>>>> origin
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// Currently it is just the brillig bytecode of the function.
 pub(crate) struct BrilligArtifact {
     pub(crate) byte_code: Vec<BrilligOpcode>,
     /// The set of jumps that need to have their locations
     /// resolved.
+<<<<<<< HEAD
     unresolved_jumps_or_calls: Vec<(JumpInstructionPosition, UnresolvedLocation)>,
     /// A map of labels to their position in byte code.
     labels: HashMap<Label, OpcodeLocation>,
@@ -20,6 +27,11 @@ pub(crate) struct BrilligArtifact {
     functions_to_process: HashSet<FunctionId>,
     ///function id
     function_id: FunctionId,
+=======
+    unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
+    /// A map of labels to their position in byte code.
+    labels: HashMap<Label, OpcodeLocation>,
+>>>>>>> origin
 }
 
 /// A pointer to a location in the opcode.
@@ -35,7 +47,10 @@ pub(crate) type JumpInstructionPosition = OpcodeLocation;
 
 /// When constructing the bytecode, there may be instructions
 /// which require one to jump to a specific region of code (function)
+<<<<<<< HEAD
 /// or a position relative to the current instruction.
+=======
+>>>>>>> origin
 ///
 /// The position of a function cannot always be known
 /// at this point in time, so Jumps are unresolved
@@ -43,6 +58,7 @@ pub(crate) type JumpInstructionPosition = OpcodeLocation;
 /// `Label` is used as the jump location and once all of the bytecode
 /// has been processed, the jumps are resolved using a map from Labels
 /// to their position in the bytecode.
+<<<<<<< HEAD
 ///
 /// Sometimes the jump destination may be relative to the jump instruction.
 /// Since the absolute position in the bytecode cannot be known until
@@ -85,13 +101,24 @@ impl BrilligArtifact {
             }
         }
 
+=======
+pub(crate) type UnresolvedJumpLocation = Label;
+
+impl BrilligArtifact {
+    /// Link two Brillig artifacts together and resolve all unresolved jump instructions.
+    pub(crate) fn link(&mut self, obj: &BrilligArtifact) -> Vec<BrilligOpcode> {
+        self.append_artifact(obj);
+>>>>>>> origin
         self.resolve_jumps();
         self.byte_code.clone()
     }
 
+<<<<<<< HEAD
     pub(crate) fn block_label(&self, block_id: BasicBlockId) -> String {
         self.function_id.to_string() + "-" + &block_id.to_string()
     }
+=======
+>>>>>>> origin
     /// Link with an external brillig artifact.
     ///
     /// This method will offset the positions in the Brillig artifact to
@@ -99,12 +126,22 @@ impl BrilligArtifact {
     /// Brillig artifact (self).
     fn append_artifact(&mut self, obj: &BrilligArtifact) {
         let offset = self.index_of_next_opcode();
+<<<<<<< HEAD
         for (jump_label, jump_location) in &obj.unresolved_jumps_or_calls {
             self.unresolved_jumps_or_calls.push((jump_label + offset, jump_location.clone()));
         }
 
         for (label_id, position_in_bytecode) in &obj.labels {
             self.labels.insert(label_id.clone(), position_in_bytecode + offset);
+=======
+        for (jump_label, jump_location) in &obj.unresolved_jumps {
+            self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));
+        }
+
+        for (label_id, position_in_bytecode) in &obj.labels {
+            let old_value = self.labels.insert(label_id.clone(), position_in_bytecode + offset);
+            assert!(old_value.is_none(), "overwriting label {label_id} {old_value:?}");
+>>>>>>> origin
         }
 
         self.byte_code.extend_from_slice(&obj.byte_code);
@@ -116,6 +153,7 @@ impl BrilligArtifact {
     }
 
     /// Adds a unresolved jump to be fixed at the end of bytecode processing.
+<<<<<<< HEAD
     pub(crate) fn add_unresolved_call(
         &mut self,
         call_instruction: BrilligOpcode,
@@ -137,13 +175,23 @@ impl BrilligArtifact {
         &mut self,
         jmp_instruction: BrilligOpcode,
         destination: UnresolvedLocation,
+=======
+    pub(crate) fn add_unresolved_jump(
+        &mut self,
+        jmp_instruction: BrilligOpcode,
+        destination: UnresolvedJumpLocation,
+>>>>>>> origin
     ) {
         assert!(
             Self::is_jmp_instruction(&jmp_instruction),
             "expected a jump instruction, but found {jmp_instruction:?}"
         );
 
+<<<<<<< HEAD
         self.unresolved_jumps_or_calls.push((self.index_of_next_opcode(), destination));
+=======
+        self.unresolved_jumps.push((self.index_of_next_opcode(), destination));
+>>>>>>> origin
         self.push_opcode(jmp_instruction);
     }
 
@@ -157,11 +205,14 @@ impl BrilligArtifact {
         )
     }
 
+<<<<<<< HEAD
     /// Returns true if the opcode is a call instruction
     fn is_call_instruction(instruction: &BrilligOpcode) -> bool {
         matches!(instruction, BrilligOpcode::Call { .. })
     }
 
+=======
+>>>>>>> origin
     /// Adds a label in the bytecode to specify where this block's
     /// opcodes will start.
     pub(crate) fn add_label_at_position(&mut self, label: String, position: OpcodeLocation) {
@@ -185,6 +236,7 @@ impl BrilligArtifact {
     /// Note: This should only be called once all blocks are processed and
     /// linkage with other bytecode has happened.
     fn resolve_jumps(&mut self) {
+<<<<<<< HEAD
         for (location_of_jump, unresolved_location) in &self.unresolved_jumps_or_calls {
             let resolved_location = match unresolved_location {
                 UnresolvedLocation::Label(label) => self.labels[label],
@@ -192,6 +244,10 @@ impl BrilligArtifact {
                     (offset + *location_of_jump as i32) as usize
                 }
             };
+=======
+        for (location_of_jump, unresolved_location) in &self.unresolved_jumps {
+            let resolved_location = self.labels[unresolved_location];
+>>>>>>> origin
 
             let jump_instruction = self.byte_code[*location_of_jump].clone();
             match jump_instruction {
@@ -213,6 +269,7 @@ impl BrilligArtifact {
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::JumpIf { condition, location: resolved_location };
                 }
+<<<<<<< HEAD
                 BrilligOpcode::Call { location } => {
                     assert_eq!(
                         location, 0,
@@ -223,6 +280,10 @@ impl BrilligArtifact {
                 }
                 _ => unreachable!(
                     "all labels should point to a jump or a call instruction in the bytecode"
+=======
+                _ => unreachable!(
+                    "all jump labels should point to a jump instruction in the bytecode"
+>>>>>>> origin
                 ),
             }
         }
