@@ -5,75 +5,105 @@ use crate::ssa_refactor::ir::{
     post_order::PostOrder,
 };
 
-struct Context<'cfg> {
-    cfg: &'cfg ControlFlowGraph,
-    dom_tree: DominatorTree,
-    // visited: HashSet<BasicBlockId>,
-    branch_ends: HashMap<BasicBlockId, BasicBlockId>,
-}
-
-pub(super) fn analyze_branch_ends(
-    cfg: &ControlFlowGraph,
+/// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
+/// their corresponding blocks that end the branch.
+///
+/// This implementation assumes all branches re-converge. It would be little work to change it to
+/// support non-convergence (i.e. for multiple returns), with the caveat that there would be some
+/// inefficiency when processing such CFGs.
+pub(super) fn find_branch_ends(
     function: &Function,
+    cfg: &ControlFlowGraph,
 ) -> HashMap<BasicBlockId, BasicBlockId> {
-    let entry_block = function.entry_block();
-    let mut context = Context::new(cfg, function);
-    let mut visited_by_children = HashSet::new();
-    context.analyze(entry_block, &mut visited_by_children);
-    context.branch_ends
+    let post_order = PostOrder::with_function(function);
+    let dom_tree = DominatorTree::with_cfg_and_post_order(cfg, &post_order);
+    let mut stepper = Stepper::new(function.entry_block());
+    // This outer `visited` set is inconsequential, and simply here to satisfy the recursive
+    // stepper interface.
+    let mut visited = HashSet::new();
+    let mut branch_ends = HashMap::new();
+    while !stepper.finished {
+        stepper.step(cfg, &dom_tree, &mut visited, &mut branch_ends);
+    }
+    branch_ends
 }
 
-impl<'cfg> Context<'cfg> {
-    fn new(cfg: &'cfg ControlFlowGraph, function: &Function) -> Self {
-        let post_order = PostOrder::with_function(function);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(cfg, &post_order);
-        Context { cfg, dom_tree, branch_ends: HashMap::new() }
+/// Returns the block at which `left` and `right` converge, at the same time identifying branch
+/// ends in any sub branches.
+///
+/// This function is called by `Stepper::step` and is thus recursive.
+fn step_until_rejoin(
+    cfg: &ControlFlowGraph,
+    dom_tree: &DominatorTree,
+    branch_ends: &mut HashMap<BasicBlockId, BasicBlockId>,
+    left: BasicBlockId,
+    right: BasicBlockId,
+) -> BasicBlockId {
+    let mut visited = HashSet::new();
+    let mut left_stepper = Stepper::new(left);
+    let mut right_stepper = Stepper::new(right);
+
+    while !left_stepper.finished || !right_stepper.finished {
+        left_stepper.step(cfg, dom_tree, &mut visited, branch_ends);
+        right_stepper.step(cfg, dom_tree, &mut visited, branch_ends);
+    }
+    let collision = match (left_stepper.collision, right_stepper.collision) {
+        (Some(collision), None) | (None, Some(collision)) => collision,
+        (Some(_),Some(_))=> unreachable!("A collision on both branches indicates a loop"), 
+        _ => unreachable!(
+            "Until we support multiple returns, branches always re-converge. Once supported this case should return `None`"
+        ),
+    };
+    collision
+}
+
+/// Tracks traversal
+struct Stepper {
+    current_block: BasicBlockId,
+    finished: bool,
+    collision: Option<BasicBlockId>,
+}
+
+impl Stepper {
+    fn new(current_block: BasicBlockId) -> Self {
+        Stepper { current_block, finished: false, collision: None }
     }
 
-    fn analyze(
+    fn step(
         &mut self,
-        mut active_block: BasicBlockId,
+        cfg: &ControlFlowGraph,
+        dom_tree: &DominatorTree,
         visited: &mut HashSet<BasicBlockId>,
-    ) -> Option<BasicBlockId> {
-        loop {
-            if visited.contains(&active_block) {
-                return Some(active_block);
+        branch_ends: &mut HashMap<BasicBlockId, BasicBlockId>,
+    ) {
+        if self.finished {
+            return;
+        }
+        if visited.contains(&self.current_block) {
+            self.collision = Some(self.current_block);
+            self.finished = true;
+        }
+        visited.insert(self.current_block);
+        let mut successors = cfg.successors(self.current_block);
+        match successors.len() {
+            0 => {
+                self.finished = true;
             }
-            visited.insert(active_block);
-            let mut successors = self.cfg.successors(active_block);
-            match successors.len() {
-                0 => {
-                    // Reached the end without colliding - the collision will happen when
-                    // traversing the other branch.
-                    return None;
+            1 => {
+                self.current_block = successors.next().unwrap();
+            }
+            2 => {
+                let left = successors.next().unwrap();
+                let right = successors.next().unwrap();
+                let collision = step_until_rejoin(cfg, dom_tree, branch_ends, left, right);
+                for collision_predecessor in cfg.predecessors(collision) {
+                    assert!(dom_tree.dominates(self.current_block, collision_predecessor));
                 }
-                1 => {
-                    // Not an interesting block - move on
-                    active_block = successors.next().unwrap();
-                }
-                2 => {
-                    // Branch start - fork the recursion
-                    let mut visited_by_children = HashSet::new();
-                    let left_collision =
-                        self.analyze(successors.next().unwrap(), &mut visited_by_children);
-                    let right_collision =
-                        self.analyze(successors.next().unwrap(), &mut visited_by_children);
-                    let collision = match (left_collision, right_collision) {
-                        (Some(collision), None) | (None, Some(collision)) => collision,
-                        (Some(_),Some(_))=> unreachable!("A collision on both branches indicates a loop"), 
-                        _ => unreachable!(
-                            "Until we support multiple returns, branches always re-converge. Once supported this case should return `None`"
-                        ),
-                    };
-                    for collision_predecessor in self.cfg.predecessors(collision) {
-                        assert!(self.dom_tree.dominates(active_block, collision_predecessor));
-                    }
-                    self.branch_ends.insert(active_block, collision);
-
-                    // Continue forward from child branch end until parent branches reconnect too.
-                    active_block = collision;
-                }
-                _ => unreachable!("A block never has more than two successors"),
+                branch_ends.insert(self.current_block, collision);
+                self.current_block = collision;
+            }
+            _ => {
+                unreachable!()
             }
         }
     }
@@ -84,7 +114,7 @@ mod test {
 
     use crate::ssa_refactor::{
         ir::{cfg::ControlFlowGraph, function::RuntimeType, map::Id, types::Type},
-        opt::flatten_cfg::branch_analysis::analyze_branch_ends,
+        opt::flatten_cfg::branch_analysis::find_branch_ends,
         ssa_builder::FunctionBuilder,
     };
 
@@ -142,7 +172,7 @@ mod test {
         let mut ssa = builder.finish();
         let function = ssa.main_mut();
         let cfg = ControlFlowGraph::with_function(function);
-        let branch_ends = analyze_branch_ends(&cfg, function);
+        let branch_ends = find_branch_ends(function, &cfg);
         assert_eq!(branch_ends.len(), 2);
         assert_eq!(branch_ends.get(&b1), Some(&b9));
         assert_eq!(branch_ends.get(&b4), Some(&b7));
@@ -226,6 +256,6 @@ mod test {
         let mut ssa = builder.finish();
         let function = ssa.main_mut();
         let cfg = ControlFlowGraph::with_function(function);
-        analyze_branch_ends(&cfg, function);
+        find_branch_ends(function, &cfg);
     }
 }
