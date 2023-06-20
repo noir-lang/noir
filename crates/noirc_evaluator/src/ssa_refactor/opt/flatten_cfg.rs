@@ -131,7 +131,7 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -141,16 +141,16 @@ use crate::ssa_refactor::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
         types::Type,
         value::ValueId,
     },
     ssa_gen::Ssa,
 };
+
+mod branch_analysis;
 
 impl Ssa {
     /// Flattens the control flow graph of each function such that the function is left with a
@@ -209,11 +209,13 @@ fn flatten_function_cfg(function: &mut Function) {
     if let crate::ssa_refactor::ir::function::RuntimeType::Brillig = function.runtime() {
         return;
     }
+    let cfg = ControlFlowGraph::with_function(function);
+    let branch_ends = branch_analysis::find_branch_ends(function, &cfg);
     let mut context = Context {
-        cfg: ControlFlowGraph::with_function(function),
         inserter: FunctionInserter::new(function),
+        cfg,
         store_values: HashMap::new(),
-        branch_ends: HashMap::new(),
+        branch_ends,
         conditions: Vec::new(),
     };
     context.flatten();
@@ -221,67 +223,9 @@ fn flatten_function_cfg(function: &mut Function) {
 
 impl<'f> Context<'f> {
     fn flatten(&mut self) {
-        self.analyze_function();
-
         // Start with following the terminator of the entry block since we don't
         // need to flatten the entry block into itself.
         self.handle_terminator(self.inserter.function.entry_block());
-    }
-
-    /// Visits every block in the current function to find all blocks with a jmpif instruction and
-    /// all blocks which terminate the jmpif by having each of its branches as a predecessor.
-    fn analyze_function(&mut self) {
-        let post_order = PostOrder::with_function(self.inserter.function);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &post_order);
-        let mut branch_beginnings = Vec::new();
-
-        let mut visited = HashSet::new();
-        let mut queue = VecDeque::new();
-        queue.push_front(self.inserter.function.entry_block());
-
-        while let Some(block_id) = queue.pop_front() {
-            // If multiple blocks branch to the same successor before we visit it we can end up in
-            // situations where the same block occurs multiple times in our queue. This check
-            // prevents visiting the same block twice.
-            if visited.contains(&block_id) {
-                continue;
-            } else {
-                visited.insert(block_id);
-            }
-
-            // If there is more than one predecessor, this must be an end block
-            let mut predecessors = self.cfg.predecessors(block_id);
-            if predecessors.len() > 1 {
-                // If we haven't already visited all of this block's predecessors, delay analyzing
-                // the block until we have. This ensures we analyze the function in evaluation order.
-                if !predecessors.all(|block| visited.contains(&block)) {
-                    queue.push_back(block_id);
-                    visited.remove(&block_id);
-                    continue;
-                }
-
-                // We expect the merging of two branches to be ordered such that only the most
-                // recent jmpif is a candidate for being the start of the two branches merged by
-                // a block with 2 predecessors.
-                let branch_beginning =
-                    branch_beginnings.pop().expect("Expected the beginning of a branch");
-
-                for predecessor in self.cfg.predecessors(block_id) {
-                    assert!(dom_tree.dominates(branch_beginning, predecessor));
-                }
-
-                self.branch_ends.insert(branch_beginning, block_id);
-            }
-
-            let block = &self.inserter.function.dfg[block_id];
-            if let Some(TerminatorInstruction::JmpIf { .. }) = block.terminator() {
-                branch_beginnings.push(block_id);
-            }
-
-            queue.extend(block.successors().filter(|block| !visited.contains(block)));
-        }
-
-        assert!(branch_beginnings.is_empty());
     }
 
     /// Check the terminator of the given block and recursively inline any blocks reachable from
@@ -610,14 +554,11 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
 
     use crate::ssa_refactor::{
         ir::{
-            cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             function::RuntimeType,
-            function_inserter::FunctionInserter,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -871,72 +812,6 @@ mod test {
             .count();
 
         assert_eq!(store_count, 4);
-    }
-
-    #[test]
-    fn nested_branch_analysis() {
-        //         b0
-        //         ↓
-        //         b1
-        //       ↙   ↘
-        //     b2     b3
-        //     ↓      |
-        //     b4     |
-        //   ↙  ↘     |
-        // b5    b6   |
-        //   ↘  ↙     ↓
-        //    b7      b8
-        //      ↘   ↙
-        //       b9
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-        let b5 = builder.insert_block();
-        let b6 = builder.insert_block();
-        let b7 = builder.insert_block();
-        let b8 = builder.insert_block();
-        let b9 = builder.insert_block();
-
-        let c1 = builder.add_parameter(Type::bool());
-        let c4 = builder.add_parameter(Type::bool());
-
-        builder.terminate_with_jmp(b1, vec![]);
-        builder.switch_to_block(b1);
-        builder.terminate_with_jmpif(c1, b2, b3);
-        builder.switch_to_block(b2);
-        builder.terminate_with_jmp(b4, vec![]);
-        builder.switch_to_block(b3);
-        builder.terminate_with_jmp(b8, vec![]);
-        builder.switch_to_block(b4);
-        builder.terminate_with_jmpif(c4, b5, b6);
-        builder.switch_to_block(b5);
-        builder.terminate_with_jmp(b7, vec![]);
-        builder.switch_to_block(b6);
-        builder.terminate_with_jmp(b7, vec![]);
-        builder.switch_to_block(b7);
-        builder.terminate_with_jmp(b9, vec![]);
-        builder.switch_to_block(b8);
-        builder.terminate_with_jmp(b9, vec![]);
-        builder.switch_to_block(b9);
-        builder.terminate_with_return(vec![]);
-
-        let mut ssa = builder.finish();
-        let function = ssa.main_mut();
-        let mut context = super::Context {
-            cfg: ControlFlowGraph::with_function(function),
-            inserter: FunctionInserter::new(function),
-            store_values: HashMap::new(),
-            branch_ends: HashMap::new(),
-            conditions: Vec::new(),
-        };
-        context.analyze_function();
-        assert_eq!(context.branch_ends.len(), 2);
-        assert_eq!(context.branch_ends.get(&b1), Some(&b9));
-        assert_eq!(context.branch_ends.get(&b4), Some(&b7));
     }
 
     #[test]
