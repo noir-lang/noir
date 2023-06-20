@@ -1,6 +1,7 @@
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
+use crate::ssa_refactor::ir::function::FunctionId;
 use crate::ssa_refactor::ir::types::CompositeType;
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -39,7 +40,7 @@ impl<'block> BrilligBlock<'block> {
 
     fn convert_block(&mut self, dfg: &DataFlowGraph) {
         // Add a label for this block
-        let block_label = self.create_block_label(self.block_id);
+        let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
 
         // Convert the block parameters
@@ -57,9 +58,22 @@ impl<'block> BrilligBlock<'block> {
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
 
-    /// Creates a unique global label for a block
-    fn create_block_label(&self, block_id: BasicBlockId) -> String {
-        format!("{}-{}", self.function_context.function_id, block_id)
+    /// Creates a unique global label for a block.
+    ///
+    /// This uses the current functions's function ID and the block ID
+    /// Making the assumption that the block ID passed in belongs to this
+    /// function.
+    fn create_block_label_for_current_function(&self, block_id: BasicBlockId) -> String {
+        Self::create_block_label(self.function_context.function_id, block_id)
+    }
+    /// Creates a unique label for a block using the function Id and the block ID.
+    ///
+    /// We implicitly assume that the function ID and the block ID is enough
+    /// for us to create a unique label across functions and blocks.
+    ///
+    /// This is so that during linking there are no duplicates or labels being overwritten.
+    fn create_block_label(function_id: FunctionId, block_id: BasicBlockId) -> String {
+        format!("{}-{}", function_id, block_id)
     }
 
     /// Converts an SSA terminator instruction into the necessary opcodes.
@@ -74,9 +88,13 @@ impl<'block> BrilligBlock<'block> {
         match terminator_instruction {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
-                self.brillig_context
-                    .jump_if_instruction(condition, self.create_block_label(*then_destination));
-                self.brillig_context.jump_instruction(self.create_block_label(*else_destination));
+                self.brillig_context.jump_if_instruction(
+                    condition,
+                    self.create_block_label_for_current_function(*then_destination),
+                );
+                self.brillig_context.jump_instruction(
+                    self.create_block_label_for_current_function(*else_destination),
+                );
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let target = &dfg[*destination];
@@ -85,7 +103,8 @@ impl<'block> BrilligBlock<'block> {
                     let source = self.convert_ssa_value(*src, dfg);
                     self.brillig_context.mov_instruction(destination, source);
                 }
-                self.brillig_context.jump_instruction(self.create_block_label(*destination));
+                self.brillig_context
+                    .jump_instruction(self.create_block_label_for_current_function(*destination));
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_registers: Vec<_> = return_values
@@ -106,14 +125,11 @@ impl<'block> BrilligBlock<'block> {
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
             };
             match param_type {
-                Type::Numeric(_) => {
+                // Simple parameters and arrays are passed as already filled registers
+                // In the case of arrays, the values should already be in memory and the register should
+                // Be a valid pointer to the array.
+                Type::Numeric(_) | Type::Array(..) => {
                     self.function_context.get_or_create_register(self.brillig_context, *param_id);
-                }
-                Type::Array(_, size) => {
-                    let pointer_register = self
-                        .function_context
-                        .get_or_create_register(self.brillig_context, *param_id);
-                    self.brillig_context.allocate_fixed_length_array(pointer_register, *size);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -188,6 +204,33 @@ impl<'block> BrilligBlock<'block> {
                         &input_registers,
                         &output_registers,
                     );
+                }
+                Value::Function(func_id) => {
+                    let function_arguments: Vec<RegisterIndex> =
+                        vecmap(arguments, |arg| self.convert_ssa_value(*arg, dfg));
+                    let result_ids = dfg.instruction_results(instruction_id);
+
+                    // Create label for the function that will be called
+                    let label_of_function_to_call =
+                        FunctionContext::function_id_to_function_label(*func_id);
+
+                    let saved_registers =
+                        self.brillig_context.pre_call_save_registers_prep_args(&function_arguments);
+
+                    // Call instruction, which will interpret above registers 0..num args
+                    self.brillig_context.add_external_call_instruction(label_of_function_to_call);
+
+                    // Important: resolve after pre_call_save_registers_prep_args
+                    // This ensures we don't save the results to registers unnecessarily.
+                    let result_registers = vecmap(result_ids, |a| {
+                        self.function_context.get_or_create_register(self.brillig_context, *a)
+                    });
+                    assert!(
+                        !saved_registers.iter().any(|x| result_registers.contains(x)),
+                        "should not save registers used as function results"
+                    );
+                    self.brillig_context
+                        .post_call_prep_returns_load_registers(&result_registers, &saved_registers);
                 }
                 _ => {
                     unreachable!("only foreign function calls supported in unconstrained functions")
@@ -502,7 +545,7 @@ fn compute_size_of_composite_type(typ: &CompositeType) -> usize {
 
 /// Finds out the size of a given SSA type
 /// This is needed to store values in memory
-fn compute_size_of_type(typ: &Type) -> usize {
+pub(crate) fn compute_size_of_type(typ: &Type) -> usize {
     match typ {
         Type::Numeric(_) => 1,
         Type::Array(types, item_count) => compute_size_of_composite_type(types) * item_count,
