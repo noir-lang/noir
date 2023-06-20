@@ -28,10 +28,14 @@ pub(crate) fn directive_quotient(bit_size: u32) -> Vec<BrilligOpcode> {
     //      (0,0)
     //    }
     // }
+
+    //a is (0) (i.e register index 0)
+    //b is (1)
+    //predicate is (2)
     vec![
         // If the predicate is zero, we jump to the exit segment
         BrilligOpcode::JumpIfNot { condition: RegisterIndex::from(2), location: 6 },
-        //q = a/b
+        //q = a/b is set into register (3)
         BrilligOpcode::BinaryIntOp {
             op: BinaryIntOp::UnsignedDiv,
             lhs: RegisterIndex::from(0),
