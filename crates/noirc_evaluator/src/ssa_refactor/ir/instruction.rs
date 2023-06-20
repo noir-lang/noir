@@ -277,11 +277,12 @@ impl Instruction {
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
-                    assert!(index < array.len());
-                    SimplifiedTo(array[index])
-                } else {
-                    None
+
+                    if index < array.len() {
+                        return SimplifiedTo(array[index]);
+                    }
                 }
+                None
             }
             Instruction::ArraySet { array, index, value } => {
                 let array = dfg.get_array_constant(*array);
@@ -290,11 +291,13 @@ impl Instruction {
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
-                    assert!(index < array.len());
-                    SimplifiedTo(dfg.make_array(array.update(index, *value), element_type))
-                } else {
-                    None
+
+                    if index < array.len() {
+                        let new_array = dfg.make_array(array.update(index, *value), element_type);
+                        return SimplifiedTo(new_array);
+                    }
                 }
+                None
             }
             Instruction::Truncate { value, bit_size, .. } => {
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
