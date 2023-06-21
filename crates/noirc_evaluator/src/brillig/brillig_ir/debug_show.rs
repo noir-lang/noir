@@ -1,7 +1,9 @@
 ///! This module contains functions for producing a higher level view disassembler of Brillig.
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory, Value};
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory, Value,
+};
 
 /// Controls whether debug traces are enabled
 const ENABLE_DEBUG_TRACE: bool = true;
@@ -100,10 +102,13 @@ impl DebugToString for RegisterOrMemory {
     fn debug_to_string(&self) -> String {
         match self {
             RegisterOrMemory::RegisterIndex(index) => index.debug_to_string(),
-            RegisterOrMemory::HeapArray(index, size) => {
+            RegisterOrMemory::HeapArray(HeapArray { pointer: index, size }) => {
                 format!("{}[0..{}]", index.debug_to_string(), size)
             }
-            RegisterOrMemory::HeapVector(location_index, length_index) => {
+            RegisterOrMemory::HeapVector(HeapVector {
+                pointer: location_index,
+                size: length_index,
+            }) => {
                 format!(
                     "{}[0..{}]",
                     location_index.debug_to_string(),

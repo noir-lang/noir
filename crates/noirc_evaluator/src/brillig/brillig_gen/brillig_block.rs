@@ -2,6 +2,7 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 use crate::ssa_refactor::ir::function::FunctionId;
+use crate::ssa_refactor::ir::instruction::Intrinsic;
 use crate::ssa_refactor::ir::types::CompositeType;
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -10,10 +11,13 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory};
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory,
+};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
+use super::brillig_black_box::convert_black_box_call;
 use super::brillig_fn::FunctionContext;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
@@ -196,7 +200,7 @@ impl<'block> BrilligBlock<'block> {
                         self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
                     });
                     let output_registers = vecmap(result_ids, |value_id| {
-                        self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
+                        self.allocate_external_call_result(*value_id, dfg)
                     });
 
                     self.brillig_context.foreign_call_instruction(
@@ -232,8 +236,23 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context
                         .post_call_prep_returns_load_registers(&result_registers, &saved_registers);
                 }
+                Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
+                    let function_arguments = vecmap(arguments, |arg| {
+                        self.convert_ssa_value_to_register_value_or_array(*arg, dfg)
+                    });
+                    let function_results = dfg.instruction_results(instruction_id);
+                    let function_results = vecmap(function_results, |result| {
+                        self.allocate_external_call_result(*result, dfg)
+                    });
+                    convert_black_box_call(
+                        self.brillig_context,
+                        bb_func,
+                        &function_arguments,
+                        &function_results,
+                    );
+                }
                 _ => {
-                    unreachable!("only foreign function calls supported in unconstrained functions")
+                    unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
             Instruction::Truncate { value, .. } => {
@@ -435,9 +454,34 @@ impl<'block> BrilligBlock<'block> {
         let typ = dfg[value_id].get_type();
         match typ {
             Type::Numeric(_) => RegisterOrMemory::RegisterIndex(register_index),
-            Type::Array(_, size) => RegisterOrMemory::HeapArray(register_index, size),
+            Type::Array(_, size) => {
+                RegisterOrMemory::HeapArray(HeapArray { pointer: register_index, size })
+            }
             _ => {
                 unreachable!("type not supported for conversion into brillig register")
+            }
+        }
+    }
+
+    fn allocate_external_call_result(
+        &mut self,
+        result: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterOrMemory {
+        let typ = dfg[result].get_type();
+        match typ {
+            Type::Numeric(_) => RegisterOrMemory::RegisterIndex(
+                self.function_context.get_or_create_register(self.brillig_context, result),
+            ),
+            Type::Array(..) => {
+                let pointer =
+                    self.function_context.get_or_create_register(self.brillig_context, result);
+                let array_size_in_memory = compute_size_of_type(&typ);
+                self.brillig_context.allocate_fixed_length_array(pointer, array_size_in_memory);
+                RegisterOrMemory::HeapArray(HeapArray { pointer, size: array_size_in_memory })
+            }
+            _ => {
+                unreachable!("ICE: unsupported return type for black box call {typ:?}")
             }
         }
     }
