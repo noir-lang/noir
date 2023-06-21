@@ -23,18 +23,15 @@ pub(crate) fn convert_ssa_function(func: &Function) -> BrilligArtifact {
     let mut function_context =
         FunctionContext { function_id: func.id(), ssa_value_to_register: HashMap::new() };
 
-    let mut brillig_context = BrilligContext::new();
+    let mut brillig_context = BrilligContext::new(
+        FunctionContext::parameters(func),
+        FunctionContext::return_values(func),
+    );
 
+    brillig_context.enter_context(FunctionContext::function_id_to_function_label(func.id()));
     for block in reverse_post_order {
         BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
     }
 
-    brillig_context.artifact()
-}
-
-/// Creates an entry point artifact, that will be linked with the brillig functions being called
-pub(crate) fn create_entry_point_function(num_arguments: usize) -> BrilligArtifact {
-    let mut brillig_context = BrilligContext::new();
-    brillig_context.entry_point_instruction(num_arguments);
     brillig_context.artifact()
 }

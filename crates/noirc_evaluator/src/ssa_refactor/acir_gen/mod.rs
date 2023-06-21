@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{brillig_gen::create_entry_point_function, Brillig};
+use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
@@ -182,8 +182,15 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                // Generate the brillig code of the function
-                                let code = create_entry_point_function(arguments.len()).link(&brillig[*id]);
+                                // Create the entry point artifact
+                                let mut entry_point = BrilligArtifact::to_entry_point_artifact(&brillig[*id]);
+                                // Link the entry point with all dependencies
+                                while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
+                                    let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone()).expect("Cannot find linked fn {unresolved_fn_label}");
+                                    entry_point.link_with(unresolved_fn_label, artifact);
+                                }
+                                // Generate the final bytecode
+                                let code = entry_point.finish();
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
@@ -221,8 +228,14 @@ impl Context {
                 }
             }
             Instruction::Not(value_id) => {
-                let boolean_var = self.convert_numeric_value(*value_id, dfg);
-                let result_acir_var = self.acir_context.not_var(boolean_var);
+                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
+                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
+                    _ => unreachable!("NOT is only applied to numerics"),
+                };
+                let result_acir_var = self
+                    .acir_context
+                    .not_var(acir_var, typ)
+                    .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
@@ -470,7 +483,8 @@ impl Context {
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(
                     lhs_type, rhs_type,
-                    "lhs and rhs types in a binary operation are always the same"
+                    "lhs and rhs types in {:?} are not the same",
+                    binary
                 );
                 Type::Numeric(lhs_type)
             }
