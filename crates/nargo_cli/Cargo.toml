@@ -44,10 +44,10 @@ tokio = "1.0"
 # Backends
 acvm-backend-barretenberg = { version = "0.5.1", default-features = false }
 
-[target.'cfg(not(windows))'.dependencies]
+[target."cfg(unix)".dependencies]
 async-lsp = { version = "0.0.4", default-features = false, features = ["client-monitor", "stdio", "tracing"] }
 
-[target.'cfg(windows)'.dependencies]
+[target."cfg(windows)".dependencies]
 async-lsp = { version = "0.0.4", default-features = false, features = ["stdio", "tracing"] }
 
 [dev-dependencies]
