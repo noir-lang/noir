@@ -1,7 +1,9 @@
 #![forbid(unsafe_code)]
 
-use color_eyre::{config::HookBuilder, eyre};
-use nargo_cli::cli::start_cli;
+
+use color_eyre::{config::HookBuilder, eyre, Report};
+use nargo_cli::{cli::start_cli, errors};
+
 
 fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt::init();
@@ -13,5 +15,15 @@ fn main() -> eyre::Result<()> {
         .into_hooks();
     panic_hook.install();
 
-    start_cli()
+    match start_cli() {
+        Ok(exit_code) => {
+            if exit_code > 0 {
+                Err(Report::msg(format!("Backend returned error code {}", exit_code)))
+            } else {
+                // Ok(())
+                Err(Report::msg(format!("Backend returned error code {}", exit_code)))
+            }
+        },
+        Err(e) => Err(e),
+    }
 }

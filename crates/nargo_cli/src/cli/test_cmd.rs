@@ -25,7 +25,7 @@ pub(crate) fn run<B: Backend>(
     backend: &B,
     args: TestCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<i32, CliError> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
     run_tests(backend, &config.program_dir, &test_name, &args.compile_options)
@@ -36,7 +36,7 @@ fn run_tests<B: Backend>(
     program_dir: &Path,
     test_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
+) -> Result<i32, CliError> {
     let mut driver = setup_driver(backend, program_dir)?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
@@ -73,7 +73,8 @@ fn run_tests<B: Backend>(
     }
 
     writer.reset().ok();
-    Ok(())
+    
+    Ok(0)
 }
 
 fn run_test<B: Backend>(
@@ -82,7 +83,7 @@ fn run_test<B: Backend>(
     main: FuncId,
     driver: &Driver,
     config: &CompileOptions,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let program = driver
         .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;

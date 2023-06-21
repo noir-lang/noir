@@ -45,7 +45,7 @@ pub(crate) fn run<B: Backend>(
     _backend: &B,
     args: NewCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<i32, CliError> {
     let package_dir = config.program_dir.join(args.package_name);
 
     if package_dir.exists() {
@@ -58,5 +58,5 @@ pub(crate) fn run<B: Backend>(
     write_to_file(SETTINGS.as_bytes(), &package_dir.join(PKG_FILE));
     write_to_file(EXAMPLE.as_bytes(), &src_dir.join("main.nr"));
     println!("Project successfully created! Binary located at {}", package_dir.display());
-    Ok(())
+    Ok(0)
 }

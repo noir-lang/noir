@@ -1,6 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_driver::CompileOptions;
+use tracing::debug;
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
@@ -18,6 +19,7 @@ mod new_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
+mod backend_vendor_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -34,6 +36,10 @@ struct NargoCli {
 
     #[clap(flatten)]
     config: NargoConfig,
+
+    #[arg(long, env, hide=true)]
+    pub(crate) noir_package_root: Option<String>,
+
 }
 
 #[non_exhaustive]
@@ -47,39 +53,41 @@ pub(crate) struct NargoConfig {
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
-    CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
+    // CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
     Prove(prove_cmd::ProveCommand),
-    Verify(verify_cmd::VerifyCommand),
+    // Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
-    Gates(gates_cmd::GatesCommand),
+    // Gates(gates_cmd::GatesCommand),
 }
 
-pub fn start_cli() -> eyre::Result<()> {
-    let NargoCli { command, mut config } = NargoCli::parse();
-
+pub fn start_cli() -> eyre::Result<i32> {
+    let NargoCli { command, noir_package_root, mut config } = NargoCli::parse();
+    
     // Search through parent directories to find package root if necessary.
     if !matches!(command, NargoCommand::New(_)) {
-        config.program_dir = find_package_root(&config.program_dir)?;
+        let package_root: PathBuf = noir_package_root.unwrap_or(String::from(config.program_dir.to_string_lossy())).into();
+        debug!("Project root is {:?}", package_root);
+        config.program_dir = find_package_root(&package_root)?;
     }
 
     let backend = crate::backends::ConcreteBackend::default();
 
-    match command {
+    let exit_code:i32 = match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
-        NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
-        NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
+        NargoCommand::Prove(args) => prove_cmd::run(args, config),
+        // NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
-        NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
-        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
+        // NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
+        // NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
     }?;
 
-    Ok(())
+    Ok(exit_code)
 }
 
 // helper function which tests noir programs by trying to generate a proof and verify it without reading/writing to the filesystem

@@ -31,9 +31,11 @@ pub(crate) enum FilesystemError {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum CliError<B: Backend> {
+pub(crate) enum CliError {
+    
     #[error("{0}")]
     Generic(String),
+    
     #[error("Error: destination {} already exists", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
@@ -59,15 +61,16 @@ pub(crate) enum CliError<B: Backend> {
     #[error(transparent)]
     NargoError(#[from] NargoError),
 
-    /// Backend error caused by a function on the SmartContract trait
-    #[error(transparent)]
-    SmartContractError(<B as SmartContract>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
+    // /// Backend error caused by a function on the SmartContract trait
+    // #[error(transparent)]
+    // SmartContractError(<B as SmartContract>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
 
-    /// Backend error caused by a function on the ProofSystemCompiler trait
-    #[error(transparent)]
-    ProofSystemCompilerError(<B as ProofSystemCompiler>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
+    // /// Backend error caused by a function on the ProofSystemCompiler trait
+    // #[error(transparent)]
+    // ProofSystemCompilerError(<B as ProofSystemCompiler>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
 
-    /// Backend error caused by a function on the CommonReferenceString trait
-    #[error(transparent)]
-    CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
+    // /// Backend error caused by a function on the CommonReferenceString trait
+    // #[error(transparent)]
+    // CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
 }
+

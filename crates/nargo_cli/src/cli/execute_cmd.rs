@@ -29,7 +29,7 @@ pub(crate) fn run<B: Backend>(
     backend: &B,
     args: ExecuteCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<i32, CliError> {
     let (return_value, solved_witness) =
         execute_with_path(backend, &config.program_dir, &args.compile_options)?;
 
@@ -44,14 +44,14 @@ pub(crate) fn run<B: Backend>(
 
         println!("Witness saved to {}", witness_path.display());
     }
-    Ok(())
+    Ok(0)
 }
 
 fn execute_with_path<B: Backend>(
     backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
+) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     let CompiledProgram { abi, circuit } = compile_circuit(backend, program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
@@ -71,7 +71,7 @@ pub(crate) fn execute_program<B: Backend>(
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
-) -> Result<WitnessMap, CliError<B>> {
+) -> Result<WitnessMap, CliError> {
     let initial_witness = abi.encode(inputs_map, None)?;
 
     let solved_witness = nargo::ops::execute_circuit(backend, circuit, initial_witness)?;

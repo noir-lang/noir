@@ -16,7 +16,7 @@ use std::{
 mod backends;
 pub mod cli;
 mod constants;
-mod errors;
+pub mod errors;
 mod git;
 mod manifest;
 mod resolver;

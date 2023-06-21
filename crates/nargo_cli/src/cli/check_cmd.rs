@@ -21,17 +21,17 @@ pub(crate) fn run<B: Backend>(
     backend: &B,
     args: CheckCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<i32, CliError> {
     check_from_path(backend, config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
-    Ok(())
+    Ok(0)
 }
 
 fn check_from_path<B: Backend, P: AsRef<Path>>(
     backend: &B,
     program_dir: P,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let mut driver = setup_driver(backend, program_dir.as_ref())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;

@@ -1,0 +1,30 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "blah", 
+				"NOIR_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+			},
+			"args": [
+				// "--path=crates/nargo_cli",
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"prove",
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo prove",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+	]
+}

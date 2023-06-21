@@ -4,6 +4,7 @@ description = "Noir's package manager"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+repository = "https://github.com/noir-lang/noir"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -35,7 +36,7 @@ const_format = "0.2.30"
 hex = "0.4.2"
 serde_json = "1.0"
 termcolor = "1.1.2"
-color-eyre = "0.6.2"
+color-eyre = { version = "0.6.2", features = ["issue-url"] }
 tokio = { version = "1.0.0", features = ["rt"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

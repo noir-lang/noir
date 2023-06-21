@@ -45,7 +45,7 @@ pub(crate) fn run<B: Backend>(
     backend: &B,
     args: CompileCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     let mut common_reference_string = read_cached_common_reference_string();
@@ -61,7 +61,7 @@ pub(crate) fn run<B: Backend>(
         // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
         // are compiled via nargo-core and then the PreprocessedContract is constructed here.
         // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-        let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError<B>> =
+        let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError> =
             try_vecmap(compiled_contracts, |contract| {
                 let preprocessed_contract_functions = try_vecmap(contract.functions, |func| {
                     common_reference_string = update_common_reference_string(
@@ -109,7 +109,7 @@ pub(crate) fn run<B: Backend>(
     backend: &B,
     args: CompileCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<i32, CliError> {
     let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
@@ -121,7 +121,7 @@ pub(crate) fn run<B: Backend>(
         verification_key: vec![],
     };
     save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
-    Ok(())
+    Ok(0)
 }
 
 pub(super) fn setup_driver<B: Backend>(
@@ -140,7 +140,7 @@ pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<CompiledProgram, CliError<B>> {
+) -> Result<CompiledProgram, CliError> {
     let mut driver = setup_driver(backend, program_dir)?;
     driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
 }
