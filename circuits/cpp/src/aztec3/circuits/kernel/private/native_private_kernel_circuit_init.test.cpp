@@ -14,7 +14,7 @@
 #include <array>
 #include <cstdint>
 
-namespace {
+namespace aztec3::circuits::kernel::private_kernel {
 
 using aztec3::circuits::apps::test_apps::basic_contract_deployment::constructor;
 using aztec3::circuits::apps::test_apps::escrow::deposit;
@@ -25,9 +25,6 @@ using aztec3::circuits::kernel::private_kernel::testing_harness::validate_deploy
 using aztec3::circuits::kernel::private_kernel::testing_harness::validate_no_new_deployed_contract;
 using aztec3::utils::CircuitErrorCode;
 
-}  // namespace
-
-namespace aztec3::circuits::kernel::private_kernel {
 
 // NOTE: *DO NOT* call fr constructors in static initializers and assign them to constants. This will fail. Instead, use
 // lazy initialization or functions. Lambdas were introduced here.
