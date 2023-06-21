@@ -16,7 +16,7 @@ noirc_errors.workspace = true
 noirc_frontend.workspace = true
 serde_json.workspace = true
 tower.workspace = true
-async-lsp = { version = "0.0.4", default-features = false, features = ["omni-trait"] }
+async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "9fc2db84ddcda291a864f044657f68d4377557f7", default-features = false, features = ["omni-trait"] }
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros"] }
