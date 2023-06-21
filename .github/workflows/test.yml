@@ -21,7 +21,7 @@ jobs:
             target: x86_64-linux
           - os: mac
             runner: macOS
-            target: x86_64-darwin
+            target: aarch64-darwin
 
     steps:
       - name: Checkout
