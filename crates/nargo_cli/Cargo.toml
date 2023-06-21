@@ -44,7 +44,7 @@ tokio = "1.0"
 # Backends
 acvm-backend-barretenberg = { version = "0.5.1", default-features = false }
 
-[target."cfg(windows)".dependencies]
+[target.x86_64-pc-windows-msvc.dependencies]
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "9fc2db84ddcda291a864f044657f68d4377557f7", default-features = false, features = ["stdio", "tracing"] }
 
 [dev-dependencies]
