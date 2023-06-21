@@ -68,7 +68,7 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
-    ) {
+    ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));
 
@@ -79,7 +79,8 @@ impl<'f> FunctionInserter<'f> {
         let new_results =
             self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars);
 
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
+        Self::insert_new_instruction_results(&mut self.values, &results, &new_results);
+        new_results
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
@@ -87,16 +88,16 @@ impl<'f> FunctionInserter<'f> {
     pub(crate) fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],
-        new_results: InsertInstructionResult,
+        new_results: &InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
+                values.insert(old_results[0], *new_result);
             }
             InsertInstructionResult::Results(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                for (old_result, new_result) in old_results.iter().zip(*new_results) {
                     values.insert(*old_result, *new_result);
                 }
             }
