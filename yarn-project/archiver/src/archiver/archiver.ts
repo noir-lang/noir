@@ -69,6 +69,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     private readonly log: DebugLogger = createDebugLogger('aztec:archiver'),
   ) {
     this.nextL2BlockFromBlock = BigInt(searchStartBlock);
+    this.lastProcessedBlockNumber = BigInt(searchStartBlock);
   }
 
   /**

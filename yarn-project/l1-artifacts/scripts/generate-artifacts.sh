@@ -18,6 +18,8 @@ CONTRACTS=(
   "l1-contracts:ContractDeploymentEmitter"
   "l1-contracts:TokenPortal"
   "l1-contracts:PortalERC20"
+  "l1-contracts:UniswapPortal"
+  "l1-contracts:IERC20"
 )
 
 

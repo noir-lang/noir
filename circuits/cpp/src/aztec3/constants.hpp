@@ -4,7 +4,7 @@
 namespace aztec3 {
 
 // Note: must be kept in sync with ts/structs/constants.ts
-constexpr size_t ARGS_LENGTH = 8;
+constexpr size_t ARGS_LENGTH = 16;
 constexpr size_t RETURN_VALUES_LENGTH = 4;
 
 constexpr size_t READ_REQUESTS_LENGTH = 4;

@@ -170,6 +170,7 @@ export function pointToPublicKey(point: Point) {
  * @param rollupRegistryAddress - address of rollup registry to pass to initialize the token portal
  * @param initialBalance - initial balance of the owner of the L2 contract
  * @param owner - owner of the L2 contract
+ * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if noone supplied, it deploys one)
  * @returns l2 contract instance, token portal instance, token portal address and the underlying ERC20 instance
  */
 export async function deployAndInitializeNonNativeL2TokenContracts(
@@ -179,14 +180,12 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   rollupRegistryAddress: EthAddress,
   initialBalance = 0n,
   owner = { x: 0n, y: 0n },
+  underlyingERC20Address?: EthAddress,
 ) {
-  // deploy underlying contract
-  const underlyingERC20Address = await deployL1Contract(
-    walletClient,
-    publicClient,
-    PortalERC20Abi,
-    PortalERC20Bytecode,
-  );
+  // deploy underlying contract if no address supplied
+  if (!underlyingERC20Address) {
+    underlyingERC20Address = await deployL1Contract(walletClient, publicClient, PortalERC20Abi, PortalERC20Bytecode);
+  }
   const underlyingERC20: any = getContract({
     address: underlyingERC20Address.toString(),
     abi: PortalERC20Abi,

@@ -2,7 +2,13 @@ version: '3'
 services:
   fork:
     image: ghcr.io/foundry-rs/foundry:nightly-a44aa13cfc23491ba32aaedc093e9488c1a6db43
-    entrypoint: 'anvil -p 8545 --host 0.0.0.0 --chain-id 31337'
+    entrypoint: >
+      sh -c '
+      if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
+        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
+      else
+        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337
+      fi'
     ports:
       - '8545:8545'
 
@@ -16,4 +22,5 @@ services:
       P2P_CHECK_INTERVAL: 50
       SEQ_TX_POLLING_INTERVAL: 50
       WS_CHECK_INTERVAL: 50
+      SEARCH_START_BLOCK: ${FORK_BLOCK_NUMBER:-0}
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}

@@ -18,3 +18,6 @@ remappings = [
 line_length = 100
 tab_width = 2
 variable_override_spacing=false
+
+[rpc_endpoints]
+mainnet_fork="https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c"

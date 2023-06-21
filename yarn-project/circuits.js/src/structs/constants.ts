@@ -1,7 +1,7 @@
 // See aztec3/constants.hpp
 // Copied here for prototyping purposes
 // In future: structured serialization?
-export const ARGS_LENGTH = 8;
+export const ARGS_LENGTH = 16; // MAX_ARGS in Noir
 export const RETURN_VALUES_LENGTH = 4;
 
 export const READ_REQUESTS_LENGTH = 4;

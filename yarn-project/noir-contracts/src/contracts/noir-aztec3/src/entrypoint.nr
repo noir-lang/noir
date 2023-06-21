@@ -4,8 +4,8 @@ use crate::types::vec::BoundedVec;
 global ACCOUNT_MAX_PRIVATE_CALLS: comptime Field = 1;
 global ACCOUNT_MAX_PUBLIC_CALLS: comptime Field = 1;
 global ACCOUNT_MAX_CALLS: comptime Field = 2;
-
-global FUNCTION_CALL_SIZE: comptime Field = 10;
+// MAX_ARGS + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS)
+global FUNCTION_CALL_SIZE: comptime Field = 18;
 
 struct FunctionCall {
   args: [Field; abi::MAX_ARGS],
@@ -24,11 +24,11 @@ impl FunctionCall {
 }
 
 // FUNCTION_CALL_SIZE * (ACCOUNT_MAX_PUBLIC_CALLS + ACCOUNT_MAX_PRIVATE_CALLS) + 1
-global ENTRYPOINT_PAYLOAD_SIZE: comptime Field = 21;
-global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: comptime Field = 672;
+global ENTRYPOINT_PAYLOAD_SIZE: comptime Field = 37;
+global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: comptime Field = 1184;
 
 // MAX_ARGS * (ACCOUNT_MAX_PUBLIC_CALLS + ACCOUNT_MAX_PRIVATE_CALLS)
-global ACCOUNT_FLATTENED_ARGS_SIZE: comptime Field = 16;
+global ACCOUNT_FLATTENED_ARGS_SIZE: comptime Field = 32;
 
 struct EntrypointPayload {
   // Noir doesnt support nested arrays or structs yet so we flatten everything

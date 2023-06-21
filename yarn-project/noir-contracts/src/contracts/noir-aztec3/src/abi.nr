@@ -1,4 +1,4 @@
-global MAX_ARGS: comptime Field = 8;
+global MAX_ARGS: comptime Field = 16;
 global MAX_RETURN_VALUES: comptime Field = 4;
 global MAX_READ_REQUESTS: comptime Field = 4;
 global MAX_NEW_COMMITMENTS: comptime Field = 4;
