@@ -38,12 +38,8 @@ pub(super) fn find_branch_ends(
     let mut block = function.entry_block();
     let mut context = Context::new(cfg);
 
-    println!("Finding branch ends");
-
     loop {
         let mut successors = cfg.successors(block);
-
-        println!("On top-level block {}", block);
 
         if successors.len() == 2 {
             block = context.find_join_point_of_branches(block, successors);
@@ -56,8 +52,6 @@ pub(super) fn find_branch_ends(
             unreachable!("A block can only have 0, 1, or 2 successors");
         }
     }
-
-    println!("Done finding branch ends");
 
     context.branch_ends
 }
@@ -79,8 +73,6 @@ impl<'cfg> Context<'cfg> {
     ) -> BasicBlockId {
         let left = successors.next().unwrap();
         let right = successors.next().unwrap();
-
-        println!("On jmpif block {}", start);
 
         let left_join = self.find_join_point(left);
         let right_join = self.find_join_point(right);
