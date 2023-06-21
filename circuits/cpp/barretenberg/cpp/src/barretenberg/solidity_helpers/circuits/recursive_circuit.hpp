@@ -11,10 +11,11 @@ using namespace proof_system::plonk;
 using numeric::uint256_t;
 
 template <typename OuterComposer> class RecursiveCircuit {
-    using InnerComposer = UltraPlonkComposer;
+    using InnerComposer = UltraPlonkComposerHelper;
+    using InnerBuilder = typename InnerComposer::CircuitConstructor;
 
-    typedef stdlib::field_t<InnerComposer> field_ct;
-    typedef stdlib::bn254<InnerComposer> inner_curve;
+    typedef stdlib::field_t<InnerBuilder> field_ct;
+    typedef stdlib::bn254<InnerBuilder> inner_curve;
     typedef stdlib::bn254<OuterComposer> outer_curve;
     typedef stdlib::recursion::verification_key<outer_curve> verification_key_pt;
     typedef stdlib::recursion::recursive_ultra_verifier_settings<outer_curve> recursive_settings;
@@ -29,11 +30,11 @@ template <typename OuterComposer> class RecursiveCircuit {
         std::shared_ptr<verification_key_pt> verification_key;
     };
 
-    static void create_inner_circuit_no_tables(InnerComposer& composer, uint256_t inputs[])
+    static void create_inner_circuit_no_tables(InnerBuilder& builder, uint256_t inputs[])
     {
-        field_ct a(public_witness_ct(&composer, inputs[0]));
-        field_ct b(public_witness_ct(&composer, inputs[1]));
-        field_ct c(public_witness_ct(&composer, inputs[2]));
+        field_ct a(public_witness_ct(&builder, inputs[0]));
+        field_ct b(public_witness_ct(&builder, inputs[1]));
+        field_ct c(public_witness_ct(&builder, inputs[2]));
 
         // @note For some reason, if we don't have this line, the circuit fails to verify.
         auto c_sq = c * c;
@@ -42,7 +43,7 @@ template <typename OuterComposer> class RecursiveCircuit {
         c_sq.assert_equal(c * c);
     };
 
-    static circuit_outputs create_outer_circuit(InnerComposer& inner_composer, OuterComposer& outer_composer)
+    static circuit_outputs create_outer_circuit(InnerBuilder& inner_circuit, OuterComposer& outer_composer)
     {
         // These constexpr definitions are to allow for the following:
         // An Ultra Pedersen hash evaluates to a different value from the Turbo/Standard versions of the Pedersen hash.
@@ -51,9 +52,9 @@ template <typename OuterComposer> class RecursiveCircuit {
         // circuit which uses non-ultra-pedersen challenges. We need the prover and verifier hashes to be the same. The
         // solution is to select the relevant prover and verifier types (whose settings use the same hash for
         // fiat-shamir), depending on the Inner-Outer combo. It's a bit clunky, but the alternative is to have a
-        // template argument for the hashtype, and that would pervade the entire UltraPlonkComposer, which would be
-        // horrendous.
-        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, UltraPlonkComposer>::value;
+        // template argument for the hashtype, and that would pervade the entire UltraPlonkComposerHelper, which would
+        // be horrendous.
+        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, UltraPlonkComposerHelper>::value;
         typedef
             typename std::conditional<is_ultra_to_ultra, UltraProver, UltraToStandardProver>::type ProverOfInnerCircuit;
         typedef typename std::conditional<is_ultra_to_ultra, UltraVerifier, UltraToStandardVerifier>::type
@@ -62,14 +63,15 @@ template <typename OuterComposer> class RecursiveCircuit {
             typename std::conditional<is_ultra_to_ultra, recursive_settings, ultra_to_standard_recursive_settings>::type
                 RecursiveSettings;
 
+        InnerComposer inner_composer;
         ProverOfInnerCircuit prover;
         if constexpr (is_ultra_to_ultra) {
-            prover = inner_composer.create_prover();
+            prover = inner_composer.create_prover(inner_circuit);
         } else {
-            prover = inner_composer.create_ultra_to_standard_prover();
+            prover = inner_composer.create_ultra_to_standard_prover(inner_circuit);
         }
 
-        const auto verification_key_native = inner_composer.compute_verification_key();
+        const auto verification_key_native = inner_composer.compute_verification_key(inner_circuit);
 
         // Convert the verification key's elements into _circuit_ types, using the OUTER composer.
         std::shared_ptr<verification_key_pt> verification_key =
@@ -82,9 +84,9 @@ template <typename OuterComposer> class RecursiveCircuit {
             VerifierOfInnerProof native_verifier;
 
             if constexpr (is_ultra_to_ultra) {
-                native_verifier = inner_composer.create_verifier();
+                native_verifier = inner_composer.create_verifier(inner_circuit);
             } else {
-                native_verifier = inner_composer.create_ultra_to_standard_verifier();
+                native_verifier = inner_composer.create_ultra_to_standard_verifier(inner_circuit);
             }
             auto native_result = native_verifier.verify_proof(recursive_proof);
             if (native_result == false) {
@@ -104,14 +106,14 @@ template <typename OuterComposer> class RecursiveCircuit {
     };
 
   public:
-    static OuterComposer generate(std::string srs_path, uint256_t inputs[])
+    static OuterComposer generate(uint256_t inputs[])
     {
-        InnerComposer inner_composer = InnerComposer(srs_path);
-        OuterComposer outer_composer = OuterComposer(srs_path);
+        InnerBuilder inner_circuit;
+        OuterComposer outer_composer;
 
-        create_inner_circuit_no_tables(inner_composer, inputs);
+        create_inner_circuit_no_tables(inner_circuit, inputs);
 
-        auto circuit_output = create_outer_circuit(inner_composer, outer_composer);
+        auto circuit_output = create_outer_circuit(inner_circuit, outer_composer);
 
         g1::affine_element P[2];
         P[0].x = barretenberg::fq(circuit_output.aggregation_state.P0.x.get_value().lo);

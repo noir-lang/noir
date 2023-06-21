@@ -58,7 +58,7 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
             }
             preimage_data.push_back(field_pt::accumulate(work_element));
         }
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
             return pedersen_plookup_commitment<Composer>::compress_with_relaxed_range_constraints(preimage_data,
                                                                                                   hash_index);
         } else {
@@ -145,7 +145,7 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
             field_pt borrow = field_pt::from_witness(context, need_borrow);
 
             // directly call `create_new_range_constraint` to avoid creating an arithmetic gate
-            if constexpr (Composer::type == ComposerType::PLOOKUP) {
+            if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
                 context->create_new_range_constraint(borrow.get_witness_index(), 1, "borrow");
             } else {
                 context->create_range_constraint(borrow.get_witness_index(), 1, "borrow");
@@ -334,7 +334,7 @@ template <typename Curve> struct verification_key {
         const auto circuit_key_compressed = compress();
         bool found = false;
         // if we're using Plookup, use a ROM table to index the keys
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
             field_t<Composer> key_index(witness_t<Composer>(context, 0));
             std::vector<field_t<Composer>> compressed_keys;
             for (size_t i = 0; i < keys_in_set.size(); ++i) {
@@ -422,7 +422,7 @@ template <typename Curve> struct verification_key {
         write(preimage_data, key->domain.root);
 
         barretenberg::fr compressed_key;
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
             compressed_key = from_buffer<barretenberg::fr>(
                 crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index));
         } else {

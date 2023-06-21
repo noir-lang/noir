@@ -1,25 +1,22 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
-#include "barretenberg/stdlib/primitives/uint/uint.hpp"
-#include "barretenberg/stdlib/primitives/bool/bool.hpp"
 
-template <typename Composer> class Add2Circuit {
+template <typename Builder> class Add2Circuit {
   public:
-    typedef stdlib::field_t<Composer> field_ct;
-    typedef stdlib::witness_t<Composer> witness_ct;
-    typedef stdlib::public_witness_t<Composer> public_witness_ct;
+    typedef proof_system::plonk::stdlib::public_witness_t<Builder> public_witness_ct;
+    typedef proof_system::plonk::stdlib::field_t<Builder> field_ct;
 
     // Three public inputs
-    static Composer generate(std::string srs_path, uint256_t inputs[])
+    static Builder generate(uint256_t inputs[])
     {
 
-        Composer composer(srs_path);
+        Builder builder;
 
-        field_ct a(public_witness_ct(&composer, inputs[0]));
-        field_ct b(public_witness_ct(&composer, inputs[1]));
-        field_ct c(public_witness_ct(&composer, inputs[2]));
+        field_ct a(public_witness_ct(&builder, inputs[0]));
+        field_ct b(public_witness_ct(&builder, inputs[1]));
+        field_ct c(public_witness_ct(&builder, inputs[2]));
         c.assert_equal(a + b);
 
-        return composer;
+        return builder;
     }
 };

@@ -1,7 +1,7 @@
 #include "sha256.hpp"
 #include "sha256_plookup.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
@@ -137,7 +137,7 @@ template <typename Composer> byte_array<Composer> sha256_block(const byte_array<
 
 template <typename Composer> packed_byte_array<Composer> sha256(const packed_byte_array<Composer>& input)
 {
-    if constexpr (Composer::type == ComposerType::PLOOKUP) {
+    if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
         return sha256_plookup::sha256(input);
     }
     typedef field_t<Composer> field_pt;

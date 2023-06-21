@@ -1,6 +1,6 @@
 #pragma once
 #include <functional>
-#include "../composers/composers_fwd.hpp"
+#include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../witness/witness.hpp"
 #include "barretenberg/common/assert.hpp"
 

@@ -26,7 +26,7 @@ struct claim_note_witness_data {
     field_ct value_note_partial_commitment;
     field_ct input_nullifier;
 
-    claim_note_witness_data(Composer& composer, native::claim::claim_note const& note_data)
+    claim_note_witness_data(Builder& composer, native::claim::claim_note const& note_data)
     {
         deposit_value =
             suint_ct(witness_ct(&composer, note_data.deposit_value), DEFI_DEPOSIT_VALUE_BIT_LENGTH, "deposit_value");
@@ -51,7 +51,7 @@ struct partial_claim_note_witness_data {
     field_ct input_nullifier;
 
     partial_claim_note_witness_data(){};
-    partial_claim_note_witness_data(Composer& composer, native::claim::partial_claim_note_data const& note_data)
+    partial_claim_note_witness_data(Builder& composer, native::claim::partial_claim_note_data const& note_data)
     {
         deposit_value =
             suint_ct(witness_ct(&composer, note_data.deposit_value), DEFI_DEPOSIT_VALUE_BIT_LENGTH, "deposit_value");

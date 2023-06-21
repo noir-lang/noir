@@ -1,5 +1,5 @@
 #pragma once
-#include "../composers/composers_fwd.hpp"
+#include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../field/field.hpp"
 
 namespace proof_system::plonk {

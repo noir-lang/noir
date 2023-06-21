@@ -235,7 +235,7 @@ class PrecomputedPolyList {
                 precomputed_poly_ids.emplace_back(label);
                 precomputed_poly_ids.emplace_back(label + "_fft");
                 // Store all lagrange forms of selector polynomials for ultra
-                if (composer_type == ComposerType::PLOOKUP) {
+                if (composer_type == proof_system::ComposerType::PLOOKUP) {
                     precomputed_poly_ids.emplace_back(label + "_lagrange");
                 }
                 break;

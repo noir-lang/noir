@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/proof_system/arithmetization/gate_data.hpp"
-#include "../../primitives/composers/composers_fwd.hpp"
+#include "../../primitives/circuit_builders/circuit_builders_fwd.hpp"
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/point/point.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"

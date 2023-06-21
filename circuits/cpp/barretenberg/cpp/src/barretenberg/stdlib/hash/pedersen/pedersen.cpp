@@ -1,7 +1,6 @@
 #include "pedersen.hpp"
 #include "pedersen_plookup.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "../../primitives/composers/composers.hpp"
 #include "pedersen_gates.hpp"
 
 namespace proof_system::plonk {
@@ -206,7 +205,7 @@ point<C> pedersen_hash<C>::hash_single_internal(const field_t& in,
         if (i > 0) {
             gates.create_fixed_group_add_gate(round_quad);
         } else {
-            if constexpr (C::type == ComposerType::PLOOKUP &&
+            if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
                           (C::merkle_hash_type == merkle::HashType::FIXED_BASE_PEDERSEN ||
                            C::commitment_type == pedersen::CommitmentType::FIXED_BASE_PEDERSEN)) {
                 /* In TurboPlonkComposer, the selector q_5 is used to show that w_1 and w_2 are properly initialized to
@@ -283,7 +282,8 @@ point<C> pedersen_hash<C>::hash_single(const field_t& in,
                                        const generator_index_t hash_index,
                                        const bool validate_input_is_in_field)
 {
-    if constexpr (C::type == ComposerType::PLOOKUP && C::merkle_hash_type == merkle::HashType::LOOKUP_PEDERSEN) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
+                  C::merkle_hash_type == merkle::HashType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_hash<C>::hash_single(in, hash_index.index == 0);
     }
 
@@ -300,7 +300,8 @@ point<C> pedersen_hash<C>::commit_single(const field_t& in,
                                          const generator_index_t hash_index,
                                          const bool validate_input_is_in_field)
 {
-    if constexpr (C::type == ComposerType::PLOOKUP && C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
+                  C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_hash<C>::hash_single(in, hash_index.index == 0);
     }
 
@@ -479,7 +480,7 @@ template <typename C> void pedersen_hash<C>::validate_wnaf_is_in_field(C* ctx, c
     field_t y_lo = (-reconstructed_input).add_two(high_limb_with_skew * shift + (r_lo + shift), is_even);
 
     field_t y_overlap;
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         // carve out the 2 high bits from y_lo and instantiate as y_overlap
         const uint256_t y_lo_value = y_lo.get_value();
         const uint256_t y_overlap_value = y_lo_value >> 126;
@@ -549,7 +550,8 @@ field_t<C> pedersen_hash<C>::hash_multiple(const std::vector<field_t>& inputs,
                                            const size_t hash_index,
                                            const bool validate_inputs_in_field)
 {
-    if constexpr (C::type == ComposerType::PLOOKUP && C::merkle_hash_type == merkle::HashType::LOOKUP_PEDERSEN) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
+                  C::merkle_hash_type == merkle::HashType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_hash<C>::hash_multiple(inputs, hash_index);
     }
 

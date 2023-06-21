@@ -13,21 +13,21 @@
 namespace acir_proofs {
 
 AcirComposer::AcirComposer(size_t size_hint)
-    : composer_(0, 0, 0)
+    : composer_(/*p_key=*/0, /*v_key=*/0)
     , size_hint_(size_hint)
 {}
 
 void AcirComposer::create_circuit(acir_format::acir_format& constraint_system)
 {
-    composer_ = acir_format::create_circuit(constraint_system, nullptr, size_hint_);
+    builder_ = acir_format::create_circuit(constraint_system, size_hint_);
 
     // We are done with the constraint system at this point, and we need the memory slab back.
     constraint_system.constraints.clear();
     constraint_system.constraints.shrink_to_fit();
 
-    exact_circuit_size_ = composer_.get_num_gates();
-    total_circuit_size_ = composer_.get_total_circuit_size();
-    circuit_subgroup_size_ = composer_.get_circuit_subgroup_size(total_circuit_size_);
+    exact_circuit_size_ = builder_.get_num_gates();
+    total_circuit_size_ = builder_.get_total_circuit_size();
+    circuit_subgroup_size_ = builder_.get_circuit_subgroup_size(total_circuit_size_);
     size_hint_ = circuit_subgroup_size_;
 }
 
@@ -35,19 +35,20 @@ void AcirComposer::init_proving_key(std::shared_ptr<barretenberg::srs::factories
                                     acir_format::acir_format& constraint_system)
 {
     info("building circuit... ", size_hint_);
-    composer_ = acir_format::Composer(crs_factory, size_hint_);
-    acir_format::create_circuit(composer_, constraint_system);
+    builder_ = acir_format::Builder(size_hint_);
+    acir_format::create_circuit(builder_, constraint_system);
 
     // We are done with the constraint system at this point, and we need the memory slab back.
     constraint_system.constraints.clear();
     constraint_system.constraints.shrink_to_fit();
 
-    exact_circuit_size_ = composer_.get_num_gates();
-    total_circuit_size_ = composer_.get_total_circuit_size();
-    circuit_subgroup_size_ = composer_.get_circuit_subgroup_size(total_circuit_size_);
+    exact_circuit_size_ = builder_.get_num_gates();
+    total_circuit_size_ = builder_.get_total_circuit_size();
+    circuit_subgroup_size_ = builder_.get_circuit_subgroup_size(total_circuit_size_);
 
+    composer_ = acir_format::Composer(crs_factory);
     info("computing proving key...");
-    proving_key_ = composer_.compute_proving_key();
+    proving_key_ = composer_.compute_proving_key(builder_);
 }
 
 std::vector<uint8_t> AcirComposer::create_proof(
@@ -57,24 +58,24 @@ std::vector<uint8_t> AcirComposer::create_proof(
     bool is_recursive)
 {
     // Release prior memory first.
-    composer_ = acir_format::Composer(0, 0, 0);
+    composer_ = acir_format::Composer(/*p_key=*/0, /*v_key=*/0);
 
     info("building circuit...");
+    create_circuit_with_witness(builder_, constraint_system, witness);
+
     composer_ = [&]() {
         if (proving_key_) {
-            auto composer = acir_format::Composer(proving_key_, verification_key_, size_hint_);
+            auto composer = acir_format::Composer(proving_key_, verification_key_);
             // You can't produce the verification key unless you manually set the crs. Which seems like a bug.
-            composer_.composer_helper.crs_factory_ = crs_factory;
+            composer_.crs_factory_ = crs_factory;
             return composer;
         } else {
-            return acir_format::Composer(crs_factory, size_hint_);
+            return acir_format::Composer(crs_factory);
         }
     }();
-    create_circuit_with_witness(composer_, constraint_system, witness);
-
     if (!proving_key_) {
         info("computing proving key...");
-        proving_key_ = composer_.compute_proving_key();
+        proving_key_ = composer_.compute_proving_key(builder_);
     }
 
     // We are done with the constraint system at this point, and we need the memory slab back.
@@ -86,10 +87,10 @@ std::vector<uint8_t> AcirComposer::create_proof(
     info("creating proof...");
     std::vector<uint8_t> proof;
     if (is_recursive) {
-        auto prover = composer_.create_prover();
+        auto prover = composer_.create_prover(builder_);
         proof = prover.construct_proof().proof_data;
     } else {
-        auto prover = composer_.create_ultra_with_keccak_prover();
+        auto prover = composer_.create_ultra_with_keccak_prover(builder_);
         proof = prover.construct_proof().proof_data;
     }
     info("done.");
@@ -98,7 +99,7 @@ std::vector<uint8_t> AcirComposer::create_proof(
 
 std::shared_ptr<proof_system::plonk::verification_key> AcirComposer::init_verification_key()
 {
-    return verification_key_ = composer_.compute_verification_key();
+    return verification_key_ = composer_.compute_verification_key(builder_);
 }
 
 void AcirComposer::load_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
@@ -106,24 +107,24 @@ void AcirComposer::load_verification_key(std::shared_ptr<barretenberg::srs::fact
 {
     verification_key_ =
         std::make_shared<proof_system::plonk::verification_key>(std::move(data), crs_factory->get_verifier_crs());
-    composer_ = acir_format::Composer(proving_key_, verification_key_, circuit_subgroup_size_);
+    composer_ = acir_format::Composer(proving_key_, verification_key_);
 }
 
 bool AcirComposer::verify_proof(std::vector<uint8_t> const& proof, bool is_recursive)
 {
     if (!verification_key_) {
         info("computing verification key...");
-        verification_key_ = composer_.compute_verification_key();
+        verification_key_ = composer_.compute_verification_key(builder_);
     }
 
     // Hack. Shouldn't need to do this. 2144 is size with no public inputs.
-    composer_.circuit_constructor.public_inputs.resize((proof.size() - 2144) / 32);
+    builder_.public_inputs.resize((proof.size() - 2144) / 32);
 
     if (is_recursive) {
-        auto verifier = composer_.create_verifier();
+        auto verifier = composer_.create_verifier(builder_);
         return verifier.verify_proof({ proof });
     } else {
-        auto verifier = composer_.create_ultra_with_keccak_verifier();
+        auto verifier = composer_.create_ultra_with_keccak_verifier(builder_);
         return verifier.verify_proof({ proof });
     }
 }

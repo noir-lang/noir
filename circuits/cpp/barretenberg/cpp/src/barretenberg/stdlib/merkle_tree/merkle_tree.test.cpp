@@ -7,7 +7,7 @@
 
 namespace proof_system::test_stdlib_merkle_tree {
 
-using namespace plonk::stdlib;
+using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 
 using Composer = proof_system::UltraCircuitConstructor;

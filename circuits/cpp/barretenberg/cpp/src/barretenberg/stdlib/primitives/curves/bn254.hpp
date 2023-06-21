@@ -7,25 +7,30 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename ComposerType> struct bn254 {
+template <typename CircuitBuilder> struct bn254 {
     static constexpr proof_system::CurveType type = proof_system::CurveType::BN254;
 
-    typedef barretenberg::fq fq;
-    typedef barretenberg::fr fr;
-    typedef barretenberg::g1 g1;
+    // NOTE: Naming in flux here; maybe name should reflect "native" somehow?
+    using BaseField = curve::BN254::BaseField;
+    using fq = BaseField;
+    using ScalarField = curve::BN254::ScalarField;
+    using fr = ScalarField;
+    using Group = curve::BN254::Group;
+    using g1 = Group;
 
-    typedef ComposerType Composer;
-    typedef witness_t<Composer> witness_ct;
-    typedef public_witness_t<Composer> public_witness_ct;
-    typedef field_t<Composer> fr_ct;
-    typedef byte_array<Composer> byte_array_ct;
-    typedef bool_t<Composer> bool_ct;
-    typedef stdlib::uint32<Composer> uint32_ct;
+    using Builder = CircuitBuilder;
+    using Composer = CircuitBuilder;
+    typedef witness_t<CircuitBuilder> witness_ct;
+    typedef public_witness_t<CircuitBuilder> public_witness_ct;
+    typedef field_t<CircuitBuilder> fr_ct;
+    typedef byte_array<CircuitBuilder> byte_array_ct;
+    typedef bool_t<CircuitBuilder> bool_ct;
+    typedef stdlib::uint32<CircuitBuilder> uint32_ct;
 
-    typedef bigfield<Composer, barretenberg::Bn254FqParams> fq_ct;
-    typedef bigfield<Composer, barretenberg::Bn254FrParams> bigfr_ct;
-    typedef element<Composer, fq_ct, fr_ct, g1> g1_ct;
-    typedef element<Composer, fq_ct, bigfr_ct, g1> g1_bigfr_ct;
+    typedef bigfield<CircuitBuilder, barretenberg::Bn254FqParams> fq_ct;
+    typedef bigfield<CircuitBuilder, barretenberg::Bn254FrParams> bigfr_ct;
+    typedef element<CircuitBuilder, fq_ct, fr_ct, Group> g1_ct;
+    typedef element<CircuitBuilder, fq_ct, bigfr_ct, Group> g1_bigfr_ct;
 
 }; // namespace bn254
 } // namespace stdlib

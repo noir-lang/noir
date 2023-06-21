@@ -4,7 +4,7 @@
 #include "barretenberg/numeric/uintx/uintx.hpp"
 #include <tuple>
 
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 
 #include "../bit_array/bit_array.hpp"
 #include "../field/field.hpp"
@@ -56,7 +56,7 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits_in,
     field_t<C> limb_3(context);
     if (low_bits_in.witness_index != IS_CONSTANT) {
         std::vector<uint32_t> low_accumulator;
-        if constexpr (C::type == ComposerType::PLOOKUP) {
+        if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
             // MERGE NOTE: this was the if constexpr block introduced in ecebe7643
             const auto limb_witnesses =
                 context->decompose_non_native_field_double_width_limb(low_bits_in.normalize().witness_index);
@@ -107,7 +107,7 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits_in,
     if (high_bits_in.witness_index != IS_CONSTANT) {
 
         std::vector<uint32_t> high_accumulator;
-        if constexpr (C::type == ComposerType::PLOOKUP) {
+        if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
             const auto limb_witnesses = context->decompose_non_native_field_double_width_limb(
                 high_bits_in.normalize().witness_index, (size_t)num_high_limb_bits);
             limb_2.witness_index = limb_witnesses[0];
@@ -187,7 +187,7 @@ bigfield<C, T> bigfield<C, T>::create_from_u512_as_witness(C* ctx,
     limbs[2] = value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3).lo;
     limbs[3] = value.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4).lo;
 
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         field_t<C> limb_0(ctx);
         field_t<C> limb_1(ctx);
         field_t<C> limb_2(ctx);
@@ -384,7 +384,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator+(const
     result.binary_basis_limbs[3].maximum_value =
         binary_basis_limbs[3].maximum_value + other.binary_basis_limbs[3].maximum_value;
 
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         if (prime_basis_limb.multiplicative_constant == 1 && other.prime_basis_limb.multiplicative_constant == 1 &&
             !is_constant() && !other.is_constant()) {
             bool limbconst = binary_basis_limbs[0].element.is_constant();
@@ -592,7 +592,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
     result.binary_basis_limbs[2].element = binary_basis_limbs[2].element + barretenberg::fr(to_add_2);
     result.binary_basis_limbs[3].element = binary_basis_limbs[3].element + barretenberg::fr(to_add_3);
 
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         if (prime_basis_limb.multiplicative_constant == 1 && other.prime_basis_limb.multiplicative_constant == 1 &&
             !is_constant() && !other.is_constant()) {
             bool limbconst = result.binary_basis_limbs[0].element.is_constant();
@@ -1647,7 +1647,7 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     r1 = r1.normalize();
     r2 = r2.normalize();
     r3 = r3.normalize();
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         context->decompose_into_default_range(r0.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
         context->decompose_into_default_range(r1.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
         context->decompose_into_default_range(r2.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
@@ -1780,7 +1780,7 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
     // TODO: implicit assumption here - NUM_LIMB_BITS large enough for all the quotient
     uint32_t quotient_limb_index = context->add_variable(barretenberg::fr(quotient_value.lo));
     field_t<C> quotient_limb = field_t<C>::from_witness_index(context, quotient_limb_index);
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         context->decompose_into_default_range(quotient_limb.witness_index, static_cast<size_t>(maximum_quotient_bits));
     } else {
         context->decompose_into_base4_accumulators(quotient_limb.witness_index,
@@ -1882,7 +1882,7 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
         ++max_hi_bits;
     }
 
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         // The plookup custom bigfield gate requires inputs are witnesses.
         // If we're using constant values, instantiate them as circuit variables
         const auto convert_constant_to_fixed_witness = [ctx](const bigfield& input) {
@@ -2240,7 +2240,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
         ++max_hi_bits;
     }
 
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         // The plookup custom bigfield gate requires inputs are witnesses.
         // If we're using constant values, instantiate them as circuit variables
 
@@ -2443,7 +2443,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
             ctx->decompose_into_default_range(lo.normalize().witness_index, carry_lo_msb);
         }
         /*  NOTE TO AUDITOR: An extraneous block
-               if constexpr (C::type == ComposerType::PLOOKUP) {
+               if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
                    carry_lo = carry_lo.normalize();
                    carry_hi = carry_hi.normalize();
                    ctx->decompose_into_default_range(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));
@@ -2606,7 +2606,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
 
         const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
 
-        if constexpr (C::type == ComposerType::PLOOKUP) {
+        if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
             carry_lo = carry_lo.normalize();
             carry_hi = carry_hi.normalize();
             ctx->decompose_into_default_range(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));
@@ -2645,7 +2645,7 @@ void bigfield<C, T>::unsafe_evaluate_square_add(const bigfield& left,
                                                 const bigfield& quotient,
                                                 const bigfield& remainder)
 {
-    if (C::type == ComposerType::PLOOKUP) {
+    if (C::type == proof_system::ComposerType::PLOOKUP) {
         unsafe_evaluate_multiply_add(left, left, to_add, quotient, { remainder });
         return;
     }
@@ -2766,7 +2766,7 @@ void bigfield<C, T>::unsafe_evaluate_square_add(const bigfield& left,
     const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
 
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
-    if constexpr (C::type == ComposerType::PLOOKUP) {
+    if constexpr (C::type == proof_system::ComposerType::PLOOKUP) {
         carry_lo = carry_lo.normalize();
         carry_hi = carry_hi.normalize();
         ctx->decompose_into_default_range(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));

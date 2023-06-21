@@ -11,58 +11,61 @@ using namespace stdlib::types;
 
 const size_t CIRCUIT_SIZE = 1 << 19;
 
-void build_circuit(Composer& composer)
+void build_circuit(Builder& builder)
 {
-    while (composer.get_num_gates() <= CIRCUIT_SIZE / 2) {
-        plonk::stdlib::pedersen_commitment<Composer>::compress(field_ct(witness_ct(&composer, 1)),
-                                                               field_ct(witness_ct(&composer, 1)));
+    while (builder.get_num_gates() <= CIRCUIT_SIZE / 2) {
+        plonk::stdlib::pedersen_commitment<Builder>::compress(field_ct(witness_ct(&builder, 1)),
+                                                              field_ct(witness_ct(&builder, 1)));
     }
 }
 
-Composer* create_composer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory)
+BuilderComposerPtrs create_builder_and_composer(
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory)
 {
     // WARNING: Size hint is essential to perform 512k circuits!
-    auto composer = std::make_unique<Composer>(crs_factory, CIRCUIT_SIZE);
+    auto builder = std::make_unique<Builder>(CIRCUIT_SIZE);
     info("building circuit...");
-    build_circuit(*composer);
+    build_circuit(*builder);
 
-    if (composer->failed()) {
-        std::string error = format("composer logic failed: ", composer->err());
+    if (builder->failed()) {
+        std::string error = format("builder logic failed: ", builder->err());
         throw_or_abort(error);
     }
 
-    info("public inputs: ", composer->get_public_inputs().size());
-    info("composer gates: ", composer->get_num_gates());
+    info("public inputs: ", builder->get_public_inputs().size());
+    info("composer gates: ", builder->get_num_gates());
 
     info("computing proving key...");
-    auto pk = composer->compute_proving_key();
+    auto composer = std::make_unique<Composer>(crs_factory);
+    auto pk = composer->compute_proving_key(*builder);
 
-    return composer.release();
+    return { builder.release(), composer.release() };
 }
 
-proof create_proof(Composer* composer)
+proof create_proof(BuilderComposerPtrs pair)
 {
     Timer timer;
     info("computing proof...");
-    auto prover = composer->create_ultra_with_keccak_prover();
+    auto prover = pair.composer->create_ultra_with_keccak_prover(*pair.builder);
     auto proof = prover.construct_proof();
     info("proof construction took ", timer.seconds(), "s");
     return proof;
 }
 
-bool verify_proof(Composer* composer, proof_system::plonk::proof const& proof)
+bool verify_proof(BuilderComposerPtrs pair, proof_system::plonk::proof const& proof)
 {
     info("computing verification key...");
-    composer->compute_verification_key();
-    auto verifier = composer->create_ultra_with_keccak_verifier();
+    pair.composer->compute_verification_key(*pair.builder);
+    auto verifier = pair.composer->create_ultra_with_keccak_verifier(*pair.builder);
     auto valid = verifier.verify_proof(proof);
     info("proof validity: ", valid);
     return valid;
 }
 
-void delete_composer(Composer* composer)
+void delete_builder_and_composer(BuilderComposerPtrs pair)
 {
-    delete composer;
+    delete pair.builder;
+    delete pair.composer;
 }
 
 } // namespace examples::simple

@@ -4,7 +4,6 @@
 #include "../../hash/pedersen/pedersen_plookup.hpp"
 
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
-#include "../../primitives/composers/composers.hpp"
 #include "../../primitives/plookup/plookup.hpp"
 
 namespace proof_system::plonk {

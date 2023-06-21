@@ -15,7 +15,7 @@ struct PedersenConstraint {
     friend bool operator==(PedersenConstraint const& lhs, PedersenConstraint const& rhs) = default;
 };
 
-void create_pedersen_constraint(Composer& composer, const PedersenConstraint& input);
+void create_pedersen_constraint(Builder& builder, const PedersenConstraint& input);
 
 template <typename B> inline void read(B& buf, PedersenConstraint& constraint)
 {

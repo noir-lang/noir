@@ -16,17 +16,14 @@
 #include "../../primitives/witness/witness.hpp"
 #include "../../primitives/bool/bool.hpp"
 
-#include "../verification_key//verification_key.hpp"
-namespace proof_system::plonk {
-namespace stdlib {
-namespace recursion {
+namespace proof_system::plonk::stdlib::recursion {
 template <typename Composer> class Transcript {
   public:
     using field_pt = field_t<Composer>;
     using witness_pt = witness_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
     using group_pt = element<Composer, fq_pt, field_pt, barretenberg::g1>;
-    using Key = proof_system::plonk::stdlib::recursion::verification_key<stdlib::bn254<Composer>>;
+    using Key = verification_key<stdlib::bn254<Composer>>;
 
     Transcript(Composer* in_context, const transcript::Manifest input_manifest)
         : context(in_context)
@@ -259,7 +256,7 @@ template <typename Composer> class Transcript {
             field_pt borrow = field_pt::from_witness(context, need_borrow);
 
             // directly call `create_new_range_constraint` to avoid creating an arithmetic gate
-            if constexpr (Composer::type == ComposerType::PLOOKUP) {
+            if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
                 context->create_new_range_constraint(borrow.get_witness_index(), 1, "borrow");
             } else {
                 context->create_range_constraint(borrow.get_witness_index(), 1, "borrow");
@@ -277,7 +274,7 @@ template <typename Composer> class Transcript {
         };
 
         field_pt base_hash;
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
             base_hash = stdlib::pedersen_plookup_commitment<Composer>::compress(std::vector<field_pt>{ T0 }, 0);
         } else {
             base_hash = stdlib::pedersen_commitment<Composer>::compress(std::vector<field_pt>{ T0 }, 0);
@@ -296,7 +293,7 @@ template <typename Composer> class Transcript {
         for (size_t i = 2; i < num_challenges; i += 2) {
             // TODO(@zac-williamson) make this a Poseidon hash not a Pedersen hash
             field_pt hash_output;
-            if constexpr (Composer::type == ComposerType::PLOOKUP) {
+            if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
                 hash_output = stdlib::pedersen_plookup_commitment<Composer>::compress(
                     std::vector<field_pt>{ (base_hash + field_pt(i / 2)).normalize() }, 0);
             } else {
@@ -429,6 +426,4 @@ template <typename Composer> class Transcript {
 
     size_t current_round = 0;
 };
-} // namespace recursion
-} // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace proof_system::plonk::stdlib::recursion

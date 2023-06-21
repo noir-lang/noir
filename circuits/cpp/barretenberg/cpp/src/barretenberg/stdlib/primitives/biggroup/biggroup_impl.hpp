@@ -4,7 +4,7 @@
 #include "barretenberg/numeric/uintx/uintx.hpp"
 #include <tuple>
 
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 
 #include "../bit_array/bit_array.hpp"
 // #include "../field/field.hpp"

@@ -25,7 +25,7 @@ struct Sha256Constraint {
 
 // This function does not work (properly) because the stdlib:sha256 function is not working correctly for 512 bits
 // pair<witness_index, bits>
-void create_sha256_constraints(Composer& composer, const Sha256Constraint& constraint);
+void create_sha256_constraints(Builder& builder, const Sha256Constraint& constraint);
 
 template <typename B> inline void read(B& buf, Sha256Input& constraint)
 {

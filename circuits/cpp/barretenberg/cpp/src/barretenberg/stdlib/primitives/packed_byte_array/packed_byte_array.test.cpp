@@ -3,7 +3,7 @@
 #include "packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 

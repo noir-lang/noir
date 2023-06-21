@@ -1,6 +1,6 @@
 #include "safe_uint.hpp"
 #include "../bool/bool.hpp"
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 namespace proof_system::plonk {

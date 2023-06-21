@@ -350,7 +350,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
         std::vector<grumpkin::fq> inputs;
         inputs.reserve(8);
-        std::vector<plonk::stdlib::field_t<Composer>> witness_inputs;
+        std::vector<stdlib::field_t<Composer>> witness_inputs;
 
         for (size_t i = 0; i < 8; ++i) {
             inputs.emplace_back(barretenberg::fr::random_element());
@@ -369,7 +369,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         Composer composer = Composer("../srs_db/ignition/");
 
         std::vector<barretenberg::fr> inputs;
-        std::vector<plonk::stdlib::field_t<Composer>> witness_inputs;
+        std::vector<stdlib::field_t<Composer>> witness_inputs;
 
         for (size_t i = 0; i < 8; ++i) {
             inputs.push_back(barretenberg::fr::random_element());

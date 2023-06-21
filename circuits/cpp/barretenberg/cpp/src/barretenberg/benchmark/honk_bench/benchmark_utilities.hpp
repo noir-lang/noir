@@ -1,11 +1,5 @@
-#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/honk/proof_system/ultra_prover.hpp"
-#include "barretenberg/honk/proof_system/ultra_verifier.hpp"
 #include <benchmark/benchmark.h>
-#include <cstddef>
-#include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
+
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/hash/keccak/keccak.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
@@ -41,11 +35,13 @@ struct BenchParams {
  * @param composer
  * @param num_iterations
  */
-template <typename Composer> void generate_basic_arithmetic_circuit(Composer& composer, size_t num_gates)
+template <typename Builder> void generate_basic_arithmetic_circuit(Builder& builder, size_t num_gates)
 {
-    plonk::stdlib::field_t a(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
-    plonk::stdlib::field_t b(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
-    plonk::stdlib::field_t c(&composer);
+    proof_system::plonk::stdlib::field_t a(
+        proof_system::plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
+    proof_system::plonk::stdlib::field_t b(
+        proof_system::plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
+    proof_system::plonk::stdlib::field_t c(&builder);
     for (size_t i = 0; i < (num_gates / 4) - 4; ++i) {
         c = a + b;
         c = a * c;
@@ -57,47 +53,47 @@ template <typename Composer> void generate_basic_arithmetic_circuit(Composer& co
 /**
  * @brief Generate test circuit with specified number of sha256 hashes
  *
- * @param composer
+ * @param builder
  * @param num_iterations
  */
-template <typename Composer> void generate_sha256_test_circuit(Composer& composer, size_t num_iterations)
+template <typename Builder> void generate_sha256_test_circuit(Builder& builder, size_t num_iterations)
 {
     std::string in;
     in.resize(32);
     for (size_t i = 0; i < 32; ++i) {
         in[i] = 0;
     }
-    proof_system::plonk::stdlib::packed_byte_array<Composer> input(&composer, in);
+    proof_system::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = proof_system::plonk::stdlib::sha256<Composer>(input);
+        input = proof_system::plonk::stdlib::sha256<Builder>(input);
     }
 }
 
 /**
  * @brief Generate test circuit with specified number of keccak hashes
  *
- * @param composer
+ * @param builder
  * @param num_iterations
  */
-template <typename Composer> void generate_keccak_test_circuit(Composer& composer, size_t num_iterations)
+template <typename Builder> void generate_keccak_test_circuit(Builder& builder, size_t num_iterations)
 {
     std::string in = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
 
-    proof_system::plonk::stdlib::byte_array<Composer> input(&composer, in);
+    proof_system::plonk::stdlib::byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = proof_system::plonk::stdlib::keccak<Composer>::hash(input);
+        input = proof_system::plonk::stdlib::keccak<Builder>::hash(input);
     }
 }
 
 /**
  * @brief Generate test circuit with specified number of ecdsa verifications
  *
- * @param composer
+ * @param builder
  * @param num_iterations
  */
-template <typename Composer> void generate_ecdsa_verification_test_circuit(Composer& composer, size_t num_iterations)
+template <typename Builder> void generate_ecdsa_verification_test_circuit(Builder& builder, size_t num_iterations)
 {
-    using curve = proof_system::plonk::stdlib::secp256k1<Composer>;
+    using curve = proof_system::plonk::stdlib::secp256k1<Builder>;
     using fr = typename curve::fr;
     using fq = typename curve::fq;
     using g1 = typename curve::g1;
@@ -115,22 +111,23 @@ template <typename Composer> void generate_ecdsa_verification_test_circuit(Compo
 
         bool first_result =
             crypto::ecdsa::verify_signature<Sha256Hasher, fq, fr, g1>(message_string, account.public_key, signature);
+        static_cast<void>(first_result); // TODO(Cody): This is not used anywhere.
 
         std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());
         std::vector<uint8_t> ss(signature.s.begin(), signature.s.end());
         uint8_t vv = signature.v;
 
-        typename curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&composer, account.public_key);
+        typename curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&builder, account.public_key);
 
-        proof_system::plonk::stdlib::ecdsa::signature<Composer> sig{ typename curve::byte_array_ct(&composer, rr),
-                                                                     typename curve::byte_array_ct(&composer, ss),
-                                                                     proof_system::plonk::stdlib::uint8<Composer>(
-                                                                         &composer, vv) };
+        proof_system::plonk::stdlib::ecdsa::signature<Builder> sig{ typename curve::byte_array_ct(&builder, rr),
+                                                                    typename curve::byte_array_ct(&builder, ss),
+                                                                    proof_system::plonk::stdlib::uint8<Builder>(
+                                                                        &builder, vv) };
 
-        typename curve::byte_array_ct message(&composer, message_string);
+        typename curve::byte_array_ct message(&builder, message_string);
 
         // Verify ecdsa signature
-        proof_system::plonk::stdlib::ecdsa::verify_signature<Composer,
+        proof_system::plonk::stdlib::ecdsa::verify_signature<Builder,
                                                              curve,
                                                              typename curve::fq_ct,
                                                              typename curve::bigfr_ct,
@@ -141,15 +138,15 @@ template <typename Composer> void generate_ecdsa_verification_test_circuit(Compo
 /**
  * @brief Generate test circuit with specified number of merkle membership checks
  *
- * @param composer
+ * @param builder
  * @param num_iterations
  */
-template <typename Composer> void generate_merkle_membership_test_circuit(Composer& composer, size_t num_iterations)
+template <typename Builder> void generate_merkle_membership_test_circuit(Builder& builder, size_t num_iterations)
 {
     using namespace proof_system::plonk::stdlib;
-    using field_ct = field_t<Composer>;
-    using witness_ct = witness_t<Composer>;
-    using witness_ct = witness_t<Composer>;
+    using field_ct = field_t<Builder>;
+    using witness_ct = witness_t<Builder>;
+    using witness_ct = witness_t<Builder>;
     using MemStore = merkle_tree::MemoryStore;
     using MerkleTree_ct = merkle_tree::MerkleTree<MemStore>;
 
@@ -163,12 +160,12 @@ template <typename Composer> void generate_merkle_membership_test_circuit(Compos
         size_t value = i * 2;
         merkle_tree.update_element(idx, value);
 
-        field_ct root_ct = witness_ct(&composer, merkle_tree.root());
-        auto idx_ct = field_ct(witness_ct(&composer, fr(idx))).decompose_into_bits();
+        field_ct root_ct = witness_ct(&builder, merkle_tree.root());
+        auto idx_ct = field_ct(witness_ct(&builder, fr(idx))).decompose_into_bits();
         auto value_ct = field_ct(value);
 
         merkle_tree::check_membership(
-            root_ct, merkle_tree::create_witness_hash_path(composer, merkle_tree.get_hash_path(idx)), value_ct, idx_ct);
+            root_ct, merkle_tree::create_witness_hash_path(builder, merkle_tree.get_hash_path(idx)), value_ct, idx_ct);
     }
 }
 
@@ -177,21 +174,25 @@ template <typename Composer> void generate_merkle_membership_test_circuit(Compos
  *
  * @details This function assumes state.range refers to num_gates which is the size of the underlying circuit
  *
- * @tparam Composer
+ * @tparam Builder
  * @param state
  * @param test_circuit_function
  */
 template <typename Composer>
-void construct_proof_with_specified_num_gates(State& state, void (*test_circuit_function)(Composer&, size_t)) noexcept
+void construct_proof_with_specified_num_gates(State& state,
+                                              void (*test_circuit_function)(typename Composer::CircuitConstructor&,
+                                                                            size_t)) noexcept
 {
     barretenberg::srs::init_crs_factory("../srs_db/ignition");
     auto num_gates = static_cast<size_t>(1 << (size_t)state.range(0));
     for (auto _ : state) {
         // Constuct circuit and prover; don't include this part in measurement
         state.PauseTiming();
+        auto builder = typename Composer::CircuitConstructor();
+        test_circuit_function(builder, num_gates);
+
         auto composer = Composer();
-        test_circuit_function(composer, num_gates);
-        auto ext_prover = composer.create_prover();
+        auto ext_prover = composer.create_prover(builder);
         state.ResumeTiming();
 
         // Construct proof
@@ -205,22 +206,25 @@ void construct_proof_with_specified_num_gates(State& state, void (*test_circuit_
  * @details This function assumes state.range refers to num_iterations which is the number of times to perform a given
  * basic operation in the circuit, e.g. number of hashes
  *
- * @tparam Composer
+ * @tparam Builder
  * @param state
  * @param test_circuit_function
  */
 template <typename Composer>
 void construct_proof_with_specified_num_iterations(State& state,
-                                                   void (*test_circuit_function)(Composer&, size_t)) noexcept
+                                                   void (*test_circuit_function)(typename Composer::CircuitConstructor&,
+                                                                                 size_t)) noexcept
 {
     barretenberg::srs::init_crs_factory("../srs_db/ignition");
     auto num_iterations = static_cast<size_t>(state.range(0));
     for (auto _ : state) {
         // Constuct circuit and prover; don't include this part in measurement
         state.PauseTiming();
+        auto builder = typename Composer::CircuitConstructor();
+        test_circuit_function(builder, num_iterations);
+
         auto composer = Composer();
-        test_circuit_function(composer, num_iterations);
-        auto ext_prover = composer.create_prover();
+        auto ext_prover = composer.create_prover(builder);
         state.ResumeTiming();
 
         // Construct proof

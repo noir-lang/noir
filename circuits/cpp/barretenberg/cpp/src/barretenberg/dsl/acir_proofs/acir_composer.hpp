@@ -38,6 +38,7 @@ class AcirComposer {
     std::vector<barretenberg::fr> serialize_verification_key_into_fields();
 
   private:
+    acir_format::Builder builder_;
     acir_format::Composer composer_;
     size_t size_hint_;
     size_t exact_circuit_size_;

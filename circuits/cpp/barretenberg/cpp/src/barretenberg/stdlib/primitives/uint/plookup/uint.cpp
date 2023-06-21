@@ -1,5 +1,5 @@
 #include "uint.hpp"
-#include "../../composers/composers.hpp"
+#include "../../circuit_builders/circuit_builders.hpp"
 
 using namespace barretenberg;
 

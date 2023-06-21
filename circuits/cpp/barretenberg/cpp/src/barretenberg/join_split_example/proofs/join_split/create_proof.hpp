@@ -10,14 +10,15 @@ namespace join_split {
 
 inline std::vector<uint8_t> create_proof(join_split_tx const& tx, circuit_data const& cd)
 {
-    Composer composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
-    join_split_circuit(composer, tx);
+    Builder builder(cd.num_gates);
+    join_split_circuit(builder, tx);
 
-    if (composer.failed()) {
-        info("Join-split circuit logic failed: ", composer.err());
+    if (builder.failed()) {
+        info("Join-split circuit logic failed: ", builder.err());
     }
 
-    auto prover = composer.create_prover();
+    Composer composer = Composer(cd.proving_key, cd.verification_key);
+    auto prover = composer.create_prover(builder);
     auto proof = prover.construct_proof();
 
     return proof.proof_data;

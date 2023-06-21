@@ -1,10 +1,8 @@
-#include "ram_table.hpp"
-
 #include <gtest/gtest.h>
 
+#include "ram_table.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 
 namespace test_stdlib_ram_table {
 
@@ -26,13 +24,13 @@ TEST(ram_table, ram_table_init_read_consistency)
     std::vector<field_ct> table_values;
     const size_t table_size = 10;
     for (size_t i = 0; i < table_size; ++i) {
-        table_values.emplace_back(witness_ct(&composer, fr::random_element()));
+        table_values.emplace_back(witness_ct(&composer, barretenberg::fr::random_element()));
     }
 
     ram_table_ct table(table_values);
 
     field_ct result(0);
-    fr expected(0);
+    barretenberg::fr expected(0);
 
     for (size_t i = 0; i < 10; ++i) {
         field_ct index(witness_ct(&composer, (uint64_t)i));
@@ -58,7 +56,7 @@ TEST(ram_table, ram_table_read_write_consistency)
     Composer composer;
     const size_t table_size = 10;
 
-    std::vector<fr> table_values(table_size);
+    std::vector<barretenberg::fr> table_values(table_size);
 
     ram_table_ct table(&composer, table_size);
 
@@ -66,12 +64,12 @@ TEST(ram_table, ram_table_read_write_consistency)
         table.write(i, 0);
     }
     field_ct result(0);
-    fr expected(0);
+    barretenberg::fr expected(0);
 
     const auto update = [&]() {
         for (size_t i = 0; i < table_size / 2; ++i) {
-            table_values[2 * i] = fr::random_element();
-            table_values[2 * i + 1] = fr::random_element();
+            table_values[2 * i] = barretenberg::fr::random_element();
+            table_values[2 * i + 1] = barretenberg::fr::random_element();
 
             // init with both constant and variable values
             table.write(2 * i, table_values[2 * i]);

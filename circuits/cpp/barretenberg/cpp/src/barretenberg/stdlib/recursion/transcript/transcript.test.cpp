@@ -1,22 +1,23 @@
-#include "transcript.hpp"
 #include <gtest/gtest.h>
 
+#include "transcript.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace proof_system::plonk;
+namespace proof_system::plonk::stdlib::recursion {
 
-// ULTRATODO: Add tests for other composers too (make tests modular?)
+// TODO(Cody): Testing only one circuit type.
+using Builder = StandardCircuitConstructor;
 
-typedef stdlib::field_t<plonk::TurboPlonkComposer> field_t;
-typedef stdlib::bool_t<plonk::TurboPlonkComposer> bool_t;
-typedef stdlib::uint<plonk::TurboPlonkComposer, uint32_t> uint32;
-typedef stdlib::witness_t<plonk::TurboPlonkComposer> witness_t;
-typedef stdlib::byte_array<plonk::TurboPlonkComposer> byte_array;
-typedef stdlib::bigfield<plonk::TurboPlonkComposer, barretenberg::Bn254FqParams> fq_t;
-typedef stdlib::element<plonk::TurboPlonkComposer, fq_t, field_t, barretenberg::g1> group_t;
+using field_t = stdlib::field_t<Builder>;
+using bool_t = stdlib::bool_t<Builder>;
+using uint32 = stdlib::uint<Builder, uint32_t>;
+using witness_t = stdlib::witness_t<Builder>;
+using byte_array = stdlib::byte_array<Builder>;
+using fq_t = stdlib::bigfield<Builder, barretenberg::Bn254FqParams>;
+using group_t = stdlib::element<Builder, fq_t, field_t, barretenberg::g1>;
+using transcript_ct = Transcript<Builder>;
 
 namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)
@@ -127,11 +128,9 @@ transcript::Transcript get_test_base_transcript(const TestData& data)
     return transcript;
 }
 
-plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer> get_circuit_transcript(
-    plonk::TurboPlonkComposer* context, const TestData& data)
+transcript_ct get_circuit_transcript(Builder* context, const TestData& data)
 {
-    plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer> transcript(context,
-                                                                               create_manifest(data.num_public_inputs));
+    transcript_ct transcript(context, create_manifest(data.num_public_inputs));
     uint256_t circuit_size_value = uint256_t(4) + (uint256_t(3) << 8) + (uint256_t(2) << 16) + (uint256_t(1) << 24);
     field_t circuit_size(stdlib::witness_t(context, barretenberg::fr(circuit_size_value)));
     field_t public_input_size(stdlib::witness_t(context, barretenberg::fr(data.num_public_inputs)));
@@ -145,33 +144,19 @@ plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer> get_circuit_tran
         public_inputs.push_back(witness_t(context, data.public_input_elements[i]));
     }
     transcript.add_field_element_vector("public_inputs", public_inputs);
-    transcript.add_group_element(
-        "W_1",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[0]));
-    transcript.add_group_element(
-        "W_2",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[1]));
-    transcript.add_group_element(
-        "W_3",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[2]));
+    transcript.add_group_element("W_1", transcript_ct::convert_g1(context, data.g1_elements[0]));
+    transcript.add_group_element("W_2", transcript_ct::convert_g1(context, data.g1_elements[1]));
+    transcript.add_group_element("W_3", transcript_ct::convert_g1(context, data.g1_elements[2]));
 
     transcript.apply_fiat_shamir("beta");
 
-    transcript.add_group_element(
-        "Z_PERM",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[3]));
+    transcript.add_group_element("Z_PERM", transcript_ct::convert_g1(context, data.g1_elements[3]));
 
     transcript.apply_fiat_shamir("alpha");
 
-    transcript.add_group_element(
-        "T_1",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[4]));
-    transcript.add_group_element(
-        "T_2",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[5]));
-    transcript.add_group_element(
-        "T_3",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[6]));
+    transcript.add_group_element("T_1", transcript_ct::convert_g1(context, data.g1_elements[4]));
+    transcript.add_group_element("T_2", transcript_ct::convert_g1(context, data.g1_elements[5]));
+    transcript.add_group_element("T_3", transcript_ct::convert_g1(context, data.g1_elements[6]));
 
     transcript.apply_fiat_shamir("z");
 
@@ -187,12 +172,8 @@ plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer> get_circuit_tran
 
     transcript.apply_fiat_shamir("nu");
 
-    transcript.add_group_element(
-        "PI_Z",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[7]));
-    transcript.add_group_element(
-        "PI_Z_OMEGA",
-        plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer>::convert_g1(context, data.g1_elements[8]));
+    transcript.add_group_element("PI_Z", transcript_ct::convert_g1(context, data.g1_elements[7]));
+    transcript.add_group_element("PI_Z_OMEGA", transcript_ct::convert_g1(context, data.g1_elements[8]));
 
     transcript.apply_fiat_shamir("separator");
     return transcript;
@@ -203,10 +184,9 @@ TEST(stdlib_transcript, validate_transcript)
     TestData data = get_test_data();
     transcript::Transcript normal_transcript = get_test_base_transcript(data);
 
-    plonk::TurboPlonkComposer composer = proof_system::plonk::TurboPlonkComposer();
+    Builder builder;
 
-    plonk::stdlib::recursion::Transcript<plonk::TurboPlonkComposer> recursive_transcript =
-        get_circuit_transcript(&composer, data);
+    transcript_ct recursive_transcript = get_circuit_transcript(&builder, data);
 
     const auto check_challenge = [&normal_transcript, &recursive_transcript](const std::string& challenge_name,
                                                                              const size_t challenge_idx = 0) {
@@ -289,13 +269,9 @@ TEST(stdlib_transcript, validate_transcript)
     check_group_element("PI_Z");
     check_group_element("PI_Z_OMEGA");
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto prover = composer.create_prover();
+    info("builder gates = ", builder.get_num_gates());
 
-    auto verifier = composer.create_verifier();
-
-    plonk::proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
+    auto result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
+} // namespace proof_system::plonk::stdlib::recursion

@@ -50,7 +50,7 @@ struct join_split_outputs {
 
 join_split_outputs join_split_circuit_component(join_split_inputs const& inputs);
 
-void join_split_circuit(Composer& composer, join_split_tx const& tx);
+void join_split_circuit(Builder& builder, join_split_tx const& tx);
 
 } // namespace join_split
 } // namespace proofs

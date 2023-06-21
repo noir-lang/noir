@@ -5,7 +5,7 @@
 #include "../field/field.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 
-#include "../composers/composers_fwd.hpp"
+#include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../memory/rom_table.hpp"
 #include "../memory/twin_rom_table.hpp"
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
@@ -250,18 +250,20 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     Fq y;
 
   private:
-    template <size_t num_elements, typename = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <size_t num_elements,
+              typename = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     static std::array<twin_rom_table<Composer>, 5> create_group_element_rom_tables(
         const std::array<element, num_elements>& elements, std::array<uint256_t, 8>& limb_max);
 
-    template <size_t num_elements, typename = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <size_t num_elements,
+              typename = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     static element read_group_element_rom_tables(const std::array<twin_rom_table<Composer>, 5>& tables,
                                                  const field_t<Composer>& index,
                                                  const std::array<uint256_t, 8>& limb_max);
 
     static std::pair<element, element> compute_offset_generators(const size_t num_rounds);
 
-    template <typename = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <typename = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     struct four_bit_table_plookup {
         four_bit_table_plookup(){};
         four_bit_table_plookup(const element& input);
@@ -276,7 +278,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         std::array<uint256_t, 8> limb_max; // tracks the maximum limb size represented in each element_table entry
     };
 
-    template <typename = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <typename = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     struct eight_bit_fixed_base_table {
         enum CurveType { BN254, SECP256K1, SECP256R1 };
         eight_bit_fixed_base_table(const CurveType input_curve_type, bool use_endo)
@@ -294,7 +296,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         bool use_endomorphism;
     };
 
-    template <typename = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <typename = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     static std::pair<four_bit_table_plookup<>, four_bit_table_plookup<>> create_endo_pair_four_bit_table_plookup(
         const element& input)
     {
@@ -373,7 +375,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
      *
      * Uses ROM tables to efficiently access lookup table
      **/
-    template <size_t length, typename = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <size_t length, typename = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     struct lookup_table_plookup {
         static constexpr size_t table_size = (1ULL << (length));
         lookup_table_plookup() {}
@@ -390,14 +392,17 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         std::array<uint256_t, 8> limb_max;
     };
 
-    using twin_lookup_table = typename std::
-        conditional<Composer::type == ComposerType::PLOOKUP, lookup_table_plookup<2, void>, lookup_table_base<2>>::type;
+    using twin_lookup_table = typename std::conditional<Composer::type == proof_system::ComposerType::PLOOKUP,
+                                                        lookup_table_plookup<2, void>,
+                                                        lookup_table_base<2>>::type;
 
-    using triple_lookup_table = typename std::
-        conditional<Composer::type == ComposerType::PLOOKUP, lookup_table_plookup<3, void>, lookup_table_base<3>>::type;
+    using triple_lookup_table = typename std::conditional<Composer::type == proof_system::ComposerType::PLOOKUP,
+                                                          lookup_table_plookup<3, void>,
+                                                          lookup_table_base<3>>::type;
 
-    using quad_lookup_table = typename std::
-        conditional<Composer::type == ComposerType::PLOOKUP, lookup_table_plookup<4, void>, lookup_table_base<4>>::type;
+    using quad_lookup_table = typename std::conditional<Composer::type == proof_system::ComposerType::PLOOKUP,
+                                                        lookup_table_plookup<4, void>,
+                                                        lookup_table_base<4>>::type;
 
     /**
      * Creates a pair of 4-bit lookup tables, the former corresponding to 4 input points,
@@ -410,7 +415,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         quad_lookup_table endo_table;
         uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
         Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
             for (size_t i = 0; i < 8; ++i) {
                 endo_table.element_table[i + 8].x = base_table[7 - i].x * beta;
                 endo_table.element_table[i + 8].y = base_table[7 - i].y;
@@ -435,7 +440,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
      * Creates a pair of 5-bit lookup tables, the former corresponding to 5 input points,
      * the latter corresponding to the endomorphism equivalent of the 5 input points (e.g. x -> \beta * x, y -> -y)
      **/
-    template <typename X = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <typename X = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     static std::pair<lookup_table_plookup<5, X>, lookup_table_plookup<5, X>> create_endo_pair_five_lookup_table(
         const std::array<element, 5>& inputs)
     {
@@ -443,7 +448,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         lookup_table_plookup<5> endo_table;
         uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
         Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
-        if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
             for (size_t i = 0; i < 16; ++i) {
                 endo_table.element_table[i + 16].x = base_table[15 - i].x * beta;
                 endo_table.element_table[i + 16].y = base_table[15 - i].y;
@@ -462,7 +467,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
      *
      * UltraPlonk version
      **/
-    template <typename X = typename std::enable_if<Composer::type == ComposerType::PLOOKUP>>
+    template <typename X = typename std::enable_if<Composer::type == proof_system::ComposerType::PLOOKUP>>
     struct batch_lookup_table_plookup {
         batch_lookup_table_plookup(const std::vector<element>& points)
         {
@@ -882,7 +887,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         bool has_singleton;
     };
 
-    using batch_lookup_table = typename std::conditional<Composer::type == ComposerType::PLOOKUP,
+    using batch_lookup_table = typename std::conditional<Composer::type == proof_system::ComposerType::PLOOKUP,
                                                          batch_lookup_table_plookup<>,
                                                          batch_lookup_table_base>::type;
 };

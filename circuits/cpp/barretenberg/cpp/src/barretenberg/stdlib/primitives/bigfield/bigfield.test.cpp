@@ -9,7 +9,7 @@
 #include "../byte_array/byte_array.hpp"
 #include "../field/field.hpp"
 #include "./bigfield.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
@@ -107,7 +107,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             // Don't profile 1st repetition. It sets up a lookup table, cost is not representative of a typical mul
             if (i == num_repetitions - 2) {
                 std::cerr << "num gates per mul = " << after - before << std::endl;
-                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "MUL", "Gate Count", after - before);
+                benchmark_info(Composer::NAME_STRING, "Bigfield", "MUL", "Gate Count", after - before);
             }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,
@@ -145,7 +145,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cerr << "num gates per mul = " << after - before << std::endl;
-                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "SQR", "Gate Count", after - before);
+                benchmark_info(Composer::NAME_STRING, "Bigfield", "SQR", "Gate Count", after - before);
             }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,
@@ -191,7 +191,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cerr << "num gates per mul = " << after - before << std::endl;
-                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "MADD", "Gate Count", after - before);
+                benchmark_info(Composer::NAME_STRING, "Bigfield", "MADD", "Gate Count", after - before);
             }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,
@@ -251,8 +251,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cerr << "num gates with mult_madd = " << after - before << std::endl;
-                benchmark_info(
-                    GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "MULT_MADD", "Gate Count", after - before);
+                benchmark_info(Composer::NAME_STRING, "Bigfield", "MULT_MADD", "Gate Count", after - before);
             }
             /**
             before = composer.get_num_gates();
@@ -359,7 +358,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates per div = " << after - before << std::endl;
-                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "DIV", "Gate Count", after - before);
+                benchmark_info(Composer::NAME_STRING, "Bigfield", "DIV", "Gate Count", after - before);
             }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,

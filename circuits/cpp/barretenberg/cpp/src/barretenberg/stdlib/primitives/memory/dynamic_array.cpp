@@ -1,6 +1,6 @@
 #include "dynamic_array.hpp"
 
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 #include "../bool/bool.hpp"
 
 namespace proof_system::plonk {
@@ -25,7 +25,7 @@ DynamicArray<Composer>::DynamicArray(Composer* composer, const size_t maximum_si
     , _max_size(maximum_size)
     , _length(0)
 {
-    static_assert(Composer::type == ComposerType::PLOOKUP);
+    static_assert(Composer::type == proof_system::ComposerType::PLOOKUP);
     ASSERT(_context != nullptr);
     _inner_table = ram_table(_context, maximum_size);
     // Initialize the ram table with all zeroes

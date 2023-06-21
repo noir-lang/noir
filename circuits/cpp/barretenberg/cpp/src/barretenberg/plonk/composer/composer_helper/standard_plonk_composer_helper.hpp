@@ -17,6 +17,8 @@ class StandardPlonkComposerHelper {
   public:
     using Flavor = plonk::flavor::Standard;
     using CircuitConstructor = StandardCircuitConstructor;
+
+    static constexpr std::string_view NAME_STRING = "StandardPlonk";
     static constexpr size_t NUM_RESERVED_GATES = 4; // equal to the number of evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::program_width;
     std::shared_ptr<plonk::proving_key> circuit_proving_key;

@@ -18,7 +18,7 @@ void generate_dummy_proof() {}
 /**
  * @brief Add constraints required to recursively verify an UltraPlonk proof
  *
- * @param composer
+ * @param builder
  * @param input
  * @tparam has_valid_witness_assignment. Do we have witnesses or are we just generating keys?
  * @tparam inner_proof_contains_recursive_proof. Do we expect the inner proof to also have performed recursive
@@ -28,7 +28,7 @@ void generate_dummy_proof() {}
  *       We would either need a separate ACIR opcode where inner_proof_contains_recursive_proof = true,
  *       or we need non-witness data to be provided as metadata in the ACIR opcode
  */
-void create_recursion_constraints(Composer& composer,
+void create_recursion_constraints(Builder& builder,
                                   const RecursionConstraint& input,
                                   bool has_valid_witness_assignments)
 {
@@ -43,7 +43,7 @@ void create_recursion_constraints(Composer& composer,
     // on-curve errors and inverting-zero errors
     {
         // get a fake key/proof that satisfies on-curve + inversion-zero checks
-        const std::vector<fr> dummy_key = export_dummy_key_in_recursion_format(PolynomialManifest(Composer::type),
+        const std::vector<fr> dummy_key = export_dummy_key_in_recursion_format(PolynomialManifest(Builder::type),
                                                                                inner_proof_contains_recursive_proof);
         const auto manifest = Composer::create_manifest(input.public_inputs.size());
         const std::vector<barretenberg::fr> dummy_proof =
@@ -51,22 +51,22 @@ void create_recursion_constraints(Composer& composer,
         for (size_t i = 0; i < input.proof.size(); ++i) {
             const auto proof_field_idx = input.proof[i];
             // if we do NOT have a witness assignment (i.e. are just building the proving/verification keys),
-            // we add our dummy proof values as Composer variables.
+            // we add our dummy proof values as Builder variables.
             // if we DO have a valid witness assignment, we use the real witness assignment
             barretenberg::fr dummy_field =
-                has_valid_witness_assignments ? composer.get_variable(proof_field_idx) : dummy_proof[i];
+                has_valid_witness_assignments ? builder.get_variable(proof_field_idx) : dummy_proof[i];
             // Create a copy constraint between our dummy field and the witness index provided by RecursionConstraint.
             // This will make the RecursionConstraint idx equal to `dummy_field`.
             // In the case of a valid witness assignment, this does nothing (as dummy_field = real value)
             // In the case of no valid witness assignment, this makes sure that the RecursionConstraint witness indices
             // will not trigger basic errors (check inputs are on-curve, check we are not inverting 0)
-            composer.assert_equal(composer.add_variable(dummy_field), proof_field_idx);
+            builder.assert_equal(builder.add_variable(dummy_field), proof_field_idx);
         }
         for (size_t i = 0; i < input.key.size(); ++i) {
             const auto key_field_idx = input.key[i];
             barretenberg::fr dummy_field =
-                has_valid_witness_assignments ? composer.get_variable(key_field_idx) : dummy_key[i];
-            composer.assert_equal(composer.add_variable(dummy_field), key_field_idx);
+                has_valid_witness_assignments ? builder.get_variable(key_field_idx) : dummy_key[i];
+            builder.assert_equal(builder.add_variable(dummy_field), key_field_idx);
         }
     }
 
@@ -87,10 +87,10 @@ void create_recursion_constraints(Composer& composer,
         std::array<bn254::fq_ct, 4> aggregation_elements;
         for (size_t i = 0; i < 4; ++i) {
             aggregation_elements[i] =
-                bn254::fq_ct(field_ct::from_witness_index(&composer, aggregation_input[4 * i]),
-                             field_ct::from_witness_index(&composer, aggregation_input[4 * i + 1]),
-                             field_ct::from_witness_index(&composer, aggregation_input[4 * i + 2]),
-                             field_ct::from_witness_index(&composer, aggregation_input[4 * i + 3]));
+                bn254::fq_ct(field_ct::from_witness_index(&builder, aggregation_input[4 * i]),
+                             field_ct::from_witness_index(&builder, aggregation_input[4 * i + 1]),
+                             field_ct::from_witness_index(&builder, aggregation_input[4 * i + 2]),
+                             field_ct::from_witness_index(&builder, aggregation_input[4 * i + 3]));
             aggregation_elements[i].assert_is_in_field();
         }
         // If we have a previous aggregation object, assign it to `previous_aggregation` so that it is included
@@ -107,39 +107,39 @@ void create_recursion_constraints(Composer& composer,
     std::vector<field_ct> key_fields;
     key_fields.reserve(input.key.size());
     for (const auto& idx : input.key) {
-        auto field = field_ct::from_witness_index(&composer, idx);
+        auto field = field_ct::from_witness_index(&builder, idx);
         key_fields.emplace_back(field);
     }
 
     std::vector<field_ct> proof_fields;
     proof_fields.reserve(input.proof.size());
     for (const auto& idx : input.proof) {
-        auto field = field_ct::from_witness_index(&composer, idx);
+        auto field = field_ct::from_witness_index(&builder, idx);
         proof_fields.emplace_back(field);
     }
 
     // recursively verify the proof
     std::shared_ptr<verification_key_ct> vkey = verification_key_ct::from_field_elements(
-        &composer, key_fields, inner_proof_contains_recursive_proof, nested_aggregation_indices);
+        &builder, key_fields, inner_proof_contains_recursive_proof, nested_aggregation_indices);
     vkey->program_width = noir_recursive_settings::program_width;
-    Transcript_ct transcript(&composer, manifest, proof_fields, input.public_inputs.size());
+    Transcript_ct transcript(&builder, manifest, proof_fields, input.public_inputs.size());
     aggregation_state_ct result = proof_system::plonk::stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
-        &composer, vkey, transcript, previous_aggregation);
+        &builder, vkey, transcript, previous_aggregation);
 
     // Assign correct witness value to the verification key hash
-    vkey->compress().assert_equal(field_ct::from_witness_index(&composer, input.key_hash));
+    vkey->compress().assert_equal(field_ct::from_witness_index(&builder, input.key_hash));
 
     ASSERT(result.public_inputs.size() == input.public_inputs.size());
 
     // Assign the `public_input` field to the public input of the inner proof
     for (size_t i = 0; i < input.public_inputs.size(); ++i) {
-        result.public_inputs[i].assert_equal(field_ct::from_witness_index(&composer, input.public_inputs[i]));
+        result.public_inputs[i].assert_equal(field_ct::from_witness_index(&builder, input.public_inputs[i]));
     }
 
     // Assign the recursive proof outputs to `output_aggregation_object`
     for (size_t i = 0; i < result.proof_witness_indices.size(); ++i) {
-        const auto lhs = field_ct::from_witness_index(&composer, result.proof_witness_indices[i]);
-        const auto rhs = field_ct::from_witness_index(&composer, input.output_aggregation_object[i]);
+        const auto lhs = field_ct::from_witness_index(&builder, result.proof_witness_indices[i]);
+        const auto rhs = field_ct::from_witness_index(&builder, input.output_aggregation_object[i]);
         lhs.assert_equal(rhs);
     }
 }

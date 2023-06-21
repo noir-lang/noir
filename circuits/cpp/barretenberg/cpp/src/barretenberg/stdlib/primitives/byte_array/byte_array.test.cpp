@@ -1,5 +1,6 @@
-#include "byte_array.hpp"
 #include <gtest/gtest.h>
+
+#include "byte_array.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
@@ -8,18 +9,18 @@
 
 namespace test_stdlib_byte_array {
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk::stdlib;
 
 #define STDLIB_TYPE_ALIASES                                                                                            \
     using Composer = TypeParam;                                                                                        \
-    using witness_ct = stdlib::witness_t<Composer>;                                                                    \
-    using byte_array_ct = stdlib::byte_array<Composer>;                                                                \
-    using field_ct = stdlib::field_t<Composer>;                                                                        \
-    using bool_ct = stdlib::bool_t<Composer>;
+    using witness_ct = witness_t<Composer>;                                                                            \
+    using byte_array_ct = byte_array<Composer>;                                                                        \
+    using field_ct = field_t<Composer>;                                                                                \
+    using bool_ct = bool_t<Composer>;
 
 template <class Composer> class ByteArrayTest : public ::testing::Test {};
 
-template <class Composer> using byte_array_ct = stdlib::byte_array<Composer>;
+template <class Composer> using byte_array_ct = byte_array<Composer>;
 
 using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
                                        proof_system::TurboCircuitConstructor,

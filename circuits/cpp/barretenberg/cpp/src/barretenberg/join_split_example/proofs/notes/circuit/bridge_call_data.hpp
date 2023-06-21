@@ -37,14 +37,14 @@ struct bridge_call_data {
         bool_ct second_output_in_use;
 
         bit_config(){};
-        bit_config(Composer* composer, uint256_t const& bridge_call_data)
+        bit_config(Builder* builder, uint256_t const& bridge_call_data)
         {
-            ASSERT(composer != nullptr);
+            ASSERT(builder != nullptr);
 
             constexpr auto bitconfig_mask = (1ULL << DEFI_BRIDGE_BITCONFIG_LEN) - 1;
             uint32_t config_u32 = uint32_t((bridge_call_data >> bitconfig_shift) & bitconfig_mask);
-            second_input_in_use = witness_ct(composer, config_u32 & 1ULL);
-            second_output_in_use = witness_ct(composer, (config_u32 >> 1) & 1ULL);
+            second_input_in_use = witness_ct(builder, config_u32 & 1ULL);
+            second_output_in_use = witness_ct(builder, (config_u32 >> 1) & 1ULL);
         }
 
         suint_ct to_suint() const
@@ -88,11 +88,11 @@ struct bridge_call_data {
     suint_ct aux_data = 0;
 
     bridge_call_data(){};
-    bridge_call_data(Composer* composer, const native::bridge_call_data& native_id)
-        : bridge_call_data(composer, native_id.to_uint256_t())
+    bridge_call_data(Builder* builder, const native::bridge_call_data& native_id)
+        : bridge_call_data(builder, native_id.to_uint256_t())
     {}
 
-    bridge_call_data(Composer* composer, uint256_t const& bridge_call_data)
+    bridge_call_data(Builder* builder, uint256_t const& bridge_call_data)
     {
         // constants
         constexpr auto one = uint256_t(1);
@@ -109,18 +109,18 @@ struct bridge_call_data {
         auto aux_data_value = (bridge_call_data >> aux_data_shift) & uint256_t((one << DEFI_BRIDGE_AUX_DATA) - 1);
 
         bridge_address_id =
-            suint_ct(witness_ct(composer, bridge_address_id_value), DEFI_BRIDGE_ADDRESS_ID_LEN, "bridge_address");
-        input_asset_id_a = suint_ct(
-            witness_ct(composer, input_asset_id_a_value), DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN, "input_asset_id_a");
-        input_asset_id_b = suint_ct(
-            witness_ct(composer, input_asset_id_b_value), DEFI_BRIDGE_INPUT_B_ASSET_ID_LEN, "input_asset_id_b");
+            suint_ct(witness_ct(builder, bridge_address_id_value), DEFI_BRIDGE_ADDRESS_ID_LEN, "bridge_address");
+        input_asset_id_a =
+            suint_ct(witness_ct(builder, input_asset_id_a_value), DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN, "input_asset_id_a");
+        input_asset_id_b =
+            suint_ct(witness_ct(builder, input_asset_id_b_value), DEFI_BRIDGE_INPUT_B_ASSET_ID_LEN, "input_asset_id_b");
         output_asset_id_a = suint_ct(
-            witness_ct(composer, output_asset_id_a_value), DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN, "output_asset_id_a");
+            witness_ct(builder, output_asset_id_a_value), DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN, "output_asset_id_a");
         output_asset_id_b = suint_ct(
-            witness_ct(composer, output_asset_id_b_value), DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN, "output_asset_id_b");
-        aux_data = suint_ct(witness_ct(composer, aux_data_value), DEFI_BRIDGE_AUX_DATA, "aux_data");
+            witness_ct(builder, output_asset_id_b_value), DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN, "output_asset_id_b");
+        aux_data = suint_ct(witness_ct(builder, aux_data_value), DEFI_BRIDGE_AUX_DATA, "aux_data");
 
-        config = bit_config(composer, bridge_call_data);
+        config = bit_config(builder, bridge_call_data);
 
         validate_bit_config();
     }

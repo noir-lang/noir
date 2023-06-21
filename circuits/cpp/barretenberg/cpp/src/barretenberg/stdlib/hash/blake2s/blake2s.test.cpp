@@ -2,29 +2,27 @@
 #include "blake2s_plookup.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/crypto/blake2s/blake2s.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 
 using namespace barretenberg;
-using namespace proof_system::plonk;
+using namespace proof_system::plonk::stdlib;
 
-using namespace plonk::stdlib;
+using Builder = proof_system::UltraCircuitConstructor;
 
-using Composer = proof_system::UltraCircuitConstructor;
-
-using field_ct = field_t<Composer>;
-using witness_ct = witness_t<Composer>;
-using byte_array_ct = stdlib::byte_array<Composer>;
-using byte_array_plookup = stdlib::byte_array<Composer>;
-using public_witness_t = stdlib::public_witness_t<Composer>;
-using public_witness_t_plookup = stdlib::public_witness_t<Composer>;
+using field_ct = field_t<Builder>;
+using witness_ct = witness_t<Builder>;
+using byte_array_ct = byte_array<Builder>;
+using byte_array_plookup = byte_array<Builder>;
+using public_witness_t = public_witness_t<Builder>;
 
 // TEST(stdlib_blake2s, test_single_block)
 // {
-//     auto composer = Composer();
+//     auto composer = Builder();
 //     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
 //     std::vector<uint8_t> input_v(input.begin(), input.end());
 
 //     byte_array_ct input_arr(&composer, input_v);
-//     byte_array_ct output = stdlib::blake2s(input_arr);
+//     byte_array_ct output = blake2s(input_arr);
 
 //     std::vector<uint8_t> expected = blake2::blake2s(input_v);
 
@@ -38,31 +36,31 @@ using public_witness_t_plookup = stdlib::public_witness_t<Composer>;
 
 TEST(stdlib_blake2s, test_single_block_plookup)
 {
-    proof_system::UltraCircuitConstructor composer = UltraCircuitConstructor();
+    Builder builder;
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 
-    byte_array_plookup input_arr(&composer, input_v);
-    byte_array_plookup output = stdlib::blake2s<proof_system::UltraCircuitConstructor>(input_arr);
+    byte_array_plookup input_arr(&builder, input_v);
+    byte_array_plookup output = blake2s<Builder>(input_arr);
 
     auto expected = blake2::blake2s(input_v);
 
     EXPECT_EQ(output.get_value(), std::vector<uint8_t>(expected.begin(), expected.end()));
 
-    info("composer gates = ", composer.get_num_gates());
+    info("builder gates = ", builder.get_num_gates());
 
-    bool proof_result = composer.check_circuit();
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 
 // TEST(stdlib_blake2s, test_double_block)
 // {
-//     auto composer = Composer();
+//     auto composer = Builder();
 //     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789";
 //     std::vector<uint8_t> input_v(input.begin(), input.end());
 
 //     byte_array_ct input_arr(&composer, input_v);
-//     byte_array_ct output = stdlib::blake2s(input_arr);
+//     byte_array_ct output = blake2s(input_arr);
 
 //     std::vector<uint8_t> expected = blake2::blake2s(input_v);
 
@@ -76,19 +74,19 @@ TEST(stdlib_blake2s, test_single_block_plookup)
 
 TEST(stdlib_blake2s, test_double_block_plookup)
 {
-    proof_system::UltraCircuitConstructor composer = UltraCircuitConstructor();
+    Builder builder;
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 
-    byte_array_plookup input_arr(&composer, input_v);
-    byte_array_plookup output = stdlib::blake2s<proof_system::UltraCircuitConstructor>(input_arr);
+    byte_array_plookup input_arr(&builder, input_v);
+    byte_array_plookup output = blake2s<Builder>(input_arr);
 
     auto expected = blake2::blake2s(input_v);
 
     EXPECT_EQ(output.get_value(), std::vector<uint8_t>(expected.begin(), expected.end()));
 
-    info("composer gates = ", composer.get_num_gates());
+    info("builder gates = ", builder.get_num_gates());
 
-    bool proof_result = composer.check_circuit();
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }

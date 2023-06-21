@@ -1,6 +1,6 @@
 #include "twin_rom_table.hpp"
 
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 
 using namespace barretenberg;
 
@@ -10,7 +10,7 @@ namespace stdlib {
 template <typename Composer>
 twin_rom_table<Composer>::twin_rom_table(const std::vector<std::array<field_pt, 2>>& table_entries)
 {
-    static_assert(Composer::type == ComposerType::PLOOKUP);
+    static_assert(Composer::type == proof_system::ComposerType::PLOOKUP);
     // get the composer context
     for (const auto& entry : table_entries) {
         if (entry[0].get_context() != nullptr) {

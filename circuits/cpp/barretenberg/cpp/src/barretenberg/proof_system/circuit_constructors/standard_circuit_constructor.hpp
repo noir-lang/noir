@@ -14,6 +14,7 @@ inline std::vector<std::string> standard_selector_names()
 
 class StandardCircuitConstructor : public CircuitConstructorBase<arithmetization::Standard<barretenberg::fr>> {
   public:
+    static constexpr std::string_view NAME_STRING = "StandardArithmetization";
     static constexpr ComposerType type = ComposerType::STANDARD;
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;

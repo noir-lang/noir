@@ -1,10 +1,9 @@
-#include "rom_table.hpp"
 
 #include <gtest/gtest.h>
 
+#include "rom_table.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 
 namespace test_stdlib_rom_array {
 using namespace barretenberg;
@@ -27,13 +26,13 @@ TEST(rom_table, rom_table_read_write_consistency)
     std::vector<field_ct> table_values;
     const size_t table_size = 10;
     for (size_t i = 0; i < table_size; ++i) {
-        table_values.emplace_back(witness_ct(&composer, fr::random_element()));
+        table_values.emplace_back(witness_ct(&composer, barretenberg::fr::random_element()));
     }
 
     rom_table_ct table(table_values);
 
     field_ct result(0);
-    fr expected(0);
+    barretenberg::fr expected(0);
 
     for (size_t i = 0; i < 10; ++i) {
         field_ct index(witness_ct(&composer, (uint64_t)i));

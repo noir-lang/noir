@@ -1,4 +1,3 @@
-# TODO(Cody): Remove plonk dependency
 barretenberg_module(honk numeric ecc srs proof_system transcript)
 
 if(TESTING)

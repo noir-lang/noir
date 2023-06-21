@@ -59,8 +59,6 @@ Diagnostics:
       - readability-function-cognitive-complexity
       # It is often nicer to not be explicit
       - google-explicit-constructor
-    CheckOptions:
-      - cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: True
 
 --- # this divider is necessary
 # Disable some checks for Google Test/Bench

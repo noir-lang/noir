@@ -5,7 +5,7 @@
 #include "../biggroup/biggroup.hpp"
 #include "../bool/bool.hpp"
 #include "../field/field.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
@@ -68,7 +68,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates per add = " << after - before << std::endl;
-                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Biggroup", "ADD", "Gate Count", after - before);
+                benchmark_info(Composer::NAME_STRING, "Biggroup", "ADD", "Gate Count", after - before);
             }
 
             affine_element c_expected(element(input_a) + element(input_b));
@@ -882,7 +882,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, multiple_montgomery_ladder)
 HEAVY_TYPED_TEST(stdlib_biggroup, compute_naf)
 {
     // ULTRATODO: make this work for secp curves
-    if constexpr (TypeParam::Curve::type == CurveType::BN254) {
+    if constexpr (TypeParam::Curve::type == proof_system::CurveType::BN254) {
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; i++) {
             TestFixture::test_compute_naf();
@@ -895,7 +895,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, compute_naf)
 /* These tests only work for Ultra Circuit Constructor */
 HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
 {
-    if constexpr (TypeParam::Curve::Composer::type == ComposerType::PLOOKUP) {
+    if constexpr (TypeParam::Curve::Composer::type == proof_system::ComposerType::PLOOKUP) {
         TestFixture::test_compute_wnaf();
     } else {
         GTEST_SKIP();
@@ -906,7 +906,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
    case where Fr is a bigfield. */
 HEAVY_TYPED_TEST(stdlib_biggroup, compute_wnaf)
 {
-    if constexpr (TypeParam::Curve::Composer::type != ComposerType::PLOOKUP && TypeParam::use_bigfield) {
+    if constexpr (TypeParam::Curve::Composer::type != proof_system::ComposerType::PLOOKUP && TypeParam::use_bigfield) {
         GTEST_SKIP();
     } else {
         TestFixture::test_compute_wnaf();
@@ -943,7 +943,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_4)
 /* The following tests are specific to BN254 and don't work when Fr is a bigfield */
 HEAVY_TYPED_TEST(stdlib_biggroup, bn254_endo_batch_mul)
 {
-    if constexpr (TypeParam::Curve::type == CurveType::BN254 && !TypeParam::use_bigfield) {
+    if constexpr (TypeParam::Curve::type == proof_system::CurveType::BN254 && !TypeParam::use_bigfield) {
         TestFixture::test_bn254_endo_batch_mul();
     } else {
         GTEST_SKIP();
@@ -951,7 +951,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, bn254_endo_batch_mul)
 }
 HEAVY_TYPED_TEST(stdlib_biggroup, mixed_mul_bn254_endo)
 {
-    if constexpr (TypeParam::Curve::type == CurveType::BN254 && !TypeParam::use_bigfield) {
+    if constexpr (TypeParam::Curve::type == proof_system::CurveType::BN254 && !TypeParam::use_bigfield) {
         TestFixture::test_mixed_mul_bn254_endo();
     } else {
         GTEST_SKIP();
@@ -961,7 +961,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, mixed_mul_bn254_endo)
 /* The following tests are specific to SECP256k1 */
 HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_secp256k1)
 {
-    if constexpr (TypeParam::Curve::type == CurveType::SECP256K1) {
+    if constexpr (TypeParam::Curve::type == proof_system::CurveType::SECP256K1) {
         TestFixture::test_wnaf_secp256k1();
     } else {
         GTEST_SKIP();
@@ -969,7 +969,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_secp256k1)
 }
 HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_8bit_secp256k1)
 {
-    if constexpr (TypeParam::Curve::type == CurveType::SECP256K1) {
+    if constexpr (TypeParam::Curve::type == proof_system::CurveType::SECP256K1) {
         TestFixture::test_wnaf_8bit_secp256k1();
     } else {
         GTEST_SKIP();
@@ -977,7 +977,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_8bit_secp256k1)
 }
 HEAVY_TYPED_TEST(stdlib_biggroup, ecdsa_mul_secp256k1)
 {
-    if constexpr (TypeParam::Curve::type == CurveType::SECP256K1) {
+    if constexpr (TypeParam::Curve::type == proof_system::CurveType::SECP256K1) {
         TestFixture::test_ecdsa_mul_secp256k1();
     } else {
         GTEST_SKIP();

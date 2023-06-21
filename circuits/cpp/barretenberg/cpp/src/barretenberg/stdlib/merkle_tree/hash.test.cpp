@@ -2,15 +2,13 @@
 #include "memory_tree.hpp"
 #include <gtest/gtest.h>
 
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 #include "barretenberg/stdlib/merkle_tree/membership.hpp"
 
 namespace proof_system::stdlib_merkle_tree_hash_test {
 
 using namespace barretenberg;
-using namespace plonk::stdlib;
+using namespace proof_system::plonk::stdlib;
 
 using Composer = proof_system::UltraCircuitConstructor;
 

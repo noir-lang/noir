@@ -5,10 +5,7 @@
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
 
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
-#include "barretenberg/stdlib/primitives/bool/bool.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -18,7 +15,7 @@ namespace proof_system::stdlib_merkle_test {
 
 using namespace barretenberg;
 using namespace proof_system::plonk::stdlib::merkle_tree;
-using namespace plonk::stdlib;
+using namespace proof_system::plonk::stdlib;
 
 using Composer = proof_system::UltraCircuitConstructor;
 

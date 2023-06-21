@@ -1,10 +1,11 @@
+#include <gtest/gtest.h>
+
 #include "../bool/bool.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
+#include "logic.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/proof_system/types/composer_type.hpp"
-#include "logic.hpp"
-#include "../composers/composers.hpp"
-#include <gtest/gtest.h>
-#include "barretenberg/numeric/random/engine.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
@@ -126,7 +127,7 @@ TYPED_TEST(LogicTest, DifferentWitnessSameResult)
 
     STDLIB_TYPE_ALIASES
     auto composer = Composer();
-    if (Composer::type == ComposerType::PLOOKUP) {
+    if (Composer::type == proof_system::ComposerType::PLOOKUP) {
         uint256_t a = 3758096391;
         uint256_t b = 2147483649;
         field_ct x = witness_ct(&composer, uint256_t(a));

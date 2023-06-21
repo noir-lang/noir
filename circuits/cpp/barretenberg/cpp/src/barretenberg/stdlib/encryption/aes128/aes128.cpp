@@ -5,7 +5,7 @@
 #include "barretenberg/crypto/aes128/aes128.hpp"
 
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 using namespace crypto::aes128;
 using namespace barretenberg;

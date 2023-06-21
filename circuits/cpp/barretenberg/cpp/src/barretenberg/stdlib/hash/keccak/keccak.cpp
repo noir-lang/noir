@@ -2,7 +2,6 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 namespace proof_system::plonk {
 namespace stdlib {
 

@@ -3,7 +3,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/plonk/composer/turbo_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/composer_helper/turbo_plonk_composer_helper.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
@@ -11,6 +11,9 @@
 
 using namespace benchmark;
 using namespace proof_system::plonk;
+
+using Builder = proof_system::TurboCircuitConstructor;
+using Composer = proof_system::plonk::TurboPlonkComposerHelper;
 
 constexpr size_t NUM_CIRCUITS = 10;
 
@@ -36,15 +39,13 @@ constexpr size_t get_index(const size_t target_count_base)
     }
     return 0;
 }
-void generate_test_pedersen_circuit(plonk::TurboPlonkComposer& turbo_plonk_composer, size_t num_repetitions)
+void generate_test_pedersen_circuit(Builder& builder, size_t num_repetitions)
 {
-    plonk::stdlib::field_t<plonk::TurboPlonkComposer> left(
-        plonk::stdlib::witness_t(&turbo_plonk_composer, barretenberg::fr::random_element()));
-    plonk::stdlib::field_t<plonk::TurboPlonkComposer> out(
-        plonk::stdlib::witness_t(&turbo_plonk_composer, barretenberg::fr::random_element()));
+    plonk::stdlib::field_t<Builder> left(plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
+    plonk::stdlib::field_t<Builder> out(plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = proof_system::plonk::stdlib::pedersen_commitment<plonk::TurboPlonkComposer>::compress(left, out);
+        out = proof_system::plonk::stdlib::pedersen_commitment<Builder>::compress(left, out);
     }
 }
 
@@ -95,11 +96,12 @@ BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);
 void construct_pedersen_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        plonk::TurboPlonkComposer composer =
-            plonk::TurboPlonkComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
-        generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
-        std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
-        composer.compute_witness();
+        auto builder = Builder(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
+        std::cout << "builder gates = " << builder.get_num_gates() << std::endl;
+
+        auto composer = Composer();
+        composer.compute_witness(builder);
     }
 }
 BENCHMARK(construct_pedersen_witnesses_bench)
@@ -117,13 +119,14 @@ BENCHMARK(construct_pedersen_witnesses_bench)
 void construct_pedersen_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        plonk::TurboPlonkComposer composer =
-            plonk::TurboPlonkComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
-        generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
+        Builder builder = Builder(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
-        composer.compute_proving_key();
+
+        auto composer = Composer();
+        composer.compute_proving_key(builder);
         state.PauseTiming();
-        pedersen_provers[idx] = composer.create_prover();
+        pedersen_provers[idx] = composer.create_prover(builder);
         state.ResumeTiming();
     }
 }
@@ -143,13 +146,13 @@ void construct_pedersen_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        plonk::TurboPlonkComposer composer =
-            plonk::TurboPlonkComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
-        generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
+        auto builder = Builder(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
-        composer.create_prover();
+        auto composer = Composer();
+        composer.create_prover(builder);
         state.ResumeTiming();
-        pedersen_verifiers[idx] = composer.create_verifier();
+        pedersen_verifiers[idx] = composer.create_verifier(builder);
     }
 }
 BENCHMARK(construct_pedersen_instances_bench)

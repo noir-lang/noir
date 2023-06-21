@@ -63,9 +63,9 @@ circuit_data get_circuit_data(std::shared_ptr<barretenberg::srs::factories::CrsF
 {
     std::cerr << "Getting join-split circuit data..." << std::endl;
 
-    auto build_circuit = [&](Composer& composer) {
+    auto build_circuit = [&](Builder& builder) {
         join_split_tx tx(noop_tx());
-        join_split_circuit(composer, tx);
+        join_split_circuit(builder, tx);
     };
 
     return proofs::get_circuit_data<Composer>(

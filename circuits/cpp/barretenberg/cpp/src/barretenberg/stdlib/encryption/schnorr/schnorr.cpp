@@ -5,8 +5,6 @@
 #include "barretenberg/stdlib/hash/blake2s/blake2s.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 
-#include "../../primitives/composers/composers.hpp"
-
 namespace proof_system::plonk {
 namespace stdlib {
 namespace schnorr {

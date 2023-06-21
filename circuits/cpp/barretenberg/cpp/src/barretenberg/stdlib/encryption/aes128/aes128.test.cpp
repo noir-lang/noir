@@ -1,5 +1,5 @@
 #include "aes128.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 #include "barretenberg/crypto/aes128/aes128.hpp"
 
 #include <gtest/gtest.h>
@@ -32,7 +32,7 @@ TEST(stdlib_aes128, encrypt_64_bytes)
         return converted;
     };
 
-    proof_system::UltraCircuitConstructor composer = UltraCircuitConstructor();
+    auto composer = proof_system::UltraCircuitConstructor();
 
     std::vector<field_pt> in_field{
         witness_pt(&composer, fr(convert_bytes(in))),

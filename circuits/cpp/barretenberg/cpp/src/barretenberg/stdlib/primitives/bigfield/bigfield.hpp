@@ -9,7 +9,7 @@
 #include "../byte_array/byte_array.hpp"
 #include "../field/field.hpp"
 
-#include "../composers/composers_fwd.hpp"
+#include "../circuit_builders/circuit_builders_fwd.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

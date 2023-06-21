@@ -6,7 +6,7 @@
 #include <utility>
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/common/streams.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 using namespace proof_system;
 

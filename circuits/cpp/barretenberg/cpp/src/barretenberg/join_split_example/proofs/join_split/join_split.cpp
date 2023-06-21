@@ -24,15 +24,16 @@ void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> 
     join_split_tx tx = noop_tx();
 
     if (!mock) {
+        Builder builder;
+        join_split_circuit(builder, tx);
         Composer composer(crs_factory);
-        join_split_circuit(composer, tx);
-        proving_key = composer.compute_proving_key();
+        proving_key = composer.compute_proving_key(builder);
     } else {
-        Composer composer;
-        join_split_circuit(composer, tx);
-        Composer mock_proof_composer(crs_factory);
-        join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
-        proving_key = mock_proof_composer.compute_proving_key();
+        Builder builder;
+        join_split_circuit(builder, tx);
+        Composer composer(crs_factory);
+        join_split_example::proofs::mock::mock_circuit(builder, builder.get_public_inputs());
+        proving_key = composer.compute_proving_key(builder);
     }
 }
 
@@ -55,24 +56,25 @@ void init_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFact
 
 Prover new_join_split_prover(join_split_tx const& tx, bool mock)
 {
-    Composer composer(proving_key, nullptr);
-    join_split_circuit(composer, tx);
+    Builder builder;
+    join_split_circuit(builder, tx);
 
-    if (composer.failed()) {
-        std::string error = format("composer logic failed: ", composer.err());
+    if (builder.failed()) {
+        std::string error = format("builder logic failed: ", builder.err());
         throw_or_abort(error);
     }
 
-    info("public inputs: ", composer.circuit_constructor.public_inputs.size());
+    info("public inputs: ", builder.public_inputs.size());
 
+    Composer composer(proving_key, nullptr);
     if (!mock) {
-        info("composer gates: ", composer.get_num_gates());
-        return composer.create_prover();
+        info("composer gates: ", builder.get_num_gates());
+        return composer.create_prover(builder);
     } else {
         Composer mock_proof_composer(proving_key, nullptr);
-        join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
-        info("mock composer gates: ", mock_proof_composer.get_num_gates());
-        return mock_proof_composer.create_prover();
+        join_split_example::proofs::mock::mock_circuit(builder, builder.get_public_inputs());
+        info("mock composer gates: ", builder.get_num_gates());
+        return mock_proof_composer.create_prover(builder);
     }
 }
 

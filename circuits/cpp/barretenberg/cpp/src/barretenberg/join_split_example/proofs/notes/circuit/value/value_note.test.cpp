@@ -13,7 +13,7 @@ using namespace join_split_example::proofs::notes::circuit::value;
 TEST(value_note, commits)
 {
     auto user = join_split_example::fixtures::create_user_context();
-    Composer composer = Composer();
+    auto builder = Builder();
 
     fr note_value = fr::random_element();
     note_value.data[3] = note_value.data[3] & 0x0FFFFFFFFFFFFFFFULL;
@@ -26,16 +26,17 @@ TEST(value_note, commits)
         note_value, asset_id_value, account_required, user.owner.public_key, user.note_secret, 0, fr::random_element()
     };
     auto expected = note.commit();
-    auto circuit_note = circuit::value::value_note(witness_data(composer, note));
+    auto circuit_note = circuit::value::value_note(witness_data(builder, note));
 
     auto result = circuit_note.commitment;
     result.assert_equal(expected);
 
-    auto prover = composer.create_prover();
+    auto composer = Composer();
+    auto prover = composer.create_prover(builder);
 
-    EXPECT_FALSE(composer.failed());
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    EXPECT_FALSE(builder.failed());
+    printf("composer gates = %zu\n", builder.get_num_gates());
+    auto verifier = composer.create_verifier(builder);
 
     plonk::proof proof = prover.construct_proof();
 
@@ -45,8 +46,9 @@ TEST(value_note, commits)
 
 TEST(value_note, commits_with_0_value)
 {
+    auto builder = Builder();
+
     auto user = join_split_example::fixtures::create_user_context();
-    Composer composer = Composer();
 
     uint32_t asset_id_value = 0x2abbccddULL; // needs to be less than 30 bits
 
@@ -60,16 +62,18 @@ TEST(value_note, commits_with_0_value)
         .input_nullifier = fr::random_element(),
     };
     auto expected = note.commit();
-    auto circuit_note = circuit::value::value_note(witness_data(composer, note));
+    auto circuit_note = circuit::value::value_note(witness_data(builder, note));
 
     auto result = circuit_note.commitment;
     result.assert_equal(expected);
 
-    auto prover = composer.create_prover();
+    Composer composer = Composer();
 
-    EXPECT_FALSE(composer.failed());
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto prover = composer.create_prover(builder);
+
+    EXPECT_FALSE(builder.failed());
+    printf("composer gates = %zu\n", builder.get_num_gates());
+    auto verifier = composer.create_verifier(builder);
 
     plonk::proof proof = prover.construct_proof();
 
@@ -79,8 +83,9 @@ TEST(value_note, commits_with_0_value)
 
 TEST(value_note, commit_with_oversized_asset_id_fails)
 {
+    auto builder = Builder();
+
     auto user = join_split_example::fixtures::create_user_context();
-    Composer composer = Composer();
 
     native::value::value_note note = {
         .value = 0,
@@ -92,16 +97,17 @@ TEST(value_note, commit_with_oversized_asset_id_fails)
         .input_nullifier = fr::random_element(),
     };
     auto expected = note.commit();
-    auto circuit_note = circuit::value::value_note(witness_data(composer, note));
+    auto circuit_note = circuit::value::value_note(witness_data(builder, note));
 
     auto result = circuit_note.commitment;
     result.assert_equal(expected);
 
-    auto prover = composer.create_prover();
+    Composer composer = Composer();
+    auto prover = composer.create_prover(builder);
 
-    EXPECT_TRUE(composer.failed());
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    EXPECT_TRUE(builder.failed());
+    printf("composer gates = %zu\n", builder.get_num_gates());
+    auto verifier = composer.create_verifier(builder);
 
     plonk::proof proof = prover.construct_proof();
 

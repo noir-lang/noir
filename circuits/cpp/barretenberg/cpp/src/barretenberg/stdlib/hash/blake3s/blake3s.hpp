@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

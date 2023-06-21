@@ -71,7 +71,7 @@ inline fr zero_hash_at_height(size_t height)
 // to achieve effective ADL.
 namespace std {
 template <typename Ctx>
-inline std::ostream& operator<<(std::ostream& os, plonk::stdlib::merkle_tree::hash_path<Ctx> const& path)
+inline std::ostream& operator<<(std::ostream& os, proof_system::plonk::stdlib::merkle_tree::hash_path<Ctx> const& path)
 {
     os << "[\n";
     for (size_t i = 0; i < path.size(); ++i) {
@@ -81,7 +81,7 @@ inline std::ostream& operator<<(std::ostream& os, plonk::stdlib::merkle_tree::ha
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, plonk::stdlib::merkle_tree::fr_hash_path const& path)
+inline std::ostream& operator<<(std::ostream& os, proof_system::plonk::stdlib::merkle_tree::fr_hash_path const& path)
 {
     os << "[\n";
     for (size_t i = 0; i < path.size(); ++i) {

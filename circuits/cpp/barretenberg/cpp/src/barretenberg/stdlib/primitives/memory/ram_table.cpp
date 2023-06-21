@@ -1,6 +1,6 @@
 #include "ram_table.hpp"
 
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
@@ -13,7 +13,7 @@ namespace stdlib {
  */
 template <typename Composer> ram_table<Composer>::ram_table(Composer* composer, const size_t table_size)
 {
-    static_assert(Composer::type == ComposerType::PLOOKUP);
+    static_assert(Composer::type == proof_system::ComposerType::PLOOKUP);
     _context = composer;
     _length = table_size;
     _index_initialized.resize(table_size);
@@ -35,7 +35,7 @@ template <typename Composer> ram_table<Composer>::ram_table(Composer* composer, 
  */
 template <typename Composer> ram_table<Composer>::ram_table(const std::vector<field_pt>& table_entries)
 {
-    static_assert(Composer::type == ComposerType::PLOOKUP);
+    static_assert(Composer::type == proof_system::ComposerType::PLOOKUP);
     // get the composer _context
     for (const auto& entry : table_entries) {
         if (entry.get_context() != nullptr) {

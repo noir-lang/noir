@@ -8,7 +8,8 @@
 
 using namespace proof_system::plonk;
 
-acir_format::Composer create_inner_circuit()
+namespace acir_format::test {
+Builder create_inner_circuit()
 {
     /**
      * constraints produced by Noir program:
@@ -18,16 +19,16 @@ acir_format::Composer create_inner_circuit()
      * constrain z != 10;
      * }
      **/
-    acir_format::RangeConstraint range_a{
+    RangeConstraint range_a{
         .witness = 1,
         .num_bits = 32,
     };
-    acir_format::RangeConstraint range_b{
+    RangeConstraint range_b{
         .witness = 2,
         .num_bits = 32,
     };
 
-    acir_format::LogicConstraint logic_constraint{
+    LogicConstraint logic_constraint{
         .a = 1,
         .b = 2,
         .result = 3,
@@ -76,7 +77,7 @@ acir_format::Composer create_inner_circuit()
         .q_c = 1,
     };
 
-    acir_format::acir_format constraint_system{
+    acir_format constraint_system{
         .varnum = 7,
         .public_inputs = { 2, 3 },
         .fixed_base_scalar_mul_constraints = {},
@@ -96,54 +97,53 @@ acir_format::Composer create_inner_circuit()
     };
 
     uint256_t inverse_of_five = fr(5).invert();
-    auto composer = acir_format::create_circuit_with_witness(constraint_system,
-                                                             {
-                                                                 5,
-                                                                 10,
-                                                                 15,
-                                                                 5,
-                                                                 inverse_of_five,
-                                                                 1,
-                                                             });
+    auto builder = create_circuit_with_witness(constraint_system,
+                                               {
+                                                   5,
+                                                   10,
+                                                   15,
+                                                   5,
+                                                   inverse_of_five,
+                                                   1,
+                                               });
 
-    return composer;
+    return builder;
 }
 
 /**
  * @brief Create a circuit that recursively verifies one or more inner circuits
  *
- * @param inner_composers
- * @return acir_format::Composer
+ * @param inner_circuits
+ * @return Composer
  */
-acir_format::Composer create_outer_circuit(std::vector<acir_format::Composer>& inner_composers)
+Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
 {
-    std::vector<acir_format::RecursionConstraint> recursion_constraints;
+    std::vector<RecursionConstraint> recursion_constraints;
 
     // witness count starts at 1 (Composer reserves 1st witness to be the zero-valued zero_idx)
     size_t witness_offset = 1;
-    std::array<uint32_t, acir_format::RecursionConstraint::AGGREGATION_OBJECT_SIZE> output_aggregation_object;
+    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> output_aggregation_object;
     std::vector<fr, ContainerSlabAllocator<fr>> witness;
 
-    for (size_t i = 0; i < inner_composers.size(); ++i) {
-        const bool has_input_aggregation_object = i > 0;
+    size_t circuit_idx = 0;
+    for (auto& inner_circuit : inner_circuits) {
+        const bool has_input_aggregation_object = circuit_idx > 0;
 
-        auto& inner_composer = inner_composers[i];
-        auto inner_prover = inner_composer.create_prover();
+        auto inner_composer = Composer();
+        auto inner_prover = inner_composer.create_prover(inner_circuit);
         auto inner_proof = inner_prover.construct_proof();
-        auto inner_verifier = inner_composer.create_verifier();
+        auto inner_verifier = inner_composer.create_verifier(inner_circuit);
 
         const bool has_nested_proof = inner_verifier.key->contains_recursive_proof;
-        const size_t num_inner_public_inputs = inner_composer.get_public_inputs().size();
+        const size_t num_inner_public_inputs = inner_circuit.get_public_inputs().size();
 
         transcript::StandardTranscript transcript(inner_proof.proof_data,
-                                                  acir_format::Composer::create_manifest(num_inner_public_inputs),
+                                                  Composer::create_manifest(num_inner_public_inputs),
                                                   transcript::HashType::PlookupPedersenBlake3s,
                                                   16);
 
-        const std::vector<barretenberg::fr> proof_witnesses =
-            acir_format::export_transcript_in_recursion_format(transcript);
-        const std::vector<barretenberg::fr> key_witnesses =
-            acir_format::export_key_in_recursion_format(inner_verifier.key);
+        const std::vector<barretenberg::fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
+        const std::vector<barretenberg::fr> key_witnesses = export_key_in_recursion_format(inner_verifier.key);
 
         const uint32_t key_hash_start_idx = static_cast<uint32_t>(witness_offset);
         const uint32_t public_input_start_idx = key_hash_start_idx + 1;
@@ -155,8 +155,8 @@ acir_format::Composer create_outer_circuit(std::vector<acir_format::Composer>& i
         std::vector<uint32_t> proof_indices;
         std::vector<uint32_t> key_indices;
         std::vector<uint32_t> inner_public_inputs;
-        std::array<uint32_t, acir_format::RecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object = {};
-        std::array<uint32_t, acir_format::RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object = {};
+        std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object = {};
+        std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object = {};
         if (has_input_aggregation_object) {
             input_aggregation_object = output_aggregation_object;
         }
@@ -165,7 +165,7 @@ acir_format::Composer create_outer_circuit(std::vector<acir_format::Composer>& i
         }
         if (has_nested_proof) {
             for (size_t i = 0; i < 16; ++i) {
-                nested_aggregation_object[i] = inner_composer.recursive_proof_public_input_indices[i];
+                nested_aggregation_object[i] = inner_circuit.recursive_proof_public_input_indices[i];
             }
         }
         for (size_t i = 0; i < proof_witnesses.size(); ++i) {
@@ -179,7 +179,7 @@ acir_format::Composer create_outer_circuit(std::vector<acir_format::Composer>& i
             inner_public_inputs.push_back(static_cast<uint32_t>(i + public_input_start_idx));
         }
 
-        acir_format::RecursionConstraint recursion_constraint{
+        RecursionConstraint recursion_constraint{
             .key = key_indices,
             .proof = proof_indices,
             .public_inputs = inner_public_inputs,
@@ -199,11 +199,12 @@ acir_format::Composer create_outer_circuit(std::vector<acir_format::Composer>& i
             witness.emplace_back(wit);
         }
         witness_offset = key_indices_start_idx + key_witnesses.size();
+        circuit_idx++;
     }
 
     std::vector<uint32_t> public_inputs(output_aggregation_object.begin(), output_aggregation_object.end());
 
-    acir_format::acir_format constraint_system{
+    acir_format constraint_system{
         .varnum = static_cast<uint32_t>(witness.size() + 1),
         .public_inputs = public_inputs,
         .fixed_base_scalar_mul_constraints = {},
@@ -222,25 +223,27 @@ acir_format::Composer create_outer_circuit(std::vector<acir_format::Composer>& i
         .constraints = {},
     };
 
-    auto composer = acir_format::create_circuit_with_witness(constraint_system, witness);
+    auto outer_circuit = create_circuit_with_witness(constraint_system, witness);
 
-    return composer;
+    return outer_circuit;
 }
 
 TEST(RecursionConstraint, TestBasicDoubleRecursionConstraints)
 {
-    std::vector<acir_format::Composer> layer_1_composers;
-    layer_1_composers.push_back(create_inner_circuit());
+    std::vector<Builder> layer_1_circuits;
+    layer_1_circuits.push_back(create_inner_circuit());
 
-    layer_1_composers.push_back(create_inner_circuit());
+    layer_1_circuits.push_back(create_inner_circuit());
 
-    auto layer_2_composer = create_outer_circuit(layer_1_composers);
+    auto layer_2_circuit = create_outer_circuit(layer_1_circuits);
 
-    std::cout << "composer gates = " << layer_2_composer.get_num_gates() << std::endl;
-    auto prover = layer_2_composer.create_ultra_with_keccak_prover();
-    std::cout << "prover gates = " << prover.circuit_size << std::endl;
+    info("circuit gates = ", layer_2_circuit.get_num_gates());
+
+    auto layer_2_composer = Composer();
+    auto prover = layer_2_composer.create_ultra_with_keccak_prover(layer_2_circuit);
+    info("prover gates = ", prover.circuit_size);
     auto proof = prover.construct_proof();
-    auto verifier = layer_2_composer.create_ultra_with_keccak_verifier();
+    auto verifier = layer_2_composer.create_ultra_with_keccak_verifier(layer_2_circuit);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
@@ -278,52 +281,55 @@ TEST(RecursionConstraint, TestOneOuterRecursiveCircuit)
      *
      * Final aggregation object contains aggregated proofs for 2 instances of A and 1 instance of B
      */
-    std::vector<acir_format::Composer> layer_1_composers;
-    layer_1_composers.push_back(create_inner_circuit());
-    std::cout << "created first inner circuit\n";
-    std::vector<acir_format::Composer> layer_2_composers;
+    std::vector<Builder> layer_1_circuits;
+    layer_1_circuits.push_back(create_inner_circuit());
+    info("created first inner circuit");
 
-    layer_2_composers.push_back(create_inner_circuit());
-    std::cout << "created second inner circuit\n";
+    std::vector<Builder> layer_2_circuits;
+    layer_2_circuits.push_back(create_inner_circuit());
+    info("created second inner circuit");
 
-    layer_2_composers.push_back(create_outer_circuit(layer_1_composers));
-    std::cout << "created first outer circuit\n";
+    layer_2_circuits.push_back(create_outer_circuit(layer_1_circuits));
+    info("created first outer circuit");
 
-    auto layer_3_composer = create_outer_circuit(layer_2_composers);
-    std::cout << "created second outer circuit\n";
+    auto layer_3_circuit = create_outer_circuit(layer_2_circuits);
+    info("created second outer circuit");
+    info("number of gates in layer 3 = ", layer_3_circuit.get_num_gates());
 
-    std::cout << "composer gates = " << layer_3_composer.get_num_gates() << std::endl;
-    auto prover = layer_3_composer.create_ultra_with_keccak_prover();
-    std::cout << "prover gates = " << prover.circuit_size << std::endl;
+    auto layer_3_composer = Composer();
+    auto prover = layer_3_composer.create_ultra_with_keccak_prover(layer_3_circuit);
+    info("prover gates = ", prover.circuit_size);
     auto proof = prover.construct_proof();
-    auto verifier = layer_3_composer.create_ultra_with_keccak_verifier();
+    auto verifier = layer_3_composer.create_ultra_with_keccak_verifier(layer_3_circuit);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
 TEST(RecursionConstraint, TestFullRecursiveComposition)
 {
-    std::vector<acir_format::Composer> layer_b_1_composers;
-    layer_b_1_composers.push_back(create_inner_circuit());
-    std::cout << "created first inner circuit\n";
+    std::vector<Builder> layer_b_1_circuits;
+    layer_b_1_circuits.push_back(create_inner_circuit());
+    info("created first inner circuit");
 
-    std::vector<acir_format::Composer> layer_b_2_composers;
-    layer_b_2_composers.push_back(create_inner_circuit());
-    std::cout << "created second inner circuit\n";
+    std::vector<Builder> layer_b_2_circuits;
+    layer_b_2_circuits.push_back(create_inner_circuit());
+    info("created second inner circuit");
 
-    std::vector<acir_format::Composer> layer_2_composers;
-    layer_2_composers.push_back(create_outer_circuit(layer_b_1_composers));
-    std::cout << "created first outer circuit\n";
+    std::vector<Builder> layer_2_circuits;
+    layer_2_circuits.push_back(create_outer_circuit(layer_b_1_circuits));
+    info("created first outer circuit");
 
-    layer_2_composers.push_back(create_outer_circuit(layer_b_2_composers));
-    std::cout << "created second outer circuit\n";
+    layer_2_circuits.push_back(create_outer_circuit(layer_b_2_circuits));
+    info("created second outer circuit");
 
-    auto layer_3_composer = create_outer_circuit(layer_2_composers);
-    std::cout << "created third outer circuit\n";
+    auto layer_3_circuit = create_outer_circuit(layer_2_circuits);
+    info("created third outer circuit");
+    info("number of gates in layer 3 circuit = ", layer_3_circuit.get_num_gates());
 
-    std::cout << "composer gates = " << layer_3_composer.get_num_gates() << std::endl;
-    auto prover = layer_3_composer.create_ultra_with_keccak_prover();
-    std::cout << "prover gates = " << prover.circuit_size << std::endl;
+    auto layer_3_composer = Composer();
+    auto prover = layer_3_composer.create_ultra_with_keccak_prover(layer_3_circuit);
+    info("prover gates = ", prover.circuit_size);
     auto proof = prover.construct_proof();
-    auto verifier = layer_3_composer.create_ultra_with_keccak_verifier();
+    auto verifier = layer_3_composer.create_ultra_with_keccak_verifier(layer_3_circuit);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
+} // namespace acir_format::test

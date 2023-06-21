@@ -75,7 +75,7 @@ uint_native rotate(uint_native value, size_t rotation)
                     : value;
 }
 template <typename Composer> class stdlib_uint : public testing::Test {
-    typedef typename std::conditional<Composer::type == ComposerType::PLOOKUP,
+    typedef typename std::conditional<Composer::type == proof_system::ComposerType::PLOOKUP,
                                       stdlib::uint_plookup<Composer, uint_native>,
                                       stdlib::uint<Composer, uint_native>>::type uint_ct;
     typedef stdlib::bool_t<Composer> bool_ct;
@@ -1923,10 +1923,10 @@ TYPED_TEST(stdlib_uint, test_at)
 // There was one plookup-specific test in the ./plookup/uint_plookup.test.cpp
 TEST(stdlib_uint32, test_accumulators_plookup_uint32)
 {
-    using uint32_ct = proof_system::plonk::stdlib::uint32<plonk::UltraPlonkComposer>;
-    using witness_ct = proof_system::plonk::stdlib::witness_t<plonk::UltraPlonkComposer>;
+    using uint32_ct = proof_system::plonk::stdlib::uint32<proof_system::UltraCircuitConstructor>;
+    using witness_ct = proof_system::plonk::stdlib::witness_t<proof_system::UltraCircuitConstructor>;
 
-    plonk::UltraPlonkComposer composer = proof_system::plonk::UltraPlonkComposer();
+    proof_system::UltraCircuitConstructor composer;
 
     uint32_t a_val = engine.get_random_uint32();
     uint32_t b_val = engine.get_random_uint32();
@@ -1943,7 +1943,7 @@ TEST(stdlib_uint32, test_accumulators_plookup_uint32)
         EXPECT_EQ(result, expected);
     }
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
+    info("composer gates = ", composer.get_num_gates());
 
     bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);

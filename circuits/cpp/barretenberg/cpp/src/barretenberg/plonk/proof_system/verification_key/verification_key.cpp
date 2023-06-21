@@ -76,7 +76,7 @@ barretenberg::fr verification_key_data::compress_native(const size_t hash_index)
     write(preimage_data, eval_domain.root);
 
     barretenberg::fr compressed_key;
-    if (proof_system::ComposerType(composer_type) == ComposerType::PLOOKUP) {
+    if (proof_system::ComposerType(composer_type) == proof_system::ComposerType::PLOOKUP) {
         compressed_key = from_buffer<barretenberg::fr>(
             crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index));
     } else {

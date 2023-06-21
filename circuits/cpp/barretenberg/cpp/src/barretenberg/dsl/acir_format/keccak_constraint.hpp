@@ -27,8 +27,8 @@ struct KeccakVarConstraint {
     friend bool operator==(KeccakVarConstraint const& lhs, KeccakVarConstraint const& rhs) = default;
 };
 
-void create_keccak_constraints(Composer& composer, const KeccakConstraint& constraint);
-void create_keccak_var_constraints(Composer& composer, const KeccakVarConstraint& constraint);
+void create_keccak_constraints(Builder& builder, const KeccakConstraint& constraint);
+void create_keccak_var_constraints(Builder& builder, const KeccakVarConstraint& constraint);
 
 template <typename B> inline void read(B& buf, HashInput& constraint)
 {

@@ -45,24 +45,17 @@ struct acir_format {
 
 using WitnessVector = std::vector<fr, ContainerSlabAllocator<fr>>;
 
-void read_witness(Composer& composer, std::vector<barretenberg::fr> const& witness);
+void read_witness(Builder& builder, std::vector<barretenberg::fr> const& witness);
 
-void create_circuit(Composer& composer, const acir_format& constraint_system);
+void create_circuit(Builder& builder, const acir_format& constraint_system);
 
-Composer create_circuit(const acir_format& constraint_system,
-                        std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
-                        size_t size_hint = 0);
+Builder create_circuit(const acir_format& constraint_system, size_t size_hint = 0);
 
-Composer create_circuit_with_witness(const acir_format& constraint_system,
-                                     WitnessVector const& witness,
-                                     std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
-                                     size_t size_hint = 0);
+Builder create_circuit_with_witness(const acir_format& constraint_system,
+                                    WitnessVector const& witness,
+                                    size_t size_hint = 0);
 
-Composer create_circuit_with_witness(const acir_format& constraint_system, WitnessVector const& witness);
-
-void create_circuit_with_witness(Composer& composer,
-                                 const acir_format& constraint_system,
-                                 WitnessVector const& witness);
+void create_circuit_with_witness(Builder& builder, const acir_format& constraint_system, WitnessVector const& witness);
 
 // Serialisation
 template <typename B> inline void read(B& buf, acir_format& data)

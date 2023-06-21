@@ -21,6 +21,8 @@ template <UltraFlavor Flavor> class UltraHonkComposerHelper_ {
     using PCSCommitmentKey = typename PCSParams::CommitmentKey;
     using PCSVerificationKey = typename PCSParams::VerificationKey;
 
+    static constexpr std::string_view NAME_STRING = "UltraHonk";
+    static constexpr ComposerType type = ComposerType::PLOOKUP;
     static constexpr size_t NUM_RESERVED_GATES = 4; // equal to the number of multilinear evaluations leaked
     static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;

@@ -7,12 +7,18 @@ namespace examples::simple {
 using namespace proof_system::plonk;
 using namespace stdlib::types;
 
-Composer* create_composer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory);
+struct BuilderComposerPtrs {
+    Builder* builder;
+    Composer* composer;
+};
 
-proof create_proof(Composer* composer);
+BuilderComposerPtrs create_builder_and_composer(
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory);
 
-bool verify_proof(Composer* composer, proof_system::plonk::proof const& proof);
+proof create_proof(BuilderComposerPtrs pair);
 
-void delete_composer(Composer* composer);
+bool verify_proof(BuilderComposerPtrs pair, proof_system::plonk::proof const& proof);
+
+void delete_builder_and_composer(BuilderComposerPtrs pair);
 
 } // namespace examples::simple

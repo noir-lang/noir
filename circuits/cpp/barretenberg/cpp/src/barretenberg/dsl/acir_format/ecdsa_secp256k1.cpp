@@ -6,7 +6,7 @@ namespace acir_format {
 
 using namespace proof_system::plonk;
 
-crypto::ecdsa::signature ecdsa_convert_signature(Composer& composer, std::vector<uint32_t> signature)
+crypto::ecdsa::signature ecdsa_convert_signature(Builder& builder, std::vector<uint32_t> signature)
 {
 
     crypto::ecdsa::signature signature_cr;
@@ -19,7 +19,7 @@ crypto::ecdsa::signature ecdsa_convert_signature(Composer& composer, std::vector
 
         std::vector<uint8_t> fr_bytes(sizeof(fr));
 
-        fr value = composer.get_variable(witness_index);
+        fr value = builder.get_variable(witness_index);
 
         fr::serialize_to_buffer(value, &fr_bytes[0]);
 
@@ -31,7 +31,7 @@ crypto::ecdsa::signature ecdsa_convert_signature(Composer& composer, std::vector
 
         std::vector<uint8_t> fr_bytes(sizeof(fr));
 
-        fr value = composer.get_variable(witness_index);
+        fr value = builder.get_variable(witness_index);
 
         fr::serialize_to_buffer(value, &fr_bytes[0]);
 
@@ -43,7 +43,7 @@ crypto::ecdsa::signature ecdsa_convert_signature(Composer& composer, std::vector
     return signature_cr;
 }
 
-secp256k1_ct::g1_ct ecdsa_convert_inputs(Composer* ctx, const secp256k1::g1::affine_element& input)
+secp256k1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256k1::g1::affine_element& input)
 {
     uint256_t x_u256(input.x);
     uint256_t y_u256(input.y);
@@ -62,15 +62,15 @@ secp256k1_ct::g1_ct ecdsa_convert_inputs(Composer* ctx, const secp256k1::g1::aff
 // vector of bytes here, assumes that the witness indices point to a field element which can be represented
 // with just a byte.
 // notice that this function truncates each field_element to a byte
-byte_array_ct ecdsa_vector_of_bytes_to_byte_array(Composer& composer, std::vector<uint32_t> vector_of_bytes)
+byte_array_ct ecdsa_vector_of_bytes_to_byte_array(Builder& builder, std::vector<uint32_t> vector_of_bytes)
 {
-    byte_array_ct arr(&composer);
+    byte_array_ct arr(&builder);
 
     // Get the witness assignment for each witness index
     // Write the witness assignment to the byte_array
     for (const auto& witness_index : vector_of_bytes) {
 
-        field_ct element = field_ct::from_witness_index(&composer, witness_index);
+        field_ct element = field_ct::from_witness_index(&builder, witness_index);
         size_t num_bytes = 1;
 
         byte_array_ct element_bytes(element, num_bytes);
@@ -78,26 +78,26 @@ byte_array_ct ecdsa_vector_of_bytes_to_byte_array(Composer& composer, std::vecto
     }
     return arr;
 }
-witness_ct ecdsa_index_to_witness(Composer& composer, uint32_t index)
+witness_ct ecdsa_index_to_witness(Builder& builder, uint32_t index)
 {
-    fr value = composer.get_variable(index);
-    return { &composer, value };
+    fr value = builder.get_variable(index);
+    return { &builder, value };
 }
 
-void create_ecdsa_verify_constraints(Composer& composer,
+void create_ecdsa_verify_constraints(Builder& builder,
                                      const EcdsaSecp256k1Constraint& input,
                                      bool has_valid_witness_assignments)
 {
 
     if (has_valid_witness_assignments == false) {
-        dummy_ecdsa_constraint(composer, input);
+        dummy_ecdsa_constraint(builder, input);
     }
 
-    auto new_sig = ecdsa_convert_signature(composer, input.signature);
+    auto new_sig = ecdsa_convert_signature(builder, input.signature);
 
-    auto message = ecdsa_vector_of_bytes_to_byte_array(composer, input.hashed_message);
-    auto pub_key_x_byte_arr = ecdsa_vector_of_bytes_to_byte_array(composer, input.pub_x_indices);
-    auto pub_key_y_byte_arr = ecdsa_vector_of_bytes_to_byte_array(composer, input.pub_y_indices);
+    auto message = ecdsa_vector_of_bytes_to_byte_array(builder, input.hashed_message);
+    auto pub_key_x_byte_arr = ecdsa_vector_of_bytes_to_byte_array(builder, input.pub_x_indices);
+    auto pub_key_y_byte_arr = ecdsa_vector_of_bytes_to_byte_array(builder, input.pub_y_indices);
 
     auto pub_key_x_fq = secp256k1_ct::fq_ct(pub_key_x_byte_arr);
     auto pub_key_y_fq = secp256k1_ct::fq_ct(pub_key_y_byte_arr);
@@ -106,31 +106,31 @@ void create_ecdsa_verify_constraints(Composer& composer,
     std::vector<uint8_t> ss(new_sig.s.begin(), new_sig.s.end());
     uint8_t vv = new_sig.v;
 
-    stdlib::ecdsa::signature<Composer> sig{ stdlib::byte_array<Composer>(&composer, rr),
-                                            stdlib::byte_array<Composer>(&composer, ss),
-                                            stdlib::uint8<Composer>(&composer, vv) };
+    stdlib::ecdsa::signature<Builder> sig{ stdlib::byte_array<Builder>(&builder, rr),
+                                           stdlib::byte_array<Builder>(&builder, ss),
+                                           stdlib::uint8<Builder>(&builder, vv) };
 
     pub_key_x_fq.assert_is_in_field();
     pub_key_y_fq.assert_is_in_field();
     secp256k1_ct::g1_bigfr_ct public_key = secp256k1_ct::g1_bigfr_ct(pub_key_x_fq, pub_key_y_fq);
     for (size_t i = 0; i < 32; ++i) {
-        sig.r[i].assert_equal(field_ct::from_witness_index(&composer, input.signature[i]));
-        sig.s[i].assert_equal(field_ct::from_witness_index(&composer, input.signature[i + 32]));
-        pub_key_x_byte_arr[i].assert_equal(field_ct::from_witness_index(&composer, input.pub_x_indices[i]));
-        pub_key_y_byte_arr[i].assert_equal(field_ct::from_witness_index(&composer, input.pub_y_indices[i]));
+        sig.r[i].assert_equal(field_ct::from_witness_index(&builder, input.signature[i]));
+        sig.s[i].assert_equal(field_ct::from_witness_index(&builder, input.signature[i + 32]));
+        pub_key_x_byte_arr[i].assert_equal(field_ct::from_witness_index(&builder, input.pub_x_indices[i]));
+        pub_key_y_byte_arr[i].assert_equal(field_ct::from_witness_index(&builder, input.pub_y_indices[i]));
     }
     for (size_t i = 0; i < input.hashed_message.size(); ++i) {
-        message[i].assert_equal(field_ct::from_witness_index(&composer, input.hashed_message[i]));
+        message[i].assert_equal(field_ct::from_witness_index(&builder, input.hashed_message[i]));
     }
 
     bool_ct signature_result =
-        stdlib::ecdsa::verify_signature_prehashed_message_noassert<Composer,
+        stdlib::ecdsa::verify_signature_prehashed_message_noassert<Builder,
                                                                    secp256k1_ct,
                                                                    secp256k1_ct::fq_ct,
                                                                    secp256k1_ct::bigfr_ct,
                                                                    secp256k1_ct::g1_bigfr_ct>(message, public_key, sig);
     bool_ct signature_result_normalized = signature_result.normalize();
-    composer.assert_equal(signature_result_normalized.witness_index, input.result);
+    builder.assert_equal(signature_result_normalized.witness_index, input.result);
 }
 
 // Add dummy constraints for ECDSA because when the verifier creates the
@@ -138,7 +138,7 @@ void create_ecdsa_verify_constraints(Composer& composer,
 //
 // This does not work for ECDSA as the signature, r, s and public key need
 // to be valid.
-void dummy_ecdsa_constraint(Composer& composer, EcdsaSecp256k1Constraint const& input)
+void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& input)
 {
 
     std::vector<uint32_t> pub_x_indices_;
@@ -161,10 +161,10 @@ void dummy_ecdsa_constraint(Composer& composer, EcdsaSecp256k1Constraint const& 
     // We don't use them in a gate, so when we call assert_equal, they will be
     // replaced as if they never existed.
     for (size_t i = 0; i < 32; ++i) {
-        uint32_t x_wit = composer.add_variable(pub_x_value.slice(248 - i * 8, 256 - i * 8));
-        uint32_t y_wit = composer.add_variable(pub_y_value.slice(248 - i * 8, 256 - i * 8));
-        uint32_t r_wit = composer.add_variable(signature.r[i]);
-        uint32_t s_wit = composer.add_variable(signature.s[i]);
+        uint32_t x_wit = builder.add_variable(pub_x_value.slice(248 - i * 8, 256 - i * 8));
+        uint32_t y_wit = builder.add_variable(pub_y_value.slice(248 - i * 8, 256 - i * 8));
+        uint32_t r_wit = builder.add_variable(signature.r[i]);
+        uint32_t s_wit = builder.add_variable(signature.s[i]);
         pub_x_indices_.emplace_back(x_wit);
         pub_y_indices_.emplace_back(y_wit);
         signature_[i] = r_wit;
@@ -173,13 +173,13 @@ void dummy_ecdsa_constraint(Composer& composer, EcdsaSecp256k1Constraint const& 
 
     // Call assert_equal(from, to) to replace the value in `to` by the value in `from`
     for (size_t i = 0; i < input.pub_x_indices.size(); ++i) {
-        composer.assert_equal(pub_x_indices_[i], input.pub_x_indices[i]);
+        builder.assert_equal(pub_x_indices_[i], input.pub_x_indices[i]);
     }
     for (size_t i = 0; i < input.pub_y_indices.size(); ++i) {
-        composer.assert_equal(pub_y_indices_[i], input.pub_y_indices[i]);
+        builder.assert_equal(pub_y_indices_[i], input.pub_y_indices[i]);
     }
     for (size_t i = 0; i < input.signature.size(); ++i) {
-        composer.assert_equal(signature_[i], input.signature[i]);
+        builder.assert_equal(signature_[i], input.signature[i]);
     }
 }
 

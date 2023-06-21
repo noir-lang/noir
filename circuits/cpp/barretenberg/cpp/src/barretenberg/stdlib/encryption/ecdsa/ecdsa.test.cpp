@@ -2,7 +2,6 @@
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/curves/secp256k1.hpp"
 #include "ecdsa.hpp"
-#include "barretenberg/stdlib/primitives/composers/composers.hpp"
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/common/test.hpp"
 
@@ -50,11 +49,8 @@ TEST(stdlib_ecdsa, verify_signature)
     EXPECT_EQ(signature_result.get_value(), true);
 
     std::cerr << "composer gates = " << composer.get_num_gates() << std::endl;
-    benchmark_info(GET_COMPOSER_NAME_STRING(Composer),
-                   "ECDSA",
-                   "Signature Verification Test",
-                   "Gate Count",
-                   composer.get_num_gates());
+    benchmark_info(
+        Composer::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", composer.get_num_gates());
     bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
@@ -98,11 +94,8 @@ TEST(stdlib_ecdsa, verify_signature_noassert_succeed)
     EXPECT_EQ(signature_result.get_value(), true);
 
     std::cerr << "composer gates = " << composer.get_num_gates() << std::endl;
-    benchmark_info(GET_COMPOSER_NAME_STRING(Composer),
-                   "ECDSA",
-                   "Signature Verification Test",
-                   "Gate Count",
-                   composer.get_num_gates());
+    benchmark_info(
+        Composer::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", composer.get_num_gates());
     bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
@@ -146,11 +139,8 @@ TEST(stdlib_ecdsa, verify_signature_noassert_fail)
     EXPECT_EQ(signature_result.get_value(), false);
 
     std::cerr << "composer gates = " << composer.get_num_gates() << std::endl;
-    benchmark_info(GET_COMPOSER_NAME_STRING(Composer),
-                   "ECDSA",
-                   "Signature Verification Test",
-                   "Gate Count",
-                   composer.get_num_gates());
+    benchmark_info(
+        Composer::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", composer.get_num_gates());
     bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }

@@ -269,39 +269,39 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
              public_asset_id, tx_fee,     bridge_call_data,         defi_deposit_value };
 }
 
-void join_split_circuit(Composer& composer, join_split_tx const& tx)
+void join_split_circuit(Builder& builder, join_split_tx const& tx)
 {
     join_split_inputs inputs = {
-        .proof_id = witness_ct(&composer, tx.proof_id),
-        .public_value = suint_ct(witness_ct(&composer, tx.public_value), NOTE_VALUE_BIT_LENGTH, "public_value"),
-        .public_owner = witness_ct(&composer, tx.public_owner),
-        .asset_id = suint_ct(witness_ct(&composer, tx.asset_id), ASSET_ID_BIT_LENGTH, "asset_id"),
-        .num_input_notes = witness_ct(&composer, tx.num_input_notes),
-        .input_note1_index = suint_ct(witness_ct(&composer, tx.input_index[0]), DATA_TREE_DEPTH, "input_index0"),
-        .input_note2_index = suint_ct(witness_ct(&composer, tx.input_index[1]), DATA_TREE_DEPTH, "input_index1"),
-        .input_note1 = value::witness_data(composer, tx.input_note[0]),
-        .input_note2 = value::witness_data(composer, tx.input_note[1]),
-        .output_note1 = value::witness_data(composer, tx.output_note[0]),
-        .output_note2 = value::witness_data(composer, tx.output_note[1]),
+        .proof_id = witness_ct(&builder, tx.proof_id),
+        .public_value = suint_ct(witness_ct(&builder, tx.public_value), NOTE_VALUE_BIT_LENGTH, "public_value"),
+        .public_owner = witness_ct(&builder, tx.public_owner),
+        .asset_id = suint_ct(witness_ct(&builder, tx.asset_id), ASSET_ID_BIT_LENGTH, "asset_id"),
+        .num_input_notes = witness_ct(&builder, tx.num_input_notes),
+        .input_note1_index = suint_ct(witness_ct(&builder, tx.input_index[0]), DATA_TREE_DEPTH, "input_index0"),
+        .input_note2_index = suint_ct(witness_ct(&builder, tx.input_index[1]), DATA_TREE_DEPTH, "input_index1"),
+        .input_note1 = value::witness_data(builder, tx.input_note[0]),
+        .input_note2 = value::witness_data(builder, tx.input_note[1]),
+        .output_note1 = value::witness_data(builder, tx.output_note[0]),
+        .output_note2 = value::witness_data(builder, tx.output_note[1]),
         // Construction of partial_claim_note_witness_data includes construction of bridge_call_data, which contains
         // many constraints on the bridge_call_data's format and the bit_config's format:
-        .partial_claim_note = claim::partial_claim_note_witness_data(composer, tx.partial_claim_note),
-        .signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key),
-        .signature = stdlib::schnorr::convert_signature(&composer, tx.signature),
-        .merkle_root = witness_ct(&composer, tx.old_data_root),
-        .input_path1 = stdlib::merkle_tree::create_witness_hash_path(composer, tx.input_path[0]),
-        .input_path2 = stdlib::merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
+        .partial_claim_note = claim::partial_claim_note_witness_data(builder, tx.partial_claim_note),
+        .signing_pub_key = stdlib::create_point_witness(builder, tx.signing_pub_key),
+        .signature = stdlib::schnorr::convert_signature(&builder, tx.signature),
+        .merkle_root = witness_ct(&builder, tx.old_data_root),
+        .input_path1 = stdlib::merkle_tree::create_witness_hash_path(builder, tx.input_path[0]),
+        .input_path2 = stdlib::merkle_tree::create_witness_hash_path(builder, tx.input_path[1]),
         .account_note_index =
-            suint_ct(witness_ct(&composer, tx.account_note_index), DATA_TREE_DEPTH, "account_note_index"),
-        .account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_note_path),
-        .account_private_key = witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
-        .alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
-        .account_required = bool_ct(witness_ct(&composer, tx.account_required)),
-        .backward_link = witness_ct(&composer, tx.backward_link),
-        .allow_chain = witness_ct(&composer, tx.allow_chain),
+            suint_ct(witness_ct(&builder, tx.account_note_index), DATA_TREE_DEPTH, "account_note_index"),
+        .account_note_path = merkle_tree::create_witness_hash_path(builder, tx.account_note_path),
+        .account_private_key = witness_ct(&builder, static_cast<fr>(tx.account_private_key)),
+        .alias_hash = suint_ct(witness_ct(&builder, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
+        .account_required = bool_ct(witness_ct(&builder, tx.account_required)),
+        .backward_link = witness_ct(&builder, tx.backward_link),
+        .allow_chain = witness_ct(&builder, tx.allow_chain),
     };
     auto outputs = join_split_circuit_component(inputs);
-    const field_ct defi_root = witness_ct(&composer, 0);
+    const field_ct defi_root = witness_ct(&builder, 0);
     defi_root.assert_is_zero();
 
     // The following make up the public inputs to the circuit.

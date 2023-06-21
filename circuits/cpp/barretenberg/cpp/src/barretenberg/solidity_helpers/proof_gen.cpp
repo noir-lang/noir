@@ -2,8 +2,8 @@
 #include <sstream>
 #include <bitset>
 
-#include "barretenberg/plonk/composer/standard_plonk_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
 
 #include "circuits/blake_circuit.hpp"
 #include "circuits/add_2_circuit.hpp"
@@ -13,15 +13,16 @@
 using namespace numeric;
 using numeric::uint256_t;
 
-template <typename Composer, typename Circuit> void generate_proof(std::string srs_path, uint256_t inputs[])
+template <typename Composer, template <typename> typename Circuit> void generate_proof(uint256_t inputs[])
 {
-    Composer composer = Circuit::generate(srs_path, inputs);
+    auto builder = Circuit<typename Composer::CircuitConstructor>::generate(inputs);
 
+    Composer composer;
     // @todo this only works for ultra! Why is ultra part of function name on ultra composer?
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
     {
-        auto verifier = composer.create_ultra_with_keccak_verifier();
+        auto verifier = composer.create_ultra_with_keccak_verifier(builder);
 
         if (!verifier.verify_proof(proof)) {
             throw_or_abort("Verification failed");
@@ -60,6 +61,8 @@ int main(int argc, char** argv)
     const std::string srs_path = args[3];
     const std::string string_input = args[4];
 
+    barretenberg::srs::init_crs_factory(srs_path);
+
     // @todo dynamically allocate this
     uint256_t inputs[] = { 0, 0, 0, 0, 0 };
 
@@ -80,11 +83,11 @@ int main(int argc, char** argv)
         return 1;
     } else {
         if (circuit_flavour == "blake") {
-            generate_proof<UltraPlonkComposer, BlakeCircuit<UltraPlonkComposer>>(srs_path, inputs);
+            generate_proof<UltraPlonkComposerHelper, BlakeCircuit>(inputs);
         } else if (circuit_flavour == "add2") {
-            generate_proof<UltraPlonkComposer, Add2Circuit<UltraPlonkComposer>>(srs_path, inputs);
+            generate_proof<UltraPlonkComposerHelper, Add2Circuit>(inputs);
         } else if (circuit_flavour == "recursive") {
-            generate_proof<UltraPlonkComposer, RecursiveCircuit<UltraPlonkComposer>>(srs_path, inputs);
+            generate_proof<UltraPlonkComposerHelper, RecursiveCircuit>(inputs);
         } else {
             info("Invalid circuit flavour: " + circuit_flavour);
             return 1;

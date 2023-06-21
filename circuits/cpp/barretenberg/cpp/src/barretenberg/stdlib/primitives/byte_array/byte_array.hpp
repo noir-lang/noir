@@ -1,6 +1,6 @@
 #pragma once
 #include "../bool/bool.hpp"
-#include "../composers/composers_fwd.hpp"
+#include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../field/field.hpp"
 #include "../safe_uint/safe_uint.hpp"
 namespace proof_system::plonk {

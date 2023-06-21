@@ -19,16 +19,16 @@ struct witness_data {
     field_ct creator_pubkey;
     field_ct input_nullifier;
 
-    witness_data(Composer& composer, native::value::value_note const& note)
+    witness_data(Builder& builder, native::value::value_note const& note)
     {
-        secret = witness_ct(&composer, note.secret);
-        owner.x = witness_ct(&composer, note.owner.x);
-        owner.y = witness_ct(&composer, note.owner.y);
-        value = suint_ct(witness_ct(&composer, note.value), NOTE_VALUE_BIT_LENGTH, "note_value");
-        asset_id = suint_ct(witness_ct(&composer, note.asset_id), ASSET_ID_BIT_LENGTH, "asset_id");
-        account_required = bool_ct(witness_ct(&composer, note.account_required));
-        creator_pubkey = witness_ct(&composer, note.creator_pubkey);
-        input_nullifier = witness_ct(&composer, note.input_nullifier);
+        secret = witness_ct(&builder, note.secret);
+        owner.x = witness_ct(&builder, note.owner.x);
+        owner.y = witness_ct(&builder, note.owner.y);
+        value = suint_ct(witness_ct(&builder, note.value), NOTE_VALUE_BIT_LENGTH, "note_value");
+        asset_id = suint_ct(witness_ct(&builder, note.asset_id), ASSET_ID_BIT_LENGTH, "asset_id");
+        account_required = bool_ct(witness_ct(&builder, note.account_required));
+        creator_pubkey = witness_ct(&builder, note.creator_pubkey);
+        input_nullifier = witness_ct(&builder, note.input_nullifier);
     }
 };
 

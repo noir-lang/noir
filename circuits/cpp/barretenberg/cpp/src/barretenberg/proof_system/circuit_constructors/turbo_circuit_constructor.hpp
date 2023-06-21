@@ -14,8 +14,8 @@ inline std::vector<std::string> turbo_selector_names()
     return result;
 }
 class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::Turbo<barretenberg::fr>> {
-
   public:
+    static constexpr std::string_view NAME_STRING = "TurboArithmetization";
     static constexpr ComposerType type = ComposerType::TURBO;
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;

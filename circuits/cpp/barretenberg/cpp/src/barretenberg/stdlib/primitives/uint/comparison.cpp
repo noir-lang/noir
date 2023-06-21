@@ -1,4 +1,4 @@
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 #include "uint.hpp"
 
 using namespace barretenberg;

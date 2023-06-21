@@ -1,5 +1,5 @@
 #include "bool.hpp"
-#include "../composers/composers.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 
 using namespace barretenberg;
 using namespace proof_system;

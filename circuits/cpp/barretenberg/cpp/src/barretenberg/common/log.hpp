@@ -1,34 +1,16 @@
 #pragma once
-#include <barretenberg/env/logstr.hpp>
 #include <sstream>
 #include <algorithm>
 #include <vector>
 #include <string>
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include "barretenberg/env/logstr.hpp"
 
 #define BENCHMARK_INFO_PREFIX "##BENCHMARK_INFO_PREFIX##"
 #define BENCHMARK_INFO_SEPARATOR "#"
 #define BENCHMARK_INFO_SUFFIX "##BENCHMARK_INFO_SUFFIX##"
-#define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(plonk::StandardPlonkComposer)                                                          \
-         ? "StandardPlonk"                                                                                             \
-         : typeid(composer) == typeid(plonk::TurboPlonkComposer)                                                       \
-               ? "TurboPlonk"                                                                                          \
-               : typeid(composer) == typeid(plonk::UltraPlonkComposer)                                                 \
-                     ? "UltraPlonk"                                                                                    \
-                     : typeid(composer) == typeid(honk::StandardHonkComposer)                                          \
-                           ? "StandardHonk"                                                                            \
-                           : typeid(composer) == typeid(honk::UltraHonkComposer)                                       \
-                                 ? "UltraHonk"                                                                         \
-                                 : typeid(composer) == typeid(proof_system::StandardCircuitConstructor)                \
-                                       ? "StandardArithemtization"                                                     \
-                                       : typeid(composer) == typeid(proof_system::TurboCircuitConstructor)             \
-                                             ? "TurboArithemtization"                                                  \
-                                             : typeid(composer) == typeid(proof_system::UltraCircuitConstructor)       \
-                                                   ? "UltraArithmetization"                                            \
-                                                   : "NullPlonk")
 
 namespace {
-
 template <typename... Args> std::string format(Args... args)
 {
     std::ostringstream os;

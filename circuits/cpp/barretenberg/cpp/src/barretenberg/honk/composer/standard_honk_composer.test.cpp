@@ -361,10 +361,11 @@ TEST_F(StandardHonkComposerTests, TwoGates)
 
         auto composer = StandardHonkComposerHelper();
         auto prover = composer.create_prover(circuit_constructor);
-
         auto proof = prover.construct_proof();
+
         auto verifier = composer.create_verifier(circuit_constructor);
         bool verified = verifier.verify_proof(proof);
+
         EXPECT_EQ(verified, expect_verified);
     };
 

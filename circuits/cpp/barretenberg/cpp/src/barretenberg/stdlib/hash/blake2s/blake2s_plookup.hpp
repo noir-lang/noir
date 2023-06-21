@@ -6,7 +6,7 @@
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
 
 #include "../../primitives/field/field.hpp"
-#include "../../primitives/composers/composers_fwd.hpp"
+#include "../../primitives/circuit_builders/circuit_builders_fwd.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
 namespace proof_system::plonk {

@@ -1,11 +1,14 @@
-#include "acir_format.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
-#include <gtest/gtest.h>
 #include <vector>
+#include <gtest/gtest.h>
+
+#include "acir_format.hpp"
+#include "ecdsa_secp256k1.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
 
+namespace acir_format::tests {
 TEST(acir_format, test_a_single_constraint_no_pub_inputs)
 {
 
@@ -20,7 +23,7 @@ TEST(acir_format, test_a_single_constraint_no_pub_inputs)
         .q_c = 0,
     };
 
-    acir_format::acir_format constraint_system{
+    acir_format constraint_system{
         .varnum = 4,
         .public_inputs = {},
         .fixed_base_scalar_mul_constraints = {},
@@ -39,19 +42,20 @@ TEST(acir_format, test_a_single_constraint_no_pub_inputs)
         .constraints = { constraint },
     };
 
-    auto composer = acir_format::create_circuit_with_witness(constraint_system, { 0, 0, 1 });
+    auto builder = create_circuit_with_witness(constraint_system, { 0, 0, 1 });
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto composer = Composer();
+    auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier(builder);
 
     EXPECT_EQ(verifier.verify_proof(proof), false);
 }
 
 TEST(acir_format, msgpack_logic_constraint)
 {
-    auto [actual, expected] = msgpack_roundtrip(acir_format::LogicConstraint{});
+    auto [actual, expected] = msgpack_roundtrip(LogicConstraint{});
     EXPECT_EQ(actual, expected);
 }
 TEST(acir_format, test_logic_gate_from_noir_circuit)
@@ -64,16 +68,16 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
      * constrain z != 10;
      * }
      **/
-    acir_format::RangeConstraint range_a{
+    RangeConstraint range_a{
         .witness = 1,
         .num_bits = 32,
     };
-    acir_format::RangeConstraint range_b{
+    RangeConstraint range_b{
         .witness = 2,
         .num_bits = 32,
     };
 
-    acir_format::LogicConstraint logic_constraint{
+    LogicConstraint logic_constraint{
         .a = 1,
         .b = 2,
         .result = 3,
@@ -125,7 +129,7 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
     // EXPR [ (1, _4, _6) (-1, _4) 0 ]
     // EXPR [ (-1, _6) 1 ]
 
-    acir_format::acir_format constraint_system{
+    acir_format constraint_system{
         .varnum = 7,
         .public_inputs = { 2 },
         .fixed_base_scalar_mul_constraints = {},
@@ -145,29 +149,30 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
     };
 
     uint256_t inverse_of_five = fr(5).invert();
-    auto composer = acir_format::create_circuit_with_witness(constraint_system,
-                                                             {
-                                                                 5,
-                                                                 10,
-                                                                 15,
-                                                                 5,
-                                                                 inverse_of_five,
-                                                                 1,
-                                                             });
+    auto builder = create_circuit_with_witness(constraint_system,
+                                               {
+                                                   5,
+                                                   10,
+                                                   15,
+                                                   5,
+                                                   inverse_of_five,
+                                                   1,
+                                               });
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto composer = Composer();
+    auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier(builder);
 
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
 TEST(acir_format, test_schnorr_verify_pass)
 {
-    std::vector<acir_format::RangeConstraint> range_constraints;
+    std::vector<RangeConstraint> range_constraints;
     for (uint32_t i = 0; i < 10; i++) {
-        range_constraints.push_back(acir_format::RangeConstraint{
+        range_constraints.push_back(RangeConstraint{
             .witness = i + 1,
             .num_bits = 15,
         });
@@ -176,13 +181,13 @@ TEST(acir_format, test_schnorr_verify_pass)
     std::vector<uint32_t> signature(64);
     for (uint32_t i = 0, value = 13; i < 64; i++, value++) {
         signature[i] = value;
-        range_constraints.push_back(acir_format::RangeConstraint{
+        range_constraints.push_back(RangeConstraint{
             .witness = value,
             .num_bits = 15,
         });
     }
 
-    acir_format::SchnorrConstraint schnorr_constraint{
+    SchnorrConstraint schnorr_constraint{
         .message = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
         .public_key_x = 11,
         .public_key_y = 12,
@@ -190,7 +195,7 @@ TEST(acir_format, test_schnorr_verify_pass)
         .signature = signature,
     };
 
-    acir_format::acir_format constraint_system{
+    acir_format constraint_system{
         .varnum = 82,
         .public_inputs = {},
         .fixed_base_scalar_mul_constraints = {},
@@ -220,26 +225,27 @@ TEST(acir_format, test_schnorr_verify_pass)
     uint256_t pub_x = uint256_t("17cbd3ed3151ccfd170efe1d54280a6a4822640bf5c369908ad74ea21518a9c5");
     uint256_t pub_y = uint256_t("0e0456e3795c1a31f20035b741cd6158929eeccd320d299cfcac962865a6bc74");
 
-    auto composer = acir_format::create_circuit_with_witness(
+    auto builder = create_circuit_with_witness(
         constraint_system,
         { 0,  1,   2,   3,   4,   5,   6,   7,   8,   9,   pub_x, pub_y, 5,   202, 31, 146, 81,  242, 246, 69,
           43, 107, 249, 153, 198, 44,  14,  111, 191, 121, 137,   166,   160, 103, 18, 181, 243, 233, 226, 95,
           67, 16,  37,  128, 85,  76,  19,  253, 30,  77,  192,   53,    138, 205, 69, 33,  236, 163, 83,  194,
           84, 137, 184, 221, 176, 121, 179, 27,  63,  70,  54,    16,    176, 250, 39, 239, 1,   0,   0,   0 });
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto composer = Composer();
+    auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier(builder);
 
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
 TEST(acir_format, test_schnorr_verify_small_range)
 {
-    std::vector<acir_format::RangeConstraint> range_constraints;
+    std::vector<RangeConstraint> range_constraints;
     for (uint32_t i = 0; i < 10; i++) {
-        range_constraints.push_back(acir_format::RangeConstraint{
+        range_constraints.push_back(RangeConstraint{
             .witness = i + 1,
             .num_bits = 8,
         });
@@ -248,13 +254,13 @@ TEST(acir_format, test_schnorr_verify_small_range)
     std::vector<uint32_t> signature(64);
     for (uint32_t i = 0, value = 13; i < 64; i++, value++) {
         signature[i] = value;
-        range_constraints.push_back(acir_format::RangeConstraint{
+        range_constraints.push_back(RangeConstraint{
             .witness = value,
             .num_bits = 8,
         });
     }
 
-    acir_format::SchnorrConstraint schnorr_constraint{
+    SchnorrConstraint schnorr_constraint{
         .message = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
         .public_key_x = 11,
         .public_key_y = 12,
@@ -262,7 +268,7 @@ TEST(acir_format, test_schnorr_verify_small_range)
         .signature = signature,
     };
 
-    acir_format::acir_format constraint_system{
+    acir_format constraint_system{
         .varnum = 82,
         .public_inputs = {},
         .fixed_base_scalar_mul_constraints = {},
@@ -292,17 +298,17 @@ TEST(acir_format, test_schnorr_verify_small_range)
     uint256_t pub_x = uint256_t("17cbd3ed3151ccfd170efe1d54280a6a4822640bf5c369908ad74ea21518a9c5");
     uint256_t pub_y = uint256_t("0e0456e3795c1a31f20035b741cd6158929eeccd320d299cfcac962865a6bc74");
 
-    auto composer = acir_format::create_circuit_with_witness(
+    auto builder = create_circuit_with_witness(
         constraint_system,
         { 0,  1,   2,   3,   4,   5,   6,   7,   8,   9,   pub_x, pub_y, 5,   202, 31, 146, 81,  242, 246, 69,
           43, 107, 249, 153, 198, 44,  14,  111, 191, 121, 137,   166,   160, 103, 18, 181, 243, 233, 226, 95,
           67, 16,  37,  128, 85,  76,  19,  253, 30,  77,  192,   53,    138, 205, 69, 33,  236, 163, 83,  194,
           84, 137, 184, 221, 176, 121, 179, 27,  63,  70,  54,    16,    176, 250, 39, 239, 1,   0,   0,   0 });
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto composer = Composer();
+    auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
-
-    auto verifier = composer.create_ultra_with_keccak_verifier();
-
+    auto verifier = composer.create_ultra_with_keccak_verifier(builder);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
+} // namespace acir_format::tests
