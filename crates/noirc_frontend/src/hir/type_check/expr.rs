@@ -115,6 +115,7 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::MethodCall(method_call) => {
                 let object_type = self.check_expression(&method_call.object);
                 let method_name = method_call.method.0.contents.as_str();
+                let object_type = object_type.follow_bindings();
                 match self.lookup_method(object_type.clone(), method_name, expr_id) {
                     Some(method_id) => {
                         let mut args =
