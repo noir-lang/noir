@@ -5,7 +5,7 @@ struct Option<T> {
 
 impl<T> Option<T> {
     fn none() -> Self {
-        Self { _is_some: false, value: std::unsafe::zeroed() }
+        Self { _is_some: false, value: crate::unsafe::zeroed() }
     }
 
     fn some(value: T) -> Self {
