@@ -24,3 +24,5 @@ jobs:
           extra-files: |
             cpp/CMakeLists.txt
             VERSION
+            barretenberg.nix
+            barretenberg-wasm.nix
