@@ -172,7 +172,7 @@ pub(crate) fn const_instruction(result: RegisterIndex, constant: Value) {
 
 /// Processes a not instruction. Append with "_" as this is a high-level instruction.
 pub(crate) fn not_instruction(condition: RegisterIndex, bit_size: u32, result: RegisterIndex) {
-    debug_println!("  _NOT({}bits) {} = !{}", bit_size, result, condition);
+    debug_println!("  i{}_NOT {} = !{}", bit_size, result, condition);
 }
 
 /// Processes a foreign call instruction.

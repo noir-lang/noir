@@ -429,14 +429,16 @@ impl BrilligContext {
         // Compile !x as ((-1) - x)
         let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128))
             - FieldElement::one();
+        let max = self.make_constant(Value::from(u_max));
         let opcode = BrilligOpcode::BinaryIntOp {
             destination: result,
             op: BinaryIntOp::Sub,
             bit_size,
-            lhs: self.make_constant(Value::from(u_max)),
+            lhs: max,
             rhs: input,
         };
         self.push_opcode(opcode);
+        self.deallocate_register(max);
     }
 
     /// Processes a foreign call instruction.
