@@ -26,7 +26,6 @@ pub(crate) struct BackendSubcommand {
 }
 
 pub(crate) fn resolve_backend<'a>(args: &'a BackendSubcommand, config: &'a NargoConfig) -> Result<PathBuf, CliError>  {
-    // let backend_executable_path = 
     match which(args.backend_executable.clone()) {
         Ok(be_path) => Ok(be_path),
         Err(_) => {
@@ -40,8 +39,6 @@ pub(crate) fn resolve_backend<'a>(args: &'a BackendSubcommand, config: &'a Nargo
                         Ok(ad_path) => Ok(ad_path),
                         Err(_) => {
                             debug!("The assumed default path '{:?}' does not contain a valid executable. Please verify that your `Nargo` program is correctly installed.", assummed_default_path);
-                            // panic!("blah");
-                            // Err(ErrorKind::Recoverable(&CliError::Generic("Could not find suitable backend vendor to execute command.".to_string())))
                             Err(CliError::Generic("Could not find suitable backend vendor to execute command.".to_string()))
                         }
                     }
@@ -51,7 +48,6 @@ pub(crate) fn resolve_backend<'a>(args: &'a BackendSubcommand, config: &'a Nargo
         },
     }
 
-    // Ok(backend_executable_path)
 }
 
 pub(crate) fn execute_backend_cmd(backend_executable_path: &PathBuf, backend_args: Vec<String>) -> Result<i32, CliError> {
