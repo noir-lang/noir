@@ -110,7 +110,8 @@ inline abis::PublicDataRead<NT> make_public_read(fr leaf_index, fr value)
     };
 }
 
-bool compare_field_hash_to_expected(std::array<fr, 2> field_hash, std::array<uint8_t, 32> expected_hash);
+bool compare_field_hash_to_expected(std::array<fr, NUM_FIELDS_PER_SHA256> field_hash,
+                                    std::array<uint8_t, 32> expected_hash);
 
 std::vector<uint8_t> get_empty_calldata_leaf();
 

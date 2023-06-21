@@ -332,6 +332,9 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         array_of_values<KERNEL_NEW_NULLIFIERS_LENGTH>(seed, NEW_NULLIFIERS_LENGTH / 2);
     std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const new_l2_to_l1_msgs =
         array_of_values<KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>(seed, NEW_L2_TO_L1_MSGS_LENGTH / 2);
+    std::array<fr, NUM_FIELDS_PER_SHA256> const unencrypted_logs_hash =
+        array_of_values<NUM_FIELDS_PER_SHA256>(seed, NUM_FIELDS_PER_SHA256);
+    fr const unencrypted_log_preimages_length = ++seed;
     fr const historic_public_data_tree_root = ++seed;
 
     // create the public circuit public inputs
@@ -345,6 +348,8 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .new_commitments = new_commitments,
         .new_nullifiers = new_nullifiers,
         .new_l2_to_l1_msgs = new_l2_to_l1_msgs,
+        .unencrypted_logs_hash = unencrypted_logs_hash,
+        .unencrypted_log_preimages_length = unencrypted_log_preimages_length,
         .historic_public_data_tree_root = historic_public_data_tree_root,
     };
 
@@ -397,6 +402,11 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .public_call_stack = public_call_stack,
         .new_l2_to_l1_msgs = array_of_values<KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>(
             seed, private_previous ? KERNEL_NEW_L2_TO_L1_MSGS_LENGTH / 2 : 0),
+        .encrypted_logs_hash = array_of_values<NUM_FIELDS_PER_SHA256>(
+            seed, private_previous ? 2 : 0),  // only private kernel is producing encrypted logs
+        .unencrypted_logs_hash = array_of_values<NUM_FIELDS_PER_SHA256>(seed, NUM_FIELDS_PER_SHA256),
+        .encrypted_log_preimages_length = private_previous ? ++seed : 0,
+        .unencrypted_log_preimages_length = ++seed,
         .new_contracts = std::array<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(),
         .optionally_revealed_data = std::array<OptionallyRevealedData<NT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH>(),
         .public_data_update_requests =
@@ -465,6 +475,11 @@ void validate_private_data_propagation(const PublicKernelInputs<NT>& inputs,
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_contracts,
                                             std::array<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(),
                                             public_inputs.end.new_contracts));
+
+    ASSERT_EQ(inputs.previous_kernel.public_inputs.end.encrypted_logs_hash,
+              inputs.previous_kernel.public_inputs.end.encrypted_logs_hash);
+    ASSERT_EQ(inputs.previous_kernel.public_inputs.end.encrypted_log_preimages_length,
+              inputs.previous_kernel.public_inputs.end.encrypted_log_preimages_length);
 
     ASSERT_EQ(inputs.previous_kernel.public_inputs.end.optionally_revealed_data,
               public_inputs.end.optionally_revealed_data);
@@ -1062,6 +1077,21 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
         public_data_update_requests_from_contract_storage_update_requests(
             inputs.public_call.call_stack_item.public_inputs.contract_storage_update_requests, contract_address);
 
+    // Unencrypted logs hash and preimage lengths should now be correctly accumulated
+    auto const& public_inputs_unencrypted_logs_hash = inputs.previous_kernel.public_inputs.end.unencrypted_logs_hash;
+    auto const& unencrypted_logs_hash = inputs.public_call.call_stack_item.public_inputs.unencrypted_logs_hash;
+    auto const& expected_unencrypted_logs_hash = accumulate_sha256<NT>({ public_inputs_unencrypted_logs_hash[0],
+                                                                         public_inputs_unencrypted_logs_hash[1],
+                                                                         unencrypted_logs_hash[0],
+                                                                         unencrypted_logs_hash[1] });
+
+    auto const& public_inputs_unencrypted_log_preimages_length =
+        inputs.previous_kernel.public_inputs.end.unencrypted_log_preimages_length;
+    auto const& unencrypted_log_preimages_length =
+        inputs.public_call.call_stack_item.public_inputs.unencrypted_log_preimages_length;
+    ASSERT_EQ(public_inputs.end.unencrypted_log_preimages_length,
+              unencrypted_log_preimages_length + public_inputs_unencrypted_log_preimages_length);
+
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.public_data_update_requests,
                                             expected_new_writes,
                                             public_inputs.end.public_data_update_requests));
@@ -1180,6 +1210,39 @@ TEST(public_kernel_tests, public_kernel_fails_creating_new_nullifiers_on_static_
     ASSERT_TRUE(dummyComposer.failed());
     ASSERT_EQ(dummyComposer.get_first_failure().code,
               CircuitErrorCode::PUBLIC_KERNEL__NEW_NULLIFIERS_PROHIBITED_IN_STATIC_CALL);
+}
+
+TEST(public_kernel_tests, logs_are_handled_as_expected)
+{
+    DummyComposer dummyComposer = DummyComposer("public_kernel_tests__logs_are_handled_as_expected");
+    PublicKernelInputs<NT> const& inputs = get_kernel_inputs_with_previous_kernel(true);
+
+    auto const& zero_hash = zero_array<NT::fr, NUM_FIELDS_PER_SHA256>();
+
+    // Ensure encrypted logs hash values are non-zero
+    ASSERT_NE(inputs.previous_kernel.public_inputs.end.encrypted_logs_hash, zero_hash);
+
+    auto const& public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyComposer, inputs);
+
+    // Encrypted logs hash values are propagated form input to output without change
+    ASSERT_EQ(inputs.previous_kernel.public_inputs.end.encrypted_logs_hash, public_inputs.end.encrypted_logs_hash);
+
+    // Unencrypted logs hash and preimage lengths should now be correctly accumulated
+    auto const& public_inputs_unencrypted_logs_hash = inputs.previous_kernel.public_inputs.end.unencrypted_logs_hash;
+    auto const& unencrypted_logs_hash = inputs.public_call.call_stack_item.public_inputs.unencrypted_logs_hash;
+    auto const& expected_unencrypted_logs_hash = accumulate_sha256<NT>({ public_inputs_unencrypted_logs_hash[0],
+                                                                         public_inputs_unencrypted_logs_hash[1],
+                                                                         unencrypted_logs_hash[0],
+                                                                         unencrypted_logs_hash[1] });
+
+    auto const& public_inputs_unencrypted_log_preimages_length =
+        inputs.previous_kernel.public_inputs.end.unencrypted_log_preimages_length;
+    auto const& unencrypted_log_preimages_length =
+        inputs.public_call.call_stack_item.public_inputs.unencrypted_log_preimages_length;
+    ASSERT_EQ(public_inputs.end.unencrypted_log_preimages_length,
+              unencrypted_log_preimages_length + public_inputs_unencrypted_log_preimages_length);
+
+    ASSERT_FALSE(dummyComposer.failed());
 }
 
 }  // namespace aztec3::circuits::kernel::public_kernel

@@ -500,7 +500,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     fr const end_public_data_tree_root = validate_and_process_public_state(composer, baseRollupInputs);
 
     // Calculate the overall calldata hash
-    std::array<NT::fr, 2> const calldata_hash = components::compute_kernels_calldata_hash(baseRollupInputs.kernel_data);
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const calldata_hash =
+        components::compute_kernels_calldata_hash(baseRollupInputs.kernel_data);
 
     // Perform membership checks that the notes provided exist within the historic trees data
     perform_historical_private_data_tree_membership_checks(composer, baseRollupInputs);

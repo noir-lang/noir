@@ -11,6 +11,7 @@ import {
   KERNEL_PUBLIC_DATA_READS_LENGTH,
   KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   NEW_L2_TO_L1_MSGS_LENGTH,
+  NUM_FIELDS_PER_SHA256,
 } from '../constants.js';
 import { FunctionData } from '../function_data.js';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
@@ -298,12 +299,12 @@ export class CombinedAccumulatedData {
      * Accumulated encrypted logs hash from all the previous kernel iterations.
      * Note: Represented as a tuple of 2 fields in order to fit in all of the 256 bits of sha256 hash.
      */
-    public encryptedLogsHash: Tuple<Fr, 2>,
+    public encryptedLogsHash: Tuple<Fr, typeof NUM_FIELDS_PER_SHA256>,
     /**
      * Accumulated unencrypted logs hash from all the previous kernel iterations.
      * Note: Represented as a tuple of 2 fields in order to fit in all of the 256 bits of sha256 hash.
      */
-    public unencryptedLogsHash: Tuple<Fr, 2>,
+    public unencryptedLogsHash: Tuple<Fr, typeof NUM_FIELDS_PER_SHA256>,
     /**
      * Total accumulated length of the encrypted log preimages emitted in all the previous kernel iterations
      */
@@ -334,8 +335,8 @@ export class CombinedAccumulatedData {
     assertMemberLength(this, 'privateCallStack', KERNEL_PRIVATE_CALL_STACK_LENGTH);
     assertMemberLength(this, 'publicCallStack', KERNEL_PUBLIC_CALL_STACK_LENGTH);
     assertMemberLength(this, 'newL2ToL1Msgs', KERNEL_NEW_L2_TO_L1_MSGS_LENGTH);
-    assertMemberLength(this, 'encryptedLogsHash', 2);
-    assertMemberLength(this, 'unencryptedLogsHash', 2);
+    assertMemberLength(this, 'encryptedLogsHash', NUM_FIELDS_PER_SHA256);
+    assertMemberLength(this, 'unencryptedLogsHash', NUM_FIELDS_PER_SHA256);
     assertMemberLength(this, 'newContracts', KERNEL_NEW_CONTRACTS_LENGTH);
     assertMemberLength(this, 'optionallyRevealedData', KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH);
     assertMemberLength(this, 'publicDataUpdateRequests', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);

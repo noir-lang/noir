@@ -119,8 +119,8 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
   const newL2ToL1Msgs = witnessReader.readFieldArray(NEW_L2_TO_L1_MSGS_LENGTH);
 
   // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
-  // const encryptedLogsHash = witnessReader.readFieldArray(2);
-  // const unencryptedLogsHash = witnessReader.readFieldArray(2);
+  // const encryptedLogsHash = witnessReader.readFieldArray(NUM_FIELDS_PER_SHA256);
+  // const unencryptedLogsHash = witnessReader.readFieldArray(NUM_FIELDS_PER_SHA256);
   // const encryptedLogPreimagesLength = witnessReader.readField();
   // const unencryptedLogPreimagesLength = witnessReader.readField();
   const encryptedLogsHash = [new Fr(0), new Fr(0)] as [Fr, Fr];

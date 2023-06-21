@@ -39,7 +39,8 @@ NT::fr calculate_subtree(std::array<NT::fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>
  * @param leaves
  * @param return - hash split into two field elements
  */
-std::array<NT::fr, 2> compute_messages_hash(std::array<NT::fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> leaves)
+std::array<NT::fr, NUM_FIELDS_PER_SHA256> compute_messages_hash(
+    std::array<NT::fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> leaves)
 {
     // convert vector of field elements into uint_8
     std::array<uint8_t, 32 * NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> messages_hash_input_bytes;

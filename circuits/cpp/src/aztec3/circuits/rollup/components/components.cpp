@@ -95,9 +95,10 @@ void assert_equal_constants(DummyComposer& composer,
  * @brief Computes the calldata hash for a base rollup
  *
  * @param kernel_data - 2 kernels
- * @return std::array<fr, 2>
+ * @return calldata hash stored in 2 fields
  */
-std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelData<NT>, 2> kernel_data)
+std::array<fr, NUM_FIELDS_PER_SHA256> compute_kernels_calldata_hash(
+    std::array<abis::PreviousKernelData<NT>, 2> kernel_data)
 {
     // Compute calldata hashes
     // Consist of 2 kernels
@@ -220,16 +221,17 @@ std::array<fr, 2> compute_kernels_calldata_hash(std::array<abis::PreviousKernelD
     auto high = fr::serialize_from_buffer(buf_1.data());
     auto low = fr::serialize_from_buffer(buf_2.data());
 
-    return std::array<NT::fr, 2>{ high, low };
+    return std::array<NT::fr, NUM_FIELDS_PER_SHA256>{ high, low };
 }
 
 /**
  * @brief From two previous rollup data, compute a single calldata hash
  *
  * @param previous_rollup_data
- * @return std::array<fr, 2>
+ * @return calldata hash stored in 2 fields
  */
-std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>, 2> previous_rollup_data)
+std::array<fr, NUM_FIELDS_PER_SHA256> compute_calldata_hash(
+    std::array<abis::PreviousRollupData<NT>, 2> previous_rollup_data)
 {
     return accumulate_sha256<NT>({ previous_rollup_data[0].base_or_merge_rollup_public_inputs.calldata_hash[0],
                                    previous_rollup_data[0].base_or_merge_rollup_public_inputs.calldata_hash[1],

@@ -11,6 +11,7 @@ import {
   NEW_COMMITMENTS_LENGTH,
   NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
+  NUM_FIELDS_PER_SHA256,
   PUBLIC_CALL_STACK_LENGTH,
   RETURN_VALUES_LENGTH,
 } from './constants.js';
@@ -198,7 +199,7 @@ export class PublicCircuitPublicInputs {
     assertMemberLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
     assertMemberLength(this, 'contractStorageUpdateRequests', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);
     assertMemberLength(this, 'contractStorageReads', KERNEL_PUBLIC_DATA_READS_LENGTH);
-    assertMemberLength(this, 'unencryptedLogsHash', 2);
+    assertMemberLength(this, 'unencryptedLogsHash', NUM_FIELDS_PER_SHA256);
   }
 
   /**

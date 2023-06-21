@@ -3,6 +3,8 @@
 #include "../../append_only_tree_snapshot.hpp"
 #include "../constant_rollup_data.hpp"
 
+#include "aztec3/constants.hpp"
+
 namespace aztec3::circuits::abis {
 
 
@@ -33,9 +35,8 @@ template <typename NCT> struct BaseOrMergeRollupPublicInputs {
     fr start_public_data_tree_root;
     fr end_public_data_tree_root;
 
-    // Hashes (probably sha256) to make public inputs constant-sized (to then be unpacked on-chain)
-    // Needs to be two fields to accomodate all 256-bits of the hash
-    std::array<fr, 2> calldata_hash;
+    // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
+    std::array<fr, NUM_FIELDS_PER_SHA256> calldata_hash;
 
     bool operator==(BaseOrMergeRollupPublicInputs<NCT> const&) const = default;
 };

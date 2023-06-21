@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
+#include "aztec3/constants.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -42,8 +43,8 @@ template <typename NCT> struct RootRollupPublicInputs {
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot;
     AppendOnlyTreeSnapshot<NCT> end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot;
 
-    std::array<fr, 2> calldata_hash;
-    std::array<fr, 2> l1_to_l2_messages_hash;
+    std::array<fr, NUM_FIELDS_PER_SHA256> calldata_hash;
+    std::array<fr, NUM_FIELDS_PER_SHA256> l1_to_l2_messages_hash;
 
     bool operator==(RootRollupPublicInputs<NCT> const&) const = default;
 

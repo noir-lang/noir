@@ -6,6 +6,7 @@ import {
   NEW_COMMITMENTS_LENGTH,
   NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
+  NUM_FIELDS_PER_SHA256,
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
   READ_REQUESTS_LENGTH,
@@ -103,8 +104,8 @@ export class PrivateCircuitPublicInputs {
     assertMemberLength(this, 'privateCallStack', PRIVATE_CALL_STACK_LENGTH);
     assertMemberLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
     assertMemberLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
-    assertMemberLength(this, 'encryptedLogsHash', 2);
-    assertMemberLength(this, 'unencryptedLogsHash', 2);
+    assertMemberLength(this, 'encryptedLogsHash', NUM_FIELDS_PER_SHA256);
+    assertMemberLength(this, 'unencryptedLogsHash', NUM_FIELDS_PER_SHA256);
   }
   /**
    * Create PrivateCircuitPublicInputs from a fields dictionary.
@@ -134,8 +135,8 @@ export class PrivateCircuitPublicInputs {
       frArray(PRIVATE_CALL_STACK_LENGTH),
       frArray(PUBLIC_CALL_STACK_LENGTH),
       frArray(NEW_L2_TO_L1_MSGS_LENGTH),
-      frArray(2) as [Fr, Fr],
-      frArray(2) as [Fr, Fr],
+      frArray(NUM_FIELDS_PER_SHA256) as [Fr, Fr],
+      frArray(NUM_FIELDS_PER_SHA256) as [Fr, Fr],
       Fr.ZERO,
       Fr.ZERO,
       Fr.ZERO,

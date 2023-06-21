@@ -99,44 +99,68 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     private_function const& func,
     std::vector<NT::fr> const& args_vec,
     NT::address const& msg_sender,
-    std::array<NT::fr, 2> const& encrypted_logs_hash,
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash,
     NT::fr const& encrypted_log_preimages_length,
     bool is_circuit = false);
 
 /**
- * @brief Perform a private circuit call and generate the inputs to private kernel inner circuit
+ * @brief Perform an inner private circuit call and generate the inputs to private kernel
  *
  * @param is_constructor whether this private circuit call is a constructor
  * @param func the private circuit call being validated by this kernel iteration
  * @param args_vec the private call's args
- * @param real_kernel_circuit indicates whether the vk and proof included should be real and usable by real circuits
- * @param encrypted_logs_hash the hash of the encrypted logs to be set in private circuit public inputs
- * @param encrypted_log_preimages_length the length of the encrypted log preimages to be set in private circuit public
- * @return PrivateKernelInputsInner<NT> - the inputs to the private kernel inner circuit
+ * @param encrypted_logs_hash The encrypted logs hash emitted from app circuit.
+ * @param unencrypted_logs_hash The unencrypted logs hash emitted from app circuit.
+ * @param encrypted_log_preimages_length The length of encrypted logs emitted from app circuit.
+ * @param unencrypted_log_preimages_length The length of unencrypted logs emitted from app circuit.
+ * @param public_inputs_encrypted_logs_hash The encrypted logs hash on the output of the previous kernel.
+ * @param public_inputs_unencrypted_logs_hash The unencrypted logs hash on the output of the previous kernel.
+ * @param public_inputs_encrypted_log_preimages_length The length of encrypted logs on the output of the previous
+ * kernel.
+ * @param public_inputs_unencrypted_log_preimages_length The length of unencrypted logs on the output of the previous
+ * kernel.
+ * @param is_circuit boolean to switch to circuit or native (fake vk and no proof)
+ * @return PrivateInputsInner<NT> - the inputs to the private call circuit of an inner iteration
  */
 PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
     bool is_constructor,
     private_function const& func,
     std::vector<NT::fr> const& args_vec,
-    std::array<NT::fr, 2> const& encrypted_logs_hash = zero_array<NT::fr, 2>(),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash =
+        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
     NT::fr const& encrypted_log_preimages_length = NT::fr(0),
+    NT::fr const& unencrypted_log_preimages_length = NT::fr(0),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& public_inputs_encrypted_logs_hash =
+        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& public_inputs_unencrypted_logs_hash =
+        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+    NT::fr const& public_inputs_encrypted_log_preimages_length = NT::fr(0),
+    NT::fr const& public_inputs_unencrypted_log_preimages_length = NT::fr(0),
     bool is_circuit = false);
 
 /**
- * @brief Perform a private circuit call and generate the inputs to private kernel init circuit
+ * @brief Perform an initial private circuit call and generate the inputs to private kernel
  *
  * @param is_constructor whether this private circuit call is a constructor
  * @param func the private circuit call being validated by this kernel iteration
  * @param args_vec the private call's args
- * inputs
- * @return PrivateKernelInputsInit<NT> - the inputs to the private kernel init circuit
+ * @param encrypted_logs_hash The encrypted logs hash emitted from app circuit.
+ * @param unencrypted_logs_hash The unencrypted logs hash emitted from app circuit.
+ * @param encrypted_log_preimages_length The length of encrypted logs emitted from app circuit.
+ * @param unencrypted_log_preimages_length The length of unencrypted logs emitted from app circuit.
+ * @param is_circuit boolean to switch to circuit or native (fake vk and no proof)
+ * @return PrivateInputsInit<NT> - the inputs to the private call circuit of an init iteration
  */
 PrivateKernelInputsInit<NT> do_private_call_get_kernel_inputs_init(
     bool is_constructor,
     private_function const& func,
     std::vector<NT::fr> const& args_vec,
-    std::array<NT::fr, 2> const& encrypted_logs_hash = zero_array<NT::fr, 2>(),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash =
+        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
     NT::fr const& encrypted_log_preimages_length = NT::fr(0),
+    NT::fr const& unencrypted_log_preimages_length = NT::fr(0),
     bool is_circuit = false);
 
 /**

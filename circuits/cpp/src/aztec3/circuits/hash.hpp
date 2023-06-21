@@ -337,7 +337,8 @@ template <typename NCT> typename NCT::fr compute_l2_to_l1_hash(typename NCT::add
  * @param hashes 4 fields containing 2 hashes [high, low, high, low].
  * @return Resulting sha256 hash stored in 2 fields.
  */
-template <typename NCT> std::array<typename NCT::fr, 2> accumulate_sha256(std::array<typename NCT::fr, 4> hashes)
+template <typename NCT> std::array<typename NCT::fr, NUM_FIELDS_PER_SHA256> accumulate_sha256(
+    std::array<typename NCT::fr, NUM_FIELDS_PER_SHA256 * 2> hashes)
 {
     using fr = typename NCT::fr;
 

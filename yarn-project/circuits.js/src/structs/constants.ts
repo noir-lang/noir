@@ -40,3 +40,6 @@ export const CONTRACT_TREE_ROOTS_TREE_HEIGHT = 8;
 export const ROLLUP_VK_TREE_HEIGHT = 8;
 
 export const FUNCTION_SELECTOR_NUM_BYTES = 4;
+
+// sha256 hash is stored in two fields to accommodate all 256-bits of the hash
+export const NUM_FIELDS_PER_SHA256 = 2;

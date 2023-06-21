@@ -513,7 +513,8 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values_explicit(
  * @return true
  * @return false
  */
-bool compare_field_hash_to_expected(std::array<fr, 2> field_hash, std::array<uint8_t, 32> expected_hash)
+bool compare_field_hash_to_expected(std::array<fr, NUM_FIELDS_PER_SHA256> field_hash,
+                                    std::array<uint8_t, 32> expected_hash)
 {
     auto high_buffer = field_hash[0].to_buffer();
     auto low_buffer = field_hash[1].to_buffer();

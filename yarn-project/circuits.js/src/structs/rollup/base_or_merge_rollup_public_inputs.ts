@@ -5,6 +5,7 @@ import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { ConstantBaseRollupData } from './base_rollup.js';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
+import { NUM_FIELDS_PER_SHA256 } from '../constants.js';
 
 /**
  * Output of the base and merge rollup circuits.
@@ -94,7 +95,7 @@ export class BaseOrMergeRollupPublicInputs {
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readFr(),
       reader.readFr(),
-      reader.readArray(2, Fr) as [Fr, Fr],
+      reader.readArray(NUM_FIELDS_PER_SHA256, Fr) as [Fr, Fr],
     );
   }
 

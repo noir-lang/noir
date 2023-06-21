@@ -514,4 +514,50 @@ TEST_F(native_private_kernel_inner_tests, native_max_read_requests_one_transient
     ASSERT_FALSE(composer.failed());
 }
 
+TEST_F(native_private_kernel_inner_tests, native_logs_are_hashed_as_expected)
+{
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = { NT::fr(16), NT::fr(69) };
+    NT::fr const& encrypted_log_preimages_length = NT::fr(100);
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash = { NT::fr(26), NT::fr(47) };
+    NT::fr const& unencrypted_log_preimages_length = NT::fr(50);
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& public_inputs_encrypted_logs_hash = { NT::fr(80), NT::fr(429) };
+    NT::fr const& public_inputs_encrypted_log_preimages_length = NT::fr(13);
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& public_inputs_unencrypted_logs_hash = { NT::fr(956), NT::fr(112) };
+    NT::fr const& public_inputs_unencrypted_log_preimages_length = NT::fr(24);
+
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false,
+                                                                  deposit,
+                                                                  standard_test_args(),
+                                                                  encrypted_logs_hash,
+                                                                  unencrypted_logs_hash,
+                                                                  encrypted_log_preimages_length,
+                                                                  unencrypted_log_preimages_length,
+                                                                  public_inputs_encrypted_logs_hash,
+                                                                  public_inputs_unencrypted_logs_hash,
+                                                                  public_inputs_encrypted_log_preimages_length,
+                                                                  public_inputs_unencrypted_log_preimages_length);
+
+    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_logs_are_hashed_as_expected");
+    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+
+    ASSERT_EQ(public_inputs.end.encrypted_log_preimages_length,
+              encrypted_log_preimages_length + public_inputs_encrypted_log_preimages_length);
+    ASSERT_EQ(public_inputs.end.unencrypted_log_preimages_length,
+              unencrypted_log_preimages_length + public_inputs_unencrypted_log_preimages_length);
+
+    auto const& expected_encrypted_logs_hash = accumulate_sha256<NT>({ public_inputs_encrypted_logs_hash[0],
+                                                                       public_inputs_encrypted_logs_hash[1],
+                                                                       encrypted_logs_hash[0],
+                                                                       encrypted_logs_hash[1] });
+
+    ASSERT_EQ(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
+
+    auto const& expected_unencrypted_logs_hash = accumulate_sha256<NT>({ public_inputs_unencrypted_logs_hash[0],
+                                                                         public_inputs_unencrypted_logs_hash[1],
+                                                                         unencrypted_logs_hash[0],
+                                                                         unencrypted_logs_hash[1] });
+
+    ASSERT_EQ(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
+}
+
 }  // namespace aztec3::circuits::kernel::private_kernel

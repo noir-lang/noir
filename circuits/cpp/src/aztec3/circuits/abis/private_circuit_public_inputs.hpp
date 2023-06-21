@@ -37,9 +37,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = zero_array<fr, PUBLIC_CALL_STACK_LENGTH>();
     std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs = zero_array<fr, NEW_L2_TO_L1_MSGS_LENGTH>();
 
-    // sha256 hash of the log preimages (in two fields to accommodate all 256-bits of the hash)
-    std::array<fr, 2> encrypted_logs_hash = zero_array<fr, 2>();
-    std::array<fr, 2> unencrypted_logs_hash = zero_array<fr, 2>();
+    std::array<fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash = zero_array<fr, NUM_FIELDS_PER_SHA256>();
+    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash = zero_array<fr, NUM_FIELDS_PER_SHA256>();
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.
@@ -293,8 +292,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
     std::array<opt_fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs;
 
-    std::array<opt_fr, 2> encrypted_logs_hash;
-    std::array<opt_fr, 2> unencrypted_logs_hash;
+    std::array<opt_fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash;
+    std::array<opt_fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash;
 
     opt_fr encrypted_log_preimages_length;
     opt_fr unencrypted_log_preimages_length;
@@ -322,8 +321,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
                                             std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> const& public_call_stack,
                                             std::array<opt_fr, NEW_L2_TO_L1_MSGS_LENGTH> const& new_l2_to_l1_msgs,
 
-                                            std::array<opt_fr, 2> const& encrypted_logs_hash,
-                                            std::array<opt_fr, 2> const& unencrypted_logs_hash,
+                                            std::array<opt_fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash,
+                                            std::array<opt_fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash,
 
                                             opt_fr const& encrypted_log_preimages_length,
                                             opt_fr const& unencrypted_log_preimages_length,

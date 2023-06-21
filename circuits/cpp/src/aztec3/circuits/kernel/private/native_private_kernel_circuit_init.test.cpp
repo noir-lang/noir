@@ -48,11 +48,18 @@ class native_private_kernel_init_tests : public ::testing::Test {
  */
 TEST_F(native_private_kernel_init_tests, deposit)
 {
-    std::array<NT::fr, 2> const& encrypted_logs_hash = { NT::fr(16), NT::fr(69) };
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = { NT::fr(16), NT::fr(69) };
     NT::fr const& encrypted_log_preimages_length = NT::fr(100);
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash = { NT::fr(26), NT::fr(47) };
+    NT::fr const& unencrypted_log_preimages_length = NT::fr(50);
 
-    auto const& private_inputs = do_private_call_get_kernel_inputs_init(
-        false, deposit, standard_test_args(), encrypted_logs_hash, encrypted_log_preimages_length);
+    auto const& private_inputs = do_private_call_get_kernel_inputs_init(false,
+                                                                        deposit,
+                                                                        standard_test_args(),
+                                                                        encrypted_logs_hash,
+                                                                        unencrypted_logs_hash,
+                                                                        encrypted_log_preimages_length,
+                                                                        unencrypted_log_preimages_length);
     DummyComposer composer = DummyComposer("private_kernel_tests__native_deposit");
     auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
 
@@ -61,18 +68,17 @@ TEST_F(native_private_kernel_init_tests, deposit)
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
 
-    // Log preimages length should increase by `encrypted_log_preimages_length` from private input
+    // Log preimages length should increase by `(un)encrypted_log_preimages_length` from private input
     ASSERT_EQ(public_inputs.end.encrypted_log_preimages_length, encrypted_log_preimages_length);
-    // Since there were no unencrypted logs, their length should be 0
-    ASSERT_EQ(public_inputs.end.unencrypted_log_preimages_length, fr(0));
+    ASSERT_EQ(public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length);
 
-    // Encrypted logs hash should be a sha256 hash of a 0 value and the `encrypted_logs_hash` from private input
+    // Logs hashes should be a sha256 hash of a 0 value and the `(un)encrypted_logs_hash` from private input
     auto const& expected_encrypted_logs_hash =
         accumulate_sha256<NT>({ fr(0), fr(0), encrypted_logs_hash[0], encrypted_logs_hash[1] });
     ASSERT_EQ(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
 
-    // Unencrypted logs hash should be a sha256 hash of 2 zero values
-    auto const& expected_unencrypted_logs_hash = accumulate_sha256<NT>({ fr(0), fr(0), fr(0), fr(0) });
+    auto const& expected_unencrypted_logs_hash =
+        accumulate_sha256<NT>({ fr(0), fr(0), unencrypted_logs_hash[0], unencrypted_logs_hash[1] });
     ASSERT_EQ(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
 
     // Assert that composer doesn't give any errors
@@ -100,7 +106,7 @@ TEST_F(native_private_kernel_init_tests, basic_contract_deployment)
     auto const& expected_logs_hash = accumulate_sha256<NT>({ fr(0), fr(0), fr(0), fr(0) });
 
     ASSERT_EQ(public_inputs.end.encrypted_logs_hash, expected_logs_hash);
-    ASSERT_EQ(public_inputs.end.encrypted_logs_hash, expected_logs_hash);
+    ASSERT_EQ(public_inputs.end.unencrypted_logs_hash, expected_logs_hash);
 
     // Assert that composer doesn't give any errors
     ASSERT_FALSE(composer.failed());
