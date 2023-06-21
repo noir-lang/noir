@@ -236,7 +236,7 @@ impl FunctionBuilder {
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> &[ValueId] {
+    ) -> Vec<ValueId> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
@@ -346,5 +346,48 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 
     fn index(&self, id: BasicBlockId) -> &Self::Output {
         &self.current_function.dfg[id]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use acvm::FieldElement;
+
+    use crate::ssa_refactor::ir::{
+        function::RuntimeType,
+        instruction::{Endian, Intrinsic},
+        map::Id,
+        types::Type,
+        value::Value,
+    };
+
+    use super::FunctionBuilder;
+
+    #[test]
+    fn insert_constant_call() {
+        // `bits` should be an array of constants [1, 1, 1, 0...]:
+        // let x = 7;
+        // let bits = x.to_le_bits(8);
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let one = builder.numeric_constant(FieldElement::one(), Type::bool());
+        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
+
+        let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
+        let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
+        let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
+        let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
+        let call_result = builder.insert_call(to_bits_id, vec![input, length], result_types)[0];
+
+        let array = match &builder.current_function.dfg[call_result] {
+            Value::Array { array, .. } => array,
+            _ => panic!(),
+        };
+        assert_eq!(array[0], one);
+        assert_eq!(array[1], one);
+        assert_eq!(array[2], one);
+        assert_eq!(array[3], zero);
     }
 }

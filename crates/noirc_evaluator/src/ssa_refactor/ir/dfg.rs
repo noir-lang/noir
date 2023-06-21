@@ -415,13 +415,11 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 
     /// Return all the results contained in the internal results array.
     /// This is used for instructions returning multiple results that were
-    /// not simplified - like function calls.
-    pub(crate) fn results(&self) -> &'dfg [ValueId] {
+    /// not removed by simplification - like function calls.
+    pub(crate) fn results(&self) -> Vec<ValueId> {
         match self {
-            InsertInstructionResult::Results(results) => results,
-            InsertInstructionResult::SimplifiedTo(_) => {
-                panic!("InsertInstructionResult::results called on a simplified instruction")
-            }
+            InsertInstructionResult::Results(results) => results.to_vec(),
+            InsertInstructionResult::SimplifiedTo(result) => vec![*result],
             InsertInstructionResult::InstructionRemoved => {
                 panic!("InsertInstructionResult::results called on a removed instruction")
             }
