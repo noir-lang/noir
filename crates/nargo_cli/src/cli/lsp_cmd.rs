@@ -1,7 +1,7 @@
 use acvm::Backend;
 use async_lsp::{
-    client_monitor::ClientProcessMonitorLayer, concurrency::ConcurrencyLayer,
-    panic::CatchUnwindLayer, server::LifecycleLayer, stdio::PipeStdin, tracing::TracingLayer,
+    concurrency::ConcurrencyLayer, panic::CatchUnwindLayer, server::LifecycleLayer,
+    stdio::PipeStdin, tracing::TracingLayer,
 };
 use clap::Args;
 use noir_lsp::NargoLspService;
@@ -32,13 +32,17 @@ pub(crate) fn run<B: Backend>(
         let (server, _) = async_lsp::Frontend::new_server(|client| {
             let router = NargoLspService::new(&client);
 
-            ServiceBuilder::new()
+            let builder = ServiceBuilder::new()
                 .layer(TracingLayer::default())
                 .layer(LifecycleLayer::default())
                 .layer(CatchUnwindLayer::default())
-                .layer(ConcurrencyLayer::default())
-                .layer(ClientProcessMonitorLayer::new(client))
-                .service(router)
+                .layer(ConcurrencyLayer::default());
+
+            #[cfg(not(windows))]
+            let builder =
+                builder.layer(async_lsp::client_monitor::ClientProcessMonitorLayer::new(client));
+
+            builder.service(router)
         });
         let stdin = BufReader::new(PipeStdin::lock().unwrap());
         let stdout = async_lsp::stdio::PipeStdout::lock().unwrap();
