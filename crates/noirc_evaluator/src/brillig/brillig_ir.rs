@@ -208,7 +208,7 @@ impl BrilligContext {
 
         let exit_loop_label = self.next_section_label();
 
-        self.not_instruction(index_less_than_array_len, index_less_than_array_len);
+        self.not_instruction(index_less_than_array_len, 1, index_less_than_array_len);
         self.jump_if_instruction(index_less_than_array_len, exit_loop_label);
 
         // Copy the element from source to destination
@@ -419,17 +419,22 @@ impl BrilligContext {
     ///
     /// Not is computed using a subtraction operation as there is no native not instruction
     /// in Brillig.
-    pub(crate) fn not_instruction(&mut self, condition: RegisterIndex, result: RegisterIndex) {
-        debug_show::not_instruction(condition, result);
-        let one = self.make_constant(Value::from(FieldElement::one()));
-
-        // Compile !x as (1 - x)
+    pub(crate) fn not_instruction(
+        &mut self,
+        input: RegisterIndex,
+        bit_size: u32,
+        result: RegisterIndex,
+    ) {
+        debug_show::not_instruction(input, bit_size, result);
+        // Compile !x as ((-1) - x)
+        let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128))
+            - FieldElement::one();
         let opcode = BrilligOpcode::BinaryIntOp {
             destination: result,
             op: BinaryIntOp::Sub,
-            bit_size: 1,
-            lhs: one,
-            rhs: condition,
+            bit_size,
+            lhs: self.make_constant(Value::from(u_max)),
+            rhs: input,
         };
         self.push_opcode(opcode);
     }
