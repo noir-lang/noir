@@ -368,7 +368,7 @@ impl GeneratedAcir {
     /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
     /// lhs < rhs <=> a+1<=b
     /// TODO: Consolidate this with bounds_check function.
-    fn bound_constraint_with_offset(
+    pub(crate) fn bound_constraint_with_offset(
         &mut self,
         lhs: &Expression,
         rhs: &Expression,
@@ -683,6 +683,26 @@ impl GeneratedAcir {
             predicate: None,
         });
         self.push_opcode(opcode);
+    }
+
+    // Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr
+    // Add the control bits of the sorting network used to generate the constrains
+    // into the PermutationSort directive for solving in ACVM.
+    // The directive is solving the control bits so that the outputs are sorted in increasing order.
+    pub(crate) fn permutation(&mut self, in_expr: &[Expression], out_expr: &[Expression]) {
+        let bits = Vec::new();
+        let (w, b) = self.permutation_layer(in_expr, &bits, true);
+        // Constrain the network output to out_expr
+        for (b, o) in b.iter().zip(out_expr) {
+            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+        }
+        let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
+        self.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
+            inputs,
+            tuple: 1,
+            bits: w,
+            sort_by: vec![0],
+        }));
     }
 }
 

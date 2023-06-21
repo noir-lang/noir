@@ -603,7 +603,31 @@ impl Context {
                 }
                 Vec::new()
             }
-            _ => todo!("expected a black box function"),
+            Intrinsic::Sort => {
+                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                // We flatten the inputs and retrieve the bit_size of the elements
+                let mut input_vars = Vec::new();
+                let mut bit_size = 0;
+                for input in inputs {
+                    for (var, typ) in input.flatten() {
+                        input_vars.push(var);
+                        if bit_size == 0 {
+                            bit_size = typ.bit_size();
+                        } else {
+                            assert_eq!(
+                                bit_size,
+                                typ.bit_size(),
+                                "cannot sort element of different bit size"
+                            );
+                        }
+                    }
+                }
+                // Generate the sorted output variables
+                let out_vars =
+                    self.acir_context.sort(input_vars, bit_size).expect("Could not sort");
+
+                Self::convert_vars_to_values(out_vars, dfg, result_ids)
+            }
         }
     }
 
