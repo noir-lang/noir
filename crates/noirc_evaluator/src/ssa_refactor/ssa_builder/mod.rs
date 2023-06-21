@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 
@@ -236,7 +236,7 @@ impl FunctionBuilder {
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> Vec<ValueId> {
+    ) -> Cow<[ValueId]> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 

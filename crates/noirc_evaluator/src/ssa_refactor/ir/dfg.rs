@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{borrow::Cow, collections::HashMap, rc::Rc};
 
 use crate::ssa_refactor::ir::instruction::SimplifyResult;
 
@@ -414,12 +414,11 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     }
 
     /// Return all the results contained in the internal results array.
-    /// This is used for instructions returning multiple results that were
-    /// not removed by simplification - like function calls.
-    pub(crate) fn results(&self) -> Vec<ValueId> {
+    /// This is used for instructions returning multiple results like function calls.
+    pub(crate) fn results(&self) -> Cow<'dfg, [ValueId]> {
         match self {
-            InsertInstructionResult::Results(results) => results.to_vec(),
-            InsertInstructionResult::SimplifiedTo(result) => vec![*result],
+            InsertInstructionResult::Results(results) => Cow::Borrowed(results),
+            InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![*result]),
             InsertInstructionResult::InstructionRemoved => {
                 panic!("InsertInstructionResult::results called on a removed instruction")
             }
