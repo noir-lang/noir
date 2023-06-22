@@ -131,7 +131,10 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -141,16 +144,16 @@ use crate::ssa_refactor::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
-        types::Type,
+        types::{CompositeType, Type},
         value::ValueId,
     },
     ssa_gen::Ssa,
 };
+
+mod branch_analysis;
 
 impl Ssa {
     /// Flattens the control flow graph of each function such that the function is left with a
@@ -179,6 +182,13 @@ struct Context<'f> {
     /// Maps an address to the old and new value of the element at that address
     store_values: HashMap<ValueId, Store>,
 
+    /// Stores all allocations local to the current branch.
+    /// Since these branches are local to the current branch (ie. only defined within one branch of
+    /// an if expression), they should not be merged with their previous value or stored value in
+    /// the other branch since there is no such value. The ValueId here is that which is returned
+    /// by the allocate instruction.
+    local_allocations: HashSet<ValueId>,
+
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
     /// When two branches are merged back into one, this constitutes a join point, and is analogous
     /// to the rest of the program after an if statement. When such a join point / end block is
@@ -197,6 +207,7 @@ struct Branch {
     condition: ValueId,
     last_block: BasicBlockId,
     store_values: HashMap<ValueId, Store>,
+    local_allocations: HashSet<ValueId>,
 }
 
 fn flatten_function_cfg(function: &mut Function) {
@@ -209,11 +220,15 @@ fn flatten_function_cfg(function: &mut Function) {
     if let crate::ssa_refactor::ir::function::RuntimeType::Brillig = function.runtime() {
         return;
     }
+    let cfg = ControlFlowGraph::with_function(function);
+    let branch_ends = branch_analysis::find_branch_ends(function, &cfg);
+
     let mut context = Context {
-        cfg: ControlFlowGraph::with_function(function),
         inserter: FunctionInserter::new(function),
+        cfg,
         store_values: HashMap::new(),
-        branch_ends: HashMap::new(),
+        local_allocations: HashSet::new(),
+        branch_ends,
         conditions: Vec::new(),
     };
     context.flatten();
@@ -221,67 +236,9 @@ fn flatten_function_cfg(function: &mut Function) {
 
 impl<'f> Context<'f> {
     fn flatten(&mut self) {
-        self.analyze_function();
-
         // Start with following the terminator of the entry block since we don't
         // need to flatten the entry block into itself.
         self.handle_terminator(self.inserter.function.entry_block());
-    }
-
-    /// Visits every block in the current function to find all blocks with a jmpif instruction and
-    /// all blocks which terminate the jmpif by having each of its branches as a predecessor.
-    fn analyze_function(&mut self) {
-        let post_order = PostOrder::with_function(self.inserter.function);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &post_order);
-        let mut branch_beginnings = Vec::new();
-
-        let mut visited = HashSet::new();
-        let mut queue = VecDeque::new();
-        queue.push_front(self.inserter.function.entry_block());
-
-        while let Some(block_id) = queue.pop_front() {
-            // If multiple blocks branch to the same successor before we visit it we can end up in
-            // situations where the same block occurs multiple times in our queue. This check
-            // prevents visiting the same block twice.
-            if visited.contains(&block_id) {
-                continue;
-            } else {
-                visited.insert(block_id);
-            }
-
-            // If there is more than one predecessor, this must be an end block
-            let mut predecessors = self.cfg.predecessors(block_id);
-            if predecessors.len() > 1 {
-                // If we haven't already visited all of this block's predecessors, delay analyzing
-                // the block until we have. This ensures we analyze the function in evaluation order.
-                if !predecessors.all(|block| visited.contains(&block)) {
-                    queue.push_back(block_id);
-                    visited.remove(&block_id);
-                    continue;
-                }
-
-                // We expect the merging of two branches to be ordered such that only the most
-                // recent jmpif is a candidate for being the start of the two branches merged by
-                // a block with 2 predecessors.
-                let branch_beginning =
-                    branch_beginnings.pop().expect("Expected the beginning of a branch");
-
-                for predecessor in self.cfg.predecessors(block_id) {
-                    assert!(dom_tree.dominates(branch_beginning, predecessor));
-                }
-
-                self.branch_ends.insert(branch_beginning, block_id);
-            }
-
-            let block = &self.inserter.function.dfg[block_id];
-            if let Some(TerminatorInstruction::JmpIf { .. }) = block.terminator() {
-                branch_beginnings.push(block_id);
-            }
-
-            queue.extend(block.successors().filter(|block| !visited.contains(block)));
-        }
-
-        assert!(branch_beginnings.is_empty());
     }
 
     /// Check the terminator of the given block and recursively inline any blocks reachable from
@@ -396,8 +353,14 @@ impl<'f> Context<'f> {
         self.insert_instruction_with_typevars(enable_side_effects, None);
     }
 
-    /// Merge two values a and b from separate basic blocks to a single value. This
-    /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
+    /// Merge two values a and b from separate basic blocks to a single value.
+    /// If these two values are numeric, the result will be
+    /// `then_condition * then_value + else_condition * else_value`.
+    /// Otherwise, if the values being merged are arrays, a new array will be made
+    /// recursively from combining each element of both input arrays.
+    ///
+    /// It is currently an error to call this function on reference or function values
+    /// as it is less clear how to merge these.
     fn merge_values(
         &mut self,
         then_condition: ValueId,
@@ -405,7 +368,85 @@ impl<'f> Context<'f> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        match self.inserter.function.dfg.type_of_value(then_value) {
+            Type::Numeric(_) => {
+                self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
+            }
+            Type::Array(element_types, len) => self.merge_array_values(
+                element_types,
+                len,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+            ),
+            Type::Reference => panic!("Cannot return references from an if expression"),
+            Type::Function => panic!("Cannot return functions from an if expression"),
+        }
+    }
+
+    /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
+    /// this function will recursively merge array1 and array2 into a single resulting array
+    /// by creating a new array containing the result of self.merge_values for each element.
+    fn merge_array_values(
+        &mut self,
+        element_types: Rc<CompositeType>,
+        len: usize,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+    ) -> ValueId {
+        let mut merged = im::Vector::new();
+
+        for i in 0..len {
+            for (element_index, element_type) in element_types.iter().enumerate() {
+                let index = ((i * element_types.len() + element_index) as u128).into();
+                let index = self.inserter.function.dfg.make_constant(index, Type::field());
+
+                let typevars = Some(vec![element_type.clone()]);
+
+                let mut get_element = |array, typevars| {
+                    let get = Instruction::ArrayGet { array, index };
+                    self.insert_instruction_with_typevars(get, typevars).first()
+                };
+
+                let then_element = get_element(then_value, typevars.clone());
+                let else_element = get_element(else_value, typevars);
+
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
+            }
+        }
+
+        self.inserter.function.dfg.make_array(merged, element_types)
+    }
+
+    /// Merge two numeric values a and b from separate basic blocks to a single value. This
+    /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
+    fn merge_numeric_values(
+        &mut self,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+    ) -> ValueId {
         let block = self.inserter.function.entry_block();
+        let then_type = self.inserter.function.dfg.type_of_value(then_value);
+        let else_type = self.inserter.function.dfg.type_of_value(else_value);
+        assert_eq!(
+            then_type, else_type,
+            "Expected values merged to be of the same type but found {then_type} and {else_type}"
+        );
+
+        // We must cast the bool conditions to the actual numeric type used by each value.
+        let then_condition = self.insert_instruction(Instruction::Cast(then_condition, then_type));
+        let else_condition = self.insert_instruction(Instruction::Cast(else_condition, else_type));
+
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
         let then_value =
             self.inserter.function.dfg.insert_instruction_and_results(mul, block, None).first();
@@ -440,13 +481,18 @@ impl<'f> Context<'f> {
             // 'else' case of an if with no else - so there is no else branch.
             Branch {
                 condition: new_condition,
+                // The last block here is somewhat arbitrary. It only matters that it has no Jmp
+                // args that will be merged by inline_branch_end. Since jmpifs don't have
+                // block arguments, it is safe to use the jmpif block here.
                 last_block: jmpif_block,
                 store_values: HashMap::new(),
+                local_allocations: HashSet::new(),
             }
         } else {
             self.push_condition(jmpif_block, new_condition);
             self.insert_current_side_effects_enabled();
             let old_stores = std::mem::take(&mut self.store_values);
+            let old_allocations = std::mem::take(&mut self.local_allocations);
 
             // Remember the old condition value is now known to be true/false within this branch
             let known_value =
@@ -456,12 +502,15 @@ impl<'f> Context<'f> {
             let final_block = self.inline_block(destination, &[]);
 
             self.conditions.pop();
+
             let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
+            let local_allocations = std::mem::replace(&mut self.local_allocations, old_allocations);
 
             Branch {
                 condition: new_condition,
                 last_block: final_block,
                 store_values: stores_in_branch,
+                local_allocations,
             }
         }
     }
@@ -536,14 +585,16 @@ impl<'f> Context<'f> {
     }
 
     fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
-        if let Some(store_value) = self.store_values.get_mut(&address) {
-            store_value.new_value = new_value;
-        } else {
-            let load = Instruction::Load { address };
-            let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
-            let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+        if !self.local_allocations.contains(&address) {
+            if let Some(store_value) = self.store_values.get_mut(&address) {
+                store_value.new_value = new_value;
+            } else {
+                let load = Instruction::Load { address };
+                let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
+                let old_value = self.insert_instruction_with_typevars(load, load_type).first();
 
-            self.store_values.insert(address, Store { old_value, new_value });
+                self.store_values.insert(address, Store { old_value, new_value });
+            }
         }
     }
 
@@ -561,6 +612,7 @@ impl<'f> Context<'f> {
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
+
         for instruction in instructions {
             self.push_instruction(instruction);
         }
@@ -577,8 +629,16 @@ impl<'f> Context<'f> {
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction);
+        let is_allocate = matches!(instruction, Instruction::Allocate);
+
         let entry = self.inserter.function.entry_block();
-        self.inserter.push_instruction_value(instruction, id, entry);
+        let results = self.inserter.push_instruction_value(instruction, id, entry);
+
+        // Remember an allocate was created local to this branch so that we do not try to merge store
+        // values across branches for it later.
+        if is_allocate {
+            self.local_allocations.insert(results.first());
+        }
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
@@ -610,14 +670,11 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
 
     use crate::ssa_refactor::{
         ir::{
-            cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             function::RuntimeType,
-            function_inserter::FunctionInserter,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -874,72 +931,6 @@ mod test {
     }
 
     #[test]
-    fn nested_branch_analysis() {
-        //         b0
-        //         ↓
-        //         b1
-        //       ↙   ↘
-        //     b2     b3
-        //     ↓      |
-        //     b4     |
-        //   ↙  ↘     |
-        // b5    b6   |
-        //   ↘  ↙     ↓
-        //    b7      b8
-        //      ↘   ↙
-        //       b9
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-        let b5 = builder.insert_block();
-        let b6 = builder.insert_block();
-        let b7 = builder.insert_block();
-        let b8 = builder.insert_block();
-        let b9 = builder.insert_block();
-
-        let c1 = builder.add_parameter(Type::bool());
-        let c4 = builder.add_parameter(Type::bool());
-
-        builder.terminate_with_jmp(b1, vec![]);
-        builder.switch_to_block(b1);
-        builder.terminate_with_jmpif(c1, b2, b3);
-        builder.switch_to_block(b2);
-        builder.terminate_with_jmp(b4, vec![]);
-        builder.switch_to_block(b3);
-        builder.terminate_with_jmp(b8, vec![]);
-        builder.switch_to_block(b4);
-        builder.terminate_with_jmpif(c4, b5, b6);
-        builder.switch_to_block(b5);
-        builder.terminate_with_jmp(b7, vec![]);
-        builder.switch_to_block(b6);
-        builder.terminate_with_jmp(b7, vec![]);
-        builder.switch_to_block(b7);
-        builder.terminate_with_jmp(b9, vec![]);
-        builder.switch_to_block(b8);
-        builder.terminate_with_jmp(b9, vec![]);
-        builder.switch_to_block(b9);
-        builder.terminate_with_return(vec![]);
-
-        let mut ssa = builder.finish();
-        let function = ssa.main_mut();
-        let mut context = super::Context {
-            cfg: ControlFlowGraph::with_function(function),
-            inserter: FunctionInserter::new(function),
-            store_values: HashMap::new(),
-            branch_ends: HashMap::new(),
-            conditions: Vec::new(),
-        };
-        context.analyze_function();
-        assert_eq!(context.branch_ends.len(), 2);
-        assert_eq!(context.branch_ends.get(&b1), Some(&b9));
-        assert_eq!(context.branch_ends.get(&b4), Some(&b7));
-    }
-
-    #[test]
     fn nested_branch_stores() {
         // Here we build some SSA with control flow given by the following graph.
         // To test stores in nested if statements are handled correctly this graph is
@@ -1090,6 +1081,84 @@ mod test {
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
         assert_eq!(merged_values, vec![3, 5, 6]);
+    }
+
+    #[test]
+    fn allocate_in_single_branch() {
+        // Regression test for #1756
+        // fn foo() -> Field {
+        //     let mut x = 0;
+        //     x
+        // }
+        //
+        // fn main(cond:bool) {
+        //     if cond {
+        //         foo();
+        //     };
+        // }
+        //
+        // // Translates to the following before the flattening pass:
+        // fn main f2 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b1, else: b2
+        //   b1():
+        //     v2 = allocate
+        //     store Field 0 at v2
+        //     v4 = load v2
+        //     jmp b2()
+        //   b2():
+        //     return
+        // }
+        // The bug is that the flattening pass previously inserted a load
+        // before the first store to allocate, which loaded an uninitialized value.
+        // In this test we assert the ordering is strictly Allocate then Store then Load.
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+
+        let v0 = builder.add_parameter(Type::bool());
+        builder.terminate_with_jmpif(v0, b1, b2);
+
+        builder.switch_to_block(b1);
+        let v2 = builder.insert_allocate();
+        let zero = builder.field_constant(0u128);
+        builder.insert_store(v2, zero);
+        let _v4 = builder.insert_load(v2, Type::field());
+        builder.terminate_with_jmp(b2, vec![]);
+
+        builder.switch_to_block(b2);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().flatten_cfg();
+        let main = ssa.main();
+
+        // Now assert that there is not a load between the allocate and its first store
+        // The Expected IR is:
+        //
+        // fn main f2 {
+        //   b0(v0: u1):
+        //     enable_side_effects v0
+        //     v6 = allocate
+        //     store Field 0 at v6
+        //     v7 = load v6
+        //     v8 = not v0
+        //     enable_side_effects u1 1
+        //     return
+        // }
+        let instructions = main.dfg[main.entry_block()].instructions();
+
+        let find_instruction = |predicate: fn(&Instruction) -> bool| {
+            instructions.iter().position(|id| predicate(&main.dfg[*id])).unwrap()
+        };
+
+        let allocate_index = find_instruction(|i| matches!(i, Instruction::Allocate));
+        let store_index = find_instruction(|i| matches!(i, Instruction::Store { .. }));
+        let load_index = find_instruction(|i| matches!(i, Instruction::Load { .. }));
+
+        assert!(allocate_index < store_index);
+        assert!(store_index < load_index);
     }
 
     /// Work backwards from an instruction to find all the constant values

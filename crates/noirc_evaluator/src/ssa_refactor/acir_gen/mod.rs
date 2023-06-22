@@ -483,7 +483,8 @@ impl Context {
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(
                     lhs_type, rhs_type,
-                    "lhs and rhs types in a binary operation are always the same"
+                    "lhs and rhs types in {:?} are not the same",
+                    binary
                 );
                 Type::Numeric(lhs_type)
             }

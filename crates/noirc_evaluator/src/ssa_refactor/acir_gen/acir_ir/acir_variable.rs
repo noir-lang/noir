@@ -1,4 +1,5 @@
 use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
+use crate::brillig::brillig_gen::brillig_directive;
 use crate::ssa_refactor::acir_gen::AcirValue;
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, map::TwoWayMap, types::NumericType};
@@ -143,8 +144,16 @@ impl AcirContext {
             let result_var = self.add_data(AcirVarData::Const(constant.inverse()));
             return Ok(result_var);
         }
-        let inverted_witness = self.acir_ir.directive_inverse(&var_data.to_expression());
-        let inverted_var = self.add_data(AcirVarData::Witness(inverted_witness));
+
+        // Compute the inverse with brillig code
+        let inverse_code = brillig_directive::directive_invert();
+        let field_type = AcirType::NumericType(NumericType::NativeField);
+        let results = self.brillig(
+            inverse_code,
+            vec![AcirValue::Var(var, field_type.clone())],
+            vec![field_type],
+        );
+        let inverted_var = Self::expect_one_var(results);
 
         let should_be_one = self.mul_var(inverted_var, var)?;
         self.assert_eq_one(should_be_one)?;
@@ -156,6 +165,15 @@ impl AcirContext {
     pub(crate) fn assert_eq_one(&mut self, var: AcirVar) -> Result<(), AcirGenError> {
         let one_var = self.add_constant(FieldElement::one());
         self.assert_eq_var(var, one_var)
+    }
+
+    // Returns the variable from the results, assuming it is the only result
+    fn expect_one_var(results: Vec<AcirValue>) -> AcirVar {
+        assert_eq!(results.len(), 1);
+        match results[0] {
+            AcirValue::Var(var, _) => var,
+            AcirValue::Array(_) => unreachable!("ICE - expected a variable"),
+        }
     }
 
     /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
@@ -348,9 +366,6 @@ impl AcirContext {
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
     pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, AcirGenError> {
-        if typ.is_signed() {
-            todo!("implement NOT for signed integers");
-        }
         let bit_size = typ.bit_size();
         // Subtracting from max flips the bits
         let max = self.add_constant(FieldElement::from((1_u128 << bit_size) - 1));

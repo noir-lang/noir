@@ -1,4 +1,5 @@
 pub(crate) mod brillig_block;
+pub(crate) mod brillig_directive;
 pub(crate) mod brillig_fn;
 
 use crate::ssa_refactor::ir::{function::Function, post_order::PostOrder};

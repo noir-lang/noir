@@ -36,8 +36,10 @@ pub fn execute_circuit(
                 brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
             } else if foreign_call_wait_info.function == "oracle_print_array_impl" {
                 let mut outputs_hex = Vec::new();
-                for value in foreign_call_wait_info.inputs.clone() {
-                    outputs_hex.push(value[0].to_field().to_hex());
+                for values in foreign_call_wait_info.inputs.clone() {
+                    for value in values {
+                        outputs_hex.push(value.to_field().to_hex());
+                    }
                 }
                 // Join all of the hex strings using a comma
                 let comma_separated_elements = outputs_hex.join(", ");
