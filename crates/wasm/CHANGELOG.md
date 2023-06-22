@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/noir-lang/noir/compare/noir_wasm-v0.7.0...noir_wasm-v0.7.1) (2023-06-22)
+
+
+### Miscellaneous Chores
+
+* **noir_wasm:** Synchronize noir versions
+
 ## [0.7.0](https://github.com/noir-lang/noir/compare/noir_wasm-v0.6.0...noir_wasm-v0.7.0) (2023-06-19)
 
 
