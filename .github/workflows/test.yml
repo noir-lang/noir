@@ -20,7 +20,7 @@ jobs:
             runner: ubuntu-large
             target: x86_64-linux
           - os: mac
-            runner: macos-latest
+            runner: macos-latest-xl
             target: x86_64-darwin
 
     steps:
