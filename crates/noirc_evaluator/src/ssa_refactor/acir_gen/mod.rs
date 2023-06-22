@@ -284,6 +284,20 @@ impl Context {
             .try_to_u64()
             .expect("Expected array index to fit into a u64") as usize;
 
+        if index >= array.len() {
+            // Ignore the error if side effects are disabled.
+            if let Some(var) = self.current_side_effects_enabled_var {
+                if self.acir_context.is_constant_zero(var) {
+                    let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+                    let value = self.create_default_value(result_type);
+                    self.define_result(dfg, instruction, value);
+                    return;
+                }
+            }
+            // TODO: Can we save a source Location for this error?
+            panic!("Index {} is out of bounds for array of length {}", index, array.len());
+        }
+
         let value = match store_value {
             Some(store_value) => {
                 let store_value = self.convert_value(store_value, dfg);
@@ -679,6 +693,11 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
+    }
+
+    /// Creates a default, meaningless value meant only to be a valid value of the given type.
+    fn create_default_value(&mut self, result_type: Type) -> AcirValue {
+        self.convert_ssa_block_param(&result_type)
     }
 }
 
