@@ -338,7 +338,6 @@ impl BrilligContext {
     /// the VM.
     pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
         debug_show::return_instruction(return_registers);
-
         let mut sources = Vec::with_capacity(return_registers.len());
         let mut destinations = Vec::with_capacity(return_registers.len());
 
@@ -452,7 +451,6 @@ impl BrilligContext {
         outputs: &[RegisterOrMemory],
     ) {
         debug_show::foreign_call_instruction(func_name.clone(), inputs, outputs);
-        // TODO(https://github.com/noir-lang/acvm/issues/366): Enable multiple inputs and outputs to a foreign call
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
             destinations: outputs.to_vec(),
@@ -598,7 +596,9 @@ impl BrilligContext {
     }
 
     /// Adds a unresolved external `Call` instruction to the bytecode.
+    /// This calls into another function compiled into this brillig artifact.
     pub(crate) fn add_external_call_instruction<T: ToString>(&mut self, func_label: T) {
+        debug_show::add_external_call_instruction(func_label.to_string());
         self.obj.add_unresolved_external_call(
             BrilligOpcode::Call { location: 0 },
             func_label.to_string(),
@@ -707,4 +707,87 @@ pub(crate) enum BrilligBinaryOp {
     // Modulo operation requires more than one opcode
     // Brillig.
     Modulo { is_signed_integer: bool, bit_size: u32 },
+}
+
+#[cfg(test)]
+mod tests {
+    use std::vec;
+
+    use acvm::acir::brillig_vm::{
+        BinaryIntOp, ForeignCallOutput, ForeignCallResult, RegisterIndex, RegisterOrMemory,
+        Registers, VMStatus, Value, VM,
+    };
+
+    use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
+
+    use super::{BrilligBinaryOp, BrilligOpcode, ReservedRegisters};
+
+    /// Test a Brillig foreign call returning a vector
+    #[test]
+    fn test_brillig_ir_foreign_call_return_vector() {
+        // pseudo-noir:
+        //
+        // #[oracle(make_number_sequence)]
+        // unconstrained fn make_number_sequence(size: u32) -> Vec<u32> {
+        // }
+        //
+        // unconstrained fn main() -> Vec<u32> {
+        //   let the_sequence = make_number_sequence(12);
+        //   assert(the_sequence.len() == 12);
+        // }
+        let mut context = BrilligContext::new(vec![], vec![]);
+        let r_stack = ReservedRegisters::stack_pointer();
+        // Start stack pointer at 0
+        context.const_instruction(r_stack, Value::from(0_usize));
+        let r_input_size = RegisterIndex::from(ReservedRegisters::len());
+        let r_array_ptr = RegisterIndex::from(ReservedRegisters::len() + 1);
+        let r_output_size = RegisterIndex::from(ReservedRegisters::len() + 2);
+        let r_equality = RegisterIndex::from(ReservedRegisters::len() + 3);
+        context.const_instruction(r_input_size, Value::from(12_usize));
+        // copy our stack frame to r_array_ptr
+        context.mov_instruction(r_array_ptr, r_stack);
+        context.foreign_call_instruction(
+            "make_number_sequence".into(),
+            &[RegisterOrMemory::RegisterIndex(r_input_size)],
+            &[RegisterOrMemory::HeapVector(r_stack, r_output_size)],
+        );
+        // push stack frame by r_returned_size
+        context.binary_instruction(
+            r_stack,
+            r_output_size,
+            r_stack,
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::Add,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
+        );
+        // check r_input_size == r_output_size
+        context.binary_instruction(
+            r_input_size,
+            r_output_size,
+            r_equality,
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::Equals,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
+        );
+        // We push a JumpIf and Trap opcode directly as the constrain instruction
+        // uses unresolved jumps which requires a block to be constructed in SSA and
+        // we don't need this for Brillig IR tests
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
+        context.push_opcode(BrilligOpcode::Trap);
+
+        context.stop_instruction();
+
+        let bytecode = context.artifact().byte_code;
+        let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
+        let mut vm = VM::new(
+            Registers { inner: vec![] },
+            vec![],
+            bytecode,
+            vec![ForeignCallResult { values: vec![ForeignCallOutput::Array(number_sequence)] }],
+        );
+        let status = vm.process_opcodes();
+        assert_eq!(status, VMStatus::Finished);
+    }
 }
