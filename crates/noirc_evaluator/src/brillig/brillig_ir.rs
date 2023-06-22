@@ -700,6 +700,7 @@ impl BrilligContext {
 
     /// Issues a blackbox operation.
     pub(crate) fn black_box_op_instruction(&mut self, op: BlackBoxOp) {
+        debug_show::black_box_op_instruction(op);
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
 }
