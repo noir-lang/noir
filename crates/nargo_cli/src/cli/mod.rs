@@ -88,8 +88,6 @@ pub fn start_cli() -> eyre::Result<()> {
 // helper function which tests noir programs by trying to generate a proof and verify it without reading/writing to the filesystem
 pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
     use compile_cmd::compile_circuit;
-    use fs::common_reference_string::update_common_reference_string;
-    use nargo::ops::preprocess_program;
 
     let backend = crate::backends::ConcreteBackend::default();
 
@@ -115,10 +113,7 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
 
     let initial_witness = program.abi.encode(&inputs_map, None).expect("could not encode inputs");
 
-    match nargo::ops::execute_circuit(&backend, program.circuit, initial_witness) {
-        Ok(_) => return true,
-        Err(_) => return false,
-    };
+    nargo::ops::execute_circuit(&backend, program.circuit, initial_witness).is_ok()
 }
 
 // FIXME: I not sure that this is the right place for this tests.
