@@ -1,4 +1,9 @@
-import { AppendOnlyTreeSnapshot, CircuitsWasm, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import {
+  AppendOnlyTreeSnapshot,
+  CircuitsWasm,
+  GlobalVariables,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+} from '@aztec/circuits.js';
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
 import { ContractData, L2Block, L2BlockL2Logs, L2BlockSource, MerkleTreeId, PublicDataWrite } from '@aztec/types';
 import { jest } from '@jest/globals';
@@ -33,6 +38,15 @@ const getMockContractData = () => {
   return ContractData.random();
 };
 
+const getMockGlobalVariables = () => {
+  return GlobalVariables.from({
+    chainId: Fr.random(),
+    version: Fr.random(),
+    blockNumber: Fr.random(),
+    timestamp: Fr.random(),
+  });
+};
+
 const getMockL1ToL2MessagesData = () => {
   return new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).map(() => Fr.random());
 };
@@ -41,6 +55,7 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
   const newEncryptedLogs = L2BlockL2Logs.random(1, 2, 3);
   const block = L2Block.fromFields({
     number: blockNumber,
+    globalVariables: getMockGlobalVariables(),
     startPrivateDataTreeSnapshot: getMockTreeSnapshot(),
     startNullifierTreeSnapshot: getMockTreeSnapshot(),
     startContractTreeSnapshot: getMockTreeSnapshot(),

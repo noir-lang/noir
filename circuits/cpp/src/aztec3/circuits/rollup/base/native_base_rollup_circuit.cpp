@@ -463,6 +463,18 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
                            CircuitErrorCode::BASE__KERNEL_PROOF_VERIFICATION_FAILED);
     }
 
+    // Verify the kernel chain_id and versions
+    for (size_t i = 0; i < 2; i++) {
+        composer.do_assert(baseRollupInputs.kernel_data[i].public_inputs.constants.tx_context.chain_id ==
+                               baseRollupInputs.constants.global_variables.chain_id,
+                           "kernel chain_id does not match the rollup chain_id",
+                           CircuitErrorCode::BASE__INVALID_CHAIN_ID);
+        composer.do_assert(baseRollupInputs.kernel_data[i].public_inputs.constants.tx_context.version ==
+                               baseRollupInputs.constants.global_variables.version,
+                           "kernel version does not match the rollup version",
+                           CircuitErrorCode::BASE__INVALID_VERSION);
+    }
+
     // First we compute the contract tree leaves
     std::vector<NT::fr> const contract_leaves = calculate_contract_leaves(baseRollupInputs);
 

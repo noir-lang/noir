@@ -86,6 +86,7 @@ import {
   makeTuple,
   range,
 } from '../index.js';
+import { GlobalVariables } from '../structs/global_variables.js';
 
 /**
  * Creates an arbitrary tx context with the given seed.
@@ -93,7 +94,9 @@ import {
  * @returns A tx context.
  */
 export function makeTxContext(seed: number): TxContext {
-  return new TxContext(false, false, true, makeContractDeploymentData(seed));
+  // @todo @LHerskind should probably take value for chainId as it will be verified later.
+  // @todo @LHerskind should probably take value for version as it will be verified later.
+  return new TxContext(false, false, true, makeContractDeploymentData(seed), Fr.ZERO, Fr.ZERO);
 }
 
 /**
@@ -639,11 +642,29 @@ export function makeContractDeploymentData(seed = 1) {
 }
 
 /**
+ * Makes global variables.
+ * @param seed - The seed to use for generating the global variables.
+ * @param blockNumber - The block number to use for generating the global variables.
+ * If blockNumber is undefined, it will be set to seed + 2.
+ * @returns Global variables.
+ */
+export function makeGlobalVariables(seed = 1, blockNumber: number | undefined = undefined): GlobalVariables {
+  if (blockNumber !== undefined) {
+    return new GlobalVariables(fr(seed), fr(seed + 1), fr(blockNumber), fr(seed + 3));
+  }
+  return new GlobalVariables(fr(seed), fr(seed + 1), fr(seed + 2), fr(seed + 3));
+}
+
+/**
  * Makes constant base rollup data.
  * @param seed - The seed to use for generating the constant base rollup data.
+ * @param blockNumber - The block number to use for generating the global variables.
  * @returns A constant base rollup data.
  */
-export function makeConstantBaseRollupData(seed = 1): ConstantBaseRollupData {
+export function makeConstantBaseRollupData(
+  seed = 1,
+  blockNumber: number | undefined = undefined,
+): ConstantBaseRollupData {
   return ConstantBaseRollupData.from({
     startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed),
     startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x100),
@@ -652,6 +673,7 @@ export function makeConstantBaseRollupData(seed = 1): ConstantBaseRollupData {
     publicKernelVkTreeRoot: fr(seed + 0x302),
     baseRollupVkHash: fr(seed + 0x303),
     mergeRollupVkHash: fr(seed + 0x304),
+    globalVariables: makeGlobalVariables(seed + 0x305, blockNumber),
   });
 }
 
@@ -704,14 +726,18 @@ export function makeEcdsaSignature(seed = 1): EcdsaSignature {
 /**
  * Makes arbitrary base or merge rollup circuit public inputs.
  * @param seed - The seed to use for generating the base rollup circuit public inputs.
+ * @param blockNumber - The block number to use for generating the base rollup circuit public inputs.
  * @returns A base or merge rollup circuit public inputs.
  */
-export function makeBaseOrMergeRollupPublicInputs(seed = 0): BaseOrMergeRollupPublicInputs {
+export function makeBaseOrMergeRollupPublicInputs(
+  seed = 0,
+  blockNumber: number | undefined = undefined,
+): BaseOrMergeRollupPublicInputs {
   return new BaseOrMergeRollupPublicInputs(
     RollupTypes.Base,
     new Fr(0n),
     makeAggregationObject(seed + 0x100),
-    makeConstantBaseRollupData(seed + 0x200),
+    makeConstantBaseRollupData(seed + 0x200, blockNumber),
     makeAppendOnlyTreeSnapshot(seed + 0x300),
     makeAppendOnlyTreeSnapshot(seed + 0x400),
     makeAppendOnlyTreeSnapshot(seed + 0x500),
@@ -727,11 +753,12 @@ export function makeBaseOrMergeRollupPublicInputs(seed = 0): BaseOrMergeRollupPu
 /**
  * Makes arbitrary previous rollup data.
  * @param seed - The seed to use for generating the previous rollup data.
+ * @param blockNumber - The block number to use for generating the previous rollup data.
  * @returns A previous rollup data.
  */
-export function makePreviousRollupData(seed = 0): PreviousRollupData {
+export function makePreviousRollupData(seed = 0, blockNumber: number | undefined = undefined): PreviousRollupData {
   return new PreviousRollupData(
-    makeBaseOrMergeRollupPublicInputs(seed),
+    makeBaseOrMergeRollupPublicInputs(seed, blockNumber),
     makeDynamicSizeBuffer(16, seed + 0x50),
     makeVerificationKey(),
     seed + 0x110,
@@ -742,11 +769,12 @@ export function makePreviousRollupData(seed = 0): PreviousRollupData {
 /**
  * Makes root rollup inputs.
  * @param seed - The seed to use for generating the root rollup inputs.
+ * @param blockNumber - The block number to use for generating the root rollup inputs.
  * @returns A root rollup inputs.
  */
-export function makeRootRollupInputs(seed = 0): RootRollupInputs {
+export function makeRootRollupInputs(seed = 0, blockNumber: number | undefined = undefined): RootRollupInputs {
   return new RootRollupInputs(
-    [makePreviousRollupData(seed), makePreviousRollupData(seed + 0x1000)],
+    [makePreviousRollupData(seed, blockNumber), makePreviousRollupData(seed + 0x1000, blockNumber)],
     makeTuple(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT, fr, 0x2000),
     makeTuple(CONTRACT_TREE_ROOTS_TREE_HEIGHT, fr, 0x2100),
     makeTuple(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, fr, 0x2100),
@@ -760,11 +788,17 @@ export function makeRootRollupInputs(seed = 0): RootRollupInputs {
 /**
  * Makes root rollup public inputs.
  * @param seed - The seed to use for generating the root rollup public inputs.
+ * @param blockNumber - The block number to use for generating the root rollup public inputs.
+ * if blockNumber is undefined, it will be set to seed + 2.
  * @returns A root rollup public inputs.
  */
-export function makeRootRollupPublicInputs(seed = 0): RootRollupPublicInputs {
+export function makeRootRollupPublicInputs(
+  seed = 0,
+  blockNumber: number | undefined = undefined,
+): RootRollupPublicInputs {
   return RootRollupPublicInputs.from({
     endAggregationObject: makeAggregationObject(seed),
+    globalVariables: makeGlobalVariables((seed += 0x100), blockNumber),
     startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),

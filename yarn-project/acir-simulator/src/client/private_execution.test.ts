@@ -49,7 +49,7 @@ describe('Private Execution test suite', () => {
 
   const historicRoots = PrivateHistoricTreeRoots.empty();
   const contractDeploymentData = ContractDeploymentData.empty();
-  const txContext = new TxContext(false, false, false, contractDeploymentData);
+  const txContext = new TxContext(false, false, false, contractDeploymentData, Fr.ZERO, Fr.ZERO);
 
   const buildTxExecutionRequest = (args: {
     abi: FunctionAbi;

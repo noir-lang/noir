@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../append_only_tree_snapshot.hpp"
+#include "../global_variables.hpp"
 
+#include "barretenberg/common/serialize.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
@@ -20,13 +22,16 @@ template <typename NCT> struct ConstantRollupData {
     fr base_rollup_vk_hash = 0;
     fr merge_rollup_vk_hash = 0;
 
+    GlobalVariables<NCT> global_variables{};
+
     MSGPACK_FIELDS(start_tree_of_historic_private_data_tree_roots_snapshot,
                    start_tree_of_historic_contract_tree_roots_snapshot,
                    start_tree_of_historic_l1_to_l2_msg_tree_roots_snapshot,
                    private_kernel_vk_tree_root,
                    public_kernel_vk_tree_root,
                    base_rollup_vk_hash,
-                   merge_rollup_vk_hash);
+                   merge_rollup_vk_hash,
+                   global_variables);
 
     bool operator==(ConstantRollupData<NCT> const&) const = default;
 };
@@ -42,6 +47,7 @@ template <typename NCT> void read(uint8_t const*& it, ConstantRollupData<NCT>& o
     read(it, obj.public_kernel_vk_tree_root);
     read(it, obj.base_rollup_vk_hash);
     read(it, obj.merge_rollup_vk_hash);
+    read(it, obj.global_variables);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, ConstantRollupData<NCT> const& obj)
@@ -55,6 +61,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, ConstantRollupData
     write(buf, obj.public_kernel_vk_tree_root);
     write(buf, obj.base_rollup_vk_hash);
     write(buf, obj.merge_rollup_vk_hash);
+    write(buf, obj.global_variables);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantRollupData<NCT> const& obj)
@@ -68,7 +75,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantRollu
               << "private_kernel_vk_tree_root: " << obj.private_kernel_vk_tree_root << "\n"
               << "public_kernel_vk_tree_root: " << obj.public_kernel_vk_tree_root << "\n"
               << "base_rollup_vk_hash: " << obj.base_rollup_vk_hash << "\n"
-              << "merge_rollup_vk_hash: " << obj.merge_rollup_vk_hash << "\n";
+              << "merge_rollup_vk_hash: " << obj.merge_rollup_vk_hash << "\n"
+              << "global_variables: " << obj.global_variables << "\n";
 }
 
 }  // namespace aztec3::circuits::abis

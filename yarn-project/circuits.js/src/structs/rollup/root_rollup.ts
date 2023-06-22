@@ -12,6 +12,7 @@ import { PreviousRollupData } from './previous_rollup_data.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
+import { GlobalVariables } from '../global_variables.js';
 
 /**
  * Represents inputs of the root rollup circuit.
@@ -94,6 +95,10 @@ export class RootRollupPublicInputs {
      */
     public endAggregationObject: AggregationObject,
 
+    /**
+     * Global variables of the L2 block.
+     */
+    public globalVariables: GlobalVariables,
     // constants: ConstantRollupData // TODO maybe don't include this
 
     /**
@@ -182,6 +187,7 @@ export class RootRollupPublicInputs {
   static getFields(fields: FieldsOf<RootRollupPublicInputs>) {
     return [
       fields.endAggregationObject,
+      fields.globalVariables,
       fields.startPrivateDataTreeSnapshot,
       fields.endPrivateDataTreeSnapshot,
       fields.startNullifierTreeSnapshot,
@@ -237,6 +243,7 @@ export class RootRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new RootRollupPublicInputs(
       reader.readObject(AggregationObject),
+      reader.readObject(GlobalVariables),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),

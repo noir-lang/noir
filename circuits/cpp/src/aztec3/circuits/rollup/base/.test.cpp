@@ -654,6 +654,30 @@ TEST_F(base_rollup_tests, native_constants_dont_change)
     run_cbind(inputs, outputs);
 }
 
+TEST_F(base_rollup_tests, native_constants_dont_match_kernels_chain_id)
+{
+    DummyComposer composer = DummyComposer("base_rollup_tests__native_constants_dont_change");
+    BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
+    inputs.constants.global_variables.chain_id = 3;
+    BaseOrMergeRollupPublicInputs const outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
+    ASSERT_EQ(inputs.constants, outputs.constants);
+    EXPECT_TRUE(composer.failed());
+    ASSERT_EQ(composer.get_first_failure().message, "kernel chain_id does not match the rollup chain_id");
+}
+
+TEST_F(base_rollup_tests, native_constants_dont_match_kernels_version)
+{
+    DummyComposer composer = DummyComposer("base_rollup_tests__native_constants_dont_change");
+    BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
+    inputs.constants.global_variables.version = 3;
+    BaseOrMergeRollupPublicInputs const outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
+    ASSERT_EQ(inputs.constants, outputs.constants);
+    EXPECT_TRUE(composer.failed());
+    ASSERT_EQ(composer.get_first_failure().message, "kernel version does not match the rollup version");
+}
+
 TEST_F(base_rollup_tests, native_aggregate)
 {
     // TODO(rahul): Fix this when aggregation works

@@ -10,5 +10,8 @@ constructor_vk_hash: 0x2
 function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
+
+chain_id: 0x0
+version: 0x0
 "
 `;

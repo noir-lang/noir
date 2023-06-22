@@ -6,8 +6,9 @@ import {
   KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
+  GlobalVariables,
 } from '@aztec/circuits.js';
-import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
+import { makeAppendOnlyTreeSnapshot, makeGlobalVariables } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr } from '@aztec/foundation/fields';
 import times from 'lodash.times';
@@ -46,6 +47,10 @@ export class L2Block {
      * The number of the L2 block.
      */
     public number: number,
+    /**
+     * The global variables for the L2 block.
+     */
+    public globalVariables: GlobalVariables,
     /**
      * The tree snapshot of the private data tree at the start of the rollup.
      */
@@ -183,6 +188,7 @@ export class L2Block {
 
     return L2Block.fromFields({
       number: l2BlockNum,
+      globalVariables: makeGlobalVariables(0, l2BlockNum),
       startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
       startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
       startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
@@ -221,6 +227,10 @@ export class L2Block {
      * The number of the L2 block.
      */
     number: number;
+    /**
+     * The global variables of the L2 block.
+     */
+    globalVariables: GlobalVariables;
     /**
      * The tree snapshot of the private data tree at the start of the rollup.
      */
@@ -324,6 +334,7 @@ export class L2Block {
   }) {
     return new this(
       fields.number,
+      fields.globalVariables,
       fields.startPrivateDataTreeSnapshot,
       fields.startNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
@@ -361,7 +372,7 @@ export class L2Block {
       throw new Error('newEncryptedLogs and newUnencryptedLogs must be defined when encoding L2BlockData');
     }
     return serializeToBuffer(
-      this.number,
+      this.globalVariables,
       this.startPrivateDataTreeSnapshot,
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
@@ -411,7 +422,8 @@ export class L2Block {
    */
   static decode(encoded: Buffer | BufferReader) {
     const reader = BufferReader.asReader(encoded);
-    const number = reader.readNumber();
+    const globalVariables = reader.readObject(GlobalVariables);
+    const number = Number(globalVariables.blockNumber.value);
     const startPrivateDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
@@ -441,6 +453,7 @@ export class L2Block {
 
     return L2Block.fromFields({
       number,
+      globalVariables,
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
       startContractTreeSnapshot,
@@ -498,6 +511,7 @@ export class L2Block {
    */
   getPublicInputsHash(): Fr {
     const buf = serializeToBuffer(
+      this.globalVariables,
       this.startPrivateDataTreeSnapshot,
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
@@ -527,7 +541,7 @@ export class L2Block {
    */
   getStartStateHash() {
     const inputValue = serializeToBuffer(
-      this.number - 1,
+      new Fr(this.number - 1),
       this.startPrivateDataTreeSnapshot,
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
@@ -537,6 +551,7 @@ export class L2Block {
       this.startL1ToL2MessageTreeSnapshot,
       this.startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
     );
+
     return sha256(inputValue);
   }
 
@@ -546,7 +561,7 @@ export class L2Block {
    */
   getEndStateHash() {
     const inputValue = serializeToBuffer(
-      this.number,
+      this.globalVariables.blockNumber,
       this.endPrivateDataTreeSnapshot,
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
@@ -664,7 +679,7 @@ export class L2Block {
   getTx(txIndex: number) {
     const numTxs = Math.floor(this.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH);
     if (txIndex >= numTxs) {
-      throw new Error(`Failed to get tx ${txIndex}. Block ${this.number} only has ${numTxs} txs.`);
+      throw new Error(`Failed to get tx ${txIndex}. Block ${this.globalVariables.blockNumber} only has ${numTxs} txs.`);
     }
 
     const newCommitments = this.newCommitments.slice(
@@ -711,6 +726,9 @@ export class L2Block {
 
     const inspectTreeSnapshot = (s: AppendOnlyTreeSnapshot): string =>
       `(${s.nextAvailableLeafIndex}, ${inspectHex(s.root)})`;
+    const inspectGlobalVariables = (gv: GlobalVariables): string => {
+      return `(${gv.chainId}, ${gv.version}, ${gv.blockNumber}, ${gv.timestamp}))`;
+    };
     const inspectFrArray = (arr: Fr[]): string => inspectArray(arr, inspectHex);
     const inspectContractDataArray = (arr: ContractData[]): string =>
       inspectArray(arr, cd => `(${inspectHex(cd.contractAddress)}, ${inspectHex(cd.portalContractAddress)})`);
@@ -720,6 +738,7 @@ export class L2Block {
     return [
       `L2Block`,
       `number: ${this.number}`,
+      `globalVariables: ${inspectGlobalVariables(this.globalVariables)}`,
       `startPrivateDataTreeSnapshot: ${inspectTreeSnapshot(this.startPrivateDataTreeSnapshot)}`,
       `startNullifierTreeSnapshot: ${inspectTreeSnapshot(this.startNullifierTreeSnapshot)}`,
       `startContractTreeSnapshot: ${inspectTreeSnapshot(this.startContractTreeSnapshot)}`,

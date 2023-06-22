@@ -5,6 +5,7 @@ import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   CircuitsWasm,
   ConstantBaseRollupData,
+  GlobalVariables,
   L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MESSAGES_SUBTREE_HEIGHT,
   MembershipWitness,
@@ -59,26 +60,35 @@ const DELETE_FR = new Fr(0n);
  * using the base, merge, and root rollup circuits.
  */
 export class SoloBlockBuilder implements BlockBuilder {
+  private globalVariables: GlobalVariables;
+
   constructor(
     protected db: MerkleTreeOperations,
     protected vks: VerificationKeys,
     protected simulator: RollupSimulator,
     protected prover: RollupProver,
     protected debug = createDebugLogger('aztec:sequencer'),
-  ) {}
+    protected chainId: Fr = Fr.ZERO,
+    protected version: Fr = Fr.ZERO,
+  ) {
+    this.globalVariables = new GlobalVariables(chainId, version, Fr.ZERO, Fr.ZERO);
+  }
 
   /**
    * Builds an L2 block with the given number containing the given txs, updating state trees.
    * @param blockNumber - Number of the block to create.
    * @param txs - Processed transactions to include in the block.
    * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
+   * @param timestamp - Timestamp of the block.
    * @returns The new L2 block and a correctness proof as returned by the root rollup circuit.
    */
   public async buildL2Block(
     blockNumber: number,
     txs: ProcessedTx[],
     newL1ToL2Messages: Fr[],
+    timestamp = 0,
   ): Promise<[L2Block, Proof]> {
+    this.globalVariables = new GlobalVariables(this.chainId, this.version, new Fr(blockNumber), new Fr(timestamp));
     const [
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -145,6 +155,7 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
+      globalVariables: this.globalVariables,
       startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -527,6 +538,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot: await this.getTreeSnapshot(
         MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
       ),
+      globalVariables: this.globalVariables,
     });
   }
 

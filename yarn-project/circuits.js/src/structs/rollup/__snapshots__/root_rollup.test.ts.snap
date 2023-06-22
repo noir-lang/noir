@@ -34,6 +34,11 @@ private_kernel_vk_tree_root: 0x501
 public_kernel_vk_tree_root: 0x502
 base_rollup_vk_hash: 0x503
 merge_rollup_vk_hash: 0x504
+global_variables: chain_id: 0x505
+version: 0x506
+block_number: 0x507
+timestamp: 0x508
+
 
 start_private_data_tree_snapshot:
 root: 0x300
@@ -112,6 +117,11 @@ private_kernel_vk_tree_root: 0x1501
 public_kernel_vk_tree_root: 0x1502
 base_rollup_vk_hash: 0x1503
 merge_rollup_vk_hash: 0x1504
+global_variables: chain_id: 0x1505
+version: 0x1506
+block_number: 0x1507
+timestamp: 0x1508
+
 
 start_private_data_tree_snapshot:
 root: 0x1300
@@ -184,49 +194,54 @@ public_inputs: [
 proof_witness_indices: [ 6 7 8 9 10 11 ]
 has_data: 0
 
-start_private_data_tree_snapshot: root: 0x100
-next_available_leaf_index: 256
+global_variables: chain_id: 0x100
+version: 0x101
+block_number: 0x102
+timestamp: 0x103
 
-end_private_data_tree_snapshot: root: 0x200
+start_private_data_tree_snapshot: root: 0x200
 next_available_leaf_index: 512
 
-start_nullifier_tree_snapshot: root: 0x300
+end_private_data_tree_snapshot: root: 0x300
 next_available_leaf_index: 768
 
-end_nullifier_tree_snapshot: root: 0x400
+start_nullifier_tree_snapshot: root: 0x400
 next_available_leaf_index: 1024
 
-start_contract_tree_snapshot: root: 0x500
+end_nullifier_tree_snapshot: root: 0x500
 next_available_leaf_index: 1280
 
-end_contract_tree_snapshot: root: 0x600
+start_contract_tree_snapshot: root: 0x600
 next_available_leaf_index: 1536
 
-start_public_data_tree_root: 0x700
-end_public_data_tree_root: 0x800
-start_tree_of_historic_private_data_tree_roots_snapshot: root: 0x900
-next_available_leaf_index: 2304
+end_contract_tree_snapshot: root: 0x700
+next_available_leaf_index: 1792
 
-end_tree_of_historic_private_data_tree_roots_snapshot: root: 0xa00
+start_public_data_tree_root: 0x800
+end_public_data_tree_root: 0x900
+start_tree_of_historic_private_data_tree_roots_snapshot: root: 0xa00
 next_available_leaf_index: 2560
 
-start_tree_of_historic_contract_tree_roots_snapshot: root: 0xb00
+end_tree_of_historic_private_data_tree_roots_snapshot: root: 0xb00
 next_available_leaf_index: 2816
 
-end_tree_of_historic_contract_tree_roots_snapshot: root: 0xc00
+start_tree_of_historic_contract_tree_roots_snapshot: root: 0xc00
 next_available_leaf_index: 3072
 
-start_l1_to_l2_messages_tree_snapshot: root: 0xd00
+end_tree_of_historic_contract_tree_roots_snapshot: root: 0xd00
 next_available_leaf_index: 3328
 
-end_l1_tol2_messages_tree_snapshot: root: 0xe00
+start_l1_to_l2_messages_tree_snapshot: root: 0xe00
 next_available_leaf_index: 3584
 
-start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: root: 0xf00
+end_l1_tol2_messages_tree_snapshot: root: 0xf00
 next_available_leaf_index: 3840
 
-end_tree_of_historic_l1_tol2_messages_tree_roots_snapshot: root: 0x1000
+start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: root: 0x1000
 next_available_leaf_index: 4096
+
+end_tree_of_historic_l1_tol2_messages_tree_roots_snapshot: root: 0x1100
+next_available_leaf_index: 4352
 
 calldata_hash: [ 0x1 0x2 ]
 l1_to_l2_messages_hash: [ 0x3 0x4 ]

@@ -1,3 +1,4 @@
+export * from './global_variables.js';
 export * from './rollup/base_rollup.js';
 export * from './rollup/merge_rollup.js';
 export * from './rollup/root_rollup.js';

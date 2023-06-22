@@ -93,6 +93,7 @@ enum GeneratorIndex {
     SIGNED_TX_REQUEST,
     L1_TO_L2_MESSAGE_SECRET,
     FUNCTION_ARGS,
+    GLOBAL_VARIABLES
 };
 
 enum StorageSlotGeneratorIndex {

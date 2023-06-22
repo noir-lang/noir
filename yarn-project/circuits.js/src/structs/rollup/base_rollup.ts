@@ -20,6 +20,7 @@ import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { UInt32 } from '../shared.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
+import { GlobalVariables } from '../global_variables.js';
 
 /**
  * Class containing the data of a preimage of a single leaf in the nullifier tree.
@@ -84,6 +85,10 @@ export class ConstantBaseRollupData {
      * Hash of the merge rollup circuit verification key.
      */
     public mergeRollupVkHash: Fr,
+    /**
+     * Global variables for the block
+     */
+    public globalVariables: GlobalVariables,
   ) {}
 
   static from(fields: FieldsOf<ConstantBaseRollupData>): ConstantBaseRollupData {
@@ -100,6 +105,7 @@ export class ConstantBaseRollupData {
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
+      reader.readObject(GlobalVariables),
     );
   }
 
@@ -112,6 +118,7 @@ export class ConstantBaseRollupData {
       fields.publicKernelVkTreeRoot,
       fields.baseRollupVkHash,
       fields.mergeRollupVkHash,
+      fields.globalVariables,
     ] as const;
   }
 

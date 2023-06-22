@@ -213,7 +213,7 @@ export class AztecRPCServer implements AztecRPCClient {
       contractAddressSalt,
       portalContract,
     );
-    const txContext = new TxContext(false, false, true, contractDeploymentData);
+    const txContext = new TxContext(false, false, true, contractDeploymentData, Fr.ZERO, Fr.ZERO);
 
     const contract = contractTree.contract;
     await this.db.addContract(contract);

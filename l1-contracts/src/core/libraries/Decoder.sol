@@ -6,6 +6,8 @@ pragma solidity >=0.8.18;
 import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
 
+import {Test} from "forge-std/Test.sol";
+
 /**
  * @title Decoder Library
  * @author Aztec Labs
@@ -18,57 +20,60 @@ import {Hash} from "@aztec/core/libraries/Hash.sol";
  * L2 Block Data specification
  * -------------------
  *
- *  | byte start                                           | num bytes  | name
- *  | ---                                                  | ---        | ---
- *  | 0x00                                                 | 0x04       | L2 block number
- *  | 0x04                                                 | 0x20       | startPrivateDataTreeSnapshot.root
- *  | 0x24                                                 | 0x04       | startPrivateDataTreeSnapshot.nextAvailableLeafIndex
- *  | 0x28                                                 | 0x20       | startNullifierTreeSnapshot.root
- *  | 0x48                                                 | 0x04       | startNullifierTreeSnapshot.nextAvailableLeafIndex
- *  | 0x4c                                                 | 0x20       | startContractTreeSnapshot.root
- *  | 0x6c                                                 | 0x04       | startContractTreeSnapshot.nextAvailableLeafIndex
- *  | 0x70                                                 | 0x20       | startTreeOfHistoricPrivateDataTreeRootsSnapshot.root
- *  | 0x90                                                 | 0x04       | startTreeOfHistoricPrivateDataTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x94                                                 | 0x20       | startTreeOfHistoricContractTreeRootsSnapshot.root
- *  | 0xb4                                                 | 0x04       | startTreeOfHistoricContractTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0xb8                                                 | 0x20       | startPublicDataTreeRoot
- *  | 0xd8                                                 | 0x20       | startL1ToL2MessagesTreeSnapshot.root
- *  | 0xf8                                                 | 0x04       | startL1ToL2MessagesTreeSnapshot.nextAvailableLeafIndex
- *  | 0xfc                                                 | 0x20       | startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.root
- *  | 0x11c                                                | 0x04       | startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x120                                                | 0x20       | endPrivateDataTreeSnapshot.root
- *  | 0x140                                                | 0x04       | endPrivateDataTreeSnapshot.nextAvailableLeafIndex
- *  | 0x144                                                | 0x20       | endNullifierTreeSnapshot.root
- *  | 0x164                                                | 0x04       | endNullifierTreeSnapshot.nextAvailableLeafIndex
- *  | 0x168                                                | 0x20       | endContractTreeSnapshot.root
- *  | 0x188                                                | 0x04       | endContractTreeSnapshot.nextAvailableLeafIndex
- *  | 0x18c                                                | 0x20       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.root
- *  | 0x1ac                                                | 0x04       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x1b0                                                | 0x20       | endTreeOfHistoricContractTreeRootsSnapshot.root
- *  | 0x1d0                                                | 0x04       | endTreeOfHistoricContractTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x1d4                                                | 0x20       | endPublicDataTreeRoot
- *  | 0x1f4                                                | 0x20       | endL1ToL2MessagesTreeSnapshot.root
- *  | 0x214                                                | 0x04       | endL1ToL2MessagesTreeSnapshot.nextAvailableLeafIndex
- *  | 0x218                                                | 0x20       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.root
- *  | 0x238                                                | 0x04       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x23c                                                | 0x04       | len(newCommitments) denoted a
- *  | 0x240                                                | a * 0x20   | newCommitments (each element 32 bytes)
- *  | 0x240 + a * 0x20                                     | 0x04       | len(newNullifiers) denoted b
- *  | 0x244 + a * 0x20                                     | b * 0x20   | newNullifiers (each element 32 bytes)
- *  | 0x244 + (a + b) * 0x20                               | 0x04       | len(newPublicDataWrites) denoted c
- *  | 0x248 + (a + b) * 0x20                               | c * 0x40   | newPublicDataWrites (each element 64 bytes)
- *  | 0x248 + (a + b) * 0x20 + c * 0x40                    | 0x04       | len(newL2ToL1msgs) denoted d
- *  | 0x24c + (a + b) * 0x20 + c * 0x40                    | d * 0x20   | newL2ToL1msgs (each element 32 bytes)
- *  | 0x24c + (a + b + d) * 0x20 + c * 0x40                | 0x04       | len(newContracts) denoted e
- *  | 0x250 + (a + b + d) * 0x20 + c * 0x40                | e * 0x20   | newContracts (each element 32 bytes)
- *  | 0x250 + (a + b + d) * 0x20 + c * 0x40 + e * 0x20     | e * 0x34   | newContractData (each element 52 bytes)
- *  | 0x250 + (a + b + d) * 0x20 + c * 0x40 + e * 0x54     | 0x04       | len(l1ToL2Messages) denoted f
- *  | K := 0x254 + (a + b + d) * 0x20 + c * 0x40 + e * 0x54| f * 0x20   | l1ToL2Messages (each element 32 bytes)
- *  | K + f * 0x20                                         | 0x04       | byteLen(newEncryptedLogs) denoted g
- *  | K + f * 0x20 + 0x04                                  | g          | newEncryptedLogs
- *  | K + f * 0x20 + 0x04 + g                              | 0x04       | byteLen(newUnencryptedLogs) denoted h
- *  | K + f * 0x20 + 0x04 + g + 0x04                       | h          | newUnencryptedLogs
- *  |---                                                   |---         | ---
+ *  | byte start                                             | num bytes  | name
+ *  | ---                                                    | ---        | ---
+ *  | 0x0000                                                 | 0x20       | chain-id
+ *  | 0x0020                                                 | 0x20       | version
+ *  | 0x0040                                                 | 0x20       | L2 block number
+ *  | 0x0060                                                 | 0x20       | L2 timestamp
+ *  | 0x0080                                                 | 0x20       | startPrivateDataTreeSnapshot.root
+ *  | 0x00a0                                                 | 0x04       | startPrivateDataTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x00a4                                                 | 0x20       | startNullifierTreeSnapshot.root
+ *  | 0x00c4                                                 | 0x04       | startNullifierTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x00c8                                                 | 0x20       | startContractTreeSnapshot.root
+ *  | 0x00e8                                                 | 0x04       | startContractTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x00ec                                                 | 0x20       | startTreeOfHistoricPrivateDataTreeRootsSnapshot.root
+ *  | 0x010c                                                 | 0x04       | startTreeOfHistoricPrivateDataTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x0110                                                 | 0x20       | startTreeOfHistoricContractTreeRootsSnapshot.root
+ *  | 0x0130                                                 | 0x04       | startTreeOfHistoricContractTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x0134                                                 | 0x20       | startPublicDataTreeRoot
+ *  | 0x0154                                                 | 0x20       | startL1ToL2MessagesTreeSnapshot.root
+ *  | 0x0174                                                 | 0x04       | startL1ToL2MessagesTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0178                                                 | 0x20       | startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.root
+ *  | 0x0198                                                 | 0x04       | startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x019c                                                 | 0x20       | endPrivateDataTreeSnapshot.root
+ *  | 0x01bc                                                 | 0x04       | endPrivateDataTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x01c0                                                 | 0x20       | endNullifierTreeSnapshot.root
+ *  | 0x01e0                                                 | 0x04       | endNullifierTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x01e4                                                 | 0x20       | endContractTreeSnapshot.root
+ *  | 0x0204                                                 | 0x04       | endContractTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0208                                                 | 0x20       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.root
+ *  | 0x0228                                                 | 0x04       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x022c                                                 | 0x20       | endTreeOfHistoricContractTreeRootsSnapshot.root
+ *  | 0x024c                                                 | 0x04       | endTreeOfHistoricContractTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x0250                                                 | 0x20       | endPublicDataTreeRoot
+ *  | 0x0270                                                 | 0x20       | endL1ToL2MessagesTreeSnapshot.root
+ *  | 0x0290                                                 | 0x04       | endL1ToL2MessagesTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0294                                                 | 0x20       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.root
+ *  | 0x02b4                                                 | 0x04       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x02b8                                                 | 0x04       | len(newCommitments) denoted a
+ *  | 0x02bc                                                 | a * 0x20   | newCommitments (each element 32 bytes)
+ *  | 0x02bc + a * 0x20                                      | 0x04       | len(newNullifiers) denoted b
+ *  | 0x02c0 + a * 0x20                                      | b * 0x20   | newNullifiers (each element 32 bytes)
+ *  | 0x02c0 + (a + b) * 0x20                                | 0x04       | len(newPublicDataWrites) denoted c
+ *  | 0x02c4 + (a + b) * 0x20                                | c * 0x40   | newPublicDataWrites (each element 64 bytes)
+ *  | 0x02c4 + (a + b) * 0x20 + c * 0x40                     | 0x04       | len(newL2ToL1msgs) denoted d
+ *  | 0x02c8 + (a + b) * 0x20 + c * 0x40                     | d * 0x20   | newL2ToL1msgs (each element 32 bytes)
+ *  | 0x02c8 + (a + b + d) * 0x20 + c * 0x40                 | 0x04       | len(newContracts) denoted e
+ *  | 0x02cc + (a + b + d) * 0x20 + c * 0x40                 | e * 0x20   | newContracts (each element 32 bytes)
+ *  | 0x02cc + (a + b + d) * 0x20 + c * 0x40 + e * 0x20      | e * 0x34   | newContractData (each element 52 bytes)
+ *  | 0x02cc + (a + b + d) * 0x20 + c * 0x40 + e * 0x54      | 0x04       | len(l1ToL2Messages) denoted f
+ *  | K := 0x02cc + (a + b + d) * 0x20 + c * 0x40 + e * 0x54 | f * 0x20   | l1ToL2Messages (each element 32 bytes)
+ *  | K + f * 0x20                                           | 0x04       | byteLen(newEncryptedLogs) denoted g
+ *  | K + f * 0x20 + 0x04                                    | g          | newEncryptedLogs
+ *  | K + f * 0x20 + 0x04 + g                                | 0x04       | byteLen(newUnencryptedLogs) denoted h
+ *  | K + f * 0x20 + 0x04 + g + 0x04                         | h          | newUnencryptedLogs
+ *  |---                                                     |---         | ---
  */
 library Decoder {
   struct ArrayLengths {
@@ -130,8 +135,8 @@ library Decoder {
     l2BlockNumber = getL2BlockNumber(_l2Block);
     // Note, for startStateHash to match the storage, the l2 block number must be new - 1.
     // Only jumping 1 block at a time.
-    startStateHash = computeStateHash(l2BlockNumber - 1, 0x4, _l2Block);
-    endStateHash = computeStateHash(l2BlockNumber, 0x120, _l2Block);
+    startStateHash = computeStateHash(l2BlockNumber - 1, 0x80, _l2Block);
+    endStateHash = computeStateHash(l2BlockNumber, 0x19c, _l2Block);
 
     bytes32 diffRoot;
     bytes32 l1ToL2MsgsHash;
@@ -152,13 +157,11 @@ library Decoder {
     bytes32 _diffRoot,
     bytes32 _l1ToL2MsgsHash
   ) internal pure returns (bytes32) {
-    uint256 size = 0x23c - 0x04 + 0x20 + 0x20;
-    bytes memory temp = new bytes(size);
+    bytes memory temp = new bytes(0x02b8 + 0x20 + 0x20);
     assembly {
-      calldatacopy(add(temp, 0x20), add(_l2Block.offset, 0x04), size)
-      let endOfTreesData := sub(0x23c, 0x04)
-      mstore(add(temp, add(0x20, endOfTreesData)), _diffRoot)
-      mstore(add(temp, add(0x40, endOfTreesData)), _l1ToL2MsgsHash)
+      calldatacopy(add(temp, 0x20), _l2Block.offset, 0x02b8)
+      mstore(add(temp, add(0x20, 0x02b8)), _diffRoot)
+      mstore(add(temp, add(0x40, 0x02b8)), _l1ToL2MsgsHash)
     }
     return Hash.sha256ToField(temp);
   }
@@ -170,14 +173,14 @@ library Decoder {
    */
   function getL2BlockNumber(bytes calldata _l2Block) internal pure returns (uint256 l2BlockNumber) {
     assembly {
-      l2BlockNumber := and(shr(224, calldataload(_l2Block.offset)), 0xffffffff)
+      l2BlockNumber := calldataload(add(_l2Block.offset, 0x40))
     }
   }
 
   /**
    * @notice Computes a state hash
    * @param _l2BlockNumber - The L2 block number
-   * @param _offset - The offset into the data, 0x04 for start, 0xd8 for end
+   * @param _offset - The offset into the data, 0x80 for start, 0x019c for end
    * @param _l2Block - The L2 block calldata.
    * @return The state hash
    * @dev The state hash is sha256 hash of block's header elements. For each block the header elements are
@@ -189,18 +192,14 @@ library Decoder {
     pure
     returns (bytes32)
   {
-    bytes memory temp = new bytes(0x120);
+    // 0x20 for the block number + 0x11c for the header elements
+    bytes memory temp = new bytes(0x20 + 0x11c);
 
     assembly {
-      // Copy the L2 block number byte by byte to memory
-      mstore8(add(temp, 0x20), shr(24, _l2BlockNumber))
-      mstore8(add(temp, 0x21), shr(16, _l2BlockNumber))
-      mstore8(add(temp, 0x22), shr(8, _l2BlockNumber))
-      mstore8(add(temp, 0x23), _l2BlockNumber)
-    }
-    assembly {
-      // Copy header elements (not including block number) for start or end (size 0xd4)
-      calldatacopy(add(temp, 0x24), add(_l2Block.offset, _offset), 0x11c)
+      // Copy block number
+      mstore(add(temp, 0x20), _l2BlockNumber)
+      // Copy header elements (not including block number) for start or end
+      calldatacopy(add(temp, 0x40), add(_l2Block.offset, _offset), 0x11c)
     }
 
     return sha256(temp);
@@ -225,7 +224,7 @@ library Decoder {
     ArrayOffsets memory offsets;
     {
       assembly {
-        let offset := add(_l2Block.offset, 0x23c)
+        let offset := add(_l2Block.offset, 0x02b8)
         let commitmentCount := and(shr(224, calldataload(offset)), 0xffffffff)
         offset := add(add(offset, 0x4), mul(commitmentCount, 0x20))
         let nullifierCount := and(shr(224, calldataload(offset)), 0xffffffff)
@@ -264,7 +263,7 @@ library Decoder {
 
     // Data starts after header. Look at L2 Block Data specification at the top of this file.
     {
-      offsets.commitmentOffset = 0x240;
+      offsets.commitmentOffset = 0x02bc;
       offsets.nullifierOffset = offsets.commitmentOffset + 0x4 + lengths.commitmentCount * 0x20;
       offsets.publicDataOffset = offsets.nullifierOffset + 0x4 + lengths.nullifierCount * 0x20;
       offsets.l2ToL1MsgsOffset = offsets.publicDataOffset + 0x4 + lengths.dataWritesCount * 0x40;

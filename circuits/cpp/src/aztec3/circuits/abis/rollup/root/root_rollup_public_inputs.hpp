@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
+#include "aztec3/circuits/abis/global_variables.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
@@ -18,6 +19,8 @@ template <typename NCT> struct RootRollupPublicInputs {
 
     // All below are shared between the base and merge rollups
     AggregationObject end_aggregation_object;
+
+    GlobalVariables<NCT> globalVariables;
 
     AppendOnlyTreeSnapshot<NCT> start_private_data_tree_snapshot;
     AppendOnlyTreeSnapshot<NCT> end_private_data_tree_snapshot;
@@ -52,6 +55,7 @@ template <typename NCT> struct RootRollupPublicInputs {
     {
         std::vector<uint8_t> buf;
 
+        write(&buf, globalVariables);
         write(buf, start_private_data_tree_snapshot);
         write(buf, start_nullifier_tree_snapshot);
         write(buf, start_contract_tree_snapshot);
@@ -100,6 +104,7 @@ template <typename NCT> void read(uint8_t const*& it, RootRollupPublicInputs<NCT
     using serialize::read;
 
     read(it, obj.end_aggregation_object);
+    read(it, obj.globalVariables);
     read(it, obj.start_private_data_tree_snapshot);
     read(it, obj.end_private_data_tree_snapshot);
     read(it, obj.start_nullifier_tree_snapshot);
@@ -125,6 +130,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupPublicIn
     using serialize::write;
 
     write(buf, obj.end_aggregation_object);
+    write(buf, obj.globalVariables);
     write(buf, obj.start_private_data_tree_snapshot);
     write(buf, obj.end_private_data_tree_snapshot);
     write(buf, obj.start_nullifier_tree_snapshot);
@@ -148,6 +154,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupPublicIn
 template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupPublicInputs<NCT> const& obj)
 {
     return os << "end_aggregation_object: " << obj.end_aggregation_object << "\n"
+              << "global_variables: " << obj.globalVariables << "\n"
               << "start_private_data_tree_snapshot: " << obj.start_private_data_tree_snapshot << "\n"
               << "end_private_data_tree_snapshot: " << obj.end_private_data_tree_snapshot << "\n"
               << "start_nullifier_tree_snapshot: " << obj.start_nullifier_tree_snapshot << "\n"

@@ -110,6 +110,20 @@ TEST_F(merge_rollup_tests, native_constants_different_failure)
     ASSERT_EQ(composer.get_first_failure().message, "input proofs have different constants");
 }
 
+TEST_F(merge_rollup_tests, native_constants_different_chain_id_failure)
+{
+    DummyComposer composer = DummyComposer("merge_rollup_tests__native_constants_different_failure");
+    std::array<KernelData, 4> const kernels = {
+        get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
+    };
+    MergeRollupInputs inputs = get_merge_rollup_inputs(composer, kernels);
+    inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.constants.global_variables.chain_id = fr(1);
+    inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.constants.global_variables.chain_id = fr(0);
+    merge_rollup_circuit(composer, inputs);
+    ASSERT_TRUE(composer.failed());
+    ASSERT_EQ(composer.get_first_failure().message, "input proofs have different constants");
+}
+
 TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
 {
     DummyComposer composerA = DummyComposer("merge_rollup_tests__native_fail_if_previous_rollups_dont_follow_on_A");

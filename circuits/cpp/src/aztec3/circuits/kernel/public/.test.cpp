@@ -301,6 +301,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
                                                .is_rebate_payment_tx = false,
                                                .is_contract_deployment_tx = false,
                                                .contract_deployment_data = {},
+                                               .chain_id = 1,
                                            } };
 
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;

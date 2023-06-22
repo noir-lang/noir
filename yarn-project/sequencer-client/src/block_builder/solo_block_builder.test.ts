@@ -200,6 +200,7 @@ describe('sequencer/solo_block_builder', () => {
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
+      globalVariables: rootRollupOutput.globalVariables,
       startPrivateDataTreeSnapshot: rootRollupOutput.startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot: rootRollupOutput.endPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot: rootRollupOutput.startNullifierTreeSnapshot,

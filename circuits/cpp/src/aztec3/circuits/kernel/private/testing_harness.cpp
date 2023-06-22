@@ -369,6 +369,7 @@ PrivateKernelInputsInit<NT> do_private_call_get_kernel_inputs_init(
                                                .is_rebate_payment_tx = false,
                                                .is_contract_deployment_tx = is_constructor,
                                                .contract_deployment_data = contract_deployment_data,
+                                               .chain_id = 1,
                                            } };
 
     //***************************************************************************

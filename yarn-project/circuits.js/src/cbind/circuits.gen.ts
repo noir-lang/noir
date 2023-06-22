@@ -635,6 +635,8 @@ interface MsgpackTxContext {
   is_rebate_payment_tx: boolean;
   is_contract_deployment_tx: boolean;
   contract_deployment_data: MsgpackContractDeploymentData;
+  chain_id: Buffer;
+  version: Buffer;
 }
 
 export function toTxContext(o: MsgpackTxContext): TxContext {
@@ -650,11 +652,19 @@ export function toTxContext(o: MsgpackTxContext): TxContext {
   if (o.contract_deployment_data === undefined) {
     throw new Error('Expected contract_deployment_data in TxContext deserialization');
   }
+  if (o.chain_id === undefined) {
+    throw new Error('Expected chain_id in TxContext deserialization');
+  }
+  if (o.version === undefined) {
+    throw new Error('Expected version in TxContext deserialization');
+  }
   return new TxContext(
     o.is_fee_payment_tx,
     o.is_rebate_payment_tx,
     o.is_contract_deployment_tx,
     toContractDeploymentData(o.contract_deployment_data),
+    Fr.fromBuffer(o.chain_id),
+    Fr.fromBuffer(o.version),
   );
 }
 
@@ -671,11 +681,19 @@ export function fromTxContext(o: TxContext): MsgpackTxContext {
   if (o.contractDeploymentData === undefined) {
     throw new Error('Expected contractDeploymentData in TxContext serialization');
   }
+  if (o.chainId === undefined) {
+    throw new Error('Expected chainId in TxContext serialization');
+  }
+  if (o.version === undefined) {
+    throw new Error('Expected version in TxContext serialization');
+  }
   return {
     is_fee_payment_tx: o.isFeePaymentTx,
     is_rebate_payment_tx: o.isRebatePaymentTx,
     is_contract_deployment_tx: o.isContractDeploymentTx,
     contract_deployment_data: fromContractDeploymentData(o.contractDeploymentData),
+    chain_id: o.chainId.toBuffer(),
+    version: o.version.toBuffer(),
   };
 }
 
