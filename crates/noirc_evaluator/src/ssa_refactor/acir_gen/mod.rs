@@ -287,7 +287,7 @@ impl Context {
         if index >= array.len() {
             // Ignore the error if side effects are disabled.
             if let Some(var) = self.current_side_effects_enabled_var {
-                if self.acir_context.is_constant_zero(var) {
+                if self.acir_context.is_constant_zero(&var) {
                     let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
                     let value = self.create_default_value(result_type);
                     self.define_result(dfg, instruction, value);

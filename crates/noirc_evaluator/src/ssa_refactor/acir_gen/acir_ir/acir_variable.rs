@@ -123,7 +123,7 @@ impl AcirContext {
     }
 
     /// True if the given AcirVar refers to a constant zero value
-    pub(crate) fn is_constant_zero(&self, var: AcirVar) -> bool {
+    pub(crate) fn is_constant_zero(&self, var: &AcirVar) -> bool {
         match self.vars[var] {
             AcirVarData::Const(field) => field.is_zero(),
             _ => false,
