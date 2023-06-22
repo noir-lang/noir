@@ -1,7 +1,7 @@
 use acvm::Backend;
 use async_lsp::{
     concurrency::ConcurrencyLayer, panic::CatchUnwindLayer, server::LifecycleLayer,
-    stdio::PipeStdin, tracing::TracingLayer,
+    tracing::TracingLayer,
 };
 use clap::Args;
 use noir_lsp::NargoLspService;
