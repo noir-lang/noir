@@ -122,6 +122,14 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
+    /// True if the given AcirVar refers to a constant one value
+    pub(crate) fn is_constant_one(&self, var: &AcirVar) -> bool {
+        match self.vars[var] {
+            AcirVarData::Const(field) => field.is_one(),
+            _ => false,
+        }
+    }
+
     /// Adds a new Variable to context whose value will
     /// be constrained to be the negation of `var`.
     ///
