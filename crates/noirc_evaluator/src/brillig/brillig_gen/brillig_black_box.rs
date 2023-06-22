@@ -5,6 +5,9 @@ use acvm::acir::{
 
 use crate::brillig::brillig_ir::BrilligContext;
 
+/// Transforms SSA's black box function calls into the corresponding brillig instructions
+/// Extracting arguments and results from the SSA function call
+/// And making any necessary type conversions to adapt noir's blackbox calls to brillig's
 pub(crate) fn convert_black_box_call(
     brillig_context: &mut BrilligContext,
     bb_func: &BlackBoxFunc,

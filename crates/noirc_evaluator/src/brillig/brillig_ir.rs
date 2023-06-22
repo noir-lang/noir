@@ -692,11 +692,13 @@ impl BrilligContext {
         self.load_all_saved_registers(saved_registers);
     }
 
+    /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
     pub(crate) fn array_to_vector(&mut self, array: &HeapArray) -> HeapVector {
         let size_register = self.make_constant(array.size.into());
         HeapVector { size: size_register, pointer: array.pointer }
     }
 
+    /// Issues a blackbox operation.
     pub(crate) fn black_box_op_instruction(&mut self, op: BlackBoxOp) {
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
