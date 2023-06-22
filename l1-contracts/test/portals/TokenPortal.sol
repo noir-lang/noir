@@ -98,14 +98,24 @@ contract TokenPortal {
    * @dev Second part of withdraw, must be initiated from L2 first as it will consume a message from outbox
    * @param _amount - The amount to withdraw
    * @param _recipient - The address to send the funds to
+   * @param _withCaller - Flag to use `msg.sender` as caller, otherwise address(0)
+   * Must match the caller of the message (specified from L2) to consume it.
    * @return The key of the entry in the Outbox
    */
-  function withdraw(uint256 _amount, address _recipient) external returns (bytes32) {
+  function withdraw(uint256 _amount, address _recipient, bool _withCaller)
+    external
+    returns (bytes32)
+  {
     DataStructures.L2ToL1Msg memory message = DataStructures.L2ToL1Msg({
       sender: DataStructures.L2Actor(l2TokenAddress, 1),
       recipient: DataStructures.L1Actor(address(this), block.chainid),
       content: Hash.sha256ToField(
-        abi.encodeWithSignature("withdraw(uint256,address)", _amount, _recipient)
+        abi.encodeWithSignature(
+          "withdraw(uint256,address,address)",
+          _amount,
+          _recipient,
+          _withCaller ? msg.sender : address(0)
+        )
         )
     });
 

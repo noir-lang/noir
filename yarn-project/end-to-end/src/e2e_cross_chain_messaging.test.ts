@@ -80,7 +80,9 @@ describe('e2e_cross_chain_messaging', () => {
 
   const withdrawFundsFromAztec = async (withdrawAmount: bigint) => {
     logger('Send L2 tx to withdraw funds');
-    const withdrawTx = l2Contract.methods.withdraw(withdrawAmount, ownerPub, ethAccount).send({ from: ownerAddress });
+    const withdrawTx = l2Contract.methods
+      .withdraw(withdrawAmount, ownerPub, ethAccount, EthAddress.ZERO.toField())
+      .send({ from: ownerAddress });
 
     await withdrawTx.isMined(0, 0.1);
     const withdrawReceipt = await withdrawTx.getReceipt();

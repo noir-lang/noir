@@ -96,6 +96,7 @@ contract NonNativeToken {
         amount: pub Field, 
         sender: pub Point, 
         recipient: pub Field, // ethereum address in the field
+        callerOnL1: pub Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient]);
@@ -123,7 +124,7 @@ contract NonNativeToken {
         context = sender_balance.insert(context, change_note);
         constrain emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0;
         
-        let content = _get_withdraw_content_hash(amount, recipient);
+        let content = _get_withdraw_content_hash(amount, recipient, callerOnL1);
 
         context = context.message_portal(content);
 
@@ -165,6 +166,7 @@ contract NonNativeToken {
         //*********************************/
         amount: Field,
         recipient: Field,
+        callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         _padding: [Field; dep::aztec3::abi::MAX_ARGS - 2]
     ) {
 
@@ -178,7 +180,7 @@ contract NonNativeToken {
         }  
         // TODO: Revert if there is not enough balance
 
-        let content = _get_withdraw_content_hash(amount, recipient);
+        let content = _get_withdraw_content_hash(amount, recipient, callerOnL1);
 
         // Emit the l2 to l1 message
         create_l2_to_l1_message(content);
@@ -425,20 +427,21 @@ contract NonNativeToken {
         content_hash
     }
 
-    fn _get_withdraw_content_hash(amount: Field, recipient: Field) -> pub Field {
+    fn _get_withdraw_content_hash(amount: Field, recipient: Field, callerOnL1: Field) -> pub Field {
         // Compute the content hash
         // Compute sha256(selector || amount || recipient)
         // then convert to a single field element
         // add that to the l2 to l1 messages
-        let mut hash_bytes: [u8; 68] = [0; 68];
+        let mut hash_bytes: [u8; 100] = [0; 100];
         let amount_bytes = amount.to_be_bytes(32);
         let recipient_bytes = recipient.to_be_bytes(32);
+        let callerOnL1_bytes = callerOnL1.to_be_bytes(32);
 
-        // 0x00f714ce, selector for "withdraw(uint256,address)"
-        hash_bytes[0] = 0x00;
-        hash_bytes[1] = 0xf7;
-        hash_bytes[2] = 0x14;
-        hash_bytes[3] = 0xce;
+        //  0xb460af94, selector for "withdraw(uint256,address,address)"
+        hash_bytes[0] = 0xb4;
+        hash_bytes[1] = 0x60;
+        hash_bytes[2] = 0xaf;
+        hash_bytes[3] = 0x94;
 
         // Unroll loops because otherwise takes forever to compile
         // for i in range(32):
@@ -510,6 +513,39 @@ contract NonNativeToken {
         hash_bytes[33 + 32] = recipient_bytes[29];
         hash_bytes[34 + 32] = recipient_bytes[30];
         hash_bytes[35 + 32] = recipient_bytes[31];
+
+        hash_bytes[4 + 64] = callerOnL1_bytes[0];
+        hash_bytes[5 + 64] = callerOnL1_bytes[1];
+        hash_bytes[6 + 64] = callerOnL1_bytes[2];
+        hash_bytes[7 + 64] = callerOnL1_bytes[3];
+        hash_bytes[8 + 64] = callerOnL1_bytes[4];
+        hash_bytes[9 + 64] = callerOnL1_bytes[5];
+        hash_bytes[10 + 64] = callerOnL1_bytes[6];
+        hash_bytes[11 + 64] = callerOnL1_bytes[7];
+        hash_bytes[12 + 64] = callerOnL1_bytes[8];
+        hash_bytes[13 + 64] = callerOnL1_bytes[9];
+        hash_bytes[14 + 64] = callerOnL1_bytes[10];
+        hash_bytes[15 + 64] = callerOnL1_bytes[11];
+        hash_bytes[16 + 64] = callerOnL1_bytes[12];
+        hash_bytes[17 + 64] = callerOnL1_bytes[13];
+        hash_bytes[18 + 64] = callerOnL1_bytes[14];
+        hash_bytes[19 + 64] = callerOnL1_bytes[15];
+        hash_bytes[20 + 64] = callerOnL1_bytes[16];
+        hash_bytes[21 + 64] = callerOnL1_bytes[17];
+        hash_bytes[22 + 64] = callerOnL1_bytes[18];
+        hash_bytes[23 + 64] = callerOnL1_bytes[19];
+        hash_bytes[24 + 64] = callerOnL1_bytes[20];
+        hash_bytes[25 + 64] = callerOnL1_bytes[21];
+        hash_bytes[26 + 64] = callerOnL1_bytes[22];
+        hash_bytes[27 + 64] = callerOnL1_bytes[23];
+        hash_bytes[28 + 64] = callerOnL1_bytes[24];
+        hash_bytes[29 + 64] = callerOnL1_bytes[25];
+        hash_bytes[30 + 64] = callerOnL1_bytes[26];
+        hash_bytes[31 + 64] = callerOnL1_bytes[27];
+        hash_bytes[32 + 64] = callerOnL1_bytes[28];
+        hash_bytes[33 + 64] = callerOnL1_bytes[29];
+        hash_bytes[34 + 64] = callerOnL1_bytes[30];
+        hash_bytes[35 + 64] = callerOnL1_bytes[31];
 
         let content_sha256 = dep::std::hash::sha256(hash_bytes);
 

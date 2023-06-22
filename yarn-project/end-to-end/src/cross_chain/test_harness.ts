@@ -158,15 +158,16 @@ export class CrossChainTestHarness {
     expect(transferReceipt.status).toBe(TxStatus.MINED);
   }
 
-  async checkEntryIsNotInOutbox(withdrawAmount: bigint): Promise<Fr> {
+  async checkEntryIsNotInOutbox(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Promise<Fr> {
     this.logger('Ensure that the entry is not in outbox yet');
     const contractInfo = await this.aztecNode.getContractInfo(this.l2Contract.address);
-    // 0x00f714ce, selector for "withdraw(uint256,address)"
+    // 0xb460af94, selector for "withdraw(uint256,address,address)"
     const content = sha256ToField(
       Buffer.concat([
-        Buffer.from([0x00, 0xf7, 0x14, 0xce]),
+        Buffer.from([0xb4, 0x60, 0xaf, 0x94]),
         toBufferBE(withdrawAmount, 32),
         this.ethAccount.toBuffer32(),
+        callerOnL1.toBuffer32(),
       ]),
     );
     const entryKey = sha256ToField(
@@ -189,6 +190,7 @@ export class CrossChainTestHarness {
     const { request: withdrawRequest, result: withdrawEntryKey } = await this.tokenPortal.simulate.withdraw([
       withdrawAmount,
       this.ethAccount.toString(),
+      false,
     ]);
 
     expect(withdrawEntryKey).toBe(entryKey.toString(true));

@@ -72,7 +72,9 @@ contract UniswapPortalTest is Test {
       sender: DataStructures.L2Actor(l2TokenAddress, 1),
       recipient: DataStructures.L1Actor(address(daiTokenPortal), block.chainid),
       content: Hash.sha256ToField(
-        abi.encodeWithSignature("withdraw(uint256,address)", amount, _recipient)
+        abi.encodeWithSignature(
+          "withdraw(uint256,address,address)", amount, _recipient, address(uniswapPortal)
+        )
         )
     });
     entryKey = outbox.computeEntryKey(message);

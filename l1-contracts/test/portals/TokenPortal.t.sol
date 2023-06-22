@@ -40,16 +40,20 @@ contract TokenPortalTest is Test {
   Rollup internal rollup;
   bytes32 internal l2TokenAddress = bytes32(uint256(0x42));
 
-  TokenPortal tokenPortal;
-  PortalERC20 portalERC20;
+  TokenPortal internal tokenPortal;
+  PortalERC20 internal portalERC20;
 
   // input params
-  uint32 deadline = uint32(block.timestamp + 1 days);
-  bytes32 to = bytes32(0x2d749407d8c364537cdeb799c1574929cb22ff1ece2b96d2a1c6fa287a0e0171);
-  uint256 amount = 100;
-  uint256 mintAmount = 1 ether;
-  bytes32 secretHash = 0x147e4fec49805c924e28150fc4b36824679bc17ecb1d7d9f6a9effb7fde6b6a0;
-  uint64 bid = 1 ether;
+  uint32 internal deadline = uint32(block.timestamp + 1 days);
+  bytes32 internal to = bytes32(0x2d749407d8c364537cdeb799c1574929cb22ff1ece2b96d2a1c6fa287a0e0171);
+  uint256 internal amount = 100;
+  uint256 internal mintAmount = 1 ether;
+  bytes32 internal secretHash = 0x147e4fec49805c924e28150fc4b36824679bc17ecb1d7d9f6a9effb7fde6b6a0;
+  uint64 internal bid = 1 ether;
+
+  // params for withdraw:
+  address internal recipient = address(0xdead);
+  uint256 internal withdrawAmount = 654;
 
   function setUp() public {
     registry = new Registry();
@@ -154,35 +158,88 @@ contract TokenPortalTest is Test {
     assertEq(portalERC20.balanceOf(address(tokenPortal)), 0, "portal should have no assets");
   }
 
-  function testWithdraw() public {
-    uint256 withdrawAmount = 654;
-    portalERC20.mint(address(tokenPortal), withdrawAmount);
-    address _recipient = address(0xdead);
-    bytes32[] memory entryKeys = new bytes32[](1);
-    entryKeys[0] = outbox.computeEntryKey(
+  function _createWithdrawMessageForOutbox(address _designatedCaller)
+    internal
+    view
+    returns (bytes32)
+  {
+    bytes32 entryKey = outbox.computeEntryKey(
       DataStructures.L2ToL1Msg({
         sender: DataStructures.L2Actor({actor: l2TokenAddress, version: 1}),
         recipient: DataStructures.L1Actor({actor: address(tokenPortal), chainId: block.chainid}),
         content: Hash.sha256ToField(
-          abi.encodeWithSignature("withdraw(uint256,address)", withdrawAmount, _recipient)
+          abi.encodeWithSignature(
+            "withdraw(uint256,address,address)", withdrawAmount, recipient, _designatedCaller
+          )
           )
       })
     );
+    return entryKey;
+  }
 
+  function _addWithdrawMessageInOutbox(address _designatedCaller) internal returns (bytes32) {
+    // send assets to the portal
+    portalERC20.mint(address(tokenPortal), withdrawAmount);
+
+    // Create the message
+    bytes32[] memory entryKeys = new bytes32[](1);
+    entryKeys[0] = _createWithdrawMessageForOutbox(_designatedCaller);
     // Insert messages into the outbox (impersonating the rollup contract)
     vm.prank(address(rollup));
     outbox.sendL1Messages(entryKeys);
+    return entryKeys[0];
+  }
 
-    assertEq(portalERC20.balanceOf(_recipient), 0);
+  function testAnyoneCanCallWithdrawIfNoDesignatedCaller(address _caller) public {
+    vm.assume(_caller != address(0));
+    bytes32 expectedEntryKey = _addWithdrawMessageInOutbox(address(0));
+    assertEq(portalERC20.balanceOf(recipient), 0);
 
+    vm.startPrank(_caller);
     vm.expectEmit(true, true, true, true);
-    emit MessageConsumed(entryKeys[0], address(tokenPortal));
-    bytes32 entryKey = tokenPortal.withdraw(withdrawAmount, _recipient);
+    emit MessageConsumed(expectedEntryKey, address(tokenPortal));
+    bytes32 actualEntryKey = tokenPortal.withdraw(withdrawAmount, recipient, false);
+    assertEq(expectedEntryKey, actualEntryKey);
     // Should have received 654 RNA tokens
-    assertEq(portalERC20.balanceOf(_recipient), withdrawAmount);
+    assertEq(portalERC20.balanceOf(recipient), withdrawAmount);
 
     // Should not be able to withdraw again
-    vm.expectRevert(abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKey));
-    tokenPortal.withdraw(withdrawAmount, _recipient);
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, actualEntryKey)
+    );
+    tokenPortal.withdraw(withdrawAmount, recipient, false);
+    vm.stopPrank();
+  }
+
+  function testWithdrawWithDesignatedCallerFailsForOtherCallers(address _caller) public {
+    vm.assume(_caller != address(this));
+    // add message with caller as this address
+    _addWithdrawMessageInOutbox(address(this));
+
+    vm.startPrank(_caller);
+    bytes32 entryKeyPortalChecksAgainst = _createWithdrawMessageForOutbox(_caller);
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
+    );
+    tokenPortal.withdraw(withdrawAmount, recipient, true);
+
+    entryKeyPortalChecksAgainst = _createWithdrawMessageForOutbox(address(0));
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
+    );
+    tokenPortal.withdraw(withdrawAmount, recipient, false);
+    vm.stopPrank();
+  }
+
+  function testWithdrawWithDesignatedCallerSucceedsForDesignatedCaller() public {
+    // add message with caller as this address
+    bytes32 expectedEntryKey = _addWithdrawMessageInOutbox(address(this));
+
+    vm.expectEmit(true, true, true, true);
+    emit MessageConsumed(expectedEntryKey, address(tokenPortal));
+    bytes32 actualEntryKey = tokenPortal.withdraw(withdrawAmount, recipient, true);
+    assertEq(expectedEntryKey, actualEntryKey);
+    // Should have received 654 RNA tokens
+    assertEq(portalERC20.balanceOf(recipient), withdrawAmount);
   }
 }

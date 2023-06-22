@@ -61,8 +61,7 @@ contract UniswapPortal {
     IERC20 outputAsset = TokenPortal(_outputTokenPortal).underlying();
 
     // Withdraw the input asset from the portal
-    // todo: add `true` when using designated caller
-    TokenPortal(_inputTokenPortal).withdraw(_inAmount, address(this));
+    TokenPortal(_inputTokenPortal).withdraw(_inAmount, address(this), true);
 
     {
       // prevent stack too deep errors
