@@ -1283,18 +1283,18 @@ mod test {
 
         let element_type = Rc::new(vec![Type::field()]);
         let zero_array = builder.array_constant(im::Vector::unit(zero), element_type.clone());
-        let izero = builder.numeric_constant(0_u128, Type::unsigned(32));
+        let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
         let pedersen =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
         let v10 = builder.insert_call(
             pedersen,
-            vec![zero_array, izero],
+            vec![zero_array, i_zero],
             vec![Type::Array(element_type, 2)],
         )[0];
         let v11 = builder.insert_array_get(v10, zero, Type::field());
         let v12 = builder.insert_cast(v11, Type::unsigned(32));
-        let itwo = builder.numeric_constant(2_u128, Type::unsigned(32));
-        let v14 = builder.insert_binary(v12, BinaryOp::Mod, itwo);
+        let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
+        let v14 = builder.insert_binary(v12, BinaryOp::Mod, i_two);
         let v15 = builder.insert_cast(v14, Type::bool());
 
         let v17 = builder.insert_binary(v11, BinaryOp::Add, one);
