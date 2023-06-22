@@ -170,7 +170,7 @@
       };
 
       # Combine the environmnet with cargo args needed to build wasm package
-      noirWasmArgs = wasmEnvironment // {
+      noirWasmArgs = sharedEnvironment // sharedArgs // {
         pname = "noir_wasm";
 
         src = ./.;
