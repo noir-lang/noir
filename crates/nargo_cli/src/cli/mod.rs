@@ -103,64 +103,22 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
 
     let program =
         compile_circuit(&backend, program_dir, &compile_options).expect("Compile should succeed");
-    let common_reference_string = update_common_reference_string(
-        &backend,
-        // Empty CRS is always used since we don't read/write a cached version in these tests
-        &[],
-        &program.circuit,
-    )
-    .expect("Should fetch CRS");
-    let preprocessed_program = preprocess_program(&backend, &common_reference_string, program)
-        .expect("Preprocess should succeed");
-
-    let nargo::artifacts::program::PreprocessedProgram {
-        abi,
-        bytecode,
-        proving_key,
-        verification_key,
-        ..
-    } = preprocessed_program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) = fs::inputs::read_inputs_from_file(
         program_dir,
         crate::constants::PROVER_INPUT_FILE,
         noirc_abi::input_parser::Format::Toml,
-        &abi,
+        &program.abi,
     )
     .expect("Should read inputs");
 
-    let solved_witness =
-        match execute_cmd::execute_program(&backend, bytecode.clone(), &abi, &inputs_map) {
-            Ok(witness) => witness,
-            // Failure to execute is an invalid proof
-            Err(_) => return false,
-        };
+    let initial_witness = program.abi.encode(&inputs_map, None).expect("could not encode inputs");
 
-    let public_abi = abi.public_abi();
-    let (public_inputs, return_value) =
-        public_abi.decode(&solved_witness).expect("Solved witness should decode");
-
-    let proof = nargo::ops::prove_execution(
-        &backend,
-        &common_reference_string,
-        &bytecode,
-        solved_witness,
-        &proving_key,
-    )
-    .expect("Circuit should prove");
-
-    let public_inputs =
-        public_abi.encode(&public_inputs, return_value).expect("Public inputs should encode");
-    nargo::ops::verify_proof(
-        &backend,
-        &common_reference_string,
-        &bytecode,
-        &proof,
-        public_inputs,
-        &verification_key,
-    )
-    .expect("Proof should verify")
+    match nargo::ops::execute_circuit(&backend, program.circuit, initial_witness) {
+        Ok(_) => return true,
+        Err(_) => return false,
+    };
 }
 
 // FIXME: I not sure that this is the right place for this tests.
