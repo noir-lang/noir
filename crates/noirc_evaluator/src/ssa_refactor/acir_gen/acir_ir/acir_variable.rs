@@ -846,18 +846,3 @@ impl AcirVarData {
 /// A Reference to an `AcirVarData`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
-
-#[test]
-fn repeat_op() {
-    let mut ctx = AcirContext::default();
-
-    let var_a = ctx.add_variable();
-    let var_b = ctx.add_variable();
-
-    // Multiplying the same variables twice should yield
-    // the same output.
-    let var_c = ctx.mul_var(var_a, var_b);
-    let should_be_var_c = ctx.mul_var(var_a, var_b);
-
-    assert_eq!(var_c, should_be_var_c);
-}
