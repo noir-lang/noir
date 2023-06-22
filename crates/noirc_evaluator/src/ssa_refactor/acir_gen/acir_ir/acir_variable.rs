@@ -122,10 +122,10 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
-    /// True if the given AcirVar refers to a constant zero value
-    pub(crate) fn is_constant_zero(&self, var: &AcirVar) -> bool {
+    /// True if the given AcirVar refers to a constant one value
+    pub(crate) fn is_constant_one(&self, var: &AcirVar) -> bool {
         match self.vars[var] {
-            AcirVarData::Const(field) => field.is_zero(),
+            AcirVarData::Const(field) => field.is_one(),
             _ => false,
         }
     }
