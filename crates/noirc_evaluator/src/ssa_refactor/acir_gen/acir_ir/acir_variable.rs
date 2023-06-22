@@ -832,9 +832,8 @@ impl AcirContext {
         rhs: AcirVar,
         bit_size: u32,
     ) -> Result<(), AcirGenError> {
-        let lhs_expr = &self.vars[lhs].to_expression();
-        let rhs_expr = &self.vars[rhs].to_expression();
-        self.acir_ir.bound_constraint_with_offset(lhs_expr, rhs_expr, &Expression::zero(), bit_size)
+        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, None)?;
+        self.assert_eq_one(lhs_less_than_rhs)
     }
 }
 
