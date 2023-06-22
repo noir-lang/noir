@@ -42,6 +42,9 @@ jobs:
       - name: Restore nix store cache
         id: nix-store-cache
         uses: actions/cache@v3
+        # The cache action seems to be flaky on `macos-latest-xl` so we timeout in 2 minutes but continue on error
+        timeout-minutes: 2
+        continue-on-error: true
         with:
           path: /tmp/nix-cache
           key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
