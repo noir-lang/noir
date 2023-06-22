@@ -35,21 +35,15 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tower.workspace = true
-async-lsp = { version = "0.0.4", default-features = false }
+async-lsp = { version = "0.0.4", default-features = false, features = ["client-monitor", "stdio", "tracing"] }
 const_format = "0.2.30"
 hex = "0.4.2"
 termcolor = "1.1.2"
 color-eyre = "0.6.2"
-tokio = "1.0"
+tokio = { version = "1.0", features = ["io-std"] }
 
 # Backends
 acvm-backend-barretenberg = { version = "0.5.1", default-features = false }
-
-[target.'cfg(not(windows))'.dependencies.async-lsp]
-features = ["client-monitor", "stdio", "tracing"]
-
-[target.'cfg(windows)'.dependencies.async-lsp]
-features = ["stdio", "tracing"]
 
 [dev-dependencies]
 tempdir = "0.3.7"

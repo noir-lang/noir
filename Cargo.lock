@@ -354,7 +354,7 @@ dependencies = [
 [[package]]
 name = "async-lsp"
 version = "0.0.4"
-source = "git+https://github.com/oxalica/async-lsp?rev=9fc2db84ddcda291a864f044657f68d4377557f7#9fc2db84ddcda291a864f044657f68d4377557f7"
+source = "git+https://github.com/oxalica/async-lsp?rev=09dbcc11046f7a188a80137f8d36484d86c78c78#09dbcc11046f7a188a80137f8d36484d86c78c78"
 dependencies = [
  "either",
  "futures",
@@ -368,6 +368,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

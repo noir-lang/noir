@@ -44,8 +44,19 @@ pub(crate) fn run<B: Backend>(
 
             builder.service(router)
         });
-        let stdin = BufReader::new(PipeStdin::lock().unwrap());
-        let stdout = async_lsp::stdio::PipeStdout::lock().unwrap();
+
+        // Prefer truely asynchronous piped stdin/stdout without blocking tasks.
+        #[cfg(unix)]
+        let (stdin, stdout) = (
+            async_lsp::stdio::PipeStdin::lock_tokio().unwrap(),
+            async_lsp::stdio::PipeStdout::lock_tokio().unwrap(),
+        );
+        // Fallback to spawn blocking read/write otherwise.
+        #[cfg(not(unix))]
+        let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
+
+        let stdin = BufReader::new(stdin);
+
         server.run(stdin, stdout).await.map_err(CliError::LspError)
     })
 }
