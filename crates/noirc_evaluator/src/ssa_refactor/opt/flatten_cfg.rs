@@ -1198,9 +1198,32 @@ mod test {
             _ => Vec::new(),
         }
     }
+
     // Regression test for https://github.com/noir-lang/noir/issues/1792
     #[test]
     fn should_not_simplify_to_assert_false() {
+        // fn main f1 {
+        //   b0():
+        //     v4 = call pedersen([Field 0], u32 0)
+        //     v5 = array_get v4, index Field 0
+        //     v6 = cast v5 as u32
+        //     v8 = mod v6, u32 2
+        //     v9 = cast v8 as u1
+        //     v10 = allocate
+        //     store Field 0 at v10
+        //     jmpif v9 then: b1, else: b2
+        //   b1():
+        //     v14 = add v5, Field 1
+        //     store v14 at v10
+        //     jmp b3()
+        //   b3():
+        //     v12 = eq v9, u1 1
+        //     constrain v12
+        //     return
+        //   b2():
+        //     store Field 0 at v10
+        //     jmp b3()
+        // }
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
