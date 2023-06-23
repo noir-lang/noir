@@ -31,9 +31,9 @@ pub fn execute_circuit(
             // Execute foreign calls
             // TODO(#1615): "oracle_print_impl" and "oracle_print_array_impl" are just identity funcs
             if foreign_call_wait_info.function == "oracle_print_impl" {
-                let value = foreign_call_wait_info.inputs[0][0];
-                println!("{:?}", value.to_field().to_hex());
-                brillig.foreign_call_results.push(value.into());
+                let values = &foreign_call_wait_info.inputs[0];
+                println!("{:?}", values[0].to_field().to_hex());
+                brillig.foreign_call_results.push(foreign_call_wait_info.inputs[0][0].into());
             } else if foreign_call_wait_info.function == "oracle_print_array_impl" {
                 let mut outputs_hex = Vec::new();
                 for values in foreign_call_wait_info.inputs.clone() {
