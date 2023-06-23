@@ -105,10 +105,18 @@ impl Context {
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> AcirValue {
+        self.create_value_from_type(param_type, |this, typ| this.add_numeric_input_var(&typ))
+    }
+
+    fn create_value_from_type(
+        &mut self,
+        param_type: &Type,
+        mut make_var: impl FnMut(&mut Self, NumericType) -> AcirVar,
+    ) -> AcirValue {
         match param_type {
             Type::Numeric(numeric_type) => {
                 let typ = AcirType::new(*numeric_type);
-                AcirValue::Var(self.add_numeric_input_var(numeric_type), typ)
+                AcirValue::Var(make_var(self, *numeric_type), typ)
             }
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
@@ -283,6 +291,20 @@ impl Context {
             .expect("Expected array index to be a known constant")
             .try_to_u64()
             .expect("Expected array index to fit into a u64") as usize;
+
+        if index >= array.len() {
+            // Ignore the error if side effects are disabled.
+            if let Some(var) = self.current_side_effects_enabled_var {
+                if self.acir_context.is_constant_one(&var) {
+                    // TODO: Can we save a source Location for this error?
+                    panic!("Index {} is out of bounds for array of length {}", index, array.len());
+                }
+            }
+            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+            let value = self.create_default_value(&result_type);
+            self.define_result(dfg, instruction, value);
+            return;
+        }
 
         let value = match store_value {
             Some(store_value) => {
@@ -703,6 +725,13 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
+    }
+
+    /// Creates a default, meaningless value meant only to be a valid value of the given type.
+    fn create_default_value(&mut self, param_type: &Type) -> AcirValue {
+        self.create_value_from_type(param_type, |this, _| {
+            this.acir_context.add_constant(FieldElement::zero())
+        })
     }
 }
 

@@ -378,7 +378,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         Intrinsic::ToRadix(endian) => {
             let field = constant_args[0];
             let radix = constant_args[1].to_u128() as u32;
-            let limb_count = constant_args[1].to_u128() as u32;
+            let limb_count = constant_args[2].to_u128() as u32;
             SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
         }
         Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,

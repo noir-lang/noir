@@ -63,7 +63,7 @@ struct Loops {
 fn find_all_loops(function: &Function) -> Loops {
     let cfg = ControlFlowGraph::with_function(function);
     let post_order = PostOrder::with_function(function);
-    let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+    let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
     let mut loops = vec![];
 
