@@ -1322,8 +1322,15 @@ mod test {
         let main = ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
-        use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        let mut constrain_count = 0;
+        for instruction in main.dfg[main.entry_block()].instructions() {
+            if let Instruction::Constrain(value) = main.dfg[*instruction] {
+                if let Some(constant) = main.dfg.get_numeric_constant(value) {
+                    assert!(constant.is_one());
+                }
+                constrain_count += 1;
+            }
+        }
         assert_eq!(constrain_count, 1);
     }
 }
