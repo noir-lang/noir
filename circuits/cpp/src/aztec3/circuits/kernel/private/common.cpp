@@ -7,6 +7,7 @@
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
@@ -21,6 +22,7 @@ using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NewContractData;
+using aztec3::circuits::abis::PreviousKernelData;
 
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
@@ -288,15 +290,15 @@ void common_contract_logic(DummyComposer& composer,
     }
 }
 
-void common_initialise_end_values(PrivateKernelInputsInner<NT> const& private_inputs,
+void common_initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
                                   KernelCircuitPublicInputs<NT>& public_inputs)
 {
-    public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
+    public_inputs.constants = previous_kernel.public_inputs.constants;
 
     // Ensure the arrays are the same as previously, before we start pushing more data onto them in other functions
     // within this circuit:
     auto& end = public_inputs.end;
-    const auto& start = private_inputs.previous_kernel.public_inputs.end;
+    const auto& start = previous_kernel.public_inputs.end;
 
     end.new_commitments = start.new_commitments;
     end.new_nullifiers = start.new_nullifiers;

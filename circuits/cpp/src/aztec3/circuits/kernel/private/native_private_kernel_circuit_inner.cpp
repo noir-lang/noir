@@ -3,6 +3,7 @@
 
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_inner.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
@@ -105,7 +106,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyComposer&
     KernelCircuitPublicInputs<NT> public_inputs{};
 
     // Do this before any functions can modify the inputs.
-    common_initialise_end_values(private_inputs, public_inputs);
+    common_initialise_end_values(private_inputs.previous_kernel, public_inputs);
 
     validate_inputs(composer, private_inputs);
 

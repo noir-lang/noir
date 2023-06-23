@@ -150,6 +150,20 @@ export class KernelProver {
       previousVerificationKey = privateCallData.vk;
     }
 
+    const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(previousVerificationKey);
+    const previousKernelData = new PreviousKernelData(
+      output.publicInputs,
+      output.proof,
+      previousVerificationKey,
+      Number(previousVkMembershipWitness.leafIndex),
+      assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
+    );
+
+    //TODO(jeanmon): Temporary milestone where we only feed new commitments of the output
+    // of ordering circuit into the final output. Longer-term goal is to output the ordering circuit output.
+    const orderedOutput = await this.proofCreator.createProofOrdering(previousKernelData);
+    output.publicInputs.end.newCommitments = orderedOutput.publicInputs.end.newCommitments;
+
     // Only return the notes whose commitment is in the commitments of the final proof.
     const finalNewCommitments = output.publicInputs.end.newCommitments;
     const outputNotes = finalNewCommitments.map(c => newNotes[c.toString()]).filter(c => !!c);

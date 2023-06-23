@@ -41,12 +41,11 @@ TEST_F(native_private_kernel_ordering_tests, native_one_read_request_choping_com
     read_request_membership_witnesses[0].leaf_index = fr(-1);
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
-    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
-    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyComposer composer =
         DummyComposer("native_private_kernel_ordering_tests__native_one_read_request_choping_commitment_works");
-    auto const& public_inputs = native_private_kernel_circuit_ordering(composer, private_inputs);
+    auto const& public_inputs = native_private_kernel_circuit_ordering(
+        composer, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
 
     auto failure = composer.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
@@ -76,14 +75,12 @@ TEST_F(native_private_kernel_ordering_tests, native_read_requests_choping_commit
     read_request_membership_witnesses[0].leaf_index = fr(-1);
     read_request_membership_witnesses[1].leaf_index = fr(-1);
 
-
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
-    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
-    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyComposer composer =
         DummyComposer("native_private_kernel_ordering_tests__native_read_requests_choping_commitment_works");
-    auto const& public_inputs = native_private_kernel_circuit_ordering(composer, private_inputs);
+    auto const& public_inputs = native_private_kernel_circuit_ordering(
+        composer, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
 
     auto failure = composer.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
@@ -120,11 +117,10 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
     read_request_membership_witnesses[3].leaf_index = fr(-1);
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
-    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
-    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyComposer composer = DummyComposer("native_private_kernel_ordering_tests__native_read_request_unknown_fails");
-    auto const& public_inputs = native_private_kernel_circuit_ordering(composer, private_inputs);
+    auto const& public_inputs = native_private_kernel_circuit_ordering(
+        composer, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
 
     auto failure = composer.get_first_failure();
     ASSERT_EQ(failure.code, CircuitErrorCode::PRIVATE_KERNEL__TRANSIENT_READ_REQUEST_NO_MATCH);

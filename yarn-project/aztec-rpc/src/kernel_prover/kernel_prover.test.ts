@@ -105,6 +105,7 @@ describe('Kernel Prover', () => {
     );
     proofCreator.createProofInit.mockResolvedValue(createProofOutput([]));
     proofCreator.createProofInner.mockResolvedValue(createProofOutput([]));
+    proofCreator.createProofOrdering.mockResolvedValue(createProofOutput([]));
 
     prover = new KernelProver(oracle, proofCreator);
   });
@@ -154,6 +155,7 @@ describe('Kernel Prover', () => {
     proofCreator.createProofInit.mockResolvedValueOnce(createProofOutput([1, 2, 3]));
     proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 4]));
     proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 5, 6]));
+    proofCreator.createProofOrdering.mockResolvedValueOnce(createProofOutput([1, 3, 5, 6]));
 
     const executionResult = {
       ...resultA,

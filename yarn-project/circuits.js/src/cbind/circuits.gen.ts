@@ -24,6 +24,8 @@ import {
   Proof,
   VerificationKeyData,
   PreviousKernelData,
+  CircuitError,
+  isCircuitError,
   CallContext,
   ContractStorageUpdateRequest,
   ContractStorageRead,
@@ -31,8 +33,6 @@ import {
   PublicCallStackItem,
   PublicCallData,
   PublicKernelInputs,
-  CircuitError,
-  isCircuitError,
 } from './types.js';
 import { Tuple, mapTuple } from '@aztec/foundation/serialize';
 import mapValues from 'lodash.mapvalues';
@@ -890,6 +890,34 @@ export function fromPreviousKernelData(o: PreviousKernelData): MsgpackPreviousKe
   };
 }
 
+interface MsgpackCircuitError {
+  code: number;
+  message: string;
+}
+
+export function toCircuitError(o: MsgpackCircuitError): CircuitError {
+  if (o.code === undefined) {
+    throw new Error('Expected code in CircuitError deserialization');
+  }
+  if (o.message === undefined) {
+    throw new Error('Expected message in CircuitError deserialization');
+  }
+  return new CircuitError(o.code, o.message);
+}
+
+export function fromCircuitError(o: CircuitError): MsgpackCircuitError {
+  if (o.code === undefined) {
+    throw new Error('Expected code in CircuitError serialization');
+  }
+  if (o.message === undefined) {
+    throw new Error('Expected message in CircuitError serialization');
+  }
+  return {
+    code: o.code,
+    message: o.message,
+  };
+}
+
 interface MsgpackCallContext {
   msg_sender: Buffer;
   storage_contract_address: Buffer;
@@ -1296,34 +1324,6 @@ export function fromPublicKernelInputs(o: PublicKernelInputs): MsgpackPublicKern
   };
 }
 
-interface MsgpackCircuitError {
-  code: number;
-  message: string;
-}
-
-export function toCircuitError(o: MsgpackCircuitError): CircuitError {
-  if (o.code === undefined) {
-    throw new Error('Expected code in CircuitError deserialization');
-  }
-  if (o.message === undefined) {
-    throw new Error('Expected message in CircuitError deserialization');
-  }
-  return new CircuitError(o.code, o.message);
-}
-
-export function fromCircuitError(o: CircuitError): MsgpackCircuitError {
-  if (o.code === undefined) {
-    throw new Error('Expected code in CircuitError serialization');
-  }
-  if (o.message === undefined) {
-    throw new Error('Expected message in CircuitError serialization');
-  }
-  return {
-    code: o.code,
-    message: o.message,
-  };
-}
-
 export function abisComputeContractAddress(
   wasm: IWasmModule,
   arg0: Tuple<Fr, 2>,
@@ -1345,6 +1345,15 @@ export function abisSiloCommitment(wasm: IWasmModule, arg0: Address, arg1: Fr): 
 }
 export function privateKernelDummyPreviousKernel(wasm: IWasmModule): PreviousKernelData {
   return toPreviousKernelData(callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));
+}
+export function privateKernelSimOrdering(
+  wasm: IWasmModule,
+  arg0: PreviousKernelData,
+): CircuitError | KernelCircuitPublicInputs {
+  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
+    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
+    callCbind(wasm, 'private_kernel__sim_ordering', [fromPreviousKernelData(arg0)]),
+  );
 }
 export function publicKernelSim(wasm: IWasmModule, arg0: PublicKernelInputs): CircuitError | KernelCircuitPublicInputs {
   return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>

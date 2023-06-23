@@ -11,6 +11,7 @@ import {
 import { handleCircuitOutput } from '../utils/call_wasm.js';
 import { serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/index.js';
+export { privateKernelSimOrdering } from '../cbind/circuits.gen.js';
 
 /**
  * Computes contract's function tree from the given leaves.
