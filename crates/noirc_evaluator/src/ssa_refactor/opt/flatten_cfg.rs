@@ -1296,7 +1296,7 @@ mod test {
         //     v_false = u1 0
         //     jmpif v_false then: b_useless_branch, else: b_fallthrough
         //   b_useless_branch():
-        //     jmp b2()
+        //     jmp b_fallthrough()
         //   b_fallthrough():
         //     constrain v_false // was incorrectly removed
         //     return
