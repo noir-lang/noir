@@ -98,7 +98,7 @@ impl Ssa {
                 generated_acir.return_witnesses = distinct_return_witness;
                 generated_acir
             }
-            AbiDistinctness::DuplicationAllowed => return generated_acir,
+            AbiDistinctness::DuplicationAllowed => generated_acir,
         }
     }
 }

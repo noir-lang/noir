@@ -33,7 +33,7 @@ pub(crate) fn optimize_into_acir(
     allow_log_ops: bool,
     print_ssa_passes: bool,
 ) -> GeneratedAcir {
-    let abi_distinctness = program.return_distinctness.clone();
+    let abi_distinctness = program.return_distinctness;
     let ssa = ssa_gen::generate_ssa(program).print(print_ssa_passes, "Initial SSA:");
     let brillig = ssa.to_brillig();
     ssa.inline_functions()
