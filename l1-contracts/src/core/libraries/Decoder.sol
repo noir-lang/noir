@@ -6,8 +6,6 @@ pragma solidity >=0.8.18;
 import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
 
-import {Test} from "forge-std/Test.sol";
-
 /**
  * @title Decoder Library
  * @author Aztec Labs
@@ -99,7 +97,7 @@ library Decoder {
     uint256 unencryptedLogsOffset;
   }
 
-  // Note: Used in `_computeConsumables` to get around stack too deep errors.
+  // Note: Used in `computeConsumables` to get around stack too deep errors.
   struct ConsumablesVars {
     bytes32[] baseLeaves;
     bytes32[] l2ToL1Msgs;

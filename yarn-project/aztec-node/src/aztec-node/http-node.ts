@@ -116,6 +116,28 @@ export class HttpNode implements AztecNode {
   }
 
   /**
+   * Method to fetch the version of the rollup the node is connected to.
+   * @returns The rollup version.
+   */
+  public async getVersion(): Promise<Fr> {
+    const url = new URL(`${this.baseUrl}/get-version`);
+    const response = await fetch(url.toString());
+    const respJson = await response.json();
+    return respJson.version;
+  }
+
+  /**
+   * Method to fetch the chain id of the base-layer for the rollup.
+   * @returns The chain id.
+   */
+  public async getChainId(): Promise<Fr> {
+    const url = new URL(`${this.baseUrl}/get-chain-id`);
+    const response = await fetch(url.toString());
+    const respJson = await response.json();
+    return respJson.chainId;
+  }
+
+  /**
    * Lookup the L2 contract data for this contract.
    * Contains the ethereum portal address and bytecode.
    * @param contractAddress - The contract data address.

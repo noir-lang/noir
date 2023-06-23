@@ -66,6 +66,22 @@ export function appFactory(node: AztecNode, prefix: string) {
     ctx.status = 200;
   });
 
+  router.get('/get-version', async (ctx: Koa.Context) => {
+    ctx.set('content-type', 'application/json');
+    ctx.body = {
+      version: await node.getVersion(),
+    };
+    ctx.status = 200;
+  });
+
+  router.get('/get-chain-id', async (ctx: Koa.Context) => {
+    ctx.set('content-type', 'application/json');
+    ctx.body = {
+      chainId: await node.getChainId(),
+    };
+    ctx.status = 200;
+  });
+
   router.get('/contract-data', async (ctx: Koa.Context) => {
     const address = ctx.query.address;
     ctx.set('content-type', 'application/json');

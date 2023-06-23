@@ -59,9 +59,15 @@ export async function makeProcessedTx(
  * Makes an empty tx from an empty kernel circuit public inputs.
  * @returns A processed empty tx.
  */
-export function makeEmptyProcessedTx(historicTreeRoots: CombinedHistoricTreeRoots): Promise<ProcessedTx> {
+export function makeEmptyProcessedTx(
+  historicTreeRoots: CombinedHistoricTreeRoots,
+  chainId: Fr,
+  version: Fr,
+): Promise<ProcessedTx> {
   const emptyKernelOutput = KernelCircuitPublicInputs.empty();
   emptyKernelOutput.constants.historicTreeRoots = historicTreeRoots;
+  emptyKernelOutput.constants.txContext.chainId = chainId;
+  emptyKernelOutput.constants.txContext.version = version;
   const emptyProof = makeEmptyProof();
 
   const hash = new TxHash(Fr.ZERO.toBuffer());

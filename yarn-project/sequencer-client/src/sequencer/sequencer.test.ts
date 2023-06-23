@@ -43,7 +43,7 @@ describe('sequencer', () => {
 
     publicProcessor = mock<PublicProcessor>({
       process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx))), []],
-      makeEmptyProcessedTx: () => makeEmptyProcessedTx(CombinedHistoricTreeRoots.empty()),
+      makeEmptyProcessedTx: () => makeEmptyProcessedTx(CombinedHistoricTreeRoots.empty(), Fr.ZERO, Fr.ZERO),
     });
 
     publicProcessorFactory = mock<PublicProcessorFactory>({
@@ -66,6 +66,10 @@ describe('sequencer', () => {
       l2BlockSource,
       l1ToL2MessageSource,
       publicProcessorFactory,
+      {
+        chainId: 0,
+        version: 0,
+      },
     );
   });
 

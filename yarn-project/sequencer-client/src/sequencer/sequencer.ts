@@ -36,6 +36,8 @@ export class Sequencer {
   private minTxsPerBLock = 1;
   private lastPublishedBlock = 0;
   private state = SequencerState.STOPPED;
+  private chainId: Fr;
+  private version: Fr;
 
   constructor(
     private publisher: L1Publisher,
@@ -45,16 +47,18 @@ export class Sequencer {
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private publicProcessorFactory: PublicProcessorFactory,
-    config?: SequencerConfig,
+    config: SequencerConfig,
     private log = createDebugLogger('aztec:sequencer'),
   ) {
-    this.pollingIntervalMs = config?.transactionPollingInterval ?? 1_000;
-    if (config?.maxTxsPerBlock) {
+    this.pollingIntervalMs = config.transactionPollingInterval ?? 1_000;
+    if (config.maxTxsPerBlock) {
       this.maxTxsPerBlock = config.maxTxsPerBlock;
     }
-    if (config?.minTxsPerBlock) {
+    if (config.minTxsPerBlock) {
       this.minTxsPerBLock = config.minTxsPerBlock;
     }
+    this.chainId = new Fr(config.chainId);
+    this.version = new Fr(config.version);
   }
 
   /**
@@ -152,7 +156,7 @@ export class Sequencer {
 
       // Build the new block by running the rollup circuits
       this.log(`Assembling block with txs ${processedTxs.map(tx => tx.hash).join(', ')}`);
-      const emptyTx = await processor.makeEmptyProcessedTx();
+      const emptyTx = await processor.makeEmptyProcessedTx(this.chainId, this.version);
       const block = await this.buildBlock(processedTxs, l1ToL2Messages, emptyTx);
       this.log(`Assembled block ${block.number}`);
 

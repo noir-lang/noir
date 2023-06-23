@@ -24,12 +24,14 @@ import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
 contract Rollup is IRollup {
   MockVerifier public immutable VERIFIER;
   IRegistry public immutable REGISTRY;
+  uint256 public immutable VERSION;
 
   bytes32 public rollupStateHash;
 
   constructor(IRegistry _registry) {
     VERIFIER = new MockVerifier();
     REGISTRY = _registry;
+    VERSION = 1;
   }
 
   /**
@@ -38,6 +40,7 @@ contract Rollup is IRollup {
    * @param _l2Block - The L2Block data, formatted as outlined in `Decoder.sol`
    */
   function process(bytes memory _proof, bytes calldata _l2Block) external override(IRollup) {
+    _constrainGlobals(_l2Block);
     (
       uint256 l2BlockNumber,
       bytes32 oldStateHash,
@@ -71,5 +74,25 @@ contract Rollup is IRollup {
     outbox.sendL1Messages(l2ToL1Msgs);
 
     emit L2BlockProcessed(l2BlockNumber);
+  }
+
+  function _constrainGlobals(bytes calldata _l2Block) internal view {
+    // @todo issue #830 Constrain timestamp
+
+    uint256 chainId;
+    uint256 version;
+    // block number already constrained by start state hash
+    assembly {
+      chainId := calldataload(_l2Block.offset)
+      version := calldataload(add(_l2Block.offset, 0x20))
+    }
+
+    if (block.chainid != chainId) {
+      revert Errors.Rollup__InvalidChainId(chainId, block.chainid);
+    }
+
+    if (version != VERSION) {
+      revert Errors.Rollup__InvalidVersion(version, VERSION);
+    }
   }
 }

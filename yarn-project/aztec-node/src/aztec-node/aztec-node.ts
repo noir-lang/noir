@@ -38,6 +38,18 @@ export interface AztecNode {
   getBlockHeight(): Promise<number>;
 
   /**
+   * Method to fetch the version of the rollup the node is connected to.
+   * @returns The rollup version.
+   */
+  getVersion(): Promise<Fr>;
+
+  /**
+   * Method to fetch the chain id of the base-layer for the rollup.
+   * @returns The chain id.
+   */
+  getChainId(): Promise<Fr>;
+
+  /**
    * Lookup the L2 contract data for this contract.
    * Contains the ethereum portal address and bytecode.
    * @param contractAddress - The contract data address.

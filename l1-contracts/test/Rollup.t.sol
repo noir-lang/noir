@@ -11,7 +11,7 @@ import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
 import {Registry} from "@aztec/core/messagebridge/Registry.sol";
 import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
 import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
-
+import {Errors} from "@aztec/core/libraries/Errors.sol";
 import {Rollup} from "@aztec/core/Rollup.sol";
 
 /**
@@ -42,6 +42,26 @@ contract RollupTest is DecoderTest {
     }
 
     assertEq(rollup.rollupStateHash(), endStateHash, "Invalid rollup state hash");
+  }
+
+  function testInvalidChainId() public {
+    bytes memory block_ = block_empty_1;
+    assembly {
+      mstore(add(block_, 0x20), 0x420)
+    }
+
+    vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidChainId.selector, 0x420, 31337));
+    rollup.process(bytes(""), block_);
+  }
+
+  function testInvalidVersion() public {
+    bytes memory block_ = block_empty_1;
+    assembly {
+      mstore(add(block_, 0x40), 0x420)
+    }
+
+    vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidVersion.selector, 0x420, 1));
+    rollup.process(bytes(""), block_);
   }
 
   function testMixBlock() public override(DecoderTest) {

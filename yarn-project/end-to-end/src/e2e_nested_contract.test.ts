@@ -21,7 +21,7 @@ describe('e2e_nested_contract', () => {
 
     parentContract = await deployContract(ParentAbi);
     childContract = await deployContract(ChildAbi);
-  }, 60_000);
+  }, 100_000);
 
   afterEach(async () => {
     await aztecNode.stop();

@@ -213,7 +213,15 @@ export class AztecRPCServer implements AztecRPCClient {
       contractAddressSalt,
       portalContract,
     );
-    const txContext = new TxContext(false, false, true, contractDeploymentData, Fr.ZERO, Fr.ZERO);
+
+    const txContext = new TxContext(
+      false,
+      false,
+      true,
+      contractDeploymentData,
+      await this.node.getChainId(),
+      await this.node.getVersion(),
+    );
 
     const contract = contractTree.contract;
     await this.db.addContract(contract);
@@ -239,8 +247,8 @@ export class AztecRPCServer implements AztecRPCClient {
 
     const executionRequest = await this.getExecutionRequest(account, functionName, args, to);
 
-    // TODO: Can we remove tx context from this call?
-    const authedTxRequest = await entrypoint.createAuthenticatedTxRequest([executionRequest], TxContext.empty());
+    const txContext = TxContext.empty(await this.node.getChainId(), await this.node.getVersion());
+    const authedTxRequest = await entrypoint.createAuthenticatedTxRequest([executionRequest], txContext);
     if (!authedTxRequest.functionData.isPrivate) {
       throw new Error(`Public entrypoints are not allowed`);
     }

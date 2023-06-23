@@ -127,7 +127,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     // Give me some WETH so I can deposit to L2 and do the swap...
     logger('Getting some weth');
     await walletClient.sendTransaction({ to: WETH9_ADDRESS.toString(), value: parseEther('1') });
-  }, 60_000);
+  }, 100_000);
 
   afterEach(async () => {
     await aztecNode?.stop();

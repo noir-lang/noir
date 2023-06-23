@@ -67,9 +67,9 @@ export class SoloBlockBuilder implements BlockBuilder {
     protected vks: VerificationKeys,
     protected simulator: RollupSimulator,
     protected prover: RollupProver,
+    protected chainId: Fr,
+    protected version: Fr,
     protected debug = createDebugLogger('aztec:sequencer'),
-    protected chainId: Fr = Fr.ZERO,
-    protected version: Fr = Fr.ZERO,
   ) {
     this.globalVariables = new GlobalVariables(chainId, version, Fr.ZERO, Fr.ZERO);
   }
