@@ -131,13 +131,13 @@ impl Context {
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> AcirValue {
-        self.create_value_from_type(param_type, |this, typ| this.add_numeric_input_var(&typ))
+        self.create_value_from_type(param_type, &mut |this, typ| this.add_numeric_input_var(&typ))
     }
 
     fn create_value_from_type(
         &mut self,
         param_type: &Type,
-        mut make_var: impl FnMut(&mut Self, NumericType) -> AcirVar,
+        make_var: &mut impl FnMut(&mut Self, NumericType) -> AcirVar,
     ) -> AcirValue {
         match param_type {
             Type::Numeric(numeric_type) => {
@@ -149,7 +149,7 @@ impl Context {
 
                 for _ in 0..*length {
                     for element in element_types.iter() {
-                        elements.push_back(self.convert_ssa_block_param(element));
+                        elements.push_back(self.create_value_from_type(element, make_var));
                     }
                 }
 
@@ -731,7 +731,7 @@ impl Context {
 
     /// Creates a default, meaningless value meant only to be a valid value of the given type.
     fn create_default_value(&mut self, param_type: &Type) -> AcirValue {
-        self.create_value_from_type(param_type, |this, _| {
+        self.create_value_from_type(param_type, &mut |this, _| {
             this.acir_context.add_constant(FieldElement::zero())
         })
     }
