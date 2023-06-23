@@ -1205,9 +1205,97 @@ mod test {
     }
 
     #[test]
+    fn should_not_merge_incorrectly_to_false() {
+        // Regression test for #1792
+        // Tests that it does not simplify to a true constraint an always-false constraint
+        // fn main f1 {
+        //   b0():
+        //     v4 = call pedersen([Field 0], u32 0)
+        //     v5 = array_get v4, index Field 0
+        //     v6 = cast v5 as u32
+        //     v8 = mod v6, u32 2
+        //     v9 = cast v8 as u1
+        //     v10 = allocate
+        //     store Field 0 at v10
+        //     jmpif v9 then: b1, else: b2
+        //   b1():
+        //     v14 = add v5, Field 1
+        //     store v14 at v10
+        //     jmp b3()
+        //   b3():
+        //     v12 = eq v9, u1 1
+        //     constrain v12
+        //     return
+        //   b2():
+        //     store Field 0 at v10
+        //     jmp b3()
+        // }
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        builder.insert_block(); // b0
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+
+        let element_type = Rc::new(vec![Type::field()]);
+        let zero = builder.field_constant(0_u128);
+        let zero_array = builder.array_constant(im::Vector::unit(zero), element_type.clone());
+        let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
+        let pedersen =
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
+        let v4 = builder.insert_call(
+            pedersen,
+            vec![zero_array, i_zero],
+            vec![Type::Array(element_type, 2)],
+        )[0];
+        let v5 = builder.insert_array_get(v4, zero, Type::field());
+        let v6 = builder.insert_cast(v5, Type::unsigned(32));
+        let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
+        let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
+        let v9 = builder.insert_cast(v8, Type::bool());
+
+        let v10 = builder.insert_allocate();
+        builder.insert_store(v10, zero);
+
+        builder.terminate_with_jmpif(v9, b1, b2);
+
+        builder.switch_to_block(b1);
+        let one = builder.field_constant(1_u128);
+        let v14 = builder.insert_binary(v5, BinaryOp::Add, one);
+        builder.insert_store(v10, v14);
+        builder.terminate_with_jmp(b3, vec![]);
+
+        builder.switch_to_block(b2);
+        builder.insert_store(v10, zero);
+        builder.terminate_with_jmp(b3, vec![]);
+
+        builder.switch_to_block(b3);
+        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
+        let v12 = builder.insert_binary(v9, BinaryOp::Eq, b_true);
+        builder.insert_constrain(v12);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().flatten_cfg();
+        let main = ssa.main();
+
+        // Now assert that there is not an always-false constraint after flattening:
+        let mut num_constraints = 0;
+        for instruction in main.dfg[main.entry_block()].instructions() {
+            if let Instruction::Constrain(value) = main.dfg[*instruction] {
+                if let Some(constant) = main.dfg.get_numeric_constant(value) {
+                    assert!(constant.is_one());
+                }
+                num_constraints += 1;
+            }
+        }
+        assert!(num_constraints == 1);
+    }
+
+    #[test]
     fn should_not_merge_away_constraints() {
         // Very simplified derived regression test for #1792
-        // Tests that it does not simplify to a true constraint an always-false constraint
+        // Tests that it does not simplify away an always-false constraint
         // The original function is replaced by the following:
         // fn main f1 {
         //   b0():
