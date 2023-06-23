@@ -1289,14 +1289,14 @@ mod test {
     #[test]
     fn should_not_merge_away_constraints() {
         // Very simplified derived regression test for #1792
-        // Tests that it does not simplify to a true constraint an always-false constraint
-        // The original function is replaced by the following:
+        // Tests that it does not merge away a constrain
+        // We work on this SSA:
         // fn main f1 {
         //     ... simplified ...
         //     v_false = u1 0
         //     jmpif v_false then: b_useless_branch, else: b_fallthrough
         //   b_useless_branch():
-        //     jmp b_fallthrough()
+        //     jmp b2()
         //   b_fallthrough():
         //     constrain v_false // was incorrectly removed
         //     return
