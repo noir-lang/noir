@@ -73,7 +73,7 @@ impl GeneratedAcir {
     /// This means you cannot multiply an infinite amount of `Expression`s together.
     /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
+    pub(crate) fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other

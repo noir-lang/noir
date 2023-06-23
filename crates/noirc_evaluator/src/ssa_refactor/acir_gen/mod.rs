@@ -21,10 +21,11 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use acvm::FieldElement;
+use acvm::{acir::native_types::Expression, FieldElement};
 use iter_extended::vecmap;
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use noirc_abi::AbiDistinctness;
 
 mod acir_ir;
 
@@ -71,9 +72,34 @@ impl AcirValue {
 }
 
 impl Ssa {
-    pub(crate) fn into_acir(self, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
+    pub(crate) fn into_acir(
+        self,
+        brillig: Brillig,
+        abi_distinctness: AbiDistinctness,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         let context = Context::default();
-        context.convert_ssa(self, brillig, allow_log_ops)
+        let mut generated_acir = context.convert_ssa(self, brillig, allow_log_ops);
+
+        match abi_distinctness {
+            AbiDistinctness::Distinct => {
+                // Create a witness for each return witness we have
+                // to guarantee that the return witnesses are distinct
+                let distinct_return_witness: Vec<_> = generated_acir
+                    .return_witnesses
+                    .clone()
+                    .into_iter()
+                    .map(|return_witness| {
+                        generated_acir
+                            .create_witness_for_expression(&Expression::from(return_witness))
+                    })
+                    .collect();
+
+                generated_acir.return_witnesses = distinct_return_witness;
+                generated_acir
+            }
+            AbiDistinctness::DuplicationAllowed => generated_acir,
+        }
     }
 }
 
