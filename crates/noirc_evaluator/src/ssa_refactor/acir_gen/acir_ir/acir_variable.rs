@@ -157,7 +157,9 @@ impl AcirContext {
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
         let field_type = AcirType::NumericType(NumericType::NativeField);
+
         let results = self.brillig(
+            None,
             inverse_code,
             vec![AcirValue::Var(var, field_type.clone())],
             vec![field_type],
@@ -742,6 +744,7 @@ impl AcirContext {
 
     pub(crate) fn brillig(
         &mut self,
+        predicate: Option<AcirVar>,
         code: Vec<BrilligOpcode>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
@@ -782,8 +785,8 @@ impl AcirContext {
                 AcirValue::Array(array_values)
             }
         });
-
-        self.acir_ir.brillig(code, b_inputs, b_outputs);
+        let predicate = predicate.map(|var| self.vars[&var].to_expression().into_owned());
+        self.acir_ir.brillig(predicate, code, b_inputs, b_outputs);
 
         outputs_var
     }

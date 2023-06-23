@@ -464,7 +464,7 @@ impl GeneratedAcir {
         let inverse_code = brillig_directive::directive_invert();
         let inputs = vec![BrilligInputs::Single(expr.clone())];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
-        self.brillig(inverse_code, inputs, outputs);
+        self.brillig(Some(Expression::one()), inverse_code, inputs, outputs);
 
         inverted_witness
     }
@@ -671,6 +671,7 @@ impl GeneratedAcir {
 
     pub(crate) fn brillig(
         &mut self,
+        predicate: Option<Expression>,
         code: Vec<BrilligOpcode>,
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
@@ -680,7 +681,7 @@ impl GeneratedAcir {
             outputs,
             foreign_call_results: Vec::new(),
             bytecode: code,
-            predicate: None,
+            predicate,
         });
         self.push_opcode(opcode);
     }
