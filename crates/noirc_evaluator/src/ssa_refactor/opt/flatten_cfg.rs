@@ -1210,13 +1210,12 @@ mod test {
         // Tests that it does not simplify to a true constraint an always-false constraint
         // The original function is replaced by the following:
         // fn main f1 {
-        //     ... simplified ...
-        //     v_false = u1 0
-        //     jmpif v_false then: b_useless_branch, else: b_fallthrough
-        //   b_useless_branch():
-        //     jmp b_fallthrough()
-        //   b_fallthrough():
-        //     constrain v_false // was incorrectly removed
+        //   b0():
+        //     jmpif u1 0 then: b1, else: b2
+        //   b1():
+        //     jmp b2()
+        //   b2():
+        //     constrain u1 0 // was incorrectly removed
         //     return
         // }
         let main_id = Id::test_new(1);
@@ -1224,16 +1223,15 @@ mod test {
 
         builder.insert_block(); // entry
 
-        let b_useless_branch = builder.insert_block();
-        let b_fallthrough = builder.insert_block();
-        let v_false = builder.numeric_constant(0_u128, Type::unsigned(1));
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let v_false = builder.numeric_constant(0_u128, Type::bool());
+        builder.terminate_with_jmpif(v_false, b1, b2);
 
-        builder.terminate_with_jmpif(v_false, b_useless_branch, b_fallthrough);
+        builder.switch_to_block(b1);
+        builder.terminate_with_jmp(b2, vec![]);
 
-        builder.switch_to_block(b_useless_branch);
-        builder.terminate_with_jmp(b_fallthrough, vec![]);
-
-        builder.switch_to_block(b_fallthrough);
+        builder.switch_to_block(b2);
         builder.insert_constrain(v_false); // should not be removed
         builder.terminate_with_return(vec![]);
 
