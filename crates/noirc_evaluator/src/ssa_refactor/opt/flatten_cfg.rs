@@ -671,7 +671,7 @@ impl<'f> Context<'f> {
 #[cfg(test)]
 mod test {
 
-    use std::{borrow::Borrow, rc::Rc};
+    use std::rc::Rc;
 
     use crate::ssa_refactor::{
         ir::{
@@ -1199,9 +1199,10 @@ mod test {
         }
     }
 
-    // Regression test for https://github.com/noir-lang/noir/issues/1792
     #[test]
-    fn should_not_simplify_to_assert_false() {
+    fn should_not_merge_incorrectly_to_false() {
+        // Regression test for #1792
+        // Tests that it does not simplify to a true constraint an always-false constraint
         // fn main f1 {
         //   b0():
         //     v4 = call pedersen([Field 0], u32 0)
@@ -1279,8 +1280,88 @@ mod test {
             if let Instruction::Constrain(value) = main.dfg[*instruction] {
                 if let Some(constant) = main.dfg.get_numeric_constant(value) {
                     assert!(constant.is_one());
-                    num_constraints += 1;
                 }
+                num_constraints += 1;
+            }
+        }
+        assert!(num_constraints == 1);
+    }
+
+    #[test]
+    fn should_not_merge_away_constraints() {
+        // fn main f1 {
+        //   b0():
+        //     v4 = call pedersen([Field 0], u32 0)
+        //     v5 = array_get v4, index Field 0
+        //     v6 = cast v5 as u32
+        //     v8 = mod v6, u32 2
+        //     v10 = sub v8, u32 1
+        //     v11 = truncate v10 to 32 bits, max_bit_size: 33
+        //     v12 = cast v11 as u1
+        //     v13 = allocate
+        //     store Field 0 at v13
+        //     jmpif v12 then: b1, else: b2
+        //   b1():
+        //     v17 = add v5, Field 1
+        //     store v17 at v13
+        //     jmp b2()
+        //   b2():
+        //     v15 = eq v12, u1 1
+        //     constrain v15
+        //     return
+        // }
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        builder.insert_block(); // b0
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+
+        let element_type = Rc::new(vec![Type::field()]);
+        let zero = builder.field_constant(0_u128);
+        let zero_array = builder.array_constant(im::Vector::unit(zero), element_type.clone());
+        let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
+        let pedersen =
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
+        let v4 = builder.insert_call(
+            pedersen,
+            vec![zero_array, i_zero],
+            vec![Type::Array(element_type, 2)],
+        )[0];
+        let v5 = builder.insert_array_get(v4, zero, Type::field());
+        let v6 = builder.insert_cast(v5, Type::unsigned(32));
+        let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
+        let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
+        let i_one = builder.numeric_constant(1_u128, Type::unsigned(32));
+        let v10 = builder.insert_binary(v8, BinaryOp::Sub, i_one);
+        let v11 = builder.insert_truncate(v10, 33, 33);
+        let v12 = builder.insert_cast(v11, Type::bool());
+
+        let v13 = builder.insert_allocate();
+        builder.insert_store(v13, zero);
+
+        builder.terminate_with_jmpif(v12, b1, b2);
+
+        builder.switch_to_block(b1);
+        let one = builder.field_constant(1_u128);
+        let v17 = builder.insert_binary(v5, BinaryOp::Add, one);
+        builder.insert_store(v13, v17);
+        builder.terminate_with_jmp(b2, vec![]);
+
+        builder.switch_to_block(b2);
+        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
+        let v15 = builder.insert_binary(v12, BinaryOp::Eq, b_true);
+        builder.insert_constrain(v15);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().flatten_cfg();
+        let main = ssa.main();
+
+        // Assert we have not incorrectly removed a constraint:
+        let mut num_constraints = 0;
+        for instruction in main.dfg[main.entry_block()].instructions() {
+            if let Instruction::Constrain(_) = main.dfg[*instruction] {
+                num_constraints += 1;
             }
         }
         assert!(num_constraints == 1);
