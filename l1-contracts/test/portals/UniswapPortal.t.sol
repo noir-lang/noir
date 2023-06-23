@@ -66,22 +66,34 @@ contract UniswapPortalTest is Test {
     deal(address(DAI), address(daiTokenPortal), amount);
   }
 
-  // L2 to L1 message to be added to the outbox
-  function _createDaiWithdrawMessage(address _recipient) internal view returns (bytes32 entryKey) {
+  /**
+   * L2 to L1 message withdraw to be added to the outbox
+   * @param _recipient - the L1 address that should receive the funds after withdraw
+   * @param _caller - designated caller on L1 that will call the withdraw function - typically uniswapPortal
+   * Set to address(0) if anyone can call.
+   */
+  function _createDaiWithdrawMessage(address _recipient, address _caller)
+    internal
+    view
+    returns (bytes32 entryKey)
+  {
     DataStructures.L2ToL1Msg memory message = DataStructures.L2ToL1Msg({
       sender: DataStructures.L2Actor(l2TokenAddress, 1),
       recipient: DataStructures.L1Actor(address(daiTokenPortal), block.chainid),
       content: Hash.sha256ToField(
-        abi.encodeWithSignature(
-          "withdraw(uint256,address,address)", amount, _recipient, address(uniswapPortal)
-        )
+        abi.encodeWithSignature("withdraw(uint256,address,address)", amount, _recipient, _caller)
         )
     });
     entryKey = outbox.computeEntryKey(message);
   }
 
-  // L2 to L1 message to be added to the outbox - param added for ease of crafting malicious message.
-  function _createUniswapSwapMessage(bytes32 _aztecRecipient)
+  /**
+   * L2 to L1 message to be added to the outbox -
+   * @param _aztecRecipient - the recipient on L2 that will receive the output of the swap
+   * @param _caller - designated caller on L1 that will call the swap function - typically address(this)
+   * Set to address(0) if anyone can call.
+   */
+  function _createUniswapSwapMessage(bytes32 _aztecRecipient, address _caller)
     internal
     view
     returns (bytes32 entryKey)
@@ -91,7 +103,7 @@ contract UniswapPortalTest is Test {
       recipient: DataStructures.L1Actor(address(uniswapPortal), block.chainid),
       content: Hash.sha256ToField(
         abi.encodeWithSignature(
-          "swap(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address)",
+          "swap(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address,address)",
           address(daiTokenPortal),
           amount,
           uniswapFeePool,
@@ -100,7 +112,8 @@ contract UniswapPortalTest is Test {
           _aztecRecipient,
           secretHash,
           deadlineForL1ToL2Message,
-          address(this)
+          address(this),
+          _caller
         )
         )
     });
@@ -116,9 +129,87 @@ contract UniswapPortalTest is Test {
     outbox.sendL1Messages(entryKeys);
   }
 
-  function testSwap() public {
-    bytes32 daiWithdrawMsgKey = _createDaiWithdrawMessage(address(uniswapPortal));
-    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient);
+  // Creates a withdraw transaction without a designated caller.
+  // Should fail when uniswap portal tries to consume it since it tries using a designated caller.
+  function testRevertIfWithdrawMessageHasNoDesignatedCaller() public {
+    bytes32 entryKey = _createDaiWithdrawMessage(address(uniswapPortal), address(0));
+    _addMessagesToOutbox(entryKey, bytes32(uint256(0x1)));
+    bytes32 entryKeyPortalChecksAgainst =
+      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
+    );
+    uniswapPortal.swap(
+      address(daiTokenPortal),
+      amount,
+      uniswapFeePool,
+      address(wethTokenPortal),
+      amountOutMinimum,
+      aztecRecipient,
+      secretHash,
+      deadlineForL1ToL2Message,
+      address(this),
+      true
+    );
+  }
+
+  // Inserts a wrong outbox message (where `_recipient` is not the uniswap portal).
+  function testRevertIfExpectedOutboxMessageNotFound(address _recipient) public {
+    vm.assume(_recipient != address(uniswapPortal));
+    // malformed withdraw message (wrong recipient)
+    _addMessagesToOutbox(
+      _createDaiWithdrawMessage(_recipient, address(uniswapPortal)), bytes32(uint256(0x1))
+    );
+
+    bytes32 entryKeyPortalChecksAgainst =
+      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
+    );
+    uniswapPortal.swap(
+      address(daiTokenPortal),
+      amount,
+      uniswapFeePool,
+      address(wethTokenPortal),
+      amountOutMinimum,
+      aztecRecipient,
+      secretHash,
+      deadlineForL1ToL2Message,
+      address(this),
+      true
+    );
+  }
+
+  function testRevertIfSwapParamsDifferentToOutboxMessage() public {
+    bytes32 daiWithdrawMsgKey =
+      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
+    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient, address(this));
+    _addMessagesToOutbox(daiWithdrawMsgKey, swapMsgKey);
+
+    bytes32 newAztecRecipient = bytes32(uint256(0x4));
+    bytes32 entryKeyPortalChecksAgainst =
+      _createUniswapSwapMessage(newAztecRecipient, address(this));
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
+    );
+    uniswapPortal.swap(
+      address(daiTokenPortal),
+      amount,
+      uniswapFeePool,
+      address(wethTokenPortal),
+      amountOutMinimum,
+      newAztecRecipient, // change recipient of swapped token to some other address
+      secretHash,
+      deadlineForL1ToL2Message,
+      address(this),
+      true
+    );
+  }
+
+  function testSwapWithDesignatedCaller() public {
+    bytes32 daiWithdrawMsgKey =
+      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
+    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient, address(this));
     _addMessagesToOutbox(daiWithdrawMsgKey, swapMsgKey);
 
     bytes32 l1ToL2MessageKey = uniswapPortal.swap(
@@ -130,7 +221,8 @@ contract UniswapPortalTest is Test {
       aztecRecipient,
       secretHash,
       deadlineForL1ToL2Message,
-      address(this)
+      address(this),
+      true
     );
 
     // dai should be taken away from dai portal
@@ -144,8 +236,48 @@ contract UniswapPortalTest is Test {
     assertFalse(outbox.contains(swapMsgKey));
   }
 
-  function testRevertIfExpectedOutboxMessageNotFound() public {
-    bytes32 entryKeyPortalChecksAgainst = _createDaiWithdrawMessage(address(uniswapPortal));
+  function testSwapCalledbyAnyoneIfDesignatedCallerNotSet(address _caller) public {
+    vm.assume(_caller != address(uniswapPortal));
+    bytes32 daiWithdrawMsgKey =
+      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
+    // don't set caller on swap() -> so anyone can call this method.
+    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient, address(0));
+    _addMessagesToOutbox(daiWithdrawMsgKey, swapMsgKey);
+
+    vm.prank(_caller);
+    bytes32 l1ToL2MessageKey = uniswapPortal.swap(
+      address(daiTokenPortal),
+      amount,
+      uniswapFeePool,
+      address(wethTokenPortal),
+      amountOutMinimum,
+      aztecRecipient,
+      secretHash,
+      deadlineForL1ToL2Message,
+      address(this),
+      false
+    );
+    // check that swap happened:
+    // dai should be taken away from dai portal
+    assertEq(DAI.balanceOf(address(daiTokenPortal)), 0);
+    // there should be some weth in the weth portal
+    assertGt(WETH9.balanceOf(address(wethTokenPortal)), 0);
+    // there should be a message in the inbox:
+    assertEq(inbox.get(l1ToL2MessageKey).count, 1);
+    // there should be no message in the outbox:
+    assertFalse(outbox.contains(daiWithdrawMsgKey));
+    assertFalse(outbox.contains(swapMsgKey));
+  }
+
+  function testRevertIfSwapWithDesignatedCallerCalledByWrongCaller(address _caller) public {
+    vm.assume(_caller != address(this));
+    bytes32 daiWithdrawMsgKey =
+      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
+    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient, address(this));
+    _addMessagesToOutbox(daiWithdrawMsgKey, swapMsgKey);
+
+    vm.startPrank(_caller);
+    bytes32 entryKeyPortalChecksAgainst = _createUniswapSwapMessage(aztecRecipient, _caller);
     vm.expectRevert(
       abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
     );
@@ -158,17 +290,11 @@ contract UniswapPortalTest is Test {
       aztecRecipient,
       secretHash,
       deadlineForL1ToL2Message,
-      address(this)
+      address(this),
+      true
     );
-  }
 
-  function testRevertIfSwapParamsDifferentToOutboxMessage() public {
-    bytes32 daiWithdrawMsgKey = _createDaiWithdrawMessage(address(uniswapPortal));
-    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient);
-    _addMessagesToOutbox(daiWithdrawMsgKey, swapMsgKey);
-
-    bytes32 newAztecRecipient = bytes32(uint256(0x4));
-    bytes32 entryKeyPortalChecksAgainst = _createUniswapSwapMessage(newAztecRecipient);
+    entryKeyPortalChecksAgainst = _createUniswapSwapMessage(aztecRecipient, address(0));
     vm.expectRevert(
       abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
     );
@@ -178,11 +304,13 @@ contract UniswapPortalTest is Test {
       uniswapFeePool,
       address(wethTokenPortal),
       amountOutMinimum,
-      newAztecRecipient, // change recipient of swapped token to some other address
+      aztecRecipient,
       secretHash,
       deadlineForL1ToL2Message,
-      address(this)
+      address(this),
+      false
     );
+    vm.stopPrank();
   }
 
   // after the portal does the swap, it adds a L1 to L2 message to the inbox.
@@ -190,8 +318,9 @@ contract UniswapPortalTest is Test {
   // if the sequencer doesn't consume the L1->L2 message, then `canceller` can
   // cancel the message and retrieve the funds (instead of them being stuck on the portal)
   function testMessageToInboxIsCancellable() public {
-    bytes32 daiWithdrawMsgKey = _createDaiWithdrawMessage(address(uniswapPortal));
-    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient);
+    bytes32 daiWithdrawMsgKey =
+      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
+    bytes32 swapMsgKey = _createUniswapSwapMessage(aztecRecipient, address(this));
     _addMessagesToOutbox(daiWithdrawMsgKey, swapMsgKey);
 
     bytes32 l1ToL2MessageKey = uniswapPortal.swap{value: 1 ether}(
@@ -203,7 +332,8 @@ contract UniswapPortalTest is Test {
       aztecRecipient,
       secretHash,
       deadlineForL1ToL2Message,
-      address(this) // this address should be able to cancel
+      address(this), // this address should be able to cancel
+      true
     );
 
     uint256 wethAmountOut = WETH9.balanceOf(address(wethTokenPortal));

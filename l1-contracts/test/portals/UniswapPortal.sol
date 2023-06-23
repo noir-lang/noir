@@ -44,6 +44,7 @@ contract UniswapPortal {
    * @param _secretHash - The hash of the secret consumable message
    * @param _deadlineForL1ToL2Message - deadline for when the L1 to L2 message (to mint outpiut assets in L2) must be consumed by
    * @param _canceller - The ethereum address that can cancel the deposit
+   * @param _withCaller - When true, using `msg.sender` as the caller, otherwise address(0)
    * @return The entryKey of the deposit transaction in the Inbox
    */
   function swap(
@@ -55,41 +56,47 @@ contract UniswapPortal {
     bytes32 _aztecRecipient,
     bytes32 _secretHash,
     uint32 _deadlineForL1ToL2Message,
-    address _canceller
+    address _canceller,
+    bool _withCaller
   ) public payable returns (bytes32) {
     IERC20 inputAsset = TokenPortal(_inputTokenPortal).underlying();
     IERC20 outputAsset = TokenPortal(_outputTokenPortal).underlying();
 
     // Withdraw the input asset from the portal
     TokenPortal(_inputTokenPortal).withdraw(_inAmount, address(this), true);
-
+    bytes32 contentHash;
     {
       // prevent stack too deep errors
-      DataStructures.L2ToL1Msg memory message = DataStructures.L2ToL1Msg({
-        sender: DataStructures.L2Actor(l2UniswapAddress, 1),
-        recipient: DataStructures.L1Actor(address(this), block.chainid),
-        content: Hash.sha256ToField(
-          abi.encodeWithSignature(
-            "swap(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address)",
-            _inputTokenPortal,
-            _inAmount,
-            _uniswapFeeTier,
-            _outputTokenPortal,
-            _amountOutMinimum,
-            _aztecRecipient,
-            _secretHash,
-            _deadlineForL1ToL2Message,
-            _canceller
-          )
-          )
-      });
-      registry.getOutbox().consume(message);
+      contentHash = Hash.sha256ToField(
+        abi.encodeWithSignature(
+          "swap(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address,address)",
+          _inputTokenPortal,
+          _inAmount,
+          _uniswapFeeTier,
+          _outputTokenPortal,
+          _amountOutMinimum,
+          _aztecRecipient,
+          _secretHash,
+          _deadlineForL1ToL2Message,
+          _canceller,
+          _withCaller ? msg.sender : address(0)
+        )
+      );
     }
 
+    // Consume the message from the outbox
+    registry.getOutbox().consume(
+      DataStructures.L2ToL1Msg({
+        sender: DataStructures.L2Actor(l2UniswapAddress, 1),
+        recipient: DataStructures.L1Actor(address(this), block.chainid),
+        content: contentHash
+      })
+    );
+
     // Perform the swap
-    inputAsset.safeApprove(address(ROUTER), _inAmount);
-    uint256 amountOut = ROUTER.exactInputSingle(
-      ISwapRouter.ExactInputSingleParams({
+    ISwapRouter.ExactInputSingleParams memory swapParams;
+    {
+      swapParams = ISwapRouter.ExactInputSingleParams({
         tokenIn: address(inputAsset),
         tokenOut: address(outputAsset),
         fee: _uniswapFeeTier,
@@ -98,8 +105,11 @@ contract UniswapPortal {
         amountIn: _inAmount,
         amountOutMinimum: _amountOutMinimum,
         sqrtPriceLimitX96: 0
-      })
-    );
+      });
+    }
+    inputAsset.safeApprove(address(ROUTER), _inAmount);
+    uint256 amountOut = ROUTER.exactInputSingle(swapParams);
+
     // approve the output token portal to take funds from this contract
     outputAsset.safeApprove(address(_outputTokenPortal), amountOut);
 

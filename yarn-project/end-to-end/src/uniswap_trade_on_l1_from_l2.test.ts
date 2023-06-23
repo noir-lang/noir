@@ -222,6 +222,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         new Fr(2 ** 32 - 1),
         ethAccount.toField(),
         uniswapPortalAddress,
+        ethAccount.toField(),
       )
       .send({ from: ownerAddress });
     await withdrawTx.isMined(0, 0.1);
@@ -244,6 +245,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       secretString,
       deadline,
       ethAccount.toString(),
+      true,
     ] as const;
     const { result: depositDaiMessageKeyHex } = await uniswapPortal.simulate.swap(swapArgs, {
       account: ethAccount.toString(),

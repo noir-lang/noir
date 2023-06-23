@@ -38,6 +38,7 @@ contract Uniswap {
         deadlineForL1ToL2Message: pub Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
         cancellerForL1ToL2Message: pub Field, // L1 address of who can cancel the message to consume assets on L2.
         l1UniswapPortal: pub Field, // L1 address of uniswap portal contract
+        callerOnL1: pub Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut initialContext = PrivateFunctionContext::new();
         // manually pass all the arguments into the current context - 
@@ -83,7 +84,8 @@ contract Uniswap {
            recipient,
            secretHash,
            deadlineForL1ToL2Message,
-           cancellerForL1ToL2Message
+           cancellerForL1ToL2Message,
+           callerOnL1,
         );
         context = context.message_portal(content_hash);
 
@@ -101,9 +103,10 @@ contract Uniswap {
         secretHash: Field,
         deadlineForL1ToL2Message: Field,
         canceller: Field,
+        callerOnL1: pub Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> pub Field {
 
-        let mut hash_bytes: [u8; 292] = [0; 292]; // 9 fields of 32 bytes each + 4 bytes fn selector
+        let mut hash_bytes: [u8; 324] = [0; 324]; // 10 fields of 32 bytes each + 4 bytes fn selector
 
         let inputTokenPortal_bytes = inputTokenPortal.to_be_bytes(32);
         let inAmount_bytes = inAmount.to_be_bytes(32);
@@ -114,12 +117,13 @@ contract Uniswap {
         let secretHash_bytes = secretHash.to_be_bytes(32);
         let deadlineForL1ToL2Message_bytes = deadlineForL1ToL2Message.to_be_bytes(32);
         let canceller_bytes = canceller.to_be_bytes(32);
+        let callerOnL1_bytes = callerOnL1.to_be_bytes(32);
 
-        // function selector: 0xf7500924 keccak256("swap(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address)")
-        hash_bytes[0] = 0xf7;
-        hash_bytes[1] = 0x50;
-        hash_bytes[2] = 0x09;
-        hash_bytes[3] = 0x24;
+        // function selector: 0x9c073c81 keccak256("swap(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address,address)")
+        hash_bytes[0] = 0x9c;
+        hash_bytes[1] = 0x07;
+        hash_bytes[2] = 0x3c;
+        hash_bytes[3] = 0x81;
         hash_bytes[4] = inputTokenPortal_bytes[0];
         hash_bytes[5] = inputTokenPortal_bytes[1];
         hash_bytes[6] = inputTokenPortal_bytes[2];
@@ -408,6 +412,38 @@ contract Uniswap {
         hash_bytes[289] = canceller_bytes[29];
         hash_bytes[290] = canceller_bytes[30];
         hash_bytes[291] = canceller_bytes[31];
+        hash_bytes[292] = callerOnL1_bytes[0];
+        hash_bytes[293] = callerOnL1_bytes[1];
+        hash_bytes[294] = callerOnL1_bytes[2];
+        hash_bytes[295] = callerOnL1_bytes[3];
+        hash_bytes[296] = callerOnL1_bytes[4];
+        hash_bytes[297] = callerOnL1_bytes[5];
+        hash_bytes[298] = callerOnL1_bytes[6];
+        hash_bytes[299] = callerOnL1_bytes[7];
+        hash_bytes[300] = callerOnL1_bytes[8];
+        hash_bytes[301] = callerOnL1_bytes[9];
+        hash_bytes[302] = callerOnL1_bytes[10];
+        hash_bytes[303] = callerOnL1_bytes[11];
+        hash_bytes[304] = callerOnL1_bytes[12];
+        hash_bytes[305] = callerOnL1_bytes[13];
+        hash_bytes[306] = callerOnL1_bytes[14];
+        hash_bytes[307] = callerOnL1_bytes[15];
+        hash_bytes[308] = callerOnL1_bytes[16];
+        hash_bytes[309] = callerOnL1_bytes[17];
+        hash_bytes[310] = callerOnL1_bytes[18];
+        hash_bytes[311] = callerOnL1_bytes[19];
+        hash_bytes[312] = callerOnL1_bytes[20];
+        hash_bytes[313] = callerOnL1_bytes[21];
+        hash_bytes[314] = callerOnL1_bytes[22];
+        hash_bytes[315] = callerOnL1_bytes[23];
+        hash_bytes[316] = callerOnL1_bytes[24];
+        hash_bytes[317] = callerOnL1_bytes[25];
+        hash_bytes[318] = callerOnL1_bytes[26];
+        hash_bytes[319] = callerOnL1_bytes[27];
+        hash_bytes[320] = callerOnL1_bytes[28];
+        hash_bytes[321] = callerOnL1_bytes[29];
+        hash_bytes[322] = callerOnL1_bytes[30];
+        hash_bytes[323] = callerOnL1_bytes[31];
 
         let content_sha256 = dep::std::hash::sha256(hash_bytes);
 
