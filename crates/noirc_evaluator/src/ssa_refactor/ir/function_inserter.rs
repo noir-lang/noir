@@ -27,10 +27,11 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
+    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
+        value = self.function.dfg.resolve(value);
         match self.values.get(&value) {
             Some(value) => *value,
-            None => match &self.function.dfg[self.function.dfg.resolve(value)] {
+            None => match &self.function.dfg[value] {
                 super::value::Value::Array { array, element_type } => {
                     let array = array.clone();
                     let element_type = element_type.clone();
