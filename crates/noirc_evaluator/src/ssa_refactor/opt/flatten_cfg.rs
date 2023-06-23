@@ -269,7 +269,11 @@ impl<'f> Context<'f> {
                 let else_branch =
                     self.inline_branch(block, else_block, old_condition, else_condition, zero);
 
+                // We must remember to reset whether side effects are enabled when both branches
+                // end, in addition to resetting the value of old_condition since it is set to
+                // known to be true/false within the then/else branch respectively.
                 self.insert_current_side_effects_enabled();
+                self.inserter.map_value(old_condition, old_condition);
 
                 // While there is a condition on the stack we don't compile outside the condition
                 // until it is popped. This ensures we inline the full then and else branches
@@ -494,10 +498,16 @@ impl<'f> Context<'f> {
             let old_stores = std::mem::take(&mut self.store_values);
             let old_allocations = std::mem::take(&mut self.local_allocations);
 
-            // Remember the old condition value is now known to be true/false within this branch
-            let known_value =
-                self.inserter.function.dfg.make_constant(condition_value, Type::bool());
-            self.inserter.map_value(old_condition, known_value);
+            // Optimization: within the then branch we know the condition to be true, so replace
+            // any references of it within this branch with true. Likewise, do the same with false
+            // with the else branch. We must be careful not to replace the condition if it is a
+            // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
+            if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
+                let known_value =
+                    self.inserter.function.dfg.make_constant(condition_value, Type::bool());
+
+                self.inserter.map_value(old_condition, known_value);
+            }
 
             let final_block = self.inline_block(destination, &[]);
 
@@ -670,11 +680,10 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-
     use crate::ssa_refactor::{
         ir::{
             dfg::DataFlowGraph,
-            function::RuntimeType,
+            function::{Function, RuntimeType},
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -837,12 +846,7 @@ mod test {
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 1);
 
-        let store_count = main.dfg[main.entry_block()]
-            .instructions()
-            .iter()
-            .filter(|id| matches!(&main.dfg[**id], Instruction::Store { .. }))
-            .count();
-
+        let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));
         assert_eq!(store_count, 2);
     }
 
@@ -921,13 +925,16 @@ mod test {
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 1);
 
-        let store_count = main.dfg[main.entry_block()]
+        let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));
+        assert_eq!(store_count, 4);
+    }
+
+    fn count_instruction(function: &Function, f: impl Fn(&Instruction) -> bool) -> usize {
+        function.dfg[function.entry_block()]
             .instructions()
             .iter()
-            .filter(|id| matches!(&main.dfg[**id], Instruction::Store { .. }))
-            .count();
-
-        assert_eq!(store_count, 4);
+            .filter(|id| f(&function.dfg[**id]))
+            .count()
     }
 
     #[test]
@@ -1195,5 +1202,47 @@ mod test {
             Value::NumericConstant { constant, .. } => vec![constant.to_u128()],
             _ => Vec::new(),
         }
+    }
+
+    #[test]
+    fn should_not_merge_away_constraints() {
+        // Very simplified derived regression test for #1792
+        // Tests that it does not simplify to a true constraint an always-false constraint
+        // The original function is replaced by the following:
+        // fn main f1 {
+        //     ... simplified ...
+        //     v_false = u1 0
+        //     jmpif v_false then: b_useless_branch, else: b_fallthrough
+        //   b_useless_branch():
+        //     jmp b_fallthrough()
+        //   b_fallthrough():
+        //     constrain v_false // was incorrectly removed
+        //     return
+        // }
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        builder.insert_block(); // entry
+
+        let b_useless_branch = builder.insert_block();
+        let b_fallthrough = builder.insert_block();
+        let v_false = builder.numeric_constant(0_u128, Type::unsigned(1));
+
+        builder.terminate_with_jmpif(v_false, b_useless_branch, b_fallthrough);
+
+        builder.switch_to_block(b_useless_branch);
+        builder.terminate_with_jmp(b_fallthrough, vec![]);
+
+        builder.switch_to_block(b_fallthrough);
+        builder.insert_constrain(v_false); // should not be removed
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().flatten_cfg();
+        let main = ssa.main();
+
+        // Assert we have not incorrectly removed a constraint:
+        use Instruction::Constrain;
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        assert_eq!(constrain_count, 1);
     }
 }
