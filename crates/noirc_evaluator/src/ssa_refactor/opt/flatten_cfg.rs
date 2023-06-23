@@ -1201,179 +1201,65 @@ mod test {
     // Regression test for https://github.com/noir-lang/noir/issues/1792
     #[test]
     fn should_not_simplify_to_assert_false() {
-        // Encodes the following:
-        // fn test_set f7 {
-        //   b0():
-        //     v2 = allocate
-        //     store Field 0 at v2
-        //     v3 = load v2
-        //     v5 = allocate
-        //     store v3 at v5
-        //     v10 = call pedersen([Field 0], u32 0)
-        //     v11 = array_get v10, index Field 0
-        //     v12 = cast v11 as u32
-        //     v14 = mod v12, u32 2
-        //     v15 = cast v14 as u1
-        //     v17 = add v11, Field 1
-        //     v19 = add v11, Field 2
-        //     v20 = not v15
-        //     v21 = allocate
-        //     store Field 0 at v21
-        //     jmpif v15 then: b1, else: b2
-        //   b1():
-        //     store v17 at v21
-        //     jmp b2()
-        //   b2():
-        //     v23 = allocate
-        //     store Field 0 at v23
-        //     jmpif v20 then: b3, else: b4
-        //   b3():
-        //     store v19 at v23
-        //     jmp b4()
-        //   b4():
-        //     v25 = load v5
-        //     v26 = load v21
-        //     v28 = allocate
-        //     store v25 at v28
-        //     v29 = load v28
-        //     v30 = add v29, v26
-        //     store v30 at v28
-        //     v31 = load v28
-        //     store v31 at v5
-        //     v32 = load v5
-        //     v33 = load v23
-        //     v35 = allocate
-        //     store v32 at v35
-        //     v36 = load v35
-        //     v37 = add v36, v33
-        //     store v37 at v35
-        //     v38 = load v35
-        //     store v38 at v5
-        //     v39 = load v5
-        //     store v39 at v2
-        //     v42 = load v2
-        //     v43 = eq v42, Field 0
-        //     v44 = not v43
-        //     constrain v44
-        //     v46 = eq v15, u1 1
-        //     constrain v46
-        //     v48 = eq v20, u1 0
-        //     constrain v48
-        //     return
-        // }
-        let test_set_id = Id::test_new(7);
-        let mut builder = FunctionBuilder::new("test_set".into(), test_set_id, RuntimeType::Acir);
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
         builder.insert_block(); // b0
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-
-        let v2 = builder.insert_allocate();
-
-        let zero = builder.field_constant(0_u128);
-        let one = builder.field_constant(1_u128);
-        let two = builder.field_constant(2_u128);
-        builder.insert_store(v2, zero);
-
-        let v3 = builder.insert_load(v2, Type::field());
-        let v5 = builder.insert_allocate();
-        builder.insert_store(v5, v3);
 
         let element_type = Rc::new(vec![Type::field()]);
+        let zero = builder.field_constant(0_u128);
         let zero_array = builder.array_constant(im::Vector::unit(zero), element_type.clone());
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
         let pedersen =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
-        let v10 = builder.insert_call(
+        let v4 = builder.insert_call(
             pedersen,
             vec![zero_array, i_zero],
             vec![Type::Array(element_type, 2)],
         )[0];
-        let v11 = builder.insert_array_get(v10, zero, Type::field());
-        let v12 = builder.insert_cast(v11, Type::unsigned(32));
+        let v5 = builder.insert_array_get(v4, zero, Type::field());
+        let v6 = builder.insert_cast(v5, Type::unsigned(32));
         let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
-        let v14 = builder.insert_binary(v12, BinaryOp::Mod, i_two);
-        let v15 = builder.insert_cast(v14, Type::bool());
+        let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
+        let v9 = builder.insert_cast(v8, Type::bool());
 
-        let v17 = builder.insert_binary(v11, BinaryOp::Add, one);
-        let v19 = builder.insert_binary(v11, BinaryOp::Add, two);
-        let v20 = builder.insert_not(v15);
+        let v10 = builder.insert_allocate();
+        builder.insert_store(v10, zero);
 
-        let v21 = builder.insert_allocate();
-        builder.insert_store(v21, zero);
-
-        builder.terminate_with_jmpif(v15, b1, b2);
+        builder.terminate_with_jmpif(v9, b1, b2);
 
         builder.switch_to_block(b1);
-        builder.insert_store(v21, v17);
-        builder.terminate_with_jmp(b2, vec![]);
+        let one = builder.field_constant(1_u128);
+        let v14 = builder.insert_binary(v5, BinaryOp::Add, one);
+        builder.insert_store(v10, v14);
+        builder.terminate_with_jmp(b3, vec![]);
 
         builder.switch_to_block(b2);
-        let v23 = builder.insert_allocate();
-        builder.insert_store(v23, zero);
-
-        builder.terminate_with_jmpif(v20, b3, b4);
+        builder.insert_store(v10, zero);
+        builder.terminate_with_jmp(b3, vec![]);
 
         builder.switch_to_block(b3);
-        builder.insert_store(v23, v19);
-        builder.terminate_with_jmp(b4, vec![]);
-
-        builder.switch_to_block(b4);
-        let v25 = builder.insert_load(v5, Type::field());
-        let v26 = builder.insert_load(v21, Type::field());
-        let v28 = builder.insert_allocate();
-        builder.insert_store(v28, v25);
-
-        let v29 = builder.insert_load(v28, Type::field());
-        let v30 = builder.insert_binary(v29, BinaryOp::Add, v26);
-        builder.insert_store(v28, v30);
-
-        let v31 = builder.insert_load(v28, Type::field());
-        builder.insert_store(v5, v31);
-
-        let v32 = builder.insert_load(v5, Type::field());
-        let v33 = builder.insert_load(v23, Type::field());
-        let v35 = builder.insert_allocate();
-        builder.insert_store(v35, v32);
-
-        let v36 = builder.insert_load(v35, Type::field());
-        let v37 = builder.insert_binary(v36, BinaryOp::Add, v33);
-        builder.insert_store(v35, v37);
-
-        let v38 = builder.insert_load(v35, Type::field());
-        builder.insert_store(v5, v38);
-
-        let v39 = builder.insert_load(v5, Type::field());
-        builder.insert_store(v2, v39);
-
-        let v42 = builder.insert_load(v2, Type::field());
-        let v43 = builder.insert_binary(v42, BinaryOp::Eq, zero);
-        let v44 = builder.insert_not(v43);
-        builder.insert_constrain(v44);
-
         let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
-        let b_false = builder.numeric_constant(0_u128, Type::unsigned(1));
-        let v46 = builder.insert_binary(v15, BinaryOp::Eq, b_true);
-        builder.insert_constrain(v46);
-
-        let v48 = builder.insert_binary(v20, BinaryOp::Eq, b_false);
-        builder.insert_constrain(v48);
+        let v12 = builder.insert_binary(v9, BinaryOp::Eq, b_true);
+        builder.insert_constrain(v12);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
         let main = ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
-        let num_constraints = 0;
+        let mut num_constraints = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
             if let Instruction::Constrain(value) = main.dfg[*instruction] {
                 if let Some(constant) = main.dfg.get_numeric_constant(value) {
                     assert!(constant.is_one());
+                    num_constraints += 1;
                 }
             }
         }
-        assert!(num_constraints == 2);
+        assert!(num_constraints == 1);
     }
 }
