@@ -3,6 +3,7 @@
 #include <array>
 #include <algorithm>
 #include <tuple>
+#include "barretenberg/common/thread.hpp"
 #include "polynomials/barycentric_data.hpp"
 #include "polynomials/univariate.hpp"
 #include "polynomials/pow.hpp"
@@ -78,8 +79,6 @@ template <typename Flavor> class SumcheckRound {
     RelationUnivariates univariate_accumulators;
     RelationEvaluations relation_evaluations;
 
-    ExtendedEdges<MAX_RELATION_LENGTH> extended_edges;
-
     // TODO(#224)(Cody): this should go away
     BarycentricData<FF, 2, MAX_RELATION_LENGTH> barycentric_2_to_max = BarycentricData<FF, 2, MAX_RELATION_LENGTH>();
 
@@ -120,7 +119,7 @@ template <typename Flavor> class SumcheckRound {
      * In practice, multivariates is one of ProverPolynomials or FoldedPolynomials.
      *
      */
-    void extend_edges(auto& multivariates, size_t edge_idx)
+    void extend_edges(auto& extended_edges, auto& multivariates, size_t edge_idx)
     {
         size_t univariate_idx = 0; // TODO(#391) zip
         for (auto& poly : multivariates) {
@@ -140,20 +139,63 @@ template <typename Flavor> class SumcheckRound {
                                                            const PowUnivariate<FF>& pow_univariate,
                                                            const FF alpha)
     {
-        // For each edge_idx = 2i, we need to multiply the whole contribution by zeta^{2^{2i}}
-        // This means that each univariate for each relation needs an extra multiplication.
-        FF pow_challenge = pow_univariate.partial_evaluation_constant;
-        for (size_t edge_idx = 0; edge_idx < round_size; edge_idx += 2) {
-            extend_edges(polynomials, edge_idx);
-
-            // Compute the i-th edge's univariate contribution,
-            // scale it by the pow polynomial's constant and zeta power "c_l ⋅ ζ_{l+1}ⁱ"
-            // and add it to the accumulators for Sˡ(Xₗ)
-            accumulate_relation_univariates<>(relation_parameters, pow_challenge);
-            // Update the pow polynomial's contribution c_l ⋅ ζ_{l+1}ⁱ for the next edge.
-            pow_challenge *= pow_univariate.zeta_pow_sqr;
+        // Precompute the vector of required powers of zeta
+        // TODO(luke): Parallelize this
+        std::vector<FF> pow_challenges(round_size >> 1);
+        pow_challenges[0] = pow_univariate.partial_evaluation_constant;
+        for (size_t i = 1; i < (round_size >> 1); ++i) {
+            pow_challenges[i] = pow_challenges[i - 1] * pow_univariate.zeta_pow_sqr;
         }
 
+        // Determine number of threads for multithreading.
+        // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
+        // on a specified minimum number of iterations per thread. This eventually leads to the use of a single thread.
+        // For now we use a power of 2 number of threads simply to ensure the round size is evenly divided.
+        size_t max_num_threads = get_num_cpus_pow2(); // number of available threads (power of 2)
+        size_t min_iterations_per_thread = 1 << 6; // min number of iterations for which we'll spin up a unique thread
+        size_t desired_num_threads = round_size / min_iterations_per_thread;
+        size_t num_threads = std::min(desired_num_threads, max_num_threads); // fewer than max if justified
+        num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
+        size_t iterations_per_thread = round_size / num_threads;             // actual iterations per thread
+
+        // Constuct univariate accumulator containers; one per thread
+        std::vector<RelationUnivariates> thread_univariate_accumulators(num_threads);
+        for (auto& accum : thread_univariate_accumulators) {
+            zero_univariates(accum);
+        }
+
+        // Constuct extended edge containers; one per thread
+        std::vector<ExtendedEdges<MAX_RELATION_LENGTH>> extended_edges;
+        extended_edges.resize(num_threads);
+
+        // Accumulate the contribution from each sub-relation accross each edge of the hyper-cube
+        parallel_for(num_threads, [&](size_t thread_idx) {
+            size_t start = thread_idx * iterations_per_thread;
+            size_t end = (thread_idx + 1) * iterations_per_thread;
+
+            // For each edge_idx = 2i, we need to multiply the whole contribution by zeta^{2^{2i}}
+            // This means that each univariate for each relation needs an extra multiplication.
+            for (size_t edge_idx = start; edge_idx < end; edge_idx += 2) {
+                extend_edges(extended_edges[thread_idx], polynomials, edge_idx);
+
+                // Update the pow polynomial's contribution c_l ⋅ ζ_{l+1}ⁱ for the next edge.
+                FF pow_challenge = pow_challenges[edge_idx >> 1];
+
+                // Compute the i-th edge's univariate contribution,
+                // scale it by the pow polynomial's constant and zeta power "c_l ⋅ ζ_{l+1}ⁱ"
+                // and add it to the accumulators for Sˡ(Xₗ)
+                accumulate_relation_univariates<>(thread_univariate_accumulators[thread_idx],
+                                                  extended_edges[thread_idx],
+                                                  relation_parameters,
+                                                  pow_challenge);
+            }
+        });
+
+        // Accumulate the per-thread univariate accumulators into a single set of accumulators
+        for (auto& accumulators : thread_univariate_accumulators) {
+            add_nested_tuples(univariate_accumulators, accumulators);
+        }
+        // Batch the univariate contributions from each sub-relation to obtain the round univariate
         return batch_over_relations(alpha);
     }
 
@@ -238,14 +280,18 @@ template <typename Flavor> class SumcheckRound {
      * appropriate scaling factors, produces S_l.
      */
     template <size_t relation_idx = 0>
-    void accumulate_relation_univariates(const RelationParameters<FF>& relation_parameters, const FF& scaling_factor)
+    void accumulate_relation_univariates(RelationUnivariates& univariate_accumulators,
+                                         const auto& extended_edges,
+                                         const RelationParameters<FF>& relation_parameters,
+                                         const FF& scaling_factor)
     {
         std::get<relation_idx>(relations).add_edge_contribution(
             std::get<relation_idx>(univariate_accumulators), extended_edges, relation_parameters, scaling_factor);
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {
-            accumulate_relation_univariates<relation_idx + 1>(relation_parameters, scaling_factor);
+            accumulate_relation_univariates<relation_idx + 1>(
+                univariate_accumulators, extended_edges, relation_parameters, scaling_factor);
         }
     }
 
@@ -273,6 +319,9 @@ template <typename Flavor> class SumcheckRound {
     }
 
   public:
+    // TODO(luke): Potentially make RelationUnivarites (tuple of tuples of Univariates) a class and make these utility
+    // functions class methods. Alternatively, move all of these tuple utilities (and the ones living elsewhere) to
+    // their own module.
     /**
      * Utility methods for tuple of tuples of Univariates
      */
@@ -399,6 +448,42 @@ template <typename Flavor> class SumcheckRound {
 
         if constexpr (idx + 1 < sizeof...(Ts)) {
             apply_to_tuple_of_arrays<Operation, idx + 1>(operation, tuple);
+        }
+    }
+
+    /**
+     * @brief Componentwise addition of two tuples
+     * @details Used for adding tuples of Univariates but in general works for any object for which += is
+     * defined. The result is stored in the first tuple.
+     *
+     * @tparam T Type of the elements contained in the tuples
+     * @param tuple_1 First summand. Result stored in this tuple
+     * @param tuple_2 Second summand
+     */
+    template <typename... T>
+    static constexpr void add_tuples(std::tuple<T...>& tuple_1, const std::tuple<T...>& tuple_2)
+    {
+        [&]<std::size_t... I>(std::index_sequence<I...>) { ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...); }
+        (std::make_index_sequence<sizeof...(T)>{});
+    }
+
+    /**
+     * @brief Componentwise addition of nested tuples (tuples of tuples)
+     * @details Used for summing tuples of tuples of Univariates. Needed for Sumcheck multithreading. Each thread
+     * accumulates realtion contributions across a portion of the hypecube and then the results are accumulated into a
+     * single nested tuple.
+     *
+     * @tparam Tuple
+     * @tparam Index Index into outer tuple
+     * @param tuple_1 First nested tuple summand. Result stored here
+     * @param tuple_2 Second summand
+     */
+    template <typename Tuple, std::size_t Index = 0>
+    static constexpr void add_nested_tuples(Tuple& tuple_1, const Tuple& tuple_2)
+    {
+        if constexpr (Index < std::tuple_size<Tuple>::value) {
+            add_tuples(std::get<Index>(tuple_1), std::get<Index>(tuple_2));
+            add_nested_tuples<Tuple, Index + 1>(tuple_1, tuple_2);
         }
     }
 };

@@ -36,7 +36,7 @@ static Univariate<FF, max_relation_length> compute_round_univariate(
     const RelationParameters<FF>& relation_parameters,
     const FF alpha)
 {
-    size_t round_size = 1;
+    size_t round_size = 2;
     // Improvement(Cody): This is ugly? Maye supply some/all of this data through "flavor" class?
     auto round = SumcheckRound<Flavor>(round_size);
 
@@ -359,6 +359,41 @@ TEST(SumcheckRound, TuplesOfEvaluationArrays)
     EXPECT_EQ(std::get<0>(tuple_of_arrays)[0], 0);
     EXPECT_EQ(std::get<1>(tuple_of_arrays)[0], 0);
     EXPECT_EQ(std::get<1>(tuple_of_arrays)[1], 0);
+}
+
+/**
+ * @brief Test utility functions for adding two tuples of tuples of Univariates
+ *
+ */
+TEST(SumcheckRound, AddTuplesOfTuplesOfUnivariates)
+{
+    using Flavor = proof_system::honk::flavor::Standard;
+    using FF = typename Flavor::FF;
+
+    // Define some arbitrary univariates
+    Univariate<FF, 2> univariate_1({ 1, 2 });
+    Univariate<FF, 2> univariate_2({ 2, 4 });
+    Univariate<FF, 3> univariate_3({ 3, 4, 5 });
+
+    Univariate<FF, 2> univariate_4({ 3, 6 });
+    Univariate<FF, 2> univariate_5({ 8, 1 });
+    Univariate<FF, 3> univariate_6({ 3, 7, 1 });
+
+    Univariate<FF, 2> expected_sum_1 = univariate_1 + univariate_4;
+    Univariate<FF, 2> expected_sum_2 = univariate_2 + univariate_5;
+    Univariate<FF, 3> expected_sum_3 = univariate_3 + univariate_6;
+
+    // Construct two tuples of tuples
+    auto tuple_of_tuples_1 =
+        std::make_tuple(std::make_tuple(univariate_1), std::make_tuple(univariate_2, univariate_3));
+    auto tuple_of_tuples_2 =
+        std::make_tuple(std::make_tuple(univariate_4), std::make_tuple(univariate_5, univariate_6));
+
+    SumcheckRound<Flavor>::add_nested_tuples(tuple_of_tuples_1, tuple_of_tuples_2);
+
+    EXPECT_EQ(std::get<0>(std::get<0>(tuple_of_tuples_1)), expected_sum_1);
+    EXPECT_EQ(std::get<0>(std::get<1>(tuple_of_tuples_1)), expected_sum_2);
+    EXPECT_EQ(std::get<1>(std::get<1>(tuple_of_tuples_1)), expected_sum_3);
 }
 
 } // namespace test_sumcheck_round

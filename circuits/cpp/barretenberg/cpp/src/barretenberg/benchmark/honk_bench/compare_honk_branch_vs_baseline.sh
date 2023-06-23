@@ -35,6 +35,7 @@ bin/$BENCH_TARGET --benchmark_format=json > $BRANCH_RESULTS
 # Checkout baseline branch, run benchmarks, save results in json format
 echo -e "\nConfiguring and building $BENCH_TARGET in $BASELINE_BRANCH branch..\n"
 git checkout master > /dev/null
+cd $BASE_DIR
 rm -rf $BUILD_DIR
 cmake --preset bench > /dev/null && cmake --build --preset bench --target $BENCH_TARGET
 cd build-bench
