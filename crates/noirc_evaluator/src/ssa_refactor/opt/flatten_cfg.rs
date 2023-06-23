@@ -1249,7 +1249,7 @@ mod test {
     #[test]
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
-        // Tests that it does not simplify to a true constraint an always-false constraint
+        // Tests that it does not simplify a true constraint an always-false constraint
         // fn main f1 {
         //   b0():
         //     v4 = call pedersen([Field 0], u32 0)
