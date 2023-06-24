@@ -46,7 +46,7 @@ pub(crate) fn run<B: Backend>(
     args: NewCommand,
     config: NargoConfig,
 ) -> Result<i32, CliError> {
-    let package_dir = config.program_dir.join(args.package_name);
+    let package_dir = config.nargo_package_root.join(args.package_name);
 
     if package_dir.exists() {
         return Err(CliError::DestinationAlreadyExists(package_dir));

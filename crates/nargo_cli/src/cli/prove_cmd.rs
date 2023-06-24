@@ -1,50 +1,75 @@
-use std::{process::{Command, Stdio}, io::{BufReader, BufRead}};
+use nameof::name_of;
 
-// use acvm::Backend;
+use std::{collections::HashMap};
+
 use clap::Args;
 use tracing::debug;
 
-use super::{NargoConfig, backend_vendor_cmd::BackendSubcommand};
+use super::{NargoConfig, backend_vendor_cmd::{BackendCommand, ProofArtifact, WitnessArtifact}};
 use crate::{
-    // constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
-    errors::CliError, cli::backend_vendor_cmd,
+    errors::CliError, cli::backend_vendor_cmd::{self, execute_backend_cmd}, constants,
 };
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ProveCommand {
     /// The name of the proof
-    proof_name: Option<String>,
+    // proof_name: Option<String>,
 
     /// The name of the circuit build files (ACIR, proving and verification keys)
-    circuit_name: Option<String>,
+    // circuit_name: Option<String>,
 
     /// Verify proof after proving
-    #[arg(short, long)]
-    verify: bool,
-
-    // #[clap(flatten)]
-    // compile_options: CompileOptions,
+    // #[arg(short, long)]
+    // verify: bool,
 
     #[clap(flatten)]
-    backend_options: BackendSubcommand
+    pub(crate) proof_options: ProofArtifact,
+
+    #[clap(flatten)]
+    pub(crate) witness_options: WitnessArtifact,
+
+    #[clap(flatten)]
+    backend_options: BackendCommand
+
+
 }
 
 pub(crate) fn run(
-    args: ProveCommand,
-    _config: NargoConfig,
+    mut args: ProveCommand,
+    config: NargoConfig,
 ) -> Result<i32, CliError> {    
-    debug!("Args: {:?}", args);
-    debug!("Cfg: {:?}", _config);
 
-    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options, &_config)?;
-    let mut raw_pass_through= args.backend_options.raw_pass_through.unwrap_or_default();
-    let mut backend_args = vec!["prove".to_string()];
+    backend_vendor_cmd::configure_proof_artifact(&config, &mut args.proof_options);
+
+    backend_vendor_cmd::configure_witness_artifact(&config, &mut args.witness_options);
+
+    debug!("Supplied Prove arguments: {:?}", args);
+
+    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options, &config)?;
+    let mut raw_pass_through= args.backend_options.backend_arguments.unwrap_or_default();
+    let mut backend_args = vec![String::from(constants::PROVE_SUB_CMD)];
     backend_args.append(&mut raw_pass_through);
 
-    let exit_code = backend_vendor_cmd::execute_backend_cmd(&backend_executable_path, backend_args).unwrap();
+    let mut envs = HashMap::new();
+    envs.insert(name_of!(nargo_artifact_path in NargoConfig).to_uppercase(), String::from(config.nargo_artifact_path.unwrap().as_os_str().to_str().unwrap()));
+    envs.insert(name_of!(nargo_proof_path in ProofArtifact).to_uppercase(), String::from(args.proof_options.nargo_proof_path.unwrap().as_os_str().to_str().unwrap()));
+    envs.insert(name_of!(nargo_verification_key_path in ProofArtifact).to_uppercase(), String::from(args.proof_options.nargo_verification_key_path.unwrap().as_os_str().to_str().unwrap()));
+    envs.insert(name_of!(nargo_witness_path in WitnessArtifact).to_uppercase(), String::from(args.witness_options.nargo_witness_path.unwrap().as_os_str().to_str().unwrap()));
+    let exit_code = execute_backend_cmd(&backend_executable_path, backend_args, &config.nargo_package_root, Some(envs));
 
-    Ok(exit_code)
+    match exit_code {
+        Ok(code) => {
+            if code > 0 {
+                Err(CliError::Generic(format!("Backend exited with failure code: {}", code)))
+            } else {
+                Ok(code)
+            }
+        },
+        Err(err) => Err(err),
+    }
+    
 }
+
 
 

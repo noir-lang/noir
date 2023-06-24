@@ -22,7 +22,7 @@ pub(crate) fn run<B: Backend>(
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<i32, CliError> {
-    check_from_path(backend, config.program_dir, &args.compile_options)?;
+    check_from_path(backend, config.nargo_package_root, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(0)
 }

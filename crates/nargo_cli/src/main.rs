@@ -1,8 +1,11 @@
 #![forbid(unsafe_code)]
 
 
-use color_eyre::{config::HookBuilder, eyre, Report};
-use nargo_cli::{cli::start_cli, errors};
+
+
+use color_eyre::{config::HookBuilder, eyre};
+use nargo_cli::{cli::start_cli};
+use tracing::info;
 
 
 fn main() -> eyre::Result<()> {
@@ -18,12 +21,24 @@ fn main() -> eyre::Result<()> {
     match start_cli() {
         Ok(exit_code) => {
             if exit_code > 0 {
-                Err(Report::msg(format!("Backend returned error code {}", exit_code)))
+                // TODO: this is oversimplification, currently only backend child process returns non-zero result but it should change.
+                println!("Backend returned error code: {}", exit_code);
+                std::process::exit(exit_code)
             } else {
-                // Ok(())
-                Err(Report::msg(format!("Backend returned error code {}", exit_code)))
+                Ok(())
             }
         },
         Err(e) => Err(e),
     }
 }
+
+
+// fn main() {
+//     match eyered_main() {
+//         Ok(exit_code) => std::process::exit(exit_code),
+//         Err(err) => {
+//             println!("{}", err.to_string());
+//             ()
+//         }
+//     }   
+// }

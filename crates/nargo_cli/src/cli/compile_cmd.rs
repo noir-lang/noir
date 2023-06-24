@@ -29,8 +29,8 @@ const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
-    /// The name of the ACIR file
-    circuit_name: String,
+    // /// The name of the ACIR file
+    // circuit_name: String,
 
     /// Compile each contract function used within the program
     #[arg(short, long)]
@@ -110,9 +110,11 @@ pub(crate) fn run<B: Backend>(
     args: CompileCommand,
     config: NargoConfig,
 ) -> Result<i32, CliError> {
-    let circuit_dir = config.program_dir.join(TARGET_DIR);
+    use crate::constants;
 
-    let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+    let circuit_dir = config.nargo_package_root.join(TARGET_DIR);
+
+    let program = compile_circuit(backend, &config.nargo_package_root, &args.compile_options)?;
     let preprocessed_program = PreprocessedProgram {
         backend: String::from("dummy-backend-bb.js"),
         abi: program.abi,
@@ -120,7 +122,10 @@ pub(crate) fn run<B: Backend>(
         proving_key: vec![],
         verification_key: vec![],
     };
-    save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
+    let mut acir_file_name = config.nargo_artifact_name.clone().unwrap();
+    acir_file_name.push_str(".");
+    acir_file_name.push_str(constants::ACIR_EXT);
+    save_program_to_file(&preprocessed_program, &acir_file_name, circuit_dir);
     Ok(0)
 }
 

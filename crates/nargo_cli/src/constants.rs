@@ -21,3 +21,15 @@ pub(crate) const PKG_FILE: &str = "Nargo.toml";
 pub(crate) const PROOF_EXT: &str = "proof";
 /// The extension for files containing proof witnesses.
 pub(crate) const WITNESS_EXT: &str = "tr";
+/// The extension for files containing ACIR code.
+pub(crate) const ACIR_EXT: &str = "acir.json";
+/// The extension for files containing ACIR code.
+pub(crate) const VERIFICATION_KEY_EXT: &str = "vk";
+
+// Backend Vendor Commands
+/// Prove command 
+pub(crate) const PROVE_SUB_CMD: &str = "prove";
+/// Verify command 
+pub(crate) const VERIFY_SUB_CMD: &str = "verify";
+/// Gates command 
+pub(crate) const GATES_SUB_CMD: &str = "gates";

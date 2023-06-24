@@ -28,7 +28,7 @@ pub(crate) fn run<B: Backend>(
 ) -> Result<i32, CliError> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    run_tests(backend, &config.program_dir, &test_name, &args.compile_options)
+    run_tests(backend, &config.nargo_package_root, &test_name, &args.compile_options)
 }
 
 fn run_tests<B: Backend>(

@@ -18,9 +18,6 @@ use crate::{
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
-    /// Write the execution witness to named file
-    witness_name: Option<String>,
-
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -31,14 +28,14 @@ pub(crate) fn run<B: Backend>(
     config: NargoConfig,
 ) -> Result<i32, CliError> {
     let (return_value, solved_witness) =
-        execute_with_path(backend, &config.program_dir, &args.compile_options)?;
+        execute_with_path(backend, &config.nargo_package_root, &args.compile_options)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
         println!("Circuit output: {return_value:?}");
     }
-    if let Some(witness_name) = args.witness_name {
-        let witness_dir = config.program_dir.join(TARGET_DIR);
+    if let Some(witness_name) = config.nargo_artifact_name {
+        let witness_dir = config.nargo_package_root.join(TARGET_DIR);
 
         let witness_path = save_witness_to_dir(solved_witness, &witness_name, witness_dir)?;
 

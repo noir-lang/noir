@@ -44,7 +44,7 @@ tracing-subscriber = "0.3"
 # Backends
 acvm-backend-barretenberg = { optional = true, version = "0.3.0", default-features = false }
 which = "4.4.0"
-
+nameof = "1.2.2"
 
 [dev-dependencies]
 tempdir = "0.3.7"

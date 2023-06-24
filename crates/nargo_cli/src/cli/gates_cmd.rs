@@ -1,46 +1,55 @@
-// use acvm::Backend;
-// use clap::Args;
-// use noirc_driver::CompileOptions;
-// use std::path::Path;
+use std::collections::HashMap;
 
-// use crate::cli::compile_cmd::compile_circuit;
-// use crate::errors::CliError;
+use super::{NargoConfig, backend_vendor_cmd::{BackendCommand, ProofArtifact}};
+use crate::{
+    constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE, self},
+    errors::CliError, cli::backend_vendor_cmd::execute_backend_cmd,
+};
 
-// use super::NargoConfig;
+use clap::Args;
+use nameof::name_of;
+use tracing::debug;
 
-// /// Counts the occurrences of different gates in circuit
-// #[derive(Debug, Clone, Args)]
-// pub(crate) struct GatesCommand {
-//     #[clap(flatten)]
-//     compile_options: CompileOptions,
-// }
+use super::backend_vendor_cmd;
 
-// pub(crate) fn run<B: Backend>(
-//     backend: &B,
-//     args: GatesCommand,
-//     config: NargoConfig,
-// ) -> Result<(), CliError> {
-//     count_gates_with_path(backend, config.program_dir, &args.compile_options)
-// }
+/// Given a proof and a program, verify whether the proof is valid
+#[derive(Debug, Clone, Args)]
+pub(crate) struct GatesCommand {
+    #[clap(flatten)]
+    pub(crate) proof_options: ProofArtifact,
 
-// fn count_gates_with_path<B: Backend, P: AsRef<Path>>(
-//     backend: &B,
-//     program_dir: P,
-//     compile_options: &CompileOptions,
-// ) -> Result<(), CliError> {
-//     let compiled_program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-//     let num_opcodes = compiled_program.circuit.opcodes.len();
+    #[clap(flatten)]
+    backend_options: BackendCommand
+}
 
-//     println!(
-//         "Total ACIR opcodes generated for language {:?}: {}",
-//         backend.np_language(),
-//         num_opcodes
-//     );
+pub(crate) fn run(
+    mut args: GatesCommand,
+    config: NargoConfig,
+) -> Result<i32, CliError> {    
 
-//     let exact_circuit_size = backend
-//         .get_exact_circuit_size(&compiled_program.circuit)
-//         .map_err(CliError::ProofSystemCompilerError)?;
-//     println!("Backend circuit size: {exact_circuit_size}");
+    backend_vendor_cmd::configure_proof_artifact(&config, &mut args.proof_options);
 
-//     Ok(())
-// }
+    debug!("Supplied Prove arguments: {:?}", args);
+
+    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options, &config)?;
+    let mut raw_pass_through= args.backend_options.backend_arguments.unwrap_or_default();
+    let mut backend_args = vec![String::from(constants::GATES_SUB_CMD)];
+    backend_args.append(&mut raw_pass_through);
+
+    let mut envs = HashMap::new();
+    envs.insert(name_of!(nargo_artifact_path in NargoConfig).to_uppercase(), String::from(config.nargo_artifact_path.unwrap().as_os_str().to_str().unwrap()));
+    let exit_code = execute_backend_cmd(&backend_executable_path, backend_args, &config.nargo_package_root, Some(envs));
+
+    match exit_code {
+        Ok(code) => {
+            if code > 0 {
+                Err(CliError::Generic(format!("Backend exited with failure code: {}", code)))
+            } else {
+                Ok(code)
+            }
+        },
+        Err(err) => Err(err),
+    }
+    
+}
+

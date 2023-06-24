@@ -6,15 +6,15 @@
 			"command": "run",
 			"env": {
 				"RUST_LOG": "debug",
-				"BACKEND_EXECUTABLE": "blah", 
-				"NOIR_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul",
+				"cwd": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
 			},
 			"args": [
-				// "--path=crates/nargo_cli",
 				"--no-default-features",
 				"--features=bb_js",
 				"--",
-				"prove",
+				"prove"
 			],
 			"problemMatcher": [
 				"$rustc",
@@ -23,7 +23,155 @@
 			"label": "nargo prove",
 			"group": {
 				"kind": "build",
+				// "isDefault": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul",
+				"cwd": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"verify"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo verify",
+			"group": {
+				"kind": "build",
+				// "isDefault": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "blah",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"--help"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo --help",
+			"group": {
+				"kind": "build",
+				// "isDefault": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "blah",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"prove",
+				"--help"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo prove --help",
+			"group": {
+				"kind": "build",
+				// "isDefault": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"compile",
+				// "main"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo compile",
+			"group": {
+				"kind": "build",
+				// "isDefault": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"execute",
+				// "main"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo execute",
+			"group": {
+				"kind": "build",
 				"isDefault": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"gates"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo gates",
+			"group": {
+				"kind": "build",
+				// "isDefault": true
 			}
 		},
 	]
