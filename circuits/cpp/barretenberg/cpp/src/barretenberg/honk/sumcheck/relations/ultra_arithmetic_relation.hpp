@@ -15,7 +15,8 @@ template <typename FF> class UltraArithmeticRelationBase {
 
     static constexpr size_t LEN_1 = 6; // primary arithmetic sub-relation
     static constexpr size_t LEN_2 = 5; // secondary arithmetic sub-relation
-    using LENGTHS = LengthsWrapper<LEN_1, LEN_2>;
+    template <template <size_t...> typename AccumulatorTypesContainer>
+    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.
@@ -68,8 +69,8 @@ template <typename FF> class UltraArithmeticRelationBase {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename TypeMuncher>
-    void static add_edge_contribution_impl(typename TypeMuncher::Accumulators& evals,
+    template <typename AccumulatorTypes>
+    void static add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& evals,
                                            const auto& extended_edges,
                                            const RelationParameters<FF>&,
                                            const FF& scaling_factor){
@@ -78,7 +79,7 @@ template <typename FF> class UltraArithmeticRelationBase {
         // clang-format off
         // Contribution 1
         {   
-            using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
             auto w_l = View(extended_edges.w_l);
             auto w_r = View(extended_edges.w_r);
             auto w_o = View(extended_edges.w_o);
@@ -103,7 +104,7 @@ template <typename FF> class UltraArithmeticRelationBase {
         }
         // Contribution 2
         {
-            using View = typename std::tuple_element<1, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<1, typename AccumulatorTypes::AccumulatorViews>::type;
             auto w_l = View(extended_edges.w_l);
             auto w_4 = View(extended_edges.w_4);
             auto w_l_shift = View(extended_edges.w_l_shift);

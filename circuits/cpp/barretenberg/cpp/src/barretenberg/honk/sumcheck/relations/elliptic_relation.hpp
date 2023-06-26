@@ -15,7 +15,8 @@ template <typename FF> class EllipticRelationBase {
 
     static constexpr size_t LEN_1 = 6; // x-coordinate sub-relation
     static constexpr size_t LEN_2 = 5; // y-coordinate sub-relation
-    using LENGTHS = LengthsWrapper<LEN_1, LEN_2>;
+    template <template <size_t...> typename AccumulatorTypesContainer>
+    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.
@@ -27,8 +28,8 @@ template <typename FF> class EllipticRelationBase {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename TypeMuncher>
-    static void add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulators,
+    template <typename AccumulatorTypes>
+    static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
                                            const auto& extended_edges,
                                            const RelationParameters<FF>&,
                                            const FF& scaling_factor){
@@ -38,7 +39,7 @@ template <typename FF> class EllipticRelationBase {
         // clang-format off
         // Contribution (1)
         {
-            using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
             auto x_1 = View(extended_edges.w_r);
             auto y_1 = View(extended_edges.w_o);
 
@@ -72,7 +73,7 @@ template <typename FF> class EllipticRelationBase {
         }
         // Contribution (2)
         {
-            using View = typename std::tuple_element<1, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<1, typename AccumulatorTypes::AccumulatorViews>::type;
             auto x_1 = View(extended_edges.w_r);
             auto y_1 = View(extended_edges.w_o);
 

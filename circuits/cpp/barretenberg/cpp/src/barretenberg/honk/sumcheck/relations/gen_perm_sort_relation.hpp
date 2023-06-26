@@ -17,7 +17,8 @@ template <typename FF> class GenPermSortRelationBase {
     static constexpr size_t LEN_2 = 6; // range constrain sub-relation 2
     static constexpr size_t LEN_3 = 6; // range constrain sub-relation 3
     static constexpr size_t LEN_4 = 6; // range constrain sub-relation 4
-    using LENGTHS = LengthsWrapper<LEN_1, LEN_2, LEN_3, LEN_4>;
+    template <template <size_t...> typename AccumulatorTypesContainer>
+    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2, LEN_3, LEN_4>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -34,8 +35,8 @@ template <typename FF> class GenPermSortRelationBase {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename TypeMuncher>
-    void static add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulators,
+    template <typename AccumulatorTypes>
+    void static add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
                                            const auto& extended_edges,
                                            const RelationParameters<FF>&,
                                            const FF& scaling_factor)
@@ -43,7 +44,7 @@ template <typename FF> class GenPermSortRelationBase {
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
 
-        using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+        using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
         auto w_1 = View(extended_edges.w_l);
         auto w_2 = View(extended_edges.w_r);
         auto w_3 = View(extended_edges.w_o);

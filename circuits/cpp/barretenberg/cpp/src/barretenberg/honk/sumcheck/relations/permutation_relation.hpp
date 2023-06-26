@@ -13,7 +13,8 @@ template <typename FF> class PermutationRelationBase {
 
     static constexpr size_t LEN_1 = 5; // grand product construction sub-relation
     static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
-    using LENGTHS = LengthsWrapper<LEN_1, LEN_2>;
+    template <template <size_t...> typename AccumulatorTypesContainer>
+    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
 
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
@@ -33,8 +34,8 @@ template <typename FF> class PermutationRelationBase {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename TypeMuncher>
-    inline static void add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulator,
+    template <typename AccumulatorTypes>
+    inline static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulator,
                                                   const auto& input,
                                                   const RelationParameters<FF>& relation_parameters,
                                                   const FF& scaling_factor)
@@ -44,7 +45,7 @@ template <typename FF> class PermutationRelationBase {
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
         {
-            using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
             auto w_1 = View(input.w_l);
             auto w_2 = View(input.w_r);
             auto w_3 = View(input.w_o);
@@ -68,7 +69,7 @@ template <typename FF> class PermutationRelationBase {
                 scaling_factor;
         }
         {
-            using View = typename std::tuple_element<1, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<1, typename AccumulatorTypes::AccumulatorViews>::type;
             auto z_perm_shift = View(input.z_perm_shift);
             auto lagrange_last = View(input.lagrange_last);
 
@@ -87,7 +88,8 @@ template <typename FF> class UltraPermutationRelationBase {
 
     static constexpr size_t LEN_1 = 6; // grand product construction sub-relation
     static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
-    using LENGTHS = LengthsWrapper<LEN_1, LEN_2>;
+    template <template <size_t...> typename AccumulatorTypesContainer>
+    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
 
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
@@ -100,8 +102,8 @@ template <typename FF> class UltraPermutationRelationBase {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename TypeMuncher>
-    inline static void add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulators,
+    template <typename AccumulatorTypes>
+    inline static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
                                                   const auto& extended_edges,
                                                   const RelationParameters<FF>& relation_parameters,
                                                   const FF& scaling_factor)
@@ -112,7 +114,7 @@ template <typename FF> class UltraPermutationRelationBase {
 
         // Contribution (1)
         {
-            using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
             auto w_1 = View(extended_edges.w_l);
             auto w_2 = View(extended_edges.w_r);
             auto w_3 = View(extended_edges.w_o);
@@ -139,7 +141,7 @@ template <typename FF> class UltraPermutationRelationBase {
         }
         // Contribution (2)
         {
-            using View = typename std::tuple_element<1, typename TypeMuncher::AccumulatorViews>::type;
+            using View = typename std::tuple_element<1, typename AccumulatorTypes::AccumulatorViews>::type;
             auto z_perm_shift = View(extended_edges.z_perm_shift);
             auto lagrange_last = View(extended_edges.lagrange_last);
 

@@ -14,7 +14,8 @@ template <typename FF> class ArithmeticRelationBase {
     static constexpr size_t RELATION_LENGTH = 4;
 
     static constexpr size_t LEN_1 = 4; // arithmetic sub-relation
-    using LENGTHS = LengthsWrapper<LEN_1>;
+    template <template <size_t...> typename AccumulatorTypesContainer>
+    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1>;
 
     /**
      * @brief Expression for the StandardArithmetic gate.
@@ -26,8 +27,8 @@ template <typename FF> class ArithmeticRelationBase {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename TypeMuncher>
-    void static add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulator,
+    template <typename AccumulatorTypes>
+    void static add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulator,
                                            const auto& extended_edges,
                                            const RelationParameters<FF>&,
                                            const FF& scaling_factor)
@@ -35,7 +36,7 @@ template <typename FF> class ArithmeticRelationBase {
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
 
-        using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+        using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
         auto w_l = View(extended_edges.w_l);
         auto w_r = View(extended_edges.w_r);
         auto w_o = View(extended_edges.w_o);

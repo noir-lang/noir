@@ -20,7 +20,8 @@ template <typename FF> class AuxiliaryRelationBase {
     static constexpr size_t LEN_4 = 6; // RAM consistency sub-relation 1
     static constexpr size_t LEN_5 = 6; // RAM consistency sub-relation 2
     static constexpr size_t LEN_6 = 6; // RAM consistency sub-relation 3
-    using LENGTHS = LengthsWrapper<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6>;
+    template <template <size_t...> typename AccumulatorTypesContainer>
+    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -56,8 +57,8 @@ template <typename FF> class AuxiliaryRelationBase {
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename TypeMuncher>
-    inline static void add_edge_contribution_impl(typename TypeMuncher::Accumulators& accumulators,
+    template <typename AccumulatorTypes>
+    inline static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
                                                   const auto& extended_edges,
                                                   const RelationParameters<FF>& relation_parameters,
                                                   const FF& scaling_factor)
@@ -68,7 +69,7 @@ template <typename FF> class AuxiliaryRelationBase {
         const auto& eta = relation_parameters.eta;
 
         // All subrelations have the same length so we use the same length view for all calculations
-        using View = typename std::tuple_element<0, typename TypeMuncher::AccumulatorViews>::type;
+        using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
         auto w_1 = View(extended_edges.w_l);
         auto w_2 = View(extended_edges.w_r);
         auto w_3 = View(extended_edges.w_o);
