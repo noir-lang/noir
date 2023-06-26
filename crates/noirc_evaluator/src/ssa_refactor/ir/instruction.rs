@@ -237,7 +237,10 @@ impl Instruction {
 
     /// Try to simplify this instruction. If the instruction can be simplified to a known value,
     /// that value is returned. Otherwise None is returned.
-    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
+    ///
+    /// The `block` parameter indicates the block this new instruction will be inserted into
+    /// after this call.
+    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph, block: BasicBlockId) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
@@ -309,10 +312,19 @@ impl Instruction {
                 }
             }
             Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg),
+            Instruction::EnableSideEffects { condition } => {
+                if let Some(last) = dfg[block].instructions().last().copied() {
+                    let last = &mut dfg[last];
+                    if matches!(last, Instruction::EnableSideEffects { .. }) {
+                        *last = Instruction::EnableSideEffects { condition: *condition };
+                        return Remove;
+                    }
+                }
+                None
+            }
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
-            Instruction::EnableSideEffects { .. } => None,
         }
     }
 }

@@ -139,7 +139,7 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
-        match instruction.simplify(self) {
+        match instruction.simplify(self, block) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::Remove => InstructionRemoved,
             SimplifyResult::None => {
@@ -371,6 +371,12 @@ impl std::ops::Index<InstructionId> for DataFlowGraph {
     }
 }
 
+impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
+    fn index_mut(&mut self, id: InstructionId) -> &mut Self::Output {
+        &mut self.instructions[id]
+    }
+}
+
 impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
     fn index(&self, id: ValueId) -> &Self::Output {
@@ -387,7 +393,7 @@ impl std::ops::Index<BasicBlockId> for DataFlowGraph {
 
 impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
-    fn index_mut(&mut self, id: BasicBlockId) -> &mut BasicBlock {
+    fn index_mut(&mut self, id: BasicBlockId) -> &mut Self::Output {
         &mut self.blocks[id]
     }
 }
