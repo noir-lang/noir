@@ -5,7 +5,7 @@ use std::{collections::HashMap};
 use clap::Args;
 use tracing::debug;
 
-use super::{NargoConfig, backend_vendor_cmd::{BackendCommand, ProofArtifact, WitnessArtifact}};
+use super::{NargoConfig, backend_vendor_cmd::{BackendCommand, ProofArtifact, WitnessArtifact, VerificationKeyArtifact}};
 use crate::{
     errors::CliError, cli::backend_vendor_cmd::{self, execute_backend_cmd}, constants,
 };
@@ -27,6 +27,9 @@ pub(crate) struct ProveCommand {
     pub(crate) proof_options: ProofArtifact,
 
     #[clap(flatten)]
+    pub(crate) verification_key_options: VerificationKeyArtifact,
+
+    #[clap(flatten)]
     pub(crate) witness_options: WitnessArtifact,
 
     #[clap(flatten)]
@@ -42,6 +45,8 @@ pub(crate) fn run(
 
     backend_vendor_cmd::configure_proof_artifact(&config, &mut args.proof_options);
 
+    backend_vendor_cmd::configure_verification_key_artifact(&config, &mut args.verification_key_options);
+
     backend_vendor_cmd::configure_witness_artifact(&config, &mut args.witness_options);
 
     debug!("Supplied Prove arguments: {:?}", args);
@@ -54,7 +59,7 @@ pub(crate) fn run(
     let mut envs = HashMap::new();
     envs.insert(name_of!(nargo_artifact_path in NargoConfig).to_uppercase(), String::from(config.nargo_artifact_path.unwrap().as_os_str().to_str().unwrap()));
     envs.insert(name_of!(nargo_proof_path in ProofArtifact).to_uppercase(), String::from(args.proof_options.nargo_proof_path.unwrap().as_os_str().to_str().unwrap()));
-    envs.insert(name_of!(nargo_verification_key_path in ProofArtifact).to_uppercase(), String::from(args.proof_options.nargo_verification_key_path.unwrap().as_os_str().to_str().unwrap()));
+    envs.insert(name_of!(nargo_verification_key_path in VerificationKeyArtifact).to_uppercase(), String::from(args.verification_key_options.nargo_verification_key_path.unwrap().as_os_str().to_str().unwrap()));
     envs.insert(name_of!(nargo_witness_path in WitnessArtifact).to_uppercase(), String::from(args.witness_options.nargo_witness_path.unwrap().as_os_str().to_str().unwrap()));
     let exit_code = execute_backend_cmd(&backend_executable_path, backend_args, &config.nargo_package_root, Some(envs));
 

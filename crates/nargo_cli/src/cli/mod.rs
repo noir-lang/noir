@@ -61,7 +61,7 @@ pub(crate) struct NargoConfig {
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
-    // CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
+    Contract(codegen_verifier_cmd::ContractCommand),
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -121,7 +121,7 @@ pub fn start_cli() -> eyre::Result<i32> {
         NargoCommand::Verify(args) => verify_cmd::run(args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
         NargoCommand::Gates(args) => gates_cmd::run(args, config),
-        // NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
+        NargoCommand::Contract(args) => codegen_verifier_cmd::run(args, config),
     }?;
 
     Ok(exit_code)

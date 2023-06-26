@@ -42,8 +42,14 @@ pub(crate) struct ProofArtifact {
     #[arg(env, long)]
     pub(crate) nargo_proof_path: Option<PathBuf>,
 
+}
+
+#[derive(Debug, Clone, Args)]
+pub(crate) struct VerificationKeyArtifact {
+    /// Witness file desired location path
     #[arg(env, long)]
     pub(crate) nargo_verification_key_path: Option<PathBuf>,
+
 }
 
 #[derive(Debug, Clone, Args)]
@@ -51,6 +57,14 @@ pub(crate) struct WitnessArtifact {
     /// Witness file desired location path
     #[arg(env, long)]
     pub(crate) nargo_witness_path: Option<PathBuf>,
+
+}
+
+#[derive(Debug, Clone, Args)]
+pub(crate) struct ContractArtifact {
+    /// Witness file desired location path
+    #[arg(env, long)]
+    pub(crate) nargo_contract_path: Option<PathBuf>,
 
 }
 
@@ -130,8 +144,6 @@ pub(crate) fn execute_backend_cmd(
 }
 
 pub(crate) fn configure_proof_artifact(config: &NargoConfig, proof_options: &mut ProofArtifact) {
-    // let nargo_package_root = ;
-    
     proof_options.nargo_default_proof_dir = Some(proof_options.nargo_default_proof_dir.clone().unwrap_or_else(|| {
         let mut target = config.nargo_package_root.clone();
         target.push(constants::PROOFS_DIR);
@@ -155,16 +167,19 @@ pub(crate) fn configure_proof_artifact(config: &NargoConfig, proof_options: &mut
         target
 
     }));
-    proof_options.nargo_verification_key_path = Some(proof_options.nargo_verification_key_path.clone().unwrap_or_else(|| {
-        let mut target = nargo_default_proof_dir.clone();
-        let mut nargo_proof_path = nargo_default_proof_name.clone();
-        nargo_proof_path.push_str(".");
-        nargo_proof_path.push_str(constants::VERIFICATION_KEY_EXT);
-        target.push(nargo_proof_path);
+
+}
+
+pub(crate) fn configure_verification_key_artifact(config: &NargoConfig, verification_key_options: &mut VerificationKeyArtifact) {
+    verification_key_options.nargo_verification_key_path = Some(verification_key_options.nargo_verification_key_path.clone().unwrap_or_else(|| {
+        let mut target = config.nargo_target_dir.as_ref().unwrap().clone();
+        let mut nargo_witness_name = config.nargo_artifact_name.as_ref().unwrap().clone();
+        nargo_witness_name.push_str(".");
+        nargo_witness_name.push_str(constants::VERIFICATION_KEY_EXT);
+        target.push(nargo_witness_name);
         target
 
     }));
-
 }
 
 pub(crate) fn configure_witness_artifact(config: &NargoConfig, witness_options: &mut WitnessArtifact) {
@@ -179,13 +194,23 @@ pub(crate) fn configure_witness_artifact(config: &NargoConfig, witness_options: 
     }));
 }
 
+pub(crate) fn configure_contract_artifact(config: &NargoConfig, contract_options: &mut ContractArtifact) {
+    contract_options.nargo_contract_path = Some(contract_options.nargo_contract_path.clone().unwrap_or_else(|| {
+        let mut target = config.nargo_target_dir.as_ref().unwrap().clone();
+        let mut nargo_contract_name = config.nargo_artifact_name.as_ref().unwrap().clone();
+        nargo_contract_name.push_str(".");
+        nargo_contract_name.push_str(constants::CONTRACT_EXT);
+        target.push(nargo_contract_name);
+        target
+
+    }));
+}
+
 pub(crate) fn run(
     backend_subcommand: &str,
     args: BackendCommand,
     config: NargoConfig,
 ) -> Result<i32, CliError> {    
-
-    // configure_proof_artifact(&config, &mut args);
 
     debug!("Supplied Prove arguments: {:?}", args);
 

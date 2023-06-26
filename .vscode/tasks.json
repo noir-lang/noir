@@ -174,5 +174,29 @@
 				// "isDefault": true
 			}
 		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=bb_js",
+				"--",
+				"contract"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo contract",
+			"group": {
+				"kind": "build",
+				// "isDefault": true
+			}
+		},
 	]
 }

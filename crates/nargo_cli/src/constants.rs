@@ -1,8 +1,8 @@
+
+pub const CONTRACT_EXT: &str = "sol";
 // Directories
-/// The directory for the `nargo contract` command output
-pub(crate) const CONTRACT_DIR: &str = "contract";
 /// The directory to store serialized circuit proofs.
-pub(crate) const PROOFS_DIR: &str = "proofs";
+pub(crate) const PROOFS_DIR: &str = "target";
 /// The directory to store Noir source files
 pub(crate) const SRC_DIR: &str = "src";
 /// The directory to store circuits' serialized ACIR representations.
@@ -33,3 +33,5 @@ pub(crate) const PROVE_SUB_CMD: &str = "prove";
 pub(crate) const VERIFY_SUB_CMD: &str = "verify";
 /// Gates command 
 pub(crate) const GATES_SUB_CMD: &str = "gates";
+/// Contract command 
+pub(crate) const CONTRACT_SUB_CMD: &str = "contract";
