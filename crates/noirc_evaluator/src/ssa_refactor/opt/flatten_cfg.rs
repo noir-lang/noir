@@ -581,7 +581,6 @@ impl<'f> Context<'f> {
 
         for (address, store) in then_branch.store_values {
             new_map.insert(address, (store.new_value, store.old_value, store.old_value));
-            // merge_store(address, store.new_value, store.old_value, store.old_value);
         }
 
         for (address, store) in else_branch.store_values {
