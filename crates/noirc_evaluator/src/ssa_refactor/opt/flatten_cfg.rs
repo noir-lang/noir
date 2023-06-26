@@ -596,7 +596,6 @@ impl<'f> Context<'f> {
         let else_condition = else_branch.condition;
 
         for (address, (then_case, else_case, old_value)) in new_map {
-            println!("Merging {address} := {then_case}, {else_case}, old: {old_value}");
             let value = self.merge_values(then_condition, else_condition, then_case, else_case);
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
 
