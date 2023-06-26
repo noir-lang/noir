@@ -48,7 +48,7 @@ mod affine {
         fn into_group(self) -> curvegroup::Point {
             let Self {x, y, infty} = self;
 
-            if infty == true {
+            if infty {
                 curvegroup::Point::zero()
             } else {
                 curvegroup::Point::new(x, y, 1)
@@ -73,7 +73,7 @@ mod affine {
             // Check curve coefficients
             assert(4*a*a*a + 27*b*b != 0);
             
-	    let curve = Curve { a, b, gen };
+            let curve = Curve { a, b, gen };
 
             // gen should be on the curve
             assert(curve.contains(curve.gen));
@@ -147,7 +147,7 @@ mod affine {
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
-            for i in 0..n.len() {
+            for i in 0..N {
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
@@ -173,7 +173,7 @@ mod affine {
             let gx1 = x1*x1*x1 + a*x1 + b;
             let x2 = z*u*u*x1;
             let gx2 = x2*x2*x2 + a*x2 + b;
-            let (x,y) = if is_square(gx1) == true {(x1, sqrt(gx1))} else {(x2, sqrt(gx2))};
+            let (x,y) = if is_square(gx1) {(x1, sqrt(gx1))} else {(x2, sqrt(gx2))};
             Point::new(x, if u.sgn0() != y.sgn0() {0-y} else {y})
         }
     }
@@ -250,7 +250,7 @@ mod curvegroup {
             // Check curve coefficients
             assert(4*a*a*a + 27*b*b != 0);
             
-	    let curve = Curve { a, b, gen };
+            let curve = Curve { a, b, gen };
 
             // gen should be on the curve
             assert(curve.contains(curve.gen));
@@ -331,12 +331,11 @@ mod curvegroup {
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
-            let n = bits.len();
 
-            for i in 0..n {
+            for i in 0..N {
                 out = self.add(
                     self.add(out, out),
-                    if(bits[n - i - 1] == 0) {Point::zero()} else {p});
+                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
             }
 
             out
@@ -360,7 +359,7 @@ mod curvegroup {
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
-            for i in 0..n.len() {
+            for i in 0..N {
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
