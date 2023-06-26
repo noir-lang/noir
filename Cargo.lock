@@ -51,9 +51,9 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90594c6d8107569d2ba337a3e1ff2c440cf5ba3f7bc2d3b07af5a405d769584d"
+checksum = "a378e1d68ed47b4ed1af4533b455e01836d21bf27bde482e977edea0869f0b21"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -199,7 +199,7 @@ dependencies = [
 
 [[package]]
 name = "arena"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "generational-arena",
 ]
@@ -354,7 +354,7 @@ dependencies = [
 [[package]]
 name = "async-lsp"
 version = "0.0.4"
-source = "git+https://github.com/oxalica/async-lsp?rev=9fc2db84ddcda291a864f044657f68d4377557f7#9fc2db84ddcda291a864f044657f68d4377557f7"
+source = "git+https://github.com/oxalica/async-lsp?rev=09dbcc11046f7a188a80137f8d36484d86c78c78#09dbcc11046f7a188a80137f8d36484d86c78c78"
 dependencies = [
  "either",
  "futures",
@@ -368,6 +368,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -1210,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "cfg-if",
  "codespan-reporting",
@@ -1404,9 +1405,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-utils"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8e8fc851e9c7b9852508bc6e3f690f452f474417e8545ec9857b7f7377036b5"
+checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
 dependencies = [
  "js-sys",
  "serde",
@@ -1706,7 +1707,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.7.0"
+version = "0.7.1"
 
 [[package]]
 name = "itertools"
@@ -1946,7 +1947,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "noirc_abi",
@@ -1959,7 +1960,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "acvm-backend-barretenberg",
@@ -1995,7 +1996,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -2011,7 +2012,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "build-data",
@@ -2028,7 +2029,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2042,7 +2043,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "clap",
@@ -2056,7 +2057,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "chumsky",
  "codespan",
@@ -2066,7 +2067,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "arena",
@@ -2083,7 +2084,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "arena",
@@ -3676,7 +3677,6 @@ dependencies = [
  "wasmer-engine-universal",
  "wasmer-types",
  "wasmer-vm",
- "wasmparser",
  "wat",
  "winapi",
 ]

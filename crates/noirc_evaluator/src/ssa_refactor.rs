@@ -33,6 +33,7 @@ pub(crate) fn optimize_into_acir(
     allow_log_ops: bool,
     print_ssa_passes: bool,
 ) -> GeneratedAcir {
+    let abi_distinctness = program.return_distinctness;
     let ssa = ssa_gen::generate_ssa(program).print(print_ssa_passes, "Initial SSA:");
     let brillig = ssa.to_brillig();
     ssa.inline_functions()
@@ -49,7 +50,7 @@ pub(crate) fn optimize_into_acir(
         .print(print_ssa_passes, "After Constant Folding:")
         .dead_instruction_elimination()
         .print(print_ssa_passes, "After Dead Instruction Elimination:")
-        .into_acir(brillig, allow_log_ops)
+        .into_acir(brillig, abi_distinctness, allow_log_ops)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates

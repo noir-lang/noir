@@ -58,6 +58,16 @@ impl<'block> BrilligBlock<'block> {
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
 
+    fn get_bit_size_from_ssa_type(typ: Type) -> u32 {
+        match typ {
+            Type::Numeric(num_type) => match num_type {
+                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => bit_size,
+                NumericType::NativeField => FieldElement::max_num_bits(),
+            },
+            _ => unreachable!("ICE bitwise not on a non numeric type"),
+        }
+    }
+
     /// Creates a unique global label for a block.
     ///
     /// This uses the current functions's function ID and the block ID
@@ -175,18 +185,13 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.mov_instruction(target_register, source_register);
             }
             Instruction::Not(value) => {
-                assert_eq!(
-                    dfg.type_of_value(*value),
-                    Type::bool(),
-                    "not operator can only be applied to boolean values"
-                );
                 let condition = self.convert_ssa_value(*value, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 let result_register = self
                     .function_context
                     .get_or_create_register(self.brillig_context, result_ids[0]);
-
-                self.brillig_context.not_instruction(condition, result_register);
+                let bit_size = Self::get_bit_size_from_ssa_type(dfg.type_of_value(*value));
+                self.brillig_context.not_instruction(condition, bit_size, result_register);
             }
             Instruction::Call { func, arguments } => match &dfg[*func] {
                 Value::ForeignFunction(func_name) => {

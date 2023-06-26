@@ -103,12 +103,8 @@ impl DebugToString for RegisterOrMemory {
             RegisterOrMemory::HeapArray(index, size) => {
                 format!("{}[0..{}]", index.debug_to_string(), size)
             }
-            RegisterOrMemory::HeapVector(location_index, length_index) => {
-                format!(
-                    "{}[0..{}]",
-                    location_index.debug_to_string(),
-                    length_index.debug_to_string()
-                )
+            RegisterOrMemory::HeapVector(index, size_register) => {
+                format!("{}[0..*{}]", index.debug_to_string(), size_register.debug_to_string())
             }
         }
     }
@@ -121,14 +117,14 @@ impl<T: DebugToString> DebugToString for [T] {
 }
 
 macro_rules! debug_println {
-    ( $first:expr ) => {
+    ( $literal:expr ) => {
         if ENABLE_DEBUG_TRACE {
-            println!("{}", $first);
+            println!("{}", $literal);
         }
     };
-    ( $first:expr, $( $x:expr ),* ) => {
+    ( $format_message:expr, $( $x:expr ),* ) => {
         if ENABLE_DEBUG_TRACE {
-            println!($first, $( $x.debug_to_string(), )*)
+            println!($format_message, $( $x.debug_to_string(), )*)
         }
     };
 }
@@ -171,8 +167,8 @@ pub(crate) fn const_instruction(result: RegisterIndex, constant: Value) {
 }
 
 /// Processes a not instruction. Append with "_" as this is a high-level instruction.
-pub(crate) fn not_instruction(condition: RegisterIndex, result: RegisterIndex) {
-    debug_println!("  _NOT {} = !{}", result, condition);
+pub(crate) fn not_instruction(condition: RegisterIndex, bit_size: u32, result: RegisterIndex) {
+    debug_println!("  i{}_NOT {} = !{}", bit_size, result, condition);
 }
 
 /// Processes a foreign call instruction.
@@ -256,4 +252,9 @@ pub(crate) fn cast_instruction(
     target_bit_size: u32,
 ) {
     debug_println!("  CAST {} FROM {} TO {} BITS", destination, source, target_bit_size);
+}
+
+/// Debug function for cast_instruction
+pub(crate) fn add_external_call_instruction(func_label: String) {
+    debug_println!("  CALL {}", func_label);
 }

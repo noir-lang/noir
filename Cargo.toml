@@ -17,7 +17,7 @@ default-members = ["crates/nargo_cli"]
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.7.0"
+version = "0.7.1"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -57,4 +57,4 @@ wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
-async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "9fc2db84ddcda291a864f044657f68d4377557f7" }
+async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }
