@@ -1664,6 +1664,71 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     }
 }
 
+template <typename C, typename T> void bigfield<C, T>::assert_less_than(const uint256_t upper_limit) const
+{
+    // TODO(kesha): Merge this with assert_is_in_field
+    // Warning: this assumes we have run circuit construction at least once in debug mode where large non reduced
+    // constants are allowed via ASSERT
+    if (is_constant()) {
+        return;
+    }
+    ASSERT(upper_limit != 0);
+    // The circuit checks that limit - this >= 0, so if we are doing a less_than comparison, we need to subtract 1 from
+    // the limit
+    uint256_t strict_upper_limit = upper_limit - uint256_t(1);
+    self_reduce(); // this method in particular enforces limb vals are <2^b - needed for logic described above
+    uint256_t value = get_value().lo;
+
+    const uint256_t upper_limit_value_0 = strict_upper_limit.slice(0, NUM_LIMB_BITS);
+    const uint256_t upper_limit_value_1 = strict_upper_limit.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2);
+    const uint256_t upper_limit_value_2 = strict_upper_limit.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3);
+    const uint256_t upper_limit_value_3 = strict_upper_limit.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4);
+
+    bool borrow_0_value = value.slice(0, NUM_LIMB_BITS) > upper_limit_value_0;
+    bool borrow_1_value =
+        (value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2) + uint256_t(borrow_0_value)) > (upper_limit_value_1);
+    bool borrow_2_value =
+        (value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3) + uint256_t(borrow_1_value)) > (upper_limit_value_2);
+
+    field_t<C> upper_limit_0(context, upper_limit_value_0);
+    field_t<C> upper_limit_1(context, upper_limit_value_1);
+    field_t<C> upper_limit_2(context, upper_limit_value_2);
+    field_t<C> upper_limit_3(context, upper_limit_value_3);
+    bool_t<C> borrow_0(witness_t<C>(context, borrow_0_value));
+    bool_t<C> borrow_1(witness_t<C>(context, borrow_1_value));
+    bool_t<C> borrow_2(witness_t<C>(context, borrow_2_value));
+    // The way we use borrows here ensures that we are checking that upper_limit - binary_basis > 0.
+    // We check that the result in each limb is > 0.
+    // If the modulus part in this limb is smaller, we simply borrow the value from the higher limb.
+    // The prover can rearrange the borrows the way they like. The important thing is that the borrows are
+    // constrained.
+    field_t<C> r0 = upper_limit_0 - binary_basis_limbs[0].element + static_cast<field_t<C>>(borrow_0) * shift_1;
+    field_t<C> r1 = upper_limit_1 - binary_basis_limbs[1].element + static_cast<field_t<C>>(borrow_1) * shift_1 -
+                    static_cast<field_t<C>>(borrow_0);
+    field_t<C> r2 = upper_limit_2 - binary_basis_limbs[2].element + static_cast<field_t<C>>(borrow_2) * shift_1 -
+                    static_cast<field_t<C>>(borrow_1);
+    field_t<C> r3 = upper_limit_3 - binary_basis_limbs[3].element - static_cast<field_t<C>>(borrow_2);
+    r0 = r0.normalize();
+    r1 = r1.normalize();
+    r2 = r2.normalize();
+    r3 = r3.normalize();
+    if constexpr (C::type == ComposerType::PLOOKUP) {
+        context->decompose_into_default_range(r0.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+        context->decompose_into_default_range(r1.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+        context->decompose_into_default_range(r2.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+        context->decompose_into_default_range(r3.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+    } else {
+        context->decompose_into_base4_accumulators(
+            r0.witness_index, static_cast<size_t>(NUM_LIMB_BITS), "bigfield: assert_less_than range constraint 1.");
+        context->decompose_into_base4_accumulators(
+            r1.witness_index, static_cast<size_t>(NUM_LIMB_BITS), "bigfield: assert_less_than range constraint 2.");
+        context->decompose_into_base4_accumulators(
+            r2.witness_index, static_cast<size_t>(NUM_LIMB_BITS), "bigfield: assert_less_than range constraint 3.");
+        context->decompose_into_base4_accumulators(
+            r3.witness_index, static_cast<size_t>(NUM_LIMB_BITS), "bigfield: assert_less_than range constraint 4.");
+    }
+}
+
 // check elements are equal mod p by proving their integer difference is a multiple of p.
 // This relies on the minus operator for a-b increasing a by a multiple of p large enough so diff is non-negative
 template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfield& other) const

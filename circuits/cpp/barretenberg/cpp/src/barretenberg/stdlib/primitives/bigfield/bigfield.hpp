@@ -248,6 +248,7 @@ template <typename Composer, typename T> class bigfield {
     bigfield conditional_select(const bigfield& other, const bool_t<Composer>& predicate) const;
 
     void assert_is_in_field() const;
+    void assert_less_than(const uint256_t upper_limit) const;
     void assert_equal(const bigfield& other) const;
     void assert_is_not_equal(const bigfield& other) const;
 

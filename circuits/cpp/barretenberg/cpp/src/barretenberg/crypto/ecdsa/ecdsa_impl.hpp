@@ -28,7 +28,11 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
     Fr r_fr = Fr::serialize_from_buffer(&sig.r[0]);
     Fr s_fr = (z + r_fr * account.private_key) / k;
 
-    Fr::serialize_to_buffer(s_fr, &sig.s[0]);
+    // Ensure that the value of s is "low", i.e. s := min{ s_fr, (|Fr| - s_fr) }
+    const bool is_s_low = (uint256_t(s_fr) < (uint256_t(Fr::modulus) / 2));
+    uint256_t s_uint256 = is_s_low ? uint256_t(s_fr) : (uint256_t(Fr::modulus) - uint256_t(s_fr));
+
+    Fr::serialize_to_buffer(Fr(s_uint256), &sig.s[0]);
 
     // compute recovery_id: given R = (x, y)
     //   0: y is even  &&  x < |Fr|
@@ -39,9 +43,10 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
     Fq r_fq = Fq(R.x);
     bool is_r_finite = (uint256_t(r_fq) == uint256_t(r_fr));
     bool y_parity = uint256_t(R.y).get_bit(0);
+    bool recovery_bit = y_parity ^ is_s_low;
     constexpr uint8_t offset = 27;
 
-    int value = offset + y_parity + static_cast<uint8_t>(2) * !is_r_finite;
+    int value = offset + recovery_bit + static_cast<uint8_t>(2) * !is_r_finite;
     ASSERT(value <= UINT8_MAX);
     sig.v = static_cast<uint8_t>(value);
     return sig;
@@ -54,6 +59,7 @@ typename G1::affine_element recover_public_key(const std::string& message, const
     uint256_t r_uint;
     uint256_t s_uint;
     uint8_t v_uint;
+    uint256_t mod = uint256_t(Fr::modulus);
 
     const auto* r_buf = &sig.r[0];
     const auto* s_buf = &sig.s[0];
@@ -63,11 +69,16 @@ typename G1::affine_element recover_public_key(const std::string& message, const
     read(v_buf, v_uint);
 
     // We need to check that r and s are in Field according to specification
-    if ((r_uint >= Fr::modulus) || (s_uint >= Fr::modulus)) {
+    if ((r_uint >= mod) || (s_uint >= mod)) {
         throw_or_abort("r or s value exceeds the modulus");
     }
     if ((r_uint == 0) || (s_uint == 0)) {
         throw_or_abort("r or s value is zero");
+    }
+
+    // Check that the s value is less than |Fr| / 2
+    if (s_uint * 2 > mod) {
+        throw_or_abort("s value is not less than curve order by 2");
     }
 
     // Check that v must either be in {27, 28, 29, 30}
@@ -94,7 +105,7 @@ typename G1::affine_element recover_public_key(const std::string& message, const
 
     // Negate the y-coordinate point of R based on the parity of v
     bool y_parity_R = uint256_t(point_R.y).get_bit(0);
-    if ((v_uint & 1) == y_parity_R) {
+    if ((v_uint & 1) ^ y_parity_R) {
         point_R.y = -point_R.y;
     }
 
@@ -119,6 +130,7 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     using serialize::read;
     uint256_t r_uint;
     uint256_t s_uint;
+    uint256_t mod = uint256_t(Fr::modulus);
     if (!public_key.on_curve()) {
         return false;
     }
@@ -127,12 +139,18 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     read(r_buf, r_uint);
     read(s_buf, s_uint);
     // We need to check that r and s are in Field according to specification
-    if ((r_uint >= Fr::modulus) || (s_uint >= Fr::modulus)) {
+    if ((r_uint >= mod) || (s_uint >= mod)) {
         return false;
     }
     if ((r_uint == 0) || (s_uint == 0)) {
         return false;
     }
+
+    // Check that the s value is less than |Fr| / 2
+    if (s_uint * 2 > mod) {
+        throw_or_abort("s value is not less than curve order by 2");
+    }
+
     Fr r = Fr(r_uint);
     Fr s = Fr(s_uint);
 

@@ -708,6 +708,53 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
         EXPECT_EQ(result, true);
     }
 
+    static void test_assert_less_than_success()
+    {
+        auto composer = Composer();
+        size_t num_repetitions = 10;
+        constexpr size_t num_bits = 200;
+        constexpr uint256_t bit_mask = (uint256_t(1) << num_bits) - 1;
+        for (size_t i = 0; i < num_repetitions; ++i) {
+
+            fq inputs[4]{ uint256_t(fq::random_element()) && bit_mask,
+                          uint256_t(fq::random_element()) && bit_mask,
+                          uint256_t(fq::random_element()) && bit_mask,
+                          uint256_t(fq::random_element()) && bit_mask };
+
+            fq_ct a(witness_ct(&composer, fr(uint256_t(inputs[0]).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
+                    witness_ct(&composer,
+                               fr(uint256_t(inputs[0]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
+            fq_ct b(witness_ct(&composer, fr(uint256_t(inputs[1]).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
+                    witness_ct(&composer,
+                               fr(uint256_t(inputs[1]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
+
+            fq_ct c = a;
+            fq expected = inputs[0];
+            for (size_t i = 0; i < 16; ++i) {
+                c = b * b + c;
+                expected = inputs[1] * inputs[1] + expected;
+            }
+            // fq_ct c = a + a + a + a - b - b - b - b;
+            c.assert_less_than(bit_mask + 1);
+            uint256_t result = (c.get_value().lo);
+            EXPECT_EQ(result, uint256_t(expected));
+            EXPECT_EQ(c.get_value().get_msb() < num_bits, true);
+        }
+        bool result = composer.check_circuit();
+        EXPECT_EQ(result, true);
+        // Checking edge conditions
+        fq random_input = fq::random_element();
+        fq_ct a(witness_ct(&composer, fr(uint256_t(random_input).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
+                witness_ct(&composer,
+                           fr(uint256_t(random_input).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
+
+        a.assert_less_than(random_input + 1);
+        EXPECT_EQ(composer.check_circuit(), true);
+
+        a.assert_less_than(random_input);
+        EXPECT_EQ(composer.check_circuit(), false);
+    }
+
     static void test_byte_array_constructors()
     {
         auto composer = Composer();
@@ -865,6 +912,10 @@ TYPED_TEST(stdlib_bigfield, reduce)
 TYPED_TEST(stdlib_bigfield, assert_is_in_field_succes)
 {
     TestFixture::test_assert_is_in_field_success();
+}
+TYPED_TEST(stdlib_bigfield, assert_less_than_success)
+{
+    TestFixture::test_assert_less_than_success();
 }
 TYPED_TEST(stdlib_bigfield, byte_array_constructors)
 {
