@@ -7,6 +7,7 @@ use acvm::acir::{
     brillig_vm::Opcode as BrilligOpcode,
     circuit::brillig::{BrilligInputs, BrilligOutputs},
 };
+
 use acvm::{
     acir::{
         circuit::opcodes::FunctionInput,
@@ -799,6 +800,46 @@ impl AcirContext {
                 }
             }
         }
+    }
+
+    /// Generate output variables that are constrained to be the sorted inputs
+    /// The outputs are the sorted inputs iff
+    /// outputs are sorted and
+    /// outputs are a permutation of the inputs
+    pub(crate) fn sort(
+        &mut self,
+        inputs: Vec<AcirVar>,
+        bit_size: u32,
+    ) -> Result<Vec<AcirVar>, AcirGenError> {
+        let len = inputs.len();
+        // Convert the inputs into expressions
+        let inputs_expr = vecmap(inputs, |input| self.vars[&input].to_expression().into_owned());
+        // Generate output witnesses
+        let outputs_witness = vecmap(0..len, |_| self.acir_ir.next_witness_index());
+        let output_expr =
+            vecmap(&outputs_witness, |witness_index| Expression::from(*witness_index));
+        let outputs_var = vecmap(&outputs_witness, |witness_index| {
+            self.add_data(AcirVarData::Witness(*witness_index))
+        });
+        // Enforce the outputs to be sorted
+        for i in 0..(outputs_var.len() - 1) {
+            self.less_than_constrain(outputs_var[i], outputs_var[i + 1], bit_size)?;
+        }
+        // Enforce the outputs to be a permutation of the inputs
+        self.acir_ir.permutation(&inputs_expr, &output_expr);
+
+        Ok(outputs_var)
+    }
+
+    /// Constrain lhs to be less than rhs
+    fn less_than_constrain(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        bit_size: u32,
+    ) -> Result<(), AcirGenError> {
+        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, None)?;
+        self.assert_eq_one(lhs_less_than_rhs)
     }
 }
 
