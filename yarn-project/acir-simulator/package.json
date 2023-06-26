@@ -35,8 +35,7 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
-    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#f2e10698dfa11cd46f7373cec1ed6184b0505f1e",
-    "@noir-lang/noir_util_wasm": "github:joss-aztec/noir_util_wasm#7dc410f4b4c00b9cfa9e726ae7fca3a3a4a237c5",
+    "acvm-simulator": "github:sirasistant/acvm-simulator-wasm#180bc5bec8b79034e9e3a508a959cac3fe801ed1",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"

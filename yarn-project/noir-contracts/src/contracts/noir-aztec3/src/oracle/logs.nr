@@ -8,7 +8,7 @@ fn emit_encrypted_log_oracle(
     _storage_slot: Field,
     _owner: Point,
     _note: Note,
-)  -> Field {}
+)  -> [Field; 1] {}
 
 unconstrained fn emit_encrypted_log(
     contract_address: Field,
@@ -21,13 +21,13 @@ unconstrained fn emit_encrypted_log(
         storage_slot,
         owner,
         note,
-    )
+    )[0]
 }
 
 #[oracle(emitUnencryptedLog)]
-fn emit_unencrypted_log_oracle<T>(_message: T)  -> Field {}
+fn emit_unencrypted_log_oracle<T>(_message: T)  -> [Field; 1] {}
 
 unconstrained fn emit_unencrypted_log<T>(message: T) -> Field {
     // https://github.com/AztecProtocol/aztec-packages/issues/885
-    emit_unencrypted_log_oracle(message)
+    emit_unencrypted_log_oracle(message)[0]
 }

@@ -22,7 +22,7 @@ describe('e2e_public_to_private_messaging', () => {
 
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, accounts, logger } = await setup(2));
-  }, 60_000);
+  }, 100_000);
 
   afterEach(async () => {
     await aztecNode?.stop();

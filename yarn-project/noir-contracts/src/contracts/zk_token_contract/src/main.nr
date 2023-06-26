@@ -24,7 +24,7 @@ contract ZkToken {
         //*********************************/
         initial_supply: pub Field, 
         owner: pub Point,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
         context.args = context.args.push_array([initial_supply, owner.x, owner.y]);
 
@@ -46,7 +46,7 @@ contract ZkToken {
         //*********************************/
         amount: pub Field, 
         owner: pub Point,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
         context.args = context.args.push_array([amount, owner.x, owner.y]);
 
@@ -69,16 +69,12 @@ contract ZkToken {
         amount: pub Field, 
         sender: pub Point, 
         recipient: pub Point,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient.x, recipient.y]);
 
         let sender_balance = balances.at(sender.x);
         let (mut context, (note1, note2)) = sender_balance.get_2(initialContext);
-
-        // TODO: Removing this return breaks the circuit (???)
-        context.return_values = context.return_values.push(note1.is_real as Field);
-        context.return_values = context.return_values.push(note2.is_real as Field);
 
         note1.validate(sender);
         note2.validate(sender);

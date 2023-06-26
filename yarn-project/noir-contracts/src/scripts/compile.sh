@@ -8,9 +8,9 @@ for CONTRACT_NAME in "$@"; do
   cd src/contracts/$CONTRACT_FOLDER
   rm -f target/*
   if [[ -z "${VERBOSE:-}" ]]; then
-    nargo compile main --contracts 2> /dev/null > /dev/null  || (echo "Error compiling contract. Re-running as verbose to show compiler output:"; nargo compile main --contracts);
+    nargo compile main --experimental-ssa --contracts 2> /dev/null > /dev/null  || (echo "Error compiling contract. Re-running as verbose to show compiler output:"; nargo compile main --experimental-ssa --contracts);
   else
-    nargo compile main --contracts
+    nargo compile main --experimental-ssa --contracts
   fi
 
   cd $ROOT

@@ -249,25 +249,23 @@ export class PrivateFunctionExecution {
     const argsSize = this.abi.parameters.reduce((acc, param) => acc + sizeOfType(param.type), 0);
     const contractDeploymentData = this.context.txContext.contractDeploymentData ?? ContractDeploymentData.empty();
 
-    // NOTE: PSA to anyone updating this code: within the structs, the members must be in alphabetical order, this
-    // is a current quirk in noir struct encoding, feel free to remove this note when this changes
     const fields = [
-      this.callContext.isContractDeployment,
+      this.callContext.msgSender,
+      this.callContext.storageContractAddress,
+      this.callContext.portalContractAddress,
       this.callContext.isDelegateCall,
       this.callContext.isStaticCall,
-      this.callContext.msgSender,
-      this.callContext.portalContractAddress,
-      this.callContext.storageContractAddress,
+      this.callContext.isContractDeployment,
 
-      contractDeploymentData.constructorVkHash,
-      contractDeploymentData.contractAddressSalt,
-      contractDeploymentData.functionTreeRoot,
-      contractDeploymentData.portalContractAddress,
-
+      this.context.historicRoots.privateDataTreeRoot,
+      this.context.historicRoots.nullifierTreeRoot,
       this.context.historicRoots.contractTreeRoot,
       this.context.historicRoots.l1ToL2MessagesTreeRoot,
-      this.context.historicRoots.nullifierTreeRoot,
-      this.context.historicRoots.privateDataTreeRoot,
+
+      contractDeploymentData.constructorVkHash,
+      contractDeploymentData.functionTreeRoot,
+      contractDeploymentData.contractAddressSalt,
+      contractDeploymentData.portalContractAddress,
 
       ...this.args.slice(0, argsSize),
     ];

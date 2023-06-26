@@ -2,16 +2,16 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { solve_intermediate_witness as solveIntermediateWitness } from '@noir-lang/aztec_backend_wasm';
+import { WitnessMap, executeCircuit } from 'acvm-simulator';
 
 /**
  * The format for fields on the ACVM.
  */
-export type ACVMField = `0x${string}`;
+export type ACVMField = string;
 /**
- * The format for addresses on the ACVM.
+ * The format for witnesses of the ACVM.
  */
-export type ACVMWitness = Map<number, ACVMField>;
+export type ACVMWitness = WitnessMap;
 
 export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES)}`;
 export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES - 1)}01`;
@@ -67,21 +67,17 @@ export type execute = (acir: Buffer, initialWitness: ACVMWitness, oracle: ACIRCa
 
 export const acvm: execute = async (acir, initialWitness, callback) => {
   const logger = createDebugLogger('aztec:simulator:acvm');
-  const partialWitness = await solveIntermediateWitness(
-    acir,
-    initialWitness,
-    async (name: string, args: ACVMField[]) => {
-      try {
-        logger(`Oracle callback ${name}`);
-        if (!(name in callback)) throw new Error(`Callback ${name} not found`);
-        const result = await callback[name as keyof ACIRCallback](args);
-        return result;
-      } catch (err: any) {
-        logger(`Error in ACVM callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
-        throw err;
-      }
-    },
-  );
+  const partialWitness = await executeCircuit(acir, initialWitness, async (name: string, args: string[]) => {
+    try {
+      logger(`Oracle callback ${name}`);
+      if (!(name in callback)) throw new Error(`Callback ${name} not found`);
+      const result = await callback[name as keyof ACIRCallback](args);
+      return result;
+    } catch (err: any) {
+      logger(`Error in ACVM callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
+      throw err;
+    }
+  });
   return Promise.resolve({ partialWitness });
 };
 
@@ -130,7 +126,7 @@ export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boo
  * @param field - The ACVM field to convert.
  * @returns The Buffer.
  */
-export function convertACVMFieldToBuffer(field: `0x${string}`): Buffer {
+export function convertACVMFieldToBuffer(field: ACVMField): Buffer {
   return Buffer.from(field.slice(2), 'hex');
 }
 
@@ -139,7 +135,7 @@ export function convertACVMFieldToBuffer(field: `0x${string}`): Buffer {
  * @param field - The ACVM field to convert.
  * @returns The Fr.
  */
-export function fromACVMField(field: `0x${string}`): Fr {
+export function fromACVMField(field: ACVMField): Fr {
   return Fr.fromBuffer(convertACVMFieldToBuffer(field));
 }
 

@@ -3,9 +3,8 @@ import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { select_return_flattened as selectReturnFlattened } from '@noir-lang/noir_util_wasm';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
-import { frToNumber } from '../acvm/deserialize.js';
+import { extractReturnWitness, frToNumber } from '../acvm/deserialize.js';
 import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { fieldsToFormattedStr } from './debug.js';
@@ -87,7 +86,7 @@ export class UnconstrainedFunctionExecution {
       emitUnencryptedLog: notAvailable,
     });
 
-    const returnValues: ACVMField[] = selectReturnFlattened(acir, partialWitness);
+    const returnValues: ACVMField[] = extractReturnWitness(acir, partialWitness);
 
     return decodeReturnValues(this.abi, returnValues.map(fromACVMField));
   }

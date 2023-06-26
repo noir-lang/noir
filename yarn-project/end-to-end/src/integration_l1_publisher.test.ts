@@ -144,7 +144,7 @@ describe('L1Publisher integration', () => {
       publisherPrivateKey: hexStringToBuffer(sequencerPK),
       retryIntervalMs: 100,
     });
-  }, 60_000);
+  }, 100_000);
 
   const makeEmptyProcessedTx = async () => {
     const historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);

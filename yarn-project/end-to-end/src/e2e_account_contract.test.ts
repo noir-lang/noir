@@ -23,7 +23,7 @@ describe('e2e_account_contract', () => {
 
     account = (await aztecRpcServer.getAccounts())[0];
     child = await deployContract(ChildAbi);
-  }, 60_000);
+  }, 100_000);
 
   afterEach(async () => {
     await aztecNode.stop();

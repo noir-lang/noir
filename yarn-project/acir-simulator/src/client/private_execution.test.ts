@@ -12,7 +12,7 @@ import {
   TxContext,
 } from '@aztec/circuits.js';
 import { computeSecretMessageHash, siloCommitment } from '@aztec/circuits.js/abis';
-import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -103,7 +103,7 @@ describe('Private Execution test suite', () => {
     let recipient: NoirPoint;
 
     const buildNote = (amount: bigint, owner: NoirPoint) => {
-      return [new Fr(1n), new Fr(currentNonce++), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(amount)];
+      return [new Fr(amount), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(currentNonce++), new Fr(1n)];
     };
 
     beforeAll(() => {
@@ -215,8 +215,8 @@ describe('Private Execution test suite', () => {
         Fr.fromBuffer(acirSimulator.computeNoteHash(changeNote.preimage, circuitsWasm)),
       );
 
-      expect(recipientNote.preimage[5]).toEqual(new Fr(amountToTransfer));
-      expect(changeNote.preimage[5]).toEqual(new Fr(40n));
+      expect(recipientNote.preimage[0]).toEqual(new Fr(amountToTransfer));
+      expect(changeNote.preimage[0]).toEqual(new Fr(40n));
     }, 30_000);
 
     it('should be able to transfer with dummy notes', async () => {
@@ -260,7 +260,7 @@ describe('Private Execution test suite', () => {
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.random(), EthAddress.ZERO, historicRoots);
 
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
-      expect(newNullifiers).toHaveLength(2);
+      expect(newNullifiers).toHaveLength(1);
 
       expect(newNullifiers[0]).toEqual(
         Fr.fromBuffer(acirSimulator.computeNullifier(preimages[0], ownerPk, circuitsWasm)),
@@ -268,8 +268,8 @@ describe('Private Execution test suite', () => {
 
       expect(result.preimages.newNotes).toHaveLength(2);
       const [recipientNote, changeNote] = result.preimages.newNotes;
-      expect(recipientNote.preimage[5]).toEqual(new Fr(amountToTransfer));
-      expect(changeNote.preimage[5]).toEqual(new Fr(balance - amountToTransfer));
+      expect(recipientNote.preimage[0]).toEqual(new Fr(amountToTransfer));
+      expect(changeNote.preimage[0]).toEqual(new Fr(balance - amountToTransfer));
     }, 30_000);
   });
 
@@ -380,7 +380,9 @@ describe('Private Execution test suite', () => {
       const wasm = await CircuitsWasm.get();
       const secret = new Fr(1n);
       const secretHash = computeSecretMessageHash(wasm, secret);
-      const commitment = Fr.fromBuffer(pedersenCompressInputs(wasm, [toBufferBE(amount, 32), secretHash.toBuffer()]));
+      const commitment = Fr.fromBuffer(
+        pedersenPlookupCommitInputs(wasm, [toBufferBE(amount, 32), secretHash.toBuffer()]),
+      );
       const siloedCommitment = siloCommitment(wasm, contractAddress, commitment);
 
       const tree: AppendOnlyTree = await newTree(

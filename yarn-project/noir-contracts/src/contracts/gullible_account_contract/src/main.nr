@@ -14,7 +14,7 @@ contract GullibleAccount {
         inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload,
         _signature: pub [Field;3]
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
 
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
@@ -69,7 +69,7 @@ contract GullibleAccount {
 
     fn constructor(
         inputs: pub PrivateContextInputs,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         PrivateFunctionContext::new().finish(inputs)
     }
 }

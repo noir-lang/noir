@@ -19,7 +19,7 @@ contract Account {
         inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload,
         signature: pub [Field;3]
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
 
         // Decompress signature from 3 fields to 64 bytes
@@ -42,7 +42,7 @@ contract Account {
         let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
         let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
         let verification = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, decompressed_signature, payload_hash);
-        constrain verification == 1;
+        constrain verification == true;
 
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
             let target_address = payload.flattened_targets[i];
@@ -96,7 +96,7 @@ contract Account {
 
     fn constructor(
         inputs: pub PrivateContextInputs,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         PrivateFunctionContext::new().finish(inputs)
     }
 }

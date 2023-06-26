@@ -31,14 +31,14 @@ impl Note {
         fields: [Field; NOTE_LEN],
     ) -> Note {
         Note {
-            is_real: fields[0] as bool,
-            nonce: fields[1],
+            value: fields[0],
             owner: Point {
-                x: fields[2],
-                y: fields[3]
+                x: fields[1],
+                y: fields[2]
             },
-            randomness: fields[4],
-            value: fields[5],
+            randomness: fields[3],
+            nonce: fields[4],
+            is_real: fields[5] as bool,
         }
     }
 
@@ -46,11 +46,6 @@ impl Note {
         // let randomness = ORACLE::rand(); // ORACLE CALL
         // let nonce = ORACLE::rand(); // ORACLE CALL (nonce not secure: would need to be better in production).
 
-        // rand_idx prevents repeated oracles + args from being optimised away.
-        // The + 1 is a workaround for:
-        //     The application panicked (crashed).
-        //     Message:  unexpected constant expression
-        //     Location: crates/noirc_evaluator/src/ssa/acir_gen/operations/intrinsics.rs:280
         let randomness = rand();
         // let randomness = 4; // Chosen by fair dice roll
         let nonce = 3;      // Guaranteed to be random
@@ -67,34 +62,29 @@ impl Note {
     fn compute_note_hash(self) -> Field {
         dep::std::hash::pedersen([
             crate::NoteHash,
-            self.is_real as Field,
-            self.nonce, 
+            self.value, 
             self.owner.x, 
             self.owner.y,
             self.randomness, 
-            self.value, 
+            self.nonce, 
+            self.is_real as Field,
         ])[0]
     }
 
     fn compute_nullifier(self, note_hash: Field) -> Field {
-        let mut secret_key = 0;
-
         if(self.is_real){
-            secret_key = get_secret_key(self.owner);
+            let secret_key = get_secret_key(self.owner);
             // TODO derive public key here
             let check_public_key = self.owner;
             constrain (check_public_key.x == self.owner.x) & (check_public_key.y == self.owner.y);
+            dep::std::hash::pedersen([crate::Nullifier, note_hash, secret_key])[0]
+        } else {
+            0
         }
-
-        dep::std::hash::pedersen([crate::Nullifier, note_hash, secret_key])[0]
     }
 
     fn validate(self, sender: Point){
-        if self.is_real {
-            constrain sender.x == self.owner.x;
-            constrain sender.y == self.owner.y;
-        } else {
-            constrain self.value == 0;
-        }
+        let sender_equals = (sender.x == self.owner.x) & (sender.y == self.owner.y);
+        constrain (!self.is_real) | sender_equals;
     }
 }

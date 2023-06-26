@@ -13,7 +13,7 @@ describe('e2e_deploy_contract', () => {
 
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, accounts, logger } = await setup());
-  }, 30_000);
+  }, 100_000);
 
   afterEach(async () => {
     await aztecNode?.stop();

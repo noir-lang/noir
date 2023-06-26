@@ -14,7 +14,7 @@ describe('e2e_block_building', () => {
 
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, logger } = await setup());
-  }, 30_000);
+  }, 100_000);
 
   afterEach(async () => {
     await aztecNode?.stop();

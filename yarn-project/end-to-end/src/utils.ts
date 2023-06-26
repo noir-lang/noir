@@ -27,7 +27,7 @@ import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract 
 import { mnemonicToAccount } from 'viem/accounts';
 import { MNEMONIC, localAnvil, privateKey } from './fixtures.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
-import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { KeyStore, TestKeyStore } from '@aztec/key-store';
 
 /**
@@ -243,7 +243,7 @@ export async function calculateStorageSlot(slot: bigint, key: Fr): Promise<Fr> {
   // Based on `at` function in
   // aztec3-packages/yarn-project/noir-contracts/src/contracts/noir-aztec3/src/state_vars/storage_map.nr
   const storageSlot = Fr.fromBuffer(
-    pedersenCompressInputs(
+    pedersenPlookupCommitInputs(
       wasm,
       [mappingStorageSlot, balancesStorageSlot, key].map(f => f.toBuffer()),
     ),

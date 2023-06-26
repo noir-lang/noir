@@ -8,14 +8,14 @@ fn notify_created_note_oracle(
     _storage_slot: Field,
     _owner: Point,
     _note: Note,
-) -> Field {}
+) -> [Field; 1] {}
 
 unconstrained fn notify_created_note(
     storage_slot: Field,
     owner: Point,
     note: Note,
 ) -> Field {
-    notify_created_note_oracle(storage_slot, owner, note)
+    notify_created_note_oracle(storage_slot, owner, note)[0]
 }
 
 #[oracle(notifyNullifiedNote)]
@@ -23,14 +23,14 @@ fn notify_nullified_note_oracle(
     _storage_slot: Field,
     _nullifier: Field,
     _note: Note,
-) -> Field {}
+) -> [Field; 1] {}
 
 unconstrained fn notify_nullified_note(
     storage_slot: Field,
     nullifier: Field,
     note: Note,
 ) -> Field {
-    notify_nullified_note_oracle(storage_slot, nullifier, note)
+    notify_nullified_note_oracle(storage_slot, nullifier, note)[0]
 }
 
 #[oracle(getNotes2)]

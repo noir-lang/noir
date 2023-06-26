@@ -75,16 +75,15 @@ impl Set {
         let storage_slot = self.storage_slot;
 
         let note_hash = note.compute_note_hash();
-        let siloed_note_hash = dep::std::hash::pedersen([
-            crate::NoteStorageSlot,
-            note_hash,
-            storage_slot,
-            contract_address,
-        ])[0];
-
-        let mut nullifier = note.compute_nullifier(siloed_note_hash);
-        // TODO remove this when we can specify hash index
-        nullifier = note.compute_nullifier(note_hash);
+        // TODO uncomment this when we can specify hash index
+        // let siloed_note_hash = dep::std::hash::pedersen([
+        //     crate::NoteStorageSlot,
+        //     note_hash,
+        //     storage_slot,
+        //     contract_address,
+        // ])[0];
+        // let nullifier = note.compute_nullifier(siloed_note_hash);
+        let nullifier = note.compute_nullifier(note_hash);
 
         constrain notify_nullified_note(storage_slot, nullifier, note) == 0;
         context.push_new_nullifier(nullifier)

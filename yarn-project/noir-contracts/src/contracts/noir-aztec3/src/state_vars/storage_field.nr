@@ -15,10 +15,10 @@ impl StorageField {
     }
 
     unconstrained fn read(self) -> Field {
-        storage_read_oracle(self.storage_slot)
+        storage_read_oracle(self.storage_slot)[0]
     }
 
     unconstrained fn write(self, value: Field) -> Field {
-        storage_write_oracle(self.storage_slot, value)
+        storage_write_oracle(self.storage_slot, value)[0]
     }
 }

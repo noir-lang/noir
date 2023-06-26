@@ -32,7 +32,7 @@ describe('Unconstrained Execution test suite', () => {
     let owner: NoirPoint;
 
     const buildNote = (amount: bigint, owner: NoirPoint) => {
-      return [new Fr(1n), new Fr(currentNonce++), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(amount)];
+      return [new Fr(amount), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(currentNonce++), new Fr(1n)];
     };
 
     beforeAll(() => {

@@ -1,4 +1,4 @@
-import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import {
   CallContext,
   FunctionData,
@@ -270,7 +270,7 @@ describe('ACIR public execution simulator', () => {
       // Assert the commitment was created
       expect(result.newCommitments.length).toEqual(1);
 
-      const expectedNewCommitmentValue = pedersenCompressInputs(
+      const expectedNewCommitmentValue = pedersenPlookupCommitInputs(
         wasm,
         params.map(a => a.toBuffer()),
       );
@@ -300,7 +300,7 @@ describe('ACIR public execution simulator', () => {
       // Assert the l2 to l1 message was created
       expect(result.newL2ToL1Messages.length).toEqual(1);
 
-      const expectedNewMessageValue = pedersenCompressInputs(
+      const expectedNewMessageValue = pedersenPlookupCommitInputs(
         wasm,
         params.map(a => a.toBuffer()),
       );
@@ -388,7 +388,7 @@ describe('ACIR public execution simulator', () => {
       // Assert the l2 to l1 message was created
       expect(result.newNullifiers.length).toEqual(1);
 
-      const expectedNewMessageValue = pedersenCompressInputs(
+      const expectedNewMessageValue = pedersenPlookupCommitInputs(
         wasm,
         params.map(a => a.toBuffer()),
       );

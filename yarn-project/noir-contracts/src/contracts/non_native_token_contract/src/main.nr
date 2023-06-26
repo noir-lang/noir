@@ -37,7 +37,7 @@ contract NonNativeToken {
         //*********************************/
         initial_supply: pub Field, 
         owner: pub Point,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
         context.args = context.args.push_array([initial_supply, owner.x, owner.y]);
 
@@ -66,7 +66,7 @@ contract NonNativeToken {
         msg_key: pub Field,
         secret: pub Field,
         canceller: pub Field,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut context = PrivateFunctionContext::new();
         context.args = context.args.push_array([amount, owner.x, owner.y, owner_address, msg_key, secret]);
 
@@ -97,7 +97,7 @@ contract NonNativeToken {
         sender: pub Point, 
         recipient: pub Field, // ethereum address in the field
         callerOnL1: pub Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient]);
 
@@ -195,7 +195,7 @@ contract NonNativeToken {
         amount: pub Field, 
         sender: pub Point, 
         recipient: pub Point,
-    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient.x, recipient.y]);
 
