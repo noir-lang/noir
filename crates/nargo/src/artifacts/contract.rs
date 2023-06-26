@@ -36,6 +36,8 @@ pub struct PreprocessedContractFunction {
     )]
     pub bytecode: Circuit,
 
+    #[serde(skip_serializing)]
     pub proving_key: Vec<u8>,
+    #[serde(skip_serializing)]
     pub verification_key: Vec<u8>,
 }
