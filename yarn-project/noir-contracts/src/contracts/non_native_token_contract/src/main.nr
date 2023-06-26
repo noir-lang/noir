@@ -1,5 +1,6 @@
 contract NonNativeToken {
     mod balance_utils;
+    use dep::aztec3::abi;
     use dep::aztec3::abi::PublicContextInputs;
     use dep::aztec3::abi::PrivateContextInputs;
 
@@ -33,11 +34,11 @@ contract NonNativeToken {
     fn constructor(
         //*********************************/
         // Should eventually be hidden:
-        inputs: pub PrivateContextInputs,
+        inputs: PrivateContextInputs,
         //*********************************/
-        initial_supply: pub Field, 
-        owner: pub Point,
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        initial_supply: Field, 
+        owner: Point,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut context = PrivateFunctionContext::new();
         context.args = context.args.push_array([initial_supply, owner.x, owner.y]);
 
@@ -46,7 +47,7 @@ contract NonNativeToken {
 
         // Insert note and emit encrypted note preimage via oracle call
         context = owner_balance.insert(context, note);
-        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0;
+        assert(emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0);
 
         context.finish(inputs)
     }
@@ -57,16 +58,16 @@ contract NonNativeToken {
     fn mint(
         //*********************************/
         // Should eventually be hidden:
-        inputs: pub PrivateContextInputs,
+        inputs: PrivateContextInputs,
         //*********************************/
-        amount: pub Field, 
-        owner: pub Point,
-        owner_address: pub Field,
+        amount: Field, 
+        owner: Point,
+        owner_address: Field,
         // This field should be hidden
-        msg_key: pub Field,
-        secret: pub Field,
-        canceller: pub Field,
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        msg_key: Field,
+        secret: Field,
+        canceller: Field,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut context = PrivateFunctionContext::new();
         context.args = context.args.push_array([amount, owner.x, owner.y, owner_address, msg_key, secret]);
 
@@ -81,7 +82,7 @@ contract NonNativeToken {
 
         // Insert note and emit encrypted note preimage via oracle call
         context = owner_balance.insert(context, note);
-        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0;
+        assert(emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0);
 
         context.finish(inputs)
     }
@@ -91,13 +92,13 @@ contract NonNativeToken {
     fn withdraw(
         //*********************************/
         // Should eventually be hidden:
-        inputs: pub PrivateContextInputs,
+        inputs: PrivateContextInputs,
         //*********************************/
-        amount: pub Field, 
-        sender: pub Point, 
-        recipient: pub Field, // ethereum address in the field
-        callerOnL1: pub Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        amount: Field, 
+        sender: Point, 
+        recipient: Field, // ethereum address in the field
+        callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient]);
 
@@ -112,7 +113,7 @@ contract NonNativeToken {
         note2.validate(sender);
 
         let sum = note1.value + note2.value;
-        constrain sum as u64 >= amount as u64;
+        assert(sum as u64 >= amount as u64);
         let change_value = sum - amount;
 
         context = sender_balance.remove(inputs, context, note1);
@@ -122,7 +123,7 @@ contract NonNativeToken {
 
         // Insert note and emit encrypted note preimage via oracle call
         context = sender_balance.insert(context, change_note);
-        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0;
+        assert(emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0);
         
         let content = _get_withdraw_content_hash(amount, recipient, callerOnL1);
 
@@ -145,7 +146,7 @@ contract NonNativeToken {
         msg_key: Field,
         secret: Field,
         canceller: Field,
-        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 5]
+        _padding: [Field; abi::MAX_ARGS - 5]
     ) -> Field {
         let content_hash = _get_mint_content_hash(amount, owner_address, canceller);
 
@@ -167,7 +168,7 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 2]
+        _padding: [Field; abi::MAX_ARGS - 2]
     ) {
 
         let sender = inputs.call_context.msg_sender;
@@ -190,12 +191,12 @@ contract NonNativeToken {
     fn transfer(
         //*********************************/
         // Should eventually be hidden:
-        inputs: pub PrivateContextInputs,
+        inputs: PrivateContextInputs,
         //*********************************/
-        amount: pub Field, 
-        sender: pub Point, 
-        recipient: pub Point,
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        amount: Field, 
+        sender: Point, 
+        recipient: Point,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient.x, recipient.y]);
 
@@ -210,7 +211,7 @@ contract NonNativeToken {
         note2.validate(sender);
 
         let sum = note1.value + note2.value;
-        constrain sum as u64 >= amount as u64;
+        assert(sum as u64 >= amount as u64);
         let change_value = sum - amount;
 
         context = sender_balance.remove(inputs, context, note1);
@@ -224,8 +225,8 @@ contract NonNativeToken {
         context = recipient_balance.insert(context, recipient_note);
         context = sender_balance.insert(context, change_note);
 
-        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, recipient_balance.storage_slot, recipient_note.owner, recipient_note) == 0;
-        constrain emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0;
+        assert(emit_encrypted_log(inputs.call_context.storage_contract_address, recipient_balance.storage_slot, recipient_note.owner, recipient_note) == 0);
+        assert(emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0);
 
         context.finish(inputs)
     } 
@@ -233,7 +234,7 @@ contract NonNativeToken {
     /// ABI getBalance type "unconstrained"
     fn getBalance(
         owner: Point,
-        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 2]
+        _padding: [Field; abi::MAX_ARGS - 2]
     ) -> pub Field {
         let owner_balance = balances.at(owner.x);
         

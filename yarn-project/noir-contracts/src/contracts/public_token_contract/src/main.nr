@@ -1,4 +1,5 @@
 contract PublicToken {
+    use dep::aztec3::abi;
     use dep::aztec3::abi::PrivateContextInputs;
     use dep::aztec3::context::PrivateFunctionContext;
     use dep::aztec3::abi::PublicContextInputs;
@@ -12,8 +13,8 @@ contract PublicToken {
     global balances = StorageMap { storage_slot: 1 };
 
     fn constructor(
-        inputs: pub PrivateContextInputs,
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        inputs: PrivateContextInputs,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         PrivateFunctionContext::new().finish(inputs)
     }
 
@@ -21,11 +22,11 @@ contract PublicToken {
         _inputs: PublicContextInputs,
         amount: Field,
         recipient: Point,
-        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 3]
+        _padding: [Field; abi::MAX_ARGS - 3]
     ) -> pub Field {
         let recipient_balance = balances.at(recipient.x);
         // emit event log
-        constrain emit_unencrypted_log("Coins minted") == 0;
+        assert(emit_unencrypted_log("Coins minted") == 0);
         recipient_balance.write(recipient_balance.read() + amount)
     }
 
@@ -33,7 +34,7 @@ contract PublicToken {
         inputs: PublicContextInputs,
         amount: Field,
         recipient: Point,
-        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 3]
+        _padding: [Field; abi::MAX_ARGS - 3]
     ) -> pub Field {
         let sender = inputs.call_context.msg_sender;
 
@@ -47,7 +48,7 @@ contract PublicToken {
         if (current_sender_balance as u120) > (amount as u120) {
             // TODO: Compiler complains if we don't assign the result of the write to anything
             let _void1 = sender_balance.write(current_sender_balance - amount);
-            constrain emit_unencrypted_log("Coins transferred") == 0;
+            assert(emit_unencrypted_log("Coins transferred") == 0);
             recipient_balance.write(current_recipient_balance + amount)
         } else {
             // TODO: Revert if there is not enough balance

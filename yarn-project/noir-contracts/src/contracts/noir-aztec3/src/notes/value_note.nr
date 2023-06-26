@@ -76,7 +76,7 @@ impl Note {
             let secret_key = get_secret_key(self.owner);
             // TODO derive public key here
             let check_public_key = self.owner;
-            constrain (check_public_key.x == self.owner.x) & (check_public_key.y == self.owner.y);
+            assert((check_public_key.x == self.owner.x) & (check_public_key.y == self.owner.y));
             dep::std::hash::pedersen([crate::Nullifier, note_hash, secret_key])[0]
         } else {
             0
@@ -85,6 +85,6 @@ impl Note {
 
     fn validate(self, sender: Point){
         let sender_equals = (sender.x == self.owner.x) & (sender.y == self.owner.y);
-        constrain (!self.is_real) | sender_equals;
+        assert((!self.is_real) | sender_equals);
     }
 }

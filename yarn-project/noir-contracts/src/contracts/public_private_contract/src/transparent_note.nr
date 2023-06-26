@@ -47,7 +47,7 @@ impl TransparentNote {
         let commitment_oracle_call = get_commitment(commitment);
         let commitment_data = make_commitment_getter_data(commitment_oracle_call, 0);
         // Do we still need to do this with read requests?
-        constrain root == commitment_data.root;
+        assert(root == commitment_data.root);
 
         // Calculate the nullifier
         self.emit_nullifier(context, secret, commitment, commitment_data.leaf_index)
@@ -59,7 +59,7 @@ impl TransparentNote {
 
     fn knows_secret(self, secret: Field) {
         let hash = TransparentNote::compute_secret_hash(secret);
-        constrain self.secretHash == hash;
+        assert(self.secretHash == hash);
     }
 
     fn emit_nullifier(_self: Self, mut context: PrivateFunctionContext, secret: Field, siloed_commitment: Field, index: Field) -> PrivateFunctionContext {

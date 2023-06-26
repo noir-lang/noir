@@ -34,12 +34,12 @@ export function toACVMFunctionData(functionData: FunctionData): ACVMField[] {
  */
 export function toACVMCallContext(callContext: CallContext): ACVMField[] {
   return [
-    toACVMField(callContext.isContractDeployment),
+    toACVMField(callContext.msgSender),
+    toACVMField(callContext.storageContractAddress),
+    toACVMField(callContext.portalContractAddress),
     toACVMField(callContext.isDelegateCall),
     toACVMField(callContext.isStaticCall),
-    toACVMField(callContext.msgSender),
-    toACVMField(callContext.portalContractAddress),
-    toACVMField(callContext.storageContractAddress),
+    toACVMField(callContext.isContractDeployment),
   ];
 }
 

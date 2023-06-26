@@ -9,8 +9,8 @@ contract Uniswap {
     use dep::aztec3::types::point::Point;
     
     fn constructor(
-        inputs: pub PrivateContextInputs,
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        inputs: PrivateContextInputs,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         PrivateFunctionContext::new().finish(inputs)
     }
 
@@ -23,23 +23,23 @@ contract Uniswap {
     // 6. currently have to manually set the args array for calling other contracts which is inconvenient when using structs etc.
 
     fn swap(
-        inputs: pub PrivateContextInputs,
-        withdrawFnSelector: pub Field, // withdraw method on inputAsset (l2 contract) that would withdraw to L1
-        inputAsset: pub Field, 
-        inputAssetPortalAddress: pub Field, // l1 portal of input asset
-        inputAmount: pub Field,
-        uniswapFeeTier: pub Field, // which uniswap tier to use (eg 3000 for 0.3% fee)
-        outputAsset: pub Field,
-        outputAssetPortalAddress: pub Field, // l1 portal of output asset
-        minimumOutputAmount: pub Field, // minimum output amount to receive (slippage protection for the swap)
-        sender: pub Point, 
-        recipient: pub Field, // recevier address of output asset after the swap
-        secretHash: pub Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
-        deadlineForL1ToL2Message: pub Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
-        cancellerForL1ToL2Message: pub Field, // L1 address of who can cancel the message to consume assets on L2.
-        l1UniswapPortal: pub Field, // L1 address of uniswap portal contract
-        callerOnL1: pub Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        inputs: PrivateContextInputs,
+        withdrawFnSelector: Field, // withdraw method on inputAsset (l2 contract) that would withdraw to L1
+        inputAsset: Field, 
+        inputAssetPortalAddress: Field, // l1 portal of input asset
+        inputAmount: Field,
+        uniswapFeeTier: Field, // which uniswap tier to use (eg 3000 for 0.3% fee)
+        outputAsset: Field,
+        outputAssetPortalAddress: Field, // l1 portal of output asset
+        minimumOutputAmount: Field, // minimum output amount to receive (slippage protection for the swap)
+        sender: Point, 
+        recipient: Field, // recevier address of output asset after the swap
+        secretHash: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
+        deadlineForL1ToL2Message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
+        cancellerForL1ToL2Message: Field, // L1 address of who can cancel the message to consume assets on L2.
+        l1UniswapPortal: Field, // L1 address of uniswap portal contract
+        callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut initialContext = PrivateFunctionContext::new();
         // manually pass all the arguments into the current context - 
         initialContext.args = initialContext.args.push_array([
@@ -63,7 +63,7 @@ contract Uniswap {
         // inputAsset.withdraw(inputAmount, sender, recipient=l1UniswapPortal, callerOnL1=l1UniswapPortal) 
         // only uniswap portal can call this (done to safegaurd ordering of message consumption)
         // ref: https://docs.aztec.network/aztec/how-it-works/l1-l2-messaging#designated-caller
-        let mut args = [0; dep::aztec3::abi::MAX_ARGS];
+        let mut args = [0; abi::MAX_ARGS];
         args[0] = inputAmount;
         args[1] = sender.x;
         args[2] = sender.y;
@@ -103,7 +103,7 @@ contract Uniswap {
         secretHash: Field,
         deadlineForL1ToL2Message: Field,
         canceller: Field,
-        callerOnL1: pub Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+        callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> pub Field {
 
         let mut hash_bytes: [u8; 324] = [0; 324]; // 10 fields of 32 bytes each + 4 bytes fn selector

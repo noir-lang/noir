@@ -12,7 +12,7 @@ fn debug_log_field_oracle(_field: Field) -> [Field; 1] {}
 /// Example:
 /// `debug_log("blah blah this is a debug string");`
 unconstrained fn debug_log<T>(msg: T) {
-    constrain debug_log_oracle(msg, 0)[0] == 0;
+    assert(debug_log_oracle(msg, 0)[0] == 0);
 }
 
 /// NOTE: call this with a str<N> msg of form
@@ -22,11 +22,11 @@ unconstrained fn debug_log<T>(msg: T) {
 /// Example:
 /// debug_log_format("get_2(slot:{0}) =>\n\t0:{1}\n\t1:{2}", [storage_slot, note0_hash, note1_hash]);
 unconstrained fn debug_log_format<T, N>(msg: T, args: [Field; N]) {
-    constrain debug_log_format_oracle(msg, args, args.len())[0] == 0;
+    assert(debug_log_format_oracle(msg, args, args.len())[0] == 0);
 }
 
 /// Example:
 /// `debug_log_field(my_field);`
 unconstrained fn debug_log_field(field: Field) {
-    constrain debug_log_field_oracle(field)[0] == 0;
+    assert(debug_log_field_oracle(field)[0] == 0);
 }

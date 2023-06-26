@@ -24,13 +24,13 @@ fn process_l1_to_l2_message(l1_to_l2_root: Field, storage_contract_address: Fiel
     let l1_to_l2_message_data = make_l1_to_l2_message_getter_data(returned_message, 0, secret);
 
     // Check tree roots against the inputs 
-    constrain l1_to_l2_message_data.root == l1_to_l2_root;
+    assert(l1_to_l2_message_data.root == l1_to_l2_root);
 
     // Validate this is the target contract
-    constrain l1_to_l2_message_data.message.recipient == storage_contract_address;
+    assert(l1_to_l2_message_data.message.recipient == storage_contract_address);
 
     // Validate the message hash is correct
-    constrain l1_to_l2_message_data.message.content == content;
+    assert(l1_to_l2_message_data.message.content == content);
 
     // Validate the message secret is correct
     l1_to_l2_message_data.message.validate_message_secret();

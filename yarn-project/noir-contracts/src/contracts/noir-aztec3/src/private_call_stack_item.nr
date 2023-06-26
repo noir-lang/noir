@@ -49,13 +49,13 @@ impl PrivateCallStackItem {
             },
             public_inputs: PrivateCircuitPublicInputs {
                 call_context: CallContext {
-                    is_contract_deployment: fields[4] as bool,
-                    is_delegate_call : fields[5] as bool,
-                    is_static_call : fields[6] as bool,
-
-                    msg_sender : fields[7],
-                    storage_contract_address : fields[8],
-                    portal_contract_address : fields[9],
+                    msg_sender : fields[4],
+                    storage_contract_address : fields[5],
+                    portal_contract_address : fields[6],
+                    
+                    is_delegate_call : fields[7] as bool,
+                    is_static_call : fields[8] as bool,
+                    is_contract_deployment: fields[9] as bool,
                 },
                 // TODO handle the offsets as a variable incremented during extraction?
                 args_hash: fields[10],
@@ -87,18 +87,18 @@ impl PrivateCallStackItem {
             },
             is_execution_request: fields[45] as bool,
         };
-        constrain contract_address == item.contract_address;
-        constrain function_selector == item.function_data.function_selector;
+        assert(contract_address == item.contract_address);
+        assert(function_selector == item.function_data.function_selector);
 
         // TODO hash_index
         // let args_hash = dep::std::hash::pedersen(args)[0];
-        // constrain args_hash == item.public_inputs.args_hash;
+        // assert(args_hash == item.public_inputs.args_hash);
 
-        constrain item.is_execution_request == false;
+        assert(item.is_execution_request == false);
 
-        constrain item.public_inputs.call_context.is_delegate_call == false;
-        constrain item.public_inputs.call_context.is_static_call == false;
-        constrain item.public_inputs.call_context.is_contract_deployment == false;
+        assert(item.public_inputs.call_context.is_delegate_call == false);
+        assert(item.public_inputs.call_context.is_static_call == false);
+        assert(item.public_inputs.call_context.is_contract_deployment == false);
 
         context.private_call_stack = context.private_call_stack.push(item.hash());
 

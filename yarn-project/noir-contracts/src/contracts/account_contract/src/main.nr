@@ -16,10 +16,10 @@ contract Account {
     global pub_key_y: [u8;32] = [0x35,0x47,0xF1,0x1C,0xA8,0x69,0x66,0x46,0xF2,0xF3,0xAC,0xB0,0x8E,0x31,0x01,0x6A,0xFA,0xC2,0x3E,0x63,0x0C,0x5D,0x11,0xF5,0x9F,0x61,0xFE,0xF5,0x7B,0x0D,0x2A,0xA5];
 
     fn entrypoint(
-        inputs: pub PrivateContextInputs,
-        payload: pub EntrypointPayload,
-        signature: pub [Field;3]
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        inputs: PrivateContextInputs,
+        payload: EntrypointPayload,
+        signature: [Field;3]
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut context = PrivateFunctionContext::new();
 
         // Decompress signature from 3 fields to 64 bytes
@@ -42,7 +42,7 @@ contract Account {
         let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
         let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
         let verification = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, decompressed_signature, payload_hash);
-        constrain verification == true;
+        assert(verification == true);
 
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
             let target_address = payload.flattened_targets[i];
@@ -90,13 +90,13 @@ contract Account {
         // Horrible, yes. But we need to rethink the private function context api anyway.
         // TODO(#745): Do not store args, set hash directly in context API
         let mut ret = context.finish(inputs);
-        ret[dep::aztec3::abi::CALL_CONTEXT_SIZE] = args_hash;
+        ret.args_hash = args_hash;
         ret
     }
 
     fn constructor(
-        inputs: pub PrivateContextInputs,
-    ) -> distinct pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
+        inputs: PrivateContextInputs,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
         PrivateFunctionContext::new().finish(inputs)
     }
 }
