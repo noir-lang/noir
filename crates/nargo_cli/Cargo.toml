@@ -19,7 +19,7 @@ toml.workspace = true
 
 [dependencies]
 cfg-if.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["env"]}
 dirs.workspace = true
 url.workspace = true
 iter-extended.workspace = true
@@ -41,9 +41,14 @@ hex = "0.4.2"
 termcolor = "1.1.2"
 color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
 
 # Backends
 acvm-backend-barretenberg = { version = "0.5.1", default-features = false }
+which = "4.4.0"
+nameof = "1.2.2"
 
 [dev-dependencies]
 tempdir = "0.3.7"

@@ -75,6 +75,16 @@ pub(crate) enum CliError<B: Backend> {
     /// Backend error caused by a function on the CommonReferenceString trait
     #[error(transparent)]
     CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
+
+    #[error(transparent)]
+    BackendVendorError(#[from] BackendVendorError),
+
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum BackendVendorError {
+    #[error("{0}")]
+    Generic(String),
 }
 
 impl<B: Backend> From<ReportedErrors> for CliError<B> {
@@ -82,3 +92,4 @@ impl<B: Backend> From<ReportedErrors> for CliError<B> {
         Self::ReportedErrors(errors)
     }
 }
+

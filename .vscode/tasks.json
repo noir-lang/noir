@@ -1,0 +1,193 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				// "BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul",
+				"cwd": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				// "--no-default-features",
+				// "--features=plonk_bn254_wasm",
+				"--",
+				"prove"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo prove",
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul",
+				"cwd": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=plonk_bn254_wasm",
+				"--",
+				"verify"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo verify",
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "blah",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=plonk_bn254_wasm",
+				"--",
+				"--help"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo --help",
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "blah",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=plonk_bn254_wasm",
+				"--",
+				"prove",
+				"--help"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo prove --help",
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				// "--no-default-features",
+				// "--features=plonk_bn254_wasm",
+				"--",
+				"compile"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo compile",
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				// "--no-default-features",
+				// "--features=plonk_bn254_wasm",
+				"--",
+				"execute"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo execute",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=plonk_bn254_wasm",
+				"--",
+				"gates"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo gates",
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+			},
+			"args": [
+				"--no-default-features",
+				"--features=plonk_bn254_wasm",
+				"--",
+				"contract"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo contract",
+			"group": {
+				"kind": "build"
+			}
+		},
+	]
+}

@@ -1,46 +1,46 @@
+use std::collections::HashMap;
+
+use super::{NargoConfig, backend_vendor_cmd::{BackendCommand, ProofArtifact}};
+use crate::{
+    constants::{self},
+    errors::CliError, cli::backend_vendor_cmd::execute_backend_cmd,
+};
+
 use acvm::Backend;
 use clap::Args;
-use noirc_driver::CompileOptions;
-use std::path::Path;
+use nameof::name_of;
+use tracing::debug;
 
-use crate::cli::compile_cmd::compile_circuit;
-use crate::errors::CliError;
+use super::backend_vendor_cmd;
 
-use super::NargoConfig;
-
-/// Counts the occurrences of different gates in circuit
+/// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesCommand {
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub(crate) proof_options: ProofArtifact,
+
+    #[clap(flatten)]
+    backend_options: BackendCommand
 }
 
 pub(crate) fn run<B: Backend>(
-    backend: &B,
-    args: GatesCommand,
+    _backend: &B,
+    mut args: GatesCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
-    count_gates_with_path(backend, config.program_dir, &args.compile_options)
+) -> Result<(), CliError<B>> {    
+
+    backend_vendor_cmd::configure_proof_artifact(&config, &mut args.proof_options);
+
+    debug!("Supplied arguments: {:?}", args);
+
+    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options)?;
+    let mut raw_pass_through= args.backend_options.backend_arguments.unwrap_or_default();
+    let mut backend_args = vec![String::from(constants::GATES_SUB_CMD)];
+    backend_args.append(&mut raw_pass_through);
+
+    let mut envs = HashMap::new();
+    envs.insert(name_of!(nargo_artifact_path in NargoConfig).to_uppercase(), String::from(config.nargo_artifact_path.unwrap().as_os_str().to_str().unwrap()));
+    
+    execute_backend_cmd(&backend_executable_path, backend_args, &config.nargo_package_root, Some(envs)).map_err(|e| { CliError::BackendVendorError(e)})
 }
 
-fn count_gates_with_path<B: Backend, P: AsRef<Path>>(
-    backend: &B,
-    program_dir: P,
-    compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
-    let compiled_program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-    let num_opcodes = compiled_program.circuit.opcodes.len();
-
-    println!(
-        "Total ACIR opcodes generated for language {:?}: {}",
-        backend.np_language(),
-        num_opcodes
-    );
-
-    let exact_circuit_size = backend
-        .get_exact_circuit_size(&compiled_program.circuit)
-        .map_err(CliError::ProofSystemCompilerError)?;
-    println!("Backend circuit size: {exact_circuit_size}");
-
-    Ok(())
-}

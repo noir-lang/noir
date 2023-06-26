@@ -9,6 +9,7 @@ use clap::Args;
 
 use nargo::ops::{preprocess_contract_function, preprocess_program};
 
+use crate::constants;
 use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
@@ -27,8 +28,8 @@ const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
-    /// The name of the ACIR file
-    circuit_name: String,
+    // /// The name of the ACIR file
+    // circuit_name: String,
 
     /// Compile each contract function used within the program
     #[arg(short, long)]
@@ -43,13 +44,13 @@ pub(crate) fn run<B: Backend>(
     args: CompileCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let circuit_dir = config.program_dir.join(TARGET_DIR);
+    let circuit_dir = config.nargo_package_root.join(TARGET_DIR);
 
     let mut common_reference_string = read_cached_common_reference_string();
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let mut driver = setup_driver(backend, &config.program_dir)?;
+        let mut driver = setup_driver(backend, &config.nargo_package_root)?;
 
         let result = driver.compile_contracts(&args.compile_options);
         let contracts = report_errors(result, &driver, args.compile_options.deny_warnings)?;
@@ -81,25 +82,31 @@ pub(crate) fn run<B: Backend>(
         for contract in preprocessed_contracts? {
             save_contract_to_file(
                 &contract,
-                &format!("{}-{}", &args.circuit_name, contract.name),
+                &format!("{}-{}", &config.nargo_artifact_name.as_ref().unwrap(), contract.name),
                 &circuit_dir,
             );
         }
     } else {
-        let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+        let program = compile_circuit(backend, &config.nargo_package_root, &args.compile_options)?;
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
 
         let preprocessed_program = preprocess_program(backend, &common_reference_string, program)
             .map_err(CliError::ProofSystemCompilerError)?;
-        save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
+
+        let mut acir_file_name = config.nargo_artifact_name.clone().unwrap();
+        acir_file_name.push('.');
+        acir_file_name.push_str(constants::ACIR_EXT);
+
+        save_program_to_file(&preprocessed_program, &acir_file_name, circuit_dir);
     }
 
     write_cached_common_reference_string(&common_reference_string);
 
     Ok(())
 }
+
 
 pub(super) fn setup_driver<B: Backend>(
     backend: &B,

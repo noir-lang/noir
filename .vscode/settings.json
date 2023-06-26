@@ -16,4 +16,5 @@
     "yaml.schemas": {
         "https://json.schemastore.org/github-workflow.json": "${workspaceRoot}/.github/workflows/*.yml"
     },
+    "rust-analyzer.check.features": null,
 }

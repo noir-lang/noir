@@ -1,78 +1,52 @@
-use super::fs::{
-    common_reference_string::{
-        read_cached_common_reference_string, update_common_reference_string,
-        write_cached_common_reference_string,
-    },
-    create_named_dir,
-    program::read_program_from_file,
-    write_to_file,
-};
-use super::NargoConfig;
+use std::collections::HashMap;
+
+use super::{NargoConfig, backend_vendor_cmd::{BackendCommand, ContractArtifact}};
 use crate::{
-    cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, constants::TARGET_DIR,
-    errors::CliError,
+    constants::{self},
+    errors::CliError, cli::backend_vendor_cmd::{execute_backend_cmd, VerificationKeyArtifact},
 };
+
 use acvm::Backend;
 use clap::Args;
-use nargo::ops::{codegen_verifier, preprocess_program};
-use noirc_driver::CompileOptions;
+use nameof::name_of;
+use tracing::debug;
+
+use super::backend_vendor_cmd;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CodegenVerifierCommand {
-    /// The name of the circuit build files (ACIR, proving and verification keys)
-    circuit_name: Option<String>,
+pub(crate) struct ContractCommand {
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub(crate) contract_options: ContractArtifact,
+
+    #[clap(flatten)]
+    pub(crate) verification_key_options: VerificationKeyArtifact,
+
+    #[clap(flatten)]
+    backend_options: BackendCommand
 }
 
 pub(crate) fn run<B: Backend>(
-    backend: &B,
-    args: CodegenVerifierCommand,
+    _backend: &B,
+    mut args: ContractCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
-    // TODO(#1201): Should this be a utility function?
-    let circuit_build_path = args
-        .circuit_name
-        .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
+) -> Result<(), CliError<B>> {    
 
-    let common_reference_string = read_cached_common_reference_string();
+    backend_vendor_cmd::configure_contract_artifact(&config, &mut args.contract_options);
+    backend_vendor_cmd::configure_verification_key_artifact(&config, &mut args.verification_key_options);
 
-    let (common_reference_string, preprocessed_program) = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let program = read_program_from_file(circuit_build_path)?;
-            let common_reference_string = update_common_reference_string(
-                backend,
-                &common_reference_string,
-                &program.bytecode,
-            )
-            .map_err(CliError::CommonReferenceStringError)?;
-            (common_reference_string, program)
-        }
-        None => {
-            let program =
-                compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
-            let common_reference_string =
-                update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                    .map_err(CliError::CommonReferenceStringError)?;
-            let program = preprocess_program(backend, &common_reference_string, program)
-                .map_err(CliError::ProofSystemCompilerError)?;
-            (common_reference_string, program)
-        }
-    };
+    debug!("Supplied CodeGen arguments: {:?}", args);
 
-    let smart_contract_string =
-        codegen_verifier(backend, &common_reference_string, &preprocessed_program.verification_key)
-            .map_err(CliError::SmartContractError)?;
+    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options)?;
+    let mut raw_pass_through= args.backend_options.backend_arguments.unwrap_or_default();
+    let mut backend_args = vec![String::from(constants::CONTRACT_SUB_CMD)];
+    backend_args.append(&mut raw_pass_through);
 
-    write_cached_common_reference_string(&common_reference_string);
-
-    let contract_dir = config.program_dir.join(CONTRACT_DIR);
-    create_named_dir(&contract_dir, "contract");
-    let contract_path = contract_dir.join("plonk_vk").with_extension("sol");
-
-    let path = write_to_file(smart_contract_string.as_bytes(), &contract_path);
-    println!("Contract successfully created and located at {path}");
-    Ok(())
+    let mut envs = HashMap::new();
+    envs.insert(name_of!(nargo_artifact_path in NargoConfig).to_uppercase(), String::from(config.nargo_artifact_path.unwrap().as_os_str().to_str().unwrap()));
+    envs.insert(name_of!(nargo_verification_key_path in VerificationKeyArtifact).to_uppercase(), String::from(args.verification_key_options.nargo_verification_key_path.unwrap().as_os_str().to_str().unwrap()));
+    envs.insert(name_of!(nargo_contract_path in ContractArtifact).to_uppercase(), String::from(args.contract_options.nargo_contract_path.unwrap().as_os_str().to_str().unwrap()));
+    
+    execute_backend_cmd(&backend_executable_path, backend_args, &config.nargo_package_root, Some(envs)).map_err(|e| { CliError::BackendVendorError(e)})
 }
