@@ -4,7 +4,7 @@ import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicClient, HttpTransport, Chain, getContract } from 'viem';
-import { deployAndInitializeNonNativeL2TokenContracts, pointToPublicKey } from '../utils.js';
+import { deployAndInitializeNonNativeL2TokenContracts, expectStorageSlot, pointToPublicKey } from '../utils.js';
 import { OutboxAbi } from '@aztec/l1-artifacts';
 import { sha256ToField } from '@aztec/foundation/crypto';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -120,6 +120,10 @@ export class CrossChainTestHarness {
     expect(await this.underlyingERC20.read.balanceOf([this.ethAccount.toString()])).toBe(amount);
   }
 
+  async getL1BalanceOf(address: EthAddress) {
+    return await this.underlyingERC20.read.balanceOf([address.toString()]);
+  }
+
   async sendTokensToPortal(bridgeAmount: bigint, secretHash: Fr) {
     await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount], {} as any);
 
@@ -156,6 +160,53 @@ export class CrossChainTestHarness {
     const transferReceipt = await transferTx.getReceipt();
 
     expect(transferReceipt.status).toBe(TxStatus.MINED);
+  }
+
+  async consumeMessageOnAztecAndMintSecretly(bridgeAmount: bigint, messageKey: Fr, secret: Fr) {
+    this.logger('Consuming messages on L2 secretively');
+    // Call the mint tokens function on the noir contract
+    const consumptionTx = this.l2Contract.methods
+      .mint(bridgeAmount, this.ownerPub, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
+      .send({ from: this.ownerAddress });
+
+    await consumptionTx.isMined(0, 0.1);
+    const consumptionReceipt = await consumptionTx.getReceipt();
+    expect(consumptionReceipt.status).toBe(TxStatus.MINED);
+  }
+
+  async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, messageKey: Fr, secret: Fr) {
+    this.logger('Consuming messages on L2 Publicly');
+    // Call the mint tokens function on the noir contract
+    const consumptionTx = this.l2Contract.methods
+      .mintPublic(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
+      .send({ from: this.ownerAddress });
+
+    await consumptionTx.isMined(0, 0.1);
+    const consumptionReceipt = await consumptionTx.getReceipt();
+    expect(consumptionReceipt.status).toBe(TxStatus.MINED);
+  }
+
+  async getL2BalanceOf(owner: AztecAddress) {
+    const ownerPublicKey = await this.aztecRpcServer.getAccountPublicKey(owner);
+    const [balance] = await this.l2Contract.methods.getBalance(pointToPublicKey(ownerPublicKey)).view({ from: owner });
+    return balance;
+  }
+
+  async expectBalanceOnL2(owner: AztecAddress, expectedBalance: bigint) {
+    const balance = await this.getL2BalanceOf(owner);
+    this.logger(`Account ${owner} balance: ${balance}`);
+    expect(balance).toBe(expectedBalance);
+  }
+
+  async expectPublicBalanceOnL2(owner: AztecAddress, expectedBalance: bigint, publicBalanceSlot: bigint) {
+    await expectStorageSlot(
+      this.logger,
+      this.aztecNode,
+      this.l2Contract,
+      publicBalanceSlot,
+      owner.toField(),
+      expectedBalance,
+    );
   }
 
   async checkEntryIsNotInOutbox(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Promise<Fr> {
