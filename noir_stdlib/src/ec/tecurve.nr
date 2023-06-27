@@ -235,8 +235,8 @@ mod curvegroup {
 
         // Check if zero
         fn is_zero(self) -> bool {
-            let Self {x, y, t: _t, z} = self;
-            (x == 0) & (y == z)
+            let Self {x, y, t, z} = self;
+            (x == 0) & (y == z) & (y != 0) & (t == 0)
         }
 
         // Conversion to affine coordinates
