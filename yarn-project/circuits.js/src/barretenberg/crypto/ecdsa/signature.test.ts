@@ -1,6 +1,6 @@
-import { EcdsaSignature } from './shared.js';
+import { EcdsaSignature } from './signature.js';
 
-describe('shared', () => {
+describe('ecdsa_signature', () => {
   it('serializes signature with v to fields', () => {
     const signature = EcdsaSignature.random();
     const asFields = signature.toFields(true);

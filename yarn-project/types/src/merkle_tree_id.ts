@@ -11,3 +11,7 @@ export enum MerkleTreeId {
   L1_TO_L2_MESSAGES_TREE = 6,
   L1_TO_L2_MESSAGES_ROOTS_TREE = 7,
 }
+
+export const merkleTreeIds = () => {
+  return Object.values(MerkleTreeId).filter((v): v is MerkleTreeId => !isNaN(Number(v)));
+};

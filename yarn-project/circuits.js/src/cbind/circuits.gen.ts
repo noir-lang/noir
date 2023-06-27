@@ -4,8 +4,8 @@ import { Buffer } from 'buffer';
 import { callCbind } from './cbind.js';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import {
-  Fr,
   Address,
+  Fr,
   Fq,
   G1AffineElement,
   NativeAggregationState,
@@ -17,6 +17,8 @@ import {
   CombinedAccumulatedData,
   PrivateHistoricTreeRoots,
   CombinedHistoricTreeRoots,
+  Coordinate,
+  Point,
   ContractDeploymentData,
   TxContext,
   CombinedConstantData,
@@ -572,8 +574,56 @@ export function fromCombinedHistoricTreeRoots(o: CombinedHistoricTreeRoots): Msg
   };
 }
 
+interface MsgpackCoordinate {
+  fields: Tuple<Buffer, 2>;
+}
+
+export function toCoordinate(o: MsgpackCoordinate): Coordinate {
+  if (o.fields === undefined) {
+    throw new Error('Expected fields in Coordinate deserialization');
+  }
+  return new Coordinate(mapTuple(o.fields, (v: Buffer) => Fr.fromBuffer(v)));
+}
+
+export function fromCoordinate(o: Coordinate): MsgpackCoordinate {
+  if (o.fields === undefined) {
+    throw new Error('Expected fields in Coordinate serialization');
+  }
+  return {
+    fields: mapTuple(o.fields, (v: Fr) => v.toBuffer()),
+  };
+}
+
+interface MsgpackPoint {
+  x: MsgpackCoordinate;
+  y: MsgpackCoordinate;
+}
+
+export function toPoint(o: MsgpackPoint): Point {
+  if (o.x === undefined) {
+    throw new Error('Expected x in Point deserialization');
+  }
+  if (o.y === undefined) {
+    throw new Error('Expected y in Point deserialization');
+  }
+  return new Point(toCoordinate(o.x), toCoordinate(o.y));
+}
+
+export function fromPoint(o: Point): MsgpackPoint {
+  if (o.x === undefined) {
+    throw new Error('Expected x in Point serialization');
+  }
+  if (o.y === undefined) {
+    throw new Error('Expected y in Point serialization');
+  }
+  return {
+    x: fromCoordinate(o.x),
+    y: fromCoordinate(o.y),
+  };
+}
+
 interface MsgpackContractDeploymentData {
-  deployer_public_key: Tuple<Buffer, 2>;
+  deployer_public_key: MsgpackPoint;
   constructor_vk_hash: Buffer;
   function_tree_root: Buffer;
   contract_address_salt: Buffer;
@@ -597,7 +647,7 @@ export function toContractDeploymentData(o: MsgpackContractDeploymentData): Cont
     throw new Error('Expected portal_contract_address in ContractDeploymentData deserialization');
   }
   return new ContractDeploymentData(
-    mapTuple(o.deployer_public_key, (v: Buffer) => Fr.fromBuffer(v)),
+    toPoint(o.deployer_public_key),
     Fr.fromBuffer(o.constructor_vk_hash),
     Fr.fromBuffer(o.function_tree_root),
     Fr.fromBuffer(o.contract_address_salt),
@@ -622,7 +672,7 @@ export function fromContractDeploymentData(o: ContractDeploymentData): MsgpackCo
     throw new Error('Expected portalContractAddress in ContractDeploymentData serialization');
   }
   return {
-    deployer_public_key: mapTuple(o.deployerPublicKey, (v: Fr) => v.toBuffer()),
+    deployer_public_key: fromPoint(o.deployerPublicKey),
     constructor_vk_hash: o.constructorVkHash.toBuffer(),
     function_tree_root: o.functionTreeRoot.toBuffer(),
     contract_address_salt: o.contractAddressSalt.toBuffer(),

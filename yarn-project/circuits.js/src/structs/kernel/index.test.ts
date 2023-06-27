@@ -1,5 +1,5 @@
 import { expectSerializeToMatchSnapshot } from '../../tests/expectSerialize.js';
-import { makeEcdsaSignature } from '../../tests/factories.js';
+import { makeSchnorrSignature } from '../../tests/factories.js';
 import {
   makePreviousKernelData,
   makePrivateKernelInputsInner,
@@ -35,7 +35,7 @@ describe('structs/kernel', () => {
   });
 
   it(`serializes and prints EcdsaSignature`, async () => {
-    await expectSerializeToMatchSnapshot(makeEcdsaSignature().toBuffer(), 'abis__test_roundtrip_serialize_signature');
+    await expectSerializeToMatchSnapshot(makeSchnorrSignature().toBuffer(), 'abis__test_roundtrip_serialize_signature');
   });
 
   it(`serializes and prints CombinedAccumulatedData`, async (seed = 1) => {

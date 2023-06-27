@@ -11,13 +11,15 @@ import {
   Point,
   SentTx,
   createAztecRPCServer,
+  CurveType,
+  SignerType,
 } from '@aztec/aztec.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import {
-  AccountContractAbi,
+  SchnorrAccountContractAbi,
   GullibleAccountContractAbi,
   NonNativeTokenContractAbi,
 } from '@aztec/noir-contracts/examples';
@@ -27,7 +29,7 @@ import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract 
 import { mnemonicToAccount } from 'viem/accounts';
 import { MNEMONIC, localAnvil, privateKey } from './fixtures.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
-import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
+import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { KeyStore, TestKeyStore } from '@aztec/key-store';
 
 /**
@@ -75,14 +77,19 @@ export async function setup(numberOfAccounts = 1): Promise<{
   config.inboxContract = deployL1ContractsValues.inboxAddress;
 
   const aztecNode = await AztecNodeService.createAndSync(config);
-  const keyStore = new TestKeyStore(await Grumpkin.new());
+  const keyStore = new TestKeyStore();
   const aztecRpcServer = await createAztecRPCServer(aztecNode, { keyStore });
   for (let i = 0; i < numberOfAccounts; ++i) {
     // We use the well-known private key and the validating account contract for the first account,
     // and generate random keypairs with gullible account contracts (ie no sig validation) for the rest.
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
-    const [privKey, impl] = i == 0 ? [privateKey, AccountContractAbi] : [undefined, GullibleAccountContractAbi];
-    const [txHash, newAddress] = await aztecRpcServer.createSmartAccount(privKey, impl);
+    const [privKey, impl] = i == 0 ? [privateKey, SchnorrAccountContractAbi] : [undefined, GullibleAccountContractAbi];
+    const [txHash, newAddress] = await aztecRpcServer.createSmartAccount(
+      privKey,
+      CurveType.GRUMPKIN,
+      SignerType.SCHNORR,
+      impl,
+    );
     const isMined = await new SentTx(aztecRpcServer, Promise.resolve(txHash)).isMined();
     expect(isMined).toBeTruthy();
     const address = newAddress;
@@ -154,11 +161,11 @@ export function getLogger() {
  * @returns two big ints x,y representing the public key
  */
 export function pointToPublicKey(point: Point) {
-  const x = point.buffer.subarray(0, 32);
-  const y = point.buffer.subarray(32, 64);
+  const x = point.x.toBigInt();
+  const y = point.y.toBigInt();
   return {
-    x: toBigIntBE(x),
-    y: toBigIntBE(y),
+    x,
+    y,
   };
 }
 

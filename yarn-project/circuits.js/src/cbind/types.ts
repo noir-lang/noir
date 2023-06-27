@@ -31,6 +31,8 @@ export {
   PublicCallData,
   PublicKernelInputs,
   CircuitError,
+  Point,
+  Coordinate,
 } from '../structs/index.js';
 
 /**

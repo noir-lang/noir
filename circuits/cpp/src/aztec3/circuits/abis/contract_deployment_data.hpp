@@ -1,4 +1,5 @@
 #pragma once
+#include "aztec3/circuits/abis/point.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
@@ -19,7 +20,7 @@ template <typename NCT> struct ContractDeploymentData {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
-    std::array<fr, 2> deployer_public_key = { 0, 0 };
+    Point<NCT> deployer_public_key;
     fr constructor_vk_hash = 0;
     fr function_tree_root = 0;
     fr contract_address_salt = 0;
@@ -45,8 +46,11 @@ template <typename NCT> struct ContractDeploymentData {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         ContractDeploymentData<CircuitTypes<Composer>> data = {
-            to_ct(deployer_public_key),   to_ct(constructor_vk_hash),     to_ct(function_tree_root),
-            to_ct(contract_address_salt), to_ct(portal_contract_address),
+            deployer_public_key.to_circuit_type(composer),
+            to_ct(constructor_vk_hash),
+            to_ct(function_tree_root),
+            to_ct(contract_address_salt),
+            to_ct(portal_contract_address),
         };
 
         return data;
@@ -56,10 +60,11 @@ template <typename NCT> struct ContractDeploymentData {
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
 
         ContractDeploymentData<NativeTypes> call_context = {
-            to_nt(deployer_public_key),   to_nt(constructor_vk_hash),     to_nt(function_tree_root),
-            to_nt(contract_address_salt), to_nt(portal_contract_address),
+            to_native_type(deployer_public_key), to_nt(constructor_vk_hash),     to_nt(function_tree_root),
+            to_nt(contract_address_salt),        to_nt(portal_contract_address),
         };
 
         return call_context;
@@ -69,8 +74,7 @@ template <typename NCT> struct ContractDeploymentData {
     {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
 
-        deployer_public_key[0].assert_is_zero();
-        deployer_public_key[1].assert_is_zero();
+        deployer_public_key.assert_is_zero();
         constructor_vk_hash.assert_is_zero();
         function_tree_root.assert_is_zero();
         contract_address_salt.assert_is_zero();
@@ -81,8 +85,7 @@ template <typename NCT> struct ContractDeploymentData {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        deployer_public_key[0].set_public();
-        deployer_public_key[1].set_public();
+        deployer_public_key.set_public();
         constructor_vk_hash.set_public();
         function_tree_root.set_public();
         contract_address_salt.set_public();
@@ -92,8 +95,14 @@ template <typename NCT> struct ContractDeploymentData {
     fr hash() const
     {
         std::vector<fr> const inputs = {
-            deployer_public_key[0], deployer_public_key[1], constructor_vk_hash,
-            function_tree_root,     contract_address_salt,  portal_contract_address.to_field(),
+            deployer_public_key.x.fields[0],
+            deployer_public_key.x.fields[1],
+            deployer_public_key.y.fields[0],
+            deployer_public_key.y.fields[1],
+            constructor_vk_hash,
+            function_tree_root,
+            contract_address_salt,
+            portal_contract_address.to_field(),
         };
 
         return NCT::compress(inputs, GeneratorIndex::CONTRACT_DEPLOYMENT_DATA);

@@ -3,6 +3,7 @@ import {
   AztecAddress,
   AztecRPCServer,
   ContractDeployer,
+  Fr,
   SentTx,
   TxStatus,
   createAztecRPCServer,
@@ -143,13 +144,13 @@ describe('e2e_p2p_network', () => {
     return txs;
   };
 
-  // creates and instance of the aztec rpc server and submit a given number of transactions to it.
+  // creates an instance of the aztec rpc server and submit a given number of transactions to it.
   const createAztecRpcServerAndSubmitTransactions = async (
     node: AztecNodeService,
     numTxs: number,
   ): Promise<NodeContext> => {
     const aztecRpcServer = await createAztecRPCServer(node);
-    const account = await aztecRpcServer.registerSmartAccount(randomBytes(32), AztecAddress.random());
+    const account = await aztecRpcServer.registerSmartAccount(randomBytes(32), AztecAddress.random(), Fr.random());
 
     const txs = await submitTxsTo(aztecRpcServer, account, numTxs);
     return {

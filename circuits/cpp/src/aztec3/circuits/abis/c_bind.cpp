@@ -17,6 +17,7 @@
 
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/point.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
 #include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/abis/types.hpp"
@@ -30,10 +31,12 @@ namespace {
 
 using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
+using aztec3::circuits::compute_partial_contract_address;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::NewContractData;
+using aztec3::circuits::abis::Point;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using NT = aztec3::utils::types::NativeTypes;
@@ -282,7 +285,70 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
     NT::fr::serialize_to_buffer(constructor_hash, output);
 }
 
-CBIND(abis__compute_contract_address, compute_contract_address<NT>);
+/**
+ * @brief Compute a contract address
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details Computes a contract address by hashing the deployers public key along with the previously computed partial
+ * address Return the serialized results in the `output` buffer.
+ *
+ * @param point_data_buf point data struct as a buffer of bytes
+ * @param contract_address_salt_buf salt value for the contract address
+ * @param function_tree_root_buf root value of the contract's function tree
+ * @param constructor_hash_buf the hash of the contract constructor's verification key
+ * @param output buffer that will contain the output. The serialized contract address.
+ */
+WASM_EXPORT void abis__compute_contract_address(uint8_t const* point_data_buf,
+                                                uint8_t const* contract_address_salt_buf,
+                                                uint8_t const* function_tree_root_buf,
+                                                uint8_t const* constructor_hash_buf,
+                                                uint8_t* output)
+{
+    Point<NT> deployer_public_key;
+    NT::fr contract_address_salt;
+    NT::fr function_tree_root;
+    NT::fr constructor_hash;
+
+    read(point_data_buf, deployer_public_key);
+    read(contract_address_salt_buf, contract_address_salt);
+    read(function_tree_root_buf, function_tree_root);
+    read(constructor_hash_buf, constructor_hash);
+
+    NT::fr const contract_address =
+        compute_contract_address(deployer_public_key, contract_address_salt, function_tree_root, constructor_hash);
+
+    NT::fr::serialize_to_buffer(contract_address, output);
+}
+
+/**
+ * @brief Compute a partial contract address
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details Computes a partial contract address by hashing the salt, functio tree root and constructor hash
+ * Return the serialized results in the `output` buffer.
+ *
+ * @param contract_address_salt_buf salt value for the contract address
+ * @param function_tree_root_buf root value of the contract's function tree
+ * @param constructor_hash_buf the hash of the contract constructor's verification key
+ * @param output buffer that will contain the output. The serialized contract address.
+ */
+WASM_EXPORT void abis__compute_partial_contract_address(uint8_t const* contract_address_salt_buf,
+                                                        uint8_t const* function_tree_root_buf,
+                                                        uint8_t const* constructor_hash_buf,
+                                                        uint8_t* output)
+{
+    NT::fr contract_address_salt;
+    NT::fr function_tree_root;
+    NT::fr constructor_hash;
+
+    read(contract_address_salt_buf, contract_address_salt);
+    read(function_tree_root_buf, function_tree_root);
+    read(constructor_hash_buf, constructor_hash);
+    NT::fr const partial_address =
+        compute_partial_contract_address<NT>(contract_address_salt, function_tree_root, constructor_hash);
+
+    NT::fr::serialize_to_buffer(partial_address, output);
+}
 
 /**
  * @brief Hash args for a function call.

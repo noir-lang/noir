@@ -41,12 +41,12 @@ contract PublicPrivate {
         _inputs: PublicContextInputs,
         amount: Field,
         secretHash: Field,
-        _padding: [Field; abi::MAX_ARGS - 3]
+        _padding: [Field; dep::aztec3::abi::MAX_ARGS - 2]
     ) {
-    
+
         // Create a commitment to the amount
         let note = TransparentNote::new(amount, secretHash);
-        
+
         // Public oracle call to emit new commitment.
         create_commitment(note.get_commitment());
     }

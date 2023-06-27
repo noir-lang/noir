@@ -20,7 +20,7 @@ import {
   ContractDeploymentData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
-  EcdsaSignature,
+  Coordinate,
   FUNCTION_TREE_HEIGHT,
   Fq,
   Fr,
@@ -86,6 +86,7 @@ import {
   makeTuple,
   range,
 } from '../index.js';
+import { SchnorrSignature } from '../barretenberg/index.js';
 import { GlobalVariables } from '../structs/global_variables.js';
 
 /**
@@ -398,7 +399,7 @@ export function makeVerificationKey(): VerificationKey {
  * @returns A point.
  */
 export function makePoint(seed = 1): Point {
-  return new Point(Buffer.concat([fr(seed).toBuffer(), fr(seed + 1).toBuffer()]));
+  return Point.fromCoordinates(Coordinate.fromField(new Fr(seed)), Coordinate.fromField(new Fr(seed + 1)));
 }
 
 /**
@@ -715,12 +716,12 @@ export function makeAztecAddress(seed = 1): AztecAddress {
 }
 
 /**
- * Makes arbitrary ecdsa signature.
- * @param seed - The seed to use for generating the ecdsa signature.
- * @returns An ecdsa signature.
+ * Makes arbitrary Schnorr signature.
+ * @param seed - The seed to use for generating the Schnorr signature.
+ * @returns A Schnorr signature.
  */
-export function makeEcdsaSignature(seed = 1): EcdsaSignature {
-  return new EcdsaSignature(Buffer.alloc(32, seed), Buffer.alloc(32, seed + 1), Buffer.alloc(1, seed + 2));
+export function makeSchnorrSignature(seed = 1): SchnorrSignature {
+  return new SchnorrSignature(Buffer.alloc(SchnorrSignature.SIZE, seed));
 }
 
 /**

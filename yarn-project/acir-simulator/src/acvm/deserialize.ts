@@ -14,7 +14,7 @@ import {
 } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { getReturnWitness } from 'acvm-simulator';
 
 // Utilities to read TS classes from ACVM Field arrays
@@ -148,7 +148,7 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
   const contractDeploymentData = new ContractDeploymentData(
     // TODO: Uncomment when we fix the "too many unknowns" Noir issue
     // [witnessReader.readField(), witnessReader.readField()],
-    [Fr.ZERO, Fr.ZERO],
+    Point.ZERO,
     witnessReader.readField(),
     witnessReader.readField(),
     witnessReader.readField(),

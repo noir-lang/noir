@@ -128,7 +128,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     const NT::fr acir_hash = 12341234;
 
     const NT::fr msg_sender_private_key = 123456789;
-    const std::array<NT::fr, 2> msg_sender_pub_key = { 123456789, 123456789 };
+    const Point<NT> msg_sender_pub_key = { .x = { 123456789, 123456789 }, .y = { 123456789, 123456789 } };
 
     FunctionData<NT> const function_data{
         .function_selector = 1,  // TODO(suyash): deduce this from the contract, somehow.
@@ -501,17 +501,12 @@ bool validate_deployed_contract_address(PrivateKernelInputsInit<NT> const& priva
 
     auto private_circuit_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(
         private_inputs.private_call.vk, GeneratorIndex::VK);
-    auto private_call_function_data_hash = private_inputs.private_call.call_stack_item.function_data.hash();
 
-    auto expected_constructor_hash =
-        NT::compress({ private_call_function_data_hash, tx_request.args_hash, private_circuit_vk_hash }, CONSTRUCTOR);
+    auto expected_constructor_hash = compute_constructor_hash(
+        private_inputs.private_call.call_stack_item.function_data, tx_request.args_hash, private_circuit_vk_hash);
 
-    NT::fr const expected_contract_address = NT::compress({ cdd.deployer_public_key[0],
-                                                            cdd.deployer_public_key[1],
-                                                            cdd.contract_address_salt,
-                                                            cdd.function_tree_root,
-                                                            expected_constructor_hash },
-                                                          CONTRACT_ADDRESS);
+    NT::fr const expected_contract_address = compute_contract_address(
+        cdd.deployer_public_key, cdd.contract_address_salt, cdd.function_tree_root, expected_constructor_hash);
 
     return (public_inputs.end.new_contracts[0].contract_address.to_field() == expected_contract_address);
 }

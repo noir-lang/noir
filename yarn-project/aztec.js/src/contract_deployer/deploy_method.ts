@@ -4,6 +4,7 @@ import { ContractFunctionInteraction, SendMethodOptions } from '../contract/inde
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { PartialContractAddress } from '@aztec/types';
 
 /**
  * Options for deploying a contract on the Aztec network.
@@ -25,6 +26,11 @@ export interface DeployOptions extends SendMethodOptions {
  * Extends the ContractFunctionInteraction class.
  */
 export class DeployMethod extends ContractFunctionInteraction {
+  /**
+   * The partially computed contract address. Known after creation of the deployment transaction.
+   */
+  public partialContractAddress?: PartialContractAddress = undefined;
+
   constructor(arc: AztecRPCClient, private abi: ContractAbi, args: any[] = []) {
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) {
@@ -45,13 +51,15 @@ export class DeployMethod extends ContractFunctionInteraction {
    */
   public async create(options: DeployOptions = {}) {
     const { portalContract, contractAddressSalt, from } = options;
-    this.tx = await this.arc.createDeploymentTx(
+    const deploymentTx = await this.arc.createDeploymentTx(
       this.abi,
       this.args,
       portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
       contractAddressSalt,
       from,
     );
+    this.tx = deploymentTx.tx;
+    this.partialContractAddress = deploymentTx.partialContractAddress;
     return this.tx;
   }
 

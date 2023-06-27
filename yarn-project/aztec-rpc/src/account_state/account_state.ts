@@ -1,8 +1,8 @@
 import { AcirSimulator, collectEncryptedLogs, collectEnqueuedPublicFunctionCalls } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { CircuitsWasm, KERNEL_NEW_COMMITMENTS_LENGTH, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { FunctionType } from '@aztec/foundation/abi';
+import { Curve, Signer } from '@aztec/circuits.js/barretenberg';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -15,6 +15,7 @@ import {
   L2BlockL2Logs,
   MerkleTreeId,
   NoteSpendingInfo,
+  PartialContractAddress,
   Tx,
   TxExecutionRequest,
   TxL2Logs,
@@ -63,17 +64,20 @@ export class AccountState {
   constructor(
     private readonly privKey: Buffer,
     private readonly address: AztecAddress,
+    private readonly partialContractAddress: PartialContractAddress,
     private db: Database,
     private node: AztecNode,
-    private grumpkin: Grumpkin,
+    private curve: Curve,
+    private signer: Signer,
+    private accountContractAbi: ContractAbi,
     private TXS_PER_BLOCK = 4,
     private log = createDebugLogger('aztec:aztec_rpc_account_state'),
   ) {
     if (privKey.length !== 32) {
       throw new Error(`Invalid private key length. Received ${privKey.length}, expected 32`);
     }
-    this.publicKey = Point.fromBuffer(this.grumpkin.mul(Grumpkin.generator, this.privKey));
-    this.keyPair = new ConstantKeyPair(this.publicKey, privKey);
+    this.publicKey = Point.fromBuffer(this.curve.mul(this.curve.generator(), this.privKey));
+    this.keyPair = new ConstantKeyPair(this.curve, this.signer, this.publicKey, privKey);
   }
 
   /**
@@ -106,6 +110,23 @@ export class AccountState {
    */
   public getPublicKey() {
     return this.publicKey;
+  }
+
+  /**
+   * Get the partial address of the account contract associated with this AccountState instance.
+   *
+   * @returns The partially constructed address of the account contract.
+   */
+  public getPartialContractAddress() {
+    return this.partialContractAddress;
+  }
+
+  /**
+   * Get the abi of the account contract backing this account.
+   * @returns The account contract abi.
+   */
+  public getAccountContractAbi() {
+    return this.accountContractAbi;
   }
 
   /**
@@ -188,7 +209,14 @@ export class AccountState {
 
     const simulator = this.getAcirSimulator(contractDataOracle);
     this.log('Executing simulator...');
-    const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract, historicRoots);
+    const result = await simulator.run(
+      txRequest,
+      functionAbi,
+      contractAddress,
+      portalContract,
+      historicRoots,
+      this.curve,
+    );
     this.log('Simulation completed!');
 
     return result;
@@ -331,7 +359,7 @@ export class AccountState {
         const txFunctionLogs = txLogs[txIndex].functionLogs;
         for (const functionLogs of txFunctionLogs) {
           for (const logs of functionLogs.logs) {
-            const noteSpendingInfo = NoteSpendingInfo.fromEncryptedBuffer(logs, this.privKey, this.grumpkin);
+            const noteSpendingInfo = NoteSpendingInfo.fromEncryptedBuffer(logs, this.privKey, this.curve);
             if (noteSpendingInfo) {
               // We have successfully decrypted the data.
               const privateTxIndex = Math.floor(txIndex / KERNEL_NEW_COMMITMENTS_LENGTH);

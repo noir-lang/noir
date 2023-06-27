@@ -34,7 +34,7 @@ import {
   TreeInfo,
 } from './index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
-import { L2Block, MerkleTreeId } from '@aztec/types';
+import { L2Block, MerkleTreeId, merkleTreeIds } from '@aztec/types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IWasmModule } from '@aztec/foundation/wasm';
@@ -538,6 +538,10 @@ export class MerkleTrees implements MerkleTreeDb {
         await this._appendLeaves(rootTree, [newTreeRoot]);
       }
       await this._commit();
+    }
+    for (const treeId of merkleTreeIds()) {
+      const info = await this._getTreeInfo(treeId, false);
+      this.log(`Tree ${MerkleTreeId[treeId]} synched with size ${info.size} root ${info.root.toString('hex')}`);
     }
   }
 }

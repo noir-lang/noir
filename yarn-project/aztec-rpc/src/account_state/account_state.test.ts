@@ -1,16 +1,18 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, Schnorr } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress, CircuitsWasm, KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
-import { Point } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair, KeyPair, getAddressFromPublicKey } from '@aztec/key-store';
 import { FunctionL2Logs, L2Block, L2BlockContext, L2BlockL2Logs, NoteSpendingInfo, TxL2Logs } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
 import { AccountState } from './account_state.js';
+import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 
 describe('Account State', () => {
   let grumpkin: Grumpkin;
+  let schnorr: Schnorr;
   let database: Database;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addNoteSpendingInfoBatchSpy: any;
@@ -59,7 +61,8 @@ describe('Account State', () => {
   beforeAll(async () => {
     const wasm = await CircuitsWasm.get();
     grumpkin = new Grumpkin(wasm);
-    owner = ConstantKeyPair.random(grumpkin);
+    schnorr = new Schnorr(wasm);
+    owner = ConstantKeyPair.random(grumpkin, schnorr);
   });
 
   beforeEach(async () => {
@@ -68,8 +71,18 @@ describe('Account State', () => {
 
     const ownerPrivateKey = await owner.getPrivateKey();
     ownerAddress = getAddressFromPublicKey(owner.getPublicKey());
+    const partialAccountContractAddress = Fr.random();
     aztecNode = mock<AztecNode>();
-    accountState = new AccountState(ownerPrivateKey, ownerAddress, database, aztecNode, grumpkin);
+    accountState = new AccountState(
+      ownerPrivateKey,
+      ownerAddress,
+      partialAccountContractAddress,
+      database,
+      aztecNode,
+      grumpkin,
+      schnorr,
+      SchnorrAccountContractAbi,
+    );
   });
 
   afterEach(() => {
@@ -149,6 +162,18 @@ describe('Account State', () => {
 
   it('should throw an error if invalid privKey is passed on input', () => {
     const ownerPrivateKey = Buffer.alloc(0);
-    expect(() => new AccountState(ownerPrivateKey, ownerAddress, database, aztecNode, grumpkin)).toThrowError();
+    expect(
+      () =>
+        new AccountState(
+          ownerPrivateKey,
+          ownerAddress,
+          Fr.random(),
+          database,
+          aztecNode,
+          grumpkin,
+          schnorr,
+          SchnorrAccountContractAbi,
+        ),
+    ).toThrowError();
   });
 });

@@ -1,4 +1,4 @@
-import { pedersenCompressWithHashIndex, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
+import { pedersenCompressWithHashIndex, pedersenPlookupCommitInputs, Curve } from '@aztec/circuits.js/barretenberg';
 import { CallContext, CircuitsWasm, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
 import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -36,6 +36,7 @@ export class AcirSimulator {
    * @param contractAddress - The address of the contract (should match request.origin)
    * @param portalContractAddress - The address of the portal contract.
    * @param historicRoots - The historic roots.
+   * @param curve - The curve instance for elliptic curve operations.
    * @returns The result of the execution.
    */
   public run(
@@ -44,6 +45,7 @@ export class AcirSimulator {
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
     historicRoots: PrivateHistoricTreeRoots,
+    curve: Curve,
   ): Promise<ExecutionResult> {
     if (entryPointABI.functionType !== FunctionType.SECRET) {
       throw new Error(`Cannot run ${entryPointABI.functionType} function as secret`);
@@ -69,6 +71,7 @@ export class AcirSimulator {
       request.functionData,
       request.args,
       callContext,
+      curve,
     );
 
     return execution.run();

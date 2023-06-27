@@ -57,7 +57,6 @@ export class ContractFunctionInteraction {
     if (this.functionType === FunctionType.UNCONSTRAINED) {
       throw new Error("Can't call `create` on an unconstrained function.");
     }
-
     this.tx = await this.arc.createTx(this.functionName, this.args, this.contractAddress, options.from);
     return this.tx;
   }

@@ -1,10 +1,11 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { CircuitsWasm } from '../../../index.js';
+import { Curve } from '../index.js';
 
 /**
  * Grumpkin elliptic curve operations.
  */
-export class Grumpkin {
+export class Grumpkin implements Curve {
   /**
    * Creates a new Grumpkin instance.
    * @returns New Grumpkin instance.
@@ -22,6 +23,14 @@ export class Grumpkin {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xcf, 0x13, 0x5e, 0x75, 0x06, 0xa4, 0x5d, 0x63,
     0x2d, 0x27, 0x0d, 0x45, 0xf1, 0x18, 0x12, 0x94, 0x83, 0x3f, 0xc4, 0x8d, 0x82, 0x3f, 0x27, 0x2c,
   ]);
+
+  /**
+   * Point generator
+   * @returns The generator for the curve.
+   */
+  public generator(): Buffer {
+    return Grumpkin.generator;
+  }
 
   /**
    * Multiplies a point by a scalar (adds the point `scalar` amount of time).

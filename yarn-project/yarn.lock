@@ -237,6 +237,7 @@ __metadata:
     "@aztec/yarn-project-base": "workspace:^"
     "@jest/globals": ^29.5.0
     "@msgpack/msgpack": ^3.0.0-beta2
+    "@noble/curves": ^1.0.0
     "@types/detect-node": ^2.0.0
     "@types/jest": ^29.5.0
     "@types/lodash.camelcase": ^4.3.7
@@ -387,7 +388,6 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
-    "@noble/curves": ^1.0.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23

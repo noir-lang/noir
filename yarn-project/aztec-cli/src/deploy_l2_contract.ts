@@ -1,7 +1,6 @@
 import { AztecNode, HttpNode } from '@aztec/aztec-node';
-import { ContractDeployer, createAztecRPCServer, TxStatus, TxHash, Point, AztecAddress } from '@aztec/aztec.js';
+import { ContractDeployer, createAztecRPCServer, TxStatus, TxHash, Point, AztecAddress, Fr } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { sleep } from '@aztec/foundation/sleep';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
@@ -22,18 +21,18 @@ export async function createAztecRpc(numberOfAccounts = 1, aztecNode: AztecNode)
     // the account contract implementation. This hack hints at the fact that we
     // need to rethink the APIs of the aztec-rpc-server and keystore post AA.
     const privKey = randomBytes(32);
-    await arc.registerSmartAccount(privKey, AztecAddress.random());
+    await arc.registerSmartAccount(privKey, AztecAddress.random(), Fr.random());
   }
 
   return arc;
 }
 
 const pointToPublicKey = (point: Point) => {
-  const x = point.buffer.subarray(0, 32);
-  const y = point.buffer.subarray(32, 64);
+  const x = point.x.toBigInt();
+  const y = point.y.toBigInt();
   return {
-    x: toBigIntBE(x),
-    y: toBigIntBE(y),
+    x,
+    y,
   };
 };
 

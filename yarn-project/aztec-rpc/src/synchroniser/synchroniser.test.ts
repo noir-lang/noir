@@ -1,6 +1,6 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Fr } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin, Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair, getAddressFromPublicKey } from '@aztec/key-store';
 import { L2Block, MerkleTreeId } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
@@ -10,6 +10,7 @@ import { Synchroniser } from './synchroniser.js';
 
 describe('Synchroniser', () => {
   let grumpkin: Grumpkin;
+  let schnorr: Schnorr;
   let aztecNode: MockProxy<AztecNode>;
   let database: Database;
   let synchroniser: TestSynchroniser;
@@ -17,6 +18,7 @@ describe('Synchroniser', () => {
 
   beforeAll(async () => {
     grumpkin = await Grumpkin.new();
+    schnorr = await Schnorr.new();
   });
 
   beforeEach(() => {
@@ -37,12 +39,12 @@ describe('Synchroniser', () => {
   });
 
   it('should create account state', async () => {
-    const account = ConstantKeyPair.random(grumpkin);
+    const account = ConstantKeyPair.random(grumpkin, schnorr);
     const address = getAddressFromPublicKey(account.getPublicKey());
 
     expect(synchroniser.getAccount(address)).toBeUndefined();
 
-    await synchroniser.addAccount(await account.getPrivateKey(), address);
+    await synchroniser.addAccount(await account.getPrivateKey(), address, Fr.random(), grumpkin, schnorr);
 
     expect(synchroniser.getAccount(address)!.getPublicKey()).toEqual(account.getPublicKey());
   });

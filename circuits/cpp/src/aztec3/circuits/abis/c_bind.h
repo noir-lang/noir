@@ -23,7 +23,17 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* func_data_buf,
                                         uint8_t const* constructor_vk_hash_buf,
                                         uint8_t* output);
 
-CBIND_DECL(abis__compute_contract_address);
+WASM_EXPORT void abis__compute_contract_address(uint8_t const* point_data_buf,
+                                        uint8_t const* contract_address_salt_buf,
+                                        uint8_t const* function_tree_root_buf,
+                                        uint8_t const* constructor_hash_buf,
+                                        uint8_t* output);
+
+WASM_EXPORT void abis__compute_partial_contract_address(uint8_t const* contract_address_salt_buf,
+                                        uint8_t const* function_tree_root_buf,
+                                        uint8_t const* constructor_hash_buf,
+                                        uint8_t* output);
+
 CBIND_DECL(abis__silo_commitment);
 
 WASM_EXPORT void abis__compute_message_secret_hash(uint8_t const* secret, uint8_t* output);

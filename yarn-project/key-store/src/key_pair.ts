@@ -1,8 +1,6 @@
-import { EcdsaSignature } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Curve, Signature, Signer } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
-import { secp256k1 } from '@noble/curves/secp256k1';
 
 /**
  * Represents a cryptographic public-private key pair.
@@ -11,7 +9,7 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 export interface KeyPair {
   getPublicKey(): Point;
   getPrivateKey(): Promise<Buffer>;
-  ecdsaSign(message: Buffer): Promise<EcdsaSignature>;
+  sign(message: Buffer): Promise<Signature>;
 }
 
 /**
@@ -19,32 +17,34 @@ export interface KeyPair {
  */
 export class ConstantKeyPair implements KeyPair {
   /**
-   * Generate a random ConstantKeyPair instance on a Grumpkin curve.
+   * Generate a random ConstantKeyPair instance using the .
    * The random private key is generated using 32 random bytes, and the corresponding public key is calculated
    * by multiplying the Grumpkin generator point with the private key. This function provides an efficient
    * way of generating unique key pairs for cryptographic purposes.
    *
-   * @param grumpkin - The Grumpkin curve used for elliptic curve cryptography.
+   * @param curve - The curve used for elliptic curve cryptography operations.
+   * @param signer - The signer to be used on the account.
    * @returns A randomly generated ConstantKeyPair instance.
    */
-  public static random(grumpkin: Grumpkin) {
+  public static random(curve: Curve, signer: Signer) {
     const privateKey = randomBytes(32);
-    const publicKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, privateKey));
-    return new ConstantKeyPair(publicKey, privateKey);
+    const publicKey = Point.fromBuffer(curve.mul(curve.generator(), privateKey));
+    return new ConstantKeyPair(curve, signer, publicKey, privateKey);
   }
 
   /**
    * Creates a new instance from a private key.
+   * @param curve - The curve used for elliptic curve cryptography operations.
+   * @param signer - The signer to be used on the account.
    * @param privateKey - The private key.
    * @returns A new instance.
    */
-  public static async fromPrivateKey(privateKey: Buffer) {
-    const grumpkin = await Grumpkin.new();
-    const publicKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, privateKey));
-    return new ConstantKeyPair(publicKey, privateKey);
+  public static fromPrivateKey(curve: Curve, signer: Signer, privateKey: Buffer) {
+    const publicKey = Point.fromBuffer(curve.mul(curve.generator(), privateKey));
+    return new ConstantKeyPair(curve, signer, publicKey, privateKey);
   }
 
-  constructor(private publicKey: Point, private privateKey: Buffer) {}
+  constructor(private curve: Curve, private signer: Signer, private publicKey: Point, private privateKey: Buffer) {}
 
   /**
    * Retrieve the public key from the KeyPair instance.
@@ -72,14 +72,14 @@ export class ConstantKeyPair implements KeyPair {
    * Throws an error if the input message is empty.
    *
    * @param message - The Buffer containing the data to be signed.
-   * @returns A Promise that resolves to an EcdsaSignature instance representing the signature.
+   * @param sign - The method to be used for signing the message.
+   * @returns A Promise that resolves to a signature instance.
    */
-  public async ecdsaSign(message: Buffer) {
+  // eslint-disable-next-line jsdoc/require-jsdoc
+  public async sign(message: Buffer): Promise<Signature> {
     if (!message.length) {
       throw new Error('Cannot sign over empty message.');
     }
-    const signature = secp256k1.sign(message, await this.getPrivateKey());
-    if (signature.recovery === undefined) throw new Error(`Missing recovery from signature`);
-    return EcdsaSignature.fromBigInts(signature.r, signature.s, signature.recovery);
+    return this.signer.constructSignature(message, await this.getPrivateKey());
   }
 }

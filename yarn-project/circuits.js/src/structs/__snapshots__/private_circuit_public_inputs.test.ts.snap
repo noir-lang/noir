@@ -24,7 +24,11 @@ historic_private_data_tree_root: 0xe00
 historic_nullifier_tree_root: 0xf00
 historic_contract_tree_root: 0xd00
 historic_l1_to_l2_messages_tree_root: 0x1000
-contract_deployment_data: deployer_public_key: [ 0x1 0x2 ]
+contract_deployment_data: deployer_public_key: x: coordinate: [ 0x1 0x0 ]
+
+y: coordinate: [ 0x2 0x0 ]
+
+
 constructor_vk_hash: 0x2
 function_tree_root: 0x3
 contract_address_salt: 0x4

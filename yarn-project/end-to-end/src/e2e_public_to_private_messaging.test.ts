@@ -51,8 +51,7 @@ describe('e2e_public_to_private_messaging', () => {
   /**
    * Milestone 5.4: Intra-contract Public -\> Private calls.
    */
-  // TODO(#662): Reenable once we can create more than one account.
-  it.skip('5.4: Should be able to create a commitment in a public function and spend in a private function', async () => {
+  it('5.4: Should be able to create a commitment in a public function and spend in a private function', async () => {
     const mintAmount = 100n;
 
     const [owner, receiver] = accounts;

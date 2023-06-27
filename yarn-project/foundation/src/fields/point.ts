@@ -1,82 +1,48 @@
-import { toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
 import { BufferReader } from '../serialize/buffer_reader.js';
-import { Fr } from './index.js';
+import { Coordinate } from './coordinate.js';
 
 /**
  * Represents a Point on an elliptic curve with x and y coordinates.
  * The Point class provides methods for creating instances from different input types,
  * converting instances to various output formats, and checking the equality of points.
- * It also contains constants for MODULUS, MAX_VALUE, SIZE_IN_BYTES, and ZERO point.
- * Each coordinate value should be within the range of 0 to MAX_VALUE inclusive.
- * Throws an error if the coordinate values are out of range.
  */
 export class Point {
-  static SIZE_IN_BYTES = 64;
-  static ZERO = new Point(Buffer.alloc(Point.SIZE_IN_BYTES));
-  static MODULUS = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001n;
-  static MAX_VALUE = Point.MODULUS - 1n;
+  static ZERO = new Point(Coordinate.ZERO, Coordinate.ZERO);
 
   /** Used to differentiate this class from AztecAddress */
   public readonly kind = 'point';
 
   constructor(
     /**
-     * A buffer containing the x and y coordinates of the elliptic curve point.
+     * The point's x coordinate
      */
+    public readonly x: Coordinate,
     /**
-     * A buffer containing the x and y coordinates of the elliptic curve point.
+     * The point's y coordinate
      */
-    public readonly buffer: Buffer,
-  ) {
-    const coordinateX = toBigIntBE(buffer.subarray(0, 32));
-    const coordinateY = toBigIntBE(buffer.subarray(32, 64));
-    if (coordinateX > Point.MAX_VALUE) {
-      throw new Error(`Coordinate x out of range: ${coordinateX}.`);
-    }
-    if (coordinateY > Point.MAX_VALUE) {
-      throw new Error(`Coordinate y out of range: ${coordinateY}.`);
-    }
-  }
+    public readonly y: Coordinate,
+  ) {}
 
   /**
-   * Returns x coordinate of this point.
-   * @returns x coordinate.
-   */
-  public get x(): Fr {
-    return Fr.fromBuffer(this.buffer.subarray(0, 32));
-  }
-
-  /**
-   * Returns y coordinate of this point.
-   * @returns y coordinate.
-   */
-  public get y(): Fr {
-    return Fr.fromBuffer(this.buffer.subarray(32, 64));
-  }
-
-  /**
-   * Generate a random Point instance with coordinates within the valid range.
-   * The coordinate values are generated as random Fr elements and converted to buffers
-   * of size Point.SIZE_IN_BYTES before creating the Point instance.
+   * Generate a random Point instance.
    *
    * @returns A randomly generated Point instance.
    */
   static random() {
     // TODO is this a random point on the curve?
-    return new Point(toBufferBE(Fr.random().value, Point.SIZE_IN_BYTES));
+    return new Point(Coordinate.random(), Coordinate.random());
   }
 
   /**
    * Create a Point instance from a given buffer or BufferReader.
    * The input 'buffer' should have exactly 64 bytes representing the x and y coordinates.
-   * Throws an error if the input length is invalid or coordinate values are out of range.
    *
    * @param buffer - The buffer or BufferReader containing the x and y coordinates of the point.
    * @returns A Point instance.
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new this(reader.readBytes(this.SIZE_IN_BYTES));
+    return new this(Coordinate.fromBuffer(reader.readBytes(32)), Coordinate.fromBuffer(reader.readBytes(32)));
   }
 
   /**
@@ -85,8 +51,8 @@ export class Point {
    * @param y - Y coordinate.
    * @returns A Point instance.
    */
-  static fromCoordinates(x: Fr, y: Fr) {
-    return new this(Buffer.concat([x.toBuffer(), y.toBuffer()]));
+  static fromCoordinates(x: Coordinate, y: Coordinate) {
+    return new this(x, y);
   }
 
   /**
@@ -98,18 +64,35 @@ export class Point {
    * @returns A Point instance.
    */
   static fromString(address: string) {
-    return new Point(Buffer.from(address.replace(/^0x/i, ''), 'hex'));
+    return this.fromBuffer(Buffer.from(address.replace(/^0x/i, ''), 'hex'));
   }
 
   /**
-   * Convert the Point instance to a Buffer representation.
-   * The output buffer's length will be equal to the `Point.SIZE_IN_BYTES` constant (64 bytes).
+   * Convert the Point instance to a Buffer representation of fields
+   * The output buffer's length will be (128 bytes).
    * This method is useful for serialization and deserialization of the Point object.
    *
    * @returns A Buffer representation of the Point instance.
    */
+  toFieldsBuffer() {
+    return Buffer.concat([this.x.toFieldsBuffer(), this.y.toFieldsBuffer()]);
+  }
+
+  /**
+   * Returns the contents of the point as an array of 4 fields.
+   * @returns The point as an array of 4 fields
+   */
+  toFields() {
+    return this.x.toFields().concat(this.y.toFields());
+  }
+
+  /**
+   * Converts the Point instance to a Buffer representaion of the coordinates.
+   * The outputs buffer length will be 64, the length of both coordinates not represented as fields.
+   * @returns A Buffer representation of the Point instance.
+   */
   toBuffer() {
-    return this.buffer;
+    return Buffer.concat([this.x.toBuffer(), this.y.toBuffer()]);
   }
 
   /**
@@ -120,7 +103,7 @@ export class Point {
    * @returns A hex-encoded string representing the Point instance.
    */
   toString() {
-    return '0x' + this.buffer.toString('hex');
+    return '0x' + this.toBuffer().toString('hex');
   }
 
   /**
@@ -144,7 +127,7 @@ export class Point {
    * @returns A boolean indicating whether the two Point instances are equal.
    */
   equals(rhs: Point) {
-    return this.buffer.equals(rhs.buffer);
+    return this.x.equals(rhs.x) && this.y.equals(rhs.y);
   }
 }
 

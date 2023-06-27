@@ -1,12 +1,13 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Fr } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Curve, Signer } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
-import { L2BlockContext, MerkleTreeId, TxHash } from '@aztec/types';
+import { L2BlockContext, MerkleTreeId, PartialContractAddress, TxHash } from '@aztec/types';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
+import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 
 /**
  * The Synchroniser class manages the synchronization of account states and interacts with the Aztec node
@@ -160,10 +161,30 @@ export class Synchroniser {
    *
    * @param privKey - The private key buffer to initialize the account state.
    * @param address - Address of the corresponding account contract.
-   * @returns The new account.
+   * @param partialContractAddress - The partially computed account contract address.
+   * @param curve - The curve to be used for elliptic curve operations.
+   * @param signer - The signer to be used for transaction signing.
+   * @param abi - Implementation of the account contract to backing the account.
+   * @returns A promise that resolves once the account is added to the Synchroniser.
    */
-  public async addAccount(privKey: Buffer, address: AztecAddress) {
-    const accountState = new AccountState(privKey, address, this.db, this.node, await Grumpkin.new());
+  public addAccount(
+    privKey: Buffer,
+    address: AztecAddress,
+    partialContractAddress: PartialContractAddress,
+    curve: Curve,
+    signer: Signer,
+    abi = SchnorrAccountContractAbi,
+  ) {
+    const accountState = new AccountState(
+      privKey,
+      address,
+      partialContractAddress,
+      this.db,
+      this.node,
+      curve,
+      signer,
+      abi,
+    );
     this.accountStates.push(accountState);
     return Promise.resolve(accountState);
   }

@@ -4,7 +4,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 import { NotePreimage } from './note_preimage.js';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Curve } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 
 /**
@@ -48,23 +48,23 @@ export class NoteSpendingInfo {
   /**
    * Encrypt the NoteSpendingInfo object using the owner's public key and the ephemeral private key.
    * @param ownerPubKey - Public key of the owner of the NoteSpendingInfo object.
-   * @param grumpkin - Arbitrary Grumpkin class instance.
+   * @param curve - The curve instance to use.
    * @returns The encrypted NoteSpendingInfo object.
    */
-  public toEncryptedBuffer(ownerPubKey: Point, grumpkin: Grumpkin): Buffer {
+  public toEncryptedBuffer(ownerPubKey: Point, curve: Curve): Buffer {
     const ephPrivKey = randomBytes(32);
-    return encryptBuffer(this.toBuffer(), ownerPubKey, ephPrivKey, grumpkin);
+    return encryptBuffer(this.toBuffer(), ownerPubKey, ephPrivKey, curve);
   }
 
   /**
    * Decrypts the NoteSpendingInfo object using the owner's private key.
    * @param data - Encrypted NoteSpendingInfo object.
    * @param ownerPrivKey - Private key of the owner of the NoteSpendingInfo object.
-   * @param grumpkin - Arbitrary Grumpkin class instance.
+   * @param curve - The curve instance to use.
    * @returns Instance of NoteSpendingInfo if the decryption was successful, undefined otherwise.
    */
-  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grumpkin): NoteSpendingInfo | undefined {
-    const buf = decryptBuffer(data, ownerPrivKey, grumpkin);
+  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: Buffer, curve: Curve): NoteSpendingInfo | undefined {
+    const buf = decryptBuffer(data, ownerPrivKey, curve);
     if (!buf) {
       return;
     }

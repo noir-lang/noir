@@ -4,6 +4,7 @@ import { arrayNonEmptyLength } from '@aztec/foundation/collection';
 import { EncodedContractFunction } from './contract_data.js';
 import { TxL2Logs } from './logs/tx_l2_logs.js';
 import { TxHash } from './tx_hash.js';
+import { PartialContractAddress } from './partial_contract_address.js';
 
 /**
  * The interface of an L2 transaction.
@@ -122,4 +123,22 @@ export class Tx {
     });
     return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, publicFunctions, enqueuedPublicFunctions);
   }
+}
+
+/**
+ * Wrapper class for a contract deployment transaction.
+ * Also contains the contract partial address
+ */
+export class ContractDeploymentTx {
+  public constructor(
+    /**
+     * The Tx being wrapped.
+     */
+    public readonly tx: Tx,
+
+    /**
+     * The partially conputed contract address.
+     */
+    public readonly partialContractAddress: PartialContractAddress,
+  ) {}
 }

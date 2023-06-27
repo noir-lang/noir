@@ -1,7 +1,7 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
-import { abisComputeContractAddress, abisSiloCommitment } from '../cbind/circuits.gen.js';
+import { abisSiloCommitment } from '../cbind/circuits.gen.js';
 import {
   AztecAddress,
   FUNCTION_SELECTOR_NUM_BYTES,
@@ -155,7 +155,7 @@ export function hashConstructor(
   functionData: FunctionData,
   argsHash: Fr,
   constructorVKHash: Buffer,
-): Buffer {
+): Fr {
   wasm.call('pedersen__init');
   const result = inputBuffersToOutputBuffer(
     wasm,
@@ -163,7 +163,7 @@ export function hashConstructor(
     [functionData.toBuffer(), argsHash.toBuffer(), constructorVKHash],
     32,
   );
-  return result;
+  return Fr.fromBuffer(result);
 }
 
 /**
@@ -180,16 +180,40 @@ export function computeContractAddress(
   deployerPubKey: Point,
   contractAddrSalt: Fr,
   fnTreeRoot: Fr,
-  constructorHash: Buffer,
+  constructorHash: Fr,
 ): AztecAddress {
   wasm.call('pedersen__init');
-  return abisComputeContractAddress(
+  const result = inputBuffersToOutputBuffer(
     wasm,
-    [deployerPubKey.x, deployerPubKey.y],
-    contractAddrSalt,
-    fnTreeRoot,
-    Fr.fromBuffer(constructorHash),
+    'abis__compute_contract_address',
+    [deployerPubKey.toFieldsBuffer(), contractAddrSalt.toBuffer(), fnTreeRoot.toBuffer(), constructorHash.toBuffer()],
+    32,
   );
+  return new AztecAddress(result);
+}
+
+/**
+ * Computes a partial contract address. Consists of all contract address components except the deployer public key.
+ * @param wasm - A module providing low-level wasm access.
+ * @param contractAddrSalt - The salt used as 1 one of the inputs of the contract address computation.
+ * @param fnTreeRoot - The function tree root of the contract being deployed.
+ * @param constructorHash - The hash of the constructor.
+ * @returns The partially constructed contract address.
+ */
+export function computePartialContractAddress(
+  wasm: IWasmModule,
+  contractAddrSalt: Fr,
+  fnTreeRoot: Fr,
+  constructorHash: Fr,
+): Fr {
+  wasm.call('pedersen__init');
+  const result = inputBuffersToOutputBuffer(
+    wasm,
+    'abis__compute_partial_contract_address',
+    [contractAddrSalt.toBuffer(), fnTreeRoot.toBuffer(), constructorHash.toBuffer()],
+    32,
+  );
+  return Fr.fromBuffer(result);
 }
 
 /**

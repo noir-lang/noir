@@ -1,6 +1,6 @@
-import { EcdsaSignature } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Point } from '@aztec/foundation/fields';
+import { Curve, Signature, Signer } from '@aztec/circuits.js/barretenberg';
 
 /** Represents a user public key. */
 export type PublicKey = Point;
@@ -13,18 +13,18 @@ export type PublicKey = Point;
  * @deprecated To be removed once we go full account abstraction.
  */
 export function getAddressFromPublicKey(pubKey: PublicKey) {
-  return AztecAddress.fromBuffer(pubKey.buffer.slice(0, AztecAddress.SIZE_IN_BYTES));
+  return AztecAddress.fromBuffer(pubKey.toBuffer().subarray(0, AztecAddress.SIZE_IN_BYTES));
 }
 
 /**
  * Represents a secure storage for managing keys.
  * Provides functionality to create and retrieve accounts, private and public keys,
- * signing public keys, as well as signing transaction requests using ECDSA signatures.
+ * signing public keys, as well as signing transaction requests.
  */
 export interface KeyStore {
-  createAccount(): Promise<PublicKey>;
-  addAccount(privKey: Buffer): Promise<PublicKey>;
+  createAccount(curve: Curve, signer: Signer): Promise<PublicKey>;
+  addAccount(curve: Curve, signer: Signer, privKey: Buffer): PublicKey;
   getAccounts(): Promise<PublicKey[]>;
   getAccountPrivateKey(pubKey: PublicKey): Promise<Buffer>;
-  ecdsaSign(what: Buffer, from: PublicKey): Promise<EcdsaSignature>;
+  sign(what: Buffer, from: PublicKey): Promise<Signature>;
 }

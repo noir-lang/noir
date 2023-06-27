@@ -5,7 +5,11 @@ exports[`structs/tx serializes and prints object 1`] = `
 is_rebate_payment_tx: 0
 is_contract_deployment_tx: 1
 contract_deployment_data: 
-deployer_public_key: [ 0x1 0x2 ]
+deployer_public_key: x: coordinate: [ 0x1 0x0 ]
+
+y: coordinate: [ 0x2 0x0 ]
+
+
 constructor_vk_hash: 0x2
 function_tree_root: 0x3
 contract_address_salt: 0x4

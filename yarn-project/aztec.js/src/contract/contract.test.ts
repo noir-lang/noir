@@ -4,6 +4,7 @@ import { mock } from 'jest-mock-extended';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Contract } from './contract.js';
+import { ContractDeploymentTx } from '@aztec/types';
 
 describe('Contract Class', () => {
   let arc: ReturnType<typeof mock<AztecRPCClient>>;
@@ -12,6 +13,7 @@ describe('Contract Class', () => {
   const account = AztecAddress.random();
 
   const mockTx = { type: 'Tx' } as any as Tx;
+  const mockDeploymentTx = { type: 'ContractDeploymentTx' } as any as ContractDeploymentTx;
   const mockTxHash = { type: 'TxHash' } as any as TxHash;
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
   const mockViewResultValue = 1;
@@ -85,7 +87,7 @@ describe('Contract Class', () => {
 
   beforeEach(() => {
     arc = mock<AztecRPCClient>();
-    arc.createDeploymentTx.mockResolvedValue(mockTx);
+    arc.createDeploymentTx.mockResolvedValue(mockDeploymentTx);
     arc.createTx.mockResolvedValue(mockTx);
     arc.sendTx.mockResolvedValue(mockTxHash);
     arc.viewTx.mockResolvedValue(mockViewResultValue);

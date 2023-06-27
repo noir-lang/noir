@@ -1,6 +1,7 @@
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Curve, Signature, Signer } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair, KeyPair } from './key_pair.js';
 import { KeyStore, PublicKey } from './key_store.js';
+import { Point } from '@aztec/circuits.js';
 
 /**
  * TestKeyStore is an implementation of the KeyStore interface, used for managing key pairs in a testing environment.
@@ -9,10 +10,17 @@ import { KeyStore, PublicKey } from './key_store.js';
 export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];
 
-  constructor(private grumpkin: Grumpkin) {}
+  constructor() {}
 
-  async addAccount(privKey: Buffer): Promise<PublicKey> {
-    const keyPair = await ConstantKeyPair.fromPrivateKey(privKey);
+  /**
+   * Adds an account to the key store from the provided private key.
+   * @param curve - The curve to use for generating the public key.
+   * @param signer - The signer to use on the account.
+   * @param privKey - The private key of the account.
+   * @returns - The account's public key.
+   */
+  public addAccount(curve: Curve, signer: Signer, privKey: Buffer): PublicKey {
+    const keyPair = ConstantKeyPair.fromPrivateKey(curve, signer, privKey);
     this.accounts.push(keyPair);
     return keyPair.getPublicKey();
   }
@@ -20,11 +28,12 @@ export class TestKeyStore implements KeyStore {
   /**
    * Adds a new account to the TestKeyStore with a randomly generated ConstantKeyPair.
    * The account will have its own private and public key pair, which can be used for signing transactions.
-   *
+   * @param curve - The curve to use for generating the public key.
+   * @param signer - The signer to use on the account.
    * @returns A promise that resolves to the newly created account's AztecAddress.
    */
-  public createAccount() {
-    const keyPair = ConstantKeyPair.random(this.grumpkin);
+  public createAccount(curve: Curve, signer: Signer): Promise<Point> {
+    const keyPair = ConstantKeyPair.random(curve, signer);
     this.accounts.push(keyPair);
     return Promise.resolve(keyPair.getPublicKey());
   }
@@ -59,12 +68,12 @@ export class TestKeyStore implements KeyStore {
    * Throws an error if the sender account is not found in the TestKeyStore.
    *
    * @param what - What to sign.
-   * @param pubKey - What key to use.
+   * @param from - What key to use.
    * @returns The signed message.
    */
-  public ecdsaSign(what: Buffer, pubKey: PublicKey) {
-    const account = this.getAccount(pubKey);
-    return account.ecdsaSign(what);
+  public async sign(what: Buffer, from: PublicKey): Promise<Signature> {
+    const account = this.getAccount(from);
+    return await account.sign(what);
   }
 
   /**
