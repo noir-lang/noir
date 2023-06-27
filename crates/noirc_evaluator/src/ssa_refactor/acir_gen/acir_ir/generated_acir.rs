@@ -307,6 +307,56 @@ impl GeneratedAcir {
         Ok(limb_witnesses)
     }
 
+    pub(crate) fn signed_division(
+        &mut self,
+        lhs: &Expression,
+        rhs: &Expression,
+        max_bit_size: u32,
+    ) -> Result<(Expression, Expression), AcirGenError> {
+        // maximum power of two for the bit size
+        let max_power_of_two =
+            FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
+
+        //rhs / max_power_of_two
+        let (rhs_leading, rhs_mantissa) = self.euclidean_division(
+            rhs,
+            &max_power_of_two.into(),
+            max_bit_size,
+            &Expression::one(),
+        )?;
+
+        //lhs / max_power_of_two
+        let (lhs_leading, lhs_mantissa) = self.euclidean_division(
+            lhs,
+            &max_power_of_two.into(),
+            max_bit_size,
+            &Expression::one(),
+        )?;
+
+        // signed to unsigned
+        let l_inter = &Expression::from(lhs_leading) * &Expression::from(lhs_mantissa);
+        let r_inter = &Expression::from(rhs_leading) * &Expression::from(rhs_mantissa);
+        let unsigned_l = lhs.add_mul(FieldElement::from(2_i128), &l_inter);
+        let unsigned_r = rhs.add_mul(FieldElement::from(2_i128), &r_inter);
+        let unsigned_l_witness = self.get_or_create_witness(&unsigned_l);
+        let unsigned_r_witness = self.get_or_create_witness(&unsigned_r);
+
+        let (q1, r1) = self.euclidean_division(
+            &unsigned_l_witness.into(),
+            &unsigned_r_witness.into(),
+            max_bit_size - 1,
+            &Expression::one(),
+        )?;
+
+        // unsigned to signed
+        let q1_inter = &(&Expression::from_field(max_power_of_two) - &Expression::from(q1))
+            * &rhs_leading.into();
+        let quotient = Expression::from(q1).add_mul(FieldElement::from(2_i128), &q1_inter);
+        let r1_inter = &(&Expression::from_field(max_power_of_two) - &Expression::from(r1))
+            * &lhs_leading.into();
+        let remainder = Expression::from(r1).add_mul(FieldElement::from(2_i128), &r1_inter);
+        Ok((quotient, remainder))
+    }
     /// Computes lhs/rhs by using euclidean division.
     ///
     /// Returns `q` for quotient and `r` for remainder such
