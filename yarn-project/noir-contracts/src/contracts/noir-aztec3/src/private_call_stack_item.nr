@@ -84,8 +84,10 @@ impl PrivateCallStackItem {
                     contract_address_salt : fields[43],
                     portal_contract_address : fields[44],
                 },
+                chain_id: fields[45],
+                version: fields[46],
             },
-            is_execution_request: fields[45] as bool,
+            is_execution_request: fields[47] as bool,
         };
         assert(contract_address == item.contract_address);
         assert(function_selector == item.function_data.function_selector);

@@ -267,6 +267,9 @@ export class PrivateFunctionExecution {
       contractDeploymentData.contractAddressSalt,
       contractDeploymentData.portalContractAddress,
 
+      this.context.txContext.chainId,
+      this.context.txContext.version,
+
       ...this.args.slice(0, argsSize),
     ];
 

@@ -96,6 +96,14 @@ export class PrivateCircuitPublicInputs {
      * Deployment data of contracts being deployed in this kernel iteration.
      */
     public contractDeploymentData: ContractDeploymentData,
+    /**
+     * Chain Id of the instance.
+     */
+    public chainId: Fr,
+    /**
+     * Version of the instance.
+     */
+    public version: Fr,
   ) {
     assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
     assertMemberLength(this, 'readRequests', READ_REQUESTS_LENGTH);
@@ -144,6 +152,8 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       Fr.ZERO,
       ContractDeploymentData.empty(),
+      Fr.ZERO,
+      Fr.ZERO,
     );
   }
   /**
@@ -172,6 +182,8 @@ export class PrivateCircuitPublicInputs {
       fields.historicContractTreeRoot,
       fields.historicL1ToL2MessagesTreeRoot,
       fields.contractDeploymentData,
+      fields.chainId,
+      fields.version,
     ] as const;
   }
   /**

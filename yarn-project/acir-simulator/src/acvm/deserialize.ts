@@ -155,6 +155,9 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
     EthAddress.fromField(witnessReader.readField()),
   );
 
+  const chainId = witnessReader.readField();
+  const version = witnessReader.readField();
+
   return new PrivateCircuitPublicInputs(
     callContext,
     argsHash,
@@ -174,5 +177,7 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
     contractTreeRoot,
     l1Tol2TreeRoot,
     contractDeploymentData,
+    chainId,
+    version,
   );
 }

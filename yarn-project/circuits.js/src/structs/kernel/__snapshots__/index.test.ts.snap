@@ -337,6 +337,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2111
+version: 0x2211
 
 is_execution_request: 0
 
@@ -379,6 +381,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2121
+version: 0x2221
 
 is_execution_request: 0
  contract_address: 0x1012
@@ -419,6 +423,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2122
+version: 0x2222
 
 is_execution_request: 0
  contract_address: 0x1013
@@ -459,6 +465,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2123
+version: 0x2223
 
 is_execution_request: 0
  contract_address: 0x1014
@@ -499,6 +507,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2124
+version: 0x2224
 
 is_execution_request: 0
  ]
@@ -733,6 +743,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2111
+version: 0x2211
 
 is_execution_request: 0
 
@@ -775,6 +787,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2121
+version: 0x2221
 
 is_execution_request: 0
  contract_address: 0x1012
@@ -815,6 +829,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2122
+version: 0x2222
 
 is_execution_request: 0
  contract_address: 0x1013
@@ -855,6 +871,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2123
+version: 0x2223
 
 is_execution_request: 0
  contract_address: 0x1014
@@ -895,6 +913,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x2124
+version: 0x2224
 
 is_execution_request: 0
  ]

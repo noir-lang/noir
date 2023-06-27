@@ -72,6 +72,8 @@ impl PrivateFunctionContext {
             // unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             commitment_trees_roots: inputs.roots,
             contract_deployment_data: inputs.contract_deployment_data,
+            chain_id: inputs.private_global_variables.chain_id,
+            version: inputs.private_global_variables.version,
         };
         priv_circuit_pub_inputs
     }

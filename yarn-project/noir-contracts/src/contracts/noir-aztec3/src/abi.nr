@@ -6,7 +6,7 @@ global MAX_NEW_NULLIFIERS: comptime Field = 4;
 global MAX_PRIVATE_CALL_STACK : comptime Field = 4;
 global MAX_PUBLIC_CALL_STACK: comptime Field = 4;
 global MAX_L2_TO_L1_MSGS : comptime Field = 2;
-global PUBLIC_INPUTS_LENGTH : comptime Field = 41;
+global PUBLIC_INPUTS_LENGTH : comptime Field = 43;
 // global LOGS_HASH_SIZE: comptime Field = 2; // Stored in  2 fields in order to fit in all of the 256 bits of sha256 hash.
 global CONTRACT_STORAGE_UPDATE_REQUESTS_LENGTH : comptime Field = 4;
 global CONTRACT_STORAGE_READS_LENGTH : comptime Field = 4;
@@ -19,6 +19,8 @@ struct PrivateContextInputs {
     roots: CommitmentTreesRoots,
 
     contract_deployment_data: ContractDeploymentData,
+
+    private_global_variables: PrivateGlobalVariables,
 }
 
 // PublicContextInputs are expected to be provided to each public function
@@ -102,6 +104,17 @@ impl ContractDeploymentData {
     }
 }
 
+struct PrivateGlobalVariables {
+    chain_id: Field,
+    version: Field,
+}
+
+impl PrivateGlobalVariables {
+    fn serialize(self) -> [Field; 2] {
+        [self.chain_id, self.version]
+    }
+}
+
 global FUNCTION_DATA_SIZE: comptime Field = 3;
 
 struct FunctionData {
@@ -136,8 +149,10 @@ impl FunctionData {
 // + historic_contract_tree_root - 1
 // + historic_l1_to_l2_messages_tree_root - 1
 // + contract_deployment_data - 4
-// = 6 + 1 + 4 + 4 + 4 + 4 + 4  + 4 + 2 + 1 + 1 + 1 + 1 + 4
-// = 41
+// + chain_id - 1
+// + version - 1
+// = 6 + 1 + 4 + 4 + 4 + 4 + 4  + 4 + 2 + 1 + 1 + 1 + 1 + 4 + 1 + 1
+// = 43
 struct PrivateCircuitPublicInputs {
     call_context: CallContext,
     args_hash: Field,
@@ -157,6 +172,8 @@ struct PrivateCircuitPublicInputs {
     // unencrypted_log_preimages_length: Field,
     commitment_trees_roots: CommitmentTreesRoots,
     contract_deployment_data: ContractDeploymentData,
+    chain_id: Field,
+    version: Field,
 }
 
 impl PrivateCircuitPublicInputs {
@@ -183,6 +200,8 @@ impl PrivateCircuitPublicInputs {
         // fields = fields.push(self.unencrypted_log_preimages_length);
         fields = fields.push_array(self.commitment_trees_roots.serialize());
         fields = fields.push_array(self.contract_deployment_data.serialize());
+        fields = fields.push(self.chain_id);
+        fields = fields.push(self.version);
         fields.storage
     }
 }

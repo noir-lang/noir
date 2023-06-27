@@ -34,5 +34,7 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
+chain_id: 0x1100
+version: 0x1200
 "
 `;

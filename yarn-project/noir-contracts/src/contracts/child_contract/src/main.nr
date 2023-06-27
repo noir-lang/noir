@@ -20,7 +20,7 @@ contract Child {
         let mut context = PrivateFunctionContext::new();
         context.args = context.args.push(input);
 
-        context.return_values = context.return_values.push(input + 42);
+        context.return_values = context.return_values.push(input + inputs.private_global_variables.chain_id + inputs.private_global_variables.version);
 
         context.finish(inputs)
     }

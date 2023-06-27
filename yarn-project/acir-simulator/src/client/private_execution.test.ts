@@ -49,7 +49,7 @@ describe('Private Execution test suite', () => {
 
   const historicRoots = PrivateHistoricTreeRoots.empty();
   const contractDeploymentData = ContractDeploymentData.empty();
-  const txContext = new TxContext(false, false, false, contractDeploymentData, Fr.ZERO, Fr.ZERO);
+  const txContext = new TxContext(false, false, false, contractDeploymentData, new Fr(69), new Fr(420));
 
   const buildTxExecutionRequest = (args: {
     abi: FunctionAbi;
@@ -303,9 +303,11 @@ describe('Private Execution test suite', () => {
   });
 
   describe('nested calls', () => {
+    const privateIncrement = txContext.chainId.value + txContext.version.value;
     it('child function should be callable', async () => {
+      const initialValue = 100n;
       const abi = ChildAbi.functions.find(f => f.name === 'value')!;
-      const txRequest = buildTxExecutionRequest({ args: [100n], abi });
+      const txRequest = buildTxExecutionRequest({ args: [initialValue], abi });
       const result = await acirSimulator.run(
         txRequest,
         abi,
@@ -315,7 +317,7 @@ describe('Private Execution test suite', () => {
         await Grumpkin.new(),
       );
 
-      expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(142n));
+      expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(initialValue + privateIncrement));
     });
 
     it('parent should call child', async () => {
@@ -342,11 +344,11 @@ describe('Private Execution test suite', () => {
         await Grumpkin.new(),
       );
 
-      expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(42n));
+      expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
       expect(oracle.getFunctionABI.mock.calls[0]).toEqual([childAddress, childSelector]);
       expect(oracle.getPortalContractAddress.mock.calls[0]).toEqual([childAddress]);
       expect(result.nestedExecutions).toHaveLength(1);
-      expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(42n));
+      expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
     });
   });
 
