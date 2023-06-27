@@ -1,4 +1,4 @@
-import { AztecRPCClient, DeployedContract, generateFunctionSelector } from '@aztec/aztec-rpc';
+import { AztecRPC, DeployedContract, generateFunctionSelector } from '@aztec/aztec-rpc';
 import { ContractAbi, FunctionAbi } from '@aztec/foundation/abi';
 import { ContractFunctionInteraction } from './contract_function_interaction.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -37,7 +37,7 @@ export class Contract {
      * The Application Binary Interface for the contract.
      */
     public readonly abi: ContractAbi,
-    private arc: AztecRPCClient,
+    private arc: AztecRPC,
   ) {
     abi.functions.forEach((f: FunctionAbi) => {
       const interactionFunction = (...args: any[]) => {

@@ -22,6 +22,7 @@ COPY archiver/package.json archiver/package.json
 COPY aztec-cli/package.json aztec-cli/package.json
 COPY aztec-rpc/package.json aztec-rpc/package.json
 COPY aztec-node/package.json aztec-node/package.json
+COPY aztec-sandbox/package.json aztec-sandbox/package.json
 COPY aztec.js/package.json aztec.js/package.json
 COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
@@ -80,6 +81,7 @@ COPY archiver/tsconfig.json archiver/tsconfig.json
 COPY aztec-cli/tsconfig.json aztec-cli/tsconfig.json
 COPY aztec-rpc/tsconfig.json aztec-rpc/tsconfig.json
 COPY aztec-node/tsconfig.json aztec-node/tsconfig.json
+COPY aztec-sandbox/tsconfig.json aztec-sandbox/tsconfig.json
 COPY aztec.js/tsconfig.json aztec.js/tsconfig.json
 COPY end-to-end/tsconfig.json end-to-end/tsconfig.json
 COPY ethereum/tsconfig.json ethereum/tsconfig.json

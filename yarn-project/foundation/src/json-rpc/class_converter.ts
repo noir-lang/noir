@@ -19,7 +19,12 @@ interface IOClass {
   /**
    * Creates an IOClass from a given string.
    */
-  fromString: (str: string) => any;
+  fromString?: (str: string) => any;
+
+  /**
+   * Creates an IOClass from a given JSON object.
+   */
+  fromJSON?: (obj: object) => any;
 }
 
 /**
@@ -27,6 +32,20 @@ interface IOClass {
  */
 export interface ClassConverterInput {
   [className: string]: IOClass;
+}
+
+/**
+ * Represents a class in a JSON-friendly encoding.
+ */
+export interface StringEncodedClass {
+  /**
+   * The class type.
+   */
+  type: string;
+  /**
+   * The class data string.
+   */
+  data: string;
 }
 
 /**
@@ -40,38 +59,58 @@ export interface JsonEncodedClass {
   /**
    * The class data string.
    */
-  data: string;
+  data: object;
 }
+/**
+ * Whether a class is a complex object or simply represented by a string.
+ */
+export type ClassEncoding = 'string' | 'object';
 
 /**
  * Handles mapping of classes to names, and calling toString and fromString to convert to and from JSON-friendly formats.
  * Takes a class map as input.
  */
 export class ClassConverter {
-  private toClass = new Map<string, IOClass>();
-  private toName = new Map<IOClass, string>();
+  private toClass = new Map<string, [IOClass, ClassEncoding]>();
+  private toName = new Map<IOClass, [string, ClassEncoding]>();
 
   /**
    * Create a class converter from a table of classes.
-   * @param input - The class table.
+   * @param stringClassMap - The class table of string encoded classes.
+   * @param objectClassMap - The class table of complex object classes
    */
-  constructor(input: ClassConverterInput) {
-    for (const key of Object.keys(input)) {
-      this.register(key, input[key]);
+  constructor(stringClassMap?: ClassConverterInput, objectClassMap?: ClassConverterInput) {
+    if (stringClassMap) {
+      for (const key of Object.keys(stringClassMap)) {
+        this.register(key, stringClassMap[key], 'string');
+      }
+    }
+    if (objectClassMap) {
+      for (const key of Object.keys(objectClassMap)) {
+        this.register(key, objectClassMap[key], 'object');
+      }
     }
   }
+
   /**
    * Register a class with a certain name.
    * This name is used for conversion from and to this class.
    * @param type - The class name to use for serialization.
    * @param class_ - The class object.
+   * @param encoding - Whether the class is a complex object or simply represented by a string.
    */
-  register(type: string, class_: IOClass) {
+  register(type: string, class_: IOClass, encoding: ClassEncoding) {
     assert(type !== 'Buffer', "'Buffer' handling is hardcoded. Cannot use as name.");
-    assert(hasOwnProperty(class_.prototype, 'toString'), `Class ${type} must define a toString() method.`);
-    assert(class_['fromString'], `Class ${type} must define a fromString() static method.`);
-    this.toName.set(class_, type);
-    this.toClass.set(type, class_);
+    assert(
+      hasOwnProperty(class_.prototype, 'toString') || hasOwnProperty(class_.prototype, 'toJSON'),
+      `Class ${type} must define a toString() OR toJSON() method.`,
+    );
+    assert(
+      class_['fromString'] || class_['fromJSON'],
+      `Class ${type} must define a fromString() OR fromJSON() static method.`,
+    );
+    this.toName.set(class_, [type, encoding]);
+    this.toClass.set(type, [class_, encoding]);
   }
 
   /**
@@ -95,19 +134,27 @@ export class ClassConverter {
    * @param jsonObj - An object encoding a class.
    * @returns The class object.
    */
-  toClassObj(jsonObj: JsonEncodedClass): any {
-    const class_ = this.toClass.get(jsonObj.type);
-    assert(class_, `Could not find type in lookup.`);
-    return class_!.fromString(jsonObj.data);
+  toClassObj(jsonObj: JsonEncodedClass | StringEncodedClass): any {
+    const result = this.toClass.get(jsonObj.type);
+    assert(result, `Could not find type in lookup.`);
+
+    const [class_, encoding] = result;
+    if (encoding === 'string' && typeof jsonObj.data === 'string') {
+      return class_!.fromString!(jsonObj.data);
+    } else {
+      return class_!.fromJSON!(jsonObj.data as object);
+    }
   }
   /**
-   * Convert a JSON-like object to a class object.
+   * Convert a class object to a JSON object.
    * @param classObj - A JSON encoding a class.
    * @returns The class object.
    */
-  toJsonObj(classObj: any): JsonEncodedClass {
-    const type = this.toName.get(classObj.constructor);
-    assert(type, `Could not find class in lookup.`);
-    return { type: type!, data: classObj.toString() };
+  toJsonObj(classObj: any): JsonEncodedClass | StringEncodedClass {
+    const result = this.toName.get(classObj.constructor);
+    assert(result, `Could not find class in lookup.`);
+    const [type, encoding] = result;
+    const data = encoding === 'string' ? classObj.toString() : classObj.toJSON();
+    return { type: type!, data };
   }
 }

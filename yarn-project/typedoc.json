@@ -6,6 +6,7 @@
     "archiver",
     "aztec-cli",
     "aztec-rpc",
+    "aztec-sandbox",
     "aztec.js",
     "key-store",
     "noir-contracts",

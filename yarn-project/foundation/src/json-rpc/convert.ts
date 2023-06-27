@@ -2,12 +2,32 @@ import { ClassConverter } from './class_converter.js';
 import { Buffer } from 'buffer';
 
 /**
+ * JSON.stringify helper that handles bigints.
+ * @param obj - The object to be stringified.
+ * @returns The resulting string.
+ */
+export function JsonStringify(obj: object): string {
+  return JSON.stringify(obj, (key, value) =>
+    typeof value === 'bigint'
+      ? JSON.stringify({
+          type: 'bigint',
+          data: value.toString(),
+        })
+      : value,
+  );
+}
+
+/**
  * Convert a JSON-friendly object, which may encode a class object.
  * @param cc - The class converter.
  * @param obj - The encoded object.
  * @returns The decoded object.
  */
 export function convertFromJsonObj(cc: ClassConverter, obj: any): any {
+  if (obj === null) {
+    return undefined; // `null` doesn't work with default args.
+  }
+
   if (!obj) {
     return obj; // Primitive type
   }
@@ -15,6 +35,11 @@ export function convertFromJsonObj(cc: ClassConverter, obj: any): any {
   if (obj.type === 'Buffer' && typeof obj.data === 'string') {
     return Buffer.from(obj.data, 'base64');
   }
+
+  if (obj.type === 'bigint' && typeof obj.data === 'string') {
+    return BigInt(obj.data);
+  }
+
   // Is this a convertible type?
   if (typeof obj.type === 'string' && cc.isRegisteredClassName(obj.type)) {
     return cc.toClassObj(obj);
@@ -51,6 +76,14 @@ export function convertToJsonObj(cc: ClassConverter, obj: any): any {
   if (obj instanceof Buffer) {
     return { type: 'Buffer', data: obj.toString('base64') };
   }
+
+  if (typeof obj === 'bigint') {
+    return {
+      type: 'bigint',
+      data: obj.toString(),
+    };
+  }
+
   // Is this a convertible type?
   if (cc.isRegisteredClass(obj.constructor)) {
     return cc.toJsonObj(obj);

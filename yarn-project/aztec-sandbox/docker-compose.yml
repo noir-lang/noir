@@ -1,0 +1,20 @@
+version: '3'
+services:
+  fork:
+    image: ghcr.io/foundry-rs/foundry:nightly-a44aa13cfc23491ba32aaedc093e9488c1a6db43
+    entrypoint: 'anvil -p 8545 --host 0.0.0.0 --chain-id 31337'
+    ports:
+      - '8545:8545'
+
+  rpc-server:
+    image: aztecprotocol/aztec-sandbox:master
+    ports:
+      - '8080:8080'
+    environment:
+      DEBUG: 'aztec:*'
+      ETHEREUM_HOST: http://fork:8545
+      CHAIN_ID: 31337
+      ARCHIVER_POLLING_INTERVAL: 500
+      P2P_CHECK_INTERVAL: 500
+      SEQ_TX_POLLING_INTERVAL: 500
+      WS_CHECK_INTERVAL: 500

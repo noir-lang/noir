@@ -48,6 +48,11 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   private lastProcessedBlockNumber = 0n;
 
   /**
+   * Use this to track logged block in order to avoid repeating the same message.
+   */
+  private lastLoggedBlockNumber = 0n;
+
+  /**
    * Creates a new instance of the Archiver.
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
@@ -123,7 +128,11 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   private async sync(blockUntilSynced: boolean) {
     const currentBlockNumber = await this.publicClient.getBlockNumber();
     if (currentBlockNumber <= this.lastProcessedBlockNumber) {
-      this.log(`No new blocks to process, current block number: ${currentBlockNumber}`);
+      // reducing logs, otherwise this gets triggered on every loop (1s)
+      if (currentBlockNumber !== this.lastLoggedBlockNumber) {
+        this.log(`No new blocks to process, current block number: ${currentBlockNumber}`);
+        this.lastLoggedBlockNumber = currentBlockNumber;
+      }
       return;
     }
 

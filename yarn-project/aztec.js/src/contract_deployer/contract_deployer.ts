@@ -1,4 +1,4 @@
-import { AztecRPCClient } from '@aztec/aztec-rpc';
+import { AztecRPC } from '@aztec/aztec-rpc';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DeployMethod } from './deploy_method.js';
 
@@ -6,7 +6,7 @@ import { DeployMethod } from './deploy_method.js';
  * A class for deploying contract.
  */
 export class ContractDeployer {
-  constructor(private abi: ContractAbi, private arc: AztecRPCClient) {}
+  constructor(private abi: ContractAbi, private arc: AztecRPC) {}
 
   /**
    * Deploy a contract using the provided ABI and constructor arguments.

@@ -45,8 +45,8 @@ export class TxL2Logs {
    * @param isLengthPrefixed - Whether the buffer is prefixed with 4 bytes for its total length.
    * @returns A new L2Logs object.
    */
-  public static fromBuffer(buf: Buffer, isLengthPrefixed = true): TxL2Logs {
-    const reader = new BufferReader(buf, 0);
+  public static fromBuffer(buf: Buffer | BufferReader, isLengthPrefixed = true): TxL2Logs {
+    const reader = BufferReader.asReader(buf);
 
     // If the buffer is length prefixed use the length to read the array. Otherwise, the entire buffer is consumed.
     const logsBufLength = isLengthPrefixed ? reader.readNumber() : -1;

@@ -1,4 +1,4 @@
-import { AztecRPCClient, Tx, TxHash, TxReceipt } from '@aztec/aztec-rpc';
+import { AztecRPC, Tx, TxHash, TxReceipt } from '@aztec/aztec-rpc';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from 'crypto';
@@ -7,7 +7,7 @@ import { ContractDeployer } from './contract_deployer.js';
 import { ContractDeploymentTx } from '@aztec/types';
 
 describe('Contract Deployer', () => {
-  let arc: ReturnType<typeof mock<AztecRPCClient>>;
+  let arc: ReturnType<typeof mock<AztecRPC>>;
 
   const abi: ContractAbi = {
     name: 'MyContract',
@@ -33,7 +33,7 @@ describe('Contract Deployer', () => {
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
 
   beforeEach(() => {
-    arc = mock<AztecRPCClient>();
+    arc = mock<AztecRPC>();
     arc.createDeploymentTx.mockResolvedValue(contractDeploymentTx);
     arc.createTx.mockResolvedValue(mockTx);
     arc.sendTx.mockResolvedValue(mockTxHash);

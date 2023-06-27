@@ -1,0 +1,26 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../aztec-node"
+    },
+    {
+      "path": "../aztec-rpc"
+    },
+    {
+      "path": "../aztec.js"
+    },
+    {
+      "path": "../ethereum"
+    },
+    {
+      "path": "../foundation"
+    }
+  ],
+  "include": ["src"]
+}

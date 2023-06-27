@@ -1,4 +1,4 @@
-import { AztecRPCClient, Tx, TxHash } from '@aztec/aztec-rpc';
+import { AztecRPC, Tx, TxHash } from '@aztec/aztec-rpc';
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { FunctionType } from '@aztec/foundation/abi';
 import { SentTx } from './sent_tx.js';
@@ -37,7 +37,7 @@ export class ContractFunctionInteraction {
   protected tx?: Tx;
 
   constructor(
-    protected arc: AztecRPCClient,
+    protected arc: AztecRPC,
     protected contractAddress: AztecAddress,
     protected functionName: string,
     protected args: any[],

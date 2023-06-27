@@ -49,6 +49,10 @@ export class PrivateHistoricTreeRoots {
     return serializeToBuffer(...PrivateHistoricTreeRoots.getFields(this));
   }
 
+  toString() {
+    return this.toBuffer().toString();
+  }
+
   isEmpty() {
     return (
       this.privateDataTreeRoot.isZero() &&
@@ -75,6 +79,10 @@ export class PrivateHistoricTreeRoots {
     );
   }
 
+  static fromString(str: string): PrivateHistoricTreeRoots {
+    return PrivateHistoricTreeRoots.fromBuffer(Buffer.from(str, 'hex'));
+  }
+
   static empty() {
     return new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
   }
@@ -93,6 +101,10 @@ export class CombinedHistoricTreeRoots {
 
   toBuffer() {
     return serializeToBuffer(this.privateHistoricTreeRoots);
+  }
+
+  toString() {
+    return this.toBuffer().toString();
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {

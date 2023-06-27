@@ -14,6 +14,8 @@
 
 PROJECTS=(
   circuits:circuits/cpp:./dockerfiles/Dockerfile.wasm-linux-clang:circuits-wasm-linux-clang
+  l1-contracts:l1-contracts
   yarn-project-base:yarn-project
   end-to-end:yarn-project
+  aztec-sandbox:yarn-project
 )

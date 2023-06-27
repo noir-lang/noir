@@ -196,6 +196,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/aztec-sandbox@workspace:aztec-sandbox":
+  version: 0.0.0-use.local
+  resolution: "@aztec/aztec-sandbox@workspace:aztec-sandbox"
+  dependencies:
+    "@aztec/aztec-node": "workspace:^"
+    "@aztec/aztec-rpc": "workspace:^"
+    "@aztec/aztec.js": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@types/jest": ^29.5.0
+    abitype: ^0.8.11
+    jest: ^29.5.0
+    koa-router: ^12.0.0
+    ts-jest: ^29.1.0
+    ts-node: ^10.9.1
+    typescript: ^5.0.4
+    viem: ^0.3.14
+  languageName: unknown
+  linkType: soft
+
 "@aztec/aztec.js@workspace:^, @aztec/aztec.js@workspace:aztec.js":
   version: 0.0.0-use.local
   resolution: "@aztec/aztec.js@workspace:aztec.js"
@@ -223,7 +244,7 @@ __metadata:
   dependencies:
     "@monorepo-utils/workspaces-to-typescript-project-references": ^2.9.0
     eslint: ^8.21.0
-    prettier: ^2.7.1
+    prettier: ^2.8.8
     typedoc: ^0.23.26
     typescript: ^5.0.4
   languageName: unknown
@@ -3532,6 +3553,19 @@ __metadata:
     zod:
       optional: true
   checksum: de0d7082d28a4835b3d8dc4d8c75e9222c95a1f9eed13d6b2381403b46f46b68ea7a281e8ba6628d259a98c54ea466ebc206eec21db6205fa1641c7393854f5e
+  languageName: node
+  linkType: hard
+
+"abitype@npm:^0.8.11":
+  version: 0.8.11
+  resolution: "abitype@npm:0.8.11"
+  peerDependencies:
+    typescript: ">=5.0.4"
+    zod: ^3 >=3.19.1
+  peerDependenciesMeta:
+    zod:
+      optional: true
+  checksum: 94e6ad5d3d3851f68ea54d090312d35e38aa15d19b65d25f02d8c54400b184a87b121adb23e930f2e92d597e9290e8ca4f2ff70751e6dada4e8f1440948e0c44
   languageName: node
   linkType: hard
 
@@ -8231,6 +8265,15 @@ __metadata:
   bin:
     prettier: bin-prettier.js
   checksum: fdc8f2616f099f5f0d685907f4449a70595a0fc1d081a88919604375989e0d5e9168d6121d8cc6861f21990b31665828e00472544d785d5940ea08a17660c3a6
+  languageName: node
+  linkType: hard
+
+"prettier@npm:^2.8.8":
+  version: 2.8.8
+  resolution: "prettier@npm:2.8.8"
+  bin:
+    prettier: bin-prettier.js
+  checksum: b49e409431bf129dd89238d64299ba80717b57ff5a6d1c1a8b1a28b590d998a34e083fa13573bc732bb8d2305becb4c9a4407f8486c81fa7d55100eb08263cf8
   languageName: node
   linkType: hard
 

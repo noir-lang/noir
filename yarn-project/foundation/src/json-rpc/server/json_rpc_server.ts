@@ -2,11 +2,13 @@ import http from 'http';
 import Router from 'koa-router';
 import cors from '@koa/cors';
 import compress from 'koa-compress';
-import { ClassConverterInput } from '../class_converter.js';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
-import { JsonProxy } from './json_proxy.js';
+
 import { createLogger } from '../../log/index.js';
+import { ClassConverterInput } from '../class_converter.js';
+import { JsonProxy } from './json_proxy.js';
+import { JsonStringify } from '../convert.js';
 
 /**
  * JsonRpcServer.
@@ -16,10 +18,13 @@ export class JsonRpcServer {
   proxy: JsonProxy;
   constructor(
     private handler: object,
-    input: ClassConverterInput,
+    stringClassMap: ClassConverterInput,
+    objectClassMap: ClassConverterInput,
+    private createApi: boolean,
+    private disallowedMethods: string[] = [],
     private log = createLogger('aztec:foundation:json-rpc:server'),
   ) {
-    this.proxy = new JsonProxy(handler, input);
+    this.proxy = new JsonProxy(handler, stringClassMap, objectClassMap);
   }
 
   /**
@@ -40,7 +45,7 @@ export class JsonRpcServer {
     };
     const app = new Koa();
     app.on('error', error => {
-      this.log(`KOA app-level error. ${JSON.stringify({ error })}`);
+      this.log(`KOA app-level error. ${JsonStringify({ error })}`);
     });
     app.use(compress({ br: false } as any));
     app.use(bodyParser());
@@ -61,18 +66,49 @@ export class JsonRpcServer {
     const router = new Router({ prefix });
     const proto = Object.getPrototypeOf(this.handler);
     // Find all our endpoints from the handler methods
-    for (const method of Object.getOwnPropertyNames(proto)) {
-      // Ignore if not a function
-      if (method === 'constructor' || typeof proto[method] !== 'function') {
-        continue;
+
+    if (this.createApi) {
+      // "API mode" where an endpoint is created for each method
+      for (const method of Object.getOwnPropertyNames(proto)) {
+        // Ignore if not a function or function is not allowed
+        if (
+          method === 'constructor' ||
+          typeof proto[method] !== 'function' ||
+          this.disallowedMethods.includes(method)
+        ) {
+          continue;
+        }
+        router.post(`/${method}`, async (ctx: Koa.Context) => {
+          const { params = [], jsonrpc, id } = ctx.request.body as any;
+          const result = await this.proxy.call(method, params);
+          ctx.body = { jsonrpc, id, result: JsonStringify(result) };
+          ctx.status = 200;
+        });
       }
-      router.post(`/${method}`, async (ctx: Koa.Context) => {
-        const { params = [], jsonrpc, id } = ctx.request.body as any;
+    } else {
+      // "JSON RPC mode" where a single endpoint is used and the method is given in the request body
+      router.post('/', async (ctx: Koa.Context) => {
+        const { params = [], jsonrpc, id, method } = ctx.request.body as any;
+        // Ignore if not a function
+        if (
+          method === 'constructor' ||
+          typeof proto[method] !== 'function' ||
+          this.disallowedMethods.includes(method)
+        ) {
+          ctx.status = 400;
+          ctx.body = { error: `Invalid method name: ${method}` };
+        }
         const result = await this.proxy.call(method, params);
-        ctx.body = { jsonrpc, id, result };
+
+        ctx.body = {
+          jsonrpc,
+          id,
+          result: JsonStringify(result),
+        };
         ctx.status = 200;
       });
     }
+
     return router;
   }
 

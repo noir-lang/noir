@@ -142,6 +142,21 @@
       "types"
     ]
   },
+  "aztec-sandbox": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/aztec-sandbox",
+    "dockerfile": "aztec-sandbox/Dockerfile",
+    "rebuildPatterns": [
+      "^yarn-project/aztec-sandbox/"
+    ],
+    "dependencies": [
+      "aztec-node",
+      "aztec-rpc",
+      "aztec.js",
+      "ethereum",
+      "foundation"
+    ]
+  },
   "aztec.js": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec.js",

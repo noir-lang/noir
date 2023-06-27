@@ -20,6 +20,7 @@
     "archiver",
     "aztec-cli",
     "aztec-rpc",
+    "aztec-sandbox",
     "aztec.js",
     "circuits.js",
     "docs",
@@ -45,7 +46,7 @@
   "devDependencies": {
     "@monorepo-utils/workspaces-to-typescript-project-references": "^2.9.0",
     "eslint": "^8.21.0",
-    "prettier": "^2.7.1",
+    "prettier": "^2.8.8",
     "typedoc": "^0.23.26",
     "typescript": "^5.0.4"
   }

@@ -33,6 +33,7 @@ export function txToJson(tx: Tx) {
   return {
     data: tx.data?.toBuffer().toString('hex'),
     encryptedLogs: tx.encryptedLogs?.toBuffer().toString('hex'),
+    unencryptedLogs: tx.unencryptedLogs?.toBuffer().toString('hex'),
     proof: tx.proof?.toBuffer().toString('hex'),
     newContractPublicFunctions: tx.newContractPublicFunctions?.map(f => f.toBuffer().toString('hex')) ?? [],
     enqueuedPublicFunctions: tx.enqueuedPublicFunctionCalls?.map(f => f.toBuffer().toString('hex')) ?? [],
@@ -49,10 +50,10 @@ export function txFromJson(json: any) {
   const encryptedLogs = TxL2Logs.fromBuffer(Buffer.from(json.encryptedLogs, 'hex'));
   const unencryptedLogs = TxL2Logs.fromBuffer(Buffer.from(json.unencryptedLogs, 'hex'));
   const proof = Buffer.from(json.proof, 'hex');
-  const newContractPublicFunctions = json.newContractPublicFunctions
+  const newContractPublicFunctions = json.newContractPublicFunctions?.length
     ? json.newContractPublicFunctions.map((x: string) => EncodedContractFunction.fromBuffer(Buffer.from(x, 'hex')))
     : [];
-  const enqueuedPublicFunctions = json.enqueuedPublicFunctions
+  const enqueuedPublicFunctions = json.enqueuedPublicFunctions?.length
     ? json.enqueuedPublicFunctions.map((x: string) => PublicCallRequest.fromBuffer(Buffer.from(x, 'hex')))
     : [];
   return Tx.createTx(

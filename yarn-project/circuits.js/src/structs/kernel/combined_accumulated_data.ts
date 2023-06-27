@@ -362,6 +362,10 @@ export class CombinedAccumulatedData {
     );
   }
 
+  toString() {
+    return this.toBuffer().toString();
+  }
+
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer or reader to read from.
@@ -385,6 +389,15 @@ export class CombinedAccumulatedData {
       reader.readArray(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, PublicDataUpdateRequest),
       reader.readArray(KERNEL_PUBLIC_DATA_READS_LENGTH, PublicDataRead),
     );
+  }
+
+  /**
+   * Deserializes from a string, corresponding to a write in cpp.
+   * @param str - String to read from.
+   * @returns Deserialized object.
+   */
+  static fromString(str: string) {
+    return CombinedAccumulatedData.fromBuffer(Buffer.from(str, 'hex'));
   }
 
   static empty() {

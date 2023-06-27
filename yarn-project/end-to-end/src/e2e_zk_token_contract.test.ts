@@ -1,10 +1,10 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus } from '@aztec/aztec.js';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
-
 import { DebugLogger } from '@aztec/foundation/log';
-import { pointToPublicKey, setup } from './utils.js';
 import { L2BlockL2Logs } from '@aztec/types';
+
+import { pointToPublicKey, setup } from './utils.js';
 
 describe('e2e_zk_token_contract', () => {
   let aztecNode: AztecNodeService;

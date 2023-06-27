@@ -319,6 +319,17 @@ jobs:
           name: "Build and test"
           command: build aztec-rpc
 
+  aztec-sandbox:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build aztec-sandbox
+
   circuits-js:
     machine:
       image: ubuntu-2004:202010-01
@@ -535,6 +546,20 @@ jobs:
           name: "Noop"
           command: echo Noop
 
+  deploy:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "deploy-sandbox"
+          working_directory: aztec-sandbox
+          command: |
+            deploy_ecr aztec-sandbox
+            deploy_dockerhub aztec-sandbox master
+
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /v[0-9]+(\.[0-9]+)*(-[a-zA-Z-]+\.[0-9]+)?/
 defaults: &defaults
@@ -615,6 +640,7 @@ workflows:
       - types: *yarn_project
       - circuits-js: *yarn_project
       - rollup-provider: *yarn_project
+      - aztec-sandbox: *yarn_project
 
       - e2e-join:
           requires:
@@ -666,4 +692,13 @@ workflows:
             - integration-l1-publisher
             - integration-archiver-l1-to-l2
             - e2e-p2p
+          <<: *defaults
+
+      - deploy:
+          requires:
+            - e2e-end
+            - aztec-sandbox
+          filters:
+            branches:
+              only: master
           <<: *defaults

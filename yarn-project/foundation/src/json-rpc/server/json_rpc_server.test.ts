@@ -3,27 +3,21 @@ import { TestState, TestNote } from '../fixtures/test_state.js';
 import { JsonRpcServer } from './json_rpc_server.js';
 
 test('test an RPC function with a primitive parameter', async () => {
-  const server = new JsonRpcServer(new TestState([new TestNote('a'), new TestNote('b')]), { TestNote });
+  const server = new JsonRpcServer(new TestState([new TestNote('a'), new TestNote('b')]), { TestNote }, {}, true);
   const response = await request(server.getApp().callback())
     .post('/getNote')
     .send({ params: [0] });
   expect(response.status).toBe(200);
-  expect(response.text).toBe('{"result":{"type":"TestNote","data":"a"}}');
+  expect(response.text).toBe(JSON.stringify({ result: JSON.stringify({ type: 'TestNote', data: 'a' }) }));
 });
 
 test('test an RPC function with an array of classes', async () => {
-  const server = new JsonRpcServer(new TestState([]), { TN: TestNote });
+  const server = new JsonRpcServer(new TestState([]), { TestNote }, {}, true);
   const response = await request(server.getApp().callback())
     .post('/addNotes')
     .send({
-      params: [
-        [
-          { type: 'TN', data: 'a' },
-          { type: 'TN', data: 'b' },
-          { type: 'TN', data: 'c' },
-        ],
-      ],
+      params: [[{ data: 'a' }, { data: 'b' }, { data: 'c' }]],
     });
   expect(response.status).toBe(200);
-  expect(response.text).toBe('{"result":[{"type":"TN","data":"a"},{"type":"TN","data":"b"},{"type":"TN","data":"c"}]}');
+  expect(response.text).toBe(JSON.stringify({ result: JSON.stringify([{ data: 'a' }, { data: 'b' }, { data: 'c' }]) }));
 });

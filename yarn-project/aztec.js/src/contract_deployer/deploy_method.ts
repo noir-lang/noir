@@ -1,4 +1,4 @@
-import { AztecRPCClient } from '@aztec/aztec-rpc';
+import { AztecRPC } from '@aztec/aztec-rpc';
 import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -31,7 +31,7 @@ export class DeployMethod extends ContractFunctionInteraction {
    */
   public partialContractAddress?: PartialContractAddress = undefined;
 
-  constructor(arc: AztecRPCClient, private abi: ContractAbi, args: any[] = []) {
+  constructor(arc: AztecRPC, private abi: ContractAbi, args: any[] = []) {
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) {
       throw new Error('Cannot find constructor in the ABI.');

@@ -48,6 +48,7 @@ export class TxHash {
   public toString() {
     return this.buffer.toString('hex');
   }
+
   /**
    * Convert this hash to a big int.
    * @returns The big int.
@@ -75,5 +76,14 @@ export class TxHash {
     }
     const padded = Buffer.concat([Buffer.alloc(this.SIZE - 28), buffer]);
     return new TxHash(padded);
+  }
+
+  /**
+   * Converts a string into a TxHash object.
+   * @param str - The TX hash in string format.
+   * @returns A new TxHash object.
+   */
+  public static fromString(str: string): TxHash {
+    return new TxHash(Buffer.from(str, 'hex'));
   }
 }
