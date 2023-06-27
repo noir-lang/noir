@@ -35,7 +35,7 @@ template <typename Flavor> class TranscriptTests : public testing::Test {
 
         auto log_n = numeric::get_msb(circuit_size);
 
-        size_t max_relation_length = 5;
+        size_t max_relation_length = Flavor::MAX_RANDOM_RELATION_LENGTH;
         size_t size_FF = sizeof(FF);
         size_t size_G = 2 * size_FF;
         size_t size_uni = max_relation_length * size_FF;

@@ -6,7 +6,8 @@
 #include "relation_parameters.hpp"
 
 namespace proof_system::honk::sumcheck {
-
+template <typename T>
+concept HasSubrelationLinearlyIndependentMember = requires(T) { T::Relation::SUBRELATION_LINEARLY_INDEPENDENT; };
 /**
  * @brief The templates defined herein facilitate sharing the relation arithmetic between the prover and the verifier.
  *
@@ -65,6 +66,31 @@ template <typename FF, template <typename> typename RelationBase> class Relation
     {
         Relation::template add_edge_contribution_impl<ValueAccumTypes>(
             accumulator, input, relation_parameters, scaling_factor);
+    }
+
+    /**
+     * @brief Check is subrelation is linearly independent
+     * Method always returns true if relation has no SUBRELATION_LINEARLY_INDEPENDENT std::array
+     * (i.e. default is to make linearly independent)
+     * @tparam size_t
+     */
+    template <size_t>
+    static constexpr bool is_subrelation_linearly_independent()
+        requires(!HasSubrelationLinearlyIndependentMember<Relation>)
+    {
+        return true;
+    }
+
+    /**
+     * @brief Check is subrelation is linearly independent
+     * Method is active if relation has SUBRELATION_LINEARLY_INDEPENDENT array defined
+     * @tparam size_t
+     */
+    template <size_t subrelation_index>
+    static constexpr bool is_subrelation_linearly_independent()
+        requires(HasSubrelationLinearlyIndependentMember<Relation>)
+    {
+        return std::get<subrelation_index>(Relation::SUBRELATION_LINEARLY_INDEPENDENT);
     }
 };
 

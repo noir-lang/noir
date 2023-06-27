@@ -73,6 +73,7 @@ template <typename Flavor> class SumcheckRound {
     Relations relations;
     static constexpr size_t NUM_RELATIONS = Flavor::NUM_RELATIONS;
     static constexpr size_t MAX_RELATION_LENGTH = Flavor::MAX_RELATION_LENGTH;
+    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
 
     FF target_total_sum = 0;
 
@@ -99,13 +100,14 @@ template <typename Flavor> class SumcheckRound {
      *
      * @tparam T : In practice, this is a Univariate<FF, MAX_NUM_RELATIONS>.
      */
-    Univariate<FF, MAX_RELATION_LENGTH> batch_over_relations(FF challenge)
+    Univariate<FF, MAX_RANDOM_RELATION_LENGTH> batch_over_relations(FF challenge,
+                                                                    const PowUnivariate<FF>& pow_univariate)
     {
         FF running_challenge = 1;
         scale_univariates(univariate_accumulators, challenge, running_challenge);
 
-        auto result = Univariate<FF, MAX_RELATION_LENGTH>();
-        extend_and_batch_univariates(univariate_accumulators, result);
+        auto result = Univariate<FF, MAX_RANDOM_RELATION_LENGTH>(0);
+        extend_and_batch_univariates(univariate_accumulators, pow_univariate, result);
 
         // Reset all univariate accumulators to 0 before beginning accumulation in the next round
         zero_univariates(univariate_accumulators);
@@ -134,10 +136,10 @@ template <typename Flavor> class SumcheckRound {
      * values. Most likely this will end up being S_l(0), ... , S_l(t-1) where t is around 12. At the end, reset all
      * univariate accumulators to be zero.
      */
-    Univariate<FF, MAX_RELATION_LENGTH> compute_univariate(auto& polynomials,
-                                                           const RelationParameters<FF>& relation_parameters,
-                                                           const PowUnivariate<FF>& pow_univariate,
-                                                           const FF alpha)
+    Univariate<FF, MAX_RANDOM_RELATION_LENGTH> compute_univariate(auto& polynomials,
+                                                                  const RelationParameters<FF>& relation_parameters,
+                                                                  const PowUnivariate<FF>& pow_univariate,
+                                                                  const FF alpha)
     {
         // Precompute the vector of required powers of zeta
         // TODO(luke): Parallelize this
@@ -196,7 +198,7 @@ template <typename Flavor> class SumcheckRound {
             add_nested_tuples(univariate_accumulators, accumulators);
         }
         // Batch the univariate contributions from each sub-relation to obtain the round univariate
-        return batch_over_relations(alpha);
+        return batch_over_relations(alpha, pow_univariate);
     }
 
     /**
@@ -212,14 +214,12 @@ template <typename Flavor> class SumcheckRound {
                                                   const PowUnivariate<FF>& pow_univariate,
                                                   const FF alpha)
     {
-        accumulate_relation_evaluations<>(purported_evaluations, relation_parameters);
+        accumulate_relation_evaluations<>(
+            purported_evaluations, relation_parameters, pow_univariate.partial_evaluation_constant);
 
         auto running_challenge = FF(1);
         auto output = FF(0);
         scale_and_batch_elements(relation_evaluations, alpha, running_challenge, output);
-
-        output *= pow_univariate.partial_evaluation_constant;
-
         return output;
     }
 
@@ -228,11 +228,11 @@ template <typename Flavor> class SumcheckRound {
      *
      * @param univariate T^{l}(X), the round univariate that is equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
      */
-    bool check_sum(Univariate<FF, MAX_RELATION_LENGTH>& univariate, const PowUnivariate<FF>& pow_univariate)
+    bool check_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, const PowUnivariate<FF>& pow_univariate)
     {
         // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^l } ) ⋅ T^{l}(0) = T^{l}(0)
         // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
-        FF total_sum = univariate.value_at(0) + (pow_univariate.zeta_pow * univariate.value_at(1));
+        FF total_sum = univariate.value_at(0) + univariate.value_at(1);
         // target_total_sum = sigma_{l} =
         bool sumcheck_round_failed = (target_total_sum != total_sum);
         round_failed = round_failed || sumcheck_round_failed;
@@ -247,19 +247,13 @@ template <typename Flavor> class SumcheckRound {
      * @param round_challenge u_l
      * @return FF sigma_{l+1} = S^l(u_l)
      */
-    FF compute_next_target_sum(Univariate<FF, MAX_RELATION_LENGTH>& univariate,
-                               FF& round_challenge,
-                               const PowUnivariate<FF>& pow_univariate)
+    FF compute_next_target_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, FF& round_challenge)
     {
         // IMPROVEMENT(Cody): Use barycentric static method, maybe implement evaluation as member
         // function on Univariate.
-        auto barycentric = BarycentricData<FF, MAX_RELATION_LENGTH, MAX_RELATION_LENGTH>();
+        auto barycentric = BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
         // Evaluate T^{l}(u_{l})
         target_total_sum = barycentric.evaluate(univariate, round_challenge);
-        // Evaluate (1−u_l) + u_l ⋅ ζ^{2^l} )
-        FF pow_monomial_eval = pow_univariate.univariate_eval(round_challenge);
-        // sigma_{l+1} = S^l(u_l) = (1−u_l) + u_l⋅ζ^{2^l} ) ⋅ T^{l}(u_l)
-        target_total_sum *= pow_monomial_eval;
         return target_total_sum;
     }
 
@@ -307,14 +301,19 @@ template <typename Flavor> class SumcheckRound {
     template <size_t relation_idx = 0>
     // TODO(#224)(Cody): Input should be an array?
     void accumulate_relation_evaluations(ClaimedEvaluations purported_evaluations,
-                                         const RelationParameters<FF>& relation_parameters)
+                                         const RelationParameters<FF>& relation_parameters,
+                                         const FF& partial_evaluation_constant)
     {
         std::get<relation_idx>(relations).add_full_relation_value_contribution(
-            std::get<relation_idx>(relation_evaluations), purported_evaluations, relation_parameters);
+            std::get<relation_idx>(relation_evaluations),
+            purported_evaluations,
+            relation_parameters,
+            partial_evaluation_constant);
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {
-            accumulate_relation_evaluations<relation_idx + 1>(purported_evaluations, relation_parameters);
+            accumulate_relation_evaluations<relation_idx + 1>(
+                purported_evaluations, relation_parameters, partial_evaluation_constant);
         }
     }
 
@@ -334,13 +333,32 @@ template <typename Flavor> class SumcheckRound {
      * @param result A Univariate of length extended_size
      */
     template <size_t extended_size>
-    static void extend_and_batch_univariates(auto& tuple, Univariate<FF, extended_size>& result)
+    static void extend_and_batch_univariates(auto& tuple,
+                                             const PowUnivariate<FF>& pow_univariate,
+                                             Univariate<FF, extended_size>& result)
     {
-        auto extend_and_sum = [&](auto& element) {
-            using Element = std::remove_reference_t<decltype(element)>;
+        // Random poly R(X) = (1-X) + X.zeta_pow
+        auto random_poly_edge = Univariate<FF, 2>({ 1, pow_univariate.zeta_pow });
+        BarycentricData<FF, 2, extended_size> pow_zeta_univariate_extender = BarycentricData<FF, 2, extended_size>();
+        Univariate<FF, extended_size> extended_random_polynomial_edge =
+            pow_zeta_univariate_extender.extend(random_poly_edge);
+
+        auto extend_and_sum = [&]<size_t relation_idx, size_t subrelation_idx, typename Element>(Element& element) {
+            using Relation = typename std::tuple_element<relation_idx, Relations>::type;
+
             // TODO(#224)(Cody): this barycentric stuff should be more built-in?
             BarycentricData<FF, Element::LENGTH, extended_size> barycentric_utils;
-            result += barycentric_utils.extend(element);
+            auto extended = barycentric_utils.extend(element);
+
+            const bool is_subrelation_linearly_independent =
+                Relation::template is_subrelation_linearly_independent<subrelation_idx>();
+            if (is_subrelation_linearly_independent) {
+                // if subrelation is linearly independent, multiply by random polynomial
+                result += extended * extended_random_polynomial_edge;
+            } else {
+                // if subrelation is pure sum over hypercube, don't multiply by random polynomial
+                result += extended;
+            }
         };
         apply_to_tuple_of_tuples(tuple, extend_and_sum);
     }
@@ -352,7 +370,7 @@ template <typename Flavor> class SumcheckRound {
      */
     static void zero_univariates(auto& tuple)
     {
-        auto set_to_zero = [](auto& element) {
+        auto set_to_zero = []<size_t, size_t>(auto& element) {
             std::fill(element.evaluations.begin(), element.evaluations.end(), FF(0));
         };
         apply_to_tuple_of_tuples(tuple, set_to_zero);
@@ -367,7 +385,7 @@ template <typename Flavor> class SumcheckRound {
      */
     static void scale_univariates(auto& tuple, const FF& challenge, FF current_scalar)
     {
-        auto scale_by_consecutive_powers_of_challenge = [&](auto& element) {
+        auto scale_by_consecutive_powers_of_challenge = [&]<size_t, size_t>(auto& element) {
             element *= current_scalar;
             current_scalar *= challenge;
         };
@@ -383,14 +401,14 @@ template <typename Flavor> class SumcheckRound {
      * @param tuple A Tuple of tuples of Univariates
      * @param operation Operation to apply to Univariates
      */
-    template <typename Operation, size_t outer_idx = 0, size_t inner_idx = 0>
+    template <class Operation, size_t outer_idx = 0, size_t inner_idx = 0>
     static void apply_to_tuple_of_tuples(auto& tuple, Operation&& operation)
     {
         auto& inner_tuple = std::get<outer_idx>(tuple);
         auto& univariate = std::get<inner_idx>(inner_tuple);
 
         // Apply the specified operation to each Univariate
-        std::invoke(std::forward<Operation>(operation), univariate);
+        operation.template operator()<outer_idx, inner_idx>(univariate);
 
         const size_t inner_size = std::tuple_size_v<std::decay_t<decltype(std::get<outer_idx>(tuple))>>;
         const size_t outer_size = std::tuple_size_v<std::decay_t<decltype(tuple)>>;

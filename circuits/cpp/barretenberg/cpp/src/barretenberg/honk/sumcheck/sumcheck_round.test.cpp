@@ -25,7 +25,7 @@ using ProverPolynomials = typename Flavor::ProverPolynomials;
 using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
-const size_t max_relation_length = 5;
+const size_t max_relation_length = Flavor::MAX_RANDOM_RELATION_LENGTH;
 const size_t input_polynomial_length = 2;
 
 namespace test_sumcheck_round {
@@ -301,8 +301,9 @@ TEST(SumcheckRound, TupleOfTuplesOfUnivariates)
     SumcheckRound<Flavor>::scale_univariates(tuple_of_tuples, challenge, running_challenge);
 
     // Use extend_and_batch_univariates to extend to MAX_LENGTH then accumulate
+    PowUnivariate<FF> pow_univariate(1);
     auto result = Univariate<FF, MAX_LENGTH>();
-    SumcheckRound<Flavor>::extend_and_batch_univariates(tuple_of_tuples, result);
+    SumcheckRound<Flavor>::extend_and_batch_univariates(tuple_of_tuples, pow_univariate, result);
 
     // Repeat the batching process manually
     auto result_expected = barycentric_util_1.extend(univariate_1) * 1 +
