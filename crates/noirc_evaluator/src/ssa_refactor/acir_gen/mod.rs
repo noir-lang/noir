@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{brillig_gen::create_entry_point_function, Brillig};
+use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
@@ -21,10 +21,11 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use acvm::FieldElement;
+use acvm::{acir::native_types::Expression, FieldElement};
 use iter_extended::vecmap;
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use noirc_abi::AbiDistinctness;
 
 mod acir_ir;
 
@@ -71,9 +72,34 @@ impl AcirValue {
 }
 
 impl Ssa {
-    pub(crate) fn into_acir(self, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
+    pub(crate) fn into_acir(
+        self,
+        brillig: Brillig,
+        abi_distinctness: AbiDistinctness,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         let context = Context::default();
-        context.convert_ssa(self, brillig, allow_log_ops)
+        let mut generated_acir = context.convert_ssa(self, brillig, allow_log_ops);
+
+        match abi_distinctness {
+            AbiDistinctness::Distinct => {
+                // Create a witness for each return witness we have
+                // to guarantee that the return witnesses are distinct
+                let distinct_return_witness: Vec<_> = generated_acir
+                    .return_witnesses
+                    .clone()
+                    .into_iter()
+                    .map(|return_witness| {
+                        generated_acir
+                            .create_witness_for_expression(&Expression::from(return_witness))
+                    })
+                    .collect();
+
+                generated_acir.return_witnesses = distinct_return_witness;
+                generated_acir
+            }
+            AbiDistinctness::DuplicationAllowed => generated_acir,
+        }
     }
 }
 
@@ -105,17 +131,25 @@ impl Context {
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> AcirValue {
+        self.create_value_from_type(param_type, &mut |this, typ| this.add_numeric_input_var(&typ))
+    }
+
+    fn create_value_from_type(
+        &mut self,
+        param_type: &Type,
+        make_var: &mut impl FnMut(&mut Self, NumericType) -> AcirVar,
+    ) -> AcirValue {
         match param_type {
             Type::Numeric(numeric_type) => {
                 let typ = AcirType::new(*numeric_type);
-                AcirValue::Var(self.add_numeric_input_var(numeric_type), typ)
+                AcirValue::Var(make_var(self, *numeric_type), typ)
             }
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
 
                 for _ in 0..*length {
                     for element in element_types.iter() {
-                        elements.push_back(self.convert_ssa_block_param(element));
+                        elements.push_back(self.create_value_from_type(element, make_var));
                     }
                 }
 
@@ -182,8 +216,15 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                // Generate the brillig code of the function
-                                let code = create_entry_point_function(arguments.len()).link(&brillig[*id]);
+                                // Create the entry point artifact
+                                let mut entry_point = BrilligArtifact::to_entry_point_artifact(&brillig[*id]);
+                                // Link the entry point with all dependencies
+                                while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
+                                    let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone()).expect("Cannot find linked fn {unresolved_fn_label}");
+                                    entry_point.link_with(unresolved_fn_label, artifact);
+                                }
+                                // Generate the final bytecode
+                                let code = entry_point.finish();
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
@@ -221,8 +262,14 @@ impl Context {
                 }
             }
             Instruction::Not(value_id) => {
-                let boolean_var = self.convert_numeric_value(*value_id, dfg);
-                let result_acir_var = self.acir_context.not_var(boolean_var);
+                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
+                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
+                    _ => unreachable!("NOT is only applied to numerics"),
+                };
+                let result_acir_var = self
+                    .acir_context
+                    .not_var(acir_var, typ)
+                    .expect("add Result types to all methods so errors bubble up");
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
@@ -270,6 +317,20 @@ impl Context {
             .expect("Expected array index to be a known constant")
             .try_to_u64()
             .expect("Expected array index to fit into a u64") as usize;
+
+        if index >= array.len() {
+            // Ignore the error if side effects are disabled.
+            if let Some(var) = self.current_side_effects_enabled_var {
+                if self.acir_context.is_constant_one(&var) {
+                    // TODO: Can we save a source Location for this error?
+                    panic!("Index {} is out of bounds for array of length {}", index, array.len());
+                }
+            }
+            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+            let value = self.create_default_value(&result_type);
+            self.define_result(dfg, instruction, value);
+            return;
+        }
 
         let value = match store_value {
             Some(store_value) => {
@@ -470,7 +531,8 @@ impl Context {
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(
                     lhs_type, rhs_type,
-                    "lhs and rhs types in a binary operation are always the same"
+                    "lhs and rhs types in {:?} are not the same",
+                    binary
                 );
                 Type::Numeric(lhs_type)
             }
@@ -589,7 +651,31 @@ impl Context {
                 }
                 Vec::new()
             }
-            _ => todo!("expected a black box function"),
+            Intrinsic::Sort => {
+                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                // We flatten the inputs and retrieve the bit_size of the elements
+                let mut input_vars = Vec::new();
+                let mut bit_size = 0;
+                for input in inputs {
+                    for (var, typ) in input.flatten() {
+                        input_vars.push(var);
+                        if bit_size == 0 {
+                            bit_size = typ.bit_size();
+                        } else {
+                            assert_eq!(
+                                bit_size,
+                                typ.bit_size(),
+                                "cannot sort element of different bit size"
+                            );
+                        }
+                    }
+                }
+                // Generate the sorted output variables
+                let out_vars =
+                    self.acir_context.sort(input_vars, bit_size).expect("Could not sort");
+
+                Self::convert_vars_to_values(out_vars, dfg, result_ids)
+            }
         }
     }
 
@@ -665,6 +751,13 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
+    }
+
+    /// Creates a default, meaningless value meant only to be a valid value of the given type.
+    fn create_default_value(&mut self, param_type: &Type) -> AcirValue {
+        self.create_value_from_type(param_type, &mut |this, _| {
+            this.acir_context.add_constant(FieldElement::zero())
+        })
     }
 }
 

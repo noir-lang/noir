@@ -27,10 +27,11 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
+    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
+        value = self.function.dfg.resolve(value);
         match self.values.get(&value) {
             Some(value) => *value,
-            None => match &self.function.dfg[self.function.dfg.resolve(value)] {
+            None => match &self.function.dfg[value] {
                 super::value::Value::Array { array, element_type } => {
                     let array = array.clone();
                     let element_type = element_type.clone();
@@ -68,7 +69,7 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
-    ) {
+    ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));
 
@@ -79,7 +80,8 @@ impl<'f> FunctionInserter<'f> {
         let new_results =
             self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars);
 
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
+        Self::insert_new_instruction_results(&mut self.values, &results, &new_results);
+        new_results
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
@@ -87,16 +89,16 @@ impl<'f> FunctionInserter<'f> {
     pub(crate) fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],
-        new_results: InsertInstructionResult,
+        new_results: &InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
+                values.insert(old_results[0], *new_result);
             }
             InsertInstructionResult::Results(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                for (old_result, new_result) in old_results.iter().zip(*new_results) {
                     values.insert(*old_result, *new_result);
                 }
             }
