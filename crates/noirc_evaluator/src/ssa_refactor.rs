@@ -34,7 +34,11 @@ pub(crate) fn optimize_into_acir(
     print_ssa_passes: bool,
 ) -> GeneratedAcir {
     let abi_distinctness = program.return_distinctness;
-    let ssa = ssa_gen::generate_ssa(program).print(print_ssa_passes, "Initial SSA:");
+    let ssa = ssa_gen::generate_ssa(program)
+        .print(true, "Initial SSA:")
+        .resolve_functions()
+        .print(true, "After Function Resolution:");
+
     let brillig = ssa.to_brillig();
     ssa.inline_functions()
         .print(print_ssa_passes, "After Inlining:")

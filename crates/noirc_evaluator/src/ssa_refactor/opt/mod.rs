@@ -8,5 +8,6 @@ mod die;
 mod flatten_cfg;
 mod inlining;
 mod mem2reg;
+mod resolve_functions;
 mod simplify_cfg;
 mod unrolling;

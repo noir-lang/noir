@@ -22,7 +22,7 @@ pub(crate) enum RuntimeType {
 #[derive(Debug)]
 pub(crate) struct Function {
     /// The first basic block in the function
-    entry_block: BasicBlockId,
+    pub(crate) entry_block: BasicBlockId,
 
     /// Name of the function for debugging only
     name: String,

@@ -20,7 +20,7 @@ use iter_extended::vecmap;
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
@@ -287,6 +287,10 @@ impl DataFlowGraph {
         // Add value to the list of results for this instruction
         results.push(value_id);
         value_id
+    }
+
+    pub(crate) fn set_results(&mut self, instruction_id: InstructionId, results: Vec<ValueId>) {
+        self.results.insert(instruction_id, results);
     }
 
     /// Returns the number of instructions
