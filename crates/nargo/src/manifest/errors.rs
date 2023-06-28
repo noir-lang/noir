@@ -24,3 +24,14 @@ pub enum InvalidPackageError {
     #[error("package cannot contain both a `lib.nr` and a `main.nr`")]
     ContainsMultipleCrates,
 }
+
+#[derive(Debug, Error)]
+pub enum GlobalConfigError {
+    /// Nargo encountered problem with global config
+    #[error("Problem occurred with nargo.toml in {}", .0.display())]
+    Generic(PathBuf),
+
+    /// Global Config is unreadable.
+    #[error("nargo.toml is badly formed, could not parse.\n\n {0}")]
+    MalformedManifestFile(#[from] toml::de::Error),
+}

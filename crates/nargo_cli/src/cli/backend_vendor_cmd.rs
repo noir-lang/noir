@@ -1,28 +1,46 @@
-use crate::constants;
 use crate::errors::{BackendVendorError, CliError};
+use crate::{constants};
 use acvm::Backend;
 use clap::Args;
+use dirs::home_dir;
 use nameof::name_of;
+use nargo::manifest::GlobalConfig;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::path::{PathBuf};
 use std::process::{Command, Stdio};
 use tracing::debug;
 use which::which;
 
+use super::fs::global_config;
 use super::NargoConfig;
 
-#[derive(Debug, Clone, Args)]
-pub(crate) struct BackendCommand {
-    #[clap(flatten)]
-    backend_options: BackendOptions,
-}
+fn default_backend_path() -> PathBuf {
+    let backend_assumed_path_buf = home_dir()
+        .unwrap()
+        .join(constants::NARGO_HOME_FOLDER_NAME)
+        .join(constants::NARGO_BACKENDS_FOLDER_NAME)
+        .join("bin")
+        .join("bb.js");
 
+    let som = match global_config::read_global_config_file() {
+        Some(gc) => match gc.backends {
+            Some(be) => be.default,
+            None => None,
+        },
+        None => None,
+    };
+
+    match som {
+        Some(dcf) => PathBuf::from(dcf),
+        None => backend_assumed_path_buf,
+    }
+}
 #[derive(Debug, Clone, Args)]
 pub(crate) struct BackendOptions {
     /// Argument or environment variable to specify path to backend executable
-    #[arg(env, long, default_value_os_t = dirs::home_dir().unwrap().join(".nargo/backends/bin/bb.js"))]
+    #[arg(env, long, default_value_os_t = default_backend_path())]
     pub(crate) backend_executable: PathBuf,
 
     /// Pass arguments to the backend behind `--`, eg. nargo backend -- prove -ex-flag
@@ -149,18 +167,18 @@ pub(crate) fn execute_backend_cmd(
 
 pub(crate) fn run<B: Backend>(
     _backend: &B,
-    args: BackendCommand,
+    args: BackendOptions,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
     debug!("Supplied Prove arguments: {:?}", args);
 
-    let backend_executable_path = resolve_backend(&args.backend_options)?;
-    let raw_pass_through = args.backend_options.backend_arguments.unwrap_or_default();
+    let backend_executable_path = resolve_backend(&args)?;
+    let raw_pass_through = args.backend_arguments.unwrap_or_default();
     execute_backend_cmd(&backend_executable_path, raw_pass_through, &config)
         .map_err(|e| CliError::BackendVendorError(e))
 }
 
-pub(crate) fn set_default_paths(config: &mut NargoConfig) {
+pub(crate) fn set_default_paths(global_config: &GlobalConfig, config: &mut NargoConfig) {
     // We default a nargo_artifact_name to parent folder name
     config.nargo_artifact_name = Some(config.nargo_artifact_name.clone().unwrap_or_else(|| {
         // String::from("main")

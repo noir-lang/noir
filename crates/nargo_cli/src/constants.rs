@@ -1,7 +1,10 @@
-pub(crate) const CONTRACT_EXT: &str = "sol";
 // Directories
-/// The directory to store serialized circuit proofs.
-pub(crate) const PROOFS_DIR: &str = "target";
+/// Contains all things `nargo` in home folder
+pub(crate) const NARGO_HOME_FOLDER_NAME: &str = ".nargo";
+/// Contains backend related files
+pub(crate) const NARGO_BACKENDS_FOLDER_NAME: &str = "backends";
+// / The directory to store serialized circuit proofs.
+// pub(crate) const PROOFS_DIR: &str = "target";
 /// The directory to store Noir source files
 pub(crate) const SRC_DIR: &str = "src";
 /// The directory to store circuits' serialized ACIR representations.
@@ -14,6 +17,8 @@ pub(crate) const PROVER_INPUT_FILE: &str = "Prover";
 pub(crate) const VERIFIER_INPUT_FILE: &str = "Verifier";
 /// The package definition file for a Noir project.
 pub(crate) const PKG_FILE: &str = "Nargo.toml";
+/// Global config file name
+pub(crate) const NARGO_GLOBAL_CONFIG_FILENAME: &str = "nargo.toml";
 
 // Extensions
 /// The extension for files containing circuit proofs.
@@ -24,6 +29,8 @@ pub(crate) const WITNESS_EXT: &str = "tr";
 pub(crate) const ACIR_EXT: &str = "acir.json";
 /// The extension for files containing ACIR code.
 pub(crate) const VERIFICATION_KEY_EXT: &str = "vk";
+/// The extension for files Solidity contract code.
+pub(crate) const CONTRACT_EXT: &str = "sol";
 
 // Backend Vendor Commands
 /// Prove command 

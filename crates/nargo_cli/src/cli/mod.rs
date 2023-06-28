@@ -6,9 +6,9 @@ use tracing::debug;
 
 use color_eyre::eyre;
 
-use crate::{find_package_root};
+use crate::{find_package_root, cli::fs::global_config};
 
-use self::{backend_vendor_cmd::{BackendOptions, BackendCommand}};
+use self::backend_vendor_cmd::{BackendOptions};
 
 mod fs;
 
@@ -91,24 +91,32 @@ enum NargoCommand {
     /// Counts the occurrences of different gates in circuit
     Gates(BackendOptions),
     /// Execute arbitrary backend subcommand, pass args behind `--`
-    Backend(BackendCommand),
+    Backend(BackendOptions),
 }
 
 pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
-    
+    let global_config = global_config::read_global_config_file().unwrap();
+
+    debug!("Global config: {:?}", global_config);
+
     // Search through parent directories to find package root if necessary.
     if !matches!(command, NargoCommand::New(_)) {
         config.nargo_package_root = find_package_root(&config.nargo_package_root)?;
         debug!("Project root is {:?}", config.nargo_package_root);
     }
 
-    backend_vendor_cmd::set_default_paths(&mut config);
+    backend_vendor_cmd::set_default_paths(&global_config, &mut config);
 
     debug!("Nargo configuration: {:?}", config);
 
     let backend = crate::backends::ConcreteBackend::default();
+
+    // if matches!(command, NargoCommand::Prove(args) | NargoCommand::Verify(args) | NargoCommand::Gates(args) | NargoCommand::Contract(args) | NargoCommand::Backend(args)) {
+    //     command.
+        
+    // }
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
