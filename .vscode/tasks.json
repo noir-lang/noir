@@ -175,16 +175,18 @@
 				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
 			},
 			"args": [
-				"--no-default-features",
-				"--features=plonk_bn254_wasm",
+				// "--no-default-features",
+				// "--features=plonk_bn254_wasm",
 				"--",
-				"contract"
+				"backend",
+				"--",
+				"vk_as_fields"
 			],
 			"problemMatcher": [
 				"$rustc",
 				"$rust-panic"
 			],
-			"label": "nargo contract",
+			"label": "nargo backend vk_as_fields",
 			"group": {
 				"kind": "build"
 			}
