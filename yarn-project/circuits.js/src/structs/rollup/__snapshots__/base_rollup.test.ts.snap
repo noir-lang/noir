@@ -143,7 +143,7 @@ is_private: 1
 
 proof: [ 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ]
 vk:
-key.composer_type: 0
+key.circuit_type: 0
 key.circuit_size: 65
 key.num_public_inputs: 66
 key.commitments: [
@@ -295,7 +295,7 @@ is_private: 1
 
 proof: [ 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ]
 vk:
-key.composer_type: 0
+key.circuit_type: 0
 key.circuit_size: 65
 key.num_public_inputs: 66
 key.commitments: [

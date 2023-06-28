@@ -34,34 +34,34 @@ using NT = aztec3::utils::types::NativeTypes;
 using aztec3::utils::types::to_ct;
 using aztec3::utils::types::to_nt;
 
-template <typename Composer> class FunctionExecutionContext {
+template <typename Builder> class FunctionExecutionContext {
     using NT = NativeTypes;
-    using CT = CircuitTypes<Composer>;
+    using CT = CircuitTypes<Builder>;
     using fr = typename CT::fr;
     using address = typename CT::address;
 
     // We restrict only the opcodes to be able to push to the private members of the exec_ctx.
     // This will just help us build better separation of concerns.
-    friend class Opcodes<Composer>;
+    friend class Opcodes<Builder>;
 
   public:
-    Composer& composer;
-    OracleWrapperInterface<Composer>& oracle;
+    Builder& builder;
+    OracleWrapperInterface<Builder>& oracle;
 
     Contract<NT>* contract = nullptr;
 
-    std::array<std::shared_ptr<FunctionExecutionContext<Composer>>, PRIVATE_CALL_STACK_LENGTH>
+    std::array<std::shared_ptr<FunctionExecutionContext<Builder>>, PRIVATE_CALL_STACK_LENGTH>
         nested_private_call_exec_ctxs;
 
     // TODO: make this private!
     OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs{};
 
   private:
-    std::vector<std::shared_ptr<NoteInterface<Composer>>> new_notes;
+    std::vector<std::shared_ptr<NoteInterface<Builder>>> new_notes;
     std::vector<fr> new_commitments;
 
     // Nullifier preimages can be got from the corresponding Note that they nullify.
-    std::vector<std::shared_ptr<NoteInterface<Composer>>> nullified_notes;
+    std::vector<std::shared_ptr<NoteInterface<Builder>>> nullified_notes;
     std::vector<fr> new_nullifiers;
 
     PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs{};
@@ -69,8 +69,8 @@ template <typename Composer> class FunctionExecutionContext {
     bool is_finalised = false;
 
   public:
-    FunctionExecutionContext<Composer>(Composer& composer, OracleWrapperInterface<Composer>& oracle)
-        : composer(composer)
+    FunctionExecutionContext<Builder>(Builder& builder, OracleWrapperInterface<Builder>& oracle)
+        : builder(builder)
         , oracle(oracle)
         , private_circuit_public_inputs(OptionalPrivateCircuitPublicInputs<CT>::create())
     {
@@ -89,13 +89,13 @@ template <typename Composer> class FunctionExecutionContext {
     // TODO: consider making this a debug-only method.
     // Not a reference, because we won't want to allow unsafe access. Hmmm, except it's a vector of pointers, so one can
     // still modify the pointers... But at least the original vector isn't being pushed-to or deleted-from.
-    std::vector<std::shared_ptr<NoteInterface<Composer>>> get_new_notes() { return new_notes; }
+    std::vector<std::shared_ptr<NoteInterface<Builder>>> get_new_notes() { return new_notes; }
 
     std::vector<fr> get_new_nullifiers() { return new_nullifiers; }
 
-    void push_new_note(NoteInterface<Composer>* const note_ptr) { new_notes.push_back(note_ptr); }
+    void push_new_note(NoteInterface<Builder>* const note_ptr) { new_notes.push_back(note_ptr); }
 
-    void push_newly_nullified_note(NoteInterface<Composer>* note_ptr) { nullified_notes.push_back(note_ptr); }
+    void push_newly_nullified_note(NoteInterface<Builder>* note_ptr) { nullified_notes.push_back(note_ptr); }
 
     PrivateCircuitPublicInputs<NT> get_final_private_circuit_public_inputs()
     {
@@ -157,7 +157,7 @@ template <typename Composer> class FunctionExecutionContext {
     std::array<fr, RETURN_VALUES_LENGTH> call(
         address const& f_contract_address,
         std::string const& f_name,
-        std::function<void(FunctionExecutionContext<Composer>&, std::vector<NT::fr>)> f,
+        std::function<void(FunctionExecutionContext<Builder>&, std::vector<NT::fr>)> f,
         std::vector<fr> const& args)
     {
         // Convert function name to bytes and use the first 4 bytes as the function encoding, for now:
@@ -169,10 +169,10 @@ template <typename Composer> class FunctionExecutionContext {
         fr f_encoding_ct = fr(f_encoding);
         // Important Note: we MUST constrain this function_selector value against a fixed selector value. Without the
         // below line, an attacker could pass any f_encoding as a witness.
-        f_encoding_ct.convert_constant_to_fixed_witness(&composer);
+        f_encoding_ct.convert_constant_to_fixed_witness(&builder);
 
         /// @dev The above constraining could alternatively be achieved as follows:
-        // fr alternative_f_encoding_ct = fr(to_ct(composer, f_encoding));
+        // fr alternative_f_encoding_ct = fr(to_ct(builder, f_encoding));
         // alternative_f_encoding_ct.fix_witness();
 
         const FunctionData<CT> f_function_data_ct{
@@ -193,33 +193,33 @@ template <typename Composer> class FunctionExecutionContext {
 
         NativeOracle f_oracle(oracle.native_oracle.db,
                               f_contract_address.get_value(),
-                              f_function_data_ct.template to_native_type<Composer>(),
-                              f_call_context_ct.template to_native_type<Composer>(),
+                              f_function_data_ct.template to_native_type<Builder>(),
+                              f_call_context_ct.template to_native_type<Builder>(),
                               oracle.get_msg_sender_private_key()
                                   .get_value()  // TODO: consider whether a nested function should even be able to
                                                 // access a private key, given that the call is now coming from a
                                                 // contract (which cannot own a secret), rather than a human.
         );
 
-        Composer f_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+        Builder f_builder = Builder();
 
-        OracleWrapperInterface<Composer> f_oracle_wrapper(f_composer, f_oracle);
+        OracleWrapperInterface<Builder> f_oracle_wrapper(f_builder, f_oracle);
 
         // We need an exec_ctx reference which won't go out of scope, so we store a shared_ptr to the newly-created
         // exec_ctx in `this` exec_ctx.
-        auto f_exec_ctx = std::make_shared<FunctionExecutionContext<Composer>>(f_composer, f_oracle_wrapper);
+        auto f_exec_ctx = std::make_shared<FunctionExecutionContext<Builder>>(f_builder, f_oracle_wrapper);
 
         array_push(nested_private_call_exec_ctxs, f_exec_ctx);
 
-        auto native_args = to_nt<Composer>(args);
+        auto native_args = to_nt<Builder>(args);
 
         // This calls the function `f`, passing the arguments shown.
         // The f_exec_ctx will be populated with all the information about that function's execution.
         std::apply(f, std::forward_as_tuple(*f_exec_ctx, native_args));
 
-        // Remember: the data held in the f_exec_ctc was built with a different composer than that
+        // Remember: the data held in the f_exec_ctc was built with a different builder than that
         // of `this` exec_ctx. So we only allow ourselves to get the native types, so that we can consciously declare
-        // circuit types for `this` exec_ctx using `this->composer`.
+        // circuit types for `this` exec_ctx using `this->builder`.
         auto f_public_inputs_nt = f_exec_ctx->get_final_private_circuit_public_inputs();
 
         // Since we've made a call to another function, we now need to push a call_stack_item_hash to `this` function's
@@ -228,7 +228,7 @@ template <typename Composer> class FunctionExecutionContext {
         // - args
         // - return_values
         // - call_context (TODO: maybe this only needs to be done in the kernel circuit).
-        auto f_public_inputs_ct = f_public_inputs_nt.to_circuit_type(composer);
+        auto f_public_inputs_ct = f_public_inputs_nt.to_circuit_type(builder);
 
         // Constrain that the arguments of the executed function match those we expect:
         auto args_hash_ct = compute_var_args_hash<CT>(args);
@@ -242,7 +242,7 @@ template <typename Composer> class FunctionExecutionContext {
 
         auto call_stack_item_hash = f_call_stack_item_ct.hash();
 
-        array_push<Composer>(private_circuit_public_inputs.private_call_stack, call_stack_item_hash);
+        array_push<Builder>(private_circuit_public_inputs.private_call_stack, call_stack_item_hash);
 
         // The return values are implicitly constrained by being returned as circuit types from this method, for
         // further use in the circuit. Note: ALL elements of the return_values array MUST be constrained, even if
@@ -294,7 +294,7 @@ template <typename Composer> class FunctionExecutionContext {
 
         // This is almost a visitor pattern. Call methods on each note. The note will choose what to do.
         for (size_t i = 0; i < new_notes.size(); ++i) {
-            NoteInterface<Composer>& note = *new_notes[i];
+            NoteInterface<Builder>& note = *new_notes[i];
 
             if (note.needs_nonce()) {
                 const bool next_nullifier_available = new_nullifiers_copy.size() > used_nullifiers_count;
@@ -320,9 +320,9 @@ template <typename Composer> class FunctionExecutionContext {
         finalise_utxos();
         private_circuit_public_inputs.set_commitments(new_commitments);
         private_circuit_public_inputs.set_nullifiers(new_nullifiers);
-        private_circuit_public_inputs.set_public(composer);
+        private_circuit_public_inputs.set_public(builder);
         final_private_circuit_public_inputs =
-            private_circuit_public_inputs.remove_optionality().template to_native_type<Composer>();
+            private_circuit_public_inputs.remove_optionality().template to_native_type<Builder>();
         is_finalised = true;
     }
 };

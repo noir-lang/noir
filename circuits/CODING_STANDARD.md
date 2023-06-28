@@ -138,7 +138,7 @@ Here are the types of automation that should help stick to the standard:
             // ...
         } // namespace aztec3::circuits::abis::private_kernel
         ```
-    *  use`init.hpp` *only* for core/critical renames like `NT/CT` and for toggling core types like `Composer`
+    *  use`init.hpp` *only* for core/critical renames like `NT/CT` and for toggling core types like `CircuitBuilder`
     *  use unnamed/anonymous namespaces to import and shorten external names into *just this one file*
         *  all of a file's external imports belong in a single anonymous namespace `namespace { ...\n } // namespace` at the very top of the file directly after `#include`s
         *  use `using Rename = old::namespace::prefix::Name;` to import and shorten names from external namespaces
@@ -146,7 +146,7 @@ Here are the types of automation that should help stick to the standard:
         *  never use renames to remove the `std::` prefix
         *  never use renames to remove a `NT::` or `CT::` prefix
     *  `test.cpp` tests must always explicitly import every single name they intend to use
-        *  they might want to test over multiple namespaces, native and circuit types, and composer types
+        *  they might want to test over multiple namespaces, native and circuit types, and builder types
     *  avoid calling barretenberg's functions directly and instead go through interface files like `circuit_types` and 
 `native_types`
     *  `using` statements should be sorted case according to the `LexicographicNumeric` rules
@@ -155,7 +155,7 @@ Here are the types of automation that should help stick to the standard:
 1.  **includes**
     * start every header with `#pragma once`
     * `index.hpp` should include common headers that will be referenced by most cpp/hpp files in the current directory
-    * `init.hpp` should inject ONLY critical renames (like `NT`/`CT`) and type toggles (like Composer)
+    * `init.hpp` should inject ONLY critical renames (like `NT`/`CT`) and type toggles (like CircuitBuilder)
         * example `using NT = aztec3::utils::types::NativeTypes;`
     *  avoid including headers via relative paths (`../../other_dir`) unless they are a subdir (`subdir/header.hpp`)
         *  use full path like `aztec3/circuits/hash.hpp`

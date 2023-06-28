@@ -3,7 +3,6 @@
 #include "../append_only_tree_snapshot.hpp"
 #include "../global_variables.hpp"
 
-#include "barretenberg/common/serialize.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {

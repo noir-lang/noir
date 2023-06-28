@@ -81,15 +81,14 @@ template <typename NCT> struct CombinedAccumulatedData {
                public_data_reads == other.public_data_reads;
     };
 
-    template <typename Composer>
-    CombinedAccumulatedData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> CombinedAccumulatedData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
-        typedef CircuitTypes<Composer> CT;
+        typedef CircuitTypes<Builder> CT;
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
-        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(builder); };
 
         CombinedAccumulatedData<CT> acc_data = {
             typename CT::AggregationObject{
@@ -122,11 +121,11 @@ template <typename NCT> struct CombinedAccumulatedData {
         return acc_data;
     };
 
-    template <typename Composer> CombinedAccumulatedData<NativeTypes> to_native_type() const
+    template <typename Builder> CombinedAccumulatedData<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
-        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
 
         CombinedAccumulatedData<NativeTypes> acc_data = {
             typename NativeTypes::AggregationObject{

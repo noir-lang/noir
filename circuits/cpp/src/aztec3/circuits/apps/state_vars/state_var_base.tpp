@@ -15,8 +15,8 @@ namespace aztec3::circuits::apps::state_vars {
 using aztec3::utils::types::CircuitTypes;
 using crypto::generators::generator_index_t;
 
-template <typename Composer>
-StateVar<Composer>::StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
+template <typename Builder>
+StateVar<Builder>::StateVar(FunctionExecutionContext<Builder>* exec_ctx, std::string const& state_var_name)
     : exec_ctx(exec_ctx), state_var_name(state_var_name)
 {
     // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
@@ -26,12 +26,12 @@ StateVar<Composer>::StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::
     // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
 }
 
-template <typename Composer> typename CircuitTypes<Composer>::grumpkin_point StateVar<Composer>::compute_slot_point()
+template <typename Builder> typename CircuitTypes<Builder>::grumpkin_point StateVar<Builder>::compute_slot_point()
 {
     ASSERT(level_of_container_nesting == 0);
     return CT::commit({ start_slot }, { StorageSlotGeneratorIndex::BASE_SLOT });
 }
 
-// template class PrivateStateVar<Composer>;
+// template class PrivateStateVar<Builder>;
 
 };  // namespace aztec3::circuits::apps::state_vars

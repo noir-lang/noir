@@ -13,7 +13,7 @@ class private_to_private_function_call_tests : public ::testing::Test {};
 
 TEST(private_to_private_function_call_tests, circuit_private_to_private_function_call)
 {
-    C fn1_composer = C("../barretenberg/cpp/srs_db/ignition");
+    C fn1_builder = C();
     DB db;
 
     const NT::address contract_address = 12345;
@@ -37,9 +37,9 @@ TEST(private_to_private_function_call_tests, circuit_private_to_private_function
     };
 
     NativeOracle fn1_oracle = NativeOracle(db, contract_address, function_data, call_context, msg_sender_private_key);
-    OracleWrapper fn1_oracle_wrapper = OracleWrapper(fn1_composer, fn1_oracle);
+    OracleWrapper fn1_oracle_wrapper = OracleWrapper(fn1_builder, fn1_oracle);
 
-    FunctionExecutionContext fn1_exec_ctx(fn1_composer, fn1_oracle_wrapper);
+    FunctionExecutionContext fn1_exec_ctx(fn1_builder, fn1_oracle_wrapper);
 
     auto a = NT::fr(111);
     auto b = NT::fr(222);
@@ -51,12 +51,12 @@ TEST(private_to_private_function_call_tests, circuit_private_to_private_function
 
     info("function_1_1_public_inputs: ", function_1_1_public_inputs);
 
-    // info("witness: ", fn1_composer.witness);
-    // info("constant variables: ", fn1_composer.constant_variables);
-    // info("variables: ", fn1_composer.variables);
-    info("failed?: ", fn1_composer.circuit_constructor.failed());
-    info("err: ", fn1_composer.circuit_constructor.err());
-    info("n: ", fn1_composer.circuit_constructor.num_gates);
+    // info("witness: ", fn1_builder.witness);
+    // info("constant variables: ", fn1_builder.constant_variables);
+    // info("variables: ", fn1_builder.variables);
+    info("failed?: ", fn1_builder.failed());
+    info("err: ", fn1_builder.err());
+    info("n: ", fn1_builder.num_gates);
 }
 
 }  // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

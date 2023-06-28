@@ -219,7 +219,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
 
     /**
      * If `is_circuit` is true, we are running a real circuit test and therefore we need to generate a real proof using
-     * a private function composer. For the native tests, we are using a random data as public inputs of the private
+     * a private function builder. For the native tests, we are using a random data as public inputs of the private
      * function. As the native private kernel circuit doesn't validate any proofs and we don't currently test
      * multi-iterative kernel circuit, this should be fine.
      */
@@ -227,10 +227,10 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     const NT::Proof private_circuit_proof = utils::get_proof_from_file();
     if (is_circuit) {
         //***************************************************************************
-        // Create a private circuit/call using composer, oracles, execution context
+        // Create a private circuit/call using builder, oracles, execution context
         // Generate its proof and public inputs for submission with a TX request
         //***************************************************************************
-        Composer private_circuit_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+        Builder private_circuit_builder = Builder();
 
         DB dummy_db;
         NativeOracle oracle =
@@ -243,9 +243,9 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
                                msg_sender_private_key)
                 : NativeOracle(dummy_db, contract_address, function_data, call_context, msg_sender_private_key);
 
-        OracleWrapper oracle_wrapper = OracleWrapper(private_circuit_composer, oracle);
+        OracleWrapper oracle_wrapper = OracleWrapper(private_circuit_builder, oracle);
 
-        FunctionExecutionContext ctx(private_circuit_composer, oracle_wrapper);
+        FunctionExecutionContext ctx(private_circuit_builder, oracle_wrapper);
 
         OptionalPrivateCircuitPublicInputs<NT> const opt_private_circuit_public_inputs = func(ctx, args_vec);
         private_circuit_public_inputs = opt_private_circuit_public_inputs.remove_optionality();

@@ -5,7 +5,7 @@
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps {
-template <typename Composer> class FunctionExecutionContext;
+template <typename Builder> class FunctionExecutionContext;
 }
 
 namespace aztec3::circuits::apps::state_vars {
@@ -20,15 +20,15 @@ using aztec3::utils::types::NativeTypes;
  * slots, and generating constraints for those slot derivations, in a protocol-consistent way, regardless of the app
  * being written.
  */
-template <typename Composer> class StateVar {
+template <typename Builder> class StateVar {
   public:
-    using CT = CircuitTypes<Composer>;
+    using CT = CircuitTypes<Builder>;
     using NT = NativeTypes;
     using fr = typename CT::fr;
     using grumpkin_point = typename CT::grumpkin_point;
 
     // The execution context of the function currently being executed.
-    FunctionExecutionContext<Composer>* exec_ctx;
+    FunctionExecutionContext<Builder>* exec_ctx;
 
     // Must match the name of a state which has been declared to the `Contract`.
     std::string state_var_name;
@@ -57,11 +57,11 @@ template <typename Composer> class StateVar {
     StateVar() = default;
 
     // Instantiate a top-level state:
-    StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name);
+    StateVar(FunctionExecutionContext<Builder>* exec_ctx, std::string const& state_var_name);
 
     // Instantiate a state nested within a container:
     StateVar(
-        FunctionExecutionContext<Composer>* exec_ctx,
+        FunctionExecutionContext<Builder>* exec_ctx,
         std::string const& state_var_name,
         grumpkin_point const& storage_slot_point,  // the parent always calculates the storage_slot_point of its child.
         size_t level_of_container_nesting,         // the parent always calculates the level of nesting of its child.
@@ -72,7 +72,7 @@ template <typename Composer> class StateVar {
         , level_of_container_nesting(level_of_container_nesting)
         , is_partial_slot(is_partial_slot){};
 
-    bool operator==(StateVar<Composer> const&) const = default;
+    bool operator==(StateVar<Builder> const&) const = default;
 
     StateVar operator=(StateVar const& other)
     {

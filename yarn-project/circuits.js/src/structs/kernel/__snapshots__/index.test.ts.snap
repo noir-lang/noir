@@ -113,7 +113,7 @@ value: 0xd05
 "
 `;
 
-exports[`structs/kernel serializes and prints EcdsaSignature 1`] = `"{ 0101010101010101010101010101010101010101010101010101010101010101, 0101010101010101010101010101010101010101010101010101010101010101, 0 }"`;
+exports[`structs/kernel serializes and prints EcdsaSignature 1`] = `"{ 0101010101010101010101010101010101010101010101010101010101010101, 0101010101010101010101010101010101010101010101010101010101010101 }"`;
 
 exports[`structs/kernel serializes and prints previous_kernel_data 1`] = `
 "public_inputs: end:
@@ -257,7 +257,7 @@ is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
 vk:
-key.composer_type: 0
+key.circuit_type: 0
 key.circuit_size: 101
 key.num_public_inputs: 102
 key.commitments: [
@@ -515,7 +515,7 @@ is_execution_request: 0
 proof:
 [ 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 ]
 vk:
-key.composer_type: 0
+key.circuit_type: 0
 key.circuit_size: 101
 key.num_public_inputs: 102
 key.commitments: [
@@ -691,7 +691,7 @@ is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
 vk:
-key.composer_type: 0
+key.circuit_type: 0
 key.circuit_size: 101
 key.num_public_inputs: 102
 key.commitments: [
@@ -921,7 +921,7 @@ is_execution_request: 0
 proof:
 [ 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 ]
 vk:
-key.composer_type: 0
+key.circuit_type: 0
 key.circuit_size: 101
 key.num_public_inputs: 102
 key.commitments: [
@@ -1239,7 +1239,7 @@ is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
 vk:
-key.composer_type: 0
+key.circuit_type: 0
 key.circuit_size: 101
 key.num_public_inputs: 102
 key.commitments: [

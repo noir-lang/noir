@@ -20,7 +20,7 @@ using ConstantRollupData = aztec3::circuits::abis::ConstantRollupData<NT>;
 using BaseRollupInputs = aztec3::circuits::abis::BaseRollupInputs<NT>;
 using RootRollupInputs = aztec3::circuits::abis::RootRollupInputs<NT>;
 using RootRollupPublicInputs = aztec3::circuits::abis::RootRollupPublicInputs<NT>;
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 using AppendOnlyTreeSnapshot = aztec3::circuits::abis::AppendOnlyTreeSnapshot<NT>;
@@ -238,13 +238,13 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
         std::move(kernel_data), private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 }
 
-std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyComposer& composer,
+std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyBuilder& builder,
                                                                std::array<KernelData, 4> kernel_data)
 {
     // NOTE: Still assuming that this is first and second. Don't handle more rollups atm
     auto base_rollup_input_1 = base_rollup_inputs_from_kernels({ kernel_data[0], kernel_data[1] });
     auto base_public_input_1 =
-        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, base_rollup_input_1);
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, base_rollup_input_1);
 
     // Build the trees based on inputs in base_rollup_input_1.
     MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
@@ -281,7 +281,7 @@ std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyComposer& co
         get_sibling_path<PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH>(private_data_tree, 8, PRIVATE_DATA_SUBTREE_DEPTH);
 
     auto base_public_input_2 =
-        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, base_rollup_input_2);
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, base_rollup_input_2);
 
     PreviousRollupData<NT> const previous_rollup1 = {
         .base_or_merge_rollup_public_inputs = base_public_input_1,
@@ -301,13 +301,13 @@ std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyComposer& co
     return { previous_rollup1, previous_rollup2 };
 }
 
-MergeRollupInputs get_merge_rollup_inputs(utils::DummyComposer& composer, std::array<KernelData, 4> kernel_data)
+MergeRollupInputs get_merge_rollup_inputs(utils::DummyBuilder& builder, std::array<KernelData, 4> kernel_data)
 {
-    MergeRollupInputs inputs = { .previous_rollup_data = get_previous_rollup_data(composer, std::move(kernel_data)) };
+    MergeRollupInputs inputs = { .previous_rollup_data = get_previous_rollup_data(builder, std::move(kernel_data)) };
     return inputs;
 }
 
-RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer,
+RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
                                         std::array<KernelData, 4> kernel_data,
                                         std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> l1_to_l2_messages)
 {
@@ -346,7 +346,7 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyComposer& composer,
     };
 
     RootRollupInputs rootRollupInputs = {
-        .previous_rollup_data = get_previous_rollup_data(composer, std::move(kernel_data)),
+        .previous_rollup_data = get_previous_rollup_data(builder, std::move(kernel_data)),
         .new_historic_private_data_tree_root_sibling_path = historic_data_sibling_path,
         .new_historic_contract_tree_root_sibling_path = historic_contract_sibling_path,
         .l1_to_l2_messages = l1_to_l2_messages,

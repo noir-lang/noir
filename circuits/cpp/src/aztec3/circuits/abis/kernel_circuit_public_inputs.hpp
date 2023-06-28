@@ -31,17 +31,16 @@ template <typename NCT> struct KernelCircuitPublicInputs {
         return end == other.end && constants == other.constants && is_private == other.is_private;
     };
 
-    template <typename Composer>
-    KernelCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> KernelCircuitPublicInputs<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        KernelCircuitPublicInputs<CircuitTypes<Composer>> private_inputs = {
-            end.to_circuit_type(composer),
-            constants.to_circuit_type(composer),
+        KernelCircuitPublicInputs<CircuitTypes<Builder>> private_inputs = {
+            end.to_circuit_type(builder),
+            constants.to_circuit_type(builder),
 
             to_ct(is_private),
         };
@@ -49,11 +48,11 @@ template <typename NCT> struct KernelCircuitPublicInputs {
         return private_inputs;
     };
 
-    template <typename Composer> KernelCircuitPublicInputs<NativeTypes> to_native_type() const
+    template <typename Builder> KernelCircuitPublicInputs<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
-        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
 
         KernelCircuitPublicInputs<NativeTypes> pis = {
             to_native_type(end),

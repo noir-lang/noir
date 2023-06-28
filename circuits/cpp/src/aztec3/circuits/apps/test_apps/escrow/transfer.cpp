@@ -26,14 +26,14 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     exec_ctx.register_contract(&contract);
 
     // Convert arguments into circuit types:
-    auto& composer = exec_ctx.composer;
+    auto& builder = exec_ctx.builder;
 
-    CT::fr amount = to_ct(composer, _amount);
-    CT::address to = to_ct(composer, _to);
-    CT::fr asset_id = to_ct(composer, _asset_id);
-    CT::fr memo = to_ct(composer, _memo);
-    CT::boolean const reveal_msg_sender_to_recipient = to_ct(composer, _reveal_msg_sender_to_recipient);
-    CT::fr const fee = to_ct(composer, _fee);
+    CT::fr amount = to_ct(builder, _amount);
+    CT::address to = to_ct(builder, _to);
+    CT::fr asset_id = to_ct(builder, _asset_id);
+    CT::fr memo = to_ct(builder, _memo);
+    CT::boolean const reveal_msg_sender_to_recipient = to_ct(builder, _reveal_msg_sender_to_recipient);
+    CT::fr const fee = to_ct(builder, _fee);
 
     /****************************************************************
      * Get States & Globals used by the function

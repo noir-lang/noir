@@ -13,23 +13,23 @@ std::array<fr, NUM_FIELDS_PER_SHA256> compute_kernels_calldata_hash(
     std::array<abis::PreviousKernelData<NT>, 2> kernel_data);
 std::array<fr, NUM_FIELDS_PER_SHA256> compute_calldata_hash(
     std::array<abis::PreviousRollupData<NT>, 2> previous_rollup_data);
-void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
+void assert_prev_rollups_follow_on_from_each_other(DummyBuilder& builder,
                                                    BaseOrMergeRollupPublicInputs const& left,
                                                    BaseOrMergeRollupPublicInputs const& right);
-void assert_both_input_proofs_of_same_rollup_type(DummyComposer& composer,
+void assert_both_input_proofs_of_same_rollup_type(DummyBuilder& builder,
                                                   BaseOrMergeRollupPublicInputs const& left,
                                                   BaseOrMergeRollupPublicInputs const& right);
-NT::fr assert_both_input_proofs_of_same_height_and_return(DummyComposer& composer,
+NT::fr assert_both_input_proofs_of_same_height_and_return(DummyBuilder& builder,
                                                           BaseOrMergeRollupPublicInputs const& left,
                                                           BaseOrMergeRollupPublicInputs const& right);
-void assert_equal_constants(DummyComposer& composer,
+void assert_equal_constants(DummyBuilder& builder,
                             BaseOrMergeRollupPublicInputs const& left,
                             BaseOrMergeRollupPublicInputs const& right);
 
 AggregationObject aggregate_proofs(BaseOrMergeRollupPublicInputs const& left,
                                    BaseOrMergeRollupPublicInputs const& right);
 
-template <size_t N> AppendOnlySnapshot insert_subtree_to_snapshot_tree(DummyComposer& composer,
+template <size_t N> AppendOnlySnapshot insert_subtree_to_snapshot_tree(DummyBuilder& builder,
                                                                        AppendOnlySnapshot snapshot,
                                                                        std::array<NT::fr, N> siblingPath,
                                                                        NT::fr emptySubtreeRoot,
@@ -42,7 +42,7 @@ template <size_t N> AppendOnlySnapshot insert_subtree_to_snapshot_tree(DummyComp
     auto leafIndexAtDepth = snapshot.next_available_leaf_index >> subtreeDepth;
 
     // Check that the current root is correct and that there is an empty subtree at the insertion location
-    check_membership<NT>(composer, emptySubtreeRoot, leafIndexAtDepth, siblingPath, snapshot.root, message);
+    check_membership<NT>(builder, emptySubtreeRoot, leafIndexAtDepth, siblingPath, snapshot.root, message);
 
     // if index of leaf is x, index of its parent is x/2 or x >> 1. We need to find the parent `subtreeDepth` levels up.
     auto new_root = root_from_sibling_path<NT>(subtreeRootToInsert, leafIndexAtDepth, siblingPath);

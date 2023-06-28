@@ -12,7 +12,7 @@ using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
 /**
- * @tparam NCT - NativeTypes or CircuitTypes<Composer>
+ * @tparam NCT - NativeTypes or CircuitTypes<Builder>
  * @tparam NotePreimage
  */
 template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
@@ -28,16 +28,16 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
     uint32 leaf_index;
     fr historic_private_data_tree_root = 0;
 
-    template <typename Composer> auto to_circuit_type(Composer& composer) const
+    template <typename Builder> auto to_circuit_type(Builder& builder) const
     {
         static_assert(std::is_same<NativeTypes, NCT>::value);
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        auto preimage_ct = preimage.to_circuit_type(composer);
+        auto preimage_ct = preimage.to_circuit_type(builder);
 
-        UTXOSLoadDatum<CircuitTypes<Composer>, decltype(preimage_ct)> datum = {
+        UTXOSLoadDatum<CircuitTypes<Builder>, decltype(preimage_ct)> datum = {
             to_ct(commitment),   to_ct(contract_address), preimage_ct,
             to_ct(sibling_path), to_ct(leaf_index),       to_ct(historic_private_data_tree_root),
         };

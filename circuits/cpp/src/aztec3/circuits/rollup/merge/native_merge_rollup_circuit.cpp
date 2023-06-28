@@ -13,7 +13,7 @@
 
 namespace aztec3::circuits::rollup::merge {
 
-BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, MergeRollupInputs const& mergeRollupInputs)
+BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyBuilder& builder, MergeRollupInputs const& mergeRollupInputs)
 {
     // TODO: Verify the previous rollup proofs
     // TODO: Check both previous rollup vks (in previous_rollup_data) against the permitted set of kernel vks.
@@ -25,10 +25,10 @@ BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, Merg
     // check that both input proofs are either both "BASE" or "MERGE" and not a mix!
     // this prevents having wonky commitment, nullifier and contract subtrees.
     AggregationObject const aggregation_object = components::aggregate_proofs(left, right);
-    components::assert_both_input_proofs_of_same_rollup_type(composer, left, right);
-    auto current_height = components::assert_both_input_proofs_of_same_height_and_return(composer, left, right);
-    components::assert_equal_constants(composer, left, right);
-    components::assert_prev_rollups_follow_on_from_each_other(composer, left, right);
+    components::assert_both_input_proofs_of_same_rollup_type(builder, left, right);
+    auto current_height = components::assert_both_input_proofs_of_same_height_and_return(builder, left, right);
+    components::assert_equal_constants(builder, left, right);
+    components::assert_prev_rollups_follow_on_from_each_other(builder, left, right);
 
     // compute calldata hash:
     auto new_calldata_hash = components::compute_calldata_hash(mergeRollupInputs.previous_rollup_data);

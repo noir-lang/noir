@@ -9,7 +9,7 @@
 #include "aztec3/circuits/abis/rollup/merge/merge_rollup_inputs.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/recursion/aggregator.hpp"
-#include "aztec3/utils/dummy_composer.hpp"
+#include "aztec3/utils/dummy_circuit_builder.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -25,6 +25,6 @@ using NT = aztec3::utils::types::NativeTypes;
 using AggregationObject = aztec3::utils::types::NativeTypes::AggregationObject;
 using BaseOrMergeRollupPublicInputs = aztec3::circuits::abis::BaseOrMergeRollupPublicInputs<NT>;
 using AppendOnlySnapshot = abis::AppendOnlyTreeSnapshot<NT>;
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 
 }  // namespace aztec3::circuits::rollup::components

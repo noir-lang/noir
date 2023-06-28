@@ -7,7 +7,7 @@
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_inner.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
-#include "aztec3/utils/dummy_composer.hpp"
+#include "aztec3/utils/dummy_circuit_builder.hpp"
 
 namespace aztec3::circuits::kernel::private_kernel {
 
@@ -17,23 +17,23 @@ using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
 
 using aztec3::utils::array_length;
 using aztec3::utils::array_pop;
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 
 // using plonk::stdlib::merkle_tree::
 
 // // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // // private_call.call_stack_item.public_inputs!
-// CT::AggregationObject verify_proofs(Composer& composer,
+// CT::AggregationObject verify_proofs(Builder& builder,
 //                                     PrivateInputs<CT> const& private_inputs,
 //                                     size_t const& num_private_call_public_inputs,
 //                                     size_t const& num_private_kernel_public_inputs)
 // {
 //     CT::AggregationObject aggregation_object = Aggregator::aggregate(
-//         &composer, private_inputs.private_call.vk, private_inputs.private_call.proof,
+//         &builder, private_inputs.private_call.vk, private_inputs.private_call.proof,
 //         num_private_call_public_inputs);
 
-//     Aggregator::aggregate(&composer,
+//     Aggregator::aggregate(&builder,
 //                           private_inputs.previous_kernel.vk,
 //                           private_inputs.previous_kernel.proof,
 //                           num_private_kernel_public_inputs,
@@ -42,7 +42,7 @@ using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 //     return aggregation_object;
 // }
 
-void validate_this_private_call_hash(DummyComposer& composer,
+void validate_this_private_call_hash(DummyBuilder& builder,
                                      PrivateKernelInputsInner<NT> const& private_inputs,
                                      KernelCircuitPublicInputs<NT>& public_inputs)
 {
@@ -51,32 +51,32 @@ void validate_this_private_call_hash(DummyComposer& composer,
     const auto popped_private_call_hash = array_pop(public_inputs.end.private_call_stack);
     const auto calculated_this_private_call_hash = private_inputs.private_call.call_stack_item.hash();
 
-    composer.do_assert(
+    builder.do_assert(
         popped_private_call_hash == calculated_this_private_call_hash,
         "calculated private_call_hash does not match provided private_call_hash at the top of the call stack",
         CircuitErrorCode::PRIVATE_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH);
 };
 
-void validate_contract_tree_root(DummyComposer& composer, PrivateKernelInputsInner<NT> const& private_inputs)
+void validate_contract_tree_root(DummyBuilder& builder, PrivateKernelInputsInner<NT> const& private_inputs)
 {
     auto const& purported_contract_tree_root =
         private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
     auto const& previous_kernel_contract_tree_root =
         private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
             .contract_tree_root;
-    composer.do_assert(
+    builder.do_assert(
         purported_contract_tree_root == previous_kernel_contract_tree_root,
         "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root",
         CircuitErrorCode::PRIVATE_KERNEL__PURPORTED_CONTRACT_TREE_ROOT_AND_PREVIOUS_KERNEL_CONTRACT_TREE_ROOT_MISMATCH);
 }
 
-void validate_inputs(DummyComposer& composer, PrivateKernelInputsInner<NT> const& private_inputs)
+void validate_inputs(DummyBuilder& builder, PrivateKernelInputsInner<NT> const& private_inputs)
 {
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
 
-    composer.do_assert(this_call_stack_item.function_data.is_private == true,
-                       "Cannot execute a non-private function with the private kernel circuit",
-                       CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_FUNCTION_EXECUTED_WITH_PRIVATE_KERNEL);
+    builder.do_assert(this_call_stack_item.function_data.is_private == true,
+                      "Cannot execute a non-private function with the private kernel circuit",
+                      CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_FUNCTION_EXECUTED_WITH_PRIVATE_KERNEL);
 
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
@@ -85,21 +85,21 @@ void validate_inputs(DummyComposer& composer, PrivateKernelInputsInner<NT> const
 
     NT::fr const start_private_call_stack_length = array_length(start.private_call_stack);
 
-    composer.do_assert(private_inputs.previous_kernel.public_inputs.is_private == true,
-                       "Cannot verify a non-private kernel snark in the private kernel circuit",
-                       CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_KERNEL_VERIFIED_WITH_PRIVATE_KERNEL);
-    composer.do_assert(this_call_stack_item.function_data.is_constructor == false,
-                       "A constructor must be executed as the first tx in the recursion",
-                       CircuitErrorCode::PRIVATE_KERNEL__CONSTRUCTOR_EXECUTED_IN_RECURSION);
-    composer.do_assert(start_private_call_stack_length != 0,
-                       "Cannot execute private kernel circuit with an empty private call stack",
-                       CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_EMPTY);
+    builder.do_assert(private_inputs.previous_kernel.public_inputs.is_private == true,
+                      "Cannot verify a non-private kernel snark in the private kernel circuit",
+                      CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_KERNEL_VERIFIED_WITH_PRIVATE_KERNEL);
+    builder.do_assert(this_call_stack_item.function_data.is_constructor == false,
+                      "A constructor must be executed as the first tx in the recursion",
+                      CircuitErrorCode::PRIVATE_KERNEL__CONSTRUCTOR_EXECUTED_IN_RECURSION);
+    builder.do_assert(start_private_call_stack_length != 0,
+                      "Cannot execute private kernel circuit with an empty private call stack",
+                      CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_EMPTY);
 }
 
 // NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
 // TODO(mike): is there a way to identify whether an input has not been used by ths circuit? This would help us
 // more-safely ensure we're constraining everything.
-KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyComposer& composer,
+KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyBuilder& builder,
                                                                   PrivateKernelInputsInner<NT> const& private_inputs)
 {
     // We'll be pushing data to this during execution of this circuit.
@@ -108,19 +108,19 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyComposer&
     // Do this before any functions can modify the inputs.
     common_initialise_end_values(private_inputs.previous_kernel, public_inputs);
 
-    validate_inputs(composer, private_inputs);
+    validate_inputs(builder, private_inputs);
 
     // TODO(jeanmon) Resuscitate after issue 499 is fixed as explained below.
     // Remove the array_pop below when uncommenting this validation.
-    // validate_this_private_call_hash(composer, private_inputs, public_inputs);
+    // validate_this_private_call_hash(builder, private_inputs, public_inputs);
     array_pop(public_inputs.end.private_call_stack);
 
     // TODO(dbanks12): may need to comment out hash check in here according to TODO above
     // TODO(jeanmon) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/671
-    // common_validate_call_stack(composer, private_inputs.private_call);
+    // common_validate_call_stack(builder, private_inputs.private_call);
 
     common_validate_read_requests(
-        composer,
+        builder,
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address,
         private_inputs.private_call.call_stack_item.public_inputs.read_requests,
         private_inputs.private_call.read_request_membership_witnesses,
@@ -128,20 +128,20 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyComposer&
 
 
     // TODO(dbanks12): feels like update_end_values should happen later
-    common_update_end_values(composer, private_inputs.private_call, public_inputs);
+    common_update_end_values(builder, private_inputs.private_call, public_inputs);
 
     // ensure that historic/purported contract tree root matches the one in previous kernel
-    validate_contract_tree_root(composer, private_inputs);
+    validate_contract_tree_root(builder, private_inputs);
 
     const auto private_call_stack_item = private_inputs.private_call.call_stack_item;
-    common_contract_logic(composer,
+    common_contract_logic(builder,
                           private_inputs.private_call,
                           public_inputs,
                           private_call_stack_item.public_inputs.contract_deployment_data,
                           private_call_stack_item.function_data);
 
     // We'll skip any verification in this native implementation, because for a Local Developer Testnet, there won't
-    // _be_ a valid proof to verify!!! auto aggregation_object = verify_proofs(composer,
+    // _be_ a valid proof to verify!!! auto aggregation_object = verify_proofs(builder,
     //                                         private_inputs,
     //                                         _private_inputs.private_call.vk->num_public_inputs,
     //                                         _private_inputs.previous_kernel.vk->num_public_inputs);

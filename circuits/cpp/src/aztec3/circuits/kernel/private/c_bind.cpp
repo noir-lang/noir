@@ -13,9 +13,9 @@
 #include <array>
 
 namespace {
-using Composer = plonk::UltraPlonkComposer;
+using Builder = UltraCircuitBuilder;
 using NT = aztec3::utils::types::NativeTypes;
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
@@ -68,7 +68,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* tx_request_buf,
                                               size_t* private_kernel_public_inputs_size_out,
                                               uint8_t const** private_kernel_public_inputs_buf)
 {
-    DummyComposer composer = DummyComposer("private_kernel__sim_init");
+    DummyBuilder builder = DummyBuilder("private_kernel__sim_init");
 
     PrivateCallData<NT> private_call_data;
     read(private_call_buf, private_call_data);
@@ -81,7 +81,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* tx_request_buf,
         .private_call = private_call_data,
     };
 
-    auto public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    auto public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
@@ -91,7 +91,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* tx_request_buf,
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *private_kernel_public_inputs_buf = raw_public_inputs_buf;
     *private_kernel_public_inputs_size_out = public_inputs_vec.size();
-    return composer.alloc_and_serialize_first_failure();
+    return builder.alloc_and_serialize_first_failure();
 }
 
 WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_buf,
@@ -99,7 +99,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
                                                size_t* private_kernel_public_inputs_size_out,
                                                uint8_t const** private_kernel_public_inputs_buf)
 {
-    DummyComposer composer = DummyComposer("private_kernel__sim_inner");
+    DummyBuilder builder = DummyBuilder("private_kernel__sim_inner");
     PrivateCallData<NT> private_call_data;
     read(private_call_buf, private_call_data);
 
@@ -111,7 +111,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
         .private_call = private_call_data,
     };
 
-    auto public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    auto public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
@@ -121,7 +121,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
     *private_kernel_public_inputs_buf = raw_public_inputs_buf;
     *private_kernel_public_inputs_size_out = public_inputs_vec.size();
-    return composer.alloc_and_serialize_first_failure();
+    return builder.alloc_and_serialize_first_failure();
 }
 
 CBIND(private_kernel__sim_ordering, [](PreviousKernelData<NT> previous_kernel) {

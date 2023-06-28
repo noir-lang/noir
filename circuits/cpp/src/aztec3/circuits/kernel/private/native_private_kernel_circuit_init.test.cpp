@@ -60,8 +60,8 @@ TEST_F(native_private_kernel_init_tests, deposit)
                                                                         unencrypted_logs_hash,
                                                                         encrypted_log_preimages_length,
                                                                         unencrypted_log_preimages_length);
-    DummyComposer composer = DummyComposer("private_kernel_tests__native_deposit");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__native_deposit");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     EXPECT_TRUE(validate_no_new_deployed_contract(public_inputs));
 
@@ -81,10 +81,10 @@ TEST_F(native_private_kernel_init_tests, deposit)
         accumulate_sha256<NT>({ fr(0), fr(0), unencrypted_logs_hash[0], unencrypted_logs_hash[1] });
     ASSERT_EQ(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
 
-    // Assert that composer doesn't give any errors
-    ASSERT_FALSE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().message, "");
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::NO_ERROR);
+    // Assert that builder doesn't give any errors
+    ASSERT_FALSE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().message, "");
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::NO_ERROR);
 }
 
 /**
@@ -93,8 +93,8 @@ TEST_F(native_private_kernel_init_tests, deposit)
 TEST_F(native_private_kernel_init_tests, basic_contract_deployment)
 {
     auto const& private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
-    DummyComposer composer = DummyComposer("private_kernel_tests__native_basic_contract_deployment");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__native_basic_contract_deployment");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     EXPECT_TRUE(validate_deployed_contract_address(private_inputs, public_inputs));
 
@@ -108,10 +108,10 @@ TEST_F(native_private_kernel_init_tests, basic_contract_deployment)
     ASSERT_EQ(public_inputs.end.encrypted_logs_hash, expected_logs_hash);
     ASSERT_EQ(public_inputs.end.unencrypted_logs_hash, expected_logs_hash);
 
-    // Assert that composer doesn't give any errors
-    ASSERT_FALSE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().message, "");
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::NO_ERROR);
+    // Assert that builder doesn't give any errors
+    ASSERT_FALSE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().message, "");
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::NO_ERROR);
 }
 
 // TODO(suyash): Disabled until https://github.com/AztecProtocol/aztec-packages/issues/499 is resolved.
@@ -122,12 +122,12 @@ TEST_F(native_private_kernel_init_tests, DISABLED_contract_deployment_call_stack
     // Randomise the second item in the private call stack (i.e. hash of the private call item).
     private_inputs.private_call.call_stack_item.public_inputs.private_call_stack[1] = NT::fr::random_element();
 
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__contract_deployment_call_stack_item_hash_mismatch_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder =
+        DummyBuilder("private_kernel_tests__contract_deployment_call_stack_item_hash_mismatch_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
-    EXPECT_EQ(composer.failed(), true);
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_EQ(builder.failed(), true);
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_ITEM_HASH_MISMATCH);
 }
 
@@ -138,13 +138,13 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_construct
     // Pollute the constructor vk hash in the tx_request.
     private_inputs.tx_request.tx_context.contract_deployment_data.constructor_vk_hash = NT::fr::random_element();
 
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__contract_deployment_incorrect_constructor_vk_hash_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder =
+        DummyBuilder("private_kernel_tests__contract_deployment_incorrect_constructor_vk_hash_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
-    EXPECT_EQ(composer.failed(), true);
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
-    EXPECT_EQ(composer.get_first_failure().message, "constructor_vk_hash doesn't match private_call_vk_hash");
+    EXPECT_EQ(builder.failed(), true);
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
+    EXPECT_EQ(builder.get_first_failure().message, "constructor_vk_hash doesn't match private_call_vk_hash");
 }
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_contract_address_fails)
@@ -157,13 +157,12 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_incorrect_contract_
     private_inputs.tx_request.origin = random_address;
     private_inputs.private_call.call_stack_item.contract_address = random_address;
 
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__contract_deployment_incorrect_contract_address_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__contract_deployment_incorrect_contract_address_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
-    EXPECT_EQ(composer.failed(), true);
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
-    EXPECT_EQ(composer.get_first_failure().message, "contract address supplied doesn't match derived address");
+    EXPECT_EQ(builder.failed(), true);
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
+    EXPECT_EQ(builder.get_first_failure().message, "contract address supplied doesn't match derived address");
 }
 
 TEST_F(native_private_kernel_init_tests, contract_deployment_contract_address_mismatch_fails)
@@ -177,12 +176,12 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_contract_address_mi
     private_inputs.private_call.call_stack_item.contract_address = random_contract_address;
 
     // Invoke the native private kernel circuit
-    DummyComposer composer = DummyComposer("private_kernel_tests__contract_deployment_contract_address_mismatch_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__contract_deployment_contract_address_mismatch_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
 }
 
@@ -194,14 +193,14 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_function_data_misma
     private_inputs.tx_request.function_data.function_selector = numeric::random::get_engine().get_random_uint32();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer = DummyComposer("private_kernel_tests__contract_deployment_function_data_mismatch_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__contract_deployment_function_data_mismatch_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "user's intent does not match initial private call (tx_request.function_data must match "
               "call_stack_item.function_data)");
 }
@@ -214,14 +213,14 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_args_hash_mismatch_
     private_inputs.tx_request.args_hash = NT::fr::random_element();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer = DummyComposer("private_kernel_tests__contract_deployment_args_hash_mismatch_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__contract_deployment_args_hash_mismatch_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "user's intent does not match initial private call (tx_request.args must match "
               "call_stack_item.public_inputs.args)");
 }
@@ -234,14 +233,14 @@ TEST_F(native_private_kernel_init_tests, private_function_is_private_false_fails
     private_inputs.private_call.call_stack_item.function_data.is_private = false;
 
     // Invoke the native private kernel circuit
-    DummyComposer composer = DummyComposer("private_kernel_tests__private_function_is_private_false_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_is_private_false_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_FUNCTION_EXECUTED_WITH_PRIVATE_KERNEL);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "Cannot execute a non-private function with the private kernel circuit");
 }
 
@@ -254,13 +253,13 @@ TEST_F(native_private_kernel_init_tests, private_function_static_call_fails)
     private_inputs.private_call.call_stack_item.public_inputs.call_context.is_static_call = true;
 
     // Invoke the native private kernel circuit
-    DummyComposer composer = DummyComposer("private_kernel_tests__private_function_static_call_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_static_call_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
-    EXPECT_EQ(composer.get_first_failure().message, "Users cannot make a static call");
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
+    EXPECT_EQ(builder.get_first_failure().message, "Users cannot make a static call");
 }
 
 TEST_F(native_private_kernel_init_tests, private_function_delegate_call_fails)
@@ -271,13 +270,13 @@ TEST_F(native_private_kernel_init_tests, private_function_delegate_call_fails)
     private_inputs.private_call.call_stack_item.public_inputs.call_context.is_delegate_call = true;
 
     // Invoke the native private kernel circuit
-    DummyComposer composer = DummyComposer("private_kernel_tests__private_function_delegate_call_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_delegate_call_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
-    EXPECT_EQ(composer.get_first_failure().message, "Users cannot make a delegatecall");
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
+    EXPECT_EQ(builder.get_first_failure().message, "Users cannot make a delegatecall");
 }
 
 TEST_F(native_private_kernel_init_tests, private_function_incorrect_storage_contract_address_fails)
@@ -289,14 +288,14 @@ TEST_F(native_private_kernel_init_tests, private_function_incorrect_storage_cont
         NT::fr::random_element();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__private_function_incorrect_storage_contract_address_fails");
-    native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder =
+        DummyBuilder("private_kernel_tests__private_function_incorrect_storage_contract_address_fails");
+    native_private_kernel_circuit_initial(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__CONTRACT_ADDRESS_MISMATCH);
-    EXPECT_EQ(composer.get_first_failure().message, "Storage contract address must be that of the called contract");
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__CONTRACT_ADDRESS_MISMATCH);
+    EXPECT_EQ(builder.get_first_failure().message, "Storage contract address must be that of the called contract");
 }
 
 TEST_F(native_private_kernel_init_tests, native_read_request_bad_request)
@@ -315,13 +314,13 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_request)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_read_request_bad_request");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_read_request_bad_request");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
@@ -343,13 +342,13 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_leaf_index)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_read_request_bad_leaf_index");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_read_request_bad_leaf_index");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
@@ -371,13 +370,13 @@ TEST_F(native_private_kernel_init_tests, native_read_request_bad_sibling_path)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_read_request_bad_sibling_path");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_read_request_bad_sibling_path");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
@@ -409,13 +408,13 @@ TEST_F(native_private_kernel_init_tests, native_read_request_root_mismatch)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = bad_requests;
     private_inputs.private_call.read_request_membership_witnesses = bad_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_read_request_root_mismatch");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_read_request_root_mismatch");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT_TRUE(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 
     // Check the first nullifier is hash of the signed tx request
@@ -435,16 +434,16 @@ TEST_F(native_private_kernel_init_tests, native_no_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_no_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_no_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -464,16 +463,16 @@ TEST_F(native_private_kernel_init_tests, native_one_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_one_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_one_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -493,16 +492,16 @@ TEST_F(native_private_kernel_init_tests, native_two_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_two_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_two_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -523,16 +522,16 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_init_tests__native_max_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_max_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 
     // Check the first nullifier is hash of the signed tx request
     ASSERT_EQ(public_inputs.end.new_nullifiers[0], private_inputs.tx_request.hash());
@@ -561,17 +560,16 @@ TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_work
     read_request_membership_witnesses[0].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer =
-        DummyComposer("native_private_kernel_init_tests__native_one_transient_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_one_transient_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_works)
@@ -593,17 +591,17 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_
     read_request_membership_witnesses[1].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer =
-        DummyComposer("native_private_kernel_init_tests__native_max_read_requests_one_transient_works");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder =
+        DummyBuilder("native_private_kernel_init_tests__native_max_read_requests_one_transient_works");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

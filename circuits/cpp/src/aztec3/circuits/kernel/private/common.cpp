@@ -12,9 +12,9 @@
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
-#include "aztec3/utils/dummy_composer.hpp"
+#include "aztec3/utils/dummy_circuit_builder.hpp"
 
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 
 using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::ContractLeafPreimage;
@@ -27,13 +27,13 @@ using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-void common_validate_call_stack(DummyComposer& composer, PrivateCallData<NT> const& private_call)
+void common_validate_call_stack(DummyBuilder& builder, PrivateCallData<NT> const& private_call)
 {
     const auto& stack = private_call.call_stack_item.public_inputs.private_call_stack;
     const auto& preimages = private_call.private_call_stack_preimages;
@@ -44,9 +44,9 @@ void common_validate_call_stack(DummyComposer& composer, PrivateCallData<NT> con
         // Note: this assumes it's computationally infeasible to have `0` as a valid call_stack_item_hash.
         // Assumes `hash == 0` means "this stack item is empty".
         const auto calculated_hash = hash == 0 ? 0 : preimage.hash();
-        composer.do_assert(hash == calculated_hash,
-                           format("private_call_stack[", i, "] = ", hash, "; does not reconcile"),
-                           CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_ITEM_HASH_MISMATCH);
+        builder.do_assert(hash == calculated_hash,
+                          format("private_call_stack[", i, "] = ", hash, "; does not reconcile"),
+                          CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_ITEM_HASH_MISMATCH);
     }
 }
 
@@ -59,14 +59,14 @@ void common_validate_call_stack(DummyComposer& composer, PrivateCallData<NT> con
  * - https://discourse.aztec.network/t/to-read-or-not-to-read/178
  * - https://discourse.aztec.network/t/spending-notes-which-havent-yet-been-inserted/180
  *
- * @param composer
+ * @param builder
  * @param read_requests the commitments being read by this private call
  * @param read_request_membership_witnesses used to compute the private data root
  * for a given request which is essentially a membership check.
  * @param historic_private_data_tree_root This is a reference to the historic root which all
  * read requests are checked against here.
  */
-void common_validate_read_requests(DummyComposer& composer,
+void common_validate_read_requests(DummyBuilder& builder,
                                    NT::fr const& storage_contract_address,
                                    std::array<fr, READ_REQUESTS_LENGTH> const& read_requests,
                                    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
@@ -93,20 +93,20 @@ void common_validate_read_requests(DummyComposer& composer,
         if (read_request != 0 && !is_transient_read) {
             const auto& root_for_read_request =
                 root_from_sibling_path<NT>(leaf, witness.leaf_index, witness.sibling_path);
-            composer.do_assert(root_for_read_request == historic_private_data_tree_root,
-                               format("private data root mismatch at read_request[",
-                                      rr_idx,
-                                      "] - ",
-                                      "Expected root: ",
-                                      historic_private_data_tree_root,
-                                      ", Read request gave root: ",
-                                      root_for_read_request),
-                               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+            builder.do_assert(root_for_read_request == historic_private_data_tree_root,
+                              format("private data root mismatch at read_request[",
+                                     rr_idx,
+                                     "] - ",
+                                     "Expected root: ",
+                                     historic_private_data_tree_root,
+                                     ", Read request gave root: ",
+                                     root_for_read_request),
+                              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
         }
     }
 }
 
-void common_update_end_values(DummyComposer& composer,
+void common_update_end_values(DummyBuilder& builder,
                               PrivateCallData<NT> const& private_call,
                               KernelCircuitPublicInputs<NT>& public_inputs)
 {
@@ -119,12 +119,12 @@ void common_update_end_values(DummyComposer& composer,
 
     if (is_static_call) {
         // No state changes are allowed for static calls:
-        composer.do_assert(is_array_empty(new_commitments) == true,
-                           "new_commitments must be empty for static calls",
-                           CircuitErrorCode::PRIVATE_KERNEL__NEW_COMMITMENTS_NOT_EMPTY_FOR_STATIC_CALL);
-        composer.do_assert(is_array_empty(new_nullifiers) == true,
-                           "new_nullifiers must be empty for static calls",
-                           CircuitErrorCode::PRIVATE_KERNEL__NEW_NULLIFIERS_NOT_EMPTY_FOR_STATIC_CALL);
+        builder.do_assert(is_array_empty(new_commitments) == true,
+                          "new_commitments must be empty for static calls",
+                          CircuitErrorCode::PRIVATE_KERNEL__NEW_COMMITMENTS_NOT_EMPTY_FOR_STATIC_CALL);
+        builder.do_assert(is_array_empty(new_nullifiers) == true,
+                          "new_nullifiers must be empty for static calls",
+                          CircuitErrorCode::PRIVATE_KERNEL__NEW_NULLIFIERS_NOT_EMPTY_FOR_STATIC_CALL);
     }
 
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -146,16 +146,16 @@ void common_update_end_values(DummyComposer& composer,
                 new_nullifiers[i] == 0 ? 0 : silo_nullifier<NT>(storage_contract_address, new_nullifiers[i]);
         }
 
-        push_array_to_array(composer, siloed_new_commitments, public_inputs.end.new_commitments);
-        push_array_to_array(composer, siloed_new_nullifiers, public_inputs.end.new_nullifiers);
+        push_array_to_array(builder, siloed_new_commitments, public_inputs.end.new_commitments);
+        push_array_to_array(builder, siloed_new_nullifiers, public_inputs.end.new_nullifiers);
     }
 
     {  // call stacks
         const auto& this_private_call_stack = private_call_public_inputs.private_call_stack;
-        push_array_to_array(composer, this_private_call_stack, public_inputs.end.private_call_stack);
+        push_array_to_array(builder, this_private_call_stack, public_inputs.end.private_call_stack);
 
         const auto& this_public_call_stack = private_call_public_inputs.public_call_stack;
-        push_array_to_array(composer, this_public_call_stack, public_inputs.end.public_call_stack);
+        push_array_to_array(builder, this_public_call_stack, public_inputs.end.public_call_stack);
     }
 
     {  // new l2 to l1 messages
@@ -174,7 +174,7 @@ void common_update_end_values(DummyComposer& composer,
                                                                            new_l2_to_l1_msgs[i]);
             }
         }
-        push_array_to_array(composer, new_l2_to_l1_msgs_to_insert, public_inputs.end.new_l2_to_l1_msgs);
+        push_array_to_array(builder, new_l2_to_l1_msgs_to_insert, public_inputs.end.new_l2_to_l1_msgs);
     }
 
     {  // logs hashes
@@ -203,7 +203,7 @@ void common_update_end_values(DummyComposer& composer,
     }
 }
 
-void common_contract_logic(DummyComposer& composer,
+void common_contract_logic(DummyBuilder& builder,
                            PrivateCallData<NT> const& private_call,
                            KernelCircuitPublicInputs<NT>& public_inputs,
                            ContractDeploymentData<NT> const& contract_dep_data,
@@ -233,27 +233,27 @@ void common_contract_logic(DummyComposer& composer,
                                                             portal_contract_address,
                                                             contract_dep_data.function_tree_root };
 
-        array_push(composer, public_inputs.end.new_contracts, native_new_contract_data);
-        composer.do_assert(contract_dep_data.constructor_vk_hash == private_call_vk_hash,
-                           "constructor_vk_hash doesn't match private_call_vk_hash",
-                           CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
+        array_push(builder, public_inputs.end.new_contracts, native_new_contract_data);
+        builder.do_assert(contract_dep_data.constructor_vk_hash == private_call_vk_hash,
+                          "constructor_vk_hash doesn't match private_call_vk_hash",
+                          CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
 
         // must imply == derived address
-        composer.do_assert(storage_contract_address == new_contract_address,
-                           "contract address supplied doesn't match derived address",
-                           CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
+        builder.do_assert(storage_contract_address == new_contract_address,
+                          "contract address supplied doesn't match derived address",
+                          CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
 
         // compute contract address nullifier
         auto const blake_input = new_contract_address.to_field().to_buffer();
         auto const new_contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake3s(blake_input).data());
 
         // push the contract address nullifier to nullifier vector
-        array_push(composer, public_inputs.end.new_nullifiers, new_contract_address_nullifier);
+        array_push(builder, public_inputs.end.new_nullifiers, new_contract_address_nullifier);
     } else {
         // non-contract deployments must specify contract address being interacted with
-        composer.do_assert(storage_contract_address != 0,
-                           "contract address can't be 0 for non-contract deployment related transactions",
-                           CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
+        builder.do_assert(storage_contract_address != 0,
+                          "contract address can't be 0 for non-contract deployment related transactions",
+                          CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
 
         /* We need to compute the root of the contract tree, starting from the function's VK:
          * - Compute the vk_hash (done above)
@@ -283,7 +283,7 @@ void common_contract_logic(DummyComposer& composer,
         auto const& purported_contract_tree_root =
             private_call.call_stack_item.public_inputs.historic_contract_tree_root;
 
-        composer.do_assert(
+        builder.do_assert(
             computed_contract_tree_root == purported_contract_tree_root,
             "computed_contract_tree_root doesn't match purported_contract_tree_root",
             CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);

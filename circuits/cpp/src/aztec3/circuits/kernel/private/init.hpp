@@ -9,19 +9,19 @@
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-using Composer = plonk::UltraPlonkComposer;
+using Builder = UltraCircuitBuilder;
 
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 
 // Generic:
-using CT = aztec3::utils::types::CircuitTypes<Composer>;
+using CT = aztec3::utils::types::CircuitTypes<Builder>;
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::utils::types::to_ct;
 
 using DB = oracle::FakeDB;
 using oracle::NativeOracle;
-using OracleWrapper = aztec3::circuits::apps::OracleWrapperInterface<Composer>;
+using OracleWrapper = aztec3::circuits::apps::OracleWrapperInterface<Builder>;
 
-using FunctionExecutionContext = aztec3::circuits::apps::FunctionExecutionContext<Composer>;
+using FunctionExecutionContext = aztec3::circuits::apps::FunctionExecutionContext<Builder>;
 
 }  // namespace aztec3::circuits::kernel::private_kernel

@@ -24,14 +24,14 @@ template <typename NCT, unsigned int N> struct MembershipWitness {
         return leaf_index == other.leaf_index && sibling_path == other.sibling_path;
     };
 
-    template <typename Composer> MembershipWitness<CircuitTypes<Composer>, N> to_circuit_type(Composer& composer) const
+    template <typename Builder> MembershipWitness<CircuitTypes<Builder>, N> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        MembershipWitness<CircuitTypes<Composer>, N> witness = {
+        MembershipWitness<CircuitTypes<Builder>, N> witness = {
             to_ct(leaf_index),
             map(sibling_path, to_ct),
         };

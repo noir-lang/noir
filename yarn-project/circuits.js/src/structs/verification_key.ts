@@ -1,7 +1,7 @@
 import { BufferReader } from '@aztec/foundation/serialize';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { Fq } from './index.js';
-import { ComposerType } from './shared.js';
+import { CircuitType } from './shared.js';
 import times from 'lodash.times';
 
 /**
@@ -79,9 +79,9 @@ export class CommitmentMap {
 export class VerificationKey {
   constructor(
     /**
-     * Composer prover type we're using.
+     * For Plonk, this is equivalent to the proving system used to prove and verify.
      */
-    public composerType: ComposerType,
+    public circuitType: CircuitType,
     /**
      * The number of gates in this circuit.
      */
@@ -110,7 +110,7 @@ export class VerificationKey {
    */
   toBuffer() {
     return serializeToBuffer(
-      this.composerType,
+      this.circuitType,
       this.circuitSize,
       this.numPublicInputs,
       new CommitmentMap(this.commitments),
@@ -142,7 +142,7 @@ export class VerificationKey {
    */
   static makeFake(): VerificationKey {
     return new VerificationKey(
-      ComposerType.TURBO,
+      CircuitType.TURBO,
       2048,
       116,
       {

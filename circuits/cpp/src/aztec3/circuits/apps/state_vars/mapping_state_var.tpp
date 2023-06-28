@@ -36,8 +36,8 @@ using aztec3::utils::types::NativeTypes;
 //      start_slot_point becomes: prev_start_slot_point + k1 * B
 //      at(k2).slot = new_start_slot_point + k2 * C
 
-template <typename Composer, typename V>
-std::tuple<NativeTypes::grumpkin_point, bool> MappingStateVar<Composer, V>::compute_slot_point_at_mapping_key(
+template <typename Builder, typename V>
+std::tuple<NativeTypes::grumpkin_point, bool> MappingStateVar<Builder, V>::compute_slot_point_at_mapping_key(
     NT::fr const& start_slot, size_t level_of_container_nesting, std::optional<typename NT::fr> const& key)
 {
     bool const is_partial_slot = false;
@@ -66,8 +66,8 @@ std::tuple<NativeTypes::grumpkin_point, bool> MappingStateVar<Composer, V>::comp
     return std::make_tuple(NativeTypes::commit(input_pairs), is_partial_slot);
 }
 
-template <typename Composer, typename V>
-std::tuple<typename CircuitTypes<Composer>::grumpkin_point, bool> MappingStateVar<Composer, V>::
+template <typename Builder, typename V>
+std::tuple<typename CircuitTypes<Builder>::grumpkin_point, bool> MappingStateVar<Builder, V>::
     compute_slot_point_at_mapping_key(std::optional<fr> const& key)
 {
     bool is_partial_slot = false;
@@ -101,7 +101,7 @@ std::tuple<typename CircuitTypes<Composer>::grumpkin_point, bool> MappingStateVa
     return std::make_tuple(CT::commit(input_pairs), is_partial_slot);
 }
 
-template <typename Composer, typename V> V& MappingStateVar<Composer, V>::at(std::optional<fr> const& key)
+template <typename Builder, typename V> V& MappingStateVar<Builder, V>::at(std::optional<fr> const& key)
 {
     // First calculate natively and check to see if we've already calculated this state's slot and stored it in the
     // cache, so we don't create unnecessary circuit gates:
@@ -115,7 +115,7 @@ template <typename Composer, typename V> V& MappingStateVar<Composer, V>::at(std
 
     bool is_partial_slot = false;
     NativeTypes::grumpkin_point native_new_slot_point;
-    std::tie(native_new_slot_point, is_partial_slot) = MappingStateVar<Composer, V>::compute_slot_point_at_mapping_key(
+    std::tie(native_new_slot_point, is_partial_slot) = MappingStateVar<Builder, V>::compute_slot_point_at_mapping_key(
         this->start_slot.get_value(), this->level_of_container_nesting, native_key);
     NativeTypes::fr const native_lookup = native_new_slot_point.x;
 

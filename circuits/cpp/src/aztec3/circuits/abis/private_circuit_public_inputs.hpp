@@ -74,16 +74,16 @@ template <typename NCT> class PrivateCircuitPublicInputs {
                version == other.version;
     };
 
-    template <typename Composer>
-    PrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder>
+    PrivateCircuitPublicInputs<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
-        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(builder); };
 
-        PrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
+        PrivateCircuitPublicInputs<CircuitTypes<Builder>> pis = {
             to_circuit_type(call_context),
 
             to_ct(args_hash),
@@ -118,11 +118,11 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         return pis;
     };
 
-    template <typename Composer> PrivateCircuitPublicInputs<NativeTypes> to_native_type() const
+    template <typename Builder> PrivateCircuitPublicInputs<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
-        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
 
         PrivateCircuitPublicInputs<NativeTypes> pis = {
             to_native_type(call_context),
@@ -439,48 +439,48 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         }
     }
 
-    template <typename Composer> void make_unused_inputs_zero(Composer& composer)
+    template <typename Builder> void make_unused_inputs_zero(Builder& builder)
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
-        make_unused_element_zero(composer, call_context);
+        make_unused_element_zero(builder, call_context);
 
-        make_unused_element_zero(composer, args_hash);
-        make_unused_array_elements_zero(composer, return_values);
+        make_unused_element_zero(builder, args_hash);
+        make_unused_array_elements_zero(builder, return_values);
 
-        make_unused_array_elements_zero(composer, read_requests);
+        make_unused_array_elements_zero(builder, read_requests);
 
-        make_unused_array_elements_zero(composer, new_commitments);
-        make_unused_array_elements_zero(composer, new_nullifiers);
+        make_unused_array_elements_zero(builder, new_commitments);
+        make_unused_array_elements_zero(builder, new_nullifiers);
 
-        make_unused_array_elements_zero(composer, private_call_stack);
-        make_unused_array_elements_zero(composer, public_call_stack);
-        make_unused_array_elements_zero(composer, new_l2_to_l1_msgs);
+        make_unused_array_elements_zero(builder, private_call_stack);
+        make_unused_array_elements_zero(builder, public_call_stack);
+        make_unused_array_elements_zero(builder, new_l2_to_l1_msgs);
 
-        make_unused_array_elements_zero(composer, encrypted_logs_hash);
-        make_unused_array_elements_zero(composer, unencrypted_logs_hash);
+        make_unused_array_elements_zero(builder, encrypted_logs_hash);
+        make_unused_array_elements_zero(builder, unencrypted_logs_hash);
 
-        make_unused_element_zero(composer, encrypted_log_preimages_length);
-        make_unused_element_zero(composer, unencrypted_log_preimages_length);
+        make_unused_element_zero(builder, encrypted_log_preimages_length);
+        make_unused_element_zero(builder, unencrypted_log_preimages_length);
 
-        make_unused_element_zero(composer, historic_private_data_tree_root);
-        make_unused_element_zero(composer, historic_nullifier_tree_root);
-        make_unused_element_zero(composer, historic_contract_tree_root);
-        make_unused_element_zero(composer, historic_l1_to_l2_messages_tree_root);
+        make_unused_element_zero(builder, historic_private_data_tree_root);
+        make_unused_element_zero(builder, historic_nullifier_tree_root);
+        make_unused_element_zero(builder, historic_contract_tree_root);
+        make_unused_element_zero(builder, historic_l1_to_l2_messages_tree_root);
 
-        make_unused_element_zero(composer, contract_deployment_data);
+        make_unused_element_zero(builder, contract_deployment_data);
 
-        make_unused_element_zero(composer, chain_id);
-        make_unused_element_zero(composer, version);
+        make_unused_element_zero(builder, chain_id);
+        make_unused_element_zero(builder, version);
 
         all_elements_populated = true;
     }
 
-    template <typename Composer> void set_public(Composer& composer)
+    template <typename Builder> void set_public(Builder& builder)
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        make_unused_inputs_zero(composer);
+        make_unused_inputs_zero(builder);
 
         // Optional members are guaranteed to be nonempty from here.
 
@@ -515,18 +515,18 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         (*version).set_public();
     }
 
-    template <typename Composer>
-    OptionalPrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder>
+    OptionalPrivateCircuitPublicInputs<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
         auto to_circuit_type = [&](auto& e) {
-            return e ? std::make_optional((*e).to_circuit_type(composer)) : std::nullopt;
+            return e ? std::make_optional((*e).to_circuit_type(builder)) : std::nullopt;
         };
 
-        OptionalPrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
+        OptionalPrivateCircuitPublicInputs<CircuitTypes<Builder>> pis = {
             to_circuit_type(call_context),
 
             to_ct(args_hash),
@@ -561,12 +561,12 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         return pis;
     };
 
-    template <typename Composer> OptionalPrivateCircuitPublicInputs<NativeTypes> to_native_type() const
+    template <typename Builder> OptionalPrivateCircuitPublicInputs<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
         auto to_native_type = []<typename T>(const std::optional<T>& e) {
-            return e ? std::make_optional((*e).template to_native_type<Composer>()) : std::nullopt;
+            return e ? std::make_optional((*e).template to_native_type<Builder>()) : std::nullopt;
         };
         // auto to_native_type = [&]<typename T>(T& e) { return e.to_native_type(); };
 
@@ -709,38 +709,37 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         vec.insert(vec.end(), arr.data(), arr.data() + arr_size);
     }
 
-    template <typename Composer, typename T, size_t SIZE>
-    void make_unused_array_elements_zero(Composer& composer, std::array<std::optional<T>, SIZE>& arr)
+    template <typename Builder, typename T, size_t SIZE>
+    void make_unused_array_elements_zero(Builder& builder, std::array<std::optional<T>, SIZE>& arr)
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
         for (std::optional<T>& e : arr) {
-            make_unused_element_zero(composer, e);
+            make_unused_element_zero(builder, e);
         }
     }
 
-    template <typename Composer, typename T>
-    void make_unused_element_zero(Composer& composer, std::optional<T>& element)
+    template <typename Builder, typename T> void make_unused_element_zero(Builder& builder, std::optional<T>& element)
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
         if (!element) {
             element =
-                T(witness_t<Composer>(&composer, 0));  // convert the nullopt value to a circuit witness value of `0`
+                T(witness_t<Builder>(&builder, 0));  // convert the nullopt value to a circuit witness value of `0`
             fr(*element).assert_is_zero();
         }
     }
 
     // ABIStruct is a template for any of the structs in the abis/ dir. E.g. ExecutedCallback, CallbackStackItem.
-    template <typename Composer, template <class> class ABIStruct>
-    void make_unused_element_zero(Composer& composer, std::optional<ABIStruct<CircuitTypes<Composer>>>& element)
+    template <typename Builder, template <class> class ABIStruct>
+    void make_unused_element_zero(Builder& builder, std::optional<ABIStruct<CircuitTypes<Builder>>>& element)
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
         if (!element) {
             element = ABIStruct<NativeTypes>().to_circuit_type(
-                composer);  // convert the nullopt value to a circuit witness value of `0`
-            (*element).template assert_is_zero<Composer>();
+                builder);  // convert the nullopt value to a circuit witness value of `0`
+            (*element).template assert_is_zero<Builder>();
         }
     }
 

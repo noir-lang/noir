@@ -40,11 +40,11 @@ TEST_F(escrow_tests, circuit_deposit)
     // contains a reference to earlier-declared classes... so we'd end up with classes containing dangling references,
     // if all this stuff were to be declared in a setup function's scope.
     // We could instead store shared_ptrs in every class...?
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext exec_ctx(builder, oracle_wrapper);
 
     auto amount = NT::fr(5);
     auto asset_id = NT::fr(1);
@@ -53,21 +53,21 @@ TEST_F(escrow_tests, circuit_deposit)
     auto result = deposit(exec_ctx, { amount, asset_id, memo });
     info("result: ", result);
 
-    // info("witness: ", composer.witness);
-    // info("constant variables: ", composer.constant_variables);
-    // info("variables: ", composer.variables);
-    info("failed?: ", composer.circuit_constructor.failed());
-    info("err: ", composer.circuit_constructor.err());
-    info("n: ", composer.circuit_constructor.num_gates);
+    // info("witness: ", builder.witness);
+    // info("constant variables: ", builder.constant_variables);
+    // info("variables: ", builder.variables);
+    info("failed?: ", builder.failed());
+    info("err: ", builder.err());
+    info("n: ", builder.num_gates);
 }
 
 TEST_F(escrow_tests, circuit_transfer)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext exec_ctx(builder, oracle_wrapper);
 
     auto amount = NT::fr(5);
     auto to = NT::address(657756);
@@ -78,21 +78,21 @@ TEST_F(escrow_tests, circuit_transfer)
 
     transfer(exec_ctx, amount, to, asset_id, memo, reveal_msg_sender_to_recipient, fee);
 
-    // info("witness: ", composer.witness);
-    // info("constant variables: ", composer.constant_variables);
-    // info("variables: ", composer.variables);
-    info("failed?: ", composer.circuit_constructor.failed());
-    info("err: ", composer.circuit_constructor.err());
-    info("n: ", composer.circuit_constructor.num_gates);
+    // info("witness: ", builder.witness);
+    // info("constant variables: ", builder.constant_variables);
+    // info("variables: ", builder.variables);
+    info("failed?: ", builder.failed());
+    info("err: ", builder.err());
+    info("n: ", builder.num_gates);
 }
 
 TEST_F(escrow_tests, circuit_withdraw)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext exec_ctx(builder, oracle_wrapper);
 
     auto amount = NT::fr(5);
     auto asset_id = NT::fr(1);
@@ -102,12 +102,12 @@ TEST_F(escrow_tests, circuit_withdraw)
 
     withdraw(exec_ctx, amount, asset_id, memo, l1_withdrawal_address, fee);
 
-    // info("witness: ", composer.witness);
-    // info("constant variables: ", composer.constant_variables);
-    // info("variables: ", composer.variables);
-    info("failed?: ", composer.circuit_constructor.failed());
-    info("err: ", composer.circuit_constructor.err());
-    info("n: ", composer.circuit_constructor.num_gates);
+    // info("witness: ", builder.witness);
+    // info("constant variables: ", builder.constant_variables);
+    // info("variables: ", builder.variables);
+    info("failed?: ", builder.failed());
+    info("err: ", builder.err());
+    info("n: ", builder.num_gates);
 }
 
 }  // namespace aztec3::circuits::apps::test_apps::escrow

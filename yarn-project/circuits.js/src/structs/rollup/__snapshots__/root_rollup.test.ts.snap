@@ -71,7 +71,7 @@ end_public_data_tree_root:
 calldata_hash: [ 0x901 0x902 ]
 
 proof: [ 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 ]
-vk: key.composer_type: 0
+vk: key.circuit_type: 0
 key.circuit_size: 65
 key.num_public_inputs: 66
 key.commitments: [
@@ -154,7 +154,7 @@ end_public_data_tree_root:
 calldata_hash: [ 0x1901 0x1902 ]
 
 proof: [ 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 ]
-vk: key.composer_type: 0
+vk: key.circuit_type: 0
 key.circuit_size: 65
 key.num_public_inputs: 66
 key.commitments: [

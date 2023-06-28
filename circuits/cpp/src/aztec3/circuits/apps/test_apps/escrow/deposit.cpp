@@ -21,11 +21,11 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ct
     exec_ctx.register_contract(&contract);
 
     // Convert params into circuit types:
-    auto& composer = exec_ctx.composer;
+    auto& builder = exec_ctx.builder;
 
-    CT::fr amount = to_ct(composer, args[0]);
-    CT::fr asset_id = to_ct(composer, args[1]);
-    CT::fr memo = to_ct(composer, args[2]);
+    CT::fr amount = to_ct(builder, args[0]);
+    CT::fr asset_id = to_ct(builder, args[1]);
+    CT::fr memo = to_ct(builder, args[2]);
 
     auto& oracle = exec_ctx.oracle;
     const CT::address msg_sender = oracle.get_msg_sender();

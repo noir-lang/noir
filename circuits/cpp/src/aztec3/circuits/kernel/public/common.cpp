@@ -37,16 +37,16 @@ void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_in
 
 /**
  * @brief Validates that the call stack item for this circuit iteration is at the top of the call stack
- * @param composer The circuit composer
+ * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
-void validate_this_public_call_hash(DummyComposer& composer,
+void validate_this_public_call_hash(DummyBuilder& builder,
                                     PublicKernelInputs<NT> const& public_kernel_inputs,
                                     KernelCircuitPublicInputs<NT>& public_inputs)
 {
     // If public call stack is empty, we bail so array_pop doesn't throw_or_abort
     if (array_length(public_inputs.end.public_call_stack) == 0) {
-        composer.do_assert(
+        builder.do_assert(
             false, "Public call stack can't be empty", CircuitErrorCode::PUBLIC_KERNEL__EMPTY_PUBLIC_CALL_STACK);
         return;
     }
@@ -59,7 +59,7 @@ void validate_this_public_call_hash(DummyComposer& composer,
     const auto calculated_this_public_call_hash =
         get_call_stack_item_hash(public_kernel_inputs.public_call.call_stack_item);
 
-    composer.do_assert(
+    builder.do_assert(
         popped_public_call_hash == calculated_this_public_call_hash,
         format("calculated public_call_hash (",
                calculated_this_public_call_hash,

@@ -26,9 +26,9 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
-template <typename Composer> template <typename Note>
-Note Opcodes<Composer>::UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var,
-                                   typename Note::NotePreimage const& advice)
+template <typename Builder> template <typename Note>
+Note Opcodes<Builder>::UTXO_SLOAD(UTXOStateVar<Builder, Note>* utxo_state_var,
+                                  typename Note::NotePreimage const& advice)
 {
     auto& oracle = utxo_state_var->exec_ctx->oracle;
 
@@ -59,10 +59,10 @@ Note Opcodes<Composer>::UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var,
     return new_note;
 };
 
-template <typename Composer> template <typename Note>
-std::vector<Note> Opcodes<Composer>::UTXO_SLOAD(UTXOSetStateVar<Composer, Note>* utxo_set_state_var,
-                                                size_t const& num_notes,
-                                                typename Note::NotePreimage const& advice)
+template <typename Builder> template <typename Note>
+std::vector<Note> Opcodes<Builder>::UTXO_SLOAD(UTXOSetStateVar<Builder, Note>* utxo_set_state_var,
+                                               size_t const& num_notes,
+                                               typename Note::NotePreimage const& advice)
 {
     auto& oracle = utxo_set_state_var->exec_ctx->oracle;
 
@@ -103,8 +103,8 @@ std::vector<Note> Opcodes<Composer>::UTXO_SLOAD(UTXOSetStateVar<Composer, Note>*
     return new_notes;
 };
 
-template <typename Composer> template <typename Note>
-void Opcodes<Composer>::UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_nullify)
+template <typename Builder> template <typename Note>
+void Opcodes<Builder>::UTXO_NULL(StateVar<Builder>* state_var, Note& note_to_nullify)
 {
     typename CT::fr const nullifier = note_to_nullify.get_nullifier();
 
@@ -117,8 +117,8 @@ void Opcodes<Composer>::UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_n
     exec_ctx->nullified_notes.push_back(nullified_note_ptr);
 };
 
-template <typename Composer> template <typename Note>
-void Opcodes<Composer>::UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_initialise)
+template <typename Builder> template <typename Note>
+void Opcodes<Builder>::UTXO_INIT(StateVar<Builder>* state_var, Note& note_to_initialise)
 {
     typename CT::fr const init_nullifier = note_to_initialise.get_initialisation_nullifier();
 
@@ -134,8 +134,8 @@ void Opcodes<Composer>::UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_i
     exec_ctx->new_notes.push_back(init_note_ptr);
 };
 
-template <typename Composer> template <typename Note>
-void Opcodes<Composer>::UTXO_SSTORE(StateVar<Composer>* state_var, typename Note::NotePreimage new_note_preimage)
+template <typename Builder> template <typename Note>
+void Opcodes<Builder>::UTXO_SSTORE(StateVar<Builder>* state_var, typename Note::NotePreimage new_note_preimage)
 {
     auto& exec_ctx = state_var->exec_ctx;
 

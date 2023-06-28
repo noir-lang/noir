@@ -6,13 +6,13 @@ namespace aztec3::circuits::mock {
 
 using namespace plonk::stdlib;
 
-template <typename Composer> void mock_circuit(Composer& composer, std::vector<fr> const& public_inputs_)
+template <typename Builder> void mock_circuit(Builder& builder, std::vector<fr> const& public_inputs_)
 {
-    const auto public_inputs = map(public_inputs_, [&](auto& i) { return field_t(witness_t(&composer, i)); });
+    const auto public_inputs = map(public_inputs_, [&](auto& i) { return field_t(witness_t(&builder, i)); });
     for (auto& p : public_inputs) {
         p.set_public();
     }
-    plonk::stdlib::pedersen<Composer>::compress(field_t(witness_t(&composer, 1)), field_t(witness_t(&composer, 1)));
+    plonk::stdlib::pedersen<Builder>::compress(field_t(witness_t(&builder, 1)), field_t(witness_t(&builder, 1)));
 }
 
 }  // namespace aztec3::circuits::mock

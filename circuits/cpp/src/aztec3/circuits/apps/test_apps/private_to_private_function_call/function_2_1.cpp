@@ -19,10 +19,10 @@ void function_2_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const&
     exec_ctx.register_contract(&contract_2);
 
     // Convert arguments into circuit types:
-    auto& composer = exec_ctx.composer;
-    const auto a = to_ct(composer, _args[0]);
-    const auto b = to_ct(composer, _args[1]);
-    const auto c = to_ct(composer, _args[2]);
+    auto& builder = exec_ctx.builder;
+    const auto a = to_ct(builder, _args[0]);
+    const auto b = to_ct(builder, _args[1]);
+    const auto c = to_ct(builder, _args[2]);
 
     /****************************************************************
      * Get States & Globals used by the function

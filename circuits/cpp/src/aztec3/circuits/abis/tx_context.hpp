@@ -6,7 +6,6 @@
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
 
-#include "barretenberg/common/serialize.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
@@ -43,19 +42,19 @@ template <typename NCT> struct TxContext {
                version == other.version;
     };
 
-    template <typename Composer> TxContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> TxContext<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
-        // auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
+        // auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(builder); };
 
-        TxContext<CircuitTypes<Composer>> tx_context = {
+        TxContext<CircuitTypes<Builder>> tx_context = {
             to_ct(is_fee_payment_tx),
             to_ct(is_rebate_payment_tx),
             to_ct(is_contract_deployment_tx),
-            contract_deployment_data.to_circuit_type(composer),
+            contract_deployment_data.to_circuit_type(builder),
             to_ct(chain_id),
             to_ct(version),
         };
@@ -63,11 +62,11 @@ template <typename NCT> struct TxContext {
         return tx_context;
     };
 
-    template <typename Composer> TxContext<NativeTypes> to_native_type() const
+    template <typename Builder> TxContext<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
-        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
 
         TxContext<NativeTypes> tx_context = { to_nt(is_fee_payment_tx),
                                               to_nt(is_rebate_payment_tx),

@@ -8,8 +8,8 @@
 // namespace aztec3::circuits::apps {
 
 // namespace {
-// using Composer = aztec3::utils::types:plonk::stdlib::types::Composer;
-// using CT = aztec3::utils::types::CircuitTypes<Composer>;
+// using Builder = aztec3::utils::types:plonk::stdlib::types::Builder;
+// using CT = aztec3::utils::types::CircuitTypes<Builder>;
 // using NT = aztec3::utils::types::NativeTypes;
 // // using plonk::stdlib::pedersen;
 // } // namespace

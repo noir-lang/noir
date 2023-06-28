@@ -30,15 +30,15 @@ template <typename NCT> struct GlobalVariables {
                timestamp == other.timestamp;
     };
 
-    template <typename Composer> GlobalVariables<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> GlobalVariables<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
-        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        // Capture the builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(builder); };
 
-        GlobalVariables<CircuitTypes<Composer>> globals = {
+        GlobalVariables<CircuitTypes<Builder>> globals = {
             to_ct(chain_id),
             to_ct(version),
             to_ct(block_number),

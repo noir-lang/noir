@@ -27,22 +27,16 @@ using aztec3::circuits::silo_nullifier;
 
 // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // private_call.call_stack_item.public_inputs!
-CT::AggregationObject verify_proofs(Composer& composer,
-                                    PrivateKernelInputsInner<CT> const& private_inputs,
-                                    size_t const& num_private_call_public_inputs,
-                                    size_t const& num_private_kernel_public_inputs)
+CT::AggregationObject verify_proofs(Builder& builder, PrivateKernelInputsInner<CT> const& private_inputs)
 {
     // compute P0, P1 for private function proof
-    CT::AggregationObject aggregation_object = Aggregator::aggregate(
-        &composer, private_inputs.private_call.vk, private_inputs.private_call.proof, num_private_call_public_inputs);
+    CT::AggregationObject aggregation_object =
+        Aggregator::aggregate(&builder, private_inputs.private_call.vk, private_inputs.private_call.proof);
 
     // computes P0, P1 for previous kernel proof
     // AND accumulates all of it in P0_agg, P1_agg
-    Aggregator::aggregate(&composer,
-                          private_inputs.previous_kernel.vk,
-                          private_inputs.previous_kernel.proof,
-                          num_private_kernel_public_inputs,
-                          aggregation_object);
+    Aggregator::aggregate(
+        &builder, private_inputs.previous_kernel.vk, private_inputs.previous_kernel.proof, aggregation_object);
 
     return aggregation_object;
 }
@@ -98,8 +92,8 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
     const auto& is_static_call = private_call_public_inputs.call_context.is_static_call;
 
     // No state changes are allowed for static calls:
-    is_static_call.must_imply(is_array_empty<Composer>(new_commitments) == true);
-    is_static_call.must_imply(is_array_empty<Composer>(new_nullifiers) == true);
+    is_static_call.must_imply(is_array_empty<Builder>(new_commitments) == true);
+    is_static_call.must_imply(is_array_empty<Builder>(new_nullifiers) == true);
 
     // TODO: name change (just contract_address)
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -141,7 +135,7 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
         // push the contract address nullifier to nullifier vector
         CT::fr const conditional_contract_address_nullifier =
             CT::fr::conditional_assign(is_contract_deployment, contract_address_nullifier, CT::fr(0));
-        array_push<Composer>(public_inputs.end.new_nullifiers, conditional_contract_address_nullifier);
+        array_push<Builder>(public_inputs.end.new_nullifiers, conditional_contract_address_nullifier);
 
         // Add new contract data if its a contract deployment function
         auto const new_contract_data = NewContractData<CT>{
@@ -150,8 +144,8 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
             .function_tree_root = contract_deployment_data.function_tree_root,
         };
 
-        array_push<Composer, NewContractData<CT>, KERNEL_NEW_CONTRACTS_LENGTH>(public_inputs.end.new_contracts,
-                                                                               new_contract_data);
+        array_push<Builder, NewContractData<CT>, KERNEL_NEW_CONTRACTS_LENGTH>(public_inputs.end.new_contracts,
+                                                                              new_contract_data);
     }
 
     {  // commitments, nullifiers, and contracts
@@ -167,14 +161,14 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
         }
 
         // Add new commitments/etc to AggregatedData
-        push_array_to_array<Composer>(siloed_new_commitments, public_inputs.end.new_commitments);
-        push_array_to_array<Composer>(siloed_new_nullifiers, public_inputs.end.new_nullifiers);
+        push_array_to_array<Builder>(siloed_new_commitments, public_inputs.end.new_commitments);
+        push_array_to_array<Builder>(siloed_new_nullifiers, public_inputs.end.new_nullifiers);
     }
 
     {  // call stacks
         // copy the private function circuit's callstack into the AggregatedData
         const auto& this_private_call_stack = private_call_public_inputs.private_call_stack;
-        push_array_to_array<Composer>(this_private_call_stack, public_inputs.end.private_call_stack);
+        push_array_to_array<Builder>(this_private_call_stack, public_inputs.end.private_call_stack);
     }
 
     // {
@@ -199,7 +193,7 @@ void validate_this_private_call_hash(PrivateKernelInputsInner<CT> const& private
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
     // and the 'gas rebate' tx).
-    const auto this_private_call_hash = array_pop<Composer>(start.private_call_stack);
+    const auto this_private_call_hash = array_pop<Builder>(start.private_call_stack);
     const auto calculated_this_private_call_hash = private_inputs.private_call.call_stack_item.hash();
 
     this_private_call_hash.assert_equal(calculated_this_private_call_hash, "this private_call_hash does not reconcile");
@@ -249,9 +243,9 @@ void validate_inputs(PrivateKernelInputsInner<CT> const& private_inputs, bool fi
     // These lengths are calculated by counting entries until a non-zero one is encountered
     // True array length is constant which is a property we need for circuit inputs,
     // but we want to know "length" in terms of how many nonzero entries have been inserted
-    CT::fr const start_private_call_stack_length = array_length<Composer>(start.private_call_stack);
-    CT::fr const start_public_call_stack_length = array_length<Composer>(start.public_call_stack);
-    CT::fr const start_new_l2_to_l1_msgs_length = array_length<Composer>(start.new_l2_to_l1_msgs);
+    CT::fr const start_private_call_stack_length = array_length<Builder>(start.private_call_stack);
+    CT::fr const start_public_call_stack_length = array_length<Builder>(start.public_call_stack);
+    CT::fr const start_new_l2_to_l1_msgs_length = array_length<Builder>(start.new_l2_to_l1_msgs);
 
     // Recall: we can't do traditional `if` statements in a circuit; all code paths are always executed. The below is
     // some syntactic sugar, which seeks readability similar to an `if` statement.
@@ -312,14 +306,14 @@ void validate_inputs(PrivateKernelInputsInner<CT> const& private_inputs, bool fi
 // TODO: decide what to return.
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
-KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer,
+KernelCircuitPublicInputs<NT> private_kernel_circuit(Builder& builder,
                                                      PrivateKernelInputsInner<NT> const& _private_inputs,
                                                      bool first_iteration)
 {
-    const PrivateKernelInputsInner<CT> private_inputs = _private_inputs.to_circuit_type(composer);
+    const PrivateKernelInputsInner<CT> private_inputs = _private_inputs.to_circuit_type(builder);
 
     // We'll be pushing data to this during execution of this circuit.
-    KernelCircuitPublicInputs<CT> public_inputs = KernelCircuitPublicInputs<NT>{}.to_circuit_type(composer);
+    KernelCircuitPublicInputs<CT> public_inputs = KernelCircuitPublicInputs<NT>{}.to_circuit_type(builder);
 
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs, public_inputs);
@@ -334,10 +328,7 @@ KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer,
 
     update_end_values(private_inputs, public_inputs);
 
-    auto aggregation_object = verify_proofs(composer,
-                                            private_inputs,
-                                            _private_inputs.private_call.vk->num_public_inputs,
-                                            _private_inputs.previous_kernel.vk->num_public_inputs);
+    auto aggregation_object = verify_proofs(builder, private_inputs);
 
     // TODO: kernel vk membership check!
 
@@ -345,7 +336,7 @@ KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer,
 
     public_inputs.set_public();
 
-    return public_inputs.to_native_type<Composer>();
+    return public_inputs.to_native_type<Builder>();
 };
 
 }  // namespace aztec3::circuits::kernel::private_kernel

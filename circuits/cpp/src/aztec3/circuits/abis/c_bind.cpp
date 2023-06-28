@@ -511,7 +511,7 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_combined_accumulated_data
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_signature(uint8_t const* input, uint32_t* size)
 {
-    return as_string_output<NT::ecdsa_signature>(input, size);
+    return as_string_output<NT::schnorr_signature>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs_inner(uint8_t const* input, uint32_t* size)

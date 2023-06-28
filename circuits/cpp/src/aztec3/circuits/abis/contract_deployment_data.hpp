@@ -37,16 +37,15 @@ template <typename NCT> struct ContractDeploymentData {
                portal_contract_address == other.portal_contract_address;
     };
 
-    template <typename Composer>
-    ContractDeploymentData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> ContractDeploymentData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        ContractDeploymentData<CircuitTypes<Composer>> data = {
-            deployer_public_key.to_circuit_type(composer),
+        ContractDeploymentData<CircuitTypes<Builder>> data = {
+            deployer_public_key.to_circuit_type(builder),
             to_ct(constructor_vk_hash),
             to_ct(function_tree_root),
             to_ct(contract_address_salt),
@@ -56,11 +55,11 @@ template <typename NCT> struct ContractDeploymentData {
         return data;
     };
 
-    template <typename Composer> ContractDeploymentData<NativeTypes> to_native_type() const
+    template <typename Builder> ContractDeploymentData<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
-        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
 
         ContractDeploymentData<NativeTypes> call_context = {
             to_native_type(deployer_public_key), to_nt(constructor_vk_hash),     to_nt(function_tree_root),
@@ -70,9 +69,9 @@ template <typename NCT> struct ContractDeploymentData {
         return call_context;
     };
 
-    template <typename Composer> void assert_is_zero()
+    template <typename Builder> void assert_is_zero()
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
         deployer_public_key.assert_is_zero();
         constructor_vk_hash.assert_is_zero();

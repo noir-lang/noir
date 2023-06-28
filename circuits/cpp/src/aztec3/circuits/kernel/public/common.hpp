@@ -9,7 +9,7 @@
 #include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/utils/array.hpp"
-#include "aztec3/utils/dummy_composer.hpp"
+#include "aztec3/utils/dummy_circuit_builder.hpp"
 
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::ContractStorageRead;
@@ -18,7 +18,7 @@ using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
 using aztec3::circuits::abis::PublicDataUpdateRequest;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 using aztec3::circuits::check_membership;
 using aztec3::circuits::compute_public_data_tree_index;
 using aztec3::circuits::compute_public_data_tree_value;
@@ -33,11 +33,11 @@ namespace aztec3::circuits::kernel::public_kernel {
 /**
  * @brief Validate that all pre-images on the call stack hash to equal the accumulated data
  * @tparam The type of kernel input
- * @param composer The circuit composer
+ * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
 template <typename KernelInput>
-void common_validate_call_stack(DummyComposer& composer, KernelInput const& public_kernel_inputs)
+void common_validate_call_stack(DummyBuilder& builder, KernelInput const& public_kernel_inputs)
 {
     // Ensures that the stack of pre-images corresponds to the call stack
     auto& stack = public_kernel_inputs.public_call.call_stack_item.public_inputs.public_call_stack;
@@ -67,7 +67,7 @@ void common_validate_call_stack(DummyComposer& composer, KernelInput const& publ
         const auto contract_being_called = preimage.contract_address;
 
         const auto calculated_hash = preimage.hash();
-        composer.do_assert(
+        builder.do_assert(
             hash == calculated_hash,
             format(
                 "public_call_stack[", i, "] = ", hash, "; does not reconcile with calculatedHash = ", calculated_hash),
@@ -77,46 +77,46 @@ void common_validate_call_stack(DummyComposer& composer, KernelInput const& publ
         // we need to consider regular vs delegate calls
         const auto preimage_msg_sender = preimage.public_inputs.call_context.msg_sender;
         const auto expected_msg_sender = is_delegate_call ? our_msg_sender : our_contract_address;
-        composer.do_assert(expected_msg_sender == preimage_msg_sender,
-                           format("call_stack_msg_sender[",
-                                  i,
-                                  "] = ",
-                                  preimage_msg_sender,
-                                  " expected ",
-                                  expected_msg_sender,
-                                  "; does not reconcile"),
-                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_MSG_SENDER);
+        builder.do_assert(expected_msg_sender == preimage_msg_sender,
+                          format("call_stack_msg_sender[",
+                                 i,
+                                 "] = ",
+                                 preimage_msg_sender,
+                                 " expected ",
+                                 expected_msg_sender,
+                                 "; does not reconcile"),
+                          CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_MSG_SENDER);
 
         // here we validate the storage address for each call on the stack
         // we need to consider regular vs delegate calls
         const auto preimage_storage_address = preimage.public_inputs.call_context.storage_contract_address;
         const auto expected_storage_address = is_delegate_call ? our_storage_address : contract_being_called;
-        composer.do_assert(expected_storage_address == preimage_storage_address,
-                           format("call_stack_storage_address[",
-                                  i,
-                                  "] = ",
-                                  preimage_storage_address,
-                                  " expected ",
-                                  expected_storage_address,
-                                  "; does not reconcile"),
-                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_STORAGE_ADDRESS);
+        builder.do_assert(expected_storage_address == preimage_storage_address,
+                          format("call_stack_storage_address[",
+                                 i,
+                                 "] = ",
+                                 preimage_storage_address,
+                                 " expected ",
+                                 expected_storage_address,
+                                 "; does not reconcile"),
+                          CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_STORAGE_ADDRESS);
 
         // if it is a delegate call then we check that the portal contract in the pre image is our portal contract
         const auto preimage_portal_address = preimage.public_inputs.call_context.portal_contract_address;
         const auto expected_portal_address = our_portal_contract_address;
-        composer.do_assert(!is_delegate_call || expected_portal_address == preimage_portal_address,
-                           format("call_stack_portal_address[",
-                                  i,
-                                  "] = ",
-                                  preimage_portal_address,
-                                  " expected ",
-                                  expected_portal_address,
-                                  "; does not reconcile"),
-                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_PORTAL_ADDRESS);
+        builder.do_assert(!is_delegate_call || expected_portal_address == preimage_portal_address,
+                          format("call_stack_portal_address[",
+                                 i,
+                                 "] = ",
+                                 preimage_portal_address,
+                                 " expected ",
+                                 expected_portal_address,
+                                 "; does not reconcile"),
+                          CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_PORTAL_ADDRESS);
 
         const auto num_contract_storage_update_requests =
             array_length(preimage.public_inputs.contract_storage_update_requests);
-        composer.do_assert(
+        builder.do_assert(
             !is_static_call || num_contract_storage_update_requests == 0,
             format("contract_storage_update_requests[", i, "] should be empty"),
             CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_CONTRACT_STORAGE_UPDATES_PROHIBITED_FOR_STATIC_CALL);
@@ -126,11 +126,11 @@ void common_validate_call_stack(DummyComposer& composer, KernelInput const& publ
 /**
  * @brief Validates the call context of the current iteration
  * @tparam The type of kernel input
- * @param composer The circuit composer
+ * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
 template <typename KernelInput>
-void common_validate_call_context(DummyComposer& composer, KernelInput const& public_kernel_inputs)
+void common_validate_call_context(DummyBuilder& builder, KernelInput const& public_kernel_inputs)
 {
     const auto& call_stack_item = public_kernel_inputs.public_call.call_stack_item;
     const auto is_delegate_call = call_stack_item.public_inputs.call_context.is_delegate_call;
@@ -140,11 +140,11 @@ void common_validate_call_context(DummyComposer& composer, KernelInput const& pu
     const auto contract_storage_update_requests_length =
         array_length(call_stack_item.public_inputs.contract_storage_update_requests);
 
-    composer.do_assert(!is_delegate_call || contract_address != storage_contract_address,
-                       std::string("call_context contract_address == storage_contract_address on delegate_call"),
-                       CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
+    builder.do_assert(!is_delegate_call || contract_address != storage_contract_address,
+                      std::string("call_context contract_address == storage_contract_address on delegate_call"),
+                      CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
 
-    composer.do_assert(
+    builder.do_assert(
         !is_static_call || contract_storage_update_requests_length == 0,
         std::string("call_context contract storage update requests found on static call"),
         CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_CONTRACT_STORAGE_UPDATE_REQUESTS_PROHIBITED_FOR_STATIC_CALL);
@@ -153,49 +153,49 @@ void common_validate_call_context(DummyComposer& composer, KernelInput const& pu
 /**
  * @brief Validates the kernel execution of the current iteration
  * @tparam The type of kernel input
- * @param composer The circuit composer
+ * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
 template <typename KernelInput>
-void common_validate_kernel_execution(DummyComposer& composer, KernelInput const& public_kernel_inputs)
+void common_validate_kernel_execution(DummyBuilder& builder, KernelInput const& public_kernel_inputs)
 {
-    common_validate_call_context(composer, public_kernel_inputs);
-    common_validate_call_stack(composer, public_kernel_inputs);
+    common_validate_call_context(builder, public_kernel_inputs);
+    common_validate_call_stack(builder, public_kernel_inputs);
 };
 
 /**
  * @brief Validates inputs to the kernel circuit that are common to all invocation scenarios
  * @tparam The type of kernel input
- * @param composer The circuit composer
+ * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
 template <typename KernelInput>
-void common_validate_inputs(DummyComposer& composer, KernelInput const& public_kernel_inputs)
+void common_validate_inputs(DummyBuilder& builder, KernelInput const& public_kernel_inputs)
 {
     // Validates commons inputs for all type of kernel inputs
     const auto& this_call_stack_item = public_kernel_inputs.public_call.call_stack_item;
-    composer.do_assert(this_call_stack_item.public_inputs.call_context.is_contract_deployment == false,
-                       "Contract deployment can't be a public function",
-                       CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_DEPLOYMENT_NOT_ALLOWED);
-    composer.do_assert(this_call_stack_item.contract_address != 0,
-                       "Contract address must be valid",
-                       CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_ADDRESS_INVALID);
-    composer.do_assert(this_call_stack_item.function_data.function_selector != 0,
-                       "Function signature must be valid",
-                       CircuitErrorCode::PUBLIC_KERNEL__FUNCTION_SIGNATURE_INVALID);
-    composer.do_assert(this_call_stack_item.function_data.is_constructor == false,
-                       "Constructors can't be public functions",
-                       CircuitErrorCode::PUBLIC_KERNEL__CONSTRUCTOR_NOT_ALLOWED);
-    composer.do_assert(this_call_stack_item.function_data.is_private == false,
-                       "Cannot execute a private function with the public kernel circuit",
-                       CircuitErrorCode::PUBLIC_KERNEL__PRIVATE_FUNCTION_NOT_ALLOWED);
-    composer.do_assert(public_kernel_inputs.public_call.bytecode_hash != 0,
-                       "Bytecode hash must be valid",
-                       CircuitErrorCode::PUBLIC_KERNEL__BYTECODE_HASH_INVALID);
+    builder.do_assert(this_call_stack_item.public_inputs.call_context.is_contract_deployment == false,
+                      "Contract deployment can't be a public function",
+                      CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_DEPLOYMENT_NOT_ALLOWED);
+    builder.do_assert(this_call_stack_item.contract_address != 0,
+                      "Contract address must be valid",
+                      CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_ADDRESS_INVALID);
+    builder.do_assert(this_call_stack_item.function_data.function_selector != 0,
+                      "Function signature must be valid",
+                      CircuitErrorCode::PUBLIC_KERNEL__FUNCTION_SIGNATURE_INVALID);
+    builder.do_assert(this_call_stack_item.function_data.is_constructor == false,
+                      "Constructors can't be public functions",
+                      CircuitErrorCode::PUBLIC_KERNEL__CONSTRUCTOR_NOT_ALLOWED);
+    builder.do_assert(this_call_stack_item.function_data.is_private == false,
+                      "Cannot execute a private function with the public kernel circuit",
+                      CircuitErrorCode::PUBLIC_KERNEL__PRIVATE_FUNCTION_NOT_ALLOWED);
+    builder.do_assert(public_kernel_inputs.public_call.bytecode_hash != 0,
+                      "Bytecode hash must be valid",
+                      CircuitErrorCode::PUBLIC_KERNEL__BYTECODE_HASH_INVALID);
 }
 
-template <typename KernelInput, typename Composer>
-void perform_static_call_checks(Composer& composer, KernelInput const& public_kernel_inputs)
+template <typename KernelInput, typename Builder>
+void perform_static_call_checks(Builder& builder, KernelInput const& public_kernel_inputs)
 {
     // If the call is a static call, there should be no new commitments or nullifiers.
     const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
@@ -205,12 +205,12 @@ void perform_static_call_checks(Composer& composer, KernelInput const& public_ke
     const auto& new_nullifiers = public_call_public_inputs.new_nullifiers;
 
     if (is_static_call) {
-        composer.do_assert(utils::is_array_empty(new_commitments) == true,
-                           "perform_static_call_checks in static call new commitments must be empty",
-                           CircuitErrorCode::PUBLIC_KERNEL__NEW_COMMITMENTS_PROHIBITED_IN_STATIC_CALL);
-        composer.do_assert(utils::is_array_empty(new_nullifiers) == true,
-                           "perform_static_call_checks in static call new nullifiers must be empty",
-                           CircuitErrorCode::PUBLIC_KERNEL__NEW_NULLIFIERS_PROHIBITED_IN_STATIC_CALL);
+        builder.do_assert(utils::is_array_empty(new_commitments) == true,
+                          "perform_static_call_checks in static call new commitments must be empty",
+                          CircuitErrorCode::PUBLIC_KERNEL__NEW_COMMITMENTS_PROHIBITED_IN_STATIC_CALL);
+        builder.do_assert(utils::is_array_empty(new_nullifiers) == true,
+                          "perform_static_call_checks in static call new nullifiers must be empty",
+                          CircuitErrorCode::PUBLIC_KERNEL__NEW_NULLIFIERS_PROHIBITED_IN_STATIC_CALL);
     }
 }
 
@@ -220,8 +220,8 @@ void perform_static_call_checks(Composer& composer, KernelInput const& public_ke
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput, typename Composer>
-void propagate_valid_public_data_update_requests(Composer& composer,
+template <typename KernelInput, typename Builder>
+void propagate_valid_public_data_update_requests(Builder& builder,
                                                  KernelInput const& public_kernel_inputs,
                                                  KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
@@ -238,7 +238,7 @@ void propagate_valid_public_data_update_requests(Composer& composer,
             .old_value = compute_public_data_tree_value<NT>(update_request.old_value),
             .new_value = compute_public_data_tree_value<NT>(update_request.new_value),
         };
-        array_push(composer, circuit_outputs.end.public_data_update_requests, new_write);
+        array_push(builder, circuit_outputs.end.public_data_update_requests, new_write);
     }
 }
 
@@ -248,8 +248,8 @@ void propagate_valid_public_data_update_requests(Composer& composer,
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput, typename Composer>
-void propagate_valid_public_data_reads(Composer& composer,
+template <typename KernelInput, typename Builder>
+void propagate_valid_public_data_reads(Builder& builder,
                                        KernelInput const& public_kernel_inputs,
                                        KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
@@ -264,7 +264,7 @@ void propagate_valid_public_data_reads(Composer& composer,
             .leaf_index = compute_public_data_tree_index<NT>(contract_address, contract_storage_read.storage_slot),
             .value = compute_public_data_tree_value<NT>(contract_storage_read.current_value),
         };
-        array_push(composer, circuit_outputs.end.public_data_reads, new_read);
+        array_push(builder, circuit_outputs.end.public_data_reads, new_read);
     }
 }
 
@@ -272,12 +272,12 @@ void propagate_valid_public_data_reads(Composer& composer,
  * @brief Propagates new commitments from this iteration to the circuit output.
  *
  * @tparam The type of the kernel input
- * @tparam The composer type
+ * @tparam The builder type
  * @param public_kernel_inputs The inputs to this iteration to the kernel circuit.
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput, typename Composer>
-void propagate_new_commitments(Composer& composer,
+template <typename KernelInput, typename Builder>
+void propagate_new_commitments(Builder& builder,
                                KernelInput const& public_kernel_inputs,
                                KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
@@ -294,19 +294,19 @@ void propagate_new_commitments(Composer& composer,
         }
     }
 
-    push_array_to_array(composer, siloed_new_commitments, circuit_outputs.end.new_commitments);
+    push_array_to_array(builder, siloed_new_commitments, circuit_outputs.end.new_commitments);
 }
 
 /**
  * @brief Propagates new nullifiers from this iteration to the circuit output.
  *
  * @tparam The type of the kernel input
- * @tparam The composer type
+ * @tparam The builder type
  * @param public_kernel_inputs The inputs to this iteration to the kernel circuit.
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput, typename Composer>
-void propagate_new_nullifiers(Composer& composer,
+template <typename KernelInput, typename Builder>
+void propagate_new_nullifiers(Builder& builder,
                               KernelInput const& public_kernel_inputs,
                               KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
@@ -323,7 +323,7 @@ void propagate_new_nullifiers(Composer& composer,
         }
     }
 
-    push_array_to_array(composer, siloed_new_nullifiers, circuit_outputs.end.new_nullifiers);
+    push_array_to_array(builder, siloed_new_nullifiers, circuit_outputs.end.new_nullifiers);
 }
 
 /**
@@ -333,8 +333,8 @@ void propagate_new_nullifiers(Composer& composer,
  * @param public_kernel_inputs The inputs to this iteration to the kernel circuit.
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput, typename Composer>
-void propagate_new_l2_to_l1_messages(Composer& composer,
+template <typename KernelInput, typename Builder>
+void propagate_new_l2_to_l1_messages(Builder& builder,
                                      KernelInput const& public_kernel_inputs,
                                      KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
@@ -358,7 +358,7 @@ void propagate_new_l2_to_l1_messages(Composer& composer,
                                                                        new_l2_to_l1_msgs[i]);
         }
     }
-    push_array_to_array(composer, new_l2_to_l1_msgs_to_insert, circuit_outputs.end.new_l2_to_l1_msgs);
+    push_array_to_array(builder, new_l2_to_l1_msgs_to_insert, circuit_outputs.end.new_l2_to_l1_msgs);
 }
 
 /**
@@ -393,12 +393,12 @@ template <typename NT> void accumulate_unencrypted_logs(PublicKernelInputs<NT> c
 /**
  * @brief Propagates valid (i.e. non-empty) public data reads from this iteration to the circuit output
  * @tparam The type of kernel input
- * @tparam The current composer
+ * @tparam The current builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated
  */
-template <typename KernelInput, typename Composer>
-void common_update_public_end_values(Composer& composer,
+template <typename KernelInput, typename Builder>
+void common_update_public_end_values(Builder& builder,
                                      KernelInput const& public_kernel_inputs,
                                      KernelCircuitPublicInputs<NT>& circuit_outputs)
 {
@@ -406,19 +406,19 @@ void common_update_public_end_values(Composer& composer,
     circuit_outputs.is_private = false;
 
     // If this call is a static call, certain operations are disallowed, such as creating new state.
-    perform_static_call_checks(composer, public_kernel_inputs);
+    perform_static_call_checks(builder, public_kernel_inputs);
 
     const auto& stack = public_kernel_inputs.public_call.call_stack_item.public_inputs.public_call_stack;
-    push_array_to_array(composer, stack, circuit_outputs.end.public_call_stack);
+    push_array_to_array(builder, stack, circuit_outputs.end.public_call_stack);
 
-    propagate_new_commitments(composer, public_kernel_inputs, circuit_outputs);
-    propagate_new_nullifiers(composer, public_kernel_inputs, circuit_outputs);
+    propagate_new_commitments(builder, public_kernel_inputs, circuit_outputs);
+    propagate_new_nullifiers(builder, public_kernel_inputs, circuit_outputs);
 
-    propagate_new_l2_to_l1_messages(composer, public_kernel_inputs, circuit_outputs);
+    propagate_new_l2_to_l1_messages(builder, public_kernel_inputs, circuit_outputs);
 
-    propagate_valid_public_data_update_requests(composer, public_kernel_inputs, circuit_outputs);
+    propagate_valid_public_data_update_requests(builder, public_kernel_inputs, circuit_outputs);
 
-    propagate_valid_public_data_reads(composer, public_kernel_inputs, circuit_outputs);
+    propagate_valid_public_data_reads(builder, public_kernel_inputs, circuit_outputs);
 }
 
 /**
@@ -431,11 +431,11 @@ void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_in
 
 /**
  * @brief Validates that the call stack item for this circuit iteration is at the top of the call stack
- * @param composer The circuit composer
+ * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param public_inputs The circuit outputs
  */
-void validate_this_public_call_hash(DummyComposer& composer,
+void validate_this_public_call_hash(DummyBuilder& builder,
                                     PublicKernelInputs<NT> const& public_kernel_inputs,
                                     KernelCircuitPublicInputs<NT>& public_inputs);
 }  // namespace aztec3::circuits::kernel::public_kernel

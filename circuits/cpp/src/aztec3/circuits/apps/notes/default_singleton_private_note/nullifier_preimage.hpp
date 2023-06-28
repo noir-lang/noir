@@ -21,15 +21,15 @@ template <typename NCT> struct DefaultSingletonPrivateNoteNullifierPreimage {
 
     bool operator==(DefaultSingletonPrivateNoteNullifierPreimage<NCT> const&) const = default;
 
-    template <typename Composer>
-    DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder>
+    DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Composer>> preimage = {
+        DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Builder>> preimage = {
             to_ct(commitment),
             to_ct(owner_private_key),
             to_ct(is_dummy),

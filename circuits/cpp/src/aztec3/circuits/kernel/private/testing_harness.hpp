@@ -28,14 +28,14 @@ using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
 
 
-using DummyComposer = aztec3::utils::DummyComposer;
+using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 
 using aztec3::utils::zero_array;
 
 // A type representing any private circuit function
 // (for now it works for deposit and constructor)
 using private_function = std::function<OptionalPrivateCircuitPublicInputs<NT>(
-    FunctionExecutionContext<aztec3::circuits::kernel::private_kernel::Composer>&, std::vector<NT::fr> const&)>;
+    FunctionExecutionContext<aztec3::circuits::kernel::private_kernel::Builder>&, std::vector<NT::fr> const&)>;
 
 }  // namespace
 

@@ -30,24 +30,24 @@ template <typename NCT> struct NewContractData {
         return utils::msgpack_derived_equals<boolean>(*this, other);
     };
 
-    template <typename Composer> NewContractData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> NewContractData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        NewContractData<CircuitTypes<Composer>> new_contract_data = { to_ct(contract_address),
-                                                                      to_ct(portal_contract_address),
-                                                                      to_ct(function_tree_root) };
+        NewContractData<CircuitTypes<Builder>> new_contract_data = { to_ct(contract_address),
+                                                                     to_ct(portal_contract_address),
+                                                                     to_ct(function_tree_root) };
 
         return new_contract_data;
     };
 
-    template <typename Composer> NewContractData<NativeTypes> to_native_type() const
+    template <typename Builder> NewContractData<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
 
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         NewContractData<NativeTypes> new_contract_data = { to_nt(contract_address),
                                                            to_nt(portal_contract_address),

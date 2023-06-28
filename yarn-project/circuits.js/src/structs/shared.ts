@@ -26,13 +26,14 @@ export class Vector<T extends Bufferable> {
 export type UInt32 = number;
 
 /**
- * Composer prover type.
+ * CircuitType replaces ComposerType for now. When using Plonk, CircuitType is equivalent to the information of the proving system that will be used
+ * to construct a proof. In the future Aztec zk stack, more information must be specified (e.g., the curve over which circuits are  constructed;
+ * Plonk vs Honk; zk-SNARK or just SNARK; etc).
  */
-export enum ComposerType {
+export enum CircuitType {
   STANDARD = 0,
   TURBO = 1,
-  PLOOKUP = 2,
-  STANDARD_HONK = 3,
+  ULTRA = 2,
 }
 
 /**

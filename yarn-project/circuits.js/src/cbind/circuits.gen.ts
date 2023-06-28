@@ -816,7 +816,7 @@ export function fromKernelCircuitPublicInputs(o: KernelCircuitPublicInputs): Msg
 }
 
 interface MsgpackVerificationKeyData {
-  composer_type: number;
+  circuit_type: number;
   circuit_size: number;
   num_public_inputs: number;
   commitments: Record<string, MsgpackG1AffineElement>;
@@ -825,8 +825,8 @@ interface MsgpackVerificationKeyData {
 }
 
 export function toVerificationKeyData(o: MsgpackVerificationKeyData): VerificationKeyData {
-  if (o.composer_type === undefined) {
-    throw new Error('Expected composer_type in VerificationKeyData deserialization');
+  if (o.circuit_type === undefined) {
+    throw new Error('Expected circuit_type in VerificationKeyData deserialization');
   }
   if (o.circuit_size === undefined) {
     throw new Error('Expected circuit_size in VerificationKeyData deserialization');
@@ -844,7 +844,7 @@ export function toVerificationKeyData(o: MsgpackVerificationKeyData): Verificati
     throw new Error('Expected recursive_proof_public_input_indices in VerificationKeyData deserialization');
   }
   return new VerificationKeyData(
-    o.composer_type,
+    o.circuit_type,
     o.circuit_size,
     o.num_public_inputs,
     mapValues(o.commitments, (v: MsgpackG1AffineElement) => toG1AffineElement(v)),
@@ -854,8 +854,8 @@ export function toVerificationKeyData(o: MsgpackVerificationKeyData): Verificati
 }
 
 export function fromVerificationKeyData(o: VerificationKeyData): MsgpackVerificationKeyData {
-  if (o.composerType === undefined) {
-    throw new Error('Expected composerType in VerificationKeyData serialization');
+  if (o.circuitType === undefined) {
+    throw new Error('Expected circuitType in VerificationKeyData serialization');
   }
   if (o.circuitSize === undefined) {
     throw new Error('Expected circuitSize in VerificationKeyData serialization');
@@ -873,7 +873,7 @@ export function fromVerificationKeyData(o: VerificationKeyData): MsgpackVerifica
     throw new Error('Expected recursiveProofPublicInputIndices in VerificationKeyData serialization');
   }
   return {
-    composer_type: o.composerType,
+    circuit_type: o.circuitType,
     circuit_size: o.circuitSize,
     num_public_inputs: o.numPublicInputs,
     commitments: mapValues(o.commitments, (v: G1AffineElement) => fromG1AffineElement(v)),

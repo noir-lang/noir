@@ -198,7 +198,7 @@ The core Aztec 3 C++ code lives in `cpp/src/aztec3/`, and is split into the foll
   - `rollup`: rollup circuits, their interfaces, and thier tests
   - `recursion`: types and examples for aggregation of recursive proof objects
   - `mock`: mock circuits
-- `oracle`: used to fetch external information (like private data notes) and inject them as inputs into the circuit "Composer" during execution of circuit logic ([more here](https://github.com/AztecProtocol/aztec3-packages/tree/master/circuits/cpp/src/aztec3/oracle))
+- `oracle`: used to fetch external information (like private data notes) and inject them as inputs into the circuit during execution of circuit logic ([more here](https://github.com/AztecProtocol/aztec3-packages/tree/master/circuits/cpp/src/aztec3/oracle))
 - `dbs`: database infrastructure (_e.g._ PrivateStateDb)
 
 ### Typescript

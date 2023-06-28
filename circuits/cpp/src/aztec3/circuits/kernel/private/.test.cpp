@@ -59,11 +59,11 @@ TEST_F(private_kernel_tests, basic)
                                                                          true);
 
     // Execute and prove the first kernel iteration
-    Composer private_kernel_composer("../barretenberg/cpp/srs_db/ignition");
-    auto const& public_inputs = private_kernel_circuit(private_kernel_composer, private_inputs, true);
+    Builder private_kernel_builder;
+    auto const& public_inputs = private_kernel_circuit(private_kernel_builder, private_inputs, true);
 
     // Check the private kernel circuit
-    EXPECT_TRUE(private_kernel_composer.circuit_constructor.check_circuit());
+    EXPECT_TRUE(private_kernel_builder.check_circuit());
 }
 
 /**
@@ -88,8 +88,8 @@ TEST_F(private_kernel_tests, circuit_cbinds)
                                                                         encrypted_log_preimages_length,
                                                                         unencrypted_log_preimages_length,
                                                                         true);
-    DummyComposer composer = DummyComposer("private_kernel_tests__circuit_create_proof_cbinds");
-    auto const& public_inputs = native_private_kernel_circuit_initial(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__circuit_create_proof_cbinds");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
 
     // serialize expected public inputs for later comparison
     std::vector<uint8_t> expected_public_inputs_vec;
@@ -114,7 +114,7 @@ TEST_F(private_kernel_tests, circuit_cbinds)
     std::vector<uint8_t> private_constructor_call_vec;
     write(private_constructor_call_vec, private_inputs.private_call);
 
-    uint8_t const* proof_data_buf = nullptr;
+    // uint8_t const* proof_data_buf = nullptr;
     uint8_t const* public_inputs_buf = nullptr;
     size_t public_inputs_size = 0;
     // info("Simulating to generate public inputs...");

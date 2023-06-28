@@ -40,14 +40,14 @@ template <typename NCT> struct CallContext {
         return utils::msgpack_derived_equals<boolean>(*this, other);
     };
 
-    template <typename Composer> CallContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> CallContext<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        CallContext<CircuitTypes<Composer>> call_context = {
+        CallContext<CircuitTypes<Builder>> call_context = {
             to_ct(msg_sender),       to_ct(storage_contract_address), to_ct(portal_contract_address),
             to_ct(is_delegate_call), to_ct(is_static_call),           to_ct(is_contract_deployment),
 
@@ -56,10 +56,10 @@ template <typename NCT> struct CallContext {
         return call_context;
     };
 
-    template <typename Composer> CallContext<NativeTypes> to_native_type() const
+    template <typename Builder> CallContext<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         CallContext<NativeTypes> call_context = {
             to_nt(msg_sender),       to_nt(storage_contract_address), to_nt(portal_contract_address),
@@ -79,9 +79,9 @@ template <typename NCT> struct CallContext {
         return NCT::compress(inputs, GeneratorIndex::CALL_CONTEXT);
     }
 
-    template <typename Composer> void assert_is_zero()
+    template <typename Builder> void assert_is_zero()
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
         msg_sender.to_field().assert_is_zero();
         storage_contract_address.to_field().assert_is_zero();

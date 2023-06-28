@@ -12,7 +12,7 @@ auto _compare_msgpack_tuples(const Tuple1& t1, const Tuple2& t2, std::index_sequ
 
 // Function to check equality of msgpack objects based on their values.
 // Normally, you should instead use operator==() = default;
-// BoolLike represents a type like the boolean<Composer> DSL type
+// BoolLike represents a type like the boolean<Builder> DSL type
 template <typename BoolLike, typename T> BoolLike msgpack_derived_equals(const T& obj1, const T& obj2)
 {
     BoolLike are_equal;

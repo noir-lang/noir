@@ -50,14 +50,13 @@ TEST_F(native_private_kernel_inner_tests, private_function_zero_storage_contract
         private_inputs.private_call.call_stack_item.hash();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__private_function_zero_storage_contract_address_fails");
-    native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_zero_storage_contract_address_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
+    EXPECT_EQ(builder.get_first_failure().message,
               "contract address can't be 0 for non-contract deployment related transactions");
 }
 
@@ -70,15 +69,15 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_tr
         .contract_tree_root = NT::fr::random_element();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer = DummyComposer("private_kernel_tests__private_function_incorrect_contract_tree_root_fails");
-    native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_incorrect_contract_tree_root_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
+    EXPECT_TRUE(builder.failed());
     EXPECT_EQ(
-        composer.get_first_failure().code,
+        builder.get_first_failure().code,
         CircuitErrorCode::PRIVATE_KERNEL__PURPORTED_CONTRACT_TREE_ROOT_AND_PREVIOUS_KERNEL_CONTRACT_TREE_ROOT_MISMATCH);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root");
 }
 
@@ -91,15 +90,14 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_le
     private_inputs.private_call.contract_leaf_membership_witness.leaf_index = wrong_idx;
 
     // Invoke the native private kernel circuit
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__private_function_incorrect_contract_leaf_index_fails");
-    native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_incorrect_contract_leaf_index_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "computed_contract_tree_root doesn't match purported_contract_tree_root");
 }
 
@@ -111,15 +109,15 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_le
     private_inputs.private_call.contract_leaf_membership_witness.sibling_path[0] = fr::random_element();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__private_function_incorrect_contract_leaf_sibling_path_fails");
-    native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder =
+        DummyBuilder("private_kernel_tests__private_function_incorrect_contract_leaf_sibling_path_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "computed_contract_tree_root doesn't match purported_contract_tree_root");
 }
 
@@ -132,15 +130,14 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_function_le
     private_inputs.private_call.function_leaf_membership_witness.leaf_index = wrong_idx;
 
     // Invoke the native private kernel circuit
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__private_function_incorrect_contract_leaf_index_fails");
-    native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_incorrect_contract_leaf_index_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "computed_contract_tree_root doesn't match purported_contract_tree_root");
 }
 
@@ -152,15 +149,15 @@ TEST_F(native_private_kernel_inner_tests, private_function_incorrect_function_le
     private_inputs.private_call.function_leaf_membership_witness.sibling_path[0] = fr::random_element();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__private_function_incorrect_contract_leaf_sibling_path_fails");
-    native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder =
+        DummyBuilder("private_kernel_tests__private_function_incorrect_contract_leaf_sibling_path_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "computed_contract_tree_root doesn't match purported_contract_tree_root");
 }
 
@@ -173,22 +170,21 @@ TEST_F(native_private_kernel_inner_tests, DISABLED_private_function_incorrect_ca
     private_inputs.private_call.call_stack_item.public_inputs.private_call_stack[0] = NT::fr::random_element();
 
     // Invoke the native private kernel circuit
-    DummyComposer composer =
-        DummyComposer("private_kernel_tests__private_function_incorrect_call_stack_item_hash_fails");
-    native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_incorrect_call_stack_item_hash_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     // Assertion checks
-    EXPECT_TRUE(composer.failed());
-    EXPECT_EQ(composer.get_first_failure().code,
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH);
-    EXPECT_EQ(composer.get_first_failure().message,
+    EXPECT_EQ(builder.get_first_failure().message,
               "calculated private_call_hash does not match provided private_call_hash at the top of the call stack");
 }
 
 TEST_F(native_private_kernel_inner_tests, private_kernel_should_fail_if_aggregating_too_many_commitments)
 {
     // Negative test to check if push_array_to_array fails if two many commitments are merged together
-    DummyComposer composer = DummyComposer("should_fail_if_aggregating_too_many_commitments");
+    DummyBuilder builder = DummyBuilder("should_fail_if_aggregating_too_many_commitments");
 
     PrivateKernelInputsInner<NT> private_inputs =
         do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
@@ -199,10 +195,10 @@ TEST_F(native_private_kernel_inner_tests, private_kernel_should_fail_if_aggregat
         full_new_commitments[i] = i + 1;
     }
     private_inputs.previous_kernel.public_inputs.end.new_commitments = full_new_commitments;
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
-    ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code, CircuitErrorCode::ARRAY_OVERFLOW);
+    ASSERT_TRUE(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code, CircuitErrorCode::ARRAY_OVERFLOW);
 }
 
 /**
@@ -238,13 +234,13 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_request)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_read_request_bad_request");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_read_request_bad_request");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 }
 
@@ -265,13 +261,13 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_leaf_index)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_read_request_bad_leaf_index");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_read_request_bad_leaf_index");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 }
 
@@ -292,13 +288,13 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_sibling_path)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_read_request_bad_sibling_path");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_read_request_bad_sibling_path");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 }
 
@@ -329,13 +325,13 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_root_mismatch)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = bad_requests;
     private_inputs.private_call.read_request_membership_witnesses = bad_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_read_request_root_mismatch");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_read_request_root_mismatch");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure().code,
+    ASSERT_TRUE(builder.failed());
+    ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 }
 
@@ -352,16 +348,16 @@ TEST_F(native_private_kernel_inner_tests, native_no_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_no_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_no_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 TEST_F(native_private_kernel_inner_tests, native_one_read_requests_works)
@@ -380,16 +376,16 @@ TEST_F(native_private_kernel_inner_tests, native_one_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_one_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_one_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 TEST_F(native_private_kernel_inner_tests, native_two_read_requests_works)
@@ -408,16 +404,16 @@ TEST_F(native_private_kernel_inner_tests, native_two_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_two_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_two_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 TEST_F(native_private_kernel_inner_tests, native_max_read_requests_works)
@@ -437,16 +433,16 @@ TEST_F(native_private_kernel_inner_tests, native_max_read_requests_works)
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_max_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_max_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 TEST_F(native_private_kernel_inner_tests, native_one_transient_read_requests_works)
@@ -467,17 +463,16 @@ TEST_F(native_private_kernel_inner_tests, native_one_transient_read_requests_wor
     read_request_membership_witnesses[0].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer =
-        DummyComposer("native_private_kernel_inner_tests__native_one_transient_read_requests_works");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_one_transient_read_requests_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 TEST_F(native_private_kernel_inner_tests, native_max_read_requests_one_transient_works)
@@ -501,17 +496,17 @@ TEST_F(native_private_kernel_inner_tests, native_max_read_requests_one_transient
     read_request_membership_witnesses[1].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
-    DummyComposer composer =
-        DummyComposer("native_private_kernel_inner_tests__native_max_read_requests_one_transient_works");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder =
+        DummyBuilder("native_private_kernel_inner_tests__native_max_read_requests_one_transient_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     validate_no_new_deployed_contract(public_inputs);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
 }
 
 TEST_F(native_private_kernel_inner_tests, native_logs_are_hashed_as_expected)
@@ -537,8 +532,8 @@ TEST_F(native_private_kernel_inner_tests, native_logs_are_hashed_as_expected)
                                                                   public_inputs_encrypted_log_preimages_length,
                                                                   public_inputs_unencrypted_log_preimages_length);
 
-    DummyComposer composer = DummyComposer("native_private_kernel_inner_tests__native_logs_are_hashed_as_expected");
-    auto const& public_inputs = native_private_kernel_circuit_inner(composer, private_inputs);
+    DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_logs_are_hashed_as_expected");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
 
     ASSERT_EQ(public_inputs.end.encrypted_log_preimages_length,
               encrypted_log_preimages_length + public_inputs_encrypted_log_preimages_length);

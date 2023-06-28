@@ -50,13 +50,13 @@ AggregationObject aggregate_proofs(BaseOrMergeRollupPublicInputs const& left,
  * @param left - The public inputs of the left rollup (base or merge)
  * @param right - The public inputs of the right rollup (base or merge)
  */
-void assert_both_input_proofs_of_same_rollup_type(DummyComposer& composer,
+void assert_both_input_proofs_of_same_rollup_type(DummyBuilder& builder,
                                                   BaseOrMergeRollupPublicInputs const& left,
                                                   BaseOrMergeRollupPublicInputs const& right)
 {
-    composer.do_assert(left.rollup_type == right.rollup_type,
-                       "input proofs are of different rollup types",
-                       utils::CircuitErrorCode::ROLLUP_TYPE_MISMATCH);
+    builder.do_assert(left.rollup_type == right.rollup_type,
+                      "input proofs are of different rollup types",
+                      utils::CircuitErrorCode::ROLLUP_TYPE_MISMATCH);
 }
 
 /**
@@ -66,13 +66,13 @@ void assert_both_input_proofs_of_same_rollup_type(DummyComposer& composer,
  * @param right - The public inputs of the right rollup (base or merge)
  * @return NT::fr - The height of the rollup subtrees
  */
-NT::fr assert_both_input_proofs_of_same_height_and_return(DummyComposer& composer,
+NT::fr assert_both_input_proofs_of_same_height_and_return(DummyBuilder& builder,
                                                           BaseOrMergeRollupPublicInputs const& left,
                                                           BaseOrMergeRollupPublicInputs const& right)
 {
-    composer.do_assert(left.rollup_subtree_height == right.rollup_subtree_height,
-                       "input proofs are of different rollup heights",
-                       utils::CircuitErrorCode::ROLLUP_HEIGHT_MISMATCH);
+    builder.do_assert(left.rollup_subtree_height == right.rollup_subtree_height,
+                      "input proofs are of different rollup heights",
+                      utils::CircuitErrorCode::ROLLUP_HEIGHT_MISMATCH);
     return left.rollup_subtree_height;
 }
 
@@ -82,13 +82,13 @@ NT::fr assert_both_input_proofs_of_same_height_and_return(DummyComposer& compose
  * @param left - The public inputs of the left rollup (base or merge)
  * @param right - The public inputs of the right rollup (base or merge)
  */
-void assert_equal_constants(DummyComposer& composer,
+void assert_equal_constants(DummyBuilder& builder,
                             BaseOrMergeRollupPublicInputs const& left,
                             BaseOrMergeRollupPublicInputs const& right)
 {
-    composer.do_assert(left.constants == right.constants,
-                       "input proofs have different constants",
-                       utils::CircuitErrorCode::CONSTANTS_MISMATCH);
+    builder.do_assert(left.constants == right.constants,
+                      "input proofs have different constants",
+                      utils::CircuitErrorCode::CONSTANTS_MISMATCH);
 }
 
 /**
@@ -241,22 +241,22 @@ std::array<fr, NUM_FIELDS_PER_SHA256> compute_calldata_hash(
 
 // asserts that the end snapshot of previous_rollup 0 equals the start snapshot of previous_rollup 1 (i.e. ensure they
 // follow on from one-another). Ensures that right uses the tres that was updated by left.
-void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
+void assert_prev_rollups_follow_on_from_each_other(DummyBuilder& builder,
                                                    BaseOrMergeRollupPublicInputs const& left,
                                                    BaseOrMergeRollupPublicInputs const& right)
 {
-    composer.do_assert(left.end_private_data_tree_snapshot == right.start_private_data_tree_snapshot,
-                       "input proofs have different private data tree snapshots",
-                       utils::CircuitErrorCode::PRIVATE_DATA_TREE_SNAPSHOT_MISMATCH);
-    composer.do_assert(left.end_nullifier_tree_snapshot == right.start_nullifier_tree_snapshot,
-                       "input proofs have different nullifier tree snapshots",
-                       utils::CircuitErrorCode::NULLIFIER_TREE_SNAPSHOT_MISMATCH);
-    composer.do_assert(left.end_contract_tree_snapshot == right.start_contract_tree_snapshot,
-                       "input proofs have different contract tree snapshots",
-                       utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
-    composer.do_assert(left.end_public_data_tree_root == right.start_public_data_tree_root,
-                       "input proofs have different public data tree snapshots",
-                       utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
+    builder.do_assert(left.end_private_data_tree_snapshot == right.start_private_data_tree_snapshot,
+                      "input proofs have different private data tree snapshots",
+                      utils::CircuitErrorCode::PRIVATE_DATA_TREE_SNAPSHOT_MISMATCH);
+    builder.do_assert(left.end_nullifier_tree_snapshot == right.start_nullifier_tree_snapshot,
+                      "input proofs have different nullifier tree snapshots",
+                      utils::CircuitErrorCode::NULLIFIER_TREE_SNAPSHOT_MISMATCH);
+    builder.do_assert(left.end_contract_tree_snapshot == right.start_contract_tree_snapshot,
+                      "input proofs have different contract tree snapshots",
+                      utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
+    builder.do_assert(left.end_public_data_tree_root == right.start_public_data_tree_root,
+                      "input proofs have different public data tree snapshots",
+                      utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
 }
 
 }  // namespace aztec3::circuits::rollup::components

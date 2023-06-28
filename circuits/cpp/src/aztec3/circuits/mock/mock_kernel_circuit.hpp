@@ -17,20 +17,19 @@ using aztec3::utils::types::CircuitTypes;
 using plonk::stdlib::pedersen_commitment;
 using plonk::stdlib::witness_t;
 
-template <typename Composer>
-KernelCircuitPublicInputs<NT> mock_kernel_circuit(Composer& composer,
-                                                  KernelCircuitPublicInputs<NT> const& _public_inputs)
+template <typename Builder>
+KernelCircuitPublicInputs<NT> mock_kernel_circuit(Builder& builder, KernelCircuitPublicInputs<NT> const& _public_inputs)
 {
-    typedef CircuitTypes<Composer> CT;
+    typedef CircuitTypes<Builder> CT;
     typedef typename CT::fr fr;
 
-    auto public_inputs = _public_inputs.to_circuit_type(composer);
+    auto public_inputs = _public_inputs.to_circuit_type(builder);
 
     {
         std::vector<uint32_t> dummy_witness_indices;
         // 16 is the number of values added to `proof_witness_indices` at the end of `verify_proof`.
         for (size_t i = 0; i < 16; ++i) {
-            fr const witness = fr(witness_t(&composer, i));
+            fr const witness = fr(witness_t(&builder, i));
             uint32_t const witness_index = witness.get_witness_index();
             dummy_witness_indices.push_back(witness_index);
         }
@@ -43,10 +42,10 @@ KernelCircuitPublicInputs<NT> mock_kernel_circuit(Composer& composer,
     // We still add dummy witness indices in the recursive proof indices just so that we don't trigger an assertion in
     // while setting recursion elements as public inputs. These dummy indices would not be used as we're setting
     // contains_recursive_proof to be false.
-    composer.circuit_constructor.contains_recursive_proof = false;
+    builder.contains_recursive_proof = false;
 
-    plonk::stdlib::pedersen_commitment<Composer>::compress(fr(witness_t(&composer, 1)), fr(witness_t(&composer, 1)));
-    return public_inputs.template to_native_type<Composer>();
+    plonk::stdlib::pedersen_commitment<Builder>::compress(fr(witness_t(&builder, 1)), fr(witness_t(&builder, 1)));
+    return public_inputs.template to_native_type<Builder>();
 }
 
 }  // namespace aztec3::circuits::mock

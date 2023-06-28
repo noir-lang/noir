@@ -9,7 +9,7 @@
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps::state_vars {
-template <typename Composer> class StateVar;
+template <typename Builder> class StateVar;
 }  // namespace aztec3::circuits::apps::state_vars
 
 namespace aztec3::circuits::apps::notes {
@@ -19,19 +19,19 @@ using aztec3::circuits::apps::state_vars::StateVar;  // Don't #include it!
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
-template <typename Composer, typename ValueType> class DefaultPrivateNote : public NoteInterface<Composer> {
+template <typename Builder, typename ValueType> class DefaultPrivateNote : public NoteInterface<Builder> {
   public:
-    using CT = CircuitTypes<Composer>;
+    using CT = CircuitTypes<Builder>;
     using fr = typename CT::fr;
     using grumpkin_point = typename CT::grumpkin_point;
     using address = typename CT::address;
     using boolean = typename CT::boolean;
 
-    using NotePreimage = DefaultPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
-    using NullifierPreimage = DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
+    using NotePreimage = DefaultPrivateNotePreimage<CircuitTypes<Builder>, ValueType>;
+    using NullifierPreimage = DefaultPrivateNoteNullifierPreimage<CircuitTypes<Builder>>;
 
 
-    StateVar<Composer>* state_var;
+    StateVar<Builder>* state_var;
 
   private:
     std::optional<fr> commitment;
@@ -42,7 +42,7 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     std::optional<NullifierPreimage> nullifier_preimage;
 
   public:
-    DefaultPrivateNote(StateVar<Composer>* state_var, NotePreimage note_preimage)
+    DefaultPrivateNote(StateVar<Builder>* state_var, NotePreimage note_preimage)
         : state_var(state_var), note_preimage(note_preimage){};
 
     ~DefaultPrivateNote() override = default;
@@ -77,7 +77,7 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     //     return *partial_commitment;
     // };
 
-    void constrain_against_advice(NoteInterface<Composer> const& advice_note) override;
+    void constrain_against_advice(NoteInterface<Builder> const& advice_note) override;
 
     bool needs_nonce() override;
 

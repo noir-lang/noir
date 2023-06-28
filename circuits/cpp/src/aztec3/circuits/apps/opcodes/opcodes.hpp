@@ -6,9 +6,9 @@
 #include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::apps::state_vars {
-template <typename Composer> class StateVar;
-template <typename Composer, typename Note> class UTXOStateVar;
-template <typename Composer, typename Note> class UTXOSetStateVar;
+template <typename Builder> class StateVar;
+template <typename Builder, typename Note> class UTXOStateVar;
+template <typename Builder, typename Note> class UTXOSetStateVar;
 }  // namespace aztec3::circuits::apps::state_vars
 
 namespace aztec3::circuits::apps::opcodes {
@@ -31,9 +31,9 @@ using plonk::stdlib::witness_t;
  *
  * TODO: Any oracle access or exec_ctx access should go through this class?
  */
-template <typename Composer> class Opcodes {
+template <typename Builder> class Opcodes {
   public:
-    using CT = CircuitTypes<Composer>;
+    using CT = CircuitTypes<Builder>;
     using address = typename CT::address;
 
     /**
@@ -43,7 +43,7 @@ template <typename Composer> class Opcodes {
      * - Validate the data
      */
     template <typename Note>
-    static Note UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var, typename Note::NotePreimage const& advice);
+    static Note UTXO_SLOAD(UTXOStateVar<Builder, Note>* utxo_state_var, typename Note::NotePreimage const& advice);
 
     /**
      * @brief
@@ -51,26 +51,26 @@ template <typename Composer> class Opcodes {
      * - Generate constraints to prove each datum's existence in the tree
      * - Validate the data
      */
-    template <typename Note> static std::vector<Note> UTXO_SLOAD(UTXOSetStateVar<Composer, Note>* utxo_set_state_var,
+    template <typename Note> static std::vector<Note> UTXO_SLOAD(UTXOSetStateVar<Builder, Note>* utxo_set_state_var,
                                                                  size_t const& num_notes,
                                                                  typename Note::NotePreimage const& advice);
 
     /**
      * @brief Compute and push a new nullifier to the public inputs of this exec_ctx.
      */
-    template <typename Note> static void UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_nullify);
+    template <typename Note> static void UTXO_NULL(StateVar<Builder>* state_var, Note& note_to_nullify);
 
     /**
      * @brief Compute and push a new commitment to the public inputs of this exec_ctx, BUT ALSO compute and produce an
      * initialisation nullifier, to prevent this note from being initialised again in the future.
      */
-    template <typename Note> static void UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_initialise);
+    template <typename Note> static void UTXO_INIT(StateVar<Builder>* state_var, Note& note_to_initialise);
 
     /**
      * @brief Compute and push a new commitment to the public inputs of this exec_ctx.
      */
     template <typename Note>
-    static void UTXO_SSTORE(StateVar<Composer>* state_var, typename Note::NotePreimage new_note_preimage);
+    static void UTXO_SSTORE(StateVar<Builder>* state_var, typename Note::NotePreimage new_note_preimage);
 };
 
 }  // namespace aztec3::circuits::apps::opcodes

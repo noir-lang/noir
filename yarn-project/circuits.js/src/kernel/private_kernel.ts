@@ -84,7 +84,7 @@ export function privateKernelProve(
     firstIteration,
     proofOutputAddressPtr,
   );
-  // for whenever we actually use this method, we need to do proper error handling in C++ via the bberg composer.
+  // for whenever we actually use this method, we need to do proper error handling in C++ via bberg.
   const address = uint8ArrayToNum(wasm.getMemorySlice(proofOutputAddressPtr, proofOutputAddressPtr + 4));
   const proof = Buffer.from(wasm.getMemorySlice(address, address + proofSize));
   wasm.call('bbfree', proofOutputAddressPtr);

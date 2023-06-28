@@ -23,15 +23,15 @@ template <typename NCT> struct ContractStorageUpdateRequest {
     // for serialization, update with new fields
     MSGPACK_FIELDS(storage_slot, old_value, new_value);
     bool operator==(ContractStorageUpdateRequest<NCT> const&) const = default;
-    template <typename Composer>
-    ContractStorageUpdateRequest<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder>
+    ContractStorageUpdateRequest<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        ContractStorageUpdateRequest<CircuitTypes<Composer>> update_request = {
+        ContractStorageUpdateRequest<CircuitTypes<Builder>> update_request = {
             to_ct(storage_slot),
             to_ct(old_value),
             to_ct(new_value),
@@ -40,11 +40,11 @@ template <typename NCT> struct ContractStorageUpdateRequest {
         return update_request;
     };
 
-    template <typename Composer> ContractStorageUpdateRequest<NativeTypes> to_native_type() const
+    template <typename Builder> ContractStorageUpdateRequest<NativeTypes> to_native_type() const
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         ContractStorageUpdateRequest<NativeTypes> update_request = {
             to_nt(storage_slot),

@@ -13,9 +13,9 @@ using aztec3::utils::types::CircuitTypes;
  * It's essentially a visitor pattern. The Opcodes and UTXOStateVar types can call all of these
  * methods on any Note, and the Note must choose whether to compute something, or whether to throw, for each method.
  */
-template <typename Composer> class NoteInterface {
+template <typename Builder> class NoteInterface {
   public:
-    using CT = CircuitTypes<Composer>;
+    using CT = CircuitTypes<Builder>;
     using fr = typename CT::fr;
     using grumpkin_point = typename CT::grumpkin_point;
     using address = typename CT::address;
@@ -40,7 +40,7 @@ template <typename Composer> class NoteInterface {
 
     virtual fr get_initialisation_nullifier() = 0;
 
-    virtual void constrain_against_advice(NoteInterface<Composer> const& advice_note) = 0;
+    virtual void constrain_against_advice(NoteInterface<Builder> const& advice_note) = 0;
 
     virtual bool needs_nonce() = 0;
 

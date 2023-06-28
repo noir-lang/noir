@@ -12,7 +12,7 @@ using aztec3::circuits::abis::FunctionData;
 
 using NT = aztec3::utils::types::NativeTypes;
 
-// template <typename Composer> class FunctionExecutionContext;
+// template <typename Builder> class FunctionExecutionContext;
 
 template <typename NCT> class Contract {
     using fr = typename NCT::fr;

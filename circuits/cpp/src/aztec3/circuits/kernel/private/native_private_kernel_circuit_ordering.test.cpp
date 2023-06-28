@@ -42,16 +42,16 @@ TEST_F(native_private_kernel_ordering_tests, native_one_read_request_choping_com
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
 
-    DummyComposer composer =
-        DummyComposer("native_private_kernel_ordering_tests__native_one_read_request_choping_commitment_works");
+    DummyBuilder builder =
+        DummyBuilder("native_private_kernel_ordering_tests__native_one_read_request_choping_commitment_works");
     auto const& public_inputs = native_private_kernel_circuit_ordering(
-        composer, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
+        builder, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
     ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 0);
 }
 
@@ -77,16 +77,16 @@ TEST_F(native_private_kernel_ordering_tests, native_read_requests_choping_commit
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
 
-    DummyComposer composer =
-        DummyComposer("native_private_kernel_ordering_tests__native_read_requests_choping_commitment_works");
+    DummyBuilder builder =
+        DummyBuilder("native_private_kernel_ordering_tests__native_read_requests_choping_commitment_works");
     auto const& public_inputs = native_private_kernel_circuit_ordering(
-        composer, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
+        builder, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
         info("failure: ", failure);
     }
-    ASSERT_FALSE(composer.failed());
+    ASSERT_FALSE(builder.failed());
     ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 2);
     ASSERT_TRUE(public_inputs.end.new_commitments[0] == fr(1285));
     ASSERT_TRUE(public_inputs.end.new_commitments[1] == fr(1282));
@@ -118,11 +118,11 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
 
-    DummyComposer composer = DummyComposer("native_private_kernel_ordering_tests__native_read_request_unknown_fails");
+    DummyBuilder builder = DummyBuilder("native_private_kernel_ordering_tests__native_read_request_unknown_fails");
     auto const& public_inputs = native_private_kernel_circuit_ordering(
-        composer, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
+        builder, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
 
-    auto failure = composer.get_first_failure();
+    auto failure = builder.get_first_failure();
     ASSERT_EQ(failure.code, CircuitErrorCode::PRIVATE_KERNEL__TRANSIENT_READ_REQUEST_NO_MATCH);
 }
 

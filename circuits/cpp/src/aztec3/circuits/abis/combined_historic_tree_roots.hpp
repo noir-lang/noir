@@ -27,25 +27,24 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
         return private_historic_tree_roots == other.private_historic_tree_roots;
     };
 
-    template <typename Composer>
-    CombinedHistoricTreeRoots<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> CombinedHistoricTreeRoots<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        // Capture the circuit builder:
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(builder); };
 
-        CombinedHistoricTreeRoots<CircuitTypes<Composer>> data = {
+        CombinedHistoricTreeRoots<CircuitTypes<Builder>> data = {
             to_circuit_type(private_historic_tree_roots),
         };
 
         return data;
     };
 
-    template <typename Composer> CombinedHistoricTreeRoots<NativeTypes> to_native_type() const
+    template <typename Builder> CombinedHistoricTreeRoots<NativeTypes> to_native_type() const
     {
-        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_native_type = [&]<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+        static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_native_type = [&]<typename T>(T& e) { return e.template to_native_type<Builder>(); };
 
         CombinedHistoricTreeRoots<NativeTypes> data = {
             to_native_type(private_historic_tree_roots),

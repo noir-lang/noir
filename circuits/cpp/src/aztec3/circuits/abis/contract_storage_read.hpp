@@ -23,14 +23,14 @@ template <typename NCT> struct ContractStorageRead {
     MSGPACK_FIELDS(storage_slot, current_value);
     bool operator==(ContractStorageRead<NCT> const&) const = default;
 
-    template <typename Composer> ContractStorageRead<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> ContractStorageRead<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        ContractStorageRead<CircuitTypes<Composer>> contract_storage_read = {
+        ContractStorageRead<CircuitTypes<Builder>> contract_storage_read = {
             to_ct(storage_slot),
             to_ct(current_value),
         };
@@ -38,11 +38,11 @@ template <typename NCT> struct ContractStorageRead {
         return contract_storage_read;
     };
 
-    template <typename Composer> ContractStorageRead<NativeTypes> to_native_type() const
+    template <typename Builder> ContractStorageRead<NativeTypes> to_native_type() const
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
-        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         ContractStorageRead<NativeTypes> contract_storage_read = {
             to_nt(storage_slot),

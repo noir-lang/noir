@@ -9,7 +9,7 @@
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps::state_vars {
-template <typename Composer> class StateVar;
+template <typename Builder> class StateVar;
 }  // namespace aztec3::circuits::apps::state_vars
 
 namespace aztec3::circuits::apps::notes {
@@ -19,19 +19,19 @@ using aztec3::circuits::apps::state_vars::StateVar;  // Don't #include it!
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
-template <typename Composer, typename ValueType> class DefaultSingletonPrivateNote : public NoteInterface<Composer> {
+template <typename Builder, typename ValueType> class DefaultSingletonPrivateNote : public NoteInterface<Builder> {
   public:
-    using CT = CircuitTypes<Composer>;
+    using CT = CircuitTypes<Builder>;
     using fr = typename CT::fr;
     using grumpkin_point = typename CT::grumpkin_point;
     using address = typename CT::address;
     using boolean = typename CT::boolean;
 
-    using NotePreimage = DefaultSingletonPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
-    using NullifierPreimage = DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
+    using NotePreimage = DefaultSingletonPrivateNotePreimage<CircuitTypes<Builder>, ValueType>;
+    using NullifierPreimage = DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Builder>>;
 
 
-    StateVar<Composer>* state_var;
+    StateVar<Builder>* state_var;
 
   private:
     std::optional<fr> commitment;
@@ -41,7 +41,7 @@ template <typename Composer, typename ValueType> class DefaultSingletonPrivateNo
     std::optional<NullifierPreimage> nullifier_preimage;
 
   public:
-    DefaultSingletonPrivateNote(StateVar<Composer>* state_var, NotePreimage note_preimage)
+    DefaultSingletonPrivateNote(StateVar<Builder>* state_var, NotePreimage note_preimage)
         : state_var(state_var), note_preimage(note_preimage){};
 
     ~DefaultSingletonPrivateNote() override = default;
@@ -66,7 +66,7 @@ template <typename Composer, typename ValueType> class DefaultSingletonPrivateNo
         return compute_nullifier();
     };
 
-    void constrain_against_advice(NoteInterface<Composer> const& advice_note) override;
+    void constrain_against_advice(NoteInterface<Builder> const& advice_note) override;
 
     bool needs_nonce() override;
 

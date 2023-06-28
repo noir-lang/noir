@@ -13,8 +13,8 @@
 
 namespace aztec3::circuits::apps::test_apps::basic_contract_deployment {
 
-// Composer
-using C = plonk::UltraPlonkComposer;
+// Builder
+using C = UltraCircuitBuilder;
 
 // Native and circuit types
 using CT = aztec3::utils::types::CircuitTypes<C>;
@@ -34,7 +34,7 @@ using aztec3::utils::types::to_ct;
 using apps::state_vars::MappingStateVar;
 using apps::state_vars::UTXOSetStateVar;
 
-// Get rid of ugly `Composer` template arg from our state var types:
+// Get rid of ugly `Builder` template arg from our state var types:
 template <typename V> using Mapping = MappingStateVar<C, V>;
 template <typename Note> using UTXOSet = UTXOSetStateVar<C, Note>;
 

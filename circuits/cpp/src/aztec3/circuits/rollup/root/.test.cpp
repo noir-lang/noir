@@ -13,7 +13,7 @@
 #include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
 #include "aztec3/constants.hpp"
-#include "aztec3/utils/dummy_composer.hpp"
+#include "aztec3/utils/dummy_circuit_builder.hpp"
 
 #include <barretenberg/barretenberg.hpp>
 
@@ -138,28 +138,29 @@ TEST_F(root_rollup_tests, native_check_block_hashes_empty_blocks)
     std::vector<uint8_t> const messages_hash_input_bytes_vec(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP * 32, 0);
     auto messages_hash = sha256::sha256(messages_hash_input_bytes_vec);
 
-    utils::DummyComposer composer = utils::DummyComposer("root_rollup_tests__native_check_block_hashes_empty_blocks");
+    utils::DummyCircuitBuilder builder =
+        utils::DummyCircuitBuilder("root_rollup_tests__native_check_block_hashes_empty_blocks");
     std::array<KernelData, 4> const kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
 
-    RootRollupInputs inputs = get_root_rollup_inputs(composer, kernels, l1_to_l2_messages);
-    RootRollupPublicInputs outputs =
-        aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(composer, inputs);
+    RootRollupInputs inputs = get_root_rollup_inputs(builder, kernels, l1_to_l2_messages);
+    RootRollupPublicInputs outputs = aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(builder, inputs);
 
     // check calldata hash
     ASSERT_TRUE(compare_field_hash_to_expected(outputs.calldata_hash, calldata_hash));
     // Check messages hash
     ASSERT_TRUE(compare_field_hash_to_expected(outputs.l1_to_l2_messages_hash, messages_hash));
 
-    EXPECT_FALSE(composer.failed());
+    EXPECT_FALSE(builder.failed());
 
     run_cbind(inputs, outputs, true);
 }
 
 TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 {
-    utils::DummyComposer composer = utils::DummyComposer("root_rollup_tests__native_root_missing_nullifier_logic");
+    utils::DummyCircuitBuilder builder =
+        utils::DummyCircuitBuilder("root_rollup_tests__native_root_missing_nullifier_logic");
 
     MemoryTree data_tree = MemoryTree(PRIVATE_DATA_TREE_HEIGHT);
     MemoryTree contract_tree = MemoryTree(CONTRACT_TREE_HEIGHT);
@@ -242,9 +243,9 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
                                                                              .next_available_leaf_index =
                                                                                  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP };
 
-    RootRollupInputs rootRollupInputs = get_root_rollup_inputs(composer, kernels, l1_to_l2_messages);
+    RootRollupInputs rootRollupInputs = get_root_rollup_inputs(builder, kernels, l1_to_l2_messages);
     RootRollupPublicInputs outputs =
-        aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(composer, rootRollupInputs);
+        aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(builder, rootRollupInputs);
 
     // Check private data trees
     ASSERT_EQ(
@@ -297,7 +298,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     auto root = accumulate_sha256<NT>({ left[0], left[1], right[0], right[1] });
     ASSERT_EQ(outputs.calldata_hash, root);
 
-    EXPECT_FALSE(composer.failed());
+    EXPECT_FALSE(builder.failed());
 
     run_cbind(rootRollupInputs, outputs, true);
 }

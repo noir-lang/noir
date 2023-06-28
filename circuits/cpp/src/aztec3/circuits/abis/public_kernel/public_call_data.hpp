@@ -43,23 +43,23 @@ template <typename NCT> struct PublicCallData {
 
     // WARNING: the `proof` does NOT get converted! (because the current implementation of `verify_proof` takes a proof
     // of native bytes; any conversion to circuit types happens within the `verify_proof` function)
-    template <typename Composer> PublicCallData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Builder> PublicCallData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
-        // typedef CircuitTypes<Composer> CT;
+        // typedef CircuitTypes<Builder> CT;
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        // Capture the composer:
-        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
-        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        // Capture the circuit builder:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(builder); };
 
-        PublicCallData<CircuitTypes<Composer>> data = {
-            call_stack_item.to_circuit_type(composer),
+        PublicCallData<CircuitTypes<Builder>> data = {
+            call_stack_item.to_circuit_type(builder),
 
             map(public_call_stack_preimages, to_circuit_type),
 
             proof,  // Notice: not converted! Stays as native. This is because of how the verify_proof function
                     // currently works.
-            // CT::VK::from_witness(&composer, vk),
+            // CT::VK::from_witness(&builder, vk),
 
             // to_circuit_type(function_leaf_membership_witness),
             // to_circuit_type(contract_leaf_membership_witness),

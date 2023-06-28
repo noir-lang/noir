@@ -91,7 +91,7 @@ std::shared_ptr<NT::VK> fake_vk()
 {
     std::map<std::string, NT::bn254_point> commitments;
     commitments["FAKE"] = *new NT::bn254_point(NT::fq(0), NT::fq(0));
-    NT::VKData vk_data = { .composer_type = proof_system::ComposerType::TURBO,
+    NT::VKData vk_data = { .circuit_type = static_cast<uint32_t>(proof_system::CircuitType::TURBO),
                            .circuit_size = 2048,
                            .num_public_inputs = 116,
                            .commitments = commitments,
@@ -113,8 +113,8 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
     PreviousKernelData<NT> const init_previous_kernel{};
 
     auto crs_factory = barretenberg::srs::get_crs_factory();
-    Composer mock_kernel_composer = Composer(crs_factory);
-    auto mock_kernel_public_inputs = mock_kernel_circuit(mock_kernel_composer, init_previous_kernel.public_inputs);
+    Builder mock_kernel_builder;
+    auto mock_kernel_public_inputs = mock_kernel_circuit(mock_kernel_builder, init_previous_kernel.public_inputs);
 
     NT::Proof const mock_kernel_proof =
         real_vk_proof ? get_proof_from_file() : NT::Proof{ .proof_data = std::vector<uint8_t>(64, 0) };
@@ -129,7 +129,7 @@ PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false)
 
     // TODO(rahul) assertions don't work in wasm and it isn't worth updating barratenberg to handle our error code
     // mechanism. Apparently we are getting rid of this function (dummy_previous_kernel()) soon anyway.
-    assert(!mock_kernel_composer.failed());
+    assert(!mock_kernel_builder.failed());
 
     return previous_kernel;
 }

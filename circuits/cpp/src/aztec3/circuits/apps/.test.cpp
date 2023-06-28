@@ -24,8 +24,8 @@
 #include <barretenberg/barretenberg.hpp>
 
 namespace {
-// Composer
-using C = plonk::UltraPlonkComposer;
+// Builder
+using C = UltraCircuitBuilder;
 
 // Types
 using CT = aztec3::utils::types::CircuitTypes<C>;
@@ -55,7 +55,7 @@ using aztec3::circuits::apps::notes::DefaultPrivateNote;
 using aztec3::circuits::apps::notes::DefaultSingletonPrivateNote;
 
 // State variables
-// Get rid of ugly `Composer` template arg from our state var types:
+// Get rid of ugly `Builder` template arg from our state var types:
 template <typename V> using Mapping = MappingStateVar<C, V>;
 template <typename Note> using UTXO = UTXOStateVar<C, Note>;
 template <typename Note> using UTXOSet = UTXOSetStateVar<C, Note>;
@@ -97,11 +97,11 @@ TEST_F(state_var_tests, circuit_mapping)
     // contains a reference to earlier-declared classes... so we'd end up with classes containing dangling references,
     // if all this stuff were to be declared in a setup function's scope.
     // We could instead store shared_ptrs in every class...?
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(builder, oracle_wrapper);
 
     // TODO:
     // Interestingly, if I scope the below, the debugger works, but running the test via the command line fails. This is
@@ -120,7 +120,7 @@ TEST_F(state_var_tests, circuit_mapping)
 
     Mapping<Field> my_mapping(&exec_ctx, "my_mapping");
 
-    my_mapping[5] = to_ct(composer, NT::fr(5));
+    my_mapping[5] = to_ct(builder, NT::fr(5));
 
     // info("my_mapping[5]: ", my_mapping[5]);
     // info("my_mapping[5].start_slot: ", my_mapping[5].start_slot);
@@ -129,11 +129,11 @@ TEST_F(state_var_tests, circuit_mapping)
 
 TEST_F(state_var_tests, circuit_mapping_within_mapping)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(builder, oracle_wrapper);
 
     // {
     ::Contract contract("TestContract");
@@ -151,11 +151,11 @@ TEST_F(state_var_tests, circuit_mapping_within_mapping)
 
 TEST_F(state_var_tests, circuit_partial_mapping)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(builder, oracle_wrapper);
 
     // {
     ::Contract contract("TestContract");
@@ -173,11 +173,11 @@ TEST_F(state_var_tests, circuit_partial_mapping)
 
 TEST_F(state_var_tests, circuit_utxo_of_default_private_note_fr)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(builder, oracle_wrapper);
 
     ::Contract contract("TestContract");
     exec_ctx.register_contract(&contract);
@@ -220,11 +220,11 @@ TEST_F(state_var_tests, circuit_utxo_of_default_private_note_fr)
 
 TEST_F(state_var_tests, circuit_utxo_set_of_default_private_notes_fr)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(builder, oracle_wrapper);
 
     // bool sort(NT::uint256 i, NT::uint256 j)
     // {
@@ -282,11 +282,11 @@ TEST_F(state_var_tests, circuit_utxo_set_of_default_private_notes_fr)
 
 TEST_F(state_var_tests, circuit_initialise_utxo_of_default_singleton_private_note_fr)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(builder, oracle_wrapper);
 
     ::Contract contract("TestContract");
     exec_ctx.register_contract(&contract);
@@ -330,11 +330,11 @@ TEST_F(state_var_tests, circuit_initialise_utxo_of_default_singleton_private_not
 
 TEST_F(state_var_tests, circuit_modify_utxo_of_default_singleton_private_note_fr)
 {
-    C composer = C("../barretenberg/cpp/srs_db/ignition");
+    C builder = C();
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
-    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+    OracleWrapper oracle_wrapper = OracleWrapper(builder, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(builder, oracle_wrapper);
 
     ::Contract contract("TestContract");
     exec_ctx.register_contract(&contract);
