@@ -195,13 +195,14 @@ template <typename Builder> typename NT::ecdsa_signature to_nt(typename CT<Build
 {
     std::vector<uint8_t> r_bytes = e.r.get_value();
     std::vector<uint8_t> s_bytes = e.s.get_value();
+    const uint8_t v_byte = e.v.get_value();
 
     std::array<uint8_t, 32> r_array;
     std::array<uint8_t, 32> s_array;
     std::copy(r_bytes.begin(), r_bytes.end(), r_array.begin());
     std::copy(s_bytes.begin(), s_bytes.end(), s_array.begin());
 
-    return NT::ecdsa_signature{ r_array, s_array, e.v };
+    return NT::ecdsa_signature{ r_array, s_array, v_byte };
 };
 
 template <typename Builder>

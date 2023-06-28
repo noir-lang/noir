@@ -3,6 +3,9 @@
  * @see circuits/cpp/src/aztec3/constants.hpp
  */
 export enum GeneratorIndex {
+  /**
+   * Indices with size ≤ 8
+   */
   COMMITMENT = 1,
   COMMITMENT_PLACEHOLDER,
   OUTER_COMMITMENT,
@@ -12,7 +15,6 @@ export enum GeneratorIndex {
   OUTER_NULLIFIER,
   PUBLIC_DATA_READ,
   PUBLIC_DATA_UPDATE_REQUEST,
-  VK,
   FUNCTION_DATA,
   FUNCTION_LEAF,
   CONTRACT_DEPLOYMENT_DATA,
@@ -23,16 +25,23 @@ export enum GeneratorIndex {
   CALL_CONTEXT,
   CALL_STACK_ITEM,
   CALL_STACK_ITEM_2,
+  L1_TO_L2_MESSAGE_SECRET,
   L2_TO_L1_MSG,
-  PRIVATE_CIRCUIT_PUBLIC_INPUTS,
-  PUBLIC_CIRCUIT_PUBLIC_INPUTS,
   TX_CONTEXT,
-  TX_REQUEST,
   PUBLIC_LEAF_INDEX,
   PUBLIC_DATA_LEAF,
   SIGNED_TX_REQUEST,
-  L1_TO_L2_MESSAGE_SECRET,
-  FUNCTION_ARGS,
   GLOBAL_VARIABLES,
   PARTIAL_CONTRACT_ADDRESS,
+  /**
+   * Indices with size ≤ 16
+   */
+  TX_REQUEST = 33, // Size = 14
+  /**
+   * Indices with size ≤ 44
+   */
+  VK = 41, // Size = 35
+  PRIVATE_CIRCUIT_PUBLIC_INPUTS, // Size = 39
+  PUBLIC_CIRCUIT_PUBLIC_INPUTS, // Size = 32 (unused)
+  FUNCTION_ARGS, // Size ≤ 40
 }

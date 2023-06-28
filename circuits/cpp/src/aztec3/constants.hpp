@@ -60,41 +60,62 @@ constexpr size_t FUNCTION_SELECTOR_NUM_BYTES = 4;  // must be <= 31
 // sha256 hash is stored in two fields to accommodate all 256-bits of the hash
 constexpr size_t NUM_FIELDS_PER_SHA256 = 2;
 
-// Enumerate the hash_indices which are used for pedersen hashing
-// Start from 1 to avoid the default generators.
+/**
+ * Enumerate the hash_indices which are used for pedersen hashing.
+ * We start from 1 to avoid the default generators. The generator indices are listed
+ * based on the number of elements each index hashes. The following conditions must be met:
+ *
+ * +-----------+-------------------------------+----------------------+
+ * | Hash size | Number of elements hashed (n) | Condition to use     |
+ * |-----------+-------------------------------+----------------------|
+ * | LOW       | n ≤ 8                         | 0 < hash_index ≤ 32  |
+ * | MID       | 8 < n ≤ 16                    | 32 < hash_index ≤ 40 |
+ * | HIGH      | 16 < n ≤ 44                   | 40 < hash_index ≤ 44 |
+ * +-----------+-------------------------------+----------------------+
+ *
+ */
 enum GeneratorIndex {
-    COMMITMENT = 1,
-    COMMITMENT_PLACEHOLDER,  // for omitting some elements of the commitment when partially committing.
-    OUTER_COMMITMENT,
-    NULLIFIER_HASHED_PRIVATE_KEY,
-    NULLIFIER,
-    INITIALISATION_NULLIFIER,
-    OUTER_NULLIFIER,
-    PUBLIC_DATA_READ,
-    PUBLIC_DATA_UPDATE_REQUEST,
-    VK,
-    FUNCTION_DATA,
-    FUNCTION_LEAF,
-    CONTRACT_DEPLOYMENT_DATA,
-    CONSTRUCTOR,
-    CONSTRUCTOR_ARGS,
-    CONTRACT_ADDRESS,
-    CONTRACT_LEAF,
-    CALL_CONTEXT,
-    CALL_STACK_ITEM,
-    CALL_STACK_ITEM_2,  // see function where it's used for explanation
-    L2_TO_L1_MSG,
-    PRIVATE_CIRCUIT_PUBLIC_INPUTS,
-    PUBLIC_CIRCUIT_PUBLIC_INPUTS,
-    TX_CONTEXT,
-    TX_REQUEST,
-    PUBLIC_LEAF_INDEX,
-    PUBLIC_DATA_LEAF,
-    SIGNED_TX_REQUEST,
-    L1_TO_L2_MESSAGE_SECRET,
-    FUNCTION_ARGS,
-    GLOBAL_VARIABLES,
-    PARTIAL_CONTRACT_ADDRESS,
+    /**
+     * Indices with size ≤ 8
+     */
+    COMMITMENT = 1,                // Size = 7 (unused)
+    COMMITMENT_PLACEHOLDER,        // Size = 1 (unused), for omitting some elements of commitment when partially comm
+    OUTER_COMMITMENT,              // Size = 2
+    NULLIFIER_HASHED_PRIVATE_KEY,  // Size = 1 (unused)
+    NULLIFIER,                     // Size = 4 (unused)
+    INITIALISATION_NULLIFIER,      // Size = 2 (unused)
+    OUTER_NULLIFIER,               // Size = 2
+    PUBLIC_DATA_READ,              // Size = 2
+    PUBLIC_DATA_UPDATE_REQUEST,    // Size = 3
+    FUNCTION_DATA,                 // Size = 3
+    FUNCTION_LEAF,                 // Size = 4
+    CONTRACT_DEPLOYMENT_DATA,      // Size = 4
+    CONSTRUCTOR,                   // Size = 3
+    CONSTRUCTOR_ARGS,              // Size = 8
+    CONTRACT_ADDRESS,              // Size = 4
+    CONTRACT_LEAF,                 // Size = 3
+    CALL_CONTEXT,                  // Size = 6
+    CALL_STACK_ITEM,               // Size = 3
+    CALL_STACK_ITEM_2,             // Size = ? (unused), // TODO see function where it's used for explanation
+    L1_TO_L2_MESSAGE_SECRET,       // Size = 1 (wrongly used)
+    L2_TO_L1_MSG,                  // Size = 2 (unused)
+    TX_CONTEXT,                    // Size = 4
+    PUBLIC_LEAF_INDEX,             // Size = 2 (unused)
+    PUBLIC_DATA_LEAF,              // Size = ? (unused) // TODO what's the expected size? Assuming ≤ 8
+    SIGNED_TX_REQUEST,             // Size = 7
+    GLOBAL_VARIABLES,              // Size = 4
+    PARTIAL_CONTRACT_ADDRESS,      // Size = 7
+    /**
+     * Indices with size ≤ 16
+     */
+    TX_REQUEST = 33,  // Size = 14
+    /**
+     * Indices with size ≤ 44
+     */
+    VK = 41,                        // Size = 35
+    PRIVATE_CIRCUIT_PUBLIC_INPUTS,  // Size = 39
+    PUBLIC_CIRCUIT_PUBLIC_INPUTS,   // Size = 32 (unused)
+    FUNCTION_ARGS,                  // Size ≤ 40
 };
 
 enum StorageSlotGeneratorIndex {

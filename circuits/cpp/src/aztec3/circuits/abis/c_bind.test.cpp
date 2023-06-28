@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <vector>
 
 namespace {
@@ -160,7 +161,7 @@ TEST(abi_tests, hash_vk)
 {
     // Initialize some random VK data
     NT::VKData vk_data;
-    vk_data.circuit_type = engine.get_random_uint32();
+    vk_data.circuit_type = static_cast<uint32_t>(proof_system::CircuitType::ULTRA);
     vk_data.circuit_size = static_cast<uint32_t>(1) << (engine.get_random_uint8() >> 3);  // must be a power of two
     vk_data.num_public_inputs = engine.get_random_uint32();
     vk_data.commitments["test1"] = g1::element::random_element();
