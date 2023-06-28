@@ -3,7 +3,6 @@ import {
   Contract,
   ContractDeployer,
   TxStatus,
-  computeMessageSecretHash,
   createAccounts,
   createAztecRpcClient,
   getL1ContractAddresses,
@@ -32,8 +31,6 @@ type PublicKey = {
 
 const logger = createDebugLogger('aztec:http-rpc-client');
 
-// const { SEARCH_START_BLOCK } = process.env;
-
 export const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const INITIAL_BALANCE = 333n;
@@ -43,12 +40,6 @@ const WETH9_ADDRESS = EthAddress.fromString('0xC02aaA39b223FE8D0A0e5C4F27eAD9083
 const DAI_ADDRESS = EthAddress.fromString('0x6B175474E89094C44Da98b954EedeAC495271d0F');
 
 const EXPECTED_FORKED_BLOCK = 17514288;
-
-// if (parseInt(SEARCH_START_BLOCK || '') !== EXPECTED_FORKED_BLOCK) {
-//   throw Error(`You need to set env variable SEARCH_START_BLOCK to ${EXPECTED_FORKED_BLOCK}`);
-// }
-
-// export const privateKey = Buffer.from('ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', 'hex');
 
 const aztecRpcUrl = 'http://localhost:8080';
 const ethRpcUrl = 'http://localhost:8545';
@@ -221,7 +212,7 @@ async function main() {
   // 2. Deposit weth into the portal and move to L2
   // generate secret
   const secret = Fr.random();
-  const secretHash = await computeMessageSecretHash(secret);
+  const secretHash = await aztecRpcClient.getMessageHash(secret);
   const secretString = `0x${secretHash.toBuffer().toString('hex')}` as `0x${string}`;
   const deadline = 2 ** 32 - 1; // max uint32 - 1
   logger('Sending messages to L1 portal');

@@ -1,11 +1,12 @@
-import { IWasmModule, WasmModule } from '@aztec/foundation/wasm';
-
 import { readFile } from 'fs/promises';
 import isNode from 'detect-node';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Crs } from '../crs/index.js';
+
+import { IWasmModule, WasmModule } from '@aztec/foundation/wasm';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
+
+import { Crs } from '../crs/index.js';
 
 const NAME = '/aztec3-circuits';
 const CODE_PATH = isNode

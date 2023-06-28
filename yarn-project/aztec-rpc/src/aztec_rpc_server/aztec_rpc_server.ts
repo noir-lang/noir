@@ -33,7 +33,7 @@ import { ContractTree } from '../contract_tree/index.js';
 import { Database, TxDao } from '../database/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
 import { TxReceipt, TxStatus } from '../tx/index.js';
-import { computePartialContractAddress } from '@aztec/circuits.js/abis';
+import { computePartialContractAddress, computeSecretMessageHash } from '@aztec/circuits.js/abis';
 import { Curve, Signer } from '@aztec/circuits.js/barretenberg';
 import { CurveType, SignerType, createCurve, createSigner } from '../crypto/types.js';
 
@@ -149,6 +149,16 @@ export class AztecRPCServer implements AztecRPC {
     const pubKey = this.keyStore.addAccount(accountCurve, accountSigner, privKey);
     await this.#initAccountState(pubKey, address, partialContractAddress, accountCurve, accountSigner, abi);
     return address;
+  }
+
+  /**
+   * Given a secret, it computes its pedersen hash - used to send l1 to l2 messages
+   * @param secret - the secret to hash - secret could be generated however you want e.g. `Fr.random()`
+   * @returns the hash
+   */
+  public async getMessageHash(secret: Fr): Promise<Fr> {
+    const wasm = await CircuitsWasm.get();
+    return computeSecretMessageHash(wasm, secret);
   }
 
   /**
@@ -324,38 +334,6 @@ export class AztecRPCServer implements AztecRPC {
     await this.db.addTx(new TxDao(await tx.getTxHash(), undefined, undefined, account.getAddress(), to, undefined, ''));
 
     return tx;
-  }
-
-  private async getExecutionRequest(
-    account: AccountState,
-    functionName: string,
-    args: any[],
-    to: AztecAddress,
-  ): Promise<ExecutionRequest> {
-    const contract = await this.db.getContract(to);
-    if (!contract) {
-      throw new Error('Unknown contract.');
-    }
-
-    const functionDao = contract.functions.find(f => f.name === functionName);
-    if (!functionDao) {
-      throw new Error('Unknown function.');
-    }
-
-    const flatArgs = encodeArguments(functionDao, args);
-
-    const functionData = new FunctionData(
-      functionDao.selector,
-      functionDao.functionType === FunctionType.SECRET,
-      false,
-    );
-
-    return {
-      args: flatArgs,
-      from: account.getAddress(),
-      functionData,
-      to,
-    };
   }
 
   // TODO: Store the kind of account in account state

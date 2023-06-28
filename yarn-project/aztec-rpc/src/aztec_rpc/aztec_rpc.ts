@@ -53,6 +53,7 @@ export interface AztecRPC {
     signer?: SignerType,
     abi?: ContractAbi,
   ): Promise<AztecAddress>;
+  getMessageHash(secret: Fr): Promise<Fr>;
   getAccounts(): Promise<AztecAddress[]>;
   getAccountPublicKey(address: AztecAddress): Promise<Point>;
   addContracts(contracts: DeployedContract[]): Promise<void>;
