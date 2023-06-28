@@ -1,7 +1,7 @@
 #include "transcript.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/honk/composer/composer_helper/standard_honk_composer_helper.hpp"
-#include "barretenberg/honk/composer/composer_helper/ultra_honk_composer_helper.hpp"
+#include "barretenberg/honk/composer/standard_composer.hpp"
+#include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
@@ -123,12 +123,12 @@ TYPED_TEST(TranscriptTests, ProverManifestConsistency)
     using Flavor = TypeParam;
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
     fr a = 1;
-    auto circuit_constructor = proof_system::StandardCircuitConstructor();
+    auto circuit_constructor = proof_system::StandardCircuitBuilder();
     circuit_constructor.add_variable(a);
     circuit_constructor.add_public_variable(a);
 
     // Automatically generate a transcript manifest by constructing a proof
-    auto composer = StandardHonkComposerHelper_<Flavor>();
+    auto composer = StandardComposer_<Flavor>();
     auto prover = composer.create_prover(circuit_constructor);
     plonk::proof proof = prover.construct_proof();
 
@@ -150,13 +150,13 @@ TYPED_TEST(TranscriptTests, VerifierManifestConsistency)
 {
     using Flavor = TypeParam;
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-    auto circuit_constructor = proof_system::StandardCircuitConstructor();
+    auto circuit_constructor = proof_system::StandardCircuitBuilder();
     fr a = 1;
     circuit_constructor.add_variable(a);
     circuit_constructor.add_public_variable(a);
 
     // Automatically generate a transcript manifest in the prover by constructing a proof
-    auto composer = StandardHonkComposerHelper_<Flavor>();
+    auto composer = StandardComposer_<Flavor>();
     auto prover = composer.create_prover(circuit_constructor);
     plonk::proof proof = prover.construct_proof();
 
@@ -287,7 +287,7 @@ TYPED_TEST(TranscriptTests, VerifierMistake)
 TYPED_TEST(TranscriptTests, UltraVerifierManifestConsistency)
 {
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-    auto circuit_constructor = proof_system::UltraCircuitConstructor();
+    auto circuit_constructor = proof_system::UltraCircuitBuilder();
 
     // fr a = 2;
     // circuit_constructor.add_variable(a);
@@ -296,7 +296,7 @@ TYPED_TEST(TranscriptTests, UltraVerifierManifestConsistency)
     circuit_constructor.add_gates_to_ensure_all_polys_are_non_zero();
 
     // Automatically generate a transcript manifest in the prover by constructing a proof
-    auto composer = UltraHonkComposerHelper();
+    auto composer = UltraComposer();
     auto prover = composer.create_prover(circuit_constructor);
     plonk::proof proof = prover.construct_proof();
 

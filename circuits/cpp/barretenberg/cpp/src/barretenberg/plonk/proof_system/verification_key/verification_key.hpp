@@ -11,7 +11,7 @@
 namespace proof_system::plonk {
 
 struct verification_key_data {
-    uint32_t composer_type;
+    uint32_t circuit_type;
     uint32_t circuit_size;
     uint32_t num_public_inputs;
     std::map<std::string, barretenberg::g1::affine_element> commitments;
@@ -19,7 +19,7 @@ struct verification_key_data {
     std::vector<uint32_t> recursive_proof_public_input_indices;
 
     // for serialization: update with any new fields
-    MSGPACK_FIELDS(composer_type,
+    MSGPACK_FIELDS(circuit_type,
                    circuit_size,
                    num_public_inputs,
                    commitments,
@@ -31,7 +31,7 @@ struct verification_key_data {
 template <typename B> inline void read(B& buf, verification_key_data& key)
 {
     using serialize::read;
-    read(buf, key.composer_type);
+    read(buf, key.circuit_type);
     read(buf, key.circuit_size);
     read(buf, key.num_public_inputs);
     read(buf, key.commitments);
@@ -42,7 +42,7 @@ template <typename B> inline void read(B& buf, verification_key_data& key)
 template <typename B> inline void write(B& buf, verification_key_data const& key)
 {
     using serialize::write;
-    write(buf, key.composer_type);
+    write(buf, key.circuit_type);
     write(buf, key.circuit_size);
     write(buf, key.num_public_inputs);
     write(buf, key.commitments);
@@ -52,7 +52,7 @@ template <typename B> inline void write(B& buf, verification_key_data const& key
 
 inline std::ostream& operator<<(std::ostream& os, verification_key_data const& key)
 {
-    return os << "key.composer_type: " << key.composer_type << "\n"
+    return os << "key.circuit_type: " << static_cast<uint32_t>(key.circuit_type) << "\n"
               << "key.circuit_size: " << static_cast<uint32_t>(key.circuit_size) << "\n"
               << "key.num_public_inputs: " << static_cast<uint32_t>(key.num_public_inputs) << "\n"
               << "key.commitments: " << key.commitments << "\n"
@@ -62,7 +62,7 @@ inline std::ostream& operator<<(std::ostream& os, verification_key_data const& k
 
 inline bool operator==(verification_key_data const& lhs, verification_key_data const& rhs)
 {
-    return lhs.composer_type == rhs.composer_type && lhs.circuit_size == rhs.circuit_size &&
+    return lhs.circuit_type == rhs.circuit_type && lhs.circuit_size == rhs.circuit_size &&
            lhs.num_public_inputs == rhs.num_public_inputs && lhs.commitments == rhs.commitments;
 }
 
@@ -74,7 +74,7 @@ struct verification_key {
     verification_key(const size_t num_gates,
                      const size_t num_inputs,
                      std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& crs,
-                     uint32_t composer_type);
+                     CircuitType circuit_type);
 
     verification_key(const verification_key& other);
     verification_key(verification_key&& other);
@@ -87,16 +87,16 @@ struct verification_key {
     verification_key_data as_data() const
     {
         return {
-            .composer_type = composer_type,
-            .circuit_size = (uint32_t)circuit_size,
-            .num_public_inputs = (uint32_t)num_public_inputs,
+            .circuit_type = static_cast<uint32_t>(circuit_type),
+            .circuit_size = static_cast<uint32_t>(circuit_size),
+            .num_public_inputs = static_cast<uint32_t>(num_public_inputs),
             .commitments = commitments,
             .contains_recursive_proof = contains_recursive_proof,
             .recursive_proof_public_input_indices = recursive_proof_public_input_indices,
         };
     }
 
-    uint32_t composer_type;
+    CircuitType circuit_type;
     size_t circuit_size;
     size_t log_circuit_size;
     size_t num_public_inputs;
@@ -120,7 +120,7 @@ struct verification_key {
     // for serialization: update with new fields
     void msgpack_pack(auto& packer) const
     {
-        verification_key_data data = { composer_type,
+        verification_key_data data = { static_cast<uint32_t>(circuit_type),
                                        static_cast<uint32_t>(circuit_size),
                                        static_cast<uint32_t>(num_public_inputs),
                                        commitments,

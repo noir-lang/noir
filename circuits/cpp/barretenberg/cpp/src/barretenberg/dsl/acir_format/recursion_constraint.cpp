@@ -43,8 +43,8 @@ void create_recursion_constraints(Builder& builder,
     // on-curve errors and inverting-zero errors
     {
         // get a fake key/proof that satisfies on-curve + inversion-zero checks
-        const std::vector<fr> dummy_key = export_dummy_key_in_recursion_format(PolynomialManifest(Builder::type),
-                                                                               inner_proof_contains_recursive_proof);
+        const std::vector<fr> dummy_key = export_dummy_key_in_recursion_format(
+            PolynomialManifest(Builder::CIRCUIT_TYPE), inner_proof_contains_recursive_proof);
         const auto manifest = Composer::create_manifest(input.public_inputs.size());
         const std::vector<barretenberg::fr> dummy_proof =
             export_dummy_transcript_in_recursion_format(manifest, inner_proof_contains_recursive_proof);
@@ -180,7 +180,7 @@ std::vector<barretenberg::fr> export_key_in_recursion_format(std::shared_ptr<ver
     }
 
     verification_key_data vkey_data{
-        .composer_type = vkey->composer_type,
+        .circuit_type = static_cast<uint32_t>(vkey->circuit_type),
         .circuit_size = static_cast<uint32_t>(vkey->circuit_size),
         .num_public_inputs = static_cast<uint32_t>(vkey->num_public_inputs),
         .commitments = vkey->commitments,

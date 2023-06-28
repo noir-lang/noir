@@ -1,11 +1,11 @@
 #include <benchmark/benchmark.h>
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 
 using namespace benchmark;
 
-using Builder = proof_system::UltraCircuitConstructor;
-using Composer = proof_system::plonk::UltraPlonkComposerHelper;
+using Builder = proof_system::UltraCircuitBuilder;
+using Composer = proof_system::plonk::UltraComposer;
 using Prover = proof_system::plonk::UltraProver;
 using Verifier = proof_system::plonk::UltraVerifier;
 

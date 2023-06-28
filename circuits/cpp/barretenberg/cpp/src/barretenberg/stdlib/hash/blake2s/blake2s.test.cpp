@@ -2,12 +2,12 @@
 #include "blake2s_plookup.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/crypto/blake2s/blake2s.hpp"
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;
 
-using Builder = proof_system::UltraCircuitConstructor;
+using Builder = proof_system::UltraCircuitBuilder;
 
 using field_ct = field_t<Builder>;
 using witness_ct = witness_t<Builder>;

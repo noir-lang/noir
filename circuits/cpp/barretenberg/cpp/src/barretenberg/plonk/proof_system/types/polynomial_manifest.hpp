@@ -3,7 +3,7 @@
 #include <array>
 #include <vector>
 #include <string>
-#include "barretenberg/proof_system/types/composer_type.hpp"
+#include "barretenberg/proof_system/types/circuit_type.hpp"
 
 namespace proof_system::plonk {
 
@@ -172,22 +172,22 @@ class PolynomialManifest {
   public:
     PolynomialManifest() {}
 
-    PolynomialManifest(uint32_t composer_type)
+    PolynomialManifest(CircuitType circuit_type)
     {
-        switch (composer_type) {
-        case ComposerType::STANDARD: {
+        switch (circuit_type) {
+        case CircuitType::STANDARD: {
             std::copy(standard_polynomial_manifest,
                       standard_polynomial_manifest + STANDARD_MANIFEST_SIZE,
                       std::back_inserter(manifest));
             break;
         };
-        case ComposerType::TURBO: {
+        case CircuitType::TURBO: {
             std::copy(turbo_polynomial_manifest,
                       turbo_polynomial_manifest + TURBO_MANIFEST_SIZE,
                       std::back_inserter(manifest));
             break;
         };
-        case ComposerType::PLOOKUP: {
+        case CircuitType::ULTRA: {
             std::copy(ultra_polynomial_manifest,
                       ultra_polynomial_manifest + ULTRA_MANIFEST_SIZE,
                       std::back_inserter(manifest));
@@ -220,9 +220,9 @@ class PrecomputedPolyList {
 
   public:
     // Upon construction, build the vector of precomputed poly ID strings based on the manifest
-    PrecomputedPolyList(uint32_t composer_type)
+    PrecomputedPolyList(CircuitType circuit_type)
     {
-        PolynomialManifest manifest(composer_type);
+        PolynomialManifest manifest(circuit_type);
 
         for (size_t i = 0; i < manifest.size(); ++i) {
             std::string label = std::string(manifest[i].polynomial_label);
@@ -235,7 +235,7 @@ class PrecomputedPolyList {
                 precomputed_poly_ids.emplace_back(label);
                 precomputed_poly_ids.emplace_back(label + "_fft");
                 // Store all lagrange forms of selector polynomials for ultra
-                if (composer_type == proof_system::ComposerType::PLOOKUP) {
+                if (circuit_type == CircuitType::ULTRA) {
                     precomputed_poly_ids.emplace_back(label + "_lagrange");
                 }
                 break;

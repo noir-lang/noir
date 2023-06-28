@@ -2,8 +2,8 @@
 #include <sstream>
 #include <bitset>
 
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 
 #include "circuits/blake_circuit.hpp"
 #include "circuits/add_2_circuit.hpp"
@@ -15,7 +15,7 @@ using numeric::uint256_t;
 
 template <typename Composer, template <typename> typename Circuit> void generate_proof(uint256_t inputs[])
 {
-    auto builder = Circuit<typename Composer::CircuitConstructor>::generate(inputs);
+    auto builder = Circuit<typename Composer::CircuitBuilder>::generate(inputs);
 
     Composer composer;
     // @todo this only works for ultra! Why is ultra part of function name on ultra composer?
@@ -83,11 +83,11 @@ int main(int argc, char** argv)
         return 1;
     } else {
         if (circuit_flavour == "blake") {
-            generate_proof<UltraPlonkComposerHelper, BlakeCircuit>(inputs);
+            generate_proof<UltraComposer, BlakeCircuit>(inputs);
         } else if (circuit_flavour == "add2") {
-            generate_proof<UltraPlonkComposerHelper, Add2Circuit>(inputs);
+            generate_proof<UltraComposer, Add2Circuit>(inputs);
         } else if (circuit_flavour == "recursive") {
-            generate_proof<UltraPlonkComposerHelper, RecursiveCircuit>(inputs);
+            generate_proof<UltraComposer, RecursiveCircuit>(inputs);
         } else {
             info("Invalid circuit flavour: " + circuit_flavour);
             return 1;

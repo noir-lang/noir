@@ -363,8 +363,8 @@ template <typename Composer> packed_byte_array<Composer> sha256(const packed_byt
     std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
     return packed_byte_array<Composer>(output, 4);
 }
-#define SHA256_PLOOKUP(COMPOSER_TYPE)                                                                                  \
-    packed_byte_array<COMPOSER_TYPE> sha256(const packed_byte_array<COMPOSER_TYPE>& input)
+#define SHA256_PLOOKUP(circuit_type)                                                                                   \
+    packed_byte_array<circuit_type> sha256(const packed_byte_array<circuit_type>& input)
 
 INSTANTIATE_STDLIB_ULTRA_METHOD(SHA256_PLOOKUP)
 } // namespace sha256_plookup

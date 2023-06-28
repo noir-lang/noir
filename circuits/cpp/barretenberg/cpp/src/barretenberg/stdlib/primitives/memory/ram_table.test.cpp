@@ -2,13 +2,13 @@
 
 #include "ram_table.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 namespace test_stdlib_ram_table {
 
 using namespace proof_system::plonk;
 // Defining ultra-specific types for local testing.
-using Composer = proof_system::UltraCircuitConstructor;
+using Composer = proof_system::UltraCircuitBuilder;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;
 using ram_table_ct = stdlib::ram_table<Composer>;

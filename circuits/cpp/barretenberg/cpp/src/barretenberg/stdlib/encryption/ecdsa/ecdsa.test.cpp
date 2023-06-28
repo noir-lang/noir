@@ -9,7 +9,7 @@ using namespace barretenberg;
 using namespace proof_system::plonk;
 
 namespace test_stdlib_ecdsa {
-using Composer = proof_system::UltraCircuitConstructor;
+using Composer = proof_system::UltraCircuitBuilder;
 using curve = stdlib::secp256k1<Composer>;
 
 TEST(stdlib_ecdsa, verify_signature)

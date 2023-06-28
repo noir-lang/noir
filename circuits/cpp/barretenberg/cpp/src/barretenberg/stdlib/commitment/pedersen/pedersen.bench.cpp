@@ -3,7 +3,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/plonk/composer/composer_helper/turbo_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
@@ -12,8 +12,8 @@
 using namespace benchmark;
 using namespace proof_system::plonk;
 
-using Builder = proof_system::TurboCircuitConstructor;
-using Composer = proof_system::plonk::TurboPlonkComposerHelper;
+using Builder = proof_system::TurboCircuitBuilder;
+using Composer = proof_system::plonk::TurboComposer;
 
 constexpr size_t NUM_CIRCUITS = 10;
 
@@ -96,7 +96,7 @@ BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);
 void construct_pedersen_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        auto builder = Builder(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        auto builder = Builder(static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
         std::cout << "builder gates = " << builder.get_num_gates() << std::endl;
 
@@ -119,7 +119,7 @@ BENCHMARK(construct_pedersen_witnesses_bench)
 void construct_pedersen_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        Builder builder = Builder(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        Builder builder = Builder(static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
 
@@ -146,7 +146,7 @@ void construct_pedersen_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        auto builder = Builder(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        auto builder = Builder(static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(builder, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
         auto composer = Composer();

@@ -5,7 +5,7 @@
 #include "logic.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/proof_system/types/composer_type.hpp"
+#include "barretenberg/proof_system/types/circuit_type.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
@@ -29,11 +29,10 @@ using namespace proof_system::plonk;
 
 template <class Composer> class LogicTest : public testing::Test {};
 
-using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
-                                       proof_system::TurboCircuitConstructor,
-                                       proof_system::UltraCircuitConstructor>;
+using CircuitTypes = ::testing::
+    Types<proof_system::StandardCircuitBuilder, proof_system::TurboCircuitBuilder, proof_system::UltraCircuitBuilder>;
 
-TYPED_TEST_SUITE(LogicTest, ComposerTypes);
+TYPED_TEST_SUITE(LogicTest, CircuitTypes);
 
 TYPED_TEST(LogicTest, TestCorrectLogic)
 {
@@ -127,7 +126,7 @@ TYPED_TEST(LogicTest, DifferentWitnessSameResult)
 
     STDLIB_TYPE_ALIASES
     auto composer = Composer();
-    if (Composer::type == proof_system::ComposerType::PLOOKUP) {
+    if (HasPlookup<Composer>) {
         uint256_t a = 3758096391;
         uint256_t b = 2147483649;
         field_ct x = witness_ct(&composer, uint256_t(a));

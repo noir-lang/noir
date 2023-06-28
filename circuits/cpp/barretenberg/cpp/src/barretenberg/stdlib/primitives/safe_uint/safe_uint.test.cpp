@@ -30,10 +30,9 @@ template <class T> void ignore_unused(T&) {} // use to ignore unused variables i
 
 template <class Composer> class SafeUintTest : public ::testing::Test {};
 
-using ComposerTypes = ::testing::Types<proof_system::StandardCircuitConstructor,
-                                       proof_system::TurboCircuitConstructor,
-                                       proof_system::UltraCircuitConstructor>;
-TYPED_TEST_SUITE(SafeUintTest, ComposerTypes);
+using CircuitTypes = ::testing::
+    Types<proof_system::StandardCircuitBuilder, proof_system::TurboCircuitBuilder, proof_system::UltraCircuitBuilder>;
+TYPED_TEST_SUITE(SafeUintTest, CircuitTypes);
 
 // CONSTRUCTOR
 

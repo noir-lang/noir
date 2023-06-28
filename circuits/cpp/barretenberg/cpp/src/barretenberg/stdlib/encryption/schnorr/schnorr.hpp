@@ -45,28 +45,28 @@ bool_t<C> signature_verification_result(const byte_array<C>& message,
                                         const point<C>& pub_key,
                                         const signature_bits<C>& sig);
 
-#define VARIABLE_BASE_MUL(COMPOSER_TYPE)                                                                               \
-    point<COMPOSER_TYPE> variable_base_mul<COMPOSER_TYPE>(                                                             \
-        const point<COMPOSER_TYPE>&, const point<COMPOSER_TYPE>&, const wnaf_record<COMPOSER_TYPE>&)
+#define VARIABLE_BASE_MUL(circuit_type)                                                                                \
+    point<circuit_type> variable_base_mul<circuit_type>(                                                               \
+        const point<circuit_type>&, const point<circuit_type>&, const wnaf_record<circuit_type>&)
 
-#define CONVERT_FIELD_INTO_WNAF(COMPOSER_TYPE)                                                                         \
-    wnaf_record<COMPOSER_TYPE> convert_field_into_wnaf<COMPOSER_TYPE>(COMPOSER_TYPE * context,                         \
-                                                                      const field_t<COMPOSER_TYPE>& limb)
+#define CONVERT_FIELD_INTO_WNAF(circuit_type)                                                                          \
+    wnaf_record<circuit_type> convert_field_into_wnaf<circuit_type>(circuit_type * context,                            \
+                                                                    const field_t<circuit_type>& limb)
 
-#define VERIFY_SIGNATURE_INTERNAL(COMPOSER_TYPE)                                                                       \
-    std::array<field_t<COMPOSER_TYPE>, 2> verify_signature_internal<COMPOSER_TYPE>(                                    \
-        const byte_array<COMPOSER_TYPE>&, const point<COMPOSER_TYPE>&, const signature_bits<COMPOSER_TYPE>&)
+#define VERIFY_SIGNATURE_INTERNAL(circuit_type)                                                                        \
+    std::array<field_t<circuit_type>, 2> verify_signature_internal<circuit_type>(                                      \
+        const byte_array<circuit_type>&, const point<circuit_type>&, const signature_bits<circuit_type>&)
 
-#define VERIFY_SIGNATURE(COMPOSER_TYPE)                                                                                \
-    void verify_signature<COMPOSER_TYPE>(                                                                              \
-        const byte_array<COMPOSER_TYPE>&, const point<COMPOSER_TYPE>&, const signature_bits<COMPOSER_TYPE>&)
+#define VERIFY_SIGNATURE(circuit_type)                                                                                 \
+    void verify_signature<circuit_type>(                                                                               \
+        const byte_array<circuit_type>&, const point<circuit_type>&, const signature_bits<circuit_type>&)
 
-#define SIGNATURE_VERIFICATION_RESULT(COMPOSER_TYPE)                                                                   \
-    bool_t<COMPOSER_TYPE> signature_verification_result<COMPOSER_TYPE>(                                                \
-        const byte_array<COMPOSER_TYPE>&, const point<COMPOSER_TYPE>&, const signature_bits<COMPOSER_TYPE>&)
+#define SIGNATURE_VERIFICATION_RESULT(circuit_type)                                                                    \
+    bool_t<circuit_type> signature_verification_result<circuit_type>(                                                  \
+        const byte_array<circuit_type>&, const point<circuit_type>&, const signature_bits<circuit_type>&)
 
-#define CONVERT_SIGNATURE(COMPOSER_TYPE)                                                                               \
-    signature_bits<COMPOSER_TYPE> convert_signature<COMPOSER_TYPE>(COMPOSER_TYPE*, const crypto::schnorr::signature&)
+#define CONVERT_SIGNATURE(circuit_type)                                                                                \
+    signature_bits<circuit_type> convert_signature<circuit_type>(circuit_type*, const crypto::schnorr::signature&)
 
 EXTERN_STDLIB_METHOD(VARIABLE_BASE_MUL)
 EXTERN_STDLIB_METHOD(CONVERT_FIELD_INTO_WNAF)

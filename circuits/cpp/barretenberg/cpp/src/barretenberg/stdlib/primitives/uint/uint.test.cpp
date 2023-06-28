@@ -75,7 +75,7 @@ uint_native rotate(uint_native value, size_t rotation)
                     : value;
 }
 template <typename Composer> class stdlib_uint : public testing::Test {
-    typedef typename std::conditional<Composer::type == proof_system::ComposerType::PLOOKUP,
+    typedef typename std::conditional<std::same_as<Composer, UltraCircuitBuilder>,
                                       stdlib::uint_plookup<Composer, uint_native>,
                                       stdlib::uint<Composer, uint_native>>::type uint_ct;
     typedef stdlib::bool_t<Composer> bool_ct;
@@ -1743,12 +1743,11 @@ template <typename Composer> class stdlib_uint : public testing::Test {
     }
 };
 
-typedef testing::Types<proof_system::StandardCircuitConstructor,
-                       proof_system::TurboCircuitConstructor,
-                       proof_system::UltraCircuitConstructor>
-    ComposerTypes;
+typedef testing::
+    Types<proof_system::StandardCircuitBuilder, proof_system::TurboCircuitBuilder, proof_system::UltraCircuitBuilder>
+        CircuitTypes;
 
-TYPED_TEST_SUITE(stdlib_uint, ComposerTypes);
+TYPED_TEST_SUITE(stdlib_uint, CircuitTypes);
 
 TYPED_TEST(stdlib_uint, test_weak_normalize)
 {
@@ -1923,10 +1922,10 @@ TYPED_TEST(stdlib_uint, test_at)
 // There was one plookup-specific test in the ./plookup/uint_plookup.test.cpp
 TEST(stdlib_uint32, test_accumulators_plookup_uint32)
 {
-    using uint32_ct = proof_system::plonk::stdlib::uint32<proof_system::UltraCircuitConstructor>;
-    using witness_ct = proof_system::plonk::stdlib::witness_t<proof_system::UltraCircuitConstructor>;
+    using uint32_ct = proof_system::plonk::stdlib::uint32<proof_system::UltraCircuitBuilder>;
+    using witness_ct = proof_system::plonk::stdlib::witness_t<proof_system::UltraCircuitBuilder>;
 
-    proof_system::UltraCircuitConstructor composer;
+    proof_system::UltraCircuitBuilder composer;
 
     uint32_t a_val = engine.get_random_uint32();
     uint32_t b_val = engine.get_random_uint32();

@@ -1,13 +1,13 @@
 #include "barretenberg/benchmark/honk_bench/benchmark_utilities.hpp"
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 
 using namespace benchmark;
 
 namespace ultra_plonk_bench {
 
-using UltraBuilder = proof_system::UltraCircuitConstructor;
-using UltraPlonk = proof_system::plonk::UltraPlonkComposerHelper;
+using UltraBuilder = proof_system::UltraCircuitBuilder;
+using UltraPlonk = proof_system::plonk::UltraComposer;
 
 // Number of times to perform operation of interest in the benchmark circuits, e.g. # of hashes to perform
 constexpr size_t MIN_NUM_ITERATIONS = bench_utils::BenchParams::MIN_NUM_ITERATIONS;

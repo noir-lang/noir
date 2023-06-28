@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
-#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
+#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
 using namespace benchmark;
@@ -12,8 +12,8 @@ constexpr size_t START = (MAX_GATES) >> (NUM_CIRCUITS - 1);
 // constexpr size_t MAX_HASH_ROUNDS = 8192;
 // constexpr size_t START_HASH_ROUNDS = 64;
 
-using Builder = proof_system::StandardCircuitConstructor;
-using Composer = proof_system::plonk::StandardPlonkComposerHelper;
+using Builder = proof_system::StandardCircuitBuilder;
+using Composer = proof_system::plonk::StandardComposer;
 
 void generate_test_plonk_circuit(Builder& builder, size_t num_gates)
 {

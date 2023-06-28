@@ -11,8 +11,8 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <gtest/internal/gtest-internal.h>
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/honk/composer/composer_helper/standard_honk_composer_helper.hpp"
-#include "barretenberg/honk/composer/composer_helper/ultra_honk_composer_helper.hpp"
+#include "barretenberg/honk/composer/standard_composer.hpp"
+#include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
@@ -424,7 +424,7 @@ TEST_F(SumcheckTests, RealCircuitStandard)
     using ProverPolynomials = typename Flavor::ProverPolynomials;
 
     // Create a composer and a dummy circuit with a few gates
-    auto circuit_constructor = StandardCircuitConstructor();
+    auto circuit_constructor = StandardCircuitBuilder();
     fr a = fr::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
     uint32_t a_idx = circuit_constructor.add_public_variable(a);
@@ -440,7 +440,7 @@ TEST_F(SumcheckTests, RealCircuitStandard)
             { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
     }
     // Create a prover (it will compute proving key and witness)
-    auto composer = StandardHonkComposerHelper();
+    auto composer = StandardComposer();
     auto prover = composer.create_prover(circuit_constructor);
 
     // Generate beta and gamma
@@ -508,7 +508,7 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     using ProverPolynomials = typename Flavor::ProverPolynomials;
 
     // Create a composer and a dummy circuit with a few gates
-    auto circuit_constructor = UltraCircuitConstructor();
+    auto circuit_constructor = UltraCircuitBuilder();
     fr a = fr::one();
 
     // Add some basic add gates
@@ -621,7 +621,7 @@ TEST_F(SumcheckTests, RealCircuitUltra)
         false);
 
     // Create a prover (it will compute proving key and witness)
-    auto composer = UltraHonkComposerHelper();
+    auto composer = UltraComposer();
     auto prover = composer.create_prover(circuit_constructor);
 
     // Generate eta, beta and gamma

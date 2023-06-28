@@ -20,7 +20,7 @@ namespace proof_system::plonk::test_verification_key {
 verification_key_data rand_vk_data()
 {
     verification_key_data vk_data;
-    vk_data.composer_type = static_cast<uint32_t>(proof_system::ComposerType::STANDARD);
+    vk_data.circuit_type = static_cast<uint32_t>(CircuitType::STANDARD);
     vk_data.circuit_size = 1024; // not random - must be power of 2
     vk_data.num_public_inputs = engine.get_random_uint32();
     vk_data.commitments["test1"] = g1::element::random_element();
@@ -98,11 +98,11 @@ TEST(verification_key, compression_inequality_index_mismatch)
     // EXPECT_NE(vk0_data.compress_native(14), vk1_data.compress_native(15));
 }
 
-TEST(verification_key, compression_inequality_composer_type)
+TEST(verification_key, compression_inequality_circuit_type)
 {
     verification_key_data vk0_data = rand_vk_data();
     verification_key_data vk1_data = vk0_data; // copy
-    vk0_data.composer_type = static_cast<uint32_t>(proof_system::ComposerType::PLOOKUP);
+    vk0_data.circuit_type = static_cast<uint32_t>(CircuitType::ULTRA);
     expect_compressions_ne(vk0_data, vk1_data);
 }
 

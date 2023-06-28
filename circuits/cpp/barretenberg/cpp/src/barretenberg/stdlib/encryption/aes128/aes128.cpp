@@ -298,9 +298,9 @@ std::vector<field_t<Composer>> encrypt_buffer_cbc(const std::vector<field_t<Comp
     }
     return output;
 }
-#define ENCRYPT_BUFFER_CBC(COMPOSER_TYPE)                                                                              \
-    std::vector<field_t<COMPOSER_TYPE>> encrypt_buffer_cbc<COMPOSER_TYPE>(                                             \
-        const std::vector<field_t<COMPOSER_TYPE>>&, const field_t<COMPOSER_TYPE>&, const field_t<COMPOSER_TYPE>&)
+#define ENCRYPT_BUFFER_CBC(circuit_type)                                                                               \
+    std::vector<field_t<circuit_type>> encrypt_buffer_cbc<circuit_type>(                                               \
+        const std::vector<field_t<circuit_type>>&, const field_t<circuit_type>&, const field_t<circuit_type>&)
 
 INSTANTIATE_STDLIB_ULTRA_METHOD(ENCRYPT_BUFFER_CBC)
 } // namespace aes128

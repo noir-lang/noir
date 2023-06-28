@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "barretenberg/honk/composer/composer_helper/standard_honk_composer_helper.hpp"
-#include "barretenberg/honk/composer/composer_helper/ultra_honk_composer_helper.hpp"
+#include "barretenberg/honk/composer/standard_composer.hpp"
+#include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
@@ -82,7 +82,7 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
     // using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
     // Create a composer and a dummy circuit with a few gates
-    auto circuit_constructor = StandardCircuitConstructor();
+    auto circuit_constructor = StandardCircuitBuilder();
     fr a = fr::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
     uint32_t a_idx = circuit_constructor.add_public_variable(a);
@@ -98,7 +98,7 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
             { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
     }
     // Create a prover (it will compute proving key and witness)
-    auto composer = StandardHonkComposerHelper();
+    auto composer = StandardComposer();
     auto prover = composer.create_prover(circuit_constructor);
     auto circuit_size = prover.key->circuit_size;
 
@@ -175,7 +175,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
     // by each relation are non-trivially exercised.
-    auto circuit_constructor = UltraCircuitConstructor();
+    auto circuit_constructor = UltraCircuitBuilder();
 
     barretenberg::fr pedersen_input_value = fr::random_element();
     fr a = fr::one();
@@ -292,7 +292,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
         false);
 
     // Create a prover (it will compute proving key and witness)
-    auto composer = UltraHonkComposerHelper();
+    auto composer = UltraComposer();
     auto prover = composer.create_prover(circuit_constructor);
     auto circuit_size = prover.key->circuit_size;
 

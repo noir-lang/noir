@@ -4,7 +4,7 @@
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
 #include "../../../transcript/transcript.hpp"
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "verifier.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include <gtest/gtest.h>
@@ -46,7 +46,7 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
         std::make_shared<verification_key>(circuit_proving_key->circuit_size,
                                            circuit_proving_key->num_public_inputs,
                                            crs,
-                                           circuit_proving_key->composer_type);
+                                           circuit_proving_key->circuit_type);
 
     circuit_verification_key->commitments.insert({ "Q_1", commitments[0] });
     circuit_verification_key->commitments.insert({ "Q_2", commitments[1] });
@@ -58,7 +58,7 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
     circuit_verification_key->commitments.insert({ "SIGMA_2", commitments[6] });
     circuit_verification_key->commitments.insert({ "SIGMA_3", commitments[7] });
 
-    Verifier verifier(circuit_verification_key, plonk::StandardPlonkComposerHelper::create_manifest(0));
+    Verifier verifier(circuit_verification_key, plonk::StandardComposer::create_manifest(0));
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
@@ -78,7 +78,7 @@ plonk::Prover generate_test_data(const size_t n)
     // even indices = mul gates, odd incides = add gates
 
     auto crs = std::make_shared<barretenberg::srs::factories::FileProverCrs<curve::BN254>>(n + 1, "../srs_db/ignition");
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, ComposerType::STANDARD);
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, CircuitType::STANDARD);
 
     polynomial w_l(n);
     polynomial w_r(n);
@@ -233,7 +233,7 @@ plonk::Prover generate_test_data(const size_t n)
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
 
-    plonk::Prover state = plonk::Prover(std::move(key), plonk::StandardPlonkComposerHelper::create_manifest(0));
+    plonk::Prover state = plonk::Prover(std::move(key), plonk::StandardComposer::create_manifest(0));
     state.random_widgets.emplace_back(std::move(permutation_widget));
     state.transition_widgets.emplace_back(std::move(widget));
     state.commitment_scheme = std::move(kate_commitment_scheme);

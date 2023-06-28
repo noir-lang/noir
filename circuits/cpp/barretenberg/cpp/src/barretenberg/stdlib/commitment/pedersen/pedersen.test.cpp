@@ -135,7 +135,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
     static void test_pedersen()
     {
 
-        Composer composer = Composer("../srs_db/ignition/");
+        Composer composer;
 
         fr left_in = fr::random_element();
         fr right_in = fr::random_element();
@@ -176,7 +176,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
     static void test_pedersen_edge_cases()
     {
-        Composer composer = Composer("../srs_db/ignition/");
+        Composer composer;
 
         fr zero_fr = fr::zero();
         fr one_fr = fr::one();
@@ -242,7 +242,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
     static void test_pedersen_large()
     {
-        Composer composer = Composer("../srs_db/ignition/");
+        Composer composer;
 
         fr left_in = fr::random_element();
         fr right_in = fr::random_element();
@@ -272,7 +272,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
     {
         const size_t num_input_bytes = 351;
 
-        Composer composer = Composer("../srs_db/ignition/");
+        Composer composer;
 
         std::vector<uint8_t> input;
         input.reserve(num_input_bytes);
@@ -295,7 +295,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
     static void test_multi_compress()
     {
-        Composer composer = Composer("../srs_db/ignition/");
+        Composer composer;
 
         for (size_t i = 0; i < 7; ++i) {
             std::vector<barretenberg::fr> inputs;
@@ -346,7 +346,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
     static void test_compress_eight()
     {
-        Composer composer = Composer("../srs_db/ignition/");
+        Composer composer;
 
         std::vector<grumpkin::fq> inputs;
         inputs.reserve(8);
@@ -366,7 +366,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
 
     static void test_compress_constants()
     {
-        Composer composer = Composer("../srs_db/ignition/");
+        Composer composer;
 
         std::vector<barretenberg::fr> inputs;
         std::vector<stdlib::field_t<Composer>> witness_inputs;
@@ -387,12 +387,11 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
     }
 };
 
-typedef testing::Types<proof_system::StandardCircuitConstructor,
-                       proof_system::TurboCircuitConstructor,
-                       proof_system::UltraCircuitConstructor>
-    ComposerTypes;
+typedef testing::
+    Types<proof_system::StandardCircuitBuilder, proof_system::TurboCircuitBuilder, proof_system::UltraCircuitBuilder>
+        CircuitTypes;
 
-TYPED_TEST_SUITE(stdlib_pedersen, ComposerTypes);
+TYPED_TEST_SUITE(stdlib_pedersen, CircuitTypes);
 
 TYPED_TEST(stdlib_pedersen, small)
 {

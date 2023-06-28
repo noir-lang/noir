@@ -2,10 +2,10 @@
 #include "barretenberg/common/streams.hpp"
 #include "proving_key.hpp"
 #include "serialize.hpp"
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
-#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 #ifndef __wasm__
 #include <filesystem>
@@ -18,8 +18,8 @@ using namespace proof_system::plonk;
 // Test proving key serialization/deserialization to/from buffer
 TEST(proving_key, proving_key_from_serialized_key)
 {
-    auto builder = StandardCircuitConstructor();
-    auto composer = StandardPlonkComposerHelper();
+    auto builder = StandardCircuitBuilder();
+    auto composer = StandardComposer();
     fr a = fr::one();
     builder.add_public_variable(a);
 
@@ -33,7 +33,7 @@ TEST(proving_key, proving_key_from_serialized_key)
     // Loop over all pre-computed polys for the given composer type and ensure equality
     // between original proving key polynomial store and the polynomial store that was
     // serialized/deserialized from buffer
-    plonk::PrecomputedPolyList precomputed_poly_list(p_key.composer_type);
+    plonk::PrecomputedPolyList precomputed_poly_list(p_key.circuit_type);
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];
@@ -46,7 +46,7 @@ TEST(proving_key, proving_key_from_serialized_key)
     EXPECT_EQ(all_polys_are_equal, true);
 
     // Check equality of other proving_key_data data
-    EXPECT_EQ(p_key.composer_type, proving_key->composer_type);
+    EXPECT_EQ(p_key.circuit_type, proving_key->circuit_type);
     EXPECT_EQ(p_key.circuit_size, proving_key->circuit_size);
     EXPECT_EQ(p_key.num_public_inputs, proving_key->num_public_inputs);
     EXPECT_EQ(p_key.contains_recursive_proof, proving_key->contains_recursive_proof);
@@ -55,8 +55,8 @@ TEST(proving_key, proving_key_from_serialized_key)
 // Test proving key serialization/deserialization to/from buffer using UltraPlonkComposer
 TEST(proving_key, proving_key_from_serialized_key_ultra)
 {
-    auto builder = UltraCircuitConstructor();
-    auto composer = UltraPlonkComposerHelper();
+    auto builder = UltraCircuitBuilder();
+    auto composer = UltraComposer();
     fr a = fr::one();
     builder.add_public_variable(a);
 
@@ -70,7 +70,7 @@ TEST(proving_key, proving_key_from_serialized_key_ultra)
     // Loop over all pre-computed polys for the given composer type and ensure equality
     // between original proving key polynomial store and the polynomial store that was
     // serialized/deserialized from buffer
-    plonk::PrecomputedPolyList precomputed_poly_list(p_key.composer_type);
+    plonk::PrecomputedPolyList precomputed_poly_list(p_key.circuit_type);
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];
@@ -83,7 +83,7 @@ TEST(proving_key, proving_key_from_serialized_key_ultra)
     EXPECT_EQ(all_polys_are_equal, true);
 
     // Check equality of other proving_key_data data
-    EXPECT_EQ(p_key.composer_type, proving_key->composer_type);
+    EXPECT_EQ(p_key.circuit_type, proving_key->circuit_type);
     EXPECT_EQ(p_key.circuit_size, proving_key->circuit_size);
     EXPECT_EQ(p_key.num_public_inputs, proving_key->num_public_inputs);
     EXPECT_EQ(p_key.contains_recursive_proof, proving_key->contains_recursive_proof);
@@ -94,8 +94,8 @@ TEST(proving_key, proving_key_from_serialized_key_ultra)
 #ifndef __wasm__
 TEST(proving_key, proving_key_from_mmaped_key)
 {
-        builder coStandardCircuitConstructor = StandardPlonkComposerHelper();auto composer =
-StandardPlonkComposerHelper(); fr a = fr::one(); builder.add_public_variable(a);
+        builder coStandardCircuitBuilder = StandardComposer();auto composer =
+StandardComposer(); fr a = fr::one(); builder.add_public_variable(a);
 
     // Write each precomputed polynomial in the proving key to
     // its own file using write_mmap
@@ -137,7 +137,7 @@ StandardPlonkComposerHelper(); fr a = fr::one(); builder.add_public_variable(a);
     // Loop over all pre-computed polys for the given composer type and ensure equality
     // between original proving key polynomial store and the polynomial store that was
     // serialized/deserialized via mmap
-    plonk::PrecomputedPolyList precomputed_poly_list(p_key.composer_type);
+    plonk::PrecomputedPolyList precomputed_poly_list(p_key.circuit_type);
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];
@@ -150,7 +150,7 @@ StandardPlonkComposerHelper(); fr a = fr::one(); builder.add_public_variable(a);
     EXPECT_EQ(all_polys_are_equal, true);
 
     // Check equality of other proving_key_data data
-    EXPECT_EQ(p_key.composer_type, pk_data.composer_type);
+    EXPECT_EQ(p_key.circuit_type, pk_data.circuit_type);
     EXPECT_EQ(p_key.circuit_size, pk_data.circuit_size);
     EXPECT_EQ(p_key.num_public_inputs, pk_data.num_public_inputs);
     EXPECT_EQ(p_key.contains_recursive_proof, pk_data.contains_recursive_proof);

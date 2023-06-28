@@ -256,7 +256,7 @@ template <typename Composer> class Transcript {
             field_pt borrow = field_pt::from_witness(context, need_borrow);
 
             // directly call `create_new_range_constraint` to avoid creating an arithmetic gate
-            if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+            if constexpr (HasPlookup<Composer>) {
                 context->create_new_range_constraint(borrow.get_witness_index(), 1, "borrow");
             } else {
                 context->create_range_constraint(borrow.get_witness_index(), 1, "borrow");
@@ -274,7 +274,7 @@ template <typename Composer> class Transcript {
         };
 
         field_pt base_hash;
-        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+        if constexpr (HasPlookup<Composer>) {
             base_hash = stdlib::pedersen_plookup_commitment<Composer>::compress(std::vector<field_pt>{ T0 }, 0);
         } else {
             base_hash = stdlib::pedersen_commitment<Composer>::compress(std::vector<field_pt>{ T0 }, 0);
@@ -293,7 +293,7 @@ template <typename Composer> class Transcript {
         for (size_t i = 2; i < num_challenges; i += 2) {
             // TODO(@zac-williamson) make this a Poseidon hash not a Pedersen hash
             field_pt hash_output;
-            if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+            if constexpr (HasPlookup<Composer>) {
                 hash_output = stdlib::pedersen_plookup_commitment<Composer>::compress(
                     std::vector<field_pt>{ (base_hash + field_pt(i / 2)).normalize() }, 0);
             } else {

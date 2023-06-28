@@ -7,7 +7,7 @@
 namespace arithmetization {
 
 /**
- * @brief Specify the structure of a CircuitConstructor
+ * @brief Specify the structure of a CircuitBuilder
  *
  * @details This is typically passed as a template argument specifying the structure of a circuit constructor. It
  * should only ever contain circuit constructor data--it should not contain data that is particular to any

@@ -16,7 +16,7 @@ using namespace proof_system::plonk;
 using namespace plookup;
 
 // Defining ultra-specific types for local testing.
-using Composer = proof_system::UltraCircuitConstructor;
+using Composer = proof_system::UltraCircuitBuilder;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;
 using plookup_read = proof_system::plonk::stdlib::plookup_read<Composer>;

@@ -137,7 +137,7 @@ template <typename Composer> byte_array<Composer> sha256_block(const byte_array<
 
 template <typename Composer> packed_byte_array<Composer> sha256(const packed_byte_array<Composer>& input)
 {
-    if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+    if constexpr (HasPlookup<Composer>) {
         return sha256_plookup::sha256(input);
     }
     typedef field_t<Composer> field_pt;

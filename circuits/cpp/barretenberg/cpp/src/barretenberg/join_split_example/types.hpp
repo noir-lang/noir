@@ -1,9 +1,9 @@
 #pragma once
 
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/turbo_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
-#include "barretenberg/honk/composer/composer_helper/ultra_honk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/honk/composer/ultra_composer.hpp"
 
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
@@ -18,18 +18,18 @@
 
 namespace join_split_example {
 
-using Builder = proof_system::UltraCircuitConstructor;
-using Composer = plonk::UltraPlonkComposerHelper;
+using Builder = proof_system::UltraCircuitBuilder;
+using Composer = plonk::UltraComposer;
 
 using Prover = std::conditional_t<
-    std::same_as<Composer, plonk::UltraPlonkComposerHelper>,
+    std::same_as<Composer, plonk::UltraComposer>,
     plonk::UltraProver,
-    std::conditional_t<std::same_as<Composer, plonk::TurboPlonkComposerHelper>, plonk::TurboProver, plonk::Prover>>;
+    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboProver, plonk::Prover>>;
 
 using Verifier = std::conditional_t<
-    std::same_as<Composer, plonk::UltraPlonkComposerHelper>,
+    std::same_as<Composer, plonk::UltraComposer>,
     plonk::UltraVerifier,
-    std::conditional_t<std::same_as<Composer, plonk::TurboPlonkComposerHelper>, plonk::TurboVerifier, plonk::Verifier>>;
+    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboVerifier, plonk::Verifier>>;
 
 using witness_ct = proof_system::plonk::stdlib::witness_t<Builder>;
 using public_witness_ct = proof_system::plonk::stdlib::public_witness_t<Builder>;

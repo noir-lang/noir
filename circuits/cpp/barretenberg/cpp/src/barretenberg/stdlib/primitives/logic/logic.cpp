@@ -52,7 +52,7 @@ field_t<Composer> logic<Composer>::create_logic_constraint(
         field_pt b_witness = field_pt::from_witness_index(ctx, ctx->put_constant_variable(b_native));
         return create_logic_constraint(a, b_witness, num_bits, is_xor_gate, get_chunk);
     }
-    if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+    if constexpr (HasPlookup<Composer>) {
         Composer* ctx = a.get_context();
 
         const size_t num_chunks = (num_bits / 32) + ((num_bits % 32 == 0) ? 0 : 1);

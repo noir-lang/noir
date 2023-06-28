@@ -11,8 +11,8 @@ using namespace proof_system::plonk;
 using numeric::uint256_t;
 
 template <typename OuterComposer> class RecursiveCircuit {
-    using InnerComposer = UltraPlonkComposerHelper;
-    using InnerBuilder = typename InnerComposer::CircuitConstructor;
+    using InnerComposer = UltraComposer;
+    using InnerBuilder = typename InnerComposer::CircuitBuilder;
 
     typedef stdlib::field_t<InnerBuilder> field_ct;
     typedef stdlib::bn254<InnerBuilder> inner_curve;
@@ -52,9 +52,9 @@ template <typename OuterComposer> class RecursiveCircuit {
         // circuit which uses non-ultra-pedersen challenges. We need the prover and verifier hashes to be the same. The
         // solution is to select the relevant prover and verifier types (whose settings use the same hash for
         // fiat-shamir), depending on the Inner-Outer combo. It's a bit clunky, but the alternative is to have a
-        // template argument for the hashtype, and that would pervade the entire UltraPlonkComposerHelper, which would
+        // template argument for the hashtype, and that would pervade the entire UltraComposer, which would
         // be horrendous.
-        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, UltraPlonkComposerHelper>::value;
+        constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, UltraComposer>::value;
         typedef
             typename std::conditional<is_ultra_to_ultra, UltraProver, UltraToStandardProver>::type ProverOfInnerCircuit;
         typedef typename std::conditional<is_ultra_to_ultra, UltraVerifier, UltraToStandardVerifier>::type

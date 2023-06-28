@@ -1966,7 +1966,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
  */
 extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
 {
-    RunWithComposers<BigFieldBase, FuzzerComposerTypes>(Data, Size, VarianceRNG);
+    RunWithComposers<BigFieldBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
     return 0;
 }
 

@@ -4,8 +4,8 @@
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/turbo_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
@@ -16,10 +16,10 @@ namespace proof_system::plonk::stdlib {
 
 template <typename OuterComposer> class stdlib_verifier_turbo : public testing::Test {
 
-    using InnerComposer = proof_system::plonk::TurboPlonkComposerHelper;
-    using InnerBuilder = typename InnerComposer::CircuitConstructor;
+    using InnerComposer = proof_system::plonk::TurboComposer;
+    using InnerBuilder = typename InnerComposer::CircuitBuilder;
 
-    using OuterBuilder = typename OuterComposer::CircuitConstructor;
+    using OuterBuilder = typename OuterComposer::CircuitBuilder;
 
     using inner_curve = bn254<InnerBuilder>;
     using outer_curve = bn254<OuterBuilder>;
@@ -490,9 +490,9 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
     }
 };
 
-typedef testing::Types<plonk::StandardPlonkComposerHelper, plonk::TurboPlonkComposerHelper> OuterComposerTypes;
+typedef testing::Types<plonk::StandardComposer, plonk::TurboComposer> OuterCircuitTypes;
 
-TYPED_TEST_SUITE(stdlib_verifier_turbo, OuterComposerTypes);
+TYPED_TEST_SUITE(stdlib_verifier_turbo, OuterCircuitTypes);
 
 HEAVY_TYPED_TEST(stdlib_verifier_turbo, test_inner_circuit)
 {
@@ -506,7 +506,7 @@ HEAVY_TYPED_TEST(stdlib_verifier_turbo, recursive_proof_composition)
 
 HEAVY_TYPED_TEST(stdlib_verifier_turbo, double_verification)
 {
-    if constexpr (std::same_as<TypeParam, TurboPlonkComposerHelper>) {
+    if constexpr (std::same_as<TypeParam, TurboComposer>) {
         TestFixture::test_double_verification();
     } else {
         // Test doesn't compile.

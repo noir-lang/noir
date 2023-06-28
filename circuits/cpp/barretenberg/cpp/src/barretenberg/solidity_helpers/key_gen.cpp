@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
 
 #include "circuits/blake_circuit.hpp"
@@ -15,7 +15,7 @@ template <typename Composer, template <typename> typename Circuit>
 void generate_keys(std::string output_path, std::string flavour_prefix, std::string circuit_name)
 {
     uint256_t public_inputs[4] = { 0, 0, 0, 0 };
-    auto circuit = Circuit<typename Composer::CircuitConstructor>::generate(public_inputs);
+    auto circuit = Circuit<typename Composer::CircuitBuilder>::generate(public_inputs);
 
     Composer composer;
     std::shared_ptr<plonk::verification_key> vkey = composer.compute_verification_key(circuit);
@@ -73,11 +73,11 @@ int main(int argc, char** argv)
         info("Generating ultra plonk keys for ", circuit_flavour, " circuit");
 
         if (circuit_flavour == "blake") {
-            generate_keys<UltraPlonkComposerHelper, BlakeCircuit>(output_path, plonk_flavour, circuit_flavour);
+            generate_keys<UltraComposer, BlakeCircuit>(output_path, plonk_flavour, circuit_flavour);
         } else if (circuit_flavour == "add2") {
-            generate_keys<UltraPlonkComposerHelper, Add2Circuit>(output_path, plonk_flavour, circuit_flavour);
+            generate_keys<UltraComposer, Add2Circuit>(output_path, plonk_flavour, circuit_flavour);
         } else if (circuit_flavour == "recursive") {
-            generate_keys<UltraPlonkComposerHelper, RecursiveCircuit>(output_path, plonk_flavour, circuit_flavour);
+            generate_keys<UltraComposer, RecursiveCircuit>(output_path, plonk_flavour, circuit_flavour);
         } else {
             info("Only blake, add2 and recursive circuits are supported at the moment");
             return 1;

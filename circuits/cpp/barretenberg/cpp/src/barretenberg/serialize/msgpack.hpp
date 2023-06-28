@@ -22,18 +22,18 @@ To make objects serializable as a map-like format, define the `msgpack` method i
 
 ```cpp
 void msgpack(auto ar) {
-    ar(NVP(composer_type, circuit_size, num_public_inputs, commitments, contains_recursive_proof,
+    ar(NVP(circuit_type, circuit_size, num_public_inputs, commitments, contains_recursive_proof,
 recursive_proof_public_input_indices));
 }
 or
-MSGPACK_FIELDS(composer_type, circuit_size, num_public_inputs, commitments, contains_recursive_proof,
+MSGPACK_FIELDS(circuit_type, circuit_size, num_public_inputs, commitments, contains_recursive_proof,
 recursive_proof_public_input_indices);
 ```
 
 This approach assumes 1. all members are default constructible 2. you give it all members 3. all members are writable
 references
 
-This method maps the object's properties (e.g., `composer_type`, `circuit_size`, etc.) to their respective keys in the
+This method maps the object's properties (e.g., `circuit_type`, `circuit_size`, etc.) to their respective keys in the
 serialized data.
 
 

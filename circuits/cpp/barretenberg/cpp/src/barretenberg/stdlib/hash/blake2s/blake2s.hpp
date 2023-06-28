@@ -7,7 +7,7 @@ namespace stdlib {
 
 template <typename Composer> byte_array<Composer> blake2s(const byte_array<Composer>& input);
 
-#define BLAKE2S(COMPOSER_TYPE) byte_array<COMPOSER_TYPE> blake2s(const byte_array<COMPOSER_TYPE>& input)
+#define BLAKE2S(circuit_type) byte_array<circuit_type> blake2s(const byte_array<circuit_type>& input)
 
 EXTERN_STDLIB_METHOD(BLAKE2S)
 

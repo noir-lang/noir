@@ -14,9 +14,7 @@ TEST(Flavor, StandardGetters)
     using FF = Flavor::FF;
     using ProvingKey = typename Flavor::ProvingKey;
 
-    ProvingKey proving_key = []() {
-        return Flavor::ProvingKey(/*circuit_size=*/4, /*num_public_inputs=*/0, ComposerType::STANDARD);
-    }();
+    ProvingKey proving_key = []() { return Flavor::ProvingKey(/*circuit_size=*/4, /*num_public_inputs=*/0); }();
 
     // set
     size_t coset_idx = 0;

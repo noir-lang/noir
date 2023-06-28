@@ -25,7 +25,7 @@ DynamicArray<Composer>::DynamicArray(Composer* composer, const size_t maximum_si
     , _max_size(maximum_size)
     , _length(0)
 {
-    static_assert(Composer::type == proof_system::ComposerType::PLOOKUP);
+    static_assert(HasPlookup<Composer>);
     ASSERT(_context != nullptr);
     _inner_table = ram_table(_context, maximum_size);
     // Initialize the ram table with all zeroes

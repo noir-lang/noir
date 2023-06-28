@@ -2,8 +2,8 @@
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
-#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
@@ -18,7 +18,7 @@ namespace proof_system::test_stdlib_sha256 {
 using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;
 
-using Composer = proof_system::UltraCircuitConstructor;
+using Composer = proof_system::UltraCircuitBuilder;
 
 using byte_array_ct = byte_array<Composer>;
 using packed_byte_array_ct = packed_byte_array<Composer>;
@@ -120,17 +120,17 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
 //     auto composer = UltraPlonkComposer();
 
 //     std::array<uint64_t, 64> w_inputs;
-//     std::array<proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitConstructor>, 64> w_elements;
+//     std::array<proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitBuilder>, 64> w_elements;
 
 //     for (size_t i = 0; i < 64; ++i) {
 //         w_inputs[i] = engine.get_random_uint32();
-//         w_elements[i] = proof_system::plonk::stdlib::witness_t<proof_system::UltraCircuitConstructor>(&composer,
+//         w_elements[i] = proof_system::plonk::stdlib::witness_t<proof_system::UltraCircuitBuilder>(&composer,
 //         barretenberg::fr(w_inputs[i]));
 //     }
 
 //     const auto expected = inner_block(w_inputs);
 
-//     const std::array<proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitConstructor>, 8> result =
+//     const std::array<proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitBuilder>, 8> result =
 //         proof_system::plonk::stdlib::sha256_inner_block(w_elements);
 //     for (size_t i = 0; i < 8; ++i) {
 //         EXPECT_EQ(uint256_t(result[i].get_value()).data[0] & 0xffffffffUL,
@@ -148,12 +148,12 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
 
 TEST(stdlib_sha256, test_plookup_55_bytes)
 {
-    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitConstructor> field_pt;
-    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitConstructor> packed_byte_array_pt;
+    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitBuilder> field_pt;
+    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitBuilder> packed_byte_array_pt;
 
     // 55 bytes is the largest number of bytes that can be hashed in a single block,
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
-    auto composer = proof_system::UltraCircuitConstructor();
+    auto composer = proof_system::UltraCircuitBuilder();
     packed_byte_array_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
     packed_byte_array_pt output_bits = proof_system::plonk::stdlib::sha256(input);
@@ -201,10 +201,10 @@ TEST(stdlib_sha256, test_55_bytes)
 
 TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 {
-    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitConstructor> field_pt;
-    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitConstructor> packed_byte_array_pt;
+    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitBuilder> field_pt;
+    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitBuilder> packed_byte_array_pt;
 
-    auto composer = proof_system::UltraCircuitConstructor();
+    auto composer = proof_system::UltraCircuitBuilder();
 
     packed_byte_array_pt input(&composer, "abc");
     packed_byte_array_pt output_bytes = proof_system::plonk::stdlib::sha256(input);
@@ -225,10 +225,10 @@ TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 
 TEST(stdlib_sha256, test_NIST_vector_one)
 {
-    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitConstructor> field_pt;
-    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitConstructor> packed_byte_array_pt;
+    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitBuilder> field_pt;
+    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitBuilder> packed_byte_array_pt;
 
-    auto composer = proof_system::UltraCircuitConstructor();
+    auto composer = proof_system::UltraCircuitBuilder();
 
     packed_byte_array_pt input(&composer, "abc");
 
@@ -327,10 +327,10 @@ TEST(stdlib_sha256, test_NIST_vector_four)
 
 HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
 {
-    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitConstructor> field_pt;
-    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitConstructor> packed_byte_array_pt;
+    typedef proof_system::plonk::stdlib::field_t<proof_system::UltraCircuitBuilder> field_pt;
+    typedef proof_system::plonk::stdlib::packed_byte_array<proof_system::UltraCircuitBuilder> packed_byte_array_pt;
 
-    auto composer = proof_system::UltraCircuitConstructor();
+    auto composer = proof_system::UltraCircuitBuilder();
 
     packed_byte_array_pt input(
         &composer,
@@ -345,8 +345,7 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "AAAAAAAAAA");
 
-    packed_byte_array_pt output_bits =
-        proof_system::plonk::stdlib::sha256<proof_system::UltraCircuitConstructor>(input);
+    packed_byte_array_pt output_bits = proof_system::plonk::stdlib::sha256<proof_system::UltraCircuitBuilder>(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 

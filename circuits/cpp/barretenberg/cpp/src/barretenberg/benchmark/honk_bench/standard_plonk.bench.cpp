@@ -1,13 +1,13 @@
 #include "barretenberg/benchmark/honk_bench/benchmark_utilities.hpp"
-#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
+#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
 
 using namespace benchmark;
 
 namespace standard_plonk_bench {
 
-using StandardBuilder = proof_system::StandardCircuitConstructor;
-using StandardPlonk = proof_system::plonk::StandardPlonkComposerHelper;
+using StandardBuilder = proof_system::StandardCircuitBuilder;
+using StandardPlonk = proof_system::plonk::StandardComposer;
 
 // Log number of gates for test circuit
 constexpr size_t MIN_LOG_NUM_GATES = bench_utils::BenchParams::MIN_LOG_NUM_GATES;

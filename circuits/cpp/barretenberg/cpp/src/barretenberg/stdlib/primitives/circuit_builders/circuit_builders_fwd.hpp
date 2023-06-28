@@ -7,6 +7,7 @@ construction in stdlib and contains macros for explicit instantiation.
  *  propagation.
  */
 #pragma once
+#include <concepts>
 
 namespace proof_system::honk {
 namespace flavor {
@@ -16,37 +17,37 @@ class Ultra;
 } // namespace proof_system::honk
 
 namespace proof_system {
-class StandardCircuitConstructor;
-class TurboCircuitConstructor;
-class UltraCircuitConstructor;
+class StandardCircuitBuilder;
+class TurboCircuitBuilder;
+class UltraCircuitBuilder;
 } // namespace proof_system
 
 #define EXTERN_STDLIB_TYPE(stdlib_type)                                                                                \
-    extern template class stdlib_type<proof_system::StandardCircuitConstructor>;                                       \
-    extern template class stdlib_type<proof_system::TurboCircuitConstructor>;                                          \
-    extern template class stdlib_type<proof_system::UltraCircuitConstructor>;
+    extern template class stdlib_type<proof_system::StandardCircuitBuilder>;                                           \
+    extern template class stdlib_type<proof_system::TurboCircuitBuilder>;                                              \
+    extern template class stdlib_type<proof_system::UltraCircuitBuilder>;
 
 #define EXTERN_STDLIB_METHOD(stdlib_method)                                                                            \
-    extern template stdlib_method(proof_system::StandardCircuitConstructor);                                           \
-    extern template stdlib_method(proof_system::TurboCircuitConstructor);                                              \
-    extern template stdlib_method(proof_system::UltraCircuitConstructor);
+    extern template stdlib_method(proof_system::StandardCircuitBuilder);                                               \
+    extern template stdlib_method(proof_system::TurboCircuitBuilder);                                                  \
+    extern template stdlib_method(proof_system::UltraCircuitBuilder);
 
 #define EXTERN_STDLIB_TYPE_VA(stdlib_type, ...)                                                                        \
-    extern template class stdlib_type<proof_system::StandardCircuitConstructor, __VA_ARGS__>;                          \
-    extern template class stdlib_type<proof_system::TurboCircuitConstructor, __VA_ARGS__>;                             \
-    extern template class stdlib_type<proof_system::UltraCircuitConstructor, __VA_ARGS__>;
+    extern template class stdlib_type<proof_system::StandardCircuitBuilder, __VA_ARGS__>;                              \
+    extern template class stdlib_type<proof_system::TurboCircuitBuilder, __VA_ARGS__>;                                 \
+    extern template class stdlib_type<proof_system::UltraCircuitBuilder, __VA_ARGS__>;
 
 #define EXTERN_STDLIB_BASIC_TYPE(stdlib_type)                                                                          \
-    extern template class stdlib_type<proof_system::StandardCircuitConstructor>;                                       \
-    extern template class stdlib_type<proof_system::TurboCircuitConstructor>;
+    extern template class stdlib_type<proof_system::StandardCircuitBuilder>;                                           \
+    extern template class stdlib_type<proof_system::TurboCircuitBuilder>;
 
 #define EXTERN_STDLIB_BASIC_TYPE_VA(stdlib_type, ...)                                                                  \
-    extern template class stdlib_type<proof_system::StandardCircuitConstructor, __VA_ARGS__>;                          \
-    extern template class stdlib_type<proof_system::TurboCircuitConstructor, __VA_ARGS__>;
+    extern template class stdlib_type<proof_system::StandardCircuitBuilder, __VA_ARGS__>;                              \
+    extern template class stdlib_type<proof_system::TurboCircuitBuilder, __VA_ARGS__>;
 
-#define EXTERN_STDLIB_ULTRA_TYPE(stdlib_type) extern template class stdlib_type<proof_system::UltraCircuitConstructor>;
+#define EXTERN_STDLIB_ULTRA_TYPE(stdlib_type) extern template class stdlib_type<proof_system::UltraCircuitBuilder>;
 
 #define EXTERN_STDLIB_ULTRA_TYPE_VA(stdlib_type, ...)                                                                  \
-    extern template class stdlib_type<proof_system::UltraCircuitConstructor, __VA_ARGS__>;
+    extern template class stdlib_type<proof_system::UltraCircuitBuilder, __VA_ARGS__>;
 
-#define EXTERN_STDLIB_ULTRA_METHOD(stdlib_method) extern template stdlib_method(proof_system::UltraCircuitConstructor);
+#define EXTERN_STDLIB_ULTRA_METHOD(stdlib_method) extern template stdlib_method(proof_system::UltraCircuitBuilder);

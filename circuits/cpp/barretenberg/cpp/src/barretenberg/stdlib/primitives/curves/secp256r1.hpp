@@ -9,14 +9,14 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename ComposerType> struct secp256r1 {
+template <typename CircuitType> struct secp256r1 {
     static constexpr proof_system::CurveType type = proof_system::CurveType::SECP256R1;
 
     typedef ::secp256r1::fq fq;
     typedef ::secp256r1::fr fr;
     typedef ::secp256r1::g1 g1;
 
-    typedef ComposerType Composer;
+    typedef CircuitType Composer;
     typedef witness_t<Composer> witness_ct;
     typedef public_witness_t<Composer> public_witness_ct;
     typedef field_t<Composer> fr_ct;

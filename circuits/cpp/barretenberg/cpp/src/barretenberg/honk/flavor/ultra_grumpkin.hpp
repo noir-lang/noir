@@ -13,7 +13,7 @@
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
@@ -28,7 +28,7 @@ class UltraGrumpkin {
     // TODO(Mara): At the moment this class is a duplicate of the Standard flavor with a different PCS for testing
     // purposes. This will be changed to Grumpkin once generating Honk proofs over Grumpkin has been enabled.
   public:
-    using CircuitConstructor = UltraCircuitConstructor;
+    using CircuitBuilder = UltraCircuitBuilder;
     using FF = barretenberg::fr;
     using Polynomial = barretenberg::Polynomial<FF>;
     using PolynomialHandle = std::span<FF>;
@@ -39,7 +39,7 @@ class UltraGrumpkin {
     using PCSParams = pcs::ipa::Params;
     using PCS = pcs::ipa::IPA<PCSParams>;
 
-    static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.

@@ -16,9 +16,9 @@ template <typename B> inline void read(B& any, proving_key_data& key)
     using serialize::read;
     using std::read;
 
-    read(any, key.composer_type);
-    read(any, (uint32_t&)key.circuit_size);
-    read(any, (uint32_t&)key.num_public_inputs);
+    read(any, static_cast<uint32_t&>(key.circuit_type));
+    read(any, static_cast<uint32_t&>(key.circuit_size));
+    read(any, static_cast<uint32_t&>(key.num_public_inputs));
 
     uint32_t amount = 0;
     read(any, (uint32_t&)amount);
@@ -43,12 +43,12 @@ template <typename B> inline void read(B& any, proving_key_data& key)
 template <typename B> inline void write(B& buf, proving_key const& key)
 {
     using serialize::write;
-    write(buf, key.composer_type);
-    write(buf, (uint32_t)key.circuit_size);
-    write(buf, (uint32_t)key.num_public_inputs);
+    write(buf, static_cast<uint32_t>(key.circuit_type));
+    write(buf, static_cast<uint32_t>(key.circuit_size));
+    write(buf, static_cast<uint32_t>(key.num_public_inputs));
 
     // Write only the pre-computed polys from the store
-    PrecomputedPolyList precomputed_poly_list(key.composer_type);
+    PrecomputedPolyList precomputed_poly_list(key.circuit_type);
     size_t num_polys = precomputed_poly_list.size();
     write(buf, static_cast<uint32_t>(num_polys));
 
@@ -70,7 +70,7 @@ template <typename B> inline void read_from_file(B& is, std::string const& path,
     using serialize::read;
 
     size_t file_num = 0;
-    read(is, key.composer_type);
+    read(is, key.circuit_type);
     read(is, key.circuit_size);
     read(is, key.num_public_inputs);
 
@@ -111,12 +111,12 @@ template <typename B> inline void write_to_file(B& os, std::string const& path, 
     using serialize::write;
 
     size_t file_num = 0;
-    write(os, key.composer_type);
+    write(os, static_cast<uint32_t>(key.circuit_type));
     write(os, static_cast<uint32_t>(key.circuit_size));
     write(os, static_cast<uint32_t>(key.num_public_inputs));
 
     // Write only the pre-computed polys from the store
-    PrecomputedPolyList precomputed_poly_list(key.composer_type);
+    PrecomputedPolyList precomputed_poly_list(key.circuit_type);
     size_t num_polys = precomputed_poly_list.size();
     write(os, static_cast<uint32_t>(num_polys));
 

@@ -115,7 +115,7 @@ plonk::Prover generate_test_data(const size_t n)
 
     auto reference_string =
         std::make_shared<barretenberg::srs::factories::FileProverCrs<curve::BN254>>(n + 1, "../srs_db/ignition");
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, reference_string, ComposerType::STANDARD);
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, reference_string, CircuitType::STANDARD);
 
     polynomial w_l(n);
     polynomial w_r(n);

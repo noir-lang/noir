@@ -4,9 +4,9 @@
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
-#include "barretenberg/plonk/composer/composer_helper/standard_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/turbo_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
@@ -17,10 +17,10 @@ namespace proof_system::plonk::stdlib {
 
 template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
-    using InnerComposer = proof_system::plonk::UltraPlonkComposerHelper;
-    using InnerBuilder = typename InnerComposer::CircuitConstructor;
+    using InnerComposer = proof_system::plonk::UltraComposer;
+    using InnerBuilder = typename InnerComposer::CircuitBuilder;
 
-    using OuterBuilder = typename OuterComposer::CircuitConstructor;
+    using OuterBuilder = typename OuterComposer::CircuitBuilder;
 
     using inner_curve = bn254<InnerBuilder>;
     using outer_curve = bn254<OuterBuilder>;
@@ -47,8 +47,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     // select the relevant prover and verifier types (whose settings use the same hash for fiat-shamir),
     // depending on the Inner-Outer combo. It's a bit clunky, but the alternative is to have a template argument
     // for the hashtype, and that would pervade the entire UltraPlonkComposer, which would be horrendous.
-    static constexpr bool is_ultra_to_ultra =
-        std::is_same_v<OuterComposer, proof_system::plonk::UltraPlonkComposerHelper>;
+    static constexpr bool is_ultra_to_ultra = std::is_same_v<OuterComposer, proof_system::plonk::UltraComposer>;
     using ProverOfInnerCircuit =
         std::conditional_t<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>;
     using VerifierOfInnerProof =
@@ -566,11 +565,9 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     }
 };
 
-typedef testing::
-    Types<plonk::StandardPlonkComposerHelper, plonk::TurboPlonkComposerHelper, plonk::UltraPlonkComposerHelper>
-        OuterComposerTypes;
+typedef testing::Types<plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer> OuterCircuitTypes;
 
-TYPED_TEST_SUITE(stdlib_verifier, OuterComposerTypes);
+TYPED_TEST_SUITE(stdlib_verifier, OuterCircuitTypes);
 
 HEAVY_TYPED_TEST(stdlib_verifier, test_inner_circuit)
 {
@@ -584,7 +581,7 @@ HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition)
 
 HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_ultra_no_tables)
 {
-    if constexpr (std::same_as<TypeParam, UltraPlonkComposerHelper>) {
+    if constexpr (std::same_as<TypeParam, UltraComposer>) {
         TestFixture::test_recursive_proof_composition_ultra_no_tables();
     } else {
         GTEST_SKIP();
@@ -593,7 +590,7 @@ HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_ultra_no_tables)
 
 HEAVY_TYPED_TEST(stdlib_verifier, double_verification)
 {
-    if constexpr (std::same_as<TypeParam, UltraPlonkComposerHelper>) {
+    if constexpr (std::same_as<TypeParam, UltraComposer>) {
         TestFixture::test_double_verification();
     } else {
         // Test doesn't compile-.

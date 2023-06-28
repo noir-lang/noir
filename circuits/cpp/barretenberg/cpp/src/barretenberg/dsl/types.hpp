@@ -1,8 +1,8 @@
 #pragma once
-#include "barretenberg/plonk/composer/composer_helper/turbo_plonk_composer_helper.hpp"
-#include "barretenberg/plonk/composer/composer_helper/ultra_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 
-#include "barretenberg/proof_system/circuit_constructors/turbo_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_builder/turbo_circuit_builder.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
@@ -28,18 +28,18 @@
 
 namespace acir_format {
 
-using Builder = proof_system::UltraCircuitConstructor;
-using Composer = plonk::UltraPlonkComposerHelper;
+using Builder = proof_system::UltraCircuitBuilder;
+using Composer = plonk::UltraComposer;
 
 using Prover = std::conditional_t<
-    std::same_as<Composer, plonk::UltraPlonkComposerHelper>,
+    std::same_as<Composer, plonk::UltraComposer>,
     plonk::UltraWithKeccakProver,
-    std::conditional_t<std::same_as<Composer, plonk::TurboPlonkComposerHelper>, plonk::TurboProver, plonk::Prover>>;
+    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboProver, plonk::Prover>>;
 
 using Verifier = std::conditional_t<
-    std::same_as<Composer, plonk::UltraPlonkComposerHelper>,
+    std::same_as<Composer, plonk::UltraComposer>,
     plonk::UltraWithKeccakVerifier,
-    std::conditional_t<std::same_as<Composer, plonk::TurboPlonkComposerHelper>, plonk::TurboVerifier, plonk::Verifier>>;
+    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboVerifier, plonk::Verifier>>;
 
 using RecursiveProver = plonk::UltraProver;
 

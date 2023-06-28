@@ -52,7 +52,7 @@ circuit_data get_circuit_data(std::string const& name,
                               F const& build_circuit,
                               std::string const name_suffix_for_benchmarks = "")
 {
-    using Builder = typename Composer::CircuitConstructor;
+    using Builder = typename Composer::CircuitBuilder;
     circuit_data data;
     data.srs = srs;
     data.mock = mock;

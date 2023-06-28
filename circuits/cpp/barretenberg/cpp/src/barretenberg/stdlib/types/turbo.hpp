@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/plonk/composer/composer_helper/turbo_plonk_composer_helper.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
@@ -22,9 +22,9 @@ namespace proof_system::plonk::stdlib::types {
 
 using namespace proof_system::plonk;
 
-using Builder = proof_system::TurboCircuitConstructor;
+using Builder = proof_system::TurboCircuitBuilder;
 
-using Composer = plonk::TurboPlonkComposerHelper;
+using Composer = plonk::TurboComposer;
 
 using Prover = plonk::TurboProver;
 

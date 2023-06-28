@@ -25,7 +25,7 @@
  * more legible, and which is safer because it admits ranged `for` loops.
  *
  * Another motivation is proper and clear specification of Honk variants. The flavors are meant to be explicit and
- * easily comparable. In plonk, the various settings template parameters and objects like the ComposerType enum became
+ * easily comparable. In plonk, the various settings template parameters and objects like the CircuitType enum became
  * overloaded in time, and continue to be a point of accumulation for tech debt. We aim to remedy some of this by
  * putting proving system information in the flavor, and circuit construction information in the arithmetization (or
  * larger circuit constructor class).
@@ -69,7 +69,7 @@
 #include <vector>
 #include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
-#include "barretenberg/proof_system/types/composer_type.hpp"
+#include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 
 namespace proof_system::honk::flavor {
@@ -107,7 +107,7 @@ class PrecomputedEntities_ : public Entities_<DataType_, HandleType, NUM_PRECOMP
     size_t circuit_size;
     size_t log_circuit_size;
     size_t num_public_inputs;
-    ComposerType composer_type; // TODO(#392)
+    CircuitType circuit_type; // TODO(#392)
 
     virtual std::vector<HandleType> get_selectors() = 0;
     virtual std::vector<HandleType> get_sigma_polynomials() = 0;
@@ -145,13 +145,12 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
     barretenberg::EvaluationDomain<FF> evaluation_domain;
 
     ProvingKey_() = default;
-    ProvingKey_(const size_t circuit_size, const size_t num_public_inputs, ComposerType composer_type)
+    ProvingKey_(const size_t circuit_size, const size_t num_public_inputs)
     {
         this->evaluation_domain = barretenberg::EvaluationDomain<FF>(circuit_size, circuit_size);
         PrecomputedPolynomials::circuit_size = circuit_size;
         this->log_circuit_size = numeric::get_msb(circuit_size);
         this->num_public_inputs = num_public_inputs;
-        this->composer_type = composer_type;
         // Allocate memory for precomputed polynomials
         for (auto& poly : _precomputed_polynomials) {
             poly = Polynomial(circuit_size);
@@ -171,12 +170,11 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
 template <typename PrecomputedCommitments> class VerificationKey_ : public PrecomputedCommitments {
   public:
     VerificationKey_() = default;
-    VerificationKey_(const size_t circuit_size, const size_t num_public_inputs, ComposerType composer_type)
+    VerificationKey_(const size_t circuit_size, const size_t num_public_inputs)
     {
         this->circuit_size = circuit_size;
         this->log_circuit_size = numeric::get_msb(circuit_size);
         this->num_public_inputs = num_public_inputs;
-        this->composer_type = composer_type;
     };
 };
 
@@ -295,9 +293,6 @@ namespace proof_system {
  * @tparam U A parameter pack of types being checked against T.
  */
 // clang-format off
-template <typename T, typename... U>
-concept IsAnyOf = (std::same_as<T, U> || ...);
-
 template <typename T>
 concept IsPlonkFlavor = IsAnyOf<T, plonk::flavor::Standard, plonk::flavor::Turbo, plonk::flavor::Ultra>;
 

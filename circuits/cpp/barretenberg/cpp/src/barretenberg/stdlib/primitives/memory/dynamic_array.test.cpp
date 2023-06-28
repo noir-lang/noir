@@ -16,7 +16,7 @@ auto& engine = numeric::random::get_debug_engine();
 }
 
 // Defining ultra-specific types for local testing.
-using Composer = proof_system::UltraCircuitConstructor;
+using Composer = proof_system::UltraCircuitBuilder;
 using bool_ct = stdlib::bool_t<Composer>;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;

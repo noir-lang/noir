@@ -16,7 +16,7 @@ namespace blake3s_plookup {
 
 template <typename Composer> byte_array<Composer> blake3s(const byte_array<Composer>& input);
 
-#define BLAKE3S_PLOOKUP(COMPOSER_TYPE) byte_array<COMPOSER_TYPE> blake3s(const byte_array<COMPOSER_TYPE>& input)
+#define BLAKE3S_PLOOKUP(circuit_type) byte_array<circuit_type> blake3s(const byte_array<circuit_type>& input)
 
 EXTERN_STDLIB_ULTRA_METHOD(BLAKE3S_PLOOKUP);
 

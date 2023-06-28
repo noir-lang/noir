@@ -180,7 +180,7 @@ template <typename Builder> void generate_merkle_membership_test_circuit(Builder
  */
 template <typename Composer>
 void construct_proof_with_specified_num_gates(State& state,
-                                              void (*test_circuit_function)(typename Composer::CircuitConstructor&,
+                                              void (*test_circuit_function)(typename Composer::CircuitBuilder&,
                                                                             size_t)) noexcept
 {
     barretenberg::srs::init_crs_factory("../srs_db/ignition");
@@ -188,7 +188,7 @@ void construct_proof_with_specified_num_gates(State& state,
     for (auto _ : state) {
         // Constuct circuit and prover; don't include this part in measurement
         state.PauseTiming();
-        auto builder = typename Composer::CircuitConstructor();
+        auto builder = typename Composer::CircuitBuilder();
         test_circuit_function(builder, num_gates);
 
         auto composer = Composer();
@@ -212,7 +212,7 @@ void construct_proof_with_specified_num_gates(State& state,
  */
 template <typename Composer>
 void construct_proof_with_specified_num_iterations(State& state,
-                                                   void (*test_circuit_function)(typename Composer::CircuitConstructor&,
+                                                   void (*test_circuit_function)(typename Composer::CircuitBuilder&,
                                                                                  size_t)) noexcept
 {
     barretenberg::srs::init_crs_factory("../srs_db/ignition");
@@ -220,7 +220,7 @@ void construct_proof_with_specified_num_iterations(State& state,
     for (auto _ : state) {
         // Constuct circuit and prover; don't include this part in measurement
         state.PauseTiming();
-        auto builder = typename Composer::CircuitConstructor();
+        auto builder = typename Composer::CircuitBuilder();
         test_circuit_function(builder, num_iterations);
 
         auto composer = Composer();

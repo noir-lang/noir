@@ -156,5 +156,6 @@
             "-g"
         ],
         "cmake.useCMakePresets": "auto",
+        "editor.inlayHints.enabled": "offUnlessPressed"
     },
 }

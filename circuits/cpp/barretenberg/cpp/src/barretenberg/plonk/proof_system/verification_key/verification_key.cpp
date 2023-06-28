@@ -16,14 +16,14 @@ namespace proof_system::plonk {
  * in its CMakeLists.txt file. (We'd need `crypto` to be able to call native pedersen functions).
  *
  * @param domain to compress
- * @param composer_type to use when choosing pedersen compression function
+ * @param circuit_type to use when choosing pedersen compression function
  * @return barretenberg::fr compression of the evaluation domain as a field
  */
 barretenberg::fr compress_native_evaluation_domain(barretenberg::evaluation_domain const& domain,
-                                                   proof_system::ComposerType composer_type)
+                                                   proof_system::CircuitType circuit_type)
 {
     barretenberg::fr out;
-    if (composer_type == proof_system::ComposerType::PLOOKUP) {
+    if (circuit_type == proof_system::CircuitType::ULTRA) {
         out = crypto::pedersen_commitment::lookup::compress_native({
             domain.root,
             domain.domain,
@@ -55,7 +55,7 @@ barretenberg::fr verification_key_data::compress_native(const size_t hash_index)
 
     std::vector<uint8_t> preimage_data;
 
-    preimage_data.push_back(static_cast<uint8_t>(proof_system::ComposerType(composer_type)));
+    preimage_data.push_back(static_cast<uint8_t>(proof_system::CircuitType(circuit_type)));
 
     const uint256_t domain = eval_domain.domain;
     const uint256_t generator = eval_domain.generator;
@@ -76,7 +76,7 @@ barretenberg::fr verification_key_data::compress_native(const size_t hash_index)
     write(preimage_data, eval_domain.root);
 
     barretenberg::fr compressed_key;
-    if (proof_system::ComposerType(composer_type) == proof_system::ComposerType::PLOOKUP) {
+    if (proof_system::CircuitType(circuit_type) == proof_system::CircuitType::ULTRA) {
         compressed_key = from_buffer<barretenberg::fr>(
             crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index));
     } else {
@@ -88,32 +88,32 @@ barretenberg::fr verification_key_data::compress_native(const size_t hash_index)
 verification_key::verification_key(const size_t num_gates,
                                    const size_t num_inputs,
                                    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& crs,
-                                   uint32_t composer_type_)
-    : composer_type(composer_type_)
+                                   CircuitType circuit_type_)
+    : circuit_type(circuit_type_)
     , circuit_size(num_gates)
     , log_circuit_size(numeric::get_msb(num_gates))
     , num_public_inputs(num_inputs)
     , domain(circuit_size)
     , reference_string(crs)
-    , polynomial_manifest(composer_type)
+    , polynomial_manifest(circuit_type)
 {}
 
 verification_key::verification_key(verification_key_data&& data,
                                    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& crs)
-    : composer_type(data.composer_type)
+    : circuit_type(static_cast<CircuitType>(data.circuit_type))
     , circuit_size(data.circuit_size)
     , log_circuit_size(numeric::get_msb(data.circuit_size))
     , num_public_inputs(data.num_public_inputs)
     , domain(circuit_size)
     , reference_string(crs)
     , commitments(std::move(data.commitments))
-    , polynomial_manifest(data.composer_type)
+    , polynomial_manifest(static_cast<CircuitType>(data.circuit_type))
     , contains_recursive_proof(data.contains_recursive_proof)
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
 {}
 
 verification_key::verification_key(const verification_key& other)
-    : composer_type(other.composer_type)
+    : circuit_type(other.circuit_type)
     , circuit_size(other.circuit_size)
     , log_circuit_size(numeric::get_msb(other.circuit_size))
     , num_public_inputs(other.num_public_inputs)
@@ -126,7 +126,7 @@ verification_key::verification_key(const verification_key& other)
 {}
 
 verification_key::verification_key(verification_key&& other)
-    : composer_type(other.composer_type)
+    : circuit_type(other.circuit_type)
     , circuit_size(other.circuit_size)
     , log_circuit_size(numeric::get_msb(other.circuit_size))
     , num_public_inputs(other.num_public_inputs)
@@ -140,7 +140,7 @@ verification_key::verification_key(verification_key&& other)
 
 verification_key& verification_key::operator=(verification_key&& other)
 {
-    composer_type = other.composer_type;
+    circuit_type = other.circuit_type;
     circuit_size = other.circuit_size;
     log_circuit_size = numeric::get_msb(other.circuit_size);
     num_public_inputs = other.num_public_inputs;
@@ -156,7 +156,7 @@ verification_key& verification_key::operator=(verification_key&& other)
 sha256::hash verification_key::sha256_hash()
 {
     std::vector<uint256_t> vk_data;
-    vk_data.emplace_back(composer_type);
+    vk_data.emplace_back(static_cast<uint32_t>(circuit_type));
     vk_data.emplace_back(circuit_size);
     vk_data.emplace_back(num_public_inputs);
     for (auto& commitment_entry : commitments) {

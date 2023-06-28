@@ -307,7 +307,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
-        if constexpr (Composer::type == ComposerType::STANDARD) {
+        if constexpr (std::same_as<Composer, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
         } else {
             EXPECT_EQ(gates_after - gates_before, 4UL);
@@ -335,7 +335,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
-        if constexpr (Composer::type == ComposerType::STANDARD) {
+        if constexpr (std::same_as<Composer, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
         } else {
             EXPECT_EQ(gates_after - gates_before, 4UL);
@@ -364,7 +364,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
-        if constexpr (Composer::type == ComposerType::STANDARD) {
+        if constexpr (std::same_as<Composer, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 11UL);
         } else {
             EXPECT_EQ(gates_after - gates_before, 7UL);
@@ -377,7 +377,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
     static void test_larger_circuit()
     {
         size_t n = 16384;
-        Composer composer = Composer("../srs_db/ignition", n);
+        Composer composer;
 
         generate_test_plonk_circuit(composer, n);
 
@@ -912,12 +912,11 @@ template <typename Composer> class stdlib_field : public testing::Test {
     }
 };
 
-typedef testing::Types<proof_system::StandardCircuitConstructor,
-                       proof_system::TurboCircuitConstructor,
-                       proof_system::UltraCircuitConstructor>
-    ComposerTypes;
+typedef testing::
+    Types<proof_system::StandardCircuitBuilder, proof_system::TurboCircuitBuilder, proof_system::UltraCircuitBuilder>
+        CircuitTypes;
 
-TYPED_TEST_SUITE(stdlib_field, ComposerTypes);
+TYPED_TEST_SUITE(stdlib_field, CircuitTypes);
 
 TYPED_TEST(stdlib_field, test_create_range_constraint)
 {

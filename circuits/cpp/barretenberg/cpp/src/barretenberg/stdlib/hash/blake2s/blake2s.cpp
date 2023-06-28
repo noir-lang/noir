@@ -116,7 +116,7 @@ template <typename Composer> void blake2s(blake2s_state<Composer>& S, byte_array
 
 template <typename Composer> byte_array<Composer> blake2s(const byte_array<Composer>& input)
 {
-    if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+    if constexpr (HasPlookup<Composer>) {
         return blake2s_plookup::blake2s<Composer>(input);
     }
 

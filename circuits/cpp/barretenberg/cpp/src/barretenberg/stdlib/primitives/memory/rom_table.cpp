@@ -9,7 +9,7 @@ namespace stdlib {
 
 template <typename Composer> rom_table<Composer>::rom_table(const std::vector<field_pt>& table_entries)
 {
-    static_assert(Composer::type == proof_system::ComposerType::PLOOKUP);
+    static_assert(HasPlookup<Composer>);
     // get the composer context
     for (const auto& entry : table_entries) {
         if (entry.get_context() != nullptr) {

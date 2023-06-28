@@ -244,7 +244,7 @@ using namespace blake3_internal;
 
 template <typename Composer> byte_array<Composer> blake3s(const byte_array<Composer>& input)
 {
-    if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+    if constexpr (HasPlookup<Composer>) {
         return blake3s_plookup::blake3s<Composer>(input);
     }
 

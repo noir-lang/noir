@@ -20,7 +20,7 @@
 namespace proof_system::plonk {
 
 struct proving_key_data {
-    uint32_t composer_type;
+    uint32_t circuit_type;
     uint32_t circuit_size;
     uint32_t num_public_inputs;
     bool contains_recursive_proof;
@@ -49,13 +49,13 @@ struct proving_key {
     proving_key(const size_t num_gates,
                 const size_t num_inputs,
                 std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> const& crs,
-                ComposerType type);
+                CircuitType type = CircuitType::UNDEFINED);
 
     proving_key(std::ostream& is, std::string const& crs_path);
 
     void init();
 
-    uint32_t composer_type;
+    CircuitType circuit_type;
     size_t circuit_size;
     size_t log_circuit_size;
     size_t num_public_inputs;

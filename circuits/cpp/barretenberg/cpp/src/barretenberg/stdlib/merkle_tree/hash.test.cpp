@@ -2,7 +2,7 @@
 #include "memory_tree.hpp"
 #include <gtest/gtest.h>
 
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/stdlib/merkle_tree/membership.hpp"
 
 namespace proof_system::stdlib_merkle_tree_hash_test {
@@ -10,7 +10,7 @@ namespace proof_system::stdlib_merkle_tree_hash_test {
 using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;
 
-using Composer = proof_system::UltraCircuitConstructor;
+using Composer = proof_system::UltraCircuitBuilder;
 
 using field_ct = field_t<Composer>;
 using witness_ct = witness_t<Composer>;

@@ -15,8 +15,7 @@ using namespace crypto::pedersen_commitment;
 template <typename C>
 point<C> pedersen_commitment<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index)
 {
-    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
-                  C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
+    if constexpr (HasPlookup<C> && C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_commitment<C>::commit(inputs, hash_index);
     }
 
@@ -36,8 +35,7 @@ point<C> pedersen_commitment<C>::commit(const std::vector<field_t>& inputs,
         throw_or_abort("Vector size mismatch.");
     }
 
-    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
-                  C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
+    if constexpr (HasPlookup<C> && C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_commitment<C>::commit(inputs, hash_generator_indices);
     }
 
@@ -52,8 +50,7 @@ point<C> pedersen_commitment<C>::commit(const std::vector<field_t>& inputs,
 template <typename C>
 point<C> pedersen_commitment<C>::commit(const std::vector<std::pair<field_t, generator_index_t>>& input_pairs)
 {
-    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
-                  C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
+    if constexpr (HasPlookup<C> && C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_commitment<C>::commit(input_pairs);
     }
 
@@ -77,8 +74,7 @@ field_t<C> pedersen_commitment<C>::compress_unsafe(const field_t& in_left,
                                                    const size_t hash_index,
                                                    const bool validate_input_is_in_field)
 {
-    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
-                  C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
+    if constexpr (HasPlookup<C> && C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_commitment<C>::compress({ in_left, in_right });
     }
 
@@ -96,8 +92,7 @@ field_t<C> pedersen_commitment<C>::compress_unsafe(const field_t& in_left,
 template <typename C>
 field_t<C> pedersen_commitment<C>::compress(const std::vector<field_t>& inputs, const size_t hash_index)
 {
-    if constexpr (C::type == proof_system::ComposerType::PLOOKUP &&
-                  C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
+    if constexpr (HasPlookup<C> && C::commitment_type == pedersen::CommitmentType::LOOKUP_PEDERSEN) {
         return pedersen_plookup_commitment<C>::compress(inputs, hash_index);
     }
 

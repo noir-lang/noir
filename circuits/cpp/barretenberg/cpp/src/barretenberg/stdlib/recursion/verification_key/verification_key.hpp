@@ -58,7 +58,7 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
             }
             preimage_data.push_back(field_pt::accumulate(work_element));
         }
-        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+        if constexpr (HasPlookup<Composer>) {
             return pedersen_plookup_commitment<Composer>::compress_with_relaxed_range_constraints(preimage_data,
                                                                                                   hash_index);
         } else {
@@ -145,7 +145,7 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
             field_pt borrow = field_pt::from_witness(context, need_borrow);
 
             // directly call `create_new_range_constraint` to avoid creating an arithmetic gate
-            if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+            if constexpr (HasPlookup<Composer>) {
                 context->create_new_range_constraint(borrow.get_witness_index(), 1, "borrow");
             } else {
                 context->create_range_constraint(borrow.get_witness_index(), 1, "borrow");
@@ -240,7 +240,7 @@ template <typename Curve> struct verification_key {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
 
-        key->polynomial_manifest = PolynomialManifest(Composer::type);
+        key->polynomial_manifest = PolynomialManifest(Composer::CIRCUIT_TYPE);
         key->domain = evaluation_domain<Composer>::from_field_elements({ fields[0], fields[1], fields[2] });
 
         key->n = fields[3];
@@ -334,7 +334,7 @@ template <typename Curve> struct verification_key {
         const auto circuit_key_compressed = compress();
         bool found = false;
         // if we're using Plookup, use a ROM table to index the keys
-        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+        if constexpr (HasPlookup<Composer>) {
             field_t<Composer> key_index(witness_t<Composer>(context, 0));
             std::vector<field_t<Composer>> compressed_keys;
             for (size_t i = 0; i < keys_in_set.size(); ++i) {
@@ -369,11 +369,12 @@ template <typename Curve> struct verification_key {
     {
         PedersenPreimageBuilder<Composer> preimage_buffer(context);
 
-        field_t<Composer> composer_type = witness_t<Composer>::create_constant_witness(context, Composer::type);
+        field_t<Composer> circuit_type =
+            witness_t<Composer>::create_constant_witness(context, static_cast<uint32_t>(Composer::CIRCUIT_TYPE));
         domain.generator.create_range_constraint(16, "domain.generator");
         domain.domain.create_range_constraint(32, "domain.generator");
         num_public_inputs.create_range_constraint(32, "num_public_inputs");
-        preimage_buffer.add_element_with_existing_range_constraint(composer_type, 8);
+        preimage_buffer.add_element_with_existing_range_constraint(circuit_type, 8);
         preimage_buffer.add_element_with_existing_range_constraint(domain.generator, 16); // coset generator is small
         preimage_buffer.add_element_with_existing_range_constraint(domain.domain, 32);
         preimage_buffer.add_element_with_existing_range_constraint(num_public_inputs, 32);
@@ -401,7 +402,7 @@ template <typename Curve> struct verification_key {
     {
         std::vector<uint8_t> preimage_data;
 
-        preimage_data.push_back(static_cast<uint8_t>(Composer::type));
+        preimage_data.push_back(static_cast<uint8_t>(Composer::CIRCUIT_TYPE));
 
         const uint256_t domain = key->domain.domain;
         const uint256_t generator = key->domain.generator;
@@ -422,7 +423,7 @@ template <typename Curve> struct verification_key {
         write(preimage_data, key->domain.root);
 
         barretenberg::fr compressed_key;
-        if constexpr (Composer::type == proof_system::ComposerType::PLOOKUP) {
+        if constexpr (HasPlookup<Composer>) {
             compressed_key = from_buffer<barretenberg::fr>(
                 crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index));
         } else {

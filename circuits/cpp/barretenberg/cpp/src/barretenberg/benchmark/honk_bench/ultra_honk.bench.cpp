@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
-#include "barretenberg/honk/composer/composer_helper/ultra_honk_composer_helper.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/benchmark/honk_bench/benchmark_utilities.hpp"
 
 using namespace benchmark;
@@ -9,8 +9,8 @@ using namespace proof_system::plonk;
 
 namespace ultra_honk_bench {
 
-using UltraBuilder = proof_system::UltraCircuitConstructor;
-using UltraHonk = proof_system::honk::UltraHonkComposerHelper;
+using UltraBuilder = proof_system::UltraCircuitBuilder;
+using UltraHonk = proof_system::honk::UltraComposer;
 
 // Number of times to perform operation of interest in the benchmark circuits, e.g. # of hashes to perform
 constexpr size_t MIN_NUM_ITERATIONS = bench_utils::BenchParams::MIN_NUM_ITERATIONS;
