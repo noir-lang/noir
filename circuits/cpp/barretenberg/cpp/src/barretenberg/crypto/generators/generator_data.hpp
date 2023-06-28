@@ -40,15 +40,14 @@ struct fixed_base_ladder {
  */
 constexpr size_t bit_length = 256;
 constexpr size_t quad_length = bit_length / 2 + 1;
-typedef std::array<fixed_base_ladder, quad_length> ladder_t;
+constexpr size_t aux_length = 2;
+typedef std::array<fixed_base_ladder, quad_length + aux_length> ladder_t;
 
 struct generator_data {
     grumpkin::g1::affine_element generator;
     grumpkin::g1::affine_element aux_generator;
     grumpkin::g1::affine_element skew_generator;
     ladder_t ladder;
-    ladder_t aux_ladder;
-    ladder_t hash_ladder;
 
     const fixed_base_ladder* get_ladder(size_t num_bits) const;
     const fixed_base_ladder* get_hash_ladder(size_t num_bits) const;

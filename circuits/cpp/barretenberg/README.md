@@ -9,11 +9,11 @@
 - clang >= 10 or gcc >= 10
 - clang-format
 - libomp (if multithreading is required. Multithreading can be disabled using the compiler flag `-DMULTITHREADING 0`)
-- wasm-opt (part of the [Binaryen](https://github.com/WebAssembly/binaryen) toolkit)
 
 To install on Ubuntu, run:
+
 ```
-sudo apt-get install cmake clang clang-format ninja-build binaryen
+sudo apt-get install cmake clang clang-format ninja-build
 ```
 
 ### Installing openMP (Linux)

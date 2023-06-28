@@ -36,7 +36,7 @@ describe('pedersen', () => {
 
   it('pedersenCompressWithHashIndex', () => {
     const result = api.pedersenCompressWithHashIndex([new Fr(4n), new Fr(8n)], 7);
-    expect(result).toEqual(new Fr(12675961871866002745031098923411501942277744385859978302365013982702509949754n));
+    expect(result).toEqual(new Fr(11068631634751286805527305272746775861010877976108429785597565355072506728435n));
   });
 
   it('pedersenCommit', () => {
