@@ -2001,6 +2001,7 @@ dependencies = [
  "acvm",
  "async-lsp",
  "codespan-lsp",
+ "codespan-reporting",
  "lsp-types 0.94.0",
  "noirc_driver",
  "noirc_errors",

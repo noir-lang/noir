@@ -1,6 +1,6 @@
 use std::{
     future::Future,
-    ops::ControlFlow,
+    ops::{self, ControlFlow},
     pin::Pin,
     task::{Context, Poll},
 };
@@ -10,17 +10,22 @@ use async_lsp::{
     router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LanguageClient,
     LspService, ResponseError,
 };
+use codespan_reporting::files;
 use lsp_types::{
-    notification, request, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, InitializeParams, InitializeResult, InitializedParams,
-    PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions,
+    notification, request, CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic,
+    DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    InitializeParams, InitializeResult, InitializedParams, Position, PublishDiagnosticsParams,
+    Range, ServerCapabilities, TextDocumentSyncOptions,
 };
 use noirc_driver::Driver;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 use noirc_frontend::graph::CrateType;
 use serde_json::Value as JsonValue;
 use tower::Service;
+
+const TEST_COMMAND: &str = "nargo.test";
+const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 #[derive(Debug)]
@@ -45,6 +50,7 @@ impl NargoLspService {
         router
             .request::<request::Initialize, _>(on_initialize)
             .request::<request::Shutdown, _>(on_shutdown)
+            .request::<request::CodeLensRequest, _>(on_code_lens_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -99,16 +105,17 @@ fn on_initialize(
     _params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
     async {
-        let text_document_sync = TextDocumentSyncOptions {
-            save: Some(true.into()),
-            ..TextDocumentSyncOptions::default()
-        };
+        let text_document_sync =
+            TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
+
+        let code_lens = CodeLensOptions { resolve_provider: Some(false) };
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(text_document_sync.into()),
+                code_lens_provider: Some(code_lens),
                 // Add capabilities before this spread when adding support for one
-                ..ServerCapabilities::default()
+                ..Default::default()
             },
             server_info: None,
         })
@@ -120,6 +127,60 @@ fn on_shutdown(
     _params: (),
 ) -> impl Future<Output = Result<(), ResponseError>> {
     async { Ok(()) }
+}
+
+fn on_code_lens_request(
+    _state: &mut LspState,
+    params: CodeLensParams,
+) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
+    async move {
+        // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
+        // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
+        let mut driver = Driver::new(&Language::R1CS, Box::new(|_op| false));
+
+        let file_path = &params.text_document.uri.to_file_path().unwrap();
+
+        driver.create_local_crate(file_path, CrateType::Binary);
+
+        // We ignore the warnings and errors produced by compilation for producing codelenses
+        // because we can still get the test functions even if compilation fails
+        let _ = driver.check_crate(false);
+
+        let fm = driver.file_manager();
+        let files = fm.as_simple_files();
+        let tests = driver.get_all_test_functions_in_crate_matching("");
+
+        let mut lenses: Vec<CodeLens> = vec![];
+        for func_id in tests {
+            let location = driver.function_meta(&func_id).name.location;
+            let file_id = location.file;
+            // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
+            if file_id.as_usize() != 0 {
+                continue;
+            }
+
+            let func_name = driver.function_name(func_id);
+
+            let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
+                .unwrap_or_default();
+
+            let command = Command {
+                title: TEST_CODELENS_TITLE.into(),
+                command: TEST_COMMAND.into(),
+                arguments: Some(vec![func_name.into()]),
+            };
+
+            let lens = CodeLens { range, command: command.into(), data: None };
+
+            lenses.push(lens);
+        }
+
+        if lenses.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(lenses))
+        }
+    }
 }
 
 fn on_initialized(
@@ -181,7 +242,7 @@ fn on_did_save_text_document(
         let files = fm.as_simple_files();
 
         for FileDiagnostic { file_id, diagnostic } in file_diagnostics {
-            // TODO: This file_id never be 0 because the "path" where it maps is the directory, not a file
+            // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
             if file_id.as_usize() != 0 {
                 continue;
             }
@@ -190,15 +251,9 @@ fn on_did_save_text_document(
 
             // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
             for sec in diagnostic.secondaries {
-                // TODO: Codespan ranges are often (always?) off by some amount of characters
-                if let Ok(codespan_range) =
-                    codespan_lsp::byte_span_to_range(files, file_id.as_usize(), sec.span.into())
-                {
-                    // We have to manually attach each because the codespan_lsp restricts lsp-types to the wrong version range
-                    range.start.line = codespan_range.start.line;
-                    range.start.character = codespan_range.start.character;
-                    range.end.line = codespan_range.end.line;
-                    range.end.character = codespan_range.end.character;
+                // Not using `unwrap_or_default` here because we don't want to overwrite a valid range with a default range
+                if let Some(r) = byte_span_to_range(files, file_id.as_usize(), sec.span.into()) {
+                    range = r
                 }
             }
             let severity = match diagnostic.kind {
@@ -227,6 +282,31 @@ fn on_exit(_state: &mut LspState, _params: ()) -> ControlFlow<Result<(), async_l
     ControlFlow::Continue(())
 }
 
+fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
+    files: &'a F,
+    file_id: F::FileId,
+    span: ops::Range<usize>,
+) -> Option<Range> {
+    // TODO(#1683): Codespan ranges are often (always?) off by some amount of characters
+    if let Ok(codespan_range) = codespan_lsp::byte_span_to_range(files, file_id, span) {
+        // We have to manually construct a Range because the codespan_lsp restricts lsp-types to the wrong version range
+        // TODO: codespan is unmaintained and we should probably subsume it. Ref https://github.com/brendanzab/codespan/issues/345
+        let range = Range {
+            start: Position {
+                line: codespan_range.start.line,
+                character: codespan_range.start.character,
+            },
+            end: Position {
+                line: codespan_range.end.line,
+                character: codespan_range.end.character,
+            },
+        };
+        Some(range)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod lsp_tests {
     use lsp_types::TextDocumentSyncCapability;
@@ -247,6 +327,7 @@ mod lsp_tests {
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions { save: Some(_), .. }
                 )),
+                code_lens_provider: Some(CodeLensOptions { resolve_provider: Some(false) }),
                 ..
             }
         ));
