@@ -58,6 +58,8 @@ This package contains the source code and the Aztec ABIs for the example contrac
 
 ### Building the contracts
 
+- In the aztec-packages repository, go to the directory yarn-project/noir-contracts
+
 - Use the `noir:build:all` script to compile the contracts you want and prepare the ABI for consumption
   ```
   yarn noir:build:all
