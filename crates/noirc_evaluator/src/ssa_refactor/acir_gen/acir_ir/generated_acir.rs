@@ -244,10 +244,30 @@ impl GeneratedAcir {
                 hashed_message: inputs[128..].to_vec(),
                 output: outputs[0],
             },
+            BlackBoxFunc::EcdsaSecp256r1 => {
+                println!("r1 inputs");
+                println!("{:?}", inputs);
+
+                println!("pub x, {:?}", inputs[0..32].to_vec());
+                println!("pub y, {:?}", inputs[32..64].to_vec());
+                BlackBoxFuncCall::EcdsaSecp256r1 {
+                    // 32 bytes for each public key co-ordinate
+                    public_key_x: inputs[0..32].to_vec(),
+                    public_key_y: inputs[32..64].to_vec(),
+                    // (r,s) are both 32 bytes each, so signature
+                    // takes up 64 bytes
+                    signature: inputs[64..128].to_vec(),
+                    hashed_message: inputs[128..].to_vec(),
+                    output: outputs[0],
+                }
+            }
             BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                 input: inputs[0],
                 outputs: (outputs[0], outputs[1]),
             },
+            BlackBoxFunc::FixedBaseScalarMul => {
+                BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
+            }
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
@@ -806,7 +826,9 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Signature verification algorithms will take in a variable
         // number of inputs, since the message/hashed-message can vary in size.
-        BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => None,
+        BlackBoxFunc::SchnorrVerify
+        | BlackBoxFunc::EcdsaSecp256k1
+        | BlackBoxFunc::EcdsaSecp256r1 => None,
         // Inputs for fixed based scalar multiplication
         // is just a scalar
         BlackBoxFunc::FixedBaseScalarMul => Some(1),
@@ -836,7 +858,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
         // witness at a time.
         BlackBoxFunc::RANGE => 0,
         // Signature verification algorithms will return a boolean
-        BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => 1,
+        BlackBoxFunc::SchnorrVerify
+        | BlackBoxFunc::EcdsaSecp256k1
+        | BlackBoxFunc::EcdsaSecp256r1 => 1,
         // Output of fixed based scalar mul over the embedded curve
         // will be 2 field elements representing the point.
         BlackBoxFunc::FixedBaseScalarMul => 2,

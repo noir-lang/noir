@@ -19,6 +19,8 @@ fn common_reference_string_location() -> PathBuf {
 pub(crate) fn read_cached_common_reference_string() -> Vec<u8> {
     let crs_path = common_reference_string_location();
 
+    println!("crs path: {:?}", crs_path);
+
     // TODO(#1390): Implement checksum
     match std::fs::read(crs_path) {
         Ok(common_reference_string) => common_reference_string,
