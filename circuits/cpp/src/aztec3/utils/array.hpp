@@ -169,8 +169,8 @@ template <size_t size_1, size_t size_2, typename T, typename Builder>
 void push_array_to_array(Builder& builder, std::array<T, size_1> const& source, std::array<T, size_2>& target)
 {
     // Check if the `source` array is too large vs the remaining capacity of the `target` array
-    size_t const source_size = static_cast<size_t>(uint256_t(array_length(source)));
-    size_t const target_size = static_cast<size_t>(uint256_t(array_length(target)));
+    size_t const source_size = array_length(source);
+    size_t const target_size = array_length(target);
 
     builder.do_assert(source_size <= size_2 - target_size,
                       "push_array_to_array cannot overflow the target",
@@ -211,8 +211,8 @@ bool source_arrays_are_in_target(std::array<T, size_1> const& source1,
                                  std::array<T, size_3> const& target)
 {
     // Check if the `source` arrays are too large vs the size of the `target` array
-    size_t const source1_size = static_cast<size_t>(uint256_t(array_length(source1)));
-    size_t const source2_size = static_cast<size_t>(uint256_t(array_length(source2)));
+    size_t const source1_size = array_length(source1);
+    size_t const source2_size = array_length(source2);
     ASSERT(source1_size + source2_size <= size_3);
 
     // first ensure that all non-empty items in the first source are in the target
