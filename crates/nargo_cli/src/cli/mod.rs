@@ -103,6 +103,7 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
 
     let program =
         compile_circuit(&backend, program_dir, &compile_options).expect("Compile should succeed");
+
     let common_reference_string = update_common_reference_string(
         &backend,
         // Empty CRS is always used since we don't read/write a cached version in these tests
