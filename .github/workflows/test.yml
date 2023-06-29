@@ -38,6 +38,9 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@v2
         with:
           diagnostic-endpoint: ""
+        env:
+          # This is likely very wrong
+          ACTIONS_RUNTIME_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run `nix flake check`
         run: |
