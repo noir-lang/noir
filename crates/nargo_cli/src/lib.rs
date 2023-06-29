@@ -27,6 +27,8 @@ fn nargo_crates() -> PathBuf {
     dirs::home_dir().unwrap().join("nargo")
 }
 
+// some sort of rust change
+
 /// Returns the path of the root directory of the package containing `current_path`.
 ///
 /// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
