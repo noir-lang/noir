@@ -1,3 +1,7 @@
+// Represents an ERC20 token bridged from L1 to L2 via `l1-contracts/test/portals/TokenPortal.sol`. The bridged user
+// balance can be stored in both public and private domain. If the balance is stored in the private domain then it
+// is represented as a set of notes in the private data tree. If the balance is stored in the public domain then it is
+// represented as a single value in the public data tree.
 contract NonNativeToken {
     mod balance_utils;
     use dep::aztec3::abi;
@@ -25,7 +29,9 @@ contract NonNativeToken {
 
 
     //*********************************/
+    // A map from `owner.x` (Field type) to a set of notes (Set type) representing user's private balance.
     global balances = Map { storage_slot: 1 };
+    // A map from `owner.x` (Field type) to a value (StorageField type) representing user's public balance.
     global public_balances = StorageMap { storage_slot: 2 };
     // Should eventually be replaced by:
     // `balances: Mapping<Field, Set<Note>>;`
@@ -45,10 +51,11 @@ contract NonNativeToken {
         let owner_balance = balances.at(owner.x);
         let note = Note::new(initial_supply, owner);
 
-        // Insert note and emit encrypted note preimage via oracle call
+        // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         context = owner_balance.insert(context, note);
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
     }
 
@@ -80,15 +87,19 @@ contract NonNativeToken {
         let owner_balance = balances.at(owner.x);
         let note = Note::new(amount, owner);
 
-        // Insert note and emit encrypted note preimage via oracle call
+        // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         context = owner_balance.insert(context, note);
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
     }
 
 
 
+    // Withdraws using user's private balance.
+    // @dev Destroys 2 of user's notes and sends a message to the L1 portal contract. That message can then be consumed
+    //      by calling the `withdraw` function on the L1 portal contract (assuming the args are set correctly).
     fn withdraw(
         //*********************************/
         // Should eventually be hidden:
@@ -102,6 +113,7 @@ contract NonNativeToken {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient]);
 
+        // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = balances.at(sender.x);
         let (mut context, (note1, note2)) = sender_balance.get_2(initialContext);
 
@@ -109,6 +121,8 @@ contract NonNativeToken {
         context.return_values = context.return_values.push(note1.is_real as Field);
         context.return_values = context.return_values.push(note2.is_real as Field);
 
+        // Ensure the notes are actually owned by the sender (to prevent user from generating a valid proof while
+        // spending someone else's notes).
         note1.validate(sender);
         note2.validate(sender);
 
@@ -121,7 +135,7 @@ contract NonNativeToken {
 
         let change_note = Note::new(change_value, sender);
 
-        // Insert note and emit encrypted note preimage via oracle call
+        // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         context = sender_balance.insert(context, change_note);
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0);
         
@@ -129,6 +143,7 @@ contract NonNativeToken {
 
         context = context.message_portal(content);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
     }
 
@@ -159,7 +174,7 @@ contract NonNativeToken {
     }
 
 
-    // Withdraw Public Function
+    // Withdraws using user's public balance.
     open fn withdrawPublic(
         //*********************************/
         // Should eventually be hidden:
@@ -177,6 +192,7 @@ contract NonNativeToken {
         let current_sender_balance = sender_balance.read();
 
         if (current_sender_balance as u120) > (amount as u120) {
+            // User has sufficient balance so we decrement it by `amount`
             let _void1 = sender_balance.write(current_sender_balance - amount);
         }  
         // TODO: Revert if there is not enough balance
@@ -188,6 +204,8 @@ contract NonNativeToken {
     }
 
 
+    // Transfers `amount` of tokens from `sender`'s private balance to a `recipient`.
+    // Note: Copied from ZkToken
     fn transfer(
         //*********************************/
         // Should eventually be hidden:
@@ -200,36 +218,42 @@ contract NonNativeToken {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient.x, recipient.y]);
 
+        // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = balances.at(sender.x);
         let (mut context, (note1, note2)) = sender_balance.get_2(initialContext);
 
-        // TODO: Removing this return breaks the circuit (???)
-        context.return_values = context.return_values.push(note1.is_real as Field);
-        context.return_values = context.return_values.push(note2.is_real as Field);
-
+        // Ensure the notes are actually owned by the sender (to prevent user from generating a valid proof while
+        // spending someone else's notes).
         note1.validate(sender);
         note2.validate(sender);
 
+        // Checks that the sum of the notes is greater than or equal to the amount being transferred.
         let sum = note1.value + note2.value;
         assert(sum as u64 >= amount as u64);
         let change_value = sum - amount;
 
+        // Removes the 2 notes from the sender's set of notes.
         context = sender_balance.remove(inputs, context, note1);
         context = sender_balance.remove(inputs, context, note2);
 
+        // Creates 2 new notes, one for the recipient and one for the sender (change note).
         let change_note = Note::new(change_value, sender);
         let recipient_note = Note::new(amount, recipient);
 
+        // Get the recipient's set of notes.
         let recipient_balance = balances.at(recipient.x);
 
+        // Insert the 2 new notes to the recipient's and sender's sets of notes.
         context = recipient_balance.insert(context, recipient_note);
         context = sender_balance.insert(context, change_note);
 
+        // Emit the newly created encrypted note preimages via oracle calls.
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, recipient_balance.storage_slot, recipient_note.owner, recipient_note) == 0);
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
-    } 
+    }
 
     /// ABI getBalance type "unconstrained"
     fn getBalance(
@@ -241,7 +265,7 @@ contract NonNativeToken {
         balance_utils::get_balance(owner_balance.storage_slot)
     }
 
-
+    // Computes a content hash of a deposit/mint message.
     fn _get_mint_content_hash(amount: Field, owner_address: Field, canceller: Field) -> pub Field {
         let mut hash_bytes: [u8; 100] = [0; 100];
         let amount_bytes = amount.to_be_bytes(32);
@@ -428,6 +452,7 @@ contract NonNativeToken {
         content_hash
     }
 
+    // Computes a content hash of a withdraw message.
     fn _get_withdraw_content_hash(amount: Field, recipient: Field, callerOnL1: Field) -> pub Field {
         // Compute the content hash
         // Compute sha256(selector || amount || recipient)

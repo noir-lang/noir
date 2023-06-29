@@ -1,3 +1,4 @@
+// A contract used along with `Child` contract to test nested calls.
 contract Parent {
     use dep::aztec3::abi;
     use dep::aztec3::abi::PrivateContextInputs;
@@ -22,12 +23,14 @@ contract Parent {
         let mut initialContext = PrivateFunctionContext::new();
         initialContext.args = initialContext.args.push_array([targetContract, targetSelector]);
 
+        // Call the target private function
         let (callStackItem, mut context) = PrivateCallStackItem::call(targetContract, targetSelector, [0; abi::MAX_ARGS], initialContext);
 
+        // Copy the return value from the call to this function's return values
         let result = callStackItem.public_inputs.return_values[0];
-
         context.return_values = context.return_values.push(result);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
     }
 
@@ -50,7 +53,7 @@ contract Parent {
         public_call::call_public_function(targetContract, targetSelector, args)[0]
     }
 
-    // Private function to enqueue a call to the targetCcontract address using the selector and argument provided
+    // Private function to enqueue a call to the targetContract address using the selector and argument provided
     fn enqueueCallToChild(
         inputs: PrivateContextInputs,
         targetContract: Field,
@@ -64,10 +67,11 @@ contract Parent {
         args[0] = targetValue;
         let (_callStackItem, mut context) = PublicCallStackItem::call(targetContract, targetSelector, args, initialContext);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
     }
 
-    // Private function to enqueue a call to the targetCcontract address using the selector and argument provided
+    // Private function to enqueue a call to the targetContract address using the selector and argument provided
     fn enqueueCallToChildTwice(
         inputs: PrivateContextInputs,
         targetContract: Field,
@@ -79,10 +83,13 @@ contract Parent {
 
         let mut args = [0; abi::MAX_ARGS];
         args[0] = targetValue;
+        // Enqueue the first public call
         let (callStackItem1, context1) = PublicCallStackItem::call(targetContract, targetSelector, args, context0);
+        // Enqueue the second public call
         args[0] = callStackItem1.public_inputs.return_values[0];
         let (_callStackItem2, context2) = PublicCallStackItem::call(targetContract, targetSelector, args, context1);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context2.finish(inputs)
     }
 
@@ -105,6 +112,7 @@ contract Parent {
         args[2] = targetValue;
         let (_callStackItem1, mut context1) = PublicCallStackItem::call(thisAddress, pubEntryPointSelector, args, initialContext);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context1.finish(inputs)
     }
 
@@ -130,6 +138,7 @@ contract Parent {
         args[2] = args[2] + 1;
         let (_callStackItem2, mut context2) = PublicCallStackItem::call(thisAddress, pubEntryPointSelector, args, context1);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context2.finish(inputs)
     }
 }

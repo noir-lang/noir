@@ -1,3 +1,5 @@
+// Since we support account abstraction user accounts are represented by a contract. This contract is one such example
+// where the user is authenticated with an ECDSA signature.
 contract EcdsaAccount {
     use dep::std;
     use dep::aztec3::entrypoint;
@@ -11,9 +13,10 @@ contract EcdsaAccount {
     use dep::aztec3::types::vec::BoundedVec;
     use dep::aztec3::types::point::Point;
 
+    // A function which has to be implemented by every account abstraction contract.
     fn entrypoint(
         inputs: pub PrivateContextInputs,
-        payload: pub EntrypointPayload,
+        payload: pub EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce
         owner: pub [u8;64], // x and y coordinates concatenated
         signature: pub [Field;3],
         partialContractAddress: pub Field,
@@ -54,6 +57,7 @@ contract EcdsaAccount {
         //let reproduced_address = dep::std::hash::pedersen([owner, partialContractAddress])[0];
         //constrain reproduced_address == inputs.call_context.storage_contract_address;
 
+        // Call private functions
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
             let target_address = payload.flattened_targets[i];
             if target_address != 0 {
@@ -67,6 +71,7 @@ contract EcdsaAccount {
             }
         }
 
+        // Call public functions
         for i in entrypoint::ACCOUNT_MAX_PRIVATE_CALLS..entrypoint::ACCOUNT_MAX_CALLS {
             let target_address = payload.flattened_targets[i];
             if target_address != 0 {
@@ -101,12 +106,15 @@ contract EcdsaAccount {
         // TODO(#745): Do not store args, set hash directly in context API
         let mut ret = context.finish(inputs);
         ret.args_hash = args_hash;
+
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         ret
     }
 
     fn constructor(
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         PrivateFunctionContext::new().finish(inputs)
     }
 }

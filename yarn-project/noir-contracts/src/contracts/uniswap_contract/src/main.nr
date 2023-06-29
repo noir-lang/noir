@@ -1,3 +1,4 @@
+// Demonstrates how to send a message to a portal contract on L1. We use Uniswap here as it's the most typical example.
 contract Uniswap {
     use dep::aztec3::abi;
     use dep::aztec3::abi::PrivateContextInputs;
@@ -11,6 +12,7 @@ contract Uniswap {
     fn constructor(
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         PrivateFunctionContext::new().finish(inputs)
     }
 
@@ -33,7 +35,7 @@ contract Uniswap {
         outputAssetPortalAddress: Field, // l1 portal of output asset
         minimumOutputAmount: Field, // minimum output amount to receive (slippage protection for the swap)
         sender: Point, 
-        recipient: Field, // recevier address of output asset after the swap
+        recipient: Field, // receiver address of output asset after the swap
         secretHash: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
         deadlineForL1ToL2Message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
         cancellerForL1ToL2Message: Field, // L1 address of who can cancel the message to consume assets on L2.
@@ -61,7 +63,7 @@ contract Uniswap {
         ]);
 
         // inputAsset.withdraw(inputAmount, sender, recipient=l1UniswapPortal, callerOnL1=l1UniswapPortal) 
-        // only uniswap portal can call this (done to safegaurd ordering of message consumption)
+        // only uniswap portal can call this (done to safeguard ordering of message consumption)
         // ref: https://docs.aztec.network/aztec/how-it-works/l1-l2-messaging#designated-caller
         let mut args = [0; abi::MAX_ARGS];
         args[0] = inputAmount;
@@ -89,10 +91,11 @@ contract Uniswap {
         );
         context = context.message_portal(content_hash);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
     }
 
-    // refer uniswapPortal.sol on how L2 to L1 message is expected
+    // refer `l1-contracts/test/portals/UniswapPortal.sol` on how L2 to L1 message is expected
     fn _compute_swap_content_hash(
         inputTokenPortal: Field,
         inAmount: Field,

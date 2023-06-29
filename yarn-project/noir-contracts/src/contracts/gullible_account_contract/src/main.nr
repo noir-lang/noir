@@ -1,3 +1,6 @@
+// Since we support account abstraction user accounts are represented by a contract. This contract is one such example
+// where the user is not authenticated. This implies that anyone can call this contract and execute any function on its
+// behalf.
 contract GullibleAccount {
     use dep::std;
     use dep::aztec3::entrypoint;
@@ -10,13 +13,15 @@ contract GullibleAccount {
     use dep::aztec3::context::PrivateFunctionContext;
     use dep::aztec3::types::vec::BoundedVec;
 
+    // A function which has to be implemented by every account abstraction contract.
     fn entrypoint(
         inputs: PrivateContextInputs,
-        payload: EntrypointPayload,
+        payload: EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce
         _signature: [Field;3]
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut context = PrivateFunctionContext::new();
 
+        // Call private functions
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
             let target_address = payload.flattened_targets[i];
             if target_address != 0 {
@@ -30,6 +35,7 @@ contract GullibleAccount {
             }
         }
 
+        // Call public functions
         for i in entrypoint::ACCOUNT_MAX_PRIVATE_CALLS..entrypoint::ACCOUNT_MAX_CALLS {
             let target_address = payload.flattened_targets[i];
             if target_address != 0 {
@@ -64,12 +70,14 @@ contract GullibleAccount {
         // TODO(#745): Do not store args, set hash directly in context API
         let mut ret = context.finish(inputs);
         ret.args_hash = args_hash;
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         ret
     }
 
     fn constructor(
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         PrivateFunctionContext::new().finish(inputs)
     }
 }

@@ -1,5 +1,14 @@
 use dep::std::hash::pedersen;
 
+// A contract used to test insertion of a note from public domain into the private data tree. How this works is that
+// a user provides a secret hash as an argument on the input of the public function, and the contract then inserts
+// a note into the private data tree once the public call is processed. A note can later on be spent by providing
+// the secret hash preimage on the input of a private function call.
+//
+// This flow will be typically used when performing a token swap:
+// 1. A calls a private function which enqueues a public call to the DEX contract (with the secret hash on input).
+// 2. The sequencer performs the public call to the DEX and the note gets inserted into the private data tree.
+// 3. At this point a recipient can spend the note in a private function assuming he/she knows the secret.
 contract PublicPrivate {
     mod balance_utils;
     mod transparent_note;
@@ -28,15 +37,17 @@ contract PublicPrivate {
     use dep::aztec3::oracle::create_nullifier::create_nullifier;
     use dep::aztec3::oracle::get_commitment::get_commitment;
 
+    // A map from `owner.x` to a set of notes representing private user balance.
     global balances = Map { storage_slot: 1 };
 
     fn constructor(
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         PrivateFunctionContext::new().finish(inputs)
     }
 
-
+    // A public function which inserts a note to the private data tree.
     open fn mintFromPublicToPrivate(
         _inputs: PublicContextInputs,
         amount: Field,
@@ -83,8 +94,7 @@ contract PublicPrivate {
     }
 
     
-
-
+    // Consumes the transparent note and creates a standard note.
     fn mintFromPublicMessage(
         inputs: PrivateContextInputs,
         amount: Field,
@@ -106,6 +116,7 @@ contract PublicPrivate {
         context = owner_balance.insert(context, note);
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish(inputs)
     }
 
