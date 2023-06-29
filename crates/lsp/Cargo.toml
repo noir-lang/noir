@@ -10,6 +10,7 @@ edition.workspace = true
 [dependencies]
 acvm.workspace = true
 codespan-lsp.workspace = true
+codespan-reporting.workspace = true
 lsp-types.workspace = true
 noirc_driver.workspace = true
 noirc_errors.workspace = true
