@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Signedness};
+use crate::{BinaryOpKind, Signedness, node_interner::Mutability};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -61,7 +61,7 @@ pub struct FuncId(pub u32);
 pub struct Ident {
     pub location: Option<Location>,
     pub definition: Definition,
-    pub mutable: bool,
+    pub mutability: Mutability,
     pub name: String,
     pub typ: Type,
 }
@@ -152,7 +152,7 @@ pub struct Index {
 #[derive(Debug, Clone)]
 pub struct Let {
     pub id: LocalId,
-    pub mutable: bool,
+    pub mutability: Mutability,
     pub name: String,
     pub expression: Box<Expression>,
 }
@@ -178,7 +178,7 @@ pub enum LValue {
     MemberAccess { object: Box<LValue>, field_index: usize },
 }
 
-pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
+pub type Parameters = Vec<(LocalId, Mutability, /*name:*/ String, Type)>;
 
 #[derive(Debug, Clone)]
 pub struct Function {
@@ -208,6 +208,7 @@ pub enum Type {
     Unit,
     Tuple(Vec<Type>),
     Vec(Box<Type>),
+    MutableReference(Box<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
@@ -321,6 +322,7 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
             Type::Vec(element) => write!(f, "Vec<{element}>"),
+            Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }
 }

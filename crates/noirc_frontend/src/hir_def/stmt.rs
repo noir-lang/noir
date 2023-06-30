@@ -52,6 +52,7 @@ pub struct HirConstrainStatement(pub ExprId, pub FileId);
 pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
+    MutableReference(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
     Struct(Type, Vec<(Ident, HirPattern)>, Span),
 }
@@ -60,7 +61,8 @@ impl HirPattern {
     pub fn field_count(&self) -> usize {
         match self {
             HirPattern::Identifier(_) => 0,
-            HirPattern::Mutable(_, _) => 0,
+            HirPattern::Mutable(pattern, _) => pattern.field_count(),
+            HirPattern::MutableReference(pattern, _) => pattern.field_count(),
             HirPattern::Tuple(fields, _) => fields.len(),
             HirPattern::Struct(_, fields, _) => fields.len(),
         }

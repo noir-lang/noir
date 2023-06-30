@@ -1206,6 +1206,7 @@ impl SsaContext {
                     Signedness::Unsigned => ObjectType::unsigned_integer(*bit_size),
                 }
             }
+            Type::MutableReference(element) => self.convert_type(element),
             Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => ObjectType::Function,

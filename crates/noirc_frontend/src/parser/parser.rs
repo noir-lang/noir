@@ -36,7 +36,7 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct, Path,
-    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind, ArgumentMode,
 };
 
 use chumsky::prelude::*;
@@ -270,7 +270,7 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
     let typ = parse_type().recover_via(parameter_recovery());
     let typ = just(Token::Colon).ignore_then(typ);
 
-    let parameter = pattern()
+    let parameter = pattern(true)
         .recover_via(parameter_name_recovery())
         .then(typ.or_not().map(|typ| typ.unwrap_or(UnresolvedType::Unspecified)));
 
@@ -285,7 +285,7 @@ fn function_parameters<'a>(
 ) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiVisibility)>> + 'a {
     let typ = parse_type().recover_via(parameter_recovery());
 
-    let full_parameter = pattern()
+    let full_parameter = pattern(true)
         .recover_via(parameter_name_recovery())
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
@@ -511,20 +511,28 @@ where
     P: ExprParser + 'a,
 {
     let p =
-        ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern());
+        ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern(false));
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
     p.map(Statement::new_let)
 }
 
-fn pattern() -> impl NoirParser<Pattern> {
+fn pattern(allow_mutable_references: bool) -> impl NoirParser<Pattern> {
     recursive(|pattern| {
         let ident_pattern = ident().map(Pattern::Identifier);
 
         let mut_pattern = keyword(Keyword::Mut)
             .ignore_then(pattern.clone())
             .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
+
+        let mutref_pattern = if allow_mutable_references {
+            just(Token::Ampersand).ignore_then(keyword(Keyword::Mut))
+            .ignore_then(pattern.clone())
+            .map_with_span(|inner, span| Pattern::MutableReference(Box::new(inner), span)).boxed()
+        } else {
+            nothing().boxed()
+        };
 
         let short_field = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
         let long_field = ident().then_ignore(just(Token::Colon)).then(pattern.clone());
@@ -543,7 +551,7 @@ fn pattern() -> impl NoirParser<Pattern> {
             .delimited_by(just(Token::LeftParen), just(Token::RightParen))
             .map_with_span(Pattern::Tuple);
 
-        choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
+        choice((mut_pattern, mutref_pattern, tuple_pattern, struct_pattern, ident_pattern))
     })
     .labelled(ParsingRuleLabel::Pattern)
 }
@@ -845,14 +853,14 @@ where
     P: ExprParser + 'a,
 {
     enum UnaryRhs {
-        Call(Vec<Expression>),
+        Call(Vec<(ArgumentMode, Expression)>),
         ArrayIndex(Expression),
         Cast(UnresolvedType),
         MemberAccess((Ident, Option<Vec<Expression>>)),
     }
 
     // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
-    let call_rhs = parenthesized(expression_list(expr_parser.clone())).map(UnaryRhs::Call);
+    let call_rhs = parenthesized(argument_list(expr_parser.clone())).map(UnaryRhs::Call);
 
     // `[expr]` in `arr[expr]`
     let array_rhs = expr_parser
@@ -985,6 +993,18 @@ where
     P: ExprParser,
 {
     expr_parser.separated_by(just(Token::Comma)).allow_trailing()
+}
+
+fn argument_list<P>(expr_parser: P) -> impl NoirParser<Vec<(ArgumentMode, Expression)>>
+where
+    P: ExprParser,
+{
+    just(Token::Ampersand)
+        .ignore_then(keyword(Keyword::Mut))
+        .or_not()
+        .map(|opt| opt.map_or(ArgumentMode::PassByValue, |_| ArgumentMode::PassByReference))
+        .then(expr_parser)
+        .separated_by(just(Token::Comma)).allow_trailing()
 }
 
 fn not<P>(term_parser: P) -> impl NoirParser<ExpressionKind>

@@ -32,6 +32,8 @@ pub(super) enum Value {
 
     /// A mutable variable that must be loaded as the given type before being used
     Mutable(IrValueId, Type),
+
+    MutableReference(IrValueId, Type),
 }
 
 impl Value {
@@ -42,6 +44,7 @@ impl Value {
         match self {
             Value::Normal(value) => value,
             Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
+            Value::MutableReference(address, typ) => ctx.builder.insert_load(address, typ),
         }
     }
 
@@ -51,6 +54,15 @@ impl Value {
         match self {
             Value::Normal(value) => value,
             Value::Mutable(address, _) => address,
+            Value::MutableReference(address, _) => address,
+        }
+    }
+
+    pub(super) fn eval_argument(self, ctx: &mut FunctionContext) -> IrValueId {
+        match self {
+            Value::Normal(value) => value,
+            Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
+            Value::MutableReference(address, _) => address,
         }
     }
 }
@@ -159,5 +171,9 @@ impl Tree<Value> {
     /// for return statements, branching instructions, or function parameters.
     pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
         vecmap(self.flatten(), |value| value.eval(ctx))
+    }
+
+    pub(super) fn into_argument_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
+        vecmap(self.flatten(), |value| value.eval_argument(ctx))
     }
 }

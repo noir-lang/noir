@@ -157,11 +157,17 @@ impl Expression {
         Expression::new(kind, span)
     }
 
-    pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
+    pub fn call(lhs: Expression, arguments: Vec<(ArgumentMode, Expression)>, span: Span) -> Expression {
         let func = Box::new(lhs);
         let kind = ExpressionKind::Call(Box::new(CallExpression { func, arguments }));
         Expression::new(kind, span)
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum ArgumentMode {
+    PassByValue,
+    PassByReference,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -356,7 +362,7 @@ pub enum ArrayLiteral {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CallExpression {
     pub func: Box<Expression>,
-    pub arguments: Vec<Expression>,
+    pub arguments: Vec<(ArgumentMode, Expression)>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -487,8 +493,17 @@ impl Display for IndexExpression {
 
 impl Display for CallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let args = vecmap(&self.arguments, ToString::to_string);
+        let args = vecmap(&self.arguments, |(mode, arg)| format!("{}{}", mode, arg));
         write!(f, "{}({})", self.func, args.join(", "))
+    }
+}
+
+impl Display for ArgumentMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArgumentMode::PassByValue => Ok(()),
+            ArgumentMode::PassByReference => write!(f, "&mut "),
+        }
     }
 }
 

@@ -412,6 +412,7 @@ pub struct ConstrainStatement(pub Expression);
 pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Span),
+    MutableReference(Box<Pattern>, Span),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
 }
@@ -523,6 +524,7 @@ impl Display for Pattern {
         match self {
             Pattern::Identifier(name) => name.fmt(f),
             Pattern::Mutable(name, _) => write!(f, "mut {name}"),
+            Pattern::MutableReference(name, _) => write!(f, "&mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
                 write!(f, "({})", fields.join(", "))

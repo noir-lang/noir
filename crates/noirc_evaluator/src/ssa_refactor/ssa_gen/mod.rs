@@ -9,7 +9,7 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::{monomorphization::ast::{self, Expression, Program}, node_interner::Mutability};
 
 use self::{
     context::FunctionContext,
@@ -342,7 +342,7 @@ impl<'a> FunctionContext<'a> {
         let arguments = call
             .arguments
             .iter()
-            .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
+            .flat_map(|argument| self.codegen_expression(argument).into_argument_list(self))
             .collect();
 
         let function = self.codegen_non_tuple_expression(&call.func);
@@ -356,10 +356,11 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Values {
         let mut values = self.codegen_expression(&let_expr.expression);
 
-        if let_expr.mutable {
+        if let_expr.mutability != Mutability::Immutable {
             values = values.map(|value| {
                 let value = value.eval(self);
-                Tree::Leaf(self.new_mutable_variable(value))
+                let is_mutable_reference = let_expr.mutability == Mutability::MutableReference;
+                Tree::Leaf(self.new_mutable_variable(value, is_mutable_reference))
             });
         }
 

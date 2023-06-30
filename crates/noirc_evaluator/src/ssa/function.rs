@@ -10,6 +10,7 @@ use crate::ssa::{
 };
 use iter_extended::try_vecmap;
 use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
+use noirc_frontend::node_interner::Mutability;
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
@@ -155,7 +156,7 @@ impl IrGenerator {
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
             let node_ids = self.create_function_parameter(param_id, &typ, &name);
-            func.arguments.extend(node_ids.into_iter().map(|id| (id, mutable)));
+            func.arguments.extend(node_ids.into_iter().map(|id| (id, mutable == Mutability::Mutable)));
         }
 
         // ensure return types are defined in case of recursion call cycle

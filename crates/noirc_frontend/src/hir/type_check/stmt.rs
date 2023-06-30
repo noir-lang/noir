@@ -4,7 +4,7 @@ use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
-use crate::node_interner::{DefinitionId, ExprId, StmtId};
+use crate::node_interner::{DefinitionId, ExprId, StmtId, Mutability};
 use crate::CompTime;
 
 use super::errors::TypeCheckError;
@@ -58,6 +58,7 @@ impl<'interner> TypeChecker<'interner> {
         match pattern {
             HirPattern::Identifier(ident) => self.interner.push_definition_type(ident.id, typ),
             HirPattern::Mutable(pattern, _) => self.bind_pattern(pattern, typ),
+            HirPattern::MutableReference(pattern, _) => self.bind_pattern(pattern, typ),
             HirPattern::Tuple(fields, span) => match typ {
                 Type::Tuple(field_types) if field_types.len() == fields.len() => {
                     for (field, field_type) in fields.iter().zip(field_types) {
@@ -124,7 +125,7 @@ impl<'interner> TypeChecker<'interner> {
                     Type::Error
                 } else {
                     let definition = self.interner.definition(ident.id);
-                    if !definition.mutable {
+                    if definition.mutability == Mutability::Immutable {
                         self.errors.push(TypeCheckError::Unstructured {
                             msg: format!(
                                 "Variable {} must be mutable to be assigned to",

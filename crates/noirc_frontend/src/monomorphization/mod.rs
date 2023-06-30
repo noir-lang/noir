@@ -20,7 +20,7 @@ use crate::{
         function::{FuncMeta, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, Mutability},
     token::Attribute,
     CompTime, FunctionKind, TypeBinding, TypeBindings,
 };
@@ -204,7 +204,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
-    fn parameters(&mut self, params: Parameters) -> Vec<(ast::LocalId, bool, String, ast::Type)> {
+    fn parameters(&mut self, params: Parameters) -> Vec<(ast::LocalId, Mutability, String, ast::Type)> {
         let mut new_params = Vec::with_capacity(params.len());
         for parameter in params {
             self.parameter(parameter.0, &parameter.1, &mut new_params);
@@ -216,18 +216,19 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         param: HirPattern,
         typ: &HirType,
-        new_params: &mut Vec<(ast::LocalId, bool, String, ast::Type)>,
+        new_params: &mut Vec<(ast::LocalId, Mutability, String, ast::Type)>,
     ) {
         match param {
             HirPattern::Identifier(ident) => {
-                //let value = self.expand_parameter(typ, new_params);
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
-                new_params.push((new_id, definition.mutable, name, Self::convert_type(typ)));
+                println!("Mutability of parameter is {}", definition.mutability);
+                new_params.push((new_id, definition.mutability, name, Self::convert_type(typ)));
                 self.define_local(ident.id, new_id);
             }
             HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),
+            HirPattern::MutableReference(pattern, _) => self.parameter(*pattern, typ, new_params),
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
 
@@ -382,7 +383,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => {
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: array_contents,
                     element_type,
@@ -428,7 +430,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => {
                 ast::Expression::Index(ast::Index { collection, index, element_type, location })
             }
 
@@ -495,7 +498,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
-                mutable: false,
+                mutability: Mutability::Immutable,
                 name: field_name.0.contents,
                 expression,
             }));
@@ -510,8 +513,8 @@ impl<'interner> Monomorphizer<'interner> {
             });
 
             let definition = Definition::Local(id);
-            let mutable = false;
-            ast::Expression::Ident(ast::Ident { definition, mutable, location: None, name, typ })
+            let mutability = Mutability::Immutable;
+            ast::Expression::Ident(ast::Ident { definition, mutability, location: None, name, typ })
         });
 
         // Finally we can return the created Tuple from the new block
@@ -537,12 +540,13 @@ impl<'interner> Monomorphizer<'interner> {
 
                 ast::Expression::Let(ast::Let {
                     id: new_id,
-                    mutable: definition.mutable,
+                    mutability: definition.mutability,
                     name: definition.name.clone(),
                     expression: Box::new(value),
                 })
             }
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
+            HirPattern::MutableReference(pattern, _) => self.unpack_pattern(*pattern, value, typ),
             HirPattern::Tuple(patterns, _) => {
                 let fields = unwrap_tuple_type(typ);
                 self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields))
@@ -574,20 +578,20 @@ impl<'interner> Monomorphizer<'interner> {
 
         let mut definitions = vec![ast::Expression::Let(ast::Let {
             id: fresh_id,
-            mutable: false,
+            mutability: Mutability::Immutable,
             name: "_".into(),
             expression: Box::new(value),
         })];
 
         for (i, (field_pattern, field_type)) in fields.into_iter().enumerate() {
             let location = None;
-            let mutable = false;
+            let mutability = Mutability::Immutable;
             let definition = Definition::Local(fresh_id);
             let name = i.to_string();
             let typ = Self::convert_type(&field_type);
 
             let new_rhs =
-                ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
+                ast::Expression::Ident(ast::Ident { location, mutability, definition, name, typ });
 
             let new_rhs = ast::Expression::ExtractTupleField(Box::new(new_rhs), i);
             let new_expr = self.unpack_pattern(field_pattern, new_rhs, &field_type);
@@ -601,26 +605,26 @@ impl<'interner> Monomorphizer<'interner> {
     fn local_ident(&mut self, ident: &HirIdent) -> Option<ast::Ident> {
         let definition = self.interner.definition(ident.id);
         let name = definition.name.clone();
-        let mutable = definition.mutable;
+        let mutable = definition.mutability;
 
         let definition = self.lookup_local(ident.id)?;
         let typ = Self::convert_type(&self.interner.id_type(ident.id));
 
-        Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
+        Some(ast::Ident { location: Some(ident.location), mutability: mutable, definition, name, typ })
     }
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
         let definition = self.interner.definition(ident.id);
         match &definition.kind {
             DefinitionKind::Function(func_id) => {
-                let mutable = definition.mutable;
+                let mutability = definition.mutability;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
                 let typ = self.interner.id_type(expr_id);
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = Self::convert_type(&typ);
-                let ident = ast::Ident { location, mutable, definition, name, typ };
+                let ident = ast::Ident { location, mutability, definition, name, typ };
                 ast::Expression::Ident(ident)
             }
             DefinitionKind::Global(expr_id) => self.expr(*expr_id),
@@ -700,6 +704,11 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Vec(Box::new(element))
             }
 
+            HirType::MutableReference(element) => {
+                let element = Self::convert_type(element);
+                ast::Type::MutableReference(Box::new(element))
+            }
+
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
@@ -714,7 +723,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => ast::Type::Array(length, Box::new(element)),
+            | ast::Type::Function(_, _) 
+            | ast::Type::MutableReference(_) => ast::Type::Array(length, Box::new(element)),
 
             ast::Type::Tuple(elements) => {
                 ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
@@ -943,7 +953,7 @@ impl<'interner> Monomorphizer<'interner> {
         let name = lambda_name.to_owned();
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
-            mutable: false,
+            mutability: Mutability::Immutable,
             location: None,
             name,
             typ,
@@ -978,6 +988,7 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Function(parameter_types, ret_type) => {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
+            ast::Type::MutableReference(element) => self.zeroed_value_of_type(element),
             ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
         }
     }
@@ -996,7 +1007,7 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone())
+            (self.next_local_id(), Mutability::Immutable, "_".into(), parameter_type.clone())
         });
 
         let body = self.zeroed_value_of_type(ret_type);
@@ -1011,7 +1022,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
-            mutable: false,
+            mutability: Mutability::Immutable,
             location: None,
             name: lambda_name.to_owned(),
             typ: ast::Type::Function(parameter_types.to_owned(), Box::new(ret_type.clone())),

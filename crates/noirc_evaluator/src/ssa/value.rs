@@ -93,6 +93,7 @@ impl Value {
                 let values = vecmap(tup, |v| Self::reshape(v, iter));
                 Value::Tuple(values)
             }
+            Type::MutableReference(element) => Self::reshape(element, iter),
             Type::Unit
             | Type::Function(..)
             | Type::Array(..)
