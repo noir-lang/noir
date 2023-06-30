@@ -25,7 +25,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, Mutability,
+    DefinitionId, DefinitionKind, ExprId, FuncId, Mutability, NodeInterner, StmtId, StructId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -252,7 +252,11 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), Mutability::Immutable, definition);
+            let id = self.interner.push_definition(
+                name.0.contents.clone(),
+                Mutability::Immutable,
+                definition,
+            );
             let location = Location::new(name.span(), self.file);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
@@ -616,10 +620,8 @@ impl<'a> Resolver<'a> {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() });
             }
 
-            let typ = self.resolve_type_inner(typ, &mut generics);
-            let typ = self.add_mutable_reference_from_pattern_to_type(&pattern, typ);
-
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
+            let typ = self.resolve_type_inner(typ, &mut generics);
 
             parameters.push(Param(pattern, typ.clone(), visibility));
             parameter_types.push(typ);
@@ -724,7 +726,13 @@ impl<'a> Resolver<'a> {
             {
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident, Mutability::Immutable, false, false, definition);
+                self.add_variable_decl_inner(
+                    ident,
+                    Mutability::Immutable,
+                    false,
+                    false,
+                    definition,
+                );
             }
         }
     }
@@ -784,7 +792,6 @@ impl<'a> Resolver<'a> {
                 }
             }
             Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
-            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }
 
@@ -899,7 +906,8 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
                 let func = self.resolve_expression(*call_expr.func);
-                let arguments = vecmap(call_expr.arguments, |(_, arg)| self.resolve_expression(arg));
+                let arguments =
+                    vecmap(call_expr.arguments, |(_, arg)| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::Call(HirCallExpression { func, arguments, location })
             }
@@ -1040,7 +1048,12 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
 
-                let pattern = self.resolve_pattern_mutable(*pattern, Mutability::Mutable, Some(span), definition);
+                let pattern = self.resolve_pattern_mutable(
+                    *pattern,
+                    Mutability::Mutable,
+                    Some(span),
+                    definition,
+                );
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::MutableReference(pattern, span) => {
@@ -1048,12 +1061,22 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
 
-                let pattern = self.resolve_pattern_mutable(*pattern, Mutability::MutableReference, Some(span), definition);
+                let pattern = self.resolve_pattern_mutable(
+                    *pattern,
+                    Mutability::MutableReference,
+                    Some(span),
+                    definition,
+                );
                 HirPattern::MutableReference(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
                 let fields = vecmap(fields, |field| {
-                    self.resolve_pattern_mutable(field, mutability, mutable_span, definition.clone())
+                    self.resolve_pattern_mutable(
+                        field,
+                        mutability,
+                        mutable_span,
+                        definition.clone(),
+                    )
                 });
                 HirPattern::Tuple(fields, span)
             }
@@ -1063,7 +1086,12 @@ impl<'a> Resolver<'a> {
                     // shadowing here lets us avoid further errors if we define ERROR_IDENT
                     // multiple times.
                     let name = ERROR_IDENT.into();
-                    let identifier = this.add_variable_decl(name, Mutability::Immutable, true, definition.clone());
+                    let identifier = this.add_variable_decl(
+                        name,
+                        Mutability::Immutable,
+                        true,
+                        definition.clone(),
+                    );
                     HirPattern::Identifier(identifier)
                 };
 
@@ -1077,7 +1105,12 @@ impl<'a> Resolver<'a> {
                 };
 
                 let resolve_field = |this: &mut Self, pattern| {
-                    this.resolve_pattern_mutable(pattern, mutability, mutable_span, definition.clone())
+                    this.resolve_pattern_mutable(
+                        pattern,
+                        mutability,
+                        mutable_span,
+                        definition.clone(),
+                    )
                 };
 
                 let typ = struct_type.clone();
@@ -1256,28 +1289,6 @@ impl<'a> Resolver<'a> {
     fn in_contract(&self) -> bool {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
-    }
-
-    fn add_mutable_reference_from_pattern_to_type(&self, pattern: &Pattern, typ: Type, wrap_in_mutref: bool) -> Type {
-        match (pattern, typ) {
-            (Pattern::Identifier(ident), typ) => {
-                if wrap_in_mutref {
-                    Type::MutableReference(Box::new(typ))
-                } else {
-                    typ
-                }
-            },
-            (Pattern::Mutable(pattern, _), typ) => self.add_mutable_reference_from_pattern_to_type(pattern, typ, wrap_in_mutref),
-            (Pattern::MutableReference(pattern, _), typ) => self.add_mutable_reference_from_pattern_to_type(pattern, typ, true),
-            (Pattern::Tuple(patterns, _), Type::Tuple(fields)) => {
-                Type::Tuple(vecmap(patterns.iter().zip(fields), |(pattern, field_type)| {
-                    self.add_mutable_reference_from_pattern_to_type(pattern, field_type, wrap_in_mutref)
-                }))
-            },
-            (Pattern::Struct(_, patterns, _), Type::Struct(struct_type, generics)) => {
-                todo!()
-            },
-        }
     }
 }
 

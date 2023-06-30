@@ -157,7 +157,11 @@ impl Expression {
         Expression::new(kind, span)
     }
 
-    pub fn call(lhs: Expression, arguments: Vec<(ArgumentMode, Expression)>, span: Span) -> Expression {
+    pub fn call(
+        lhs: Expression,
+        arguments: Vec<(ArgumentMode, Expression)>,
+        span: Span,
+    ) -> Expression {
         let func = Box::new(lhs);
         let kind = ExpressionKind::Call(Box::new(CallExpression { func, arguments }));
         Expression::new(kind, span)

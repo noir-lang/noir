@@ -4,7 +4,7 @@ use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
-use crate::node_interner::{DefinitionId, ExprId, StmtId, Mutability};
+use crate::node_interner::{DefinitionId, ExprId, Mutability, StmtId};
 use crate::CompTime;
 
 use super::errors::TypeCheckError;

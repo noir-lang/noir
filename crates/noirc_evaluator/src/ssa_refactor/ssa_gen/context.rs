@@ -6,8 +6,8 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
-use noirc_frontend::Signedness;
 use noirc_frontend::node_interner::Mutability;
+use noirc_frontend::Signedness;
 
 use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
@@ -140,8 +140,8 @@ impl<'a> FunctionContext<'a> {
 
             match mutability {
                 Mutability::Immutable => value.into(),
-                Mutability::Mutable => self.new_mutable_variable(value, false),
-                Mutability::MutableReference => Value::MutableReference(value, typ),
+                Mutability::Mutable => self.new_mutable_variable(value),
+                Mutability::MutableReference => Value::Mutable(value, typ),
             }
         });
 
@@ -150,15 +150,11 @@ impl<'a> FunctionContext<'a> {
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId, is_reference: bool) -> Value {
+    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let alloc = self.builder.insert_allocate();
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
-        if is_reference {
-            Value::MutableReference(alloc, typ)
-        } else {
-            Value::Mutable(alloc, typ)
-        }
+        Value::Mutable(alloc, typ)
     }
 
     /// Maps the given type to a Tree of the result type.
@@ -207,7 +203,6 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
-            ast::Type::MutableReference(element) => Self::convert_non_tuple_type(element),
 
             // How should we represent Vecs?
             // Are they a struct of array + length + capacity?

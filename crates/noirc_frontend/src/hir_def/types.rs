@@ -44,9 +44,6 @@ pub enum Type {
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
 
-    /// &mut T
-    MutableReference(Box<Type>),
-
     /// TypeVariables are stand-in variables for some type which is not yet known.
     /// They are not to be confused with NamedGenerics. While the later mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
@@ -581,7 +578,6 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
-            Type::MutableReference(typ) => typ.contains_numeric_typevar(target_id),
             Type::Function(parameters, return_type) => {
                 parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
                     || return_type.contains_numeric_typevar(target_id)
@@ -633,7 +629,6 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::MutableReference(element) => write!(f, "&mut {element}"),
             Type::Bool(comp_time) => write!(f, "{comp_time}bool"),
             Type::String(len) => write!(f, "str<{len}>"),
             Type::Unit => write!(f, "()"),
@@ -988,8 +983,6 @@ impl Type {
 
             (Vec(elem_a), Vec(elem_b)) => elem_a.try_unify(elem_b, span),
 
-            (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.try_unify(elem_b, span),
-
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1123,8 +1116,6 @@ impl Type {
 
             (Vec(elem_a), Vec(elem_b)) => elem_a.is_subtype_of(elem_b, span),
 
-            (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.is_subtype_of(elem_b, span),
-
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1195,7 +1186,6 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
-            Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
             Type::Vec(_) => unreachable!("Vecs cannot be used in the abi"),
         }
     }
@@ -1312,8 +1302,6 @@ impl Type {
             }
             Type::Vec(element) => Type::Vec(Box::new(element.substitute(type_bindings))),
 
-            Type::MutableReference(element) => Type::MutableReference(Box::new(element.substitute(type_bindings))),
-
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
@@ -1343,7 +1331,6 @@ impl Type {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
             Type::Vec(element) => element.occurs(target_id),
-            Type::MutableReference(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1386,7 +1373,6 @@ impl Type {
                 Function(args, ret)
             }
             Vec(element) => Vec(Box::new(element.follow_bindings())),
-            MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),

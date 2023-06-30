@@ -34,9 +34,10 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct, Path,
-    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind, ArgumentMode,
+    ArgumentMode, BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement,
+    FunctionDefinition, Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction,
+    NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
+    UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -308,15 +309,36 @@ fn nothing<T>() -> impl NoirParser<T> {
 }
 
 fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)> {
-    filter_map(move |span, found: Token| match found {
-        Token::Ident(ref word) if word == "self" => {
-            let ident = Ident::from_token(found, span);
+    let refmut_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
+    let mut_pattern = keyword(Keyword::Mut);
+
+    refmut_pattern
+        .or(mut_pattern)
+        .map_with_span(|token, span| (token, span))
+        .or_not()
+        .then(filter_map(move |span, found: Token| match found {
+            Token::Ident(ref word) if word == "self" => Ok(span),
+            _ => Err(ParserError::expected_label(ParsingRuleLabel::Parameter, found, span)),
+        }))
+        .map(|(pattern_keyword, span)| {
+            let ident = Ident::new("self".to_string(), span);
             let path = Path::from_single("Self".to_owned(), span);
             let self_type = UnresolvedType::Named(path, vec![]);
-            Ok((Pattern::Identifier(ident), self_type, AbiVisibility::Private))
-        }
-        _ => Err(ParserError::expected_label(ParsingRuleLabel::Parameter, found, span)),
-    })
+            let pattern = Pattern::Identifier(ident);
+
+            let pattern = match pattern_keyword {
+                Some((Token::Ampersand, span)) => {
+                    Pattern::MutableReference(Box::new(pattern), span)
+                }
+                Some((Token::Keyword(_), span)) => Pattern::Mutable(Box::new(pattern), span),
+                None => pattern,
+                Some(other) => {
+                    unreachable!("Unexpected keyword {other:?} when parsing self parameter")
+                }
+            };
+
+            (pattern, self_type, AbiVisibility::Private)
+        })
 }
 
 fn implementation() -> impl NoirParser<TopLevelStatement> {
@@ -510,8 +532,10 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let p =
-        ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern(false));
+    let p = ignore_then_commit(
+        keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement),
+        pattern(false),
+    );
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
@@ -527,9 +551,11 @@ fn pattern(allow_mutable_references: bool) -> impl NoirParser<Pattern> {
             .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
 
         let mutref_pattern = if allow_mutable_references {
-            just(Token::Ampersand).ignore_then(keyword(Keyword::Mut))
-            .ignore_then(pattern.clone())
-            .map_with_span(|inner, span| Pattern::MutableReference(Box::new(inner), span)).boxed()
+            just(Token::Ampersand)
+                .ignore_then(keyword(Keyword::Mut))
+                .ignore_then(pattern.clone())
+                .map_with_span(|inner, span| Pattern::MutableReference(Box::new(inner), span))
+                .boxed()
         } else {
             nothing().boxed()
         };
@@ -1004,7 +1030,8 @@ where
         .or_not()
         .map(|opt| opt.map_or(ArgumentMode::PassByValue, |_| ArgumentMode::PassByReference))
         .then(expr_parser)
-        .separated_by(just(Token::Comma)).allow_trailing()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
 }
 
 fn not<P>(term_parser: P) -> impl NoirParser<ExpressionKind>

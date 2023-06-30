@@ -245,7 +245,13 @@ impl AstPrinter {
     ) -> Result<(), std::fmt::Error> {
         self.print_expr(&call.func, f)?;
         write!(f, "(")?;
-        self.print_comma_separated(&call.arguments, f)?;
+        for (i, (mode, elem)) in call.arguments.iter().enumerate() {
+            write!(f, "{mode}")?;
+            self.print_expr(elem, f)?;
+            if i != call.arguments.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
         write!(f, ")")
     }
 

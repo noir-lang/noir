@@ -9,7 +9,10 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::{monomorphization::ast::{self, Expression, Program}, node_interner::Mutability};
+use noirc_frontend::{
+    monomorphization::ast::{self, Expression, Program},
+    node_interner::Mutability,
+};
 
 use self::{
     context::FunctionContext,
@@ -95,7 +98,7 @@ impl<'a> FunctionContext<'a> {
     /// Codegen for identifiers
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
-            ast::Definition::Local(id) => self.lookup(*id).map(|value| value.eval(self).into()),
+            ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
@@ -342,7 +345,9 @@ impl<'a> FunctionContext<'a> {
         let arguments = call
             .arguments
             .iter()
-            .flat_map(|argument| self.codegen_expression(argument).into_argument_list(self))
+            .flat_map(|(mode, argument)| {
+                self.codegen_expression(argument).into_argument_list(self, *mode)
+            })
             .collect();
 
         let function = self.codegen_non_tuple_expression(&call.func);
@@ -359,8 +364,7 @@ impl<'a> FunctionContext<'a> {
         if let_expr.mutability != Mutability::Immutable {
             values = values.map(|value| {
                 let value = value.eval(self);
-                let is_mutable_reference = let_expr.mutability == Mutability::MutableReference;
-                Tree::Leaf(self.new_mutable_variable(value, is_mutable_reference))
+                Tree::Leaf(self.new_mutable_variable(value))
             });
         }
 

@@ -16,6 +16,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
+use noirc_frontend::ArgumentMode;
 use num_bigint::BigUint;
 use std::collections::{HashMap, HashSet};
 
@@ -1155,7 +1156,7 @@ impl SsaContext {
     pub(crate) fn get_builtin_opcode(
         &self,
         node_id: NodeId,
-        arguments: &[Expression],
+        arguments: &[(ArgumentMode, Expression)],
     ) -> Option<builtin::Opcode> {
         match &self[node_id] {
             NodeObject::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
@@ -1166,7 +1167,7 @@ impl SsaContext {
                         1,
                         "print statements currently only support one argument"
                     );
-                    let is_string = match &arguments[0] {
+                    let is_string = match &arguments[0].1 {
                         Expression::Ident(ident) => match ident.typ {
                             Type::String(_) => true,
                             Type::Tuple(_) => {
@@ -1206,7 +1207,6 @@ impl SsaContext {
                     Signedness::Unsigned => ObjectType::unsigned_integer(*bit_size),
                 }
             }
-            Type::MutableReference(element) => self.convert_type(element),
             Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => ObjectType::Function,

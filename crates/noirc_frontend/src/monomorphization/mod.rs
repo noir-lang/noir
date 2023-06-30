@@ -20,9 +20,9 @@ use crate::{
         function::{FuncMeta, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, Mutability},
+    node_interner::{self, DefinitionKind, Mutability, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, FunctionKind, TypeBinding, TypeBindings,
+    ArgumentMode, CompTime, FunctionKind, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -204,7 +204,10 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
-    fn parameters(&mut self, params: Parameters) -> Vec<(ast::LocalId, Mutability, String, ast::Type)> {
+    fn parameters(
+        &mut self,
+        params: Parameters,
+    ) -> Vec<(ast::LocalId, Mutability, String, ast::Type)> {
         let mut new_params = Vec::with_capacity(params.len());
         for parameter in params {
             self.parameter(parameter.0, &parameter.1, &mut new_params);
@@ -223,7 +226,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
-                println!("Mutability of parameter is {}", definition.mutability);
                 new_params.push((new_id, definition.mutability, name, Self::convert_type(typ)));
                 self.define_local(ident.id, new_id);
             }
@@ -383,8 +385,7 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => {
+            | ast::Type::Function(_, _) => {
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: array_contents,
                     element_type,
@@ -430,8 +431,7 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => {
+            | ast::Type::Function(_, _) => {
                 ast::Expression::Index(ast::Index { collection, index, element_type, location })
             }
 
@@ -610,7 +610,13 @@ impl<'interner> Monomorphizer<'interner> {
         let definition = self.lookup_local(ident.id)?;
         let typ = Self::convert_type(&self.interner.id_type(ident.id));
 
-        Some(ast::Ident { location: Some(ident.location), mutability: mutable, definition, name, typ })
+        Some(ast::Ident {
+            location: Some(ident.location),
+            mutability: mutable,
+            definition,
+            name,
+            typ,
+        })
     }
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
@@ -704,11 +710,6 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Vec(Box::new(element))
             }
 
-            HirType::MutableReference(element) => {
-                let element = Self::convert_type(element);
-                ast::Type::MutableReference(Box::new(element))
-            }
-
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
@@ -723,8 +724,7 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) 
-            | ast::Type::MutableReference(_) => ast::Type::Array(length, Box::new(element)),
+            | ast::Type::Function(_, _) => ast::Type::Array(length, Box::new(element)),
 
             ast::Type::Tuple(elements) => {
                 ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
@@ -742,7 +742,8 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::ExprId,
     ) -> ast::Expression {
         let func = Box::new(self.expr(call.func));
-        let arguments = vecmap(&call.arguments, |id| self.expr(*id));
+        let arguments =
+            vecmap(&call.arguments, |id| (ArgumentMode::PassByReference, self.expr(*id)));
         let return_type = self.interner.id_type(id);
         let return_type = Self::convert_type(&return_type);
         let location = call.location;
@@ -988,7 +989,6 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Function(parameter_types, ret_type) => {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
-            ast::Type::MutableReference(element) => self.zeroed_value_of_type(element),
             ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
         }
     }

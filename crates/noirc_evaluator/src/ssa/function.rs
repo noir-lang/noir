@@ -156,7 +156,8 @@ impl IrGenerator {
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
             let node_ids = self.create_function_parameter(param_id, &typ, &name);
-            func.arguments.extend(node_ids.into_iter().map(|id| (id, mutable == Mutability::Mutable)));
+            func.arguments
+                .extend(node_ids.into_iter().map(|id| (id, mutable == Mutability::Mutable)));
         }
 
         // ensure return types are defined in case of recursion call cycle
@@ -229,7 +230,11 @@ impl IrGenerator {
     //generates an instruction for calling the function
     pub(super) fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
-        let arguments = self.ssa_gen_expression_list(&call.arguments);
+        let arguments = call
+            .arguments
+            .iter()
+            .flat_map(|(_, arg)| self.ssa_gen_expression(arg).unwrap().to_node_ids())
+            .collect();
 
         if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
             return self.call_low_level(opcode, arguments);
