@@ -32,7 +32,7 @@
     "@aztec/foundation": "workspace:^",
     "abitype": "^0.8.11",
     "koa-router": "^12.0.0",
-    "viem": "^0.3.14"
+    "viem": "^1.2.5"
   },
   "files": [
     "dest",

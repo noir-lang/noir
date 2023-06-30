@@ -20,7 +20,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
  * @returns Array of all Pending L1 to L2 messages that were processed
  */
 export function processPendingL1ToL2MessageAddedLogs(
-  logs: Log<bigint, number, undefined, typeof InboxAbi, 'MessageAdded'>[],
+  logs: Log<bigint, number, undefined, true, typeof InboxAbi, 'MessageAdded'>[],
 ): L1ToL2Message[] {
   const l1ToL2Messages: L1ToL2Message[] = [];
   for (const log of logs) {
@@ -47,7 +47,7 @@ export function processPendingL1ToL2MessageAddedLogs(
  * @returns Array of message keys of the L1 to L2 messages that were cancelled
  */
 export function processCancelledL1ToL2MessagesLogs(
-  logs: Log<bigint, number, undefined, typeof InboxAbi, 'L1ToL2MessageCancelled'>[],
+  logs: Log<bigint, number, undefined, true, typeof InboxAbi, 'L1ToL2MessageCancelled'>[],
 ): Fr[] {
   const cancelledL1ToL2Messages: Fr[] = [];
   for (const log of logs) {
@@ -59,24 +59,24 @@ export function processCancelledL1ToL2MessagesLogs(
 /**
  * Processes newly received L2BlockProcessed logs.
  * @param publicClient - The viem public client to use for transaction retrieval.
- * @param expectedRollupNumber - The next expected rollup number.
+ * @param expectedL2BlockNumber - The next expected L2 block number.
  * @param logs - L2BlockProcessed logs.
  */
 export async function processBlockLogs(
   publicClient: PublicClient,
-  expectedRollupNumber: bigint,
-  logs: Log<bigint, number, undefined, typeof RollupAbi, 'L2BlockProcessed'>[],
+  expectedL2BlockNumber: bigint,
+  logs: Log<bigint, number, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>[],
 ) {
   const retrievedBlocks: L2Block[] = [];
   for (const log of logs) {
     const blockNum = log.args.blockNum;
-    if (blockNum !== expectedRollupNumber) {
-      throw new Error('Block number mismatch. Expected: ' + expectedRollupNumber + ' but got: ' + blockNum + '.');
+    if (blockNum !== expectedL2BlockNumber) {
+      throw new Error('Block number mismatch. Expected: ' + expectedL2BlockNumber + ' but got: ' + blockNum + '.');
     }
     // TODO: Fetch blocks from calldata in parallel
     const newBlock = await getBlockFromCallData(publicClient, log.transactionHash!, log.args.blockNum);
     retrievedBlocks.push(newBlock);
-    expectedRollupNumber++;
+    expectedL2BlockNumber++;
   }
   return retrievedBlocks;
 }
@@ -128,7 +128,7 @@ export async function getL2BlockProcessedLogs(
     abi: RollupAbi,
     name: 'L2BlockProcessed',
   });
-  return await publicClient.getLogs({
+  return await publicClient.getLogs<typeof abiItem, true>({
     address: getAddress(rollupAddress.toString()),
     event: abiItem,
     fromBlock,
@@ -146,7 +146,7 @@ export async function getContractDeploymentLogs(
   publicClient: PublicClient,
   contractDeploymentEmitterAddress: EthAddress,
   fromBlock: bigint,
-): Promise<Log<bigint, number, undefined, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>[]> {
+): Promise<Log<bigint, number, undefined, true, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>[]> {
   const abiItem = getAbiItem({
     abi: ContractDeploymentEmitterAbi,
     name: 'ContractDeployment',
@@ -166,7 +166,7 @@ export async function getContractDeploymentLogs(
  */
 export function processContractDeploymentLogs(
   blockHashMapping: { [key: number]: Buffer | undefined },
-  logs: Log<bigint, number, undefined, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>[],
+  logs: Log<bigint, number, undefined, true, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>[],
 ): [ContractPublicData[], number][] {
   const contractPublicData: [ContractPublicData[], number][] = [];
   for (let i = 0; i < logs.length; i++) {
@@ -202,7 +202,7 @@ export async function getPendingL1ToL2MessageLogs(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   fromBlock: bigint,
-): Promise<Log<bigint, number, undefined, typeof InboxAbi, 'MessageAdded'>[]> {
+): Promise<Log<bigint, number, undefined, true, typeof InboxAbi, 'MessageAdded'>[]> {
   const abiItem = getAbiItem({
     abi: InboxAbi,
     name: 'MessageAdded',
@@ -225,7 +225,7 @@ export async function getL1ToL2MessageCancelledLogs(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   fromBlock: bigint,
-): Promise<Log<bigint, number, undefined, typeof InboxAbi, 'L1ToL2MessageCancelled'>[]> {
+): Promise<Log<bigint, number, undefined, true, typeof InboxAbi, 'L1ToL2MessageCancelled'>[]> {
   const abiItem = getAbiItem({
     abi: InboxAbi,
     name: 'L1ToL2MessageCancelled',

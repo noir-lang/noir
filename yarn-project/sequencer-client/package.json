@@ -46,7 +46,7 @@
     "lodash.pick": "^4.4.0",
     "lodash.times": "^4.3.2",
     "tslib": "^2.4.0",
-    "viem": "^0.3.14"
+    "viem": "^1.2.5"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

@@ -42,7 +42,7 @@
     "@aztec/noir-contracts": "workspace:^",
     "commander": "^9.0.0",
     "tslib": "^2.4.0",
-    "viem": "^0.3.14"
+    "viem": "^1.2.5"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

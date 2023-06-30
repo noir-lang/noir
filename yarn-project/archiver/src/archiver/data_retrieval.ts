@@ -14,7 +14,7 @@ import { ContractPublicData, L1ToL2Message, L2Block } from '@aztec/types';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
- * Data retreived from logs
+ * Data retrieved from logs
  */
 type DataRetrieval<T> = {
   /**

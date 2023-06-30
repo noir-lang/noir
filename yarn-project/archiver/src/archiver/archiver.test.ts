@@ -137,7 +137,7 @@ function makeL2BlockProcessedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
     blockNumber: l1BlockNum,
     args: { blockNum: l2BlockNum },
     transactionHash: `0x${l2BlockNum}`,
-  } as Log<bigint, number, undefined, typeof RollupAbi, 'L2BlockProcessed'>;
+  } as Log<bigint, number, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>;
 }
 
 /**
@@ -165,7 +165,7 @@ function makeContractDeploymentEvent(l1BlockNum: bigint, l2Block: L2Block) {
       acir: '0x' + acir,
     },
     transactionHash: `0x${l2Block.number}`,
-  } as Log<bigint, number, undefined, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>;
+  } as Log<bigint, number, undefined, true, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>;
 }
 
 /**
@@ -190,7 +190,7 @@ function makeL1ToL2MessageAddedEvents(l1BlockNum: bigint, entryKeys: string[]) {
         entryKey: entryKey,
       },
       transactionHash: `0x${l1BlockNum}`,
-    } as Log<bigint, number, undefined, typeof InboxAbi, 'MessageAdded'>;
+    } as Log<bigint, number, undefined, true, typeof InboxAbi, 'MessageAdded'>;
   });
 }
 
@@ -208,7 +208,7 @@ function makeL1ToL2MessageCancelledEvents(l1BlockNum: bigint, entryKeys: string[
         entryKey,
       },
       transactionHash: `0x${l1BlockNum}`,
-    } as Log<bigint, number, undefined, typeof InboxAbi, 'L1ToL2MessageCancelled'>;
+    } as Log<bigint, number, undefined, true, typeof InboxAbi, 'L1ToL2MessageCancelled'>;
   });
 }
 
