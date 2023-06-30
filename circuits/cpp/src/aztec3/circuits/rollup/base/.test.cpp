@@ -597,7 +597,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data_negati
 
     // Create an INCORRECT sibling path for the private data tree root in the historic tree roots.
     auto hash_path = private_data_tree.get_sibling_path(0);
-    std::array<NT::fr, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> sibling_path;
+    std::array<NT::fr, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> sibling_path{};
     for (size_t i = 0; i < PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT; ++i) {
         sibling_path[i] = hash_path[i] + 1;
     }
@@ -624,7 +624,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_contract_tree_negat
 
     // Create an INCORRECT sibling path for contract tree root in the historic tree roots.
     auto hash_path = contract_tree.get_sibling_path(0);
-    std::array<NT::fr, CONTRACT_TREE_ROOTS_TREE_HEIGHT> sibling_path;
+    std::array<NT::fr, CONTRACT_TREE_ROOTS_TREE_HEIGHT> sibling_path{};
     for (size_t i = 0; i < CONTRACT_TREE_ROOTS_TREE_HEIGHT; ++i) {
         sibling_path[i] = hash_path[i] + 1;
     }

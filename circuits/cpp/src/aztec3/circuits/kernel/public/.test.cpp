@@ -58,12 +58,9 @@ template <size_t SIZE>
 std::array<NT::fr, SIZE> array_of_values(NT::uint32& count, NT::uint32 num_values_required = SIZE)
 {
     ASSERT(num_values_required <= SIZE);
-    std::array<NT::fr, SIZE> values;
+    std::array<NT::fr, SIZE> values{};
     for (size_t i = 0; i < num_values_required; i++) {
         values[i] = ++count;
-    }
-    for (size_t i = num_values_required; i < SIZE; i++) {
-        values[i] = 0;
     }
     return values;
 }
@@ -307,7 +304,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
     NT::fr child_contract_address = 100000;
     NT::fr child_portal_contract_address = 200000;
-    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
+    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes{};
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
         // NOLINTNEXTLINE(readability-suspicious-call-argument)
         child_call_stacks[i] = generate_call_stack_item(child_contract_address,
@@ -393,8 +390,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
             }
     };
 
-    std::array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack =
-        zero_array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
+    std::array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack{};
     public_call_stack[0] = public_call_data.call_stack_item.hash();
 
     CombinedAccumulatedData<NT> const end_accumulated_data = {
@@ -711,7 +707,7 @@ TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_
     NT::fr child_contract_address = 100000;
     NT::fr child_portal_contract_address = 200000;
     NT::boolean is_delegate_call = false;
-    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
+    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes{};
     for (size_t i = 0; i < PUBLIC_CALL_STACK_LENGTH; i++) {
         child_call_stacks[i] =
             // NOLINTNEXTLINE(readability-suspicious-call-argument)
@@ -748,7 +744,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_msg_sender_in
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
     NT::uint32 const seed = 1000;
     NT::fr const child_contract_address = 100000;
-    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
+    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes{};
     child_call_stacks[0] =
         // NOLINTNEXTLINE(readability-suspicious-call-argument)
         generate_call_stack_item(child_contract_address,
@@ -781,7 +777,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_storage_contr
     std::array<PublicCallStackItem, PUBLIC_CALL_STACK_LENGTH> child_call_stacks;
     NT::uint32 const seed = 1000;
     NT::fr const child_contract_address = 100000;
-    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
+    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes{};
     child_call_stacks[0] = generate_call_stack_item(child_contract_address,
                                                     origin_msg_sender,
                                                     child_contract_address,  // this should be contract_address
@@ -813,7 +809,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_portal_contra
     NT::uint32 const seed = 1000;
     NT::fr const child_contract_address = 100000;
     NT::fr const child_portal_contract = 200000;
-    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes;
+    std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> call_stack_hashes{};
     // NOLINTNEXTLINE(readability-suspicious-call-argument)
     child_call_stacks[0] = generate_call_stack_item(child_contract_address,
                                                     origin_msg_sender,

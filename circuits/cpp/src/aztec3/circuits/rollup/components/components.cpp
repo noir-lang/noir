@@ -114,7 +114,7 @@ std::array<fr, NUM_FIELDS_PER_SHA256> compute_kernels_calldata_hash(
          KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3 + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2 +
          KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2) *
         2;
-    std::array<NT::fr, number_of_inputs> calldata_hash_inputs;
+    std::array<NT::fr, number_of_inputs> calldata_hash_inputs{};
 
     for (size_t i = 0; i < 2; i++) {
         auto new_commitments = kernel_data[i].public_inputs.end.new_commitments;
