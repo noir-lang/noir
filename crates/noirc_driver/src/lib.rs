@@ -4,6 +4,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::acir::circuit::Opcode;
+use acvm::compiler::CircuitSimplifier;
 use acvm::Language;
 use clap::Args;
 use fm::{FileId, FileManager, FileType};
@@ -27,8 +28,6 @@ pub use program::CompiledProgram;
 
 pub struct Driver {
     context: Context,
-    language: Language,
-    is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }
 
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
@@ -73,8 +72,8 @@ pub type Warnings = Vec<FileDiagnostic>;
 pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 
 impl Driver {
-    pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
-        Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
+    pub fn new() -> Self {
+        Driver { context: Context::default() }
     }
 
     // TODO(#1599): Move control of the FileManager into nargo
@@ -86,12 +85,12 @@ impl Driver {
     // with the restricted version which only uses one file
     pub fn compile_file(
         root_file: PathBuf,
-        language: &Language,
-        is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
+        np_language: Language,
+        is_opcode_supported: &impl Fn(&Opcode) -> bool,
     ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-        let mut driver = Driver::new(language, is_opcode_supported);
+        let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
-        driver.compile_main(&CompileOptions::default())
+        driver.compile_main(np_language, is_opcode_supported, &CompileOptions::default())
     }
 
     /// Adds the File with the local crate root to the file system
@@ -197,6 +196,8 @@ impl Driver {
     /// On error this returns the non-empty list of warnings and errors.
     pub fn compile_main(
         &mut self,
+        np_language: Language,
+        is_opcode_supported: &impl Fn(&Opcode) -> bool,
         options: &CompileOptions,
     ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
         let warnings = self.check_crate(options.deny_warnings)?;
@@ -212,7 +213,8 @@ impl Driver {
             }
         };
 
-        let compiled_program = self.compile_no_check(options, main)?;
+        let compiled_program =
+            self.compile_no_check(options, main, np_language, is_opcode_supported)?;
 
         if options.print_acir {
             println!("Compiled ACIR for main:");
@@ -225,6 +227,8 @@ impl Driver {
     /// Run the frontend to check the crate for errors then compile all contracts if there were none
     pub fn compile_contracts(
         &mut self,
+        np_language: Language,
+        is_opcode_supported: &impl Fn(&Opcode) -> bool,
         options: &CompileOptions,
     ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
         let warnings = self.check_crate(options.deny_warnings)?;
@@ -234,7 +238,13 @@ impl Driver {
         let mut errors = warnings;
 
         for contract in contracts {
-            match self.compile_contract(contract, options) {
+            match self.compile_contract(
+                contract,
+                // TODO: Remove clone when it implements Copy
+                np_language.clone(),
+                is_opcode_supported,
+                options,
+            ) {
                 Ok(contract) => compiled_contracts.push(contract),
                 Err(mut more_errors) => errors.append(&mut more_errors),
             }
@@ -272,13 +282,21 @@ impl Driver {
     fn compile_contract(
         &self,
         contract: Contract,
+        np_language: Language,
+        is_opcode_supported: &impl Fn(&Opcode) -> bool,
         options: &CompileOptions,
     ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
         let mut functions = Vec::new();
         let mut errs = Vec::new();
         for function_id in &contract.functions {
             let name = self.function_name(*function_id).to_owned();
-            let function = match self.compile_no_check(options, *function_id) {
+            let function = match self.compile_no_check(
+                options,
+                *function_id,
+                // TODO: Remove clone when it implements Copy
+                np_language.clone(),
+                is_opcode_supported,
+            ) {
                 Ok(function) => function,
                 Err(err) => {
                     errs.push(err);
@@ -333,37 +351,45 @@ impl Driver {
         &self,
         options: &CompileOptions,
         main_function: FuncId,
+        np_language: Language,
+        is_opcode_supported: &impl Fn(&Opcode) -> bool,
     ) -> Result<CompiledProgram, FileDiagnostic> {
         let program = monomorphize(main_function, &self.context.def_interner);
 
-        let np_language = self.language.clone();
+        let (circuit, abi) = if options.experimental_ssa {
+            let (circuit, abi) =
+                experimental_create_circuit(program, options.show_ssa, options.show_output)?;
 
-        let circuit_abi = if options.experimental_ssa {
-            experimental_create_circuit(
-                program,
-                np_language,
-                &self.is_opcode_supported,
-                options.show_ssa,
-                options.show_output,
-            )
+            let optimized_circuit = {
+                // TODO: Is `abi.field_count` and `circuit.current_witness_index` the same?
+                // If so, the optimization pass can be deduplicated
+                let abi_len = abi.field_count();
+
+                let simplifier = CircuitSimplifier::new(abi_len);
+                acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier)
+                    .map_err(|_| FileDiagnostic {
+                        file_id: FileId::dummy(),
+                        diagnostic: CustomDiagnostic::from_message(
+                            "produced an acvm compile error",
+                        ),
+                    })?
+            };
+            (optimized_circuit, abi)
         } else {
-            create_circuit(
-                program,
-                np_language,
-                &self.is_opcode_supported,
-                options.show_ssa,
-                options.show_output,
-            )
+            let (circuit, abi) = create_circuit(program, options.show_ssa, options.show_output)?;
+            let simplifier = CircuitSimplifier::new(circuit.current_witness_index);
+            let optimized_circuit =
+                acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier)
+                    .map_err(|_| FileDiagnostic {
+                        file_id: FileId::dummy(),
+                        diagnostic: CustomDiagnostic::from_message(
+                            "produced an acvm compile error",
+                        ),
+                    })?;
+            (optimized_circuit, abi)
         };
 
-        match circuit_abi {
-            Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
-            Err(err) => {
-                // The FileId here will be the file id of the file with the main file
-                // Errors will be shown at the call site without a stacktrace
-                Err(err.into())
-            }
-        }
+        Ok(CompiledProgram { circuit, abi })
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]
@@ -399,6 +425,6 @@ impl Driver {
 impl Default for Driver {
     fn default() -> Self {
         #[allow(deprecated)]
-        Self::new(&Language::R1CS, Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)))
+        Self::new()
     }
 }

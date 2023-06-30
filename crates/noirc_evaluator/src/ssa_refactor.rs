@@ -8,10 +8,7 @@
 #![allow(dead_code)]
 
 use crate::errors::RuntimeError;
-use acvm::{
-    acir::circuit::{Circuit, Opcode as AcirOpcode, PublicInputs},
-    Language,
-};
+use acvm::acir::circuit::{Circuit, PublicInputs};
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
@@ -56,10 +53,9 @@ pub(crate) fn optimize_into_acir(
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 /// This is analogous to `ssa:create_circuit` and this method is called when one wants
 /// to use the new ssa module to process Noir code.
+// TODO: This no longer needs to return a result, but it is kept to match the signature of `create_circuit`
 pub fn experimental_create_circuit(
     program: Program,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
@@ -74,26 +70,9 @@ pub fn experimental_create_circuit(
         PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
 
-    // This region of code will optimize the ACIR bytecode for a particular backend
-    // it will be removed in the near future and we will subsequently only return the
-    // unoptimized backend-agnostic bytecode here
-    let optimized_circuit = {
-        use crate::errors::RuntimeErrorKind;
-        use acvm::compiler::CircuitSimplifier;
+    let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
 
-        let abi_len = abi.field_count();
-
-        let simplifier = CircuitSimplifier::new(abi_len);
-        acvm::compiler::compile(
-            Circuit { current_witness_index, opcodes, public_parameters, return_values },
-            np_language,
-            is_opcode_supported,
-            &simplifier,
-        )
-        .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?
-    };
-
-    Ok((optimized_circuit, abi))
+    Ok((circuit, abi))
 }
 
 impl Ssa {

@@ -1,4 +1,4 @@
-use crate::errors::CliError;
+use crate::{errors::CliError, resolver::Resolver};
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
@@ -7,8 +7,8 @@ use noirc_driver::CompileOptions;
 use noirc_errors::reporter::ReportedErrors;
 use std::path::{Path, PathBuf};
 
+use super::fs::write_to_file;
 use super::NargoConfig;
-use super::{compile_cmd::setup_driver, fs::write_to_file};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
@@ -23,17 +23,19 @@ pub(crate) fn run<B: Backend>(
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    check_from_path(backend, config.program_dir, &args.compile_options)?;
+    check_from_path(backend, &config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 
-fn check_from_path<B: Backend, P: AsRef<Path>>(
-    backend: &B,
-    program_dir: P,
+fn check_from_path<B: Backend>(
+    // Backend isn't used but keeping it in the signature allows for better type inference
+    // TODO: This function doesn't need to exist but requires a little more refactoring
+    _backend: &B,
+    program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir.as_ref())?;
+    let mut driver = Resolver::resolve_root_manifest(program_dir)?;
     check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
@@ -42,7 +44,7 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
         // For now it is hard-coded to be toml.
         //
         // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(program_dir.as_ref());
+        let path_to_root = PathBuf::from(program_dir);
         let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
         let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
@@ -160,7 +162,7 @@ d2 = ["", "", ""]
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, &path, &config).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -179,7 +181,7 @@ d2 = ["", "", ""]
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_err(),
+                super::check_from_path(&backend, &path, &config).is_err(),
                 "path: {}",
                 path.display()
             );
@@ -198,7 +200,7 @@ d2 = ["", "", ""]
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, &path, &config).is_ok(),
                 "path: {}",
                 path.display()
             );

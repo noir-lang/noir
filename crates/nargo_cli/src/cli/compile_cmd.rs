@@ -9,7 +9,6 @@ use clap::Args;
 
 use nargo::ops::{preprocess_contract_function, preprocess_program};
 
-use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::{
@@ -49,9 +48,13 @@ pub(crate) fn run<B: Backend>(
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let mut driver = setup_driver(backend, &config.program_dir)?;
+        let mut driver = Resolver::resolve_root_manifest(&config.program_dir)?;
 
-        let result = driver.compile_contracts(&args.compile_options);
+        let result = driver.compile_contracts(
+            backend.np_language(),
+            &|op| backend.supports_opcode(op),
+            &args.compile_options,
+        );
         let contracts = report_errors(result, &driver, args.compile_options.deny_warnings)?;
 
         // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
@@ -101,25 +104,17 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-pub(super) fn setup_driver<B: Backend>(
-    backend: &B,
-    program_dir: &Path,
-) -> Result<Driver, DependencyResolutionError> {
-    Resolver::resolve_root_manifest(
-        program_dir,
-        backend.np_language(),
-        // TODO(#1102): Remove need for driver to be aware of backend.
-        Box::new(|op| B::default().supports_opcode(op)),
-    )
-}
-
 pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir)?;
-    let result = driver.compile_main(compile_options);
+    let mut driver = Resolver::resolve_root_manifest(program_dir)?;
+    let result = driver.compile_main(
+        backend.np_language(),
+        &|op| backend.supports_opcode(op),
+        compile_options,
+    );
     report_errors(result, &driver, compile_options.deny_warnings).map_err(Into::into)
 }
 
