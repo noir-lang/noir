@@ -97,7 +97,7 @@ enum NargoCommand {
 pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
-    let global_config = global_config::read_global_config_file().unwrap();
+    let global_config = global_config::read_global_config_file();
 
     debug!("Global config: {:?}", global_config);
 
@@ -107,7 +107,7 @@ pub fn start_cli() -> eyre::Result<()> {
         debug!("Project root is {:?}", config.nargo_package_root);
     }
 
-    backend_vendor_cmd::set_default_paths(&global_config, &mut config);
+    backend_vendor_cmd::set_default_paths(&mut config);
 
     debug!("Nargo configuration: {:?}", config);
 

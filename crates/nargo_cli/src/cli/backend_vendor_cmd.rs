@@ -178,7 +178,7 @@ pub(crate) fn run<B: Backend>(
         .map_err(|e| CliError::BackendVendorError(e))
 }
 
-pub(crate) fn set_default_paths(global_config: &GlobalConfig, config: &mut NargoConfig) {
+pub(crate) fn set_default_paths(config: &mut NargoConfig) {
     // We default a nargo_artifact_name to parent folder name
     config.nargo_artifact_name = Some(config.nargo_artifact_name.clone().unwrap_or_else(|| {
         // String::from("main")
