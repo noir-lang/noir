@@ -120,11 +120,13 @@ pub(super) fn setup_driver<B: Backend>(
     )
 }
 
+#[tracing::instrument]
 pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
+    tracing::debug!("program_dir {:?}", program_dir);
     let mut driver = setup_driver(backend, program_dir)?;
     let result = driver.compile_main(compile_options);
     report_errors(result, &driver, compile_options.deny_warnings).map_err(Into::into)

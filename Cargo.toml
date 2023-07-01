@@ -55,6 +55,9 @@ tower = "0.4"
 url = "2.2.0"
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
 
 [patch.crates-io]
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }

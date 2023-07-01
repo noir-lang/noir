@@ -40,6 +40,7 @@ impl From<RuntimeErrorKind> for RuntimeError {
 
 impl From<RuntimeError> for FileDiagnostic {
     fn from(err: RuntimeError) -> Self {
+        println!("Error {:?} for file_id", err);
         let file_id = err.location.map(|loc| loc.file).unwrap();
         FileDiagnostic { file_id, diagnostic: err.into() }
     }

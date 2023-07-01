@@ -12,6 +12,7 @@ pub(super) mod program;
 pub(super) mod proof;
 pub(super) mod witness;
 pub(super) mod global_config;
+pub(super) mod url_download;
 
 pub(super) fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
     std::fs::create_dir_all(named_dir)

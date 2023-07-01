@@ -1,7 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap};
 
-mod errors;
+pub mod errors;
 use self::errors::GlobalConfigError;
 pub use self::errors::InvalidPackageError;
 
@@ -66,11 +66,11 @@ fn parse_standard_toml() {
     assert!(PackageManifest::from_toml_str(src).is_ok());
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GlobalConfig {
     pub backends: Option<Backends>,
 }
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Backends {
     pub default: Option<String>
 }
@@ -80,4 +80,10 @@ impl GlobalConfig {
         let global_config = toml::from_str::<GlobalConfig>(toml_as_string)?;
         Ok(global_config)
     }
+
+    pub fn to_toml_str(&self) -> Result<String, GlobalConfigError> {
+        let global_config = toml::to_string_pretty::<GlobalConfig>(self)?;
+        Ok(global_config)
+    }
+
 }

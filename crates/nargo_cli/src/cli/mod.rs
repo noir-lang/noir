@@ -8,7 +8,7 @@ use color_eyre::eyre;
 
 use crate::{find_package_root, cli::fs::global_config};
 
-use self::backend_vendor_cmd::{BackendOptions};
+use self::{backend_vendor_cmd::{BackendOptions}, install_cmd::InstallBackendCommand};
 
 mod fs;
 
@@ -23,6 +23,7 @@ mod new_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
+mod install_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -92,6 +93,7 @@ enum NargoCommand {
     Gates(BackendOptions),
     /// Execute arbitrary backend subcommand, pass args behind `--`
     Backend(BackendOptions),
+    InstallBackend(InstallBackendCommand),
 }
 
 pub fn start_cli() -> eyre::Result<()> {
@@ -102,7 +104,7 @@ pub fn start_cli() -> eyre::Result<()> {
     debug!("Global config: {:?}", global_config);
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(command, NargoCommand::New(_)) {
+    if !matches!(command, NargoCommand::New(_) | NargoCommand::InstallBackend(_)) {
         config.nargo_package_root = find_package_root(&config.nargo_package_root)?;
         debug!("Project root is {:?}", config.nargo_package_root);
     }
@@ -112,11 +114,6 @@ pub fn start_cli() -> eyre::Result<()> {
     debug!("Nargo configuration: {:?}", config);
 
     let backend = crate::backends::ConcreteBackend::default();
-
-    // if matches!(command, NargoCommand::Prove(args) | NargoCommand::Verify(args) | NargoCommand::Gates(args) | NargoCommand::Contract(args) | NargoCommand::Backend(args)) {
-    //     command.
-        
-    // }
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
@@ -129,6 +126,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Gates(args) => gates_cmd::run(&backend, args, &config),
         NargoCommand::Contract(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Backend(args) => backend_vendor_cmd::run(&backend, args, config),
+        NargoCommand::InstallBackend(args) => install_cmd::run(&backend, args, config),
     }?;
 
     Ok(())

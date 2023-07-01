@@ -56,7 +56,9 @@ fn lib_or_bin(current_path: &Path) -> Result<(PathBuf, CrateType), InvalidPackag
         .ok_or_else(|| InvalidPackageError::NoSourceDir(current_path.to_path_buf()))?;
 
     let lib_nr_path = find_file(&src_path, "lib", "nr");
+    tracing::debug!("lib_nr_path {:?}", lib_nr_path);
     let bin_nr_path = find_file(&src_path, "main", "nr");
+    tracing::debug!("bin_nr_path {:?}", bin_nr_path);
     match (lib_nr_path, bin_nr_path) {
         (Some(_), Some(_)) => Err(InvalidPackageError::ContainsMultipleCrates),
         (None, Some(path)) => Ok((path, CrateType::Binary)),

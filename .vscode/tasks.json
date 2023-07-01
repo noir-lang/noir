@@ -58,8 +58,8 @@
 				"NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
 			},
 			"args": [
-				"--no-default-features",
-				"--features=plonk_bn254_wasm",
+				// "--no-default-features",
+				// "--features=plonk_bn254_wasm",
 				"--",
 				"--help"
 			],
@@ -102,7 +102,7 @@
 			"env": {
 				"RUST_LOG": "debug",
 				"BACKEND_EXECUTABLE": "/Users/koby/git/aztecprotocol/barretenberg/ts/bb.js-dev",
-				"NARGO_PACKAGE_ROOT": "/Users/koby/git/noir-lang/noir/crates/nargo_cli/tests/test_data/1_mul"
+				"NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
 			},
 			"args": [
 				// "--no-default-features",
@@ -191,5 +191,54 @@
 				"kind": "build"
 			}
 		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				// "BACKEND_EXECUTABLE": "blah",
+				// "NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+			},
+			"args": [
+				// "--no-default-features",
+				// "--features=plonk_bn254_wasm",
+				"install-backend",
+				"--help"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo install-backend --help",
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"env": {
+				"RUST_LOG": "debug",
+				// "BACKEND_EXECUTABLE": "blah",
+				// "NARGO_PACKAGE_ROOT": "/Users/koby/git/charlie/noir-projects/recursion"
+			},
+			"args": [
+				// "--no-default-features",
+				// "--features=plonk_bn254_wasm",
+				"install-backend",
+				"--name",
+				"bb",
+				"--url",
+				"https://github.com/noir-lang/noir/releases/download/v0.6.0/nargo-x86_64-apple-darwin.tar.gz"
+			],
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"label": "nargo install-backend --name bb --url ...",
+			"group": {
+				"kind": "build"
+			}
+		}		
 	]
 }

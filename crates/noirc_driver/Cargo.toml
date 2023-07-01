@@ -15,3 +15,5 @@ noirc_abi.workspace = true
 acvm.workspace = true
 fm.workspace = true
 serde.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

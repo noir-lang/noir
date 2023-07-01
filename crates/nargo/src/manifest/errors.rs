@@ -28,10 +28,19 @@ pub enum InvalidPackageError {
 #[derive(Debug, Error)]
 pub enum GlobalConfigError {
     /// Nargo encountered problem with global config
-    #[error("Problem occurred with nargo.toml in {}", .0.display())]
-    Generic(PathBuf),
+    #[error("Problem occurred with nargo.toml in {}", .0)]
+    Generic(String),
+
+    /// Nargo encountered problem while serializing global config
+    #[error("Problem occurred serializing GlobalConfig to string")]
+    GlobalConfigSerialization(#[from] toml::ser::Error),
+
+    /// Nargo encountered problem with global config
+    #[error("Problem occurred writing GlobalConfig to file")]
+    GlobalConfigFileWrite(#[from] std::io::Error),
 
     /// Global Config is unreadable.
     #[error("nargo.toml is badly formed, could not parse.\n\n {0}")]
     MalformedManifestFile(#[from] toml::de::Error),
 }
+

@@ -211,6 +211,7 @@ impl Driver {
             }
         };
 
+        println!("main function {:?}, {:?}", main, options);
         let compiled_program = self.compile_no_check(options, main)?;
 
         if options.print_acir {
@@ -358,6 +359,7 @@ impl Driver {
         match circuit_abi {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
+                tracing::debug!("circuit_abi err: {:?}", err);
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the call site without a stacktrace
                 Err(err.into())

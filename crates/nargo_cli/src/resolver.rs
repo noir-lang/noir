@@ -75,7 +75,7 @@ impl<'a> Resolver<'a> {
     ) -> Result<Driver, DependencyResolutionError> {
         let mut driver = Driver::new(&np_language, is_opcode_supported);
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
-
+        tracing::debug!("(entry_path {:?}, crate_type {:?})",entry_path, crate_type);
         let manifest_path = super::find_package_manifest(dir_path)?;
         let manifest = super::manifest::parse(&manifest_path)?;
 
