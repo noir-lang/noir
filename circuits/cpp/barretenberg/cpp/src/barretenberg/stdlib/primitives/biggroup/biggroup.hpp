@@ -55,7 +55,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         } else {
             Fq a(get_context(), uint256_t(NativeGroup::curve_a));
             // we validate y^2 = x^3 + ax + b by setting "fix_remainder_zero = true" when calling mult_madd
-            Fq::mult_madd({ x.sqr(), x, y }, { -x, a, y }, { b }, true);
+            Fq::mult_madd({ x.sqr(), x, y }, { x, a, -y }, { b }, true);
         }
     }
 
