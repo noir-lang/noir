@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
-use crate::{node_interner::Mutability, BinaryOpKind, Signedness};
+use crate::{BinaryOpKind, Signedness};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -61,7 +61,7 @@ pub struct FuncId(pub u32);
 pub struct Ident {
     pub location: Option<Location>,
     pub definition: Definition,
-    pub mutability: Mutability,
+    pub mutable: bool,
     pub name: String,
     pub typ: Type,
 }
@@ -153,7 +153,7 @@ pub struct Index {
 #[derive(Debug, Clone)]
 pub struct Let {
     pub id: LocalId,
-    pub mutability: Mutability,
+    pub mutable: bool,
     pub name: String,
     pub expression: Box<Expression>,
 }
@@ -180,7 +180,7 @@ pub enum LValue {
     Dereference { reference: Box<LValue>, element_type: Type },
 }
 
-pub type Parameters = Vec<(LocalId, Mutability, /*name:*/ String, Type)>;
+pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
 #[derive(Debug, Clone)]
 pub struct Function {

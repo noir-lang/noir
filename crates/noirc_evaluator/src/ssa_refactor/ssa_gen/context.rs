@@ -6,7 +6,6 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
-use noirc_frontend::node_interner::Mutability;
 use noirc_frontend::Signedness;
 
 use crate::ssa_refactor::ir::dfg::DataFlowGraph;
@@ -132,16 +131,16 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         parameter_id: LocalId,
         parameter_type: &ast::Type,
-        mutability: Mutability,
+        mutable: bool,
     ) {
         // Add a separate parameter for each field type in 'parameter_type'
         let parameter_value = Self::map_type(parameter_type, |typ| {
             let value = self.builder.add_parameter(typ.clone());
 
-            match mutability {
-                Mutability::Immutable => value.into(),
-                Mutability::Mutable => self.new_mutable_variable(value),
-                Mutability::MutableReference => Value::Mutable(value, typ),
+            if mutable {
+                self.new_mutable_variable(value)
+            } else {
+                value.into()
             }
         });
 

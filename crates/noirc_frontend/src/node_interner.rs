@@ -179,7 +179,7 @@ enum Node {
 #[derive(Debug, Clone)]
 pub struct DefinitionInfo {
     pub name: String,
-    pub mutability: Mutability,
+    pub mutable: bool,
     pub kind: DefinitionKind,
 }
 
@@ -188,23 +188,6 @@ impl DefinitionInfo {
     /// Note that this returns false for top-level functions.
     pub fn is_global(&self) -> bool {
         self.kind.is_global()
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Mutability {
-    Immutable,
-    Mutable,
-    MutableReference,
-}
-
-impl std::fmt::Display for Mutability {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Mutability::Immutable => Ok(()),
-            Mutability::Mutable => write!(f, "mut "),
-            Mutability::MutableReference => write!(f, "&mut "),
-        }
     }
 }
 
@@ -402,7 +385,7 @@ impl NodeInterner {
     pub fn push_definition(
         &mut self,
         name: String,
-        mutability: Mutability,
+        mutable: bool,
         definition: DefinitionKind,
     ) -> DefinitionId {
         let id = DefinitionId(self.definitions.len());
@@ -410,12 +393,12 @@ impl NodeInterner {
             self.function_definition_ids.insert(func_id, id);
         }
 
-        self.definitions.push(DefinitionInfo { name, mutability, kind: definition });
+        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
         id
     }
 
     pub fn push_function_definition(&mut self, name: String, func: FuncId) -> DefinitionId {
-        self.push_definition(name, Mutability::Immutable, DefinitionKind::Function(func))
+        self.push_definition(name, false, DefinitionKind::Function(func))
     }
 
     /// Returns the interned HIR function corresponding to `func_id`

@@ -9,10 +9,7 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::{
-    monomorphization::ast::{self, Expression, Program},
-    node_interner::Mutability,
-};
+use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use self::{
     context::FunctionContext,
@@ -384,7 +381,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Values {
         let mut values = self.codegen_expression(&let_expr.expression);
 
-        if let_expr.mutability != Mutability::Immutable {
+        if let_expr.mutable {
             values = values.map(|value| {
                 let value = value.eval(self);
                 Tree::Leaf(self.new_mutable_variable(value))

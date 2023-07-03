@@ -25,7 +25,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, Mutability, NodeInterner, StmtId, StructId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -189,7 +189,7 @@ impl<'a> Resolver<'a> {
     fn add_variable_decl(
         &mut self,
         name: Ident,
-        mutable: Mutability,
+        mutable: bool,
         allow_shadowing: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
@@ -199,7 +199,7 @@ impl<'a> Resolver<'a> {
     fn add_variable_decl_inner(
         &mut self,
         name: Ident,
-        mutable: Mutability,
+        mutable: bool,
         allow_shadowing: bool,
         warn_if_unused: bool,
         definition: DefinitionKind,
@@ -252,11 +252,7 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
         } else {
-            let id = self.interner.push_definition(
-                name.0.contents.clone(),
-                Mutability::Immutable,
-                definition,
-            );
+            let id = self.interner.push_definition(name.0.contents.clone(), false, definition);
             let location = Location::new(name.span(), self.file);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
@@ -729,13 +725,7 @@ impl<'a> Resolver<'a> {
             {
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(
-                    ident,
-                    Mutability::Immutable,
-                    false,
-                    false,
-                    definition,
-                );
+                self.add_variable_decl_inner(ident, false, false, false, definition);
             }
         }
     }
@@ -950,7 +940,7 @@ impl<'a> Resolver<'a> {
                 let (identifier, block_id) = self.in_new_scope(|this| {
                     let decl = this.add_variable_decl(
                         identifier,
-                        Mutability::Immutable,
+                        false,
                         false,
                         DefinitionKind::Local(None),
                     );
@@ -1035,13 +1025,13 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_pattern(&mut self, pattern: Pattern, definition: DefinitionKind) -> HirPattern {
-        self.resolve_pattern_mutable(pattern, Mutability::Immutable, None, definition)
+        self.resolve_pattern_mutable(pattern, false, None, definition)
     }
 
     fn resolve_pattern_mutable(
         &mut self,
         pattern: Pattern,
-        mutability: Mutability,
+        mutable: bool,
         mutable_span: Option<Span>,
         definition: DefinitionKind,
     ) -> HirPattern {
@@ -1053,7 +1043,7 @@ impl<'a> Resolver<'a> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let id = self.add_variable_decl(name, mutability, false, definition);
+                let id = self.add_variable_decl(name, mutable, false, definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -1061,22 +1051,12 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
 
-                let pattern = self.resolve_pattern_mutable(
-                    *pattern,
-                    Mutability::Mutable,
-                    Some(span),
-                    definition,
-                );
+                let pattern = self.resolve_pattern_mutable(*pattern, true, Some(span), definition);
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
                 let fields = vecmap(fields, |field| {
-                    self.resolve_pattern_mutable(
-                        field,
-                        mutability,
-                        mutable_span,
-                        definition.clone(),
-                    )
+                    self.resolve_pattern_mutable(field, mutable, mutable_span, definition.clone())
                 });
                 HirPattern::Tuple(fields, span)
             }
@@ -1086,12 +1066,7 @@ impl<'a> Resolver<'a> {
                     // shadowing here lets us avoid further errors if we define ERROR_IDENT
                     // multiple times.
                     let name = ERROR_IDENT.into();
-                    let identifier = this.add_variable_decl(
-                        name,
-                        Mutability::Immutable,
-                        true,
-                        definition.clone(),
-                    );
+                    let identifier = this.add_variable_decl(name, false, true, definition.clone());
                     HirPattern::Identifier(identifier)
                 };
 
@@ -1105,12 +1080,7 @@ impl<'a> Resolver<'a> {
                 };
 
                 let resolve_field = |this: &mut Self, pattern| {
-                    this.resolve_pattern_mutable(
-                        pattern,
-                        mutability,
-                        mutable_span,
-                        definition.clone(),
-                    )
+                    this.resolve_pattern_mutable(pattern, mutable, mutable_span, definition.clone())
                 };
 
                 let typ = struct_type.clone();
@@ -1304,7 +1274,7 @@ impl<'a> Resolver<'a> {
             }
             HirExpression::Ident(ident) => {
                 let definition = self.interner.definition(ident.id);
-                if matches!(definition.mutability, Mutability::Immutable) {
+                if !definition.mutable {
                     let span = self.interner.expr_span(&rhs);
                     let variable = definition.name.clone();
                     self.errors.push(ResolverError::MutableReferenceToImmutableVariable {

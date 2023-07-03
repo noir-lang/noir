@@ -5,7 +5,7 @@ use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
-use crate::node_interner::{DefinitionId, ExprId, Mutability, StmtId};
+use crate::node_interner::{DefinitionId, ExprId, StmtId};
 use crate::CompTime;
 
 use super::errors::TypeCheckError;
@@ -130,9 +130,7 @@ impl<'interner> TypeChecker<'interner> {
                     let typ = typ.follow_bindings();
 
                     let definition = self.interner.definition(ident.id);
-                    if definition.mutability == Mutability::Immutable
-                        && !matches!(typ, Type::MutableReference(_))
-                    {
+                    if !definition.mutable && !matches!(typ, Type::MutableReference(_)) {
                         self.errors.push(TypeCheckError::Unstructured {
                             msg: format!(
                                 "Variable {} must be mutable to be assigned to",
