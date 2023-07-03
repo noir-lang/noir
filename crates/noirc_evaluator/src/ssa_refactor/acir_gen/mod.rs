@@ -692,7 +692,6 @@ impl Context {
                 (&elements[0]).into()
             }
             Type::Slice(elements) => {
-                dbg!("got slice type");
                 assert_eq!(elements.len(), 1);
                 (&elements[0]).into()
             }
