@@ -86,20 +86,14 @@ pub(crate) fn run<B: Backend>(
             );
         }
     } else {
-        println!("compiling");
         let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
-        println!("finished compiling");
 
-        println!("crs get");
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
-        println!("crs get finish");
 
-        println!("pre process start");
         let preprocessed_program = preprocess_program(backend, &common_reference_string, program)
             .map_err(CliError::ProofSystemCompilerError)?;
-        println!("pre process end");
 
         save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
     }
