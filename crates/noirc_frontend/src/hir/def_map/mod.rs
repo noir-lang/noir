@@ -65,7 +65,6 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         errors: &mut Vec<FileDiagnostic>,
-        enable_slices: bool,
     ) {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -97,7 +96,7 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        DefCollector::collect(def_map, context, ast, root_file_id, errors, enable_slices);
+        DefCollector::collect(def_map, context, ast, root_file_id, errors);
     }
 
     pub fn root(&self) -> LocalModuleId {

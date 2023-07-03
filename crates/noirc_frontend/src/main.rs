@@ -34,7 +34,7 @@ fn main() {
     // With a CrateDefMap, we are sure that the imports are correct, and the modules declared are located
     // The modules are resolved and type checked!
     let mut errors = vec![];
-    CrateDefMap::collect_defs(crate_id, &mut context, &mut errors, false);
+    CrateDefMap::collect_defs(crate_id, &mut context, &mut errors);
     assert_eq!(errors, vec![]);
     let def_map = context.def_map(crate_id).unwrap();
 

@@ -178,7 +178,7 @@ impl Driver {
 
         self.context.def_interner.enable_slices = enable_slices;
 
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errors, enable_slices);
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errors);
 
         if Self::has_errors(&errors, deny_warnings) {
             Err(errors)
