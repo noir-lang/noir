@@ -273,6 +273,7 @@ impl Display for Definition {
             Definition::Function(id) => write!(f, "f{}", id.0),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
+            Definition::Oracle(name) => write!(f, "{name}"),
         }
     }
 }

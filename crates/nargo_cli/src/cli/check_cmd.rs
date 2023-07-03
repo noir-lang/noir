@@ -4,6 +4,7 @@ use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::CompileOptions;
+use noirc_errors::reporter::ReportedErrors;
 use std::path::{Path, PathBuf};
 
 use super::NargoConfig;
@@ -33,8 +34,7 @@ fn check_from_path<B: Backend, P: AsRef<Path>>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let mut driver = setup_driver(program_dir.as_ref())?;
-
-    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
+    check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = driver.compute_function_signature() {
@@ -100,7 +100,7 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, path::PathBuf};
+    use std::path::PathBuf;
 
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
@@ -123,13 +123,13 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
-                    fields: BTreeMap::from([
+                    fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (
                             String::from("d2"),
                             AbiType::Array { length: 3, typ: Box::new(AbiType::Field) },
                         ),
-                    ]),
+                    ],
                 },
             ),
             typed_param("e", AbiType::Boolean),
@@ -204,4 +204,14 @@ d2 = ["", "", ""]
             );
         }
     }
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub(crate) fn check_crate_and_report_errors(
+    driver: &mut noirc_driver::Driver,
+    deny_warnings: bool,
+) -> Result<(), ReportedErrors> {
+    let result = driver.check_crate(deny_warnings).map(|warnings| ((), warnings));
+    super::compile_cmd::report_errors(result, driver, deny_warnings)
 }

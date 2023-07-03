@@ -26,7 +26,7 @@ pub(super) enum Tree<T> {
 /// used internally by functions in the ssa ir and should thus be isolated
 /// to a given function. If used outisde their function of origin, the IDs
 /// would be invalid.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub(super) enum Value {
     Normal(IrValueId),
 
@@ -41,10 +41,7 @@ impl Value {
     pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, typ) => {
-                let offset = ctx.builder.field_constant(0u128);
-                ctx.builder.insert_load(address, offset, typ)
-            }
+            Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
         }
     }
 
@@ -61,11 +58,16 @@ impl Value {
 /// A tree of values.
 ///
 /// Compared to Value alone, the addition of being able to represent structs/tuples as
-/// a Tree::Branch means this type can hold any kind of value an frontend expression may return.
+/// a Tree::Branch means this type can hold any kind of value a frontend expression may return.
 /// This is why it is used as the return type for every codegen_* function in ssa_gen/mod.rs.
 pub(super) type Values = Tree<Value>;
 
 impl<T> Tree<T> {
+    /// Returns an empty tree node represented by a Branch with no branches
+    pub(super) fn empty() -> Self {
+        Tree::Branch(vec![])
+    }
+
     /// Flattens the tree into a vector of each leaf value
     pub(super) fn flatten(self) -> Vec<T> {
         match self {

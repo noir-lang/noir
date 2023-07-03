@@ -1,5 +1,5 @@
+use iter_extended::vecmap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::collections::BTreeMap;
 
 use crate::AbiType;
 
@@ -19,34 +19,30 @@ struct StructField {
 }
 
 pub(crate) fn serialize_struct_fields<S>(
-    fields: &BTreeMap<String, AbiType>,
+    fields: &[(String, AbiType)],
     s: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let fields_vector: Vec<StructField> = fields
-        .iter()
-        .map(|(name, typ)| StructField { name: name.to_owned(), typ: typ.to_owned() })
-        .collect();
+    let fields_vector =
+        vecmap(fields, |(name, typ)| StructField { name: name.to_owned(), typ: typ.to_owned() });
+
     fields_vector.serialize(s)
 }
 
 pub(crate) fn deserialize_struct_fields<'de, D>(
     deserializer: D,
-) -> Result<BTreeMap<String, AbiType>, D::Error>
+) -> Result<Vec<(String, AbiType)>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let fields_vector = Vec::<StructField>::deserialize(deserializer)?;
-    let fields = fields_vector.into_iter().map(|StructField { name, typ }| (name, typ)).collect();
-    Ok(fields)
+    Ok(vecmap(fields_vector, |StructField { name, typ }| (name, typ)))
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use crate::{AbiParameter, AbiType, AbiVisibility, Sign};
 
     #[test]
@@ -123,13 +119,13 @@ mod tests {
         let expected_struct = AbiParameter {
             name: "thing3".to_string(),
             typ: AbiType::Struct {
-                fields: BTreeMap::from([
+                fields: vec![
                     ("field1".to_string(), AbiType::Integer { sign: Sign::Unsigned, width: 3 }),
                     (
                         "field2".to_string(),
                         AbiType::Array { length: 2, typ: Box::new(AbiType::Field) },
                     ),
-                ]),
+                ],
             },
             visibility: AbiVisibility::Private,
         };

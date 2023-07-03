@@ -35,8 +35,16 @@ pub(crate) struct ProveCommand {
     /// The name of the circuit build files (ACIR, proving and verification keys)
     circuit_name: Option<String>,
 
+    /// The name of the toml file which contains the inputs for the prover
+    #[clap(long, short, default_value = PROVER_INPUT_FILE)]
+    prover_name: String,
+
+    /// The name of the toml file which contains the inputs for the verifier
+    #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
+    verifier_name: String,
+
     /// Verify proof after proving
-    #[arg(short, long)]
+    #[arg(long)]
     verify: bool,
 
     #[clap(flatten)]
@@ -57,6 +65,8 @@ pub(crate) fn run<B: Backend>(
     prove_with_path(
         backend,
         args.proof_name,
+        args.prover_name,
+        args.verifier_name,
         config.program_dir,
         proof_dir,
         circuit_build_path,
@@ -67,9 +77,12 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     backend: &B,
     proof_name: Option<String>,
+    prover_name: String,
+    verifier_name: String,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
@@ -91,7 +104,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
             (common_reference_string, program)
         }
         None => {
-            let program = compile_circuit(program_dir.as_ref(), compile_options)?;
+            let program = compile_circuit(backend,program_dir.as_ref(), compile_options)?;
             // TODO: clean this up
             let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
             let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };
@@ -112,7 +125,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
-        read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml, &abi)?;
+        read_inputs_from_file(&program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
     let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map)?;
 
@@ -124,7 +137,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         &public_inputs,
         &return_value,
         &program_dir,
-        VERIFIER_INPUT_FILE,
+        verifier_name.as_str(),
         Format::Toml,
     )?;
 

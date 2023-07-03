@@ -18,7 +18,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -305,9 +305,10 @@ impl<'a> Resolver<'a> {
 
     fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
         let func_meta = self.extract_meta(&func, id);
-
         let hir_func = match func.kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
+            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
+                HirFunction::empty()
+            }
             FunctionKind::Normal => {
                 let expr_id = self.intern_block(func.def.body);
                 self.interner.push_expr_location(expr_id, func.def.span, self.file);
@@ -567,17 +568,13 @@ impl<'a> Resolver<'a> {
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+    ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
 
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        let fields = unresolved
-            .fields
-            .into_iter()
-            .map(|(ident, typ)| (ident, self.resolve_type(typ)))
-            .collect();
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (generics, fields, self.errors)
     }
@@ -1094,7 +1091,7 @@ impl<'a> Resolver<'a> {
     ) -> Vec<(Ident, U)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
-        let mut unseen_fields = self.get_field_names_of_type(&struct_type);
+        let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field, expr) in fields {
             let resolved = resolve_function(self, expr);
@@ -1129,10 +1126,6 @@ impl<'a> Resolver<'a> {
 
     pub fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
         self.interner.get_struct(type_id)
-    }
-
-    fn get_field_names_of_type(&self, typ: &Shared<StructType>) -> BTreeSet<Ident> {
-        typ.borrow().field_names()
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {

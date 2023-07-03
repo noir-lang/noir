@@ -1,6 +1,4 @@
-use acvm::{
-    acir::circuit::Circuit, compiler::optimizers::simplify::CircuitSimplifier, ProofSystemCompiler,
-};
+use acvm::{acir::circuit::Circuit, compiler::CircuitSimplifier, ProofSystemCompiler};
 use noirc_driver::{CompiledProgram, ContractFunction};
 
 use crate::{

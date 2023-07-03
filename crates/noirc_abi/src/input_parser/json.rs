@@ -98,56 +98,68 @@ impl InputValue {
         param_type: &AbiType,
         arg_name: &str,
     ) -> Result<InputValue, InputParserError> {
-        let input_value = match value {
-            JsonTypes::String(string) => match param_type {
-                AbiType::String { .. } => InputValue::String(string),
-                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
-                    InputValue::Field(parse_str_to_field(&string)?)
-                }
+        let input_value = match (value, param_type) {
+            (JsonTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
+            (
+                JsonTypes::String(string),
+                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+            ) => InputValue::Field(parse_str_to_field(&string)?),
 
-                AbiType::Array { .. } | AbiType::Struct { .. } => {
-                    return Err(InputParserError::AbiTypeMismatch(param_type.clone()))
-                }
-            },
-            JsonTypes::Integer(integer) => {
+            (
+                JsonTypes::Integer(integer),
+                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+            ) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
             }
-            JsonTypes::Bool(boolean) => InputValue::Field(boolean.into()),
-            JsonTypes::ArrayNum(arr_num) => {
+
+            (JsonTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
+
+            (JsonTypes::ArrayNum(arr_num), AbiType::Array { typ, .. })
+                if matches!(
+                    typ.as_ref(),
+                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
+                ) =>
+            {
                 let array_elements =
                     vecmap(arr_num, |elem_num| FieldElement::from(i128::from(elem_num)));
 
                 InputValue::Vec(array_elements)
             }
-            JsonTypes::ArrayString(arr_str) => {
+            (JsonTypes::ArrayString(arr_str), AbiType::Array { typ, .. })
+                if matches!(
+                    typ.as_ref(),
+                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
+                ) =>
+            {
                 let array_elements = try_vecmap(arr_str, |elem_str| parse_str_to_field(&elem_str))?;
 
                 InputValue::Vec(array_elements)
             }
-            JsonTypes::ArrayBool(arr_bool) => {
+            (JsonTypes::ArrayBool(arr_bool), AbiType::Array { typ, .. })
+                if matches!(typ.as_ref(), AbiType::Boolean) =>
+            {
                 let array_elements = vecmap(arr_bool, FieldElement::from);
 
                 InputValue::Vec(array_elements)
             }
 
-            JsonTypes::Table(table) => match param_type {
-                AbiType::Struct { fields } => {
-                    let native_table = try_btree_map(fields, |(field_name, abi_type)| {
-                        // Check that json contains a value for each field of the struct.
-                        let field_id = format!("{arg_name}.{field_name}");
-                        let value = table
-                            .get(field_name)
-                            .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
-                        InputValue::try_from_json(value.clone(), abi_type, &field_id)
-                            .map(|input_value| (field_name.to_string(), input_value))
-                    })?;
+            (JsonTypes::Table(table), AbiType::Struct { fields }) => {
+                let native_table = try_btree_map(fields, |(field_name, abi_type)| {
+                    // Check that json contains a value for each field of the struct.
+                    let field_id = format!("{arg_name}.{field_name}");
+                    let value = table
+                        .get(field_name)
+                        .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
+                    InputValue::try_from_json(value.clone(), abi_type, &field_id)
+                        .map(|input_value| (field_name.to_string(), input_value))
+                })?;
 
-                    InputValue::Struct(native_table)
-                }
-                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
-            },
+                InputValue::Struct(native_table)
+            }
+
+            (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
         };
 
         Ok(input_value)

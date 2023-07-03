@@ -5,6 +5,7 @@ use acvm::{
 use hex::FromHexError;
 use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
+use noirc_errors::reporter::ReportedErrors;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -43,9 +44,10 @@ pub(crate) enum CliError<B: Backend> {
     #[error(transparent)]
     ResolutionError(#[from] DependencyResolutionError),
 
-    /// Error while compiling Noir into ACIR.
-    #[error("Failed to compile circuit")]
-    CompilationError,
+    /// Errors encountered while compiling the noir program.
+    /// These errors are already written to stderr.
+    #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
+    ReportedErrors(ReportedErrors),
 
     /// ABI encoding/decoding error
     #[error(transparent)]
@@ -54,6 +56,9 @@ pub(crate) enum CliError<B: Backend> {
     /// Filesystem errors
     #[error(transparent)]
     FilesystemError(#[from] FilesystemError),
+
+    #[error(transparent)]
+    LspError(#[from] async_lsp::Error),
 
     /// Error from Nargo
     #[error(transparent)]
@@ -70,4 +75,10 @@ pub(crate) enum CliError<B: Backend> {
     /// Backend error caused by a function on the CommonReferenceString trait
     #[error(transparent)]
     CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
+}
+
+impl<B: Backend> From<ReportedErrors> for CliError<B> {
+    fn from(errors: ReportedErrors) -> Self {
+        Self::ReportedErrors(errors)
+    }
 }

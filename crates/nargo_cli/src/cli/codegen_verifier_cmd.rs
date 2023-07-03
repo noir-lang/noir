@@ -51,7 +51,8 @@ pub(crate) fn run<B: Backend>(
             (common_reference_string, program)
         }
         None => {
-            let program = compile_circuit(config.program_dir.as_ref(), &args.compile_options)?;
+            let program =
+                compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
             // TODO: clean this up
             let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
             let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };

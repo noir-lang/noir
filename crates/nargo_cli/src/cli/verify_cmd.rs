@@ -31,6 +31,10 @@ pub(crate) struct VerifyCommand {
     /// The name of the circuit build files (ACIR, proving and verification keys)
     circuit_name: Option<String>,
 
+    /// The name of the toml file which contains the inputs for the verifier
+    #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
+    verifier_name: String,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -52,6 +56,7 @@ pub(crate) fn run<B: Backend>(
         &config.program_dir,
         proof_path,
         circuit_build_path.as_ref(),
+        args.verifier_name,
         &args.compile_options,
     )
 }
@@ -61,6 +66,7 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
     program_dir: P,
     proof_path: PathBuf,
     circuit_build_path: Option<P>,
+    verifier_name: String,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let common_reference_string = read_cached_common_reference_string();
@@ -77,7 +83,7 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
             (common_reference_string, program)
         }
         None => {
-            let program = compile_circuit(program_dir.as_ref(), compile_options)?;
+            let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
             // TODO: clean this up
             let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
             let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };
@@ -95,10 +101,10 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
 
     let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
 
-    // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
+    // Load public inputs (if any) from `verifier_name`.
     let public_abi = abi.public_abi();
     let (public_inputs_map, return_value) =
-        read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
+        read_inputs_from_file(program_dir, verifier_name.as_str(), Format::Toml, &public_abi)?;
 
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
     let proof = load_hex_data(&proof_path)?;
