@@ -617,14 +617,14 @@ impl<'interner> Monomorphizer<'interner> {
         let definition = self.interner.definition(ident.id);
         match &definition.kind {
             DefinitionKind::Function(func_id) => {
-                let mutability = definition.mutable;
+                let mutable = definition.mutable;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
                 let typ = self.interner.id_type(expr_id);
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = Self::convert_type(&typ);
-                let ident = ast::Ident { location, mutable: mutability, definition, name, typ };
+                let ident = ast::Ident { location, mutable, definition, name, typ };
                 ast::Expression::Ident(ident)
             }
             DefinitionKind::Global(expr_id) => self.expr(*expr_id),
