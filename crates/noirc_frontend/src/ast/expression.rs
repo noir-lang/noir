@@ -157,21 +157,11 @@ impl Expression {
         Expression::new(kind, span)
     }
 
-    pub fn call(
-        lhs: Expression,
-        arguments: Vec<(ArgumentMode, Expression)>,
-        span: Span,
-    ) -> Expression {
+    pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
         let func = Box::new(lhs);
         let kind = ExpressionKind::Call(Box::new(CallExpression { func, arguments }));
         Expression::new(kind, span)
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum ArgumentMode {
-    PassByValue,
-    PassByReference,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -267,6 +257,8 @@ impl BinaryOpKind {
 pub enum UnaryOp {
     Minus,
     Not,
+    MutableReference,
+    Dereference,
 }
 
 impl UnaryOp {
@@ -366,7 +358,7 @@ pub enum ArrayLiteral {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CallExpression {
     pub func: Box<Expression>,
-    pub arguments: Vec<(ArgumentMode, Expression)>,
+    pub arguments: Vec<Expression>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -485,6 +477,8 @@ impl Display for UnaryOp {
         match self {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
+            UnaryOp::MutableReference => write!(f, "&mut"),
+            UnaryOp::Dereference => write!(f, "*"),
         }
     }
 }
@@ -497,17 +491,8 @@ impl Display for IndexExpression {
 
 impl Display for CallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let args = vecmap(&self.arguments, |(mode, arg)| format!("{}{}", mode, arg));
+        let args = vecmap(&self.arguments, ToString::to_string);
         write!(f, "{}({})", self.func, args.join(", "))
-    }
-}
-
-impl Display for ArgumentMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ArgumentMode::PassByValue => Ok(()),
-            ArgumentMode::PassByReference => write!(f, "&mut "),
-        }
     }
 }
 

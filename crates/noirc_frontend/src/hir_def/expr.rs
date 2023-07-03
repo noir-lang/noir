@@ -149,8 +149,16 @@ impl HirMethodCallExpression {
         mut self,
         func: FuncId,
         location: Location,
+        argument_types: &mut [(Type, noirc_errors::Span)],
         interner: &mut NodeInterner,
     ) -> (ExprId, HirExpression) {
+        // Automatically add `&mut` if the method expects a mutable reference and
+        // the object is not already one.
+        if func != FuncId::dummy_id() {
+            let func_meta = interner.function_meta(&func);
+            self.try_add_mutable_reference_to_object(&func_meta.typ, argument_types, interner);
+        }
+
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
@@ -159,6 +167,40 @@ impl HirMethodCallExpression {
         let func = interner.push_expr(ident);
 
         (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
+    }
+
+    /// Check if the given function type requires a mutable reference to the object type, and check
+    /// if the given object type is already a mutable reference. If not, add one.
+    fn try_add_mutable_reference_to_object(
+        &mut self,
+        function_type: &Type,
+        argument_types: &mut [(Type, noirc_errors::Span)],
+        interner: &mut NodeInterner,
+    ) {
+        let expected_object_type = match function_type {
+            Type::Function(args, _) => args.get(0),
+            Type::Forall(_, typ) => match typ.as_ref() {
+                Type::Function(args, _) => args.get(0),
+                typ => unreachable!("Unexpected type for function: {typ}"),
+            },
+            typ => unreachable!("Unexpected type for function: {typ}"),
+        };
+
+        if let Some(expected_object_type) = expected_object_type {
+            if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
+                let actual_type = argument_types[0].0.follow_bindings();
+                if !matches!(actual_type, Type::MutableReference(_)) {
+                    let new_type = Type::MutableReference(Box::new(actual_type));
+
+                    argument_types[0].0 = new_type.clone();
+                    self.object = interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
+                        operator: UnaryOp::MutableReference,
+                        rhs: self.object,
+                    }));
+                    interner.push_expr_type(&self.object, new_type);
+                }
+            }
+        }
     }
 }
 

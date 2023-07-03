@@ -34,7 +34,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
-    StructType, Type, TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType,
+    StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedType,
     UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -365,6 +365,9 @@ impl<'a> Resolver<'a> {
                     self.resolve_type_inner(args.remove(0), new_variables)
                 };
                 Type::Vec(Box::new(arg))
+            }
+            UnresolvedType::MutableReference(element) => {
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
         }
     }
@@ -792,6 +795,7 @@ impl<'a> Resolver<'a> {
                 }
             }
             Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }
 
@@ -852,6 +856,11 @@ impl<'a> Resolver<'a> {
                 let index = self.resolve_expression(index);
                 HirLValue::Index { array, index, typ: Type::Error }
             }
+            LValue::Dereference(lvalue) => {
+                let lvalue = Box::new(self.resolve_lvalue(*lvalue));
+                let element_type = Type::Error;
+                HirLValue::Dereference { lvalue, element_type }
+            }
         }
     }
 
@@ -891,6 +900,11 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
+
+                if operator == UnaryOp::MutableReference {
+                    self.verify_mutable_reference(rhs);
+                }
+
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
@@ -906,8 +920,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
                 let func = self.resolve_expression(*call_expr.func);
-                let arguments =
-                    vecmap(call_expr.arguments, |(_, arg)| self.resolve_expression(arg));
+                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::Call(HirCallExpression { func, arguments, location })
             }
@@ -1055,19 +1068,6 @@ impl<'a> Resolver<'a> {
                     definition,
                 );
                 HirPattern::Mutable(Box::new(pattern), span)
-            }
-            Pattern::MutableReference(pattern, span) => {
-                if let Some(first_mut) = mutable_span {
-                    self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
-                }
-
-                let pattern = self.resolve_pattern_mutable(
-                    *pattern,
-                    Mutability::MutableReference,
-                    Some(span),
-                    definition,
-                );
-                HirPattern::MutableReference(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
                 let fields = vecmap(fields, |field| {
@@ -1289,6 +1289,32 @@ impl<'a> Resolver<'a> {
     fn in_contract(&self) -> bool {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
+    }
+
+    /// Gives an error if a user tries to create a mutable reference
+    /// to an immutable variable.
+    fn verify_mutable_reference(&mut self, rhs: ExprId) {
+        match self.interner.expression(&rhs) {
+            HirExpression::MemberAccess(member_access) => {
+                self.verify_mutable_reference(member_access.lhs);
+            }
+            HirExpression::Index(_) => {
+                let span = self.interner.expr_span(&rhs);
+                self.errors.push(ResolverError::MutableReferenceToArrayElement { span });
+            }
+            HirExpression::Ident(ident) => {
+                let definition = self.interner.definition(ident.id);
+                if matches!(definition.mutability, Mutability::Immutable) {
+                    let span = self.interner.expr_span(&rhs);
+                    let variable = definition.name.clone();
+                    self.errors.push(ResolverError::MutableReferenceToImmutableVariable {
+                        span,
+                        variable,
+                    });
+                }
+            }
+            _ => (),
+        }
     }
 }
 

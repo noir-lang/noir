@@ -403,6 +403,7 @@ pub enum LValue {
     Ident(Ident),
     MemberAccess { object: Box<LValue>, field_name: Ident },
     Index { array: Box<LValue>, index: Expression },
+    Dereference(Box<LValue>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -412,7 +413,6 @@ pub struct ConstrainStatement(pub Expression);
 pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Span),
-    MutableReference(Box<Pattern>, Span),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
 }
@@ -446,6 +446,12 @@ impl LValue {
                 collection: array.as_expression(span),
                 index: index.clone(),
             })),
+            LValue::Dereference(lvalue) => {
+                ExpressionKind::Prefix(Box::new(crate::PrefixExpression {
+                    operator: crate::UnaryOp::Dereference,
+                    rhs: lvalue.as_expression(span),
+                }))
+            }
         };
         Expression::new(kind, span)
     }
@@ -488,6 +494,7 @@ impl Display for LValue {
             LValue::Ident(ident) => ident.fmt(f),
             LValue::MemberAccess { object, field_name } => write!(f, "{object}.{field_name}"),
             LValue::Index { array, index } => write!(f, "{array}[{index}]"),
+            LValue::Dereference(lvalue) => write!(f, "*{lvalue}"),
         }
     }
 }
@@ -524,7 +531,6 @@ impl Display for Pattern {
         match self {
             Pattern::Identifier(name) => name.fmt(f),
             Pattern::Mutable(name, _) => write!(f, "mut {name}"),
-            Pattern::MutableReference(name, _) => write!(f, "&mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
                 write!(f, "({})", fields.join(", "))

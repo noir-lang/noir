@@ -22,7 +22,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, Mutability, NodeInterner, StmtId},
     token::Attribute,
-    ArgumentMode, CompTime, FunctionKind, TypeBinding, TypeBindings,
+    CompTime, FunctionKind, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -280,6 +280,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Prefix(prefix) => ast::Expression::Unary(ast::Unary {
                 operator: prefix.operator,
                 rhs: Box::new(self.expr(prefix.rhs)),
+                result_type: Self::convert_type(&self.interner.id_type(expr)),
             }),
 
             HirExpression::Infix(infix) => {
@@ -385,7 +386,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => {
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: array_contents,
                     element_type,
@@ -431,7 +433,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => {
                 ast::Expression::Index(ast::Index { collection, index, element_type, location })
             }
 
@@ -710,6 +713,11 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Vec(Box::new(element))
             }
 
+            HirType::MutableReference(element) => {
+                let element = Self::convert_type(element);
+                ast::Type::MutableReference(Box::new(element))
+            }
+
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
@@ -724,7 +732,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => ast::Type::Array(length, Box::new(element)),
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => ast::Type::Array(length, Box::new(element)),
 
             ast::Type::Tuple(elements) => {
                 ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
@@ -742,8 +751,7 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::ExprId,
     ) -> ast::Expression {
         let func = Box::new(self.expr(call.func));
-        let arguments =
-            vecmap(&call.arguments, |id| (ArgumentMode::PassByReference, self.expr(*id)));
+        let arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let return_type = self.interner.id_type(id);
         let return_type = Self::convert_type(&return_type);
         let location = call.location;
@@ -893,6 +901,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let element_type = Self::convert_type(&typ);
                 (array, Some((index, element_type, location)))
             }
+            HirLValue::Dereference { lvalue, element_type } => {
+                let (reference, index) = self.lvalue(*lvalue);
+                let reference = Box::new(reference);
+                let element_type = Self::convert_type(&element_type);
+                let lvalue = ast::LValue::Dereference { reference, element_type };
+                (lvalue, index)
+            }
         }
     }
 
@@ -990,6 +1005,12 @@ impl<'interner> Monomorphizer<'interner> {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
             ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
+            ast::Type::MutableReference(element) => {
+                use crate::UnaryOp::MutableReference;
+                let rhs = Box::new(self.zeroed_value_of_type(element));
+                let result_type = typ.clone();
+                ast::Expression::Unary(ast::Unary { rhs, result_type, operator: MutableReference })
+            },
         }
     }
 

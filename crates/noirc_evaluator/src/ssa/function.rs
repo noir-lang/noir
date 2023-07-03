@@ -233,7 +233,7 @@ impl IrGenerator {
         let arguments = call
             .arguments
             .iter()
-            .flat_map(|(_, arg)| self.ssa_gen_expression(arg).unwrap().to_node_ids())
+            .flat_map(|arg| self.ssa_gen_expression(arg).unwrap().to_node_ids())
             .collect();
 
         if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {

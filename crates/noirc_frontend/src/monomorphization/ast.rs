@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
-use crate::{node_interner::Mutability, ArgumentMode, BinaryOpKind, Signedness};
+use crate::{node_interner::Mutability, BinaryOpKind, Signedness};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -89,6 +89,7 @@ pub enum Literal {
 pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
+    pub result_type: Type,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -124,7 +125,7 @@ pub struct ArrayLiteral {
 #[derive(Debug, Clone)]
 pub struct Call {
     pub func: Box<Expression>,
-    pub arguments: Vec<(ArgumentMode, Expression)>,
+    pub arguments: Vec<Expression>,
     pub return_type: Type,
     pub location: Location,
 }
@@ -176,6 +177,7 @@ pub enum LValue {
     Ident(Ident),
     Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
     MemberAccess { object: Box<LValue>, field_index: usize },
+    Dereference { reference: Box<LValue>, element_type: Type },
 }
 
 pub type Parameters = Vec<(LocalId, Mutability, /*name:*/ String, Type)>;
@@ -208,6 +210,7 @@ pub enum Type {
     Unit,
     Tuple(Vec<Type>),
     Vec(Box<Type>),
+    MutableReference(Box<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
@@ -321,6 +324,7 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
             Type::Vec(element) => write!(f, "Vec<{element}>"),
+            Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }
 }

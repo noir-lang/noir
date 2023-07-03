@@ -245,8 +245,7 @@ impl AstPrinter {
     ) -> Result<(), std::fmt::Error> {
         self.print_expr(&call.func, f)?;
         write!(f, "(")?;
-        for (i, (mode, elem)) in call.arguments.iter().enumerate() {
-            write!(f, "{mode}")?;
+        for (i, elem) in call.arguments.iter().enumerate() {
             self.print_expr(elem, f)?;
             if i != call.arguments.len() - 1 {
                 write!(f, ", ")?;
@@ -267,6 +266,10 @@ impl AstPrinter {
             LValue::MemberAccess { object, field_index } => {
                 self.print_lvalue(object, f)?;
                 write!(f, ".{field_index}")
+            }
+            LValue::Dereference { reference, .. } => {
+                write!(f, "*")?;
+                self.print_lvalue(reference, f)
             }
         }
     }

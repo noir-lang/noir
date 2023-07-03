@@ -99,4 +99,8 @@ pub enum HirLValue {
         index: ExprId,
         typ: Type,
     },
+    Dereference {
+        lvalue: Box<HirLValue>,
+        element_type: Type,
+    },
 }

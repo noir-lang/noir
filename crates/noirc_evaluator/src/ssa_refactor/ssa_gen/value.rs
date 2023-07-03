@@ -1,5 +1,4 @@
 use iter_extended::vecmap;
-use noirc_frontend::ArgumentMode;
 
 use crate::ssa_refactor::ir::types::Type;
 use crate::ssa_refactor::ir::value::ValueId as IrValueId;
@@ -52,16 +51,6 @@ impl Value {
         match self {
             Value::Normal(value) => value,
             Value::Mutable(address, _) => address,
-        }
-    }
-
-    pub(super) fn eval_argument(self, ctx: &mut FunctionContext, mode: ArgumentMode) -> IrValueId {
-        match self {
-            Value::Normal(value) => value,
-            Value::Mutable(address, typ) => match mode {
-                ArgumentMode::PassByValue => ctx.builder.insert_load(address, typ),
-                ArgumentMode::PassByReference => address,
-            },
         }
     }
 }
@@ -134,6 +123,36 @@ impl<T> Tree<T> {
         }
     }
 
+    /// Map two trees alongside each other.
+    /// This asserts each tree has the same internal structure.
+    pub(super) fn map_both<U, R>(
+        &self,
+        other: Tree<U>,
+        mut f: impl FnMut(T, U) -> Tree<R>,
+    ) -> Tree<R>
+    where
+        T: std::fmt::Debug + Clone,
+        U: std::fmt::Debug,
+    {
+        self.map_both_helper(other, &mut f)
+    }
+
+    fn map_both_helper<U, R>(&self, other: Tree<U>, f: &mut impl FnMut(T, U) -> Tree<R>) -> Tree<R>
+    where
+        T: std::fmt::Debug + Clone,
+        U: std::fmt::Debug,
+    {
+        match (self, other) {
+            (Tree::Branch(self_trees), Tree::Branch(other_trees)) => {
+                assert_eq!(self_trees.len(), other_trees.len());
+                let trees = self_trees.iter().zip(other_trees);
+                Tree::Branch(vecmap(trees, |(l, r)| l.map_both_helper(r, f)))
+            }
+            (Tree::Leaf(self_value), Tree::Leaf(other_value)) => f(self_value.clone(), other_value),
+            other => panic!("Found unexpected tree combination during SSA: {other:?}"),
+        }
+    }
+
     /// Unwraps this Tree into the value of the leaf node. Panics if
     /// this Tree is a Branch
     pub(super) fn into_leaf(self) -> T {
@@ -172,11 +191,7 @@ impl Tree<Value> {
         vecmap(self.flatten(), |value| value.eval(ctx))
     }
 
-    pub(super) fn into_argument_list(
-        self,
-        ctx: &mut FunctionContext,
-        mode: ArgumentMode,
-    ) -> Vec<IrValueId> {
-        vecmap(self.flatten(), |value| value.eval_argument(ctx, mode))
+    pub(super) fn into_argument_list(self) -> Vec<IrValueId> {
+        vecmap(self.flatten(), |value| value.eval_reference())
     }
 }

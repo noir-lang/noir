@@ -16,7 +16,6 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
-use noirc_frontend::ArgumentMode;
 use num_bigint::BigUint;
 use std::collections::{HashMap, HashSet};
 
@@ -1156,7 +1155,7 @@ impl SsaContext {
     pub(crate) fn get_builtin_opcode(
         &self,
         node_id: NodeId,
-        arguments: &[(ArgumentMode, Expression)],
+        arguments: &[Expression],
     ) -> Option<builtin::Opcode> {
         match &self[node_id] {
             NodeObject::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
@@ -1167,7 +1166,7 @@ impl SsaContext {
                         1,
                         "print statements currently only support one argument"
                     );
-                    let is_string = match &arguments[0].1 {
+                    let is_string = match &arguments[0] {
                         Expression::Ident(ident) => match ident.typ {
                             Type::String(_) => true,
                             Type::Tuple(_) => {
@@ -1208,6 +1207,7 @@ impl SsaContext {
                 }
             }
             Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
+            Type::MutableReference(..) => panic!("Mutable reference types are unimplemented in the old ssa backend"),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
