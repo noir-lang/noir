@@ -40,10 +40,14 @@ impl<'interner> TypeChecker<'interner> {
 
                         let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
-                        let arr_type = Type::Array(
-                            Box::new(Type::Constant(arr.len() as u64)),
-                            Box::new(first_elem_type.clone()),
-                        );
+                        let arr_type = if arr.is_empty() {
+                            Type::Slice(Box::new(self.interner.next_type_variable()))
+                        } else {
+                            Type::Array(
+                                Box::new(Type::Constant(arr.len() as u64)),
+                                Box::new(first_elem_type.clone()),
+                            )
+                        };
 
                         // Check if the array is homogeneous
                         for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
@@ -709,6 +713,8 @@ impl<'interner> TypeChecker<'interner> {
 
                 for (param, (arg, arg_span)) in parameters.iter().zip(args) {
                     arg.make_subtype_of(param, arg_span, &mut self.errors, || {
+                        dbg!(arg.clone());
+                        dbg!(param.clone());
                         TypeCheckError::TypeMismatch {
                             expected_typ: param.to_string(),
                             expr_typ: arg.to_string(),

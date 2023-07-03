@@ -1,10 +1,10 @@
 
 impl<T, N> [T; N] {
-    #[builtin(array_len)]
-    fn len(_array: Self) -> comptime Field {}
+    // #[builtin(array_len)]
+    // fn len(_array: Self) -> comptime Field {}
 
-    #[builtin(arraysort)]
-    fn sort(_array: Self) -> Self {}
+    // #[builtin(arraysort)]
+    // fn sort(_array: Self) -> Self {}
 
     // Sort with a custom sorting function.
     fn sort_via(mut a: Self, ordering: fn(T, T) -> bool) -> Self { 

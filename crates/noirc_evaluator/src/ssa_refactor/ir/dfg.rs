@@ -342,7 +342,6 @@ impl DataFlowGraph {
             Value::Array { array, element_type } | Value::Slice { array, element_type } => {
                 Some((array.clone(), element_type.clone()))
             }
-            // Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
             _ => None,
         }
     }

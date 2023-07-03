@@ -729,7 +729,6 @@ impl std::fmt::Display for BinaryOp {
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
-#[derive(Debug, Clone)]
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
     SimplifiedTo(ValueId),

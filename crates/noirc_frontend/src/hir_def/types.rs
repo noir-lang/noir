@@ -924,6 +924,8 @@ impl Type {
                 elem_a.try_unify(elem_b, span)
             }
 
+            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, span),
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -1058,8 +1060,6 @@ impl Type {
             }
 
             (Slice(elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
-
-            (Slice(elem_a), Array(_, elem_b)) => elem_a.is_subtype_of(elem_b, span),
 
             (Array(_, elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
 
@@ -1332,6 +1332,7 @@ impl Type {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
+            Type::Slice(element) => element.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
@@ -1347,7 +1348,6 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
-            Type::Slice(element) => element.occurs(target_id),
             Type::Vec(element) => element.occurs(target_id),
 
             Type::FieldElement(_)

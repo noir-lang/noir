@@ -72,9 +72,9 @@ fn value(function: &Function, id: ValueId) -> String {
             let elements = vecmap(array, |element| value(function, *element));
             format!("[{}]", elements.join(", "))
         }
-        Value::Slice { element_type, .. } => {
-            let elements = vecmap(element_type.as_slice(), ToString::to_string);
-            format!("{:?}", elements)
+        Value::Slice { array, .. } => {
+            let elements = vecmap(array, |element| value(function, *element));
+            format!("[{}]", elements.join(", "))
         }
         Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
     }

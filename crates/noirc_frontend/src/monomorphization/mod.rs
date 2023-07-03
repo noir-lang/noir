@@ -360,6 +360,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn standard_array(&mut self, array: Vec<node_interner::ExprId>) -> ast::Expression {
         let element_type = Self::convert_type(&self.interner.id_type(array[0]));
+        dbg!(element_type.clone());
         let contents = vecmap(array, |id| self.expr(id));
         Self::aos_to_soa(contents, element_type)
     }
@@ -663,6 +664,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType) -> ast::Type {
+        // dbg!(typ.clone());
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
@@ -780,6 +782,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Option<ast::Expression> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
+                // TODO(#1736): Move this builtin to the SSA pass
                 if opcode == "array_len" {
                     let typ = self.interner.id_type(arguments[0]);
                     if let Type::Array(_, _) = typ {
@@ -1005,7 +1008,7 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Function(parameter_types, ret_type) => {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
-            ast::Type::Slice(_) => panic!("Cannot create a zeroed slice value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
+            ast::Type::Slice(element_type) => ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents: vec![], element_type: *element_type.clone() })),
             ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
         }
     }
