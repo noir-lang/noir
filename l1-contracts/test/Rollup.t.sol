@@ -44,7 +44,7 @@ contract RollupTest is DecoderTest {
     assertEq(rollup.rollupStateHash(), endStateHash, "Invalid rollup state hash");
   }
 
-  function testInvalidChainId() public {
+  function testRevertInvalidChainId() public {
     bytes memory block_ = block_empty_1;
     assembly {
       mstore(add(block_, 0x20), 0x420)
@@ -54,13 +54,35 @@ contract RollupTest is DecoderTest {
     rollup.process(bytes(""), block_);
   }
 
-  function testInvalidVersion() public {
+  function testRevertInvalidVersion() public {
     bytes memory block_ = block_empty_1;
     assembly {
       mstore(add(block_, 0x40), 0x420)
     }
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidVersion.selector, 0x420, 1));
+    rollup.process(bytes(""), block_);
+  }
+
+  function testRevertTimestampInFuture() public {
+    bytes memory block_ = block_empty_1;
+
+    uint256 ts = block.timestamp + 1;
+    assembly {
+      mstore(add(block_, 0x80), ts)
+    }
+
+    vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampInFuture.selector));
+    rollup.process(bytes(""), block_);
+  }
+
+  function testRevertTimestampTooOld() public {
+    bytes memory block_ = block_empty_1;
+
+    // Overwrite in the rollup contract
+    vm.store(address(rollup), bytes32(uint256(1)), bytes32(uint256(block.timestamp)));
+
+    vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampTooOld.selector));
     rollup.process(bytes(""), block_);
   }
 

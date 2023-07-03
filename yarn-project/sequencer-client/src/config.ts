@@ -1,11 +1,12 @@
 import { SequencerConfig } from './sequencer/config.js';
 import { PublisherConfig, TxSenderConfig } from './publisher/config.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { GlobalReaderConfig } from './global_variable_builder/index.js';
 
 /**
  * Configuration settings for the SequencerClient.
  */
-export type SequencerClientConfig = PublisherConfig & TxSenderConfig & SequencerConfig;
+export type SequencerClientConfig = PublisherConfig & TxSenderConfig & SequencerConfig & GlobalReaderConfig;
 
 /**
  * Creates an instance of SequencerClientConfig out of environment variables using sensible defaults for integration testing if not set.

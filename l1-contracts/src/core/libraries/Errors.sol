@@ -43,4 +43,6 @@ library Errors {
   error Rollup__InvalidProof(); // 0xa5b2ba17
   error Rollup__InvalidChainId(uint256 expected, uint256 actual); // 0x37b5bc12
   error Rollup__InvalidVersion(uint256 expected, uint256 actual); // 0x9ef30794
+  error Rollup__TimestampInFuture(); // 0xbc1ce916
+  error Rollup__TimestampTooOld(); // 0x72ed9c81
 }

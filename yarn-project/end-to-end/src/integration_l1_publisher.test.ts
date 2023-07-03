@@ -267,12 +267,11 @@ describe('L1Publisher integration', () => {
         await makeBloatedProcessedTx(128 * i + 96),
         await makeBloatedProcessedTx(128 * i + 128),
       ];
-      // @todo @LHerskind fix time.
       const globalVariables = new GlobalVariables(
         new Fr(config.chainId),
         new Fr(config.version),
         new Fr(1 + i),
-        Fr.ZERO,
+        new Fr(await rollup.read.lastBlockTs()),
       );
       const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
 
@@ -363,7 +362,7 @@ describe('L1Publisher integration', () => {
         new Fr(config.chainId),
         new Fr(config.version),
         new Fr(1 + i),
-        Fr.ZERO,
+        new Fr(await rollup.read.lastBlockTs()),
       );
       const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
 

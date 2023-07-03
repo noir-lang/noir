@@ -27,6 +27,7 @@ contract Rollup is IRollup {
   uint256 public immutable VERSION;
 
   bytes32 public rollupStateHash;
+  uint256 public lastBlockTs;
 
   constructor(IRegistry _registry) {
     VERIFIER = new MockVerifier();
@@ -63,6 +64,7 @@ contract Rollup is IRollup {
     }
 
     rollupStateHash = newStateHash;
+    lastBlockTs = block.timestamp;
 
     // @todo (issue #605) handle fee collector
     // @todo: (issue #624) handle different versions
@@ -77,14 +79,14 @@ contract Rollup is IRollup {
   }
 
   function _constrainGlobals(bytes calldata _l2Block) internal view {
-    // @todo issue #830 Constrain timestamp
-
     uint256 chainId;
     uint256 version;
+    uint256 ts;
     // block number already constrained by start state hash
     assembly {
       chainId := calldataload(_l2Block.offset)
       version := calldataload(add(_l2Block.offset, 0x20))
+      ts := calldataload(add(_l2Block.offset, 0x60))
     }
 
     if (block.chainid != chainId) {
@@ -93,6 +95,18 @@ contract Rollup is IRollup {
 
     if (version != VERSION) {
       revert Errors.Rollup__InvalidVersion(version, VERSION);
+    }
+
+    if (ts > block.timestamp) {
+      revert Errors.Rollup__TimestampInFuture();
+    }
+
+    // @todo @LHerskind consider if this is too strict
+    // This will make multiple l2 blocks in the same l1 block impractical.
+    // e.g., the first block will update timestamp which will make the second fail.
+    // Could possibly allow multiple blocks if in same l1 block
+    if (ts < lastBlockTs) {
+      revert Errors.Rollup__TimestampTooOld();
     }
   }
 }

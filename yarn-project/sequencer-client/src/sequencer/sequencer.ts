@@ -20,6 +20,7 @@ import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
 import { PublicProcessorFactory } from './public_processor.js';
 import { GlobalVariables } from '@aztec/circuits.js';
+import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 
 /**
  * Sequencer client
@@ -42,6 +43,7 @@ export class Sequencer {
 
   constructor(
     private publisher: L1Publisher,
+    private globalsBuilder: GlobalVariableBuilder,
     private p2pClient: P2P,
     private worldState: WorldStateSynchroniser,
     private blockBuilder: BlockBuilder,
@@ -136,9 +138,8 @@ export class Sequencer {
       this.log(`Processing ${validTxs.length} txs...`);
       this.state = SequencerState.CREATING_BLOCK;
 
-      // @todo @LHerskind Fetch meaningful timestamp in here.
       const blockNumber = (await this.l2BlockSource.getBlockHeight()) + 1;
-      const globalVariables = new GlobalVariables(this.chainId, this.version, new Fr(blockNumber), Fr.ZERO);
+      const globalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
 
       // Process public txs and drop the ones that fail processing
       // We create a fresh processor each time to reset any cached state (eg storage writes)
@@ -163,7 +164,6 @@ export class Sequencer {
       this.log(`Assembling block with txs ${processedTxs.map(tx => tx.hash).join(', ')}`);
       const emptyTx = await processor.makeEmptyProcessedTx(this.chainId, this.version);
 
-      // @todo @LHerskind We need to pass in the globals here as well to build a block with the correct data.
       const block = await this.buildBlock(processedTxs, l1ToL2Messages, emptyTx, globalVariables);
       this.log(`Assembled block ${block.number}`);
 

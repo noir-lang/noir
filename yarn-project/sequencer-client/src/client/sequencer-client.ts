@@ -8,6 +8,7 @@ import { getL1Publisher, getVerificationKeys, Sequencer } from '../index.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 import { PublicProcessorFactory } from '../sequencer/public_processor.js';
 import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
+import { getGlobalVariableBuilder } from '../global_variable_builder/index.js';
 
 /**
  * Encapsulates the full sequencer and publisher.
@@ -34,6 +35,7 @@ export class SequencerClient {
     l1ToL2MessageSource: L1ToL2MessageSource,
   ) {
     const publisher = getL1Publisher(config);
+    const globalsBuilder = getGlobalVariableBuilder(config);
     const merkleTreeDb = worldStateSynchroniser.getLatest();
 
     const blockBuilder = new SoloBlockBuilder(
@@ -47,6 +49,7 @@ export class SequencerClient {
 
     const sequencer = new Sequencer(
       publisher,
+      globalsBuilder,
       p2pClient,
       worldStateSynchroniser,
       blockBuilder,

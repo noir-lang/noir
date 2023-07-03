@@ -15,9 +15,11 @@ import { L1Publisher, makeTx } from '../index.js';
 import { makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 import { PublicProcessor, PublicProcessorFactory } from './public_processor.js';
 import { Sequencer } from './sequencer.js';
+import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 
 describe('sequencer', () => {
   let publisher: MockProxy<L1Publisher>;
+  let globalVariableBuilder: MockProxy<GlobalVariableBuilder>;
   let p2p: MockProxy<P2P>;
   let worldState: MockProxy<WorldStateSynchroniser>;
   let blockBuilder: MockProxy<BlockBuilder>;
@@ -38,6 +40,7 @@ describe('sequencer', () => {
     lastBlockNumber = 0;
 
     publisher = mock<L1Publisher>();
+    globalVariableBuilder = mock<GlobalVariableBuilder>();
     merkleTreeOps = mock<MerkleTreeOperations>();
     blockBuilder = mock<BlockBuilder>();
 
@@ -69,6 +72,7 @@ describe('sequencer', () => {
 
     sequencer = new TestSubject(
       publisher,
+      globalVariableBuilder,
       p2p,
       worldState,
       blockBuilder,
@@ -90,6 +94,9 @@ describe('sequencer', () => {
     p2p.getTxs.mockResolvedValueOnce([tx]);
     blockBuilder.buildL2Block.mockResolvedValueOnce([block, proof]);
     publisher.processL2Block.mockResolvedValueOnce(true);
+    globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
+    );
 
     await sequencer.initialSync();
     await sequencer.work();
@@ -113,6 +120,9 @@ describe('sequencer', () => {
     p2p.getTxs.mockResolvedValueOnce(txs);
     blockBuilder.buildL2Block.mockResolvedValueOnce([block, proof]);
     publisher.processL2Block.mockResolvedValueOnce(true);
+    globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
+    );
 
     // We make a nullifier from tx1 a part of the nullifier tree, so it gets rejected as double spend
     const doubleSpendNullifier = doubleSpendTx.data.end.newNullifiers[0].toBuffer();
