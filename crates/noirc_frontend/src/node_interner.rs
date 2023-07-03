@@ -71,7 +71,7 @@ pub struct NodeInterner {
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
 
-    /// This is technical debt that should be removed once we fully move over
+    /// TODO(#1850): This is technical debt that should be removed once we fully move over
     /// to the new SSA pass which does have slices enabled
     pub enable_slices: bool,
 }
