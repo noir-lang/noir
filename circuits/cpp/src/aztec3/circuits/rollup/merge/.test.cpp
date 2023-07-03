@@ -26,6 +26,8 @@ namespace aztec3::circuits::rollup::merge::native_merge_rollup_circuit {
 
 class merge_rollup_tests : public ::testing::Test {
   protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../barretenberg/cpp/srs_db/ignition"); }
+
     static void run_cbind(MergeRollupInputs& merge_rollup_inputs,
                           BaseOrMergeRollupPublicInputs& expected_public_inputs,
                           bool compare_pubins = true)

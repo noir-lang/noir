@@ -57,6 +57,8 @@ namespace aztec3::circuits::rollup::root::native_root_rollup_circuit {
 
 class root_rollup_tests : public ::testing::Test {
   protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../barretenberg/cpp/srs_db/ignition"); }
+
     static void run_cbind(RootRollupInputs& root_rollup_inputs,
                           RootRollupPublicInputs& expected_public_inputs,
                           bool compare_pubins = true)
