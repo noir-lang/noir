@@ -51,6 +51,34 @@ template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData 
         return result;
     }
 
+    static constexpr std::array<Fr, domain_size * num_evals> batch_invert(
+        const std::array<Fr, domain_size * num_evals>& coeffs)
+    {
+        constexpr size_t n = domain_size * num_evals;
+        std::array<Fr, n> temporaries{};
+        std::array<bool, n> skipped{};
+        Fr accumulator = 1;
+        for (size_t i = 0; i < n; ++i) {
+            temporaries[i] = accumulator;
+            if (coeffs[i] == 0) {
+                skipped[i] = true;
+            } else {
+                skipped[i] = false;
+                accumulator *= coeffs[i];
+            }
+        }
+        accumulator = Fr(1) / accumulator;
+        std::array<Fr, n> result{};
+        Fr T0;
+        for (size_t i = n - 1; i < n; --i) {
+            if (!skipped[i]) {
+                T0 = accumulator * temporaries[i];
+                accumulator *= coeffs[i];
+                result[i] = T0;
+            }
+        }
+        return result;
+    }
     // for each x_k in the big domain, build set of domain size-many denominator inverses
     // 1/(d_i*(x_k - x_j)). will multiply against each of these (rather than to divide by something)
     // for each barycentric evaluation
@@ -62,11 +90,10 @@ template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData 
             for (size_t j = 0; j < domain_size; ++j) {
                 Fr inv = lagrange_denominators[j];
                 inv *= (big_domain[k] - big_domain[j]);
-                inv = Fr(1) / inv; // prob have self_inverse method; should be part of Field concept
                 result[k * domain_size + j] = inv;
             }
         }
-        return result;
+        return batch_invert(result);
     }
 
     // get full numerator values
