@@ -190,8 +190,4 @@ impl Tree<Value> {
     pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
         vecmap(self.flatten(), |value| value.eval(ctx))
     }
-
-    pub(super) fn into_argument_list(self) -> Vec<IrValueId> {
-        vecmap(self.flatten(), |value| value.eval_reference())
-    }
 }

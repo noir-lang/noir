@@ -368,7 +368,7 @@ impl<'a> FunctionContext<'a> {
         let arguments = call
             .arguments
             .iter()
-            .flat_map(|argument| self.codegen_expression(argument).into_argument_list())
+            .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
             .collect();
 
         self.insert_call(function, arguments, &call.return_type)
