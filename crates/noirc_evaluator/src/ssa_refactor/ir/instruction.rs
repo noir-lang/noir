@@ -341,7 +341,7 @@ impl Instruction {
                             let slice = dfg.get_array_constant(arguments[0]);
                             if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
                                 slice.push_back(elem);
-                                let new_slice = dfg.make_slice(slice, element_type);
+                                let new_slice = dfg.make_array(slice, element_type);
                                 simplify_result = SimplifiedTo(new_slice);
                             }
                         }

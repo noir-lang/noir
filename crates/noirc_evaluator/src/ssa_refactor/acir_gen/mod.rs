@@ -343,10 +343,6 @@ impl Context {
                 let elements = array.iter().map(|element| self.convert_value(*element, dfg));
                 AcirValue::Array(elements.collect())
             }
-            Value::Slice { array, .. } => {
-                let elements = array.iter().map(|element| self.convert_value(*element, dfg));
-                AcirValue::Array(elements.collect())
-            }
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
             Value::Instruction { .. } | Value::Param { .. } => {
@@ -601,6 +597,7 @@ impl Context {
                 (&elements[0]).into()
             }
             Type::Slice(elements) => {
+                dbg!("got slice type");
                 assert_eq!(elements.len(), 1);
                 (&elements[0]).into()
             }

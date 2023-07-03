@@ -211,10 +211,6 @@ impl<'function> PerFunctionContext<'function> {
                 let elements = array.iter().map(|value| self.translate_value(*value)).collect();
                 self.context.builder.array_constant(elements, element_type.clone())
             }
-            Value::Slice { array, element_type } => {
-                let elements = array.iter().map(|value| self.translate_value(*value)).collect();
-                self.context.builder.slice(elements, element_type.clone())
-            }
         };
 
         self.values.insert(id, new_value);

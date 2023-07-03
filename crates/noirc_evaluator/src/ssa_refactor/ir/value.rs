@@ -40,9 +40,6 @@ pub(crate) enum Value {
     /// Represents a constant array value
     Array { array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
 
-    /// Represents a compile-time array
-    Slice { array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
-
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
     /// If the argument or return types are needed, users should retrieve
@@ -63,7 +60,6 @@ impl Value {
             Value::Param { typ, .. } => typ.clone(),
             Value::NumericConstant { typ, .. } => typ.clone(),
             Value::Array { element_type, array } => Type::Array(element_type.clone(), array.len()),
-            Value::Slice { element_type, .. } => Type::Slice(element_type.clone()),
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
         }

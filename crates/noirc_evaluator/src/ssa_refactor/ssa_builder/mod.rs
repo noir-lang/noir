@@ -116,14 +116,6 @@ impl FunctionBuilder {
         self.current_function.dfg.make_array(elements, element_types)
     }
 
-    pub(crate) fn slice(
-        &mut self,
-        elements: im::Vector<ValueId>,
-        element_types: Rc<CompositeType>,
-    ) -> ValueId {
-        self.current_function.dfg.make_slice(elements, element_types)
-    }
-
     /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
         self.current_function.dfg.type_of_value(value)
