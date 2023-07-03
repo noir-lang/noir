@@ -370,7 +370,6 @@ impl<'function> PerFunctionContext<'function> {
     ) {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
-
         let new_results = self.context.inline_function(ssa, function, &arguments);
         let new_results = InsertInstructionResult::Results(&new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);

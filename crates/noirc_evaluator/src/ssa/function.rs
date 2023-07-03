@@ -228,11 +228,7 @@ impl IrGenerator {
     //generates an instruction for calling the function
     pub(super) fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
-        let arguments = call
-            .arguments
-            .iter()
-            .flat_map(|arg| self.ssa_gen_expression(arg).unwrap().to_node_ids())
-            .collect();
+        let arguments = self.ssa_gen_expression_list(&call.arguments);
 
         if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
             return self.call_low_level(opcode, arguments);

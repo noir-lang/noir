@@ -135,8 +135,7 @@ impl<'a> FunctionContext<'a> {
     ) {
         // Add a separate parameter for each field type in 'parameter_type'
         let parameter_value = Self::map_type(parameter_type, |typ| {
-            let value = self.builder.add_parameter(typ.clone());
-
+            let value = self.builder.add_parameter(typ);
             if mutable {
                 self.new_mutable_variable(value)
             } else {
@@ -738,7 +737,6 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
-#[derive(Debug)]
 pub(super) enum LValue {
     Ident(Values),
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
