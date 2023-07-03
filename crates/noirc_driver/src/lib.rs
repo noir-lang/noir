@@ -264,7 +264,7 @@ impl Driver {
         if deny_warnings {
             !errors.is_empty()
         } else {
-            errors.iter().filter(|error| error.diagnostic.is_error()).count() != 0
+            errors.iter().any(|error| error.diagnostic.is_error())
         }
     }
 
