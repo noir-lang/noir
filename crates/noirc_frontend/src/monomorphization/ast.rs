@@ -45,7 +45,7 @@ pub enum Definition {
     Builtin(String),
     LowLevel(String),
     // used as a foreign/externally defined unconstrained function
-    Oracle(String, FuncId),
+    Oracle(String),
 }
 
 /// ID of a local definition, e.g. from a let binding or

@@ -6,7 +6,7 @@ use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir,
@@ -59,7 +59,7 @@ impl Function {
 
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
-        self.runtime
+        self.runtime.clone()
     }
 
     /// Set runtime type of the function.

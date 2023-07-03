@@ -1,5 +1,7 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
+use crate::brillig::brillig_gen::brillig_directive;
+
 use super::errors::AcirGenError;
 use acvm::acir::{
     brillig_vm::Opcode as BrilligOpcode,
@@ -71,7 +73,7 @@ impl GeneratedAcir {
     /// This means you cannot multiply an infinite amount of `Expression`s together.
     /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
+    pub(crate) fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
@@ -222,9 +224,9 @@ impl GeneratedAcir {
             BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
                 public_key_x: inputs[0],
                 public_key_y: inputs[1],
-                // Schnorr signature is two field field elements (r,s)
-                signature: vec![inputs[2], inputs[3]],
-                message: inputs[4..].to_vec(),
+                // Schnorr signature is an r & s, 32 bytes each
+                signature: inputs[2..66].to_vec(),
+                message: inputs[66..].to_vec(),
                 output: outputs[0],
             },
             BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
@@ -269,8 +271,8 @@ impl GeneratedAcir {
         input_expr: &Expression,
         radix: u32,
         limb_count: u32,
+        bit_size: u32,
     ) -> Result<Vec<Witness>, AcirGenError> {
-        let bit_size = u32::BITS - (radix - 1).leading_zeros();
         let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
@@ -356,20 +358,20 @@ impl GeneratedAcir {
     }
 
     /// Generate constraints that are satisfied iff
-    /// a < b , when offset is 1, or
-    /// a <= b, when offset is 0
+    /// lhs < rhs , when offset is 1, or
+    /// lhs <= rhs, when offset is 0
     /// bits is the bit size of a and b (or an upper bound of the bit size)
     ///
-    /// a<=b is done by constraining b-a to a bit size of 'bits':
-    /// if a<=b, 0 <= b-a <= b < 2^bits
-    /// if a>b, b-a = p+b-a > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
-    /// n.b: we do NOT check here that a and b are indeed 'bits' size
-    /// a < b <=> a+1<=b
+    /// lhs<=rhs is done by constraining b-a to a bit size of 'bits':
+    /// if lhs<=rhs, 0 <= rhs-lhs <= b < 2^bits
+    /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
+    /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
+    /// lhs < rhs <=> a+1<=b
     /// TODO: Consolidate this with bounds_check function.
     fn bound_constraint_with_offset(
         &mut self,
-        a: &Expression,
-        b: &Expression,
+        lhs: &Expression,
+        rhs: &Expression,
         offset: &Expression,
         bits: u32,
     ) -> Result<(), AcirGenError> {
@@ -390,55 +392,34 @@ impl GeneratedAcir {
             "range check with bit size of the prime field is not implemented yet"
         );
 
-        let mut aof = a + offset;
+        let mut lhs_offset = lhs + offset;
 
-        if b.is_const() && b.q_c.fits_in_u128() {
-            let f = if *offset == Expression::one() {
-                aof = a.clone();
-                assert!(b.q_c.to_u128() >= 1);
-                b.q_c.to_u128() - 1
+        // Optimization when rhs is const and fits within a u128
+        if rhs.is_const() && rhs.q_c.fits_in_u128() {
+            // We try to move the offset to rhs
+            let rhs_offset = if *offset == Expression::one() && rhs.q_c.to_u128() >= 1 {
+                lhs_offset = lhs.clone();
+                rhs.q_c.to_u128() - 1
             } else {
-                b.q_c.to_u128()
+                rhs.q_c.to_u128()
             };
+            // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
-            if f < 3 {
-                match f {
-                    0 => self.push_opcode(AcirOpcode::Arithmetic(aof)),
-                    1 => {
-                        let expr = self.boolean_expr(&aof);
-                        self.push_opcode(AcirOpcode::Arithmetic(expr));
-                    }
-                    2 => {
-                        let aof_boolean_expr = self.boolean_expr(&aof);
-                        let y = self.create_witness_for_expression(&aof_boolean_expr);
-                        let neg_two = -FieldElement::from(2_i128);
-
-                        let aof_witness = self.create_witness_for_expression(&aof);
-                        let mut eee = Expression::default();
-                        eee.push_multiplication_term(FieldElement::one(), y, aof_witness);
-                        eee.push_addition_term(neg_two, y);
-
-                        self.push_opcode(AcirOpcode::Arithmetic(eee));
-                    }
-                    _ => unreachable!(),
-                }
-                return Ok(());
-            }
-            let bit_size = bit_size_u128(f);
-            if bit_size < 128 {
-                let r = (1_u128 << bit_size) - f - 1;
-                assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure a+r does not overflow
-
-                let mut aor = aof.clone();
-                aor.q_c += FieldElement::from(r);
-
-                let witness = self.create_witness_for_expression(&aor);
-                self.range_constraint(witness, bit_size)?;
-                return Ok(());
-            }
+            let bit_size = bit_size_u128(rhs_offset);
+            // r = 2^bit_size - rhs_offset
+            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            // witness = lhs_offset + r
+            assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+            let mut aor = lhs_offset;
+            aor.q_c += FieldElement::from(r);
+            let witness = self.create_witness_for_expression(&aor);
+            // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
+            self.range_constraint(witness, bit_size)?;
+            return Ok(());
         }
 
-        let sub_expression = b - &aof; //b-(a+offset)
+        // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
+        let sub_expression = rhs - &lhs_offset; //rhs-lhs_offset
         let w = self.create_witness_for_expression(&sub_expression);
         self.range_constraint(w, bits)?;
 
@@ -467,28 +448,23 @@ impl GeneratedAcir {
         self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
     }
 
-    /// Adds an inversion directive.
+    /// Adds an inversion brillig opcode.
     ///
-    /// This directive will invert `expr` without applying constraints
+    /// This code will invert `expr` without applying constraints
     /// and return a `Witness` which may or may not be the result of
     /// inverting `expr`.
     ///
     /// Safety: It is the callers responsibility to ensure that the
     /// resulting `Witness` is constrained to be the inverse.
-    pub(crate) fn directive_inverse(&mut self, expr: &Expression) -> Witness {
-        // The inversion directive requires that
-        // the inputs be Witness, so we need this potential extra
-        // reduction constraint.
-        // Note: changing this in ACIR would allow us to remove it
-        let witness = self.get_or_create_witness(expr);
-
+    pub(crate) fn brillig_inverse(&mut self, expr: &Expression) -> Witness {
         // Create the witness for the result
         let inverted_witness = self.next_witness_index();
 
-        self.push_opcode(AcirOpcode::Directive(Directive::Invert {
-            x: witness,
-            result: inverted_witness,
-        }));
+        // Compute the inverse with brillig code
+        let inverse_code = brillig_directive::directive_invert();
+        let inputs = vec![BrilligInputs::Single(expr.clone())];
+        let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
+        self.brillig(inverse_code, inputs, outputs);
 
         inverted_witness
     }
@@ -572,7 +548,7 @@ impl GeneratedAcir {
 
         // Call the inversion directive, since we do not apply a constraint
         // the prover can choose anything here.
-        let z = self.directive_inverse(&Expression::from(t_witness));
+        let z = self.brillig_inverse(&Expression::from(t_witness));
 
         let y = self.next_witness_index();
 
@@ -707,6 +683,29 @@ impl GeneratedAcir {
             predicate: None,
         });
         self.push_opcode(opcode);
+    }
+
+    /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr
+    /// Add the control bits of the sorting network used to generate the constrains
+    /// into the PermutationSort directive for solving in ACVM.
+    /// The directive is solving the control bits so that the outputs are sorted in increasing order.
+    ///
+    /// n.b. A sorting network is a predetermined set of switches,
+    /// the control bits indicate the configuration of each switch: false for pass-through and true for cross-over
+    pub(crate) fn permutation(&mut self, in_expr: &[Expression], out_expr: &[Expression]) {
+        let bits = Vec::new();
+        let (w, b) = self.permutation_layer(in_expr, &bits, true);
+        // Constrain the network output to out_expr
+        for (b, o) in b.iter().zip(out_expr) {
+            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+        }
+        let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
+        self.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
+            inputs,
+            tuple: 1,
+            bits: w,
+            sort_by: vec![0],
+        }));
     }
 }
 

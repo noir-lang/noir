@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adf51cc323e2a96e381859e6ea26c14fb94cabe72353a4e2bcc2df582110927b"
+checksum = "8a0f4d70cd78f13cc17b2b16953af71d1a4fd0aa923cc35e6741c1f810eccdad"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -18,9 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c386958918fac40ec59ba165c1efaf3ee8a25a7b9587794dc88736a67f08db"
+checksum = "74a1bdec0ba9ddb54d3337bb487a889dd212211a7daf6fe9fb175adf107eecdc"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -32,9 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0be8cf5e532200abd879e0e9a1aecfea6605387bc7fdbf3e6c51e4d3799e760e"
+checksum = "6e27004072f628c96c5666068c0d9efae134423331859b60923265a017a5920b"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -51,9 +51,9 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90594c6d8107569d2ba337a3e1ff2c440cf5ba3f7bc2d3b07af5a405d769584d"
+checksum = "a378e1d68ed47b4ed1af4533b455e01836d21bf27bde482e977edea0869f0b21"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -71,9 +71,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89789ea350d87aeaed31cde2d655a3dbb861a71f1bbed41802e0f8c6a207f11c"
+checksum = "a16b18f0dc47de9c3f60eb320dda05b31355d7d4f76239f75852cc5a518db69e"
 dependencies = [
  "acir",
 ]
@@ -199,7 +199,7 @@ dependencies = [
 
 [[package]]
 name = "arena"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "generational-arena",
 ]
@@ -354,13 +354,11 @@ dependencies = [
 [[package]]
 name = "async-lsp"
 version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73395fba7765010f2a98d007d601bd47e0d31ada90cd82f40c7eab753eba0870"
+source = "git+https://github.com/oxalica/async-lsp?rev=09dbcc11046f7a188a80137f8d36484d86c78c78#09dbcc11046f7a188a80137f8d36484d86c78c78"
 dependencies = [
  "either",
  "futures",
- "libc",
- "lsp-types",
+ "lsp-types 0.94.0",
  "pin-project-lite",
  "rustix",
  "serde",
@@ -370,6 +368,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -514,12 +513,11 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60857c63a6da410360fca5f98162452561e42dbdff66a6206626b9bf3bb2a4ca"
+checksum = "ae057025d1898257631c65c63071209dc41093cf9c0d77cdaae976798fa18b93"
 dependencies = [
  "acir_field",
- "num-bigint",
  "serde",
 ]
 
@@ -697,6 +695,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3362992a0d9f1dd7c3d0e89e0ab2bb540b7a95fea8cd798090e758fda2899b5e"
 dependencies = [
  "codespan-reporting",
+]
+
+[[package]]
+name = "codespan-lsp"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc4159b76af02757139baf42c0c971c6dc155330999fbfd8eddb29b97fb2db68"
+dependencies = [
+ "codespan-reporting",
+ "lsp-types 0.88.0",
+ "url",
 ]
 
 [[package]]
@@ -1202,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "cfg-if",
  "codespan-reporting",
@@ -1396,9 +1405,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-utils"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8e8fc851e9c7b9852508bc6e3f690f452f474417e8545ec9857b7f7377036b5"
+checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
 dependencies = [
  "js-sys",
  "serde",
@@ -1698,7 +1707,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.6.0"
+version = "0.7.1"
 
 [[package]]
 name = "itertools"
@@ -1823,6 +1832,19 @@ dependencies = [
 
 [[package]]
 name = "lsp-types"
+version = "0.88.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8e8e042772e4e10b3785822f63c82399d0dd233825de44d2596f7fa86e023e0"
+dependencies = [
+ "bitflags",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "url",
+]
+
+[[package]]
+name = "lsp-types"
 version = "0.94.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b63735a13a1f9cd4f4835223d828ed9c2e35c8c5e61837774399f558b6a1237"
@@ -1925,7 +1947,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "noirc_abi",
@@ -1938,7 +1960,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "acvm-backend-barretenberg",
@@ -1974,10 +1996,16 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
+ "acvm",
  "async-lsp",
- "lsp-types",
+ "codespan-lsp",
+ "codespan-reporting",
+ "lsp-types 0.94.0",
+ "noirc_driver",
+ "noirc_errors",
+ "noirc_frontend",
  "serde_json",
  "tokio",
  "tower",
@@ -1985,7 +2013,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "build-data",
@@ -2002,7 +2030,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2016,7 +2044,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "clap",
@@ -2030,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "chumsky",
  "codespan",
@@ -2040,7 +2068,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "arena",
@@ -2057,7 +2085,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "acvm",
  "arena",
@@ -3650,7 +3678,6 @@ dependencies = [
  "wasmer-engine-universal",
  "wasmer-types",
  "wasmer-vm",
- "wasmparser",
  "wat",
  "winapi",
 ]

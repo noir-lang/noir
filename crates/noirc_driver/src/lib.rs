@@ -13,6 +13,7 @@ use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit}
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
+use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
@@ -270,7 +271,7 @@ impl Driver {
         if deny_warnings {
             !errors.is_empty()
         } else {
-            errors.iter().filter(|error| error.diagnostic.is_error()).count() != 0
+            errors.iter().any(|error| error.diagnostic.is_error())
         }
     }
 
@@ -395,6 +396,10 @@ impl Driver {
 
     pub fn function_name(&self, id: FuncId) -> &str {
         self.context.def_interner.function_name(&id)
+    }
+
+    pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
+        self.context.def_interner.function_meta(func_id)
     }
 }
 
