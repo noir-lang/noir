@@ -348,14 +348,11 @@ void propagate_new_l2_to_l1_messages(Builder& builder,
     std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs_to_insert{};
     for (size_t i = 0; i < new_l2_to_l1_msgs.size(); ++i) {
         if (!new_l2_to_l1_msgs[i].is_zero()) {
-            // @todo @lherskind chain-ids and rollup version id should be added here. right now, just hard coded.
-            // @todo @lherskind chain-id is hardcoded for foundry
-            const auto chain_id = fr(31337);
-            new_l2_to_l1_msgs_to_insert[i] = compute_l2_to_l1_hash<NT>(storage_contract_address,
-                                                                       fr(1),  // rollup version id
-                                                                       portal_contract_address,
-                                                                       chain_id,
-                                                                       new_l2_to_l1_msgs[i]);
+            const auto chain_id = public_kernel_inputs.previous_kernel.public_inputs.constants.tx_context.chain_id;
+            const auto version = public_kernel_inputs.previous_kernel.public_inputs.constants.tx_context.version;
+
+            new_l2_to_l1_msgs_to_insert[i] = compute_l2_to_l1_hash<NT>(
+                storage_contract_address, version, portal_contract_address, chain_id, new_l2_to_l1_msgs[i]);
         }
     }
     push_array_to_array(builder, new_l2_to_l1_msgs_to_insert, circuit_outputs.end.new_l2_to_l1_msgs);

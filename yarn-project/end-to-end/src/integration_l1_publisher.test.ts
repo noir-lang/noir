@@ -1,6 +1,7 @@
 import { createMemDown, getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AztecAddress,
+  GlobalVariables,
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
@@ -130,7 +131,7 @@ describe('L1Publisher integration', () => {
     const vks = getVerificationKeys();
     const simulator = await WasmRollupCircuitSimulator.new();
     const prover = new EmptyRollupProver();
-    builder = new SoloBlockBuilder(builderDb, vks, simulator, prover, new Fr(config.chainId), new Fr(config.version));
+    builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
 
     l2Proof = Buffer.alloc(0);
 
@@ -182,7 +183,7 @@ describe('L1Publisher integration', () => {
   };
 
   const sendToL2 = async (content: Fr, recipientAddress: AztecAddress) => {
-    // @todo @LHerskind version hardcoded here
+    // @todo @LHerskind version hardcoded here (update to bigint or field)
     const recipient = new L2Actor(recipientAddress, 1);
     // Note: using max deadline
     const deadline = 2 ** 32 - 1;
@@ -266,7 +267,14 @@ describe('L1Publisher integration', () => {
         await makeBloatedProcessedTx(128 * i + 96),
         await makeBloatedProcessedTx(128 * i + 128),
       ];
-      const [block] = await builder.buildL2Block(1 + i, txs, l1ToL2Messages);
+      // @todo @LHerskind fix time.
+      const globalVariables = new GlobalVariables(
+        new Fr(config.chainId),
+        new Fr(config.version),
+        new Fr(1 + i),
+        Fr.ZERO,
+      );
+      const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
 
       // check that values are in the inbox
       for (let j = 0; j < l1ToL2Messages.length; j++) {
@@ -351,7 +359,13 @@ describe('L1Publisher integration', () => {
         await makeEmptyProcessedTx(),
         await makeEmptyProcessedTx(),
       ];
-      const [block] = await builder.buildL2Block(1 + i, txs, l1ToL2Messages);
+      const globalVariables = new GlobalVariables(
+        new Fr(config.chainId),
+        new Fr(config.version),
+        new Fr(1 + i),
+        Fr.ZERO,
+      );
+      const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
 
       await publisher.processL2Block(block);
 

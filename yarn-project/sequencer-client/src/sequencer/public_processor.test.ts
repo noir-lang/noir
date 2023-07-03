@@ -6,6 +6,7 @@ import {
   EthAddress,
   Fr,
   FunctionData,
+  GlobalVariables,
   KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
@@ -85,7 +86,7 @@ describe('public_processor', () => {
       const tx = makeTx();
       tx.data.end.publicCallStack = makeTuple(KERNEL_PUBLIC_CALL_STACK_LENGTH, Fr.zero);
       const hash = await tx.getTxHash();
-      const [processed, failed] = await processor.process([tx]);
+      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
 
       expect(processed).toEqual([
         { isEmpty: false, hash, ...pick(tx, 'data', 'proof', 'encryptedLogs', 'unencryptedLogs') },
@@ -97,7 +98,7 @@ describe('public_processor', () => {
       publicExecutor.execute.mockRejectedValue(new Error(`Failed`));
 
       const tx = makeTx();
-      const [processed, failed] = await processor.process([tx]);
+      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
 
       expect(processed).toEqual([]);
       expect(failed).toEqual([tx]);
@@ -145,7 +146,7 @@ describe('public_processor', () => {
         throw new Error(`Unexpected execution request: ${execution}`);
       });
 
-      const [processed, failed] = await processor.process([tx]);
+      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
 
       expect(processed).toHaveLength(1);
       expect(processed).toEqual([await expectedTxByHash(tx)]);
@@ -175,7 +176,7 @@ describe('public_processor', () => {
       ];
       publicExecutor.execute.mockResolvedValue(publicExecutionResult);
 
-      const [processed, failed] = await processor.process([tx]);
+      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
 
       expect(processed).toHaveLength(1);
       expect(processed).toEqual([await expectedTxByHash(tx)]);

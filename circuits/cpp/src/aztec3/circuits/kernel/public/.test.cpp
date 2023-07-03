@@ -236,19 +236,15 @@ std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers_as_siloed_nullifiers
 std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_messages_from_message(
     std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const& new_messages,
     NT::fr const& contract_address,
-    fr const& portal_contract_address)
+    fr const& portal_contract_address,
+    fr const& chain_id,
+    fr const& version)
 {
     std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> formatted_msgs{};
     for (size_t i = 0; i < KERNEL_NEW_L2_TO_L1_MSGS_LENGTH; ++i) {
         if (!new_messages[i].is_zero()) {
-            // @todo @LHerskind chain-ids and rollup version id should be added here. Right now, just hard coded.
-            // @todo @LHerskind chain-id is hardcoded for foundry
-            const auto chain_id = fr(31337);
-            formatted_msgs[i] = compute_l2_to_l1_hash<NT>(contract_address,
-                                                          fr(1),  // rollup version id
-                                                          portal_contract_address,
-                                                          chain_id,
-                                                          new_messages[i]);
+            formatted_msgs[i] = compute_l2_to_l1_hash<NT>(
+                contract_address, version, portal_contract_address, chain_id, new_messages[i]);
         }
     }
     return formatted_msgs;
@@ -1120,8 +1116,16 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
                                             expected_new_nullifiers,
                                             public_inputs.end.new_nullifiers));
 
-    std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const expected_new_messages = new_l2_messages_from_message(
-        inputs.public_call.call_stack_item.public_inputs.new_l2_to_l1_msgs, contract_address, portal_contract_address);
+    // Reading the chain id and version from the tx context
+    fr const chain_id = inputs.previous_kernel.public_inputs.constants.tx_context.chain_id;
+    fr const version = inputs.previous_kernel.public_inputs.constants.tx_context.version;
+
+    std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const expected_new_messages =
+        new_l2_messages_from_message(inputs.public_call.call_stack_item.public_inputs.new_l2_to_l1_msgs,
+                                     contract_address,
+                                     portal_contract_address,
+                                     chain_id,
+                                     version);
 
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_l2_to_l1_msgs,
                                             expected_new_messages,

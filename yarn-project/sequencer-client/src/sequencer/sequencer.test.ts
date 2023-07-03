@@ -1,4 +1,10 @@
-import { CombinedHistoricTreeRoots, Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, makeEmptyProof } from '@aztec/circuits.js';
+import {
+  CombinedHistoricTreeRoots,
+  Fr,
+  GlobalVariables,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  makeEmptyProof,
+} from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
 import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx, TxHash } from '@aztec/types';
 import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchroniser } from '@aztec/world-state';
@@ -25,6 +31,9 @@ describe('sequencer', () => {
 
   let sequencer: TestSubject;
 
+  const chainId = Fr.ZERO;
+  const version = Fr.ZERO;
+
   beforeEach(() => {
     lastBlockNumber = 0;
 
@@ -43,7 +52,7 @@ describe('sequencer', () => {
 
     publicProcessor = mock<PublicProcessor>({
       process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx))), []],
-      makeEmptyProcessedTx: () => makeEmptyProcessedTx(CombinedHistoricTreeRoots.empty(), Fr.ZERO, Fr.ZERO),
+      makeEmptyProcessedTx: () => makeEmptyProcessedTx(CombinedHistoricTreeRoots.empty(), chainId, version),
     });
 
     publicProcessorFactory = mock<PublicProcessorFactory>({
@@ -67,8 +76,8 @@ describe('sequencer', () => {
       l1ToL2MessageSource,
       publicProcessorFactory,
       {
-        chainId: 0,
-        version: 0,
+        chainId: Number(chainId.value),
+        version: Number(version.value),
       },
     );
   });
@@ -88,7 +97,7 @@ describe('sequencer', () => {
     const expectedTxHashes = [...(await Tx.getHashes([tx])), ...times(3, () => TxHash.ZERO)];
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
-      lastBlockNumber + 1,
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
       expectedTxHashes.map(hash => expect.objectContaining({ hash })),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
@@ -119,7 +128,7 @@ describe('sequencer', () => {
     const expectedTxHashes = [...(await Tx.getHashes([txs[0], txs[2]])), TxHash.ZERO, TxHash.ZERO];
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
-      lastBlockNumber + 1,
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
       expectedTxHashes.map(hash => expect.objectContaining({ hash })),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );

@@ -5,6 +5,7 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   Fr,
+  GlobalVariables,
   KERNEL_PUBLIC_DATA_READS_LENGTH,
   KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   KernelCircuitPublicInputs,
@@ -81,16 +82,17 @@ export class PublicProcessor {
   /**
    * Run each tx through the public circuit and the public kernel circuit if needed.
    * @param txs - Txs to process.
+   * @param globalVariables - The global variables for the block.
    * @returns The list of processed txs with their circuit simulation outputs.
    */
-  public async process(txs: Tx[]): Promise<[ProcessedTx[], Tx[]]> {
+  public async process(txs: Tx[], globalVariables: GlobalVariables): Promise<[ProcessedTx[], Tx[]]> {
     const result: ProcessedTx[] = [];
     const failed: Tx[] = [];
 
     for (const tx of txs) {
       this.log(`Processing tx ${await tx.getTxHash()}`);
       try {
-        result.push(await this.processTx(tx));
+        result.push(await this.processTx(tx, globalVariables));
       } catch (err) {
         this.log(`Error processing tx ${await tx.getTxHash()}: ${err}`);
         failed.push(tx);
@@ -110,10 +112,11 @@ export class PublicProcessor {
     return makeEmptyProcessedTx(historicTreeRoots, chainId, version);
   }
 
-  protected async processTx(tx: Tx): Promise<ProcessedTx> {
+  protected async processTx(tx: Tx, globalVariables: GlobalVariables): Promise<ProcessedTx> {
     if (!isArrayEmpty(tx.data.end.publicCallStack, item => item.isZero())) {
       const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs] = await this.processEnqueuedPublicCalls(
         tx,
+        globalVariables,
       );
       tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
 
@@ -123,7 +126,10 @@ export class PublicProcessor {
     }
   }
 
-  protected async processEnqueuedPublicCalls(tx: Tx): Promise<[PublicKernelPublicInputs, Proof, FunctionL2Logs[]]> {
+  protected async processEnqueuedPublicCalls(
+    tx: Tx,
+    globalVariables: GlobalVariables,
+  ): Promise<[PublicKernelPublicInputs, Proof, FunctionL2Logs[]]> {
     this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
     if (!tx.enqueuedPublicFunctionCalls) throw new Error(`Missing preimages for enqueued public calls`);
 
@@ -137,7 +143,7 @@ export class PublicProcessor {
     while (executionStack.length) {
       const current = executionStack.pop()!;
       const isExecutionRequest = !isPublicExecutionResult(current);
-      const result = isExecutionRequest ? await this.publicExecutor.execute(current) : current;
+      const result = isExecutionRequest ? await this.publicExecutor.execute(current, globalVariables) : current;
       newUnencryptedFunctionLogs.push(result.unencryptedLogs);
       const functionSelector = result.execution.functionData.functionSelectorBuffer.toString('hex');
       this.log(`Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`);

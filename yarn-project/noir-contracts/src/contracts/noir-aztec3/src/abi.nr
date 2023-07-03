@@ -27,6 +27,8 @@ struct PrivateContextInputs {
 struct PublicContextInputs {
     call_context: CallContext,
     roots: CommitmentTreesRoots,
+
+    public_global_variables: PublicGlobalVariables,
 }
 
 global CALL_CONTEXT_SIZE: comptime Field = 6;
@@ -112,6 +114,19 @@ struct PrivateGlobalVariables {
 impl PrivateGlobalVariables {
     fn serialize(self) -> [Field; 2] {
         [self.chain_id, self.version]
+    }
+}
+
+struct PublicGlobalVariables {
+    chain_id: Field,
+    version: Field,
+    block_number: Field,
+    timestamp: Field,
+}
+
+impl PublicGlobalVariables {
+    fn serialize(self) -> [Field; 4] {
+        [self.chain_id, self.version, self.block_number, self.timestamp]
     }
 }
 

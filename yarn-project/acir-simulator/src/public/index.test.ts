@@ -5,6 +5,7 @@ import {
   CircuitsWasm,
   PrivateHistoricTreeRoots,
   L1_TO_L2_MESSAGES_TREE_HEIGHT,
+  GlobalVariables,
 } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -84,7 +85,7 @@ describe('ACIR public execution simulator', () => {
         publicState.storageRead.mockResolvedValue(previousBalance);
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        const result = await executor.execute(execution);
+        const result = await executor.execute(execution, GlobalVariables.empty());
 
         const expectedBalance = new Fr(160n);
         expect(result.returnValues).toEqual([expectedBalance]);
@@ -151,7 +152,7 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const result = await executor.execute(execution);
+        const result = await executor.execute(execution, GlobalVariables.empty());
 
         const expectedRecipientBalance = new Fr(160n);
         const expectedSenderBalance = new Fr(60n);
@@ -174,7 +175,7 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const result = await executor.execute(execution);
+        const result = await executor.execute(execution, GlobalVariables.empty());
 
         expect(result.returnValues).toEqual([recipientBalance]);
 
@@ -228,9 +229,18 @@ describe('ACIR public execution simulator', () => {
       });
 
       const execution: PublicExecution = { contractAddress: parentContractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution);
+      const globalVariables = new GlobalVariables(new Fr(69), new Fr(420), new Fr(1), new Fr(7));
+      const result = await executor.execute(execution, globalVariables);
 
-      expect(result.returnValues).toEqual([new Fr(42n + initialValue)]);
+      expect(result.returnValues).toEqual([
+        new Fr(
+          initialValue +
+            globalVariables.chainId.value +
+            globalVariables.version.value +
+            globalVariables.blockNumber.value +
+            globalVariables.timestamp.value,
+        ),
+      ]);
     });
   });
 
@@ -265,7 +275,7 @@ describe('ACIR public execution simulator', () => {
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(publicToPrivateAbi.bytecode, 'hex'));
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution);
+      const result = await executor.execute(execution, GlobalVariables.empty());
 
       // Assert the commitment was created
       expect(result.newCommitments.length).toEqual(1);
@@ -295,7 +305,7 @@ describe('ACIR public execution simulator', () => {
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createL2ToL1MessagePublicAbi.bytecode, 'hex'));
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution);
+      const result = await executor.execute(execution, GlobalVariables.empty());
 
       // Assert the l2 to l1 message was created
       expect(result.newL2ToL1Messages.length).toEqual(1);
@@ -359,7 +369,7 @@ describe('ACIR public execution simulator', () => {
       });
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution);
+      const result = await executor.execute(execution, GlobalVariables.empty());
 
       expect(result.newNullifiers.length).toEqual(1);
     });
@@ -383,7 +393,7 @@ describe('ACIR public execution simulator', () => {
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createNullifierPublicAbi.bytecode, 'hex'));
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution);
+      const result = await executor.execute(execution, GlobalVariables.empty());
 
       // Assert the l2 to l1 message was created
       expect(result.newNullifiers.length).toEqual(1);

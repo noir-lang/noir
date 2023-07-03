@@ -60,35 +60,27 @@ const DELETE_FR = new Fr(0n);
  * using the base, merge, and root rollup circuits.
  */
 export class SoloBlockBuilder implements BlockBuilder {
-  private globalVariables: GlobalVariables;
-
   constructor(
     protected db: MerkleTreeOperations,
     protected vks: VerificationKeys,
     protected simulator: RollupSimulator,
     protected prover: RollupProver,
-    protected chainId: Fr,
-    protected version: Fr,
     protected debug = createDebugLogger('aztec:sequencer'),
-  ) {
-    this.globalVariables = new GlobalVariables(chainId, version, Fr.ZERO, Fr.ZERO);
-  }
+  ) {}
 
   /**
    * Builds an L2 block with the given number containing the given txs, updating state trees.
-   * @param blockNumber - Number of the block to create.
+   * @param globalVariables - Global variables to be used in the block.
    * @param txs - Processed transactions to include in the block.
    * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
    * @param timestamp - Timestamp of the block.
    * @returns The new L2 block and a correctness proof as returned by the root rollup circuit.
    */
   public async buildL2Block(
-    blockNumber: number,
+    globalVariables: GlobalVariables,
     txs: ProcessedTx[],
     newL1ToL2Messages: Fr[],
-    timestamp = 0,
   ): Promise<[L2Block, Proof]> {
-    this.globalVariables = new GlobalVariables(this.chainId, this.version, new Fr(blockNumber), new Fr(timestamp));
     const [
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -115,7 +107,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     this.validateTxs(txs);
 
     // We fill the tx batch with empty txs, we process only one tx at a time for now
-    const [circuitsOutput, proof] = await this.runCircuits(txs, newL1ToL2Messages);
+    const [circuitsOutput, proof] = await this.runCircuits(globalVariables, txs, newL1ToL2Messages);
 
     const {
       endPrivateDataTreeSnapshot,
@@ -154,8 +146,8 @@ export class SoloBlockBuilder implements BlockBuilder {
     const newUnencryptedLogs = new L2BlockL2Logs(unencryptedLogsArr);
 
     const l2Block = L2Block.fromFields({
-      number: blockNumber,
-      globalVariables: this.globalVariables,
+      number: Number(globalVariables.blockNumber.value),
+      globalVariables,
       startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -214,7 +206,11 @@ export class SoloBlockBuilder implements BlockBuilder {
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
-  protected async runCircuits(txs: ProcessedTx[], newL1ToL2Messages: Fr[]): Promise<[RootRollupPublicInputs, Proof]> {
+  protected async runCircuits(
+    globalVariables: GlobalVariables,
+    txs: ProcessedTx[],
+    newL1ToL2Messages: Fr[],
+  ): Promise<[RootRollupPublicInputs, Proof]> {
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
     if (txs.length < 4 || (txs.length & (txs.length - 1)) !== 0) {
@@ -228,7 +224,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const baseRollupOutputs: [BaseOrMergeRollupPublicInputs, Proof][] = [];
     for (const pair of chunk(txs, 2)) {
       const [tx1, tx2] = pair;
-      baseRollupOutputs.push(await this.baseRollupCircuit(tx1, tx2));
+      baseRollupOutputs.push(await this.baseRollupCircuit(tx1, tx2, globalVariables));
     }
 
     // Run merge rollups in layers until we have only two outputs
@@ -251,9 +247,10 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected async baseRollupCircuit(
     tx1: ProcessedTx,
     tx2: ProcessedTx,
+    globalVariables: GlobalVariables,
   ): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
     this.debug(`Running base rollup for ${tx1.hash} ${tx2.hash}`);
-    const rollupInput = await this.buildBaseRollupInput(tx1, tx2);
+    const rollupInput = await this.buildBaseRollupInput(tx1, tx2, globalVariables);
     const rollupOutput = await this.simulator.baseRollupCircuit(rollupInput);
     await this.validateTrees(rollupOutput);
     const proof = await this.prover.getBaseRollupProof(rollupInput, rollupOutput);
@@ -525,7 +522,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected async getConstantBaseRollupData(): Promise<ConstantBaseRollupData> {
+  protected async getConstantBaseRollupData(globalVariables: GlobalVariables): Promise<ConstantBaseRollupData> {
     return ConstantBaseRollupData.from({
       baseRollupVkHash: DELETE_FR,
       mergeRollupVkHash: DELETE_FR,
@@ -538,7 +535,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot: await this.getTreeSnapshot(
         MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
       ),
-      globalVariables: this.globalVariables,
+      globalVariables,
     });
   }
 
@@ -603,11 +600,11 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   // Builds the base rollup inputs, updating the contract, nullifier, and data trees in the process
-  protected async buildBaseRollupInput(left: ProcessedTx, right: ProcessedTx) {
+  protected async buildBaseRollupInput(left: ProcessedTx, right: ProcessedTx, globalVariables: GlobalVariables) {
     const wasm = await CircuitsWasm.get();
 
     // Get trees info before any changes hit
-    const constants = await this.getConstantBaseRollupData();
+    const constants = await this.getConstantBaseRollupData(globalVariables);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     const startContractTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);

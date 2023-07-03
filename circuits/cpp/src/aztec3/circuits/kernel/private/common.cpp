@@ -164,13 +164,10 @@ void common_update_end_values(DummyBuilder& builder,
         std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs_to_insert{};
         for (size_t i = 0; i < new_l2_to_l1_msgs.size(); ++i) {
             if (!new_l2_to_l1_msgs[i].is_zero()) {
-                // @todo @LHerskind chain-ids and rollup version id should be added here. Right now, just hard coded.
-                // @todo @LHerskind chain-id is hardcoded for foundry
-                const auto chain_id = fr(31337);
                 new_l2_to_l1_msgs_to_insert[i] = compute_l2_to_l1_hash<NT>(storage_contract_address,
-                                                                           fr(1),  // rollup version id
+                                                                           private_call_public_inputs.version,
                                                                            portal_contract_address,
-                                                                           chain_id,
+                                                                           private_call_public_inputs.chain_id,
                                                                            new_l2_to_l1_msgs[i]);
             }
         }

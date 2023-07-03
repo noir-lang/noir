@@ -30,6 +30,10 @@ export class GlobalVariables {
     return new GlobalVariables(...GlobalVariables.getFields(fields));
   }
 
+  static empty(): GlobalVariables {
+    return new GlobalVariables(Fr.zero(), Fr.zero(), Fr.zero(), Fr.zero());
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader): GlobalVariables {
     const reader = BufferReader.asReader(buffer);
     return new GlobalVariables(reader.readFr(), reader.readFr(), reader.readFr(), reader.readFr());
