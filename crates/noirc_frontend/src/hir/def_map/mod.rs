@@ -78,7 +78,11 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let mut ast = parse_file(&mut context.file_manager, root_file_id, errors);
+
+        if !context.def_interner.enable_slices && crate_id == CrateId::new(1) {
+            ast.module_decls.retain(|ident| ident.0.contents != "slice");
+        }
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();

@@ -175,6 +175,9 @@ impl Driver {
         enable_slices: bool,
     ) -> Result<Warnings, ErrorsAndWarnings> {
         let mut errors = vec![];
+
+        self.context.def_interner.enable_slices = enable_slices;
+
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errors, enable_slices);
 
         if Self::has_errors(&errors, deny_warnings) {

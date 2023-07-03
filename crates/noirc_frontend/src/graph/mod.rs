@@ -15,6 +15,10 @@ pub const LOCAL_CRATE: CrateId = CrateId(0);
 pub struct CrateId(usize);
 
 impl CrateId {
+    pub fn new(id: usize) -> CrateId {
+        CrateId(id)
+    }
+
     pub fn dummy_id() -> CrateId {
         CrateId(std::usize::MAX)
     }

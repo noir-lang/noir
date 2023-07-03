@@ -70,6 +70,10 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+
+    /// This is technical debt that should be removed once we fully move over
+    /// to the new SSA pass which does have slices enabled
+    pub enable_slices: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -249,6 +253,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            enable_slices: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -597,7 +602,8 @@ enum TypeMethodKey {
     /// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
-    ArrayOrSlice,
+    Array,
+    Slice,
     Bool,
     String,
     Unit,
@@ -611,8 +617,8 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     let typ = typ.follow_bindings();
     match &typ {
         Type::FieldElement(_) => Some(FieldOrInt),
-        Type::Array(_, _) => Some(ArrayOrSlice),
-        Type::Slice(_) => Some(ArrayOrSlice),
+        Type::Array(_, _) => Some(Array),
+        Type::Slice(_) => Some(Slice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
         Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
