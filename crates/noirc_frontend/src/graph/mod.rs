@@ -85,8 +85,6 @@ impl CrateGraph {
             self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
 
         let next_file_id = roots_with_file_id.next();
-        assert!(next_file_id.is_none(), "you cannot add the same file id twice");
-
         if let Some(file_id) = next_file_id {
             return *file_id.0;
         }
