@@ -346,6 +346,16 @@ impl DataFlowGraph {
         }
     }
 
+    pub(crate) fn get_array_parameter(&self, value: ValueId) -> Option<(Rc<CompositeType>, usize)> {
+        match &self.values[self.resolve(value)] {
+            Value::Param { typ, .. } => match typ {
+                Type::Array(element_size, size) => Some((element_size.clone(), size.clone())),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     /// Sets the terminator instruction for the given basic block
     pub(crate) fn set_block_terminator(
         &mut self,

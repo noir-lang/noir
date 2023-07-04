@@ -393,6 +393,8 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         _ => vec![],
     };
 
+    dbg!(intrinsic.clone());
+
     match intrinsic {
         Intrinsic::ToBits(endian) => {
             let field = constant_args[0];
@@ -410,6 +412,12 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
             if let Some((slice, _)) = slice {
                 let slice_len = dfg.make_constant(
                     FieldElement::from(slice.len() as u128),
+                    Type::Numeric(NumericType::NativeField),
+                );
+                SimplifiedTo(slice_len)
+            } else if let Some((_, slice_len)) = dfg.get_array_parameter(arguments[0]) {
+                let slice_len = dfg.make_constant(
+                    FieldElement::from(slice_len as u128),
                     Type::Numeric(NumericType::NativeField),
                 );
                 SimplifiedTo(slice_len)
