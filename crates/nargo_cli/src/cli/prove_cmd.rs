@@ -131,6 +131,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     write_inputs_to_file(
         &public_inputs,
         &return_value,
+        &public_abi,
         &program_dir,
         verifier_name.as_str(),
         Format::Toml,
