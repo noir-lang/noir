@@ -190,7 +190,7 @@ impl<'a> FunctionContext<'a> {
             noirc_frontend::UnaryOp::Dereference => {
                 let typ = Self::convert_type(&unary.result_type);
                 rhs.map_both(typ, |rhs, element_type| {
-                    let rhs = rhs.eval_reference();
+                    let rhs = rhs.eval(self);
                     self.builder.insert_load(rhs, element_type).into()
                 })
             }

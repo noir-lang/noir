@@ -484,9 +484,8 @@ impl<'a> FunctionContext<'a> {
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
             }
             ast::LValue::Dereference { reference, .. } => {
-                let (reference, reference_lvalue) = self.extract_current_value_recursive(reference);
-                let reference_lvalue = Box::new(reference_lvalue);
-                LValue::Dereference { reference, reference_lvalue }
+                let (reference, _) = self.extract_current_value_recursive(reference);
+                LValue::Dereference { reference }
             }
         }
     }
@@ -525,7 +524,7 @@ impl<'a> FunctionContext<'a> {
     fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
         match lvalue {
             ast::LValue::Ident(ident) => {
-                let variable = self.ident_lvalue(ident);
+                let variable = self.ident_lvalue(ident).map(|value| value.eval(self).into());
                 (variable.clone(), LValue::Ident(variable))
             }
             ast::LValue::Index { array, index, element_type, location: _ } => {
@@ -540,10 +539,9 @@ impl<'a> FunctionContext<'a> {
                 (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, reference_lvalue) = self.extract_current_value_recursive(reference);
-                let reference_lvalue = Box::new(reference_lvalue);
+                let (reference, _) = self.extract_current_value_recursive(reference);
                 let dereferenced = self.dereference(&reference, element_type);
-                (dereferenced, LValue::Dereference { reference, reference_lvalue })
+                (dereferenced, LValue::Dereference { reference })
             }
         }
     }
@@ -551,10 +549,8 @@ impl<'a> FunctionContext<'a> {
     /// Assigns a new value to the given LValue.
     /// The LValue can be created via a previous call to extract_current_value.
     /// This method recurs on the given LValue to create a new value to assign an allocation
-    /// instruction within an LValue::Ident - see the comment on `extract_current_value` for more
-    /// details.
-    /// When first-class references are supported the nearest reference may be in any LValue
-    /// variant rather than just LValue::Ident.
+    /// instruction within an LValue::Ident or LValue::Dereference - see the comment on
+    /// `extract_current_value` for more details.
     pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
         match lvalue {
             LValue::Ident(references) => self.assign(references, new_value),
@@ -567,7 +563,7 @@ impl<'a> FunctionContext<'a> {
                 let new_object = Self::replace_field(old_object, index, new_value);
                 self.assign_new_value(*object_lvalue, new_object);
             }
-            LValue::Dereference { reference, .. } => {
+            LValue::Dereference { reference } => {
                 self.assign(reference, new_value);
             }
         }
@@ -741,5 +737,5 @@ pub(super) enum LValue {
     Ident(Values),
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
-    Dereference { reference: Values, reference_lvalue: Box<LValue> },
+    Dereference { reference: Values },
 }

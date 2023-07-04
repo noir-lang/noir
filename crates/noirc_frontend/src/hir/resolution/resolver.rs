@@ -848,8 +848,7 @@ impl<'a> Resolver<'a> {
             }
             LValue::Dereference(lvalue) => {
                 let lvalue = Box::new(self.resolve_lvalue(*lvalue));
-                let element_type = Type::Error;
-                HirLValue::Dereference { lvalue, element_type }
+                HirLValue::Dereference { lvalue, element_type: Type::Error }
             }
         }
     }
