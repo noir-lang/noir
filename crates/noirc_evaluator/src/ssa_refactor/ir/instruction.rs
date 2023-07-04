@@ -410,7 +410,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
             if let Some((slice, _)) = slice {
                 let slice_len = dfg.make_constant(
                     FieldElement::from(slice.len() as u128),
-                    Type::Numeric(NumericType::NativeField),
+                    Type::field(),
                 );
                 SimplifiedTo(slice_len)
             } else if let Some((_, slice_len)) = dfg.get_array_parameter(arguments[0]) {
