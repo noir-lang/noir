@@ -24,16 +24,15 @@ export const standardBasedTreeTestSuite = (
     let pedersen: Pedersen;
     const values: Buffer[] = [];
 
-    beforeAll(() => {
+    beforeAll(async () => {
+      wasm = await CircuitsWasm.get();
+      pedersen = new Pedersen(wasm);
+
       for (let i = 0; i < 4; ++i) {
         const v = Buffer.alloc(32, i + 1);
         v.writeUInt32BE(i, 28);
         values[i] = v;
       }
-    });
-    beforeEach(async () => {
-      wasm = await CircuitsWasm.get();
-      pedersen = new Pedersen(wasm);
     });
 
     it('should have correct empty tree root for depth 32', async () => {

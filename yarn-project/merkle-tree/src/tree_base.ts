@@ -6,7 +6,7 @@ import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
 
 const MAX_DEPTH = 254;
 
-const indexToKeyHash = (name: string, level: number, index: bigint) => `${name}:${level}:${index}`;
+export const indexToKeyHash = (name: string, level: number, index: bigint) => `${name}:${level}:${index}`;
 const encodeMeta = (root: Buffer, depth: number, size: bigint) => {
   const data = Buffer.alloc(36);
   root.copy(data);
@@ -34,13 +34,13 @@ export abstract class TreeBase implements MerkleTree {
   protected cachedSize?: bigint;
   private root!: Buffer;
   private zeroHashes: Buffer[] = [];
-  private cache: { [key: string]: Buffer } = {};
+  protected cache: { [key: string]: Buffer } = {};
 
   public constructor(
     protected db: LevelUp,
     protected hasher: Hasher,
-    private name: string,
-    private depth: number,
+    protected name: string,
+    protected depth: number,
     protected size: bigint = 0n,
     root?: Buffer,
   ) {
@@ -184,11 +184,11 @@ export abstract class TreeBase implements MerkleTree {
    * Returns the latest value at the given index.
    * @param level - The level of the tree.
    * @param index - The index of the element.
-   * @param includeUncommitted - Indicates, whether to get include uncomitted changes.
+   * @param includeUncommitted - Indicates, whether to get include uncommitted changes.
    * @returns The latest value at the given index.
    * Note: If the value is not in the cache, it will be fetched from the database.
    */
-  private async getLatestValueAtIndex(level: number, index: bigint, includeUncommitted: boolean): Promise<Buffer> {
+  protected async getLatestValueAtIndex(level: number, index: bigint, includeUncommitted: boolean): Promise<Buffer> {
     const key = indexToKeyHash(this.name, level, index);
     if (includeUncommitted && this.cache[key] !== undefined) {
       return this.cache[key];
