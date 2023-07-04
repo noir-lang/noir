@@ -170,7 +170,11 @@ impl Driver {
     ///
     /// This returns a (possibly empty) vector of any warnings found on success.
     /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-    pub fn check_crate(&mut self, deny_warnings: bool, enable_slices: bool) -> Result<Warnings, ErrorsAndWarnings> {
+    pub fn check_crate(
+        &mut self,
+        deny_warnings: bool,
+        enable_slices: bool,
+    ) -> Result<Warnings, ErrorsAndWarnings> {
         // Add the stdlib before we check the crate
         // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
         // however, the `create_non_local_crate` panics if you add the stdlib as the first crate in the graph and other
