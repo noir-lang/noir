@@ -346,12 +346,13 @@ impl DataFlowGraph {
         }
     }
 
+    /// Returns the Type::Array associated with this ValueId if it refers to an array parameter.
+    /// Otherwise, this returns None.
     pub(crate) fn get_array_parameter(&self, value: ValueId) -> Option<(Rc<CompositeType>, usize)> {
         match &self.values[self.resolve(value)] {
-            Value::Param { typ, .. } => match typ {
-                Type::Array(element_size, size) => Some((element_size.clone(), size.clone())),
-                _ => None,
-            },
+            Value::Param { typ: Type::Array(element_type, size), .. } => {
+                Some((element_type.clone(), *size))
+            }
             _ => None,
         }
     }
