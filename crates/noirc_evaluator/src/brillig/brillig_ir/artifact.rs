@@ -73,7 +73,7 @@ impl BrilligArtifact {
         }
     }
 
-    /// Creates an entry point artifact wrapping the bytecode of the function provided.
+    /// Creates an entry point artifact that will jump to the function label provided.
     pub(crate) fn new_entry_point_artifact(
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
