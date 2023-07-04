@@ -2,7 +2,7 @@
 impl<T> [T] {
     /// Push a new element to the end of the slice, returning a
     /// new slice with a length one greater than the
-    /// original unmodified vector.
+    /// original unmodified slice.
     #[builtin(slice_push_back)]
     fn push_back(_self: Self, _elem: T) -> Self { }
 
