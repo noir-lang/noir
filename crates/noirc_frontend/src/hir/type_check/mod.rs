@@ -159,7 +159,7 @@ mod test {
         function::{FuncMeta, HirFunction, Param},
         stmt::HirStatement,
     };
-    use crate::node_interner::{DefinitionKind, FuncId, Mutability, NodeInterner};
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
     use crate::BinaryOpKind;
     use crate::{
         hir::{
@@ -177,11 +177,7 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_definition(
-            "x".into(),
-            Mutability::Immutable,
-            DefinitionKind::Local(None),
-        );
+        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None));
 
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
@@ -190,19 +186,11 @@ mod test {
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition(
-            "y".into(),
-            Mutability::Immutable,
-            DefinitionKind::Local(None),
-        );
+        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None));
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition(
-            "z".into(),
-            Mutability::Immutable,
-            DefinitionKind::Local(None),
-        );
+        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None));
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -234,11 +222,7 @@ mod test {
 
         let name = HirIdent {
             location,
-            id: interner.push_definition(
-                "test_func".into(),
-                Mutability::Immutable,
-                DefinitionKind::Local(None),
-            ),
+            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None)),
         };
 
         // Add function meta
