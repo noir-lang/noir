@@ -50,9 +50,9 @@ impl<T> [T] {
         accumulator
     }
 
-    // Apply a function to each element of the array and an accumulator value,
+    // Apply a function to each element of the slice and an accumulator value,
     // returning the final accumulated value. Unlike fold, reduce uses the first
-    // element of the given array as its starting accumulator value.
+    // element of the given slice as its starting accumulator value.
     fn reduce(self, f: fn(T, T) -> T) -> T {
         let mut accumulator = self[0];
         for i in 1 .. self.len() {
