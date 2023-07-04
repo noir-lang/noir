@@ -10,19 +10,16 @@ fn main(mut x: i32, mut y: i32, mut z: i32) {
     assert(x / y == z);
 
     // -7/3 = -2
-    x = 0-x;
-    z = 0-z;
-    assert(x+7==0);
-    assert(z+2==0);
-    assert(x / y == z);
+    let minus_x = 0-x;
+    let minus_z = 0-z;
+    let minus_y = 0-y;
+    assert(x+minus_x==0);
+    assert(z+minus_z==0);
+    assert(minus_x / y == minus_z);
 
     // -7/-3 = 2
-    y = 0 - y;
-    z = 0-z;
-    assert(x / y == z);
+    assert(minus_x / minus_y == z);
    
     // 7/-3 = -2
-    x = 0 - x;
-    z = 0-z;
-    assert(x / y == z);
+    assert(x / minus_y == minus_z);
 }

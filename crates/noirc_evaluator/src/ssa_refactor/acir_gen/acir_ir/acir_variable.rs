@@ -455,7 +455,7 @@ impl AcirContext {
         let rhs_expr = rhs_data.to_expression();
         let l_witness = self.acir_ir.get_or_create_witness(&lhs_expr);
         let r_witness = self.acir_ir.get_or_create_witness(&rhs_expr);
-        assert_ne!(bit_size, 0);
+        assert_ne!(bit_size, 0, "signed integer should have at least one bit");
         let (q, r) =
             self.acir_ir.signed_division(&l_witness.into(), &r_witness.into(), bit_size)?;
 
