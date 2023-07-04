@@ -1,4 +1,4 @@
-use crate::graph::{CrateId, LOCAL_CRATE};
+use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
@@ -86,9 +86,13 @@ impl CrateDefMap {
         // The last crate represents the stdlib crate.
         // After resolving the manifest of the local crate the stdlib is added to the manifest and propagated to all crates
         // thus being the last crate.
-        if !context.def_interner.enable_slices
-            && CrateId::new(context.crate_graph.len() - 1) == crate_id
-        {
+        if !context.def_interner.enable_slices && context.crate_graph.is_last_crate(crate_id) {
+            let path_as_str = context
+                .file_manager
+                .path(root_file_id)
+                .to_str()
+                .expect("expected std path to be convertible to str");
+            assert_eq!(path_as_str, "std");
             ast.module_decls.retain(|ident| ident.0.contents != "slice");
         }
 

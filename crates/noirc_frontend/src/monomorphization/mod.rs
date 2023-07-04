@@ -1065,9 +1065,13 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
 }
 
 fn unwrap_array_element_type(typ: &HirType) -> HirType {
-    match typ.clone() {
-        HirType::Array(_, elem) => *elem,
-        HirType::Slice(elem) => *elem,
+    match typ {
+        HirType::Array(_, elem) => *elem.clone(),
+        HirType::Slice(elem) => *elem.clone(),
+        HirType::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
+            TypeBinding::Unbound(_) => unreachable!(),
+        },
         other => {
             unreachable!("unwrap_array_element_type: expected an array or slice, found {:?}", other)
         }

@@ -16,10 +16,6 @@ pub const LOCAL_CRATE: CrateId = CrateId(0);
 pub struct CrateId(usize);
 
 impl CrateId {
-    pub fn new(id: usize) -> CrateId {
-        CrateId(id)
-    }
-
     pub fn dummy_id() -> CrateId {
         CrateId(std::usize::MAX)
     }
@@ -53,8 +49,8 @@ pub struct CrateGraph {
 }
 
 impl CrateGraph {
-    pub fn len(&self) -> usize {
-        self.arena.len()
+    pub fn is_last_crate(&self, crate_id: CrateId) -> bool {
+        (self.arena.len() - 1) == crate_id.0
     }
 }
 

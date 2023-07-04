@@ -380,30 +380,28 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         _ => return None,
     };
 
-    // Fetch args for intrinsic functions with only constant args
-    let constant_args = match intrinsic {
-        Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => {
-            let constant_args: Option<Vec<_>> =
-                arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-            match constant_args {
-                Some(constant_args) => constant_args,
-                Option::None => return None,
-            }
-        }
-        _ => vec![],
-    };
+    let constant_args: Option<Vec<_>> =
+        arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
 
     match intrinsic {
         Intrinsic::ToBits(endian) => {
-            let field = constant_args[0];
-            let limb_count = constant_args[1].to_u128() as u32;
-            SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+            if let Some(constant_args) = constant_args {
+                let field = constant_args[0];
+                let limb_count = constant_args[1].to_u128() as u32;
+                SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+            } else {
+                None
+            }
         }
         Intrinsic::ToRadix(endian) => {
-            let field = constant_args[0];
-            let radix = constant_args[1].to_u128() as u32;
-            let limb_count = constant_args[2].to_u128() as u32;
-            SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+            if let Some(constant_args) = constant_args {
+                let field = constant_args[0];
+                let radix = constant_args[1].to_u128() as u32;
+                let limb_count = constant_args[2].to_u128() as u32;
+                SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+            } else {
+                None
+            }
         }
         Intrinsic::ArrayLen => {
             let slice = dfg.get_array_constant(arguments[0]);

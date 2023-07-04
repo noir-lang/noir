@@ -40,8 +40,11 @@ impl<'interner> TypeChecker<'interner> {
 
                         let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
-                        let arr_type = if arr.is_empty() && self.interner.enable_slices {
-                            Type::Slice(Box::new(self.interner.next_type_variable()))
+                        let arr_type = if arr.is_empty() {
+                            Type::Array(
+                                Box::new(Type::Constant(0u64)),
+                                Box::new(self.interner.next_type_variable()),
+                            )
                         } else {
                             Type::Array(
                                 Box::new(Type::Constant(arr.len() as u64)),
