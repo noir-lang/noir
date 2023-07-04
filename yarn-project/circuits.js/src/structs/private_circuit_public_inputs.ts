@@ -60,12 +60,12 @@ export class PrivateCircuitPublicInputs {
      * Hash of the encrypted logs emitted in this function call.
      * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
      */
-    public encryptedLogsHash: [Fr, Fr],
+    public encryptedLogsHash: Fr[],
     /**
      * Hash of the unencrypted logs emitted in this function call.
      * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
      */
-    public unencryptedLogsHash: [Fr, Fr],
+    public unencryptedLogsHash: Fr[],
     /**
      * Length of the encrypted log preimages emitted in this function call.
      * Note: Here so that the gas cost of this request can be measured by circuits, without actually needing to feed
@@ -143,8 +143,8 @@ export class PrivateCircuitPublicInputs {
       frArray(PRIVATE_CALL_STACK_LENGTH),
       frArray(PUBLIC_CALL_STACK_LENGTH),
       frArray(NEW_L2_TO_L1_MSGS_LENGTH),
-      frArray(NUM_FIELDS_PER_SHA256) as [Fr, Fr],
-      frArray(NUM_FIELDS_PER_SHA256) as [Fr, Fr],
+      frArray(NUM_FIELDS_PER_SHA256),
+      frArray(NUM_FIELDS_PER_SHA256),
       Fr.ZERO,
       Fr.ZERO,
       Fr.ZERO,

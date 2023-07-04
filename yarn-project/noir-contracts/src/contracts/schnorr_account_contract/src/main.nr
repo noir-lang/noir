@@ -2,17 +2,17 @@
 // where the user is authenticated with a Schnorr signature.
 contract SchnorrAccount {
     use dep::std;
-    use dep::aztec3::entrypoint;
-    use dep::aztec3::entrypoint::EntrypointPayload;
-    use dep::aztec3::abi;
-    use dep::aztec3::abi::PrivateContextInputs;
-    use dep::aztec3::abi::CallContext;
-    use dep::aztec3::private_call_stack_item::PrivateCallStackItem;
-    use dep::aztec3::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec3::context::PrivateFunctionContext;
-    use dep::aztec3::types::vec::BoundedVec;
-    use dep::aztec3::types::point::Point;
-    use dep::aztec3::oracle::debug_log::debug_log_format;
+    use dep::aztec::entrypoint;
+    use dep::aztec::entrypoint::EntrypointPayload;
+    use dep::aztec::abi;
+    use dep::aztec::abi::PrivateContextInputs;
+    use dep::aztec::abi::CallContext;
+    use dep::aztec::private_call_stack_item::PrivateCallStackItem;
+    use dep::aztec::public_call_stack_item::PublicCallStackItem;
+    use dep::aztec::context::Context;
+    use dep::aztec::types::vec::BoundedVec;
+    use dep::aztec::types::point::Point;
+    use dep::aztec::oracle::debug_log::debug_log_format;
 
     // A function which has to be implemented by every account abstraction contract.
     fn entrypoint(
@@ -31,7 +31,7 @@ contract SchnorrAccount {
         args = args.push_array(signature);
         args = args.push(partialContractAddress);
         
-        let mut context = PrivateFunctionContext::new(inputs, abi::hash_args(args.storage));
+        let mut context = Context::new(inputs, abi::hash_args(args.storage));
 
         // Decompress signature from 3 fields to 64 bytes
         let mut decompressed_signature: [u8;64] = [0;64];
@@ -71,7 +71,7 @@ contract SchnorrAccount {
 
         // TODO: When we can use pedersen with non-zero generators, get this working        
         //let reproduced_address = dep::std::hash::pedersen([owner, partialContractAddress])[0];
-        //constrain reproduced_address == inputs.call_context.storage_contract_address;
+        //assert(reproduced_address == inputs.call_context.storage_contract_address);
 
         // Call private functions
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
@@ -103,6 +103,6 @@ contract SchnorrAccount {
         inputs: pub PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        PrivateFunctionContext::new(inputs, 0).finish()
+        Context::new(inputs, 0).finish()
     }
 }

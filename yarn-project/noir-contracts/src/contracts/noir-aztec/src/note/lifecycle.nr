@@ -1,0 +1,44 @@
+use crate::context::Context;
+use crate::note::note_hash::compute_final_note_hash;
+use crate::note::note_hash::compute_siloed_note_hash;
+use crate::note::note_interface::NoteInterface;
+use crate::oracle::notes::notify_created_note;
+use crate::oracle::notes::notify_nullified_note;
+
+fn create_note<Note, N>(
+    mut context: Context,
+    storage_slot: Field,
+    note: Note,
+    note_interface: NoteInterface<Note, N>,
+) -> Context {
+    let compute_note_hash = note_interface.compute_note_hash;
+    let note_hash = compute_note_hash(note);
+    let siloed_note_hash = compute_siloed_note_hash(storage_slot, note_hash);
+    context = context.push_new_note_hash(siloed_note_hash);
+
+    let serialise = note_interface.serialise;
+    let preimage = serialise(note);
+    assert(notify_created_note(storage_slot, preimage) == 0);
+
+    context
+}
+
+fn destroy_note<Note, N>(
+    mut context: Context,
+    storage_slot: Field,
+    note: Note,
+    note_interface: NoteInterface<Note, N>,
+) -> Context {
+    let compute_note_hash = note_interface.compute_note_hash;
+    let note_hash = compute_note_hash(note);
+    let final_note_hash = compute_final_note_hash(storage_slot, note_hash);
+    let compute_nullifier = note_interface.compute_nullifier;
+    let nullifier = compute_nullifier(note, final_note_hash);
+    context = context.push_new_nullifier(nullifier);
+
+    let serialise = note_interface.serialise;
+    let preimage = serialise(note);
+    assert(notify_nullified_note(storage_slot, nullifier, preimage) == 0);
+
+    context
+}

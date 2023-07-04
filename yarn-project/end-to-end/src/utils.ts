@@ -248,7 +248,7 @@ export async function calculateStorageSlot(slot: bigint, key: Fr): Promise<Fr> {
   const mappingStorageSlot = new Fr(4n); // The pedersen domain separator for storage slot calculations.
 
   // Based on `at` function in
-  // aztec3-packages/yarn-project/noir-contracts/src/contracts/noir-aztec3/src/state_vars/storage_map.nr
+  // aztec3-packages/yarn-project/noir-contracts/src/contracts/noir-aztec/src/state_vars/map.nr
   const storageSlot = Fr.fromBuffer(
     pedersenPlookupCommitInputs(
       wasm,

@@ -98,14 +98,10 @@ export class PrivateFunctionExecution {
         return preimages;
       },
       getRandomField: () => Promise.resolve([toACVMField(Fr.random())]),
-      notifyCreatedNote: ([storageSlot, ownerX, ownerY, ...acvmPreimage]: ACVMField[]) => {
+      notifyCreatedNote: ([storageSlot, ...acvmPreimage]: ACVMField[]) => {
         newNotePreimages.push({
-          preimage: acvmPreimage.map(f => fromACVMField(f)),
           storageSlot: fromACVMField(storageSlot),
-          owner: {
-            x: fromACVMField(ownerX),
-            y: fromACVMField(ownerY),
-          },
+          preimage: acvmPreimage.map(f => fromACVMField(f)),
         });
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },

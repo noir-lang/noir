@@ -74,12 +74,11 @@ export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): AC
     ...publicInputs.privateCallStack.map(toACVMField),
     ...publicInputs.publicCallStack.map(toACVMField),
     ...publicInputs.newL2ToL1Msgs.map(toACVMField),
-    // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
-    // ...publicInputs.encryptedLogsHash.map(toACVMField),
-    // ...publicInputs.unencryptedLogsHash.map(toACVMField),
+    ...publicInputs.encryptedLogsHash.map(toACVMField),
+    ...publicInputs.unencryptedLogsHash.map(toACVMField),
 
-    // toACVMField(publicInputs.encryptedLogPreimagesLength),
-    // toACVMField(publicInputs.unencryptedLogPreimagesLength),
+    toACVMField(publicInputs.encryptedLogPreimagesLength),
+    toACVMField(publicInputs.unencryptedLogPreimagesLength),
     toACVMField(publicInputs.historicPrivateDataTreeRoot),
     toACVMField(publicInputs.historicPrivateNullifierTreeRoot),
     toACVMField(publicInputs.historicContractTreeRoot),

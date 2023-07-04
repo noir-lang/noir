@@ -1,0 +1,1 @@
+global VALUE_NOTE = 2;

@@ -1,0 +1,120 @@
+use crate::abi::CallContext;
+use crate::abi::hash_args;
+use crate::abi::ContractDeploymentData;
+use crate::context::Context;
+use crate::abi::PublicCircuitPublicInputs;
+use crate::abi::FunctionData;
+use crate::types::vec::BoundedVec;
+use crate::utils::arr_copy_slice;
+
+// oracles
+use crate::oracle::enqueue_public_function_call::enqueue_public_function_call_internal;
+use crate::oracle::public_call::call_public_function_internal;
+use crate::oracle::arguments;
+
+struct PublicCallStackItem {
+    contract_address: Field,
+    function_data: FunctionData,
+    public_inputs: PublicCircuitPublicInputs,
+    is_execution_request: bool,
+}
+
+impl PublicCallStackItem {
+    fn call<ARGS_COUNT>(
+        contract_address: Field, 
+        function_selector: Field, 
+        args: [Field; ARGS_COUNT], 
+        mut context: Context) -> (Self, Context) {
+        let args_hash = hash_args(args);
+        assert(args_hash == arguments::pack_arguments(args));
+        PublicCallStackItem::call_with_packed_args(contract_address, function_selector, args_hash, context)
+    }
+
+    fn call_with_packed_args(contract_address: Field, function_selector: Field, args_hash: Field, mut context: Context) -> (Self, Context) {
+        let fields = enqueue_public_function_call_internal(
+            contract_address, 
+            function_selector, 
+            args_hash
+        );
+        let item = PublicCallStackItem {
+            contract_address: fields[0],
+            function_data: FunctionData {
+                function_selector: fields[1],
+                is_private: fields[2] as bool,
+                is_constructor: fields[3] as bool,
+            },
+            public_inputs: PublicCircuitPublicInputs {
+                call_context: CallContext {
+                    msg_sender : fields[4],
+                    storage_contract_address : fields[5],
+                    portal_contract_address : fields[6],
+                    
+                    is_delegate_call : fields[7] as bool,
+                    is_static_call : fields[8] as bool,
+                    is_contract_deployment: fields[9] as bool,
+                },
+                args_hash: fields[10],
+                return_values: [0; crate::abi::MAX_RETURN_VALUES],
+                contract_storage_update_requests: [crate::abi::empty_contract_storage_update_request(); crate::abi::CONTRACT_STORAGE_UPDATE_REQUESTS_LENGTH],
+                contract_storage_read: [crate::abi::empty_contract_storage_read(); crate::abi::CONTRACT_STORAGE_READS_LENGTH],
+                public_call_stack: [0; crate::abi::MAX_PUBLIC_CALL_STACK],
+                new_commitments: [0; crate::abi::MAX_NEW_COMMITMENTS],
+                new_nullifiers: [0; crate::abi::MAX_NEW_NULLIFIERS],
+                new_l2_to_l1_msgs:[0; crate::abi::MAX_L2_TO_L1_MSGS],
+                commitment_trees_roots: crate::abi::empty_commitment_trees_roots(),
+                historic_public_data_tree_root: 0,
+                prover_address: 0,
+            },
+            is_execution_request: true,
+        };
+
+        assert(contract_address == item.contract_address);
+        assert(function_selector == item.function_data.function_selector);
+        
+        assert(args_hash == item.public_inputs.args_hash);
+
+        assert(item.public_inputs.call_context.is_delegate_call == false);
+        assert(item.public_inputs.call_context.is_static_call == false);
+        assert(item.public_inputs.call_context.is_contract_deployment == false);
+
+        context.public_call_stack = context.public_call_stack.push(item.hash());
+
+        (item, context)
+    }
+
+    fn hash(self) -> Field {
+        dep::std::hash::pedersen([
+            // TODO hash_index
+            // FIXME - https://github.com/AztecProtocol/aztec-packages/issues/499
+            self.contract_address,
+            self.function_data.hash(),
+            self.public_inputs.hash(),
+        ])[0]
+    }
+}
+
+
+fn call_public_function<N>(
+    contract_address: Field, 
+    function_selector: Field,
+    args: [Field; N],
+) -> [Field; crate::abi::MAX_RETURN_VALUES] {
+    let args_hash = hash_args(args);
+    assert(args_hash == arguments::pack_arguments(args));
+    call_public_function_internal(
+        contract_address, 
+        function_selector, 
+        args_hash,
+    )
+}
+
+fn call_public_function_no_args(
+    contract_address: Field, 
+    function_selector: Field,
+) -> [Field; crate::abi::MAX_RETURN_VALUES] {
+    call_public_function_internal(
+        contract_address, 
+        function_selector, 
+        0,
+    )
+}

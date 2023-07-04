@@ -11,13 +11,6 @@ export interface NewNoteData {
   preimage: Fr[];
   /** The storage slot of the note. */
   storageSlot: Fr;
-  /** The note owner. */
-  owner: {
-    /** The x coordinate. */
-    x: Fr;
-    /** The y coordinate. */
-    y: Fr;
-  };
 }
 
 /**

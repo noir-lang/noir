@@ -3,4 +3,4 @@ authors = [""]
 compiler_version = "0.1"
 
 [dependencies]
-aztec3 = { path = "../noir-aztec3" }
+aztec = { path = "../noir-aztec" }

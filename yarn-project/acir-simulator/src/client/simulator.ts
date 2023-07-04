@@ -127,34 +127,39 @@ export class AcirSimulator {
   // TODO Should be run as unconstrained function
   /**
    * Computes the hash of a note.
+   * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
    * @param bbWasm - The WASM instance.
    * @returns The note hash.
    */
-  public computeNoteHash(notePreimage: Fr[], bbWasm: CircuitsWasm) {
-    return pedersenPlookupCommitInputs(bbWasm, [
+  public computeNoteHash(storageSlot: Fr, notePreimage: Fr[], bbWasm: CircuitsWasm) {
+    // TODO: Remove index for inner note hash.
+    const innerNoteHash = pedersenPlookupCommitInputs(bbWasm, [
       NOTE_PEDERSEN_CONSTANT.toBuffer(),
       ...notePreimage.map(x => x.toBuffer()),
     ]);
+    return pedersenPlookupCommitInputs(bbWasm, [storageSlot.toBuffer(), innerNoteHash]);
   }
 
   // TODO Should be run as unconstrained function
   /**
    * Computes the nullifier of a note.
+   * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
    * @param privateKey - The private key of the owner.
    * @param bbWasm - The WASM instance.
    * @returns The nullifier.
    */
-  public computeNullifier(notePreimage: Fr[], privateKey: Buffer, bbWasm: CircuitsWasm) {
-    const noteHash = this.computeNoteHash(notePreimage, bbWasm);
-    return pedersenPlookupCommitInputs(bbWasm, [NULLIFIER_PEDERSEN_CONSTANT.toBuffer(), noteHash, privateKey]);
+  public computeNullifier(storageSlot: Fr, notePreimage: Fr[], privateKey: Buffer, bbWasm: CircuitsWasm) {
+    const noteHash = this.computeNoteHash(storageSlot, notePreimage, bbWasm);
+    return pedersenPlookupCommitInputs(bbWasm, [noteHash, privateKey]);
   }
 
   // TODO Should be run as unconstrained function
   /**
    * Computes a nullifier siloed to a contract.
    * @param contractAddress - The address of the contract.
+   * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
    * @param privateKey - The private key of the owner.
    * @param bbWasm - The WASM instance.
@@ -162,11 +167,12 @@ export class AcirSimulator {
    */
   public computeSiloedNullifier(
     contractAddress: AztecAddress,
+    storageSlot: Fr,
     notePreimage: Fr[],
     privateKey: Buffer,
     bbWasm: CircuitsWasm,
   ) {
-    const nullifier = this.computeNullifier(notePreimage, privateKey, bbWasm);
+    const nullifier = this.computeNullifier(storageSlot, notePreimage, privateKey, bbWasm);
     return pedersenCompressWithHashIndex(
       bbWasm,
       [contractAddress.toBuffer(), nullifier],

@@ -1,11 +1,10 @@
-import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
-
 import {
   CallContext,
   ContractDeploymentData,
-  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_COMMITMENTS_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
+  NUM_FIELDS_PER_SHA256,
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
   PrivateCircuitPublicInputs,
@@ -16,6 +15,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { getReturnWitness } from 'acvm-simulator';
+import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
 
 // Utilities to read TS classes from ACVM Field arrays
 // In the order that the ACVM provides them
@@ -130,15 +130,10 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
   const publicCallStack = witnessReader.readFieldArray(PUBLIC_CALL_STACK_LENGTH);
   const newL2ToL1Msgs = witnessReader.readFieldArray(NEW_L2_TO_L1_MSGS_LENGTH);
 
-  // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
-  // const encryptedLogsHash = witnessReader.readFieldArray(NUM_FIELDS_PER_SHA256);
-  // const unencryptedLogsHash = witnessReader.readFieldArray(NUM_FIELDS_PER_SHA256);
-  // const encryptedLogPreimagesLength = witnessReader.readField();
-  // const unencryptedLogPreimagesLength = witnessReader.readField();
-  const encryptedLogsHash = [new Fr(0), new Fr(0)] as [Fr, Fr];
-  const unencryptedLogsHash = [new Fr(0), new Fr(0)] as [Fr, Fr];
-  const encryptedLogPreimagesLength = new Fr(0);
-  const unencryptedLogPreimagesLength = new Fr(0);
+  const encryptedLogsHash = witnessReader.readFieldArray(NUM_FIELDS_PER_SHA256);
+  const unencryptedLogsHash = witnessReader.readFieldArray(NUM_FIELDS_PER_SHA256);
+  const encryptedLogPreimagesLength = witnessReader.readField();
+  const unencryptedLogPreimagesLength = witnessReader.readField();
 
   const privateDataTreeRoot = witnessReader.readField();
   const nullifierTreeRoot = witnessReader.readField();

@@ -3,15 +3,15 @@
 // behalf.
 contract GullibleAccount {
     use dep::std;
-    use dep::aztec3::entrypoint;
-    use dep::aztec3::entrypoint::EntrypointPayload;
-    use dep::aztec3::abi;
-    use dep::aztec3::abi::PrivateContextInputs;
-    use dep::aztec3::abi::CallContext;
-    use dep::aztec3::private_call_stack_item::PrivateCallStackItem;
-    use dep::aztec3::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec3::context::PrivateFunctionContext;
-    use dep::aztec3::types::vec::BoundedVec;
+    use dep::aztec::entrypoint;
+    use dep::aztec::entrypoint::EntrypointPayload;
+    use dep::aztec::abi;
+    use dep::aztec::abi::PrivateContextInputs;
+    use dep::aztec::abi::CallContext;
+    use dep::aztec::private_call_stack_item::PrivateCallStackItem;
+    use dep::aztec::public_call_stack_item::PublicCallStackItem;
+    use dep::aztec::context::Context;
+    use dep::aztec::types::vec::BoundedVec;
 
     // A function which has to be implemented by every account abstraction contract.
     fn entrypoint(
@@ -24,7 +24,7 @@ contract GullibleAccount {
         args = args.push_array(payload.serialize());
         args = args.push_array(signature);
         
-        let mut context = PrivateFunctionContext::new(inputs, abi::hash_args(args.storage));
+        let mut context = Context::new(inputs, abi::hash_args(args.storage));
 
         // Call private functions
         for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
@@ -55,6 +55,6 @@ contract GullibleAccount {
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        PrivateFunctionContext::new(inputs, 0).finish()
+        Context::new(inputs, 0).finish()
     }
 }
